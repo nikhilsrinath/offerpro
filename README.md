@@ -1,16 +1,44 @@
-# React + Vite
+# OfferPro | All-in-One Business Suite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A premium, automated business suite for top-tier organizations. Automate hiring, certification, and legal documentation in seconds with professional fidelity.
 
-Currently, two official plugins are available:
+## 🚀 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Parallax Landing Page**: Sleek, high-performance entrance with modern aesthetics.
+- **Enterprise Auth**: Organization-based management powered by Supabase.
+- **Offer Letter Generator**: High-fidelity employment and internship documentation.
+- **Certification Suite**: Issue professional achievement certificates with cloud-sync.
+- **Cloud Records**: Securely store and manage all issued documents in one place.
 
-## React Compiler
+## 🛠️ Technology Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend**: React + Vite
+- **Styling**: Vanilla CSS (Custom Design System)
+- **Icons**: Lucide React
+- **PDF Generation**: jsPDF
+- **Backend / Auth**: Supabase
 
-## Expanding the ESLint configuration
+## 🏁 Getting Started
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+1. **Install Dependencies**:
+
+   ```bash
+   npm install
+   ```
+
+2. **Environment Setup**:
+   Create a `.env` file with your Supabase credentials:
+
+   ```env
+   VITE_SUPABASE_URL=your_url
+   VITE_SUPABASE_ANON_KEY=your_key
+   ```
+
+3. **Run Dev Server**:
+   ```bash
+   npm run dev
+   ```
+
+## 📜 Database Schema
+
+Refer to the `walkthrough.md` in the brain directory for the SQL required to set up the `organizations`, `org_members`, and `records` tables.

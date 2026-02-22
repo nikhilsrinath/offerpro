@@ -2,8 +2,12 @@ import { useState } from 'react';
 import { Upload, Download, CheckCircle, Camera, Building, User, Calendar, CreditCard, ChevronRight } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
+import { useAuth } from '../context/AuthContext';
+import { useOrg } from '../context/OrgContext';
 
 export default function OfferForm({ onSuccess }) {
+  const { user } = useAuth();
+  const { activeOrg } = useOrg();
   const [formData, setFormData] = useState({
     offerType: 'internship', // 'internship' or 'fulltime'
     companyName: '',
@@ -65,11 +69,11 @@ export default function OfferForm({ onSuccess }) {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      storageService.save(formData);
+      await storageService.save(formData, 'offer', activeOrg?.id, user?.id);
       pdfService.generateOfferLetter(formData);
       setTimeout(() => {
         setIsSubmitting(false);
@@ -77,6 +81,7 @@ export default function OfferForm({ onSuccess }) {
       }, 800);
     } catch (err) {
       console.error(err);
+      alert("Error saving offer: " + err.message);
       setIsSubmitting(false);
     }
   };
@@ -132,8 +137,8 @@ export default function OfferForm({ onSuccess }) {
       {/* 1. Organization Setup */}
       <section className="card">
         <SectionHeader icon={Building} title="Organization Profile" />
-        <div className="grid grid-2">
-          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+        <div className="form-grid">
+          <div className="form-group" style={{ gridColumn: 'span 2' }}>
             <label>Legal Entity Name</label>
             <input name="companyName" value={formData.companyName} onChange={handleChange} required placeholder="Acme International Ltd." />
           </div>
@@ -175,7 +180,7 @@ export default function OfferForm({ onSuccess }) {
       {/* 2. Candidate Profile */}
       <section className="card">
         <SectionHeader icon={User} title="Candidate Profile" />
-        <div className="grid grid-2">
+        <div className="form-grid">
           <div className="form-group">
             <label>{formData.offerType === 'internship' ? 'Intern Name' : 'Employee Name'}</label>
             <input name="studentName" value={formData.studentName} onChange={handleChange} required placeholder="Full Name" />
@@ -198,7 +203,7 @@ export default function OfferForm({ onSuccess }) {
       {/* 3. Job Terms */}
       <section className="card">
         <SectionHeader icon={Calendar} title="Contract Terms" />
-        <div className="grid grid-2">
+        <div className="form-grid">
           <div className="form-group">
             <label>Job Title / Role</label>
             <input name="role" value={formData.role} onChange={handleChange} required placeholder="e.g. Finance Manager" />
@@ -262,7 +267,7 @@ export default function OfferForm({ onSuccess }) {
         </div>
 
         {formData.isPaid && (
-          <div className="grid grid-2 animate-in">
+          <div className="form-grid animate-in">
             <div className="form-group">
               <label>{formData.offerType === 'internship' ? 'Stipend Amount' : 'Salary Amount'}</label>
               <input type="number" name="stipend" value={formData.stipend} onChange={handleChange} required placeholder="0.00" />

@@ -1,49 +1,63 @@
-const STORAGE_KEY = 'intern_records';
+import { supabase } from '../lib/supabaseClient';
 
 export const storageService = {
-  getAll: () => {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+  getAll: async (orgId, type) => {
+    let query = supabase
+      .from('records')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (orgId) query = query.eq('organization_id', orgId);
+    if (type) query = query.eq('type', type);
+
+    const { data, error } = await query;
+    if (error) {
+      console.warn("Table 'records' might not exist yet. Check database schema.", error);
+      return [];
+    }
+    return data;
   },
 
-  save: (record) => {
-    const records = storageService.getAll();
-    const newRecord = {
-      ...record,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-    };
-    records.unshift(newRecord);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-    return newRecord;
+  save: async (recordData, type, orgId, userId) => {
+    const { data, error } = await supabase
+      .from('records')
+      .insert([{
+        data: recordData,
+        title: type === 'offer' 
+          ? recordData.studentName 
+          : type === 'certificate' 
+            ? recordData.recipientName 
+            : type === 'mou'
+              ? `${recordData.partyAName} & ${recordData.partyBName}`
+              : `Inv: ${recordData.clientName} (${recordData.invoiceNumber})`
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   },
 
-  delete: (id) => {
-    const records = storageService.getAll();
-    const filtered = records.filter(r => r.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+  delete: async (id) => {
+    const { error } = await supabase
+      .from('records')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
   },
 
-  exportToCSV: () => {
-    const records = storageService.getAll();
-    if (records.length === 0) return;
+  exportToCSV: (records) => {
+    if (!records || records.length === 0) return;
 
     const headers = [
-      'Intern Name', 'Role', 'Department', 'Start Date', 'End Date', 
-      'Paid / Unpaid', 'Stipend Amount', 'Supervisor', 'Company Name', 'Date Created'
+      'Type', 'Title', 'Date Created'
     ];
 
     const rows = records.map(r => [
-      r.studentName,
-      r.role,
-      r.department,
-      r.startDate,
-      r.endDate,
-      r.isPaid ? 'Paid' : 'Unpaid',
-      r.stipend || 'N/A',
-      r.supervisorName,
-      r.companyName,
-      new Date(r.createdAt).toLocaleDateString()
+      r.type.toUpperCase(),
+      r.title,
+      new Date(r.created_at).toLocaleDateString()
     ]);
 
     const csvContent = [
@@ -55,7 +69,7 @@ export const storageService = {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `intern_records_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `business_records_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
