@@ -1,15 +1,32 @@
-import { useState, useEffect } from 'react';
-import { Download, Trash2, Search, FileSpreadsheet, Building, Calendar, ClipboardCheck, FileText, Award, Briefcase, FileCode } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Download, Trash2, Search, FileSpreadsheet, ClipboardCheck, FileText, Award, Briefcase, FileCode, LayoutGrid, List, Eye } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { pdfService } from '../services/pdfService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
+
+const TYPE_CONFIG = {
+  offer: { icon: Briefcase, color: '#3b82f6', bg: '#3b82f612', bgSolid: 'rgba(59,130,246,0.08)', label: 'Offer Letter' },
+  certificate: { icon: Award, color: '#f59e0b', bg: '#f59e0b12', bgSolid: 'rgba(245,158,11,0.08)', label: 'Certificate' },
+  mou: { icon: FileCode, color: '#10b981', bg: '#10b98112', bgSolid: 'rgba(16,185,129,0.08)', label: 'Legal MoU' },
+  invoice: { icon: FileText, color: '#8b5cf6', bg: '#8b5cf612', bgSolid: 'rgba(139,92,246,0.08)', label: 'Invoice' }
+};
+
+const TABS = [
+  { id: 'all', label: 'All Documents' },
+  { id: 'offer', label: 'Offer Letters' },
+  { id: 'certificate', label: 'Certificates' },
+  { id: 'mou', label: 'Legal MoUs' },
+  { id: 'invoice', label: 'Invoices' },
+];
 
 export default function InternRecords() {
   const { user } = useAuth();
   const { activeOrg } = useOrg();
   const [records, setRecords] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,9 +41,9 @@ export default function InternRecords() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Delete record?')) {
+    if (window.confirm('Delete this record permanently?')) {
       try {
-        await storageService.delete(id);
+        await storageService.delete(id, activeOrg?.id);
         loadRecords();
       } catch (err) {
         alert("Error deleting record: " + err.message);
@@ -35,198 +52,292 @@ export default function InternRecords() {
   };
 
   const handleDownloadPDF = (record) => {
-    if (record.type === 'offer') {
-      pdfService.generateOfferLetter(record.data);
-    } else if (record.type === 'certificate') {
-      pdfService.generateCertificate(record.data);
-    } else if (record.type === 'mou') {
-      pdfService.generateMoU(record.data);
-    } else if (record.type === 'invoice') {
-      pdfService.generateInvoice(record.data);
-    }
+    if (record.type === 'offer') pdfService.generateOfferLetter(record.data);
+    else if (record.type === 'certificate') pdfService.generateCertificate(record.data);
+    else if (record.type === 'mou') pdfService.generateMoU(record.data);
+    else if (record.type === 'invoice') pdfService.generateInvoice(record.data);
   };
 
-  const filteredRecords = records.filter(r => 
-    r.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.type?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const counts = useMemo(() => ({
+    all: records.length,
+    offer: records.filter(r => r.type === 'offer').length,
+    certificate: records.filter(r => r.type === 'certificate').length,
+    mou: records.filter(r => r.type === 'mou').length,
+    invoice: records.filter(r => r.type === 'invoice').length,
+  }), [records]);
+
+  const filteredRecords = useMemo(() => {
+    let filtered = records;
+    if (activeTab !== 'all') {
+      filtered = filtered.filter(r => r.type === activeTab);
+    }
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(r =>
+        r.title?.toLowerCase().includes(term) ||
+        r.type?.toLowerCase().includes(term)
+      );
+    }
+    return filtered;
+  }, [records, activeTab, searchTerm]);
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '8rem 2rem' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="pro-spinner" />
+          <p style={{ color: 'rgba(255,255,255,0.4)', marginTop: '1rem', fontSize: '0.875rem' }}>Loading records...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      
-      {/* Search Header */}
-      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
-          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input 
-            type="text" 
-            placeholder="Search records..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ paddingLeft: '2.5rem', height: '44px', borderRadius: 'var(--radius-md)' }}
-          />
-        </div>
-        <button onClick={() => storageService.exportToCSV()} className="btn btn-outline" style={{ height: '44px', padding: '0 1rem' }} disabled={records.length === 0}>
-          <FileSpreadsheet size={18} />
-          <span className="hide-mobile">Export CSV</span>
-        </button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+      {/* Summary Cards */}
+      <div className="records-summary-grid">
+        {TABS.filter(t => t.id !== 'all').map(tab => {
+          const cfg = TYPE_CONFIG[tab.id];
+          const Icon = cfg.icon;
+          const count = counts[tab.id];
+          return (
+            <button
+              key={tab.id}
+              className={`records-summary-card ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(activeTab === tab.id ? 'all' : tab.id)}
+              style={{ '--card-color': cfg.color, '--card-bg': cfg.bgSolid }}
+            >
+              <div className="records-summary-icon" style={{ background: cfg.bg, color: cfg.color }}>
+                <Icon size={20} />
+              </div>
+              <div className="records-summary-info">
+                <span className="records-summary-count">{count}</span>
+                <span className="records-summary-label">{tab.label}</span>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Desktop Table */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <table className="desktop-table">
-          <thead style={{ background: 'var(--background)' }}>
-            <tr>
-              <th style={{ padding: '1rem 1.5rem', textAlign: 'left' }}><label>Intern / Org</label></th>
-              <th style={{ padding: '1rem', textAlign: 'left' }}><label>Role Info</label></th>
-              <th style={{ padding: '1rem', textAlign: 'left' }}><label>Status</label></th>
-              <th style={{ padding: '1rem 1.5rem', textAlign: 'right' }}><label>Actions</label></th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRecords.map((record) => (
-              <tr key={record.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                <td style={{ padding: '1.25rem 1.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ 
-                      width: '32px', 
-                      height: '32px', 
-                      borderRadius: '8px', 
-                      background: record.type === 'offer' ? '#eff6ff' : record.type === 'certificate' ? '#fef2f2' : record.type === 'mou' ? '#f0fdf4' : '#fff7ed', 
-                      color: record.type === 'offer' ? '#2563eb' : record.type === 'certificate' ? '#dc2626' : record.type === 'mou' ? '#16a34a' : '#ea580c',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
+      {/* Toolbar: Tabs + Search + View Toggle + Export */}
+      <div className="records-toolbar">
+        <div className="records-tabs">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              className={`records-tab ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+              <span className="records-tab-count">{counts[tab.id]}</span>
+            </button>
+          ))}
+        </div>
+        <div className="records-toolbar-right">
+          <div style={{ position: 'relative', minWidth: '200px' }}>
+            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.2)' }} />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pro-input"
+              style={{ paddingLeft: '2rem', height: '36px', fontSize: '0.8125rem' }}
+            />
+          </div>
+          <div className="records-view-toggle">
+            <button className={`records-view-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')} title="Grid view">
+              <LayoutGrid size={16} />
+            </button>
+            <button className={`records-view-btn ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')} title="List view">
+              <List size={16} />
+            </button>
+          </div>
+          <button onClick={() => storageService.exportToCSV(records)} className="records-export-btn" disabled={records.length === 0}>
+            <FileSpreadsheet size={16} />
+            <span className="hide-mobile">Export</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      {filteredRecords.length === 0 ? (
+        <div className="pro-card">
+          <div className="pro-empty" style={{ padding: '5rem 2rem' }}>
+            <ClipboardCheck size={48} strokeWidth={1} />
+            <p>{searchTerm ? 'No matching records' : activeTab !== 'all' ? `No ${TYPE_CONFIG[activeTab]?.label || ''} records` : 'No records yet'}</p>
+            <span>{searchTerm ? 'Try a different search term' : 'Create documents to see them here'}</span>
+          </div>
+        </div>
+      ) : viewMode === 'grid' ? (
+        /* Grid View */
+        <div className="records-grid">
+          {filteredRecords.map((record) => {
+            const cfg = TYPE_CONFIG[record.type] || TYPE_CONFIG.offer;
+            const Icon = cfg.icon;
+            return (
+              <div key={record.id} className="records-grid-card">
+                <div className="records-grid-card-header">
+                  <div className="records-grid-card-icon" style={{ background: cfg.bg, color: cfg.color }}>
+                    <Icon size={20} />
+                  </div>
+                  <span className="records-grid-card-type" style={{ color: cfg.color, background: cfg.bg }}>
+                    {cfg.label}
+                  </span>
+                </div>
+
+                <h4 className="records-grid-card-title">{record.title}</h4>
+
+                <div className="records-grid-card-detail">
+                  {record.type === 'offer' && record.data?.role && (
+                    <span>{record.data.role}{record.data.department ? ` · ${record.data.department}` : ''}</span>
+                  )}
+                  {record.type === 'certificate' && record.data?.achievementTitle && (
+                    <span>{record.data.achievementTitle}</span>
+                  )}
+                  {record.type === 'mou' && (
+                    <span>{(record.data?.receivingPartyName || record.data?.partyBName) ? `with ${record.data.receivingPartyName || record.data.partyBName}` : 'NDA Agreement'}</span>
+                  )}
+                  {record.type === 'invoice' && (
+                    <span>₹{record.data?.totals?.grandTotal?.toLocaleString() || '0'}{record.data?.invoiceNumber ? ` · ${record.data.invoiceNumber}` : ''}</span>
+                  )}
+                </div>
+
+                <div className="records-grid-card-date">
+                  {new Date(record.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </div>
+
+                <div className="records-grid-card-actions">
+                  <button onClick={() => handleDownloadPDF(record)} className="records-action-btn download" title="Download PDF">
+                    <Download size={14} /> Download
+                  </button>
+                  <button onClick={() => handleDelete(record.id)} className="records-action-btn delete" title="Delete">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* List View */
+        <div className="pro-card" style={{ padding: 0, overflow: 'hidden' }}>
+          <table className="desktop-table">
+            <thead>
+              <tr>
+                <th style={{ padding: '0.875rem 1.5rem', textAlign: 'left' }}><label style={{ margin: 0 }}>Document</label></th>
+                <th style={{ padding: '0.875rem 1rem', textAlign: 'left' }}><label style={{ margin: 0 }}>Details</label></th>
+                <th style={{ padding: '0.875rem 1rem', textAlign: 'left' }}><label style={{ margin: 0 }}>Date</label></th>
+                <th style={{ padding: '0.875rem 1.5rem', textAlign: 'right' }}><label style={{ margin: 0 }}>Actions</label></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRecords.map((record) => {
+                const cfg = TYPE_CONFIG[record.type] || TYPE_CONFIG.offer;
+                const Icon = cfg.icon;
+                return (
+                  <tr key={record.id}>
+                    <td style={{ padding: '1rem 1.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                          width: '34px', height: '34px', borderRadius: '9px',
+                          background: cfg.bg, color: cfg.color,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                          <Icon size={16} />
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{record.title}</div>
+                          <div style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.3)', textTransform: 'capitalize' }}>
+                            {cfg.label}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '1rem' }}>
+                      <div style={{ fontWeight: 500, fontSize: '0.8125rem' }}>
+                        {record.type === 'offer' ? record.data?.role
+                          : record.type === 'certificate' ? record.data?.achievementTitle
+                          : record.type === 'mou' ? 'NDA Agreement'
+                          : `₹${record.data?.totals?.grandTotal?.toLocaleString()}`}
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.25)' }}>
+                        {record.type === 'offer' ? record.data?.department
+                          : record.type === 'certificate' ? record.data?.issuingOrganization
+                          : record.type === 'mou' ? (record.data?.arbitrationCity ? `${record.data.arbitrationCity}, ${record.data.arbitrationState}` : record.data?.jurisdiction)
+                          : `Due: ${record.data?.dueDate}`}
+                      </div>
+                    </td>
+                    <td style={{ padding: '1rem' }}>
+                      <div style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.5)' }}>
+                        {new Date(record.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </div>
+                    </td>
+                    <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <button onClick={() => handleDownloadPDF(record)} className="btn btn-outline" style={{ padding: '0.375rem 0.75rem', height: '30px', fontSize: '0.75rem' }} title="Download PDF">
+                          <Download size={13} /> PDF
+                        </button>
+                        <button onClick={() => handleDelete(record.id)} className="pro-delete-btn" title="Delete">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {/* Mobile Cards (shown on mobile regardless of viewMode) */}
+          <div className="mobile-cards" style={{ display: 'flex', flexDirection: 'column' }}>
+            {filteredRecords.map((record) => {
+              const cfg = TYPE_CONFIG[record.type] || TYPE_CONFIG.offer;
+              const Icon = cfg.icon;
+              return (
+                <div key={record.id} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.04)', gap: '1rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      width: '40px', height: '40px', borderRadius: '10px',
+                      background: cfg.bg, color: cfg.color,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
                     }}>
-                      {record.type === 'offer' ? <Briefcase size={16} /> : record.type === 'certificate' ? <Award size={16} /> : record.type === 'mou' ? <FileCode size={16} /> : <FileText size={16} />}
+                      <Icon size={18} />
                     </div>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.9375rem' }}>{record.title}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
-                        {record.type} Generation
+                    <div style={{ minWidth: 0 }}>
+                      <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {record.title}
+                      </h4>
+                      <div style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>
+                        {cfg.label} · {new Date(record.created_at).toLocaleDateString()}
                       </div>
                     </div>
                   </div>
-                </td>
-                <td style={{ padding: '1rem' }}>
-                  <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>
-                    {record.type === 'offer' ? record.data?.role : record.type === 'certificate' ? record.data?.achievementTitle : record.type === 'mou' ? 'Legal Agreement' : `Total: ₹${record.data?.totals?.grandTotal?.toLocaleString()}`}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    {record.type === 'offer' ? record.data?.department : record.type === 'certificate' ? record.data?.issuingOrganization : record.type === 'mou' ? record.data?.jurisdiction : `Due: ${record.data?.dueDate}`}
-                  </div>
-                </td>
-                <td style={{ padding: '1rem' }}>
-                  <div style={{ fontSize: '0.875rem', color: 'var(--text-main)' }}>
-                    {new Date(record.created_at).toLocaleDateString()}
-                  </div>
-                </td>
-                <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
-                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                    <button onClick={() => handleDownloadPDF(record)} className="btn btn-outline" style={{ padding: '0.5rem', height: '32px' }} title="PDF">
+                  <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                    <button onClick={() => handleDownloadPDF(record)} className="btn btn-outline" style={{ width: '36px', height: '36px', padding: 0, borderRadius: '8px' }}>
                       <Download size={14} />
                     </button>
-                    <button onClick={() => handleDelete(record.id)} className="btn btn-outline" style={{ padding: '0.5rem', height: '32px', color: 'var(--error)', borderColor: '#fee2e2' }} title="Delete">
+                    <button onClick={() => handleDelete(record.id)} className="pro-delete-btn" style={{ width: '36px', height: '36px' }}>
                       <Trash2 size={14} />
                     </button>
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {/* Minimal Mobile Record List (Fixed Alignment) */}
-        <div className="mobile-cards" style={{ display: 'flex', flexDirection: 'column', background: 'var(--surface)', borderTop: '1px solid var(--border)' }}>
-          {filteredRecords.map((record) => (
-            <div key={record.id} style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between', 
-              padding: '1.25rem var(--space-4)', 
-              borderBottom: '1px solid var(--border)',
-              gap: '1rem'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0 }}>
-                <div style={{ 
-                  width: '40px', 
-                  height: '40px', 
-                  borderRadius: '10px', 
-                  background: record.type === 'offer' ? '#eff6ff' : record.type === 'certificate' ? '#fef2f2' : record.type === 'mou' ? '#f0fdf4' : '#fff7ed', 
-                  color: record.type === 'offer' ? '#2563eb' : record.type === 'certificate' ? '#dc2626' : record.type === 'mou' ? '#16a34a' : '#ea580c',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0
-                }}>
-                  {record.type === 'offer' ? <Briefcase size={20} /> : record.type === 'certificate' ? <Award size={20} /> : record.type === 'mou' ? <FileCode size={20} /> : <FileText size={20} />}
                 </div>
-                <div style={{ minWidth: 0 }}>
-                  <h4 style={{ 
-                    fontSize: '1rem', 
-                    fontWeight: 700, 
-                    margin: 0, 
-                    color: 'var(--primary)',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
-                  }}>
-                    {record.title}
-                  </h4>
-                  <div style={{ 
-                    fontSize: '0.75rem', 
-                    color: 'var(--text-muted)', 
-                    fontWeight: 600,
-                    textTransform: 'capitalize'
-                  }}>
-                    {record.type} • {new Date(record.created_at).toLocaleDateString()}
-                  </div>
-                </div>
-              </div>
-              
-              <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                <button 
-                  onClick={() => handleDownloadPDF(record)} 
-                  className="btn btn-outline" 
-                  style={{ 
-                    width: '38px', 
-                    height: '38px', 
-                    padding: 0, 
-                    borderRadius: '8px',
-                    color: 'var(--accent)',
-                    borderColor: 'var(--accent-light)',
-                    background: 'var(--accent-light)'
-                  }}
-                >
-                  <Download size={16} />
-                </button>
-                <button 
-                  onClick={() => handleDelete(record.id)} 
-                  className="btn btn-outline" 
-                  style={{ 
-                    width: '38px', 
-                    height: '38px', 
-                    padding: 0, 
-                    borderRadius: '8px',
-                    color: 'var(--error)',
-                    borderColor: '#fee2e2',
-                    background: '#fef2f2'
-                  }}
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {filteredRecords.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '5rem 2rem' }}>
-            <ClipboardCheck size={48} color="var(--border)" strokeWidth={1} style={{ marginBottom: '1rem' }} />
-            <p style={{ color: 'var(--text-muted)', fontWeight: 500 }}>Empty Database</p>
+              );
+            })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Footer count */}
+      {filteredRecords.length > 0 && (
+        <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'rgba(255,255,255,0.2)', fontWeight: 500 }}>
+          Showing {filteredRecords.length} of {records.length} record{records.length !== 1 ? 's' : ''}
+        </div>
+      )}
     </div>
   );
 }

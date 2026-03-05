@@ -386,92 +386,303 @@ export const pdfService = {
   },
 
   generateMoU: (data, isPreview = false) => {
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
+    const doc = new jsPDF('portrait', 'mm', 'a4');
+    const mg = 22;
+    const pw = 210;
+    const cw = pw - mg * 2;
+    let y = 28;
+    const pageBottom = 278;
+    const lh = 5;
 
-    const margin = 28;
-    const pageWidth = 210;
-    const contentWidth = pageWidth - (margin * 2);
-    let y = 25;
+    const checkPage = (needed = 8) => { if (y + needed > pageBottom) { doc.addPage(); y = 28; } };
+    const setN = (sz = 11) => { doc.setFont('times', 'normal'); doc.setFontSize(sz); };
+    const setB = (sz = 11) => { doc.setFont('times', 'bold'); doc.setFontSize(sz); };
+    const setI = (sz = 11) => { doc.setFont('times', 'italic'); doc.setFontSize(sz); };
 
-    // Reuse helper logic locally or assume it's part of the closure
-    const addText = (text, options = {}) => {
-      const { font = 'times', size = 11, style = 'normal', alignment = 'left', gap = 2 } = options;
-      doc.setFont(font, style);
-      doc.setFontSize(size);
-      const splitText = doc.splitTextToSize(text || '', contentWidth);
-      const lineHeight = size * 0.3527 * 1.3;
-      let x = margin;
-      if (alignment === 'center') x = pageWidth / 2;
-      doc.text(splitText, x, y, { align: alignment });
-      y += (splitText.length * lineHeight) + gap;
+    const writeLines = (lines, x = mg) => {
+      for (const line of lines) { checkPage(lh); doc.text(line, x, y); y += lh; }
     };
 
-    const renderParagraph = (text, isBold = false) => {
-      doc.setFont('times', isBold ? 'bold' : 'normal');
-      doc.setFontSize(11);
-      const splitText = doc.splitTextToSize(text, contentWidth);
-      doc.text(splitText, margin, y, { align: 'justify' });
-      y += (splitText.length * 11 * 0.3527 * 1.4) + 4;
+    const para = (text, indent = 0, gap = 3) => {
+      setN(); const w = cw - indent;
+      writeLines(doc.splitTextToSize(text || '', w), mg + indent); y += gap;
     };
 
-    // Header
-    addText('MEMORANDUM OF UNDERSTANDING', { style: 'bold', size: 16, alignment: 'center', gap: 10 });
-    
-    addText('This Memorandum of Understanding (MoU) is entered into on this ' + 
-      new Date(data.effectiveDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) + 
-      ' BY AND BETWEEN:', { gap: 6 });
+    const boldPara = (text, indent = 0, gap = 3) => {
+      setB(); const w = cw - indent;
+      writeLines(doc.splitTextToSize(text || '', w), mg + indent); y += gap;
+    };
 
-    addText(data.partyAName.toUpperCase(), { style: 'bold', gap: 1 });
-    addText('(Hereinafter referred to as the "FIRST PARTY")', { size: 9, style: 'italic', gap: 6 });
+    const italicPara = (text, indent = 0, gap = 2, sz = 10) => {
+      setI(sz); const w = cw - indent;
+      writeLines(doc.splitTextToSize(text || '', w), mg + indent); y += gap;
+    };
 
-    addText('AND', { style: 'bold', alignment: 'center', gap: 6 });
+    const centerBold = (text, sz = 11) => {
+      setB(sz); checkPage(lh + 2);
+      doc.text(text, pw / 2, y, { align: 'center' }); y += sz * 0.42 + 3;
+    };
 
-    addText(data.partyBName.toUpperCase(), { style: 'bold', gap: 1 });
-    addText('(Hereinafter referred to as the "SECOND PARTY")', { size: 9, style: 'italic', gap: 10 });
+    const bullet = (text, indent = 12) => {
+      setN(); const w = cw - indent - 4;
+      const lines = doc.splitTextToSize(text, w);
+      checkPage(lh); doc.text('\u2022', mg + indent, y);
+      for (let i = 0; i < lines.length; i++) { checkPage(lh); doc.text(lines[i], mg + indent + 4, y); y += lh; }
+      y += 1;
+    };
 
-    addText('1. PURPOSE AND SCOPE', { style: 'bold', gap: 4 });
-    renderParagraph('The purpose of this MoU is to outline the understanding between the Parties regarding ' + data.purpose + '. This agreement establishes a framework for cooperation and sets forth the intentions of both Parties.');
+    const heading = (text, gap = 3) => { checkPage(15); y += 4; boldPara(text, 0, gap); };
 
-    addText('2. DURATION', { style: 'bold', gap: 4 });
-    renderParagraph('This MoU shall become effective as of ' + new Date(data.effectiveDate).toLocaleDateString('en-GB') + 
-      ' and shall remain in force until ' + new Date(data.terminationDate).toLocaleDateString('en-GB') + 
-      ', unless terminated earlier by either party with mutual consent.');
+    const fmtDate = (d) => {
+      if (!d) return '___________';
+      const dt = new Date(d);
+      const day = dt.getDate();
+      const suffix = [,'st','nd','rd'][day % 10 > 3 ? 0 : (day % 100 - day % 10 === 10 ? 0 : day % 10)] || 'th';
+      return `${day}${suffix} ${dt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+    };
 
-    if (data.confidentiality) {
-      addText('3. CONFIDENTIALITY', { style: 'bold', gap: 4 });
-      renderParagraph('Both parties agree to maintain the strictest confidentiality regarding all proprietary information, trade secrets, and internal data shared during the course of this association.');
+    const fmtDatePreamble = (d) => {
+      if (!d) return '___________';
+      return new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    };
+
+    const numWord = (n) => {
+      const w = ['zero','one','two','three','four','five','six','seven','eight','nine','ten'];
+      return w[parseInt(n)] || String(n);
+    };
+
+    const dp = data.disclosingPartyName || '___________';
+    const rp = data.receivingPartyName || '___________';
+
+    // ===== TITLE =====
+    const docTitle = data.docType === 'mou' ? 'MEMORANDUM OF UNDERSTANDING' : 'NON-DISCLOSURE AGREEMENT';
+    centerBold(docTitle, 16);
+    y += 3;
+
+    // ===== PREAMBLE =====
+    para(`This Non-disclosure and confidentiality agreement (the "Agreement") is made this ${fmtDatePreamble(data.effectiveDate)} ("Effective Date"), entered into at ${data.executionCity || '___________'}, ${data.executionState || '___________'}:`);
+
+    boldPara('BY AND BETWEEN:');
+
+    para(`${dp.toUpperCase()}, a company incorporated under the laws of ${data.disclosingPartyIncorporation || 'India'}, having its registered office at ${data.disclosingPartyAddress || '___________'}. (hereinafter referred to as the "Disclosing Party" which expression shall unless excluded by or repugnant to the subject or context be deemed to include its successors-in-interest and permitted assigns) of the ONE PART`);
+
+    centerBold('AND');
+
+    para(`${rp.toUpperCase()}, a company incorporated under the laws of ${data.receivingPartyIncorporation || 'India'}, having its registered office at ${data.receivingPartyAddress || '___________'} (hereinafter referred to as the "Receiving Party" which expression shall unless excluded by or repugnant to the subject or context be deemed to include its successors-in-interest and permitted assigns) of the OTHER PART`);
+
+    italicPara('(The Disclosing Party and the Receiving Party shall hereinafter individually referred to as "Party" and collectively as "Parties")', 0, 4);
+
+    // ===== WHEREAS =====
+    boldPara('WHEREAS:');
+
+    para('A. The Parties are proposing to enter into the following transaction:');
+    para(`${dp.toUpperCase()} ${data.proposedTransaction || '___________'} ("Proposed Transaction")`, 0, 4);
+
+    para('B. The Disclosing Party is disclosing the Confidential Information (as defined hereunder) to the Receiving Party for the following purpose:');
+    para(data.purposeOfDisclosure || '___________', 0, 4);
+
+    para('C. The Receiving Party is required to execute a non-disclosure agreement to protect the information of the Disclosing Party. Accordingly, the Parties wish to enter into this Non-Disclosure Agreement whereby Receiving Party agrees to treat as confidential, all the Confidential Information (as defined hereunder) provided by the Disclosing Party/acquired from the Disclosing Party, on the terms and conditions mentioned hereunder.');
+
+    y += 3;
+    boldPara('NOW THEREFORE THE PARTIES HEREBY AGREE AS FOLLOWS:');
+
+    // ===== 1. DEFINITIONS =====
+    heading('1. DEFINITIONS');
+
+    para('1.1. "Confidential Information" for the purpose of this Non-Disclosure Agreement shall mean all the information and documents disclosed or submitted, orally, in writing, or by any other media (whether designated as confidential or not), by the Disclosing Party, either directly or indirectly (including through its group companies or agents), to the Receiving Party or any of its affiliated corporations or any of its authorized employees, officers or directors, and such information and documents includes without limitation:', 0, 2);
+
+    para('1.1.1. the terms of any agreement between the Disclosing Party and the Receiving Party;', 6, 2);
+    para('1.1.2. the fact that discussions are taking place between the Parties;', 6, 2);
+    para('1.1.3. all technical and business information, whether written, oral or graphic, including without limitation:', 6, 2);
+
+    para('1.1.3.1. financial plans and records, ideas, business plans and strategies, relationships with third parties, information relating to suppliers, founders, employees, and affiliates, business channels data, material, products;', 12, 2);
+    para('1.1.3.2. technical data, know-how, research, formulae, processes, methods, technology, IT systems, computer software programs and descriptions of functions and features of the software, source code, computer hardware designs, techniques;', 12, 2);
+    para('1.1.3.3. present and proposed products, trade secrets, designs, drawings, trademarks, patents, prototypes, samples, products, product plans, specifications, manuals, equipment, engineering, unpublished patent applications, research-in-progress, work-in-progress, prototypes;', 12, 2);
+    para('1.1.3.4. advertising programs, planning and merchandising strategies, marketing, pricing, sales, marketing information, facilities, services, customers, customer lists and information or other unpublished information related to customers, marketing plans, market development, inventions, financial information, negotiations, discussion, ideas, manufacturing techniques, and the like;', 12, 2);
+
+    para('1.1.3.5. the following will also be considered confidential information:', 12, 2);
+    boldPara('Specific Confidential Information includes, without limitation:', 12, 2);
+
+    const items = (data.specificConfidentialItems || '').split('\n').filter(l => l.trim());
+    items.forEach(item => bullet(item.trim(), 12));
+
+    y += 2;
+    para('All insights, observations, analyses, notes, measurements, teardowns, or derivative understandings derived from examination, testing, or evaluation of the sample unit shall also be deemed Confidential Information.', 12, 3);
+
+    para('1.1.3.6. information which is generated by the Receiving Party in connection with the purpose for which the confidential information is received under this Agreement or otherwise.', 12, 3);
+
+    para('1.2. Without limiting the above, Confidential Information shall also include information that the Receiving Party knows or reasonably should know under the circumstances surrounding its disclosure, is confidential to the Disclosing Party.', 0, 4);
+
+    // ===== 2. DUTY AS TO CONFIDENTIALITY =====
+    heading('2. DUTY AS TO CONFIDENTIALITY');
+
+    para('2.1. The Receiving Party acknowledges and agrees that the Confidential Information has been developed or obtained by the Disclosing Party by the investment of a significant amount of time, effort and/or expense and the Confidential Information is a valuable, special, and unique asset of the Disclosing Party and needs to be protected from improper disclosure.');
+
+    para('2.2. The Receiving Party will use the Confidential Information of the Disclosing Party solely for the purpose as specified below:', 0, 2);
+    para(data.purposeOfDisclosure || '___________');
+    para('and shall keep it secure and confidential, and will not, except as outlined in Clause named Exceptions, disclose any of the Disclosing Party\'s Confidential Information in any manner whatsoever.');
+
+    para('2.3. In consideration of the opportunity granted to the Receiving Party to enter into the Proposed Transaction with the Disclosing Party, the Receiving Party hereby agrees as follows:');
+    para('2.3.1. To hold the Confidential Information in confidence and to take reasonable precautions to protect such Confidential Information (including, without limitation, all precautions the Receiving Party employs with respect to its confidential materials);', 6, 2);
+    para('2.3.2. Not to divulge any such Confidential Information or any information derived therefrom to any third person unless prior written consent is obtained from the Disclosing Party;', 6, 2);
+    para('2.3.3. Not to use the Confidential Information, at any time, directly or indirectly, to procure a commercial advantage over, or do anything in any manner whatsoever, which is detrimental to the business or activities of the Disclosing Party, any of its affiliated companies or any of its directors and employees;', 6, 2);
+    para('2.3.4. Not to copy or reverse engineer any such Confidential Information;', 6, 2);
+    para('2.3.5. Not to use whether directly or indirectly or turn to its advantage in any way or profit from the use of the Confidential Information or any part thereof at any time; and', 6, 2);
+    para('2.3.6. To use the Confidential Information only for the purpose as specified above and in accordance with the terms of this Agreement.', 6, 3);
+
+    // ===== 3. EFFECTIVE DATE =====
+    heading('3. EFFECTIVE DATE');
+    para('3.1. The obligations of the Receiving Party in respect of confidentiality as provided above shall commence from the Effective Date and the Receiving Party shall solely be responsible for compliance by such representatives with the foregoing obligations of confidentiality.');
+    para('3.2. Receiving Party hereby agrees to bind all employees, agents, associates, directors, personnel, representatives, consultants, contractors and sub-contractors, professionals or any other person who receives the Confidential Information for the purposes contemplated hereunder ("Representatives") through a legally enforceable agreement to maintain the confidentiality of such Confidential Information and to be bound by all the terms of this Non-Disclosure Agreement, wherever applicable, whether expressly or generally.');
+
+    // ===== 4. EXCEPTIONS =====
+    heading('4. EXCEPTIONS');
+    para('4.1. Confidential Information shall not include information that is (i) publicly available, (ii) already in the Receiving Party or its Representatives\' possession at the time of disclosure by the Disclosing Party, (iii) available to the Receiving Party or its Representatives, to the Receiving Party\'s knowledge, on a non-confidential basis, or (iv) independently developed by the Receiving Party or any of its Representatives.');
+    para('4.2. The Receiving Party may make disclosures required by law or court order provided the Receiving Party: (a) uses diligent reasonable efforts to limit disclosure and to obtain confidential treatment or protective order; and (b) gives immediate written notice to the Disclosing Party regarding such requirement and allows the Disclosing Party to participate in the proceedings.');
+
+    // ===== 5. RETURN OF INFORMATION =====
+    heading('5. RETURN OF INFORMATION');
+    para('5.1. Upon: (a) receiving a written request by the Disclosing Party; or (b) termination of the discussions or arrangements between the Disclosing Party and Receiving Party (for any reason whatsoever), the Receiving Party shall forthwith deliver to the Disclosing Party (without retaining copies thereof) all Confidential Information comprised in whatever form or media such as but not limited to; documents, proposals, photographs, film, video, maps, tapes, discs, computer hardware and software, which is in the Receiving Party\'s possession or under the Receiving Party\'s control in any way and the results thereof or the business of the Disclosing Party or its related or affiliated entities or joint venture partners or projects.');
+    para('5.2. The Receiving Party understands that nothing herein:', 0, 2);
+    para('5.2.1. Requires the disclosure of any Confidential Information of the Disclosing Party; or', 6, 2);
+    para('5.2.2. Requires the Disclosing Party to proceed with any transaction or relationship.', 6, 3);
+
+    // ===== 6. DURATION =====
+    heading('6. DURATION');
+    para(`The obligations under this Agreement shall subsist for a period of ${data.obligationYears || 5} (${numWord(data.obligationYears || 5)}) years from the effective date of the Agreement.`);
+
+    // ===== 7. NON-SOLICITATION =====
+    heading('7. NON-SOLICITATION');
+    const nsYears = data.nonSolicitationYears || 1;
+    para(`During the term of this Agreement and for a period of ${nsYears} (${numWord(nsYears)}) year${parseInt(nsYears) !== 1 ? 's' : ''} thereafter, neither Party shall, directly or indirectly, solicit, recruit, or hire any of the other Party's employees, contractors, or consultants who have been directly involved in the discussions or execution of the Proposed Transaction, without the prior written consent of the other Party. General solicitations (e.g., job postings) not targeted at specific individuals shall not be a violation of this clause.`);
+
+    // ===== 8. REMEDIES =====
+    heading('8. REMEDIES');
+    para('The Receiving Party acknowledges and agrees that unauthorized disclosure or use of the Confidential Information would cause irreparable harm and significant injury to the Disclosing Party that may be difficult to ascertain, and for which monetary damages alone would not be an adequate remedy. Accordingly, the Receiving Party agrees that the Disclosing Party shall have the right to seek immediate injunctive relief to enforce obligations under this Agreement, in addition to any other rights and remedies it may have at law or in equity.');
+
+    // ===== 9. NO WARRANTIES =====
+    heading('9. NO WARRANTIES');
+    para('The Receiving Party acknowledges that the Confidential Information is made available on an "AS IS" basis. The Disclosing Party does not make any representations or warranties regarding the information provided including without limitation any financial information and the same is subject to an independent assessment of the Receiving Party. THE DISCLOSING PARTY MAKES NO WARRANTIES, EXPRESS OR IMPLIED, WITH RESPECT TO THE CONFIDENTIAL INFORMATION AND HEREBY DISCLAIMS ANY AND ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. Any actions taken by the Receiving Party shall be solely at the risk of the Receiving Party.');
+
+    // ===== 10. INDEMNITY =====
+    heading('10. INDEMNITY');
+    para('Each Party ("Indemnifying Party") hereby agrees to indemnify and hold the other Party harmless from all damages, costs, attorney\'s fees, or other losses arising out of or relating to the breach of this Non-Disclosure Agreement by the Indemnifying Party.');
+
+    // ===== 11. SEVERABILITY =====
+    heading('11. SEVERABILITY');
+    para('If any provision of this Non-Disclosure Agreement shall for any reason be held to be invalid, illegal, or unenforceable in any respect, such invalidity, illegality, or unenforceability shall not affect any other provision thereof, and this Non-Disclosure Agreement shall be construed as if such invalid, illegal or unenforceable provision had never been contained herein. Any invalid or unenforceable provision of this Non-Disclosure Agreement shall be replaced with a provision that is valid, enforceable, and most nearly gives effect to the original intent of the invalid/unenforceable provision.');
+
+    // ===== 12. ENTIRE AGREEMENT =====
+    heading('12. ENTIRE AGREEMENT');
+    para('This Non-Disclosure Agreement constitutes the entire agreement and understanding of the Parties with respect to the subject matter hereof and supersedes any and all prior negotiations, correspondence, agreements, understandings duties or obligations between the Parties with respect to the subject matter hereof.');
+
+    // ===== 13. NO OTHER RIGHTS GRANTED =====
+    heading('13. NO OTHER RIGHTS GRANTED');
+    para('Nothing in this Agreement is intended to grant any rights under any patent, copyright, or other intellectual property rights of any Party in favour of the other, nor shall this Agreement be construed to grant any Party any rights in or to the other Party\'s Confidential Information, except the limited right to use such Confidential Information in connection with the proposed relationship between the parties. The Receiving Party shall not receive any intellectual property rights in the Confidential Information other than a limited right to use the Confidential Information for the purposes specified in this Agreement. All intellectual property rights shall continue to vest with the Disclosing Party. The Disclosing Party shall retain all title, interest and rights and all intellectual property and proprietary rights in the Confidential Information. No license under any trademark, patent or copyright, or application for same which are now or hereafter may be obtained by Disclosing Party is either granted or implied by the conveying of Confidential Information. The Receiving Party shall not conceal, alter, obliterate, mutilate, deface, or otherwise interfere with any trademark, trademark notice, copyright notice, confidentiality notice or any notice of any other proprietary right of the Disclosing Party on any copy of the Confidential Information, and shall reproduce any such mark or notice on all copies of such Confidential Information. Likewise, the Receiving Party shall not add or emboss its own or any other mark, symbol, or logo on such Confidential Information.');
+
+    // ===== 14. AMENDMENTS =====
+    heading('14. AMENDMENTS');
+    para('Any change, alteration, amendment, or modification to this Non-Disclosure Agreement must be in writing and signed by authorized representatives of both the Parties.');
+
+    // ===== 15. DISPUTE RESOLUTION =====
+    heading('15. DISPUTE RESOLUTION');
+    const arbCity = data.arbitrationCity || '___________';
+    const arbState = data.arbitrationState || '___________';
+    para('15.1. Except as otherwise specifically provided in this Lease Deed, the following provisions apply if any dispute and difference arise between the Parties, arising out of or in relation to/connection with this Lease Deed (The \'Dispute\').');
+    para('15.2. Dispute will be deemed to arise when one Party serves on the other Party a notice stating the nature of the Dispute (a \'Notice of Dispute\').');
+    para('15.3. The Parties hereto agree that upon serving a Notice of Dispute, they will use all reasonable efforts to resolve the Dispute between themselves through negotiations.');
+    para('15.4. A dispute that cannot be solved by negotiations shall be referred to arbitration by a sole arbitrator to be appointed jointly by the Parties.');
+    para(`15.5. The arbitration proceedings shall be held in ${arbCity}, ${arbState} in accordance with the provisions of the Arbitration and Conciliation Act, 1996 or any statutory re-enactment or modification thereof for the time being in force.`);
+    para('15.6. The Parties agree that the arbitration award shall be final and may be enforced as a decree.');
+    para(`15.7. The Parties further agree that subject to the above only the competent courts at ${arbCity}, ${arbState} shall have jurisdiction in all matters arising hereunder.`);
+
+    // ===== 16. INDEPENDENT PARTIES =====
+    heading('16. INDEPENDENT PARTIES');
+    para('Nothing contained or implied in this letter creates a joint venture or partnership between the Parties or makes one party the agent or legal representative of the other party for any purpose.');
+
+    // ===== 17. EXCLUSIVITY =====
+    heading('17. EXCLUSIVITY');
+    para('Nothing in this Agreement restricts the Disclosing Party or its group companies from discussing similar arrangements and/or any related transaction with any other party, any regulatory body in India and their respective successors.');
+
+    // ===== 18. ASSIGNMENT =====
+    heading('18. ASSIGNMENT');
+    para('This Agreement shall be not be assignable by any Party without the prior written consent of the other Party.');
+
+    // ===== 19. ANNOUNCEMENTS =====
+    heading('19. ANNOUNCEMENTS');
+    para('A Party shall not make any news releases, public announcements, give interviews, issue, or publish advertisements or publicize in any other manner whatsoever in connection with this Agreement, the contents/provisions thereof, other information relating to this Agreement, the Confidential Information or other matter of this Agreement, without the prior written approval of the other Party.');
+
+    // ===== 20. NOTICES =====
+    heading('20. NOTICES');
+    para('Except as otherwise specified in this Non-Disclosure Agreement, all notices, requests, consents, approvals, agreements, authorizations, acknowledgements, waivers, and other communications required or permitted under this Non-Disclosure Agreement shall be in writing and shall be deemed given when sent to the address specified below:', 0, 4);
+
+    boldPara('For Disclosing Party', 0, 1);
+    para(`Address: ${data.disclosingPartyAddress || '___________'}`, 0, 4);
+    boldPara('For Receiving Party', 0, 1);
+    para(`Address: ${data.receivingPartyAddress || '___________'}`, 0, 4);
+
+    para('Either Party may change its address for notification purposes by giving the other Party 10 (ten) days\' notice of the new address and the date upon which it will become effective.');
+
+    // ===== 21. TERMINATION =====
+    heading('21. TERMINATION');
+    para('This Agreement shall be terminated only by mutual agreement of the Parties. Termination of this Agreement will not prejudice any rights of the parties or terminate any obligations of confidentiality with respect to the Confidential Information existing prior to termination.');
+
+    // ===== 22. GOVERNING LAW =====
+    heading('22. GOVERNING LAW');
+    para('This Agreement and all issues arising out of the same shall be construed in accordance with the laws of India.');
+
+    // ===== SIGNATURE BLOCK =====
+    checkPage(65);
+    y += 8;
+    boldPara('IN WITNESS WHEREOF, the Parties hereto have executed this Agreement:');
+    y += 6;
+
+    const halfW = (cw - 10) / 2;
+    const rightX = mg + halfW + 10;
+    const sigStartY = y;
+
+    // Left: Disclosing Party
+    setB(10);
+    const dpLines = doc.splitTextToSize(dp.toUpperCase(), halfW);
+    for (const line of dpLines) { doc.text(line, mg, y); y += 5; }
+    y += 4;
+
+    if (data.disclosingSignature) {
+      try { doc.addImage(data.disclosingSignature, 'PNG', mg, y, 38, 14); y += 17; }
+      catch { setN(10); doc.text('By: _____________________________', mg, y); y += 7; }
+    } else {
+      setN(10); doc.text('By: _____________________________', mg, y); y += 7;
     }
 
-    addText('4. GOVERNING LAW AND JURISDICTION', { style: 'bold', gap: 4 });
-    renderParagraph('This MoU shall be governed by and construed in accordance with the laws of India. Any disputes arising shall be subject to the exclusive jurisdiction of the ' + data.jurisdiction + '.');
+    setN(10);
+    doc.text(`Name: ${data.disclosingSignatoryName || ''}`, mg, y); y += 5;
+    doc.text(`Designation: ${data.disclosingSignatoryDesignation || ''}`, mg, y); y += 5;
+    doc.text(`Date: ${fmtDate(data.disclosingSignatoryDate || data.effectiveDate)}`, mg, y);
 
-    if (y > 230) {
-      doc.addPage();
-      y = 30;
+    // Right: Receiving Party
+    y = sigStartY;
+    setB(10);
+    const rpLines = doc.splitTextToSize(rp.toUpperCase(), halfW);
+    for (const line of rpLines) { doc.text(line, rightX, y); y += 5; }
+    y += 4;
+
+    if (data.receivingSignature) {
+      try { doc.addImage(data.receivingSignature, 'PNG', rightX, y, 38, 14); y += 17; }
+      catch { setN(10); doc.text('By: ______________________________', rightX, y); y += 7; }
+    } else {
+      setN(10); doc.text('By: ______________________________', rightX, y); y += 7;
     }
 
-    // Execution Space
-    y += 15;
-    addText('IN WITNESS WHEREOF, the parties hereto have executed this MoU as of the date first above written.', { size: 10, italic: true, gap: 15 });
+    setN(10);
+    doc.text(`Name: ${data.receivingSignatoryName || ''}`, rightX, y); y += 5;
+    doc.text(`Designation: ${data.receivingSignatoryDesignation || ''}`, rightX, y); y += 5;
+    doc.text(`Date: ${fmtDate(data.receivingSignatoryDate || data.effectiveDate)}`, rightX, y);
 
-    const sigY = y;
-    addText('__________________________', { alignment: 'left', gap: 4 });
-    addText('For (First Party)', { size: 10, alignment: 'left', gap: 1 });
-    addText(data.partyAName, { size: 10, style: 'bold', alignment: 'left' });
-
-    y = sigY;
-    addText('__________________________', { alignment: 'right', gap: 4 });
-    addText('For (Second Party)', { size: 10, alignment: 'right', gap: 1 });
-    addText(data.partyBName, { size: 10, style: 'bold', alignment: 'right' });
-
+    // Save or Preview
     if (isPreview) {
       window.open(doc.output('bloburl'), '_blank');
     } else {
-      const fileName = `MoU_${data.partyAName.replace(/\s+/g, '_')}_${data.partyBName.replace(/\s+/g, '_')}.pdf`;
+      const fileName = `NDA_${(dp).replace(/\s+/g, '_')}_${(rp).replace(/\s+/g, '_')}.pdf`;
       doc.save(fileName);
     }
   },
@@ -486,14 +697,14 @@ export const pdfService = {
     const margin = 20;
     const pageWidth = 210;
     const contentWidth = pageWidth - (margin * 2);
-    let y = 25;
+    let y = 20;
 
     const addText = (text, options = {}) => {
-      const { font = 'helvetica', size = 10, style = 'normal', alignment = 'left', gap = 2, color = [0, 0, 0] } = options;
+      const { font = 'helvetica', size = 10, style = 'normal', alignment = 'left', gap = 2, color = [0, 0, 0], maxWidth = contentWidth } = options;
       doc.setFont(font, style);
       doc.setFontSize(size);
       doc.setTextColor(color[0], color[1], color[2]);
-      const splitText = doc.splitTextToSize(text || '', contentWidth);
+      const splitText = doc.splitTextToSize(text || '', maxWidth);
       const lineHeight = size * 0.3527 * 1.3;
       let x = margin;
       if (alignment === 'center') x = pageWidth / 2;
@@ -502,96 +713,159 @@ export const pdfService = {
       y += (splitText.length * lineHeight) + gap;
     };
 
-    // Header Branding
-    doc.setFillColor(10, 10, 10);
-    doc.rect(margin, y, contentWidth, 35, 'F');
+    // ===== HEADER =====
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, pageWidth, 45, 'F');
+    y = 18;
+    addText('TAX INVOICE', { style: 'bold', size: 22, color: [255, 255, 255], alignment: 'center', gap: 3 });
+    addText(data.invoiceNumber || '', { size: 10, color: [148, 163, 184], alignment: 'center', gap: 0 });
+    y = 50;
+
+    // ===== FROM / BILL TO =====
+    const infoY = y;
+    addText('FROM', { size: 7, style: 'bold', color: [100, 116, 139], gap: 2 });
+    addText(data.orgName || 'Your Organization', { size: 11, style: 'bold', gap: 1 });
+    if (data.sellerGSTIN) {
+      addText(`GSTIN: ${data.sellerGSTIN}`, { size: 8, color: [100, 116, 139], gap: 1 });
+    }
+    if (data.sellerState) {
+      addText(`State: ${data.sellerState}`, { size: 8, color: [100, 116, 139] });
+    }
+    const fromEndY = y;
+
+    y = infoY;
+    addText('BILL TO', { alignment: 'right', size: 7, style: 'bold', color: [100, 116, 139], gap: 2 });
+    addText(data.clientName || 'Client Name', { alignment: 'right', size: 11, style: 'bold', gap: 1 });
+    if (data.clientEmail) {
+      addText(data.clientEmail, { alignment: 'right', size: 8, color: [100, 116, 139], gap: 1 });
+    }
+    if (data.clientAddress) {
+      addText(data.clientAddress, { alignment: 'right', size: 8, color: [100, 116, 139], gap: 1, maxWidth: contentWidth / 2 });
+    }
+    if (data.buyerGSTIN) {
+      addText(`GSTIN: ${data.buyerGSTIN}`, { alignment: 'right', size: 8, color: [100, 116, 139], gap: 1 });
+    }
+    if (data.buyerState) {
+      addText(`State: ${data.buyerState}`, { alignment: 'right', size: 8, color: [100, 116, 139] });
+    }
+
+    y = Math.max(fromEndY, y) + 5;
+
+    // ===== DATES =====
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(margin, y, contentWidth, 12, 2, 2, 'F');
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(71, 85, 105);
+    doc.text(`Invoice Date: ${data.invoiceDate || '-'}`, margin + 5, y);
+    doc.text(`Due Date: ${data.dueDate || '-'}`, pageWidth - margin - 5, y, { align: 'right' });
+    if (data.isInterState !== undefined) {
+      doc.text(`Supply Type: ${data.isInterState ? 'Inter-State' : 'Intra-State'}`, pageWidth / 2, y, { align: 'center' });
+    }
     y += 12;
-    addText('INVOICE', { font: 'helvetica', style: 'bold', size: 24, color: [255, 255, 255], alignment: 'center', gap: 5 });
-    addText(data.invoiceNumber || '', { size: 10, color: [200, 200, 200], alignment: 'center' });
-    y = 65;
 
-    // Organization & Client Info
-    const startY = y;
-    addText('FROM:', { size: 8, style: 'bold', color: [100, 100, 100], gap: 2 });
-    addText(data.orgName || 'Your Organization', { size: 11, style: 'bold', gap: 6 });
-
-    y = startY;
-    addText('BILL TO:', { alignment: 'right', size: 8, style: 'bold', color: [100, 100, 100], gap: 2 });
-    addText(data.clientName || 'Client Name', { alignment: 'right', size: 11, style: 'bold', gap: 2 });
-    addText(data.clientEmail || '', { alignment: 'right', size: 9, color: [100, 100, 100], gap: 10 });
-
-    // Dates
-    y += 5;
-    const dateY = y;
-    addText('Invoice Date: ' + (data.invoiceDate || ''), { size: 9 });
-    y = dateY;
-    addText('Due Date: ' + (data.dueDate || ''), { alignment: 'right', size: 9, gap: 15 });
-
-    // Table Header
-    doc.setFillColor(245, 245, 245);
+    // ===== TABLE HEADER =====
+    doc.setFillColor(241, 245, 249);
     doc.rect(margin, y, contentWidth, 10, 'F');
-    addText('Description', { size: 9, style: 'bold', gap: 0 });
-    y -= 4;
-    addText('Qty', { alignment: 'right', size: 9, style: 'bold', gap: 0 });
-    y -= 4;
-    addText('Price', { alignment: 'right', size: 9, style: 'bold', gap: 0 });
-    y -= 4;
-    doc.text('Total', pageWidth - margin - 35, y, { align: 'right' }); 
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(51, 65, 85);
+    const colX = {
+      desc: margin + 3,
+      hsn: margin + 85,
+      qty: margin + 110,
+      price: margin + 130,
+      total: pageWidth - margin - 3
+    };
+    doc.text('Description', colX.desc, y + 7);
+    doc.text('HSN/SAC', colX.hsn, y + 7);
+    doc.text('Qty', colX.qty, y + 7);
+    doc.text('Rate', colX.price, y + 7);
+    doc.text('Amount', colX.total, y + 7, { align: 'right' });
     y += 14;
 
-    // Line Items
+    // ===== LINE ITEMS =====
+    doc.setTextColor(30, 41, 59);
     if (data.items && data.items.length > 0) {
-      data.items.forEach((item) => {
-        const itemY = y;
-        addText(item.description || '-', { size: 9, gap: 0 });
-        y = itemY;
-        addText(item.quantity?.toString() || '0', { alignment: 'right', size: 9, gap: 0 });
-        y = itemY;
-        addText('₹' + (item.price || 0).toLocaleString(), { alignment: 'right', size: 9, gap: 0 });
-        y = itemY;
-        doc.text('₹' + ((item.quantity || 0) * (item.price || 0)).toLocaleString(), pageWidth - margin - 15, y, { align: 'right' });
-        y += 8;
-        
-        // Horizontal line
-        doc.setDrawColor(240, 240, 240);
+      data.items.forEach((item, index) => {
+        if (y > 250) { doc.addPage(); y = 20; }
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text((item.description || '-').substring(0, 45), colX.desc, y);
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(item.hsnCode || '-', colX.hsn, y);
+        doc.setTextColor(30, 41, 59);
+        doc.setFontSize(9);
+        doc.text((item.quantity || 0).toString(), colX.qty, y);
+        doc.text(`₹${(item.price || 0).toLocaleString()}`, colX.price, y);
+        const lineTotal = (item.quantity || 0) * (item.price || 0);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`₹${lineTotal.toLocaleString()}`, colX.total, y, { align: 'right' });
+        y += 9;
+
+        doc.setDrawColor(241, 245, 249);
+        doc.setLineWidth(0.3);
         doc.line(margin, y - 2, pageWidth - margin, y - 2);
       });
     }
 
-    y += 10;
-    // Totals Section
-    const totalsX = pageWidth - margin;
-    const labelX = pageWidth - margin - 50;
+    y += 8;
 
-    const addTotalLine = (label, value, isBold = false) => {
-      doc.setFont('helvetica', isBold ? 'bold' : 'normal');
-      doc.setFontSize(isBold ? 11 : 9);
+    // ===== TOTALS =====
+    const totalsX = pageWidth - margin;
+    const labelX = pageWidth - margin - 55;
+
+    const addTotalLine = (label, value, options = {}) => {
+      const { bold = false, color = [30, 41, 59], size = 9 } = options;
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
+      doc.setFontSize(size);
+      doc.setTextColor(color[0], color[1], color[2]);
       doc.text(label, labelX, y);
-      doc.text('₹' + value.toLocaleString(), totalsX, y, { align: 'right' });
+      doc.text(`₹${value.toLocaleString()}`, totalsX, y, { align: 'right' });
       y += 7;
     };
 
     addTotalLine('Subtotal:', data.totals?.subtotal || 0);
-    if (data.discountRate > 0) addTotalLine(`Discount (${data.discountRate}%):`, -(data.totals?.discountAmount || 0));
-    if (data.taxRate > 0) addTotalLine(`Tax (${data.taxRate}%):`, data.totals?.taxAmount || 0);
-    
-    y += 2;
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.5);
-    doc.line(labelX, y - 4, totalsX, y - 4);
-    addTotalLine('TOTAL AMOUNT:', data.totals?.grandTotal || 0, true);
 
-    // Footer / Notes
-    if (data.notes) {
-      y += 20;
-      if (y > 250) { doc.addPage(); y = 30; }
-      addText('NOTES / TERMS:', { size: 8, style: 'bold', color: [100, 100, 100], gap: 4 });
-      addText(data.notes, { size: 9, color: [50, 50, 50] });
+    if (data.discountRate > 0) {
+      addTotalLine(`Discount (${data.discountRate}%):`, -(data.totals?.discountAmount || 0), { color: [239, 68, 68] });
     }
 
-    doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
-    doc.text('Generated via OfferPro Suite • Automated Documentation', pageWidth / 2, 285, { align: 'center' });
+    addTotalLine('Taxable Amount:', data.totals?.taxableAmount || 0);
+
+    // GST Breakdown
+    y += 2;
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.3);
+    doc.line(labelX, y - 4, totalsX, y - 4);
+
+    if (data.isInterState) {
+      addTotalLine(`IGST @ ${data.gstRate || 0}%:`, data.totals?.igst || 0, { color: [37, 99, 235] });
+    } else {
+      addTotalLine(`CGST @ ${(data.gstRate || 0) / 2}%:`, data.totals?.cgst || 0, { color: [37, 99, 235] });
+      addTotalLine(`SGST @ ${(data.gstRate || 0) / 2}%:`, data.totals?.sgst || 0, { color: [37, 99, 235] });
+    }
+
+    y += 2;
+    doc.setDrawColor(15, 23, 42);
+    doc.setLineWidth(0.8);
+    doc.line(labelX, y - 4, totalsX, y - 4);
+    addTotalLine('TOTAL AMOUNT:', data.totals?.grandTotal || 0, { bold: true, size: 12 });
+
+    // ===== NOTES =====
+    if (data.notes) {
+      y += 15;
+      if (y > 250) { doc.addPage(); y = 20; }
+      addText('NOTES / TERMS:', { size: 7, style: 'bold', color: [100, 116, 139], gap: 3 });
+      addText(data.notes, { size: 8, color: [71, 85, 105] });
+    }
+
+    // ===== FOOTER =====
+    doc.setFontSize(7);
+    doc.setTextColor(148, 163, 184);
+    doc.text('This is a computer-generated invoice. Generated via OfferPro Suite.', pageWidth / 2, 285, { align: 'center' });
 
     if (isPreview) {
       window.open(doc.output('bloburl'), '_blank');

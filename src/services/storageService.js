@@ -1,50 +1,67 @@
-import { supabase } from '../lib/supabaseClient';
+import { ref, push, set, get, remove, query, orderByChild, equalTo } from 'firebase/database';
+import { db } from '../lib/firebase';
 
 export const storageService = {
   getAll: async (orgId, type) => {
-    let query = supabase
-      .from('records')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (orgId) query = query.eq('organization_id', orgId);
-    if (type) query = query.eq('type', type);
+    if (!orgId) return [];
 
-    const { data, error } = await query;
-    if (error) {
-      console.warn("Table 'records' might not exist yet. Check database schema.", error);
+    try {
+      const recordsRef = ref(db, `records/${orgId}`);
+      const snapshot = await get(recordsRef);
+
+      if (!snapshot.exists()) return [];
+
+      const records = [];
+      snapshot.forEach((child) => {
+        const data = child.val();
+        if (!type || data.type === type) {
+          records.push({ id: child.key, ...data });
+        }
+      });
+
+      // Sort by created_at descending
+      records.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      return records;
+    } catch (err) {
+      console.warn("Error fetching records:", err);
       return [];
     }
-    return data;
+  },
+
+  getRecords: async (orgId) => {
+    const data = await storageService.getAll(orgId);
+    return { data };
   },
 
   save: async (recordData, type, orgId, userId) => {
-    const { data, error } = await supabase
-      .from('records')
-      .insert([{
-        data: recordData,
-        title: type === 'offer' 
-          ? recordData.studentName 
-          : type === 'certificate' 
-            ? recordData.recipientName 
-            : type === 'mou'
-              ? `${recordData.partyAName} & ${recordData.partyBName}`
-              : `Inv: ${recordData.clientName} (${recordData.invoiceNumber})`
-      }])
-      .select()
-      .single();
+    if (!orgId) throw new Error('Organization ID is required');
 
-    if (error) throw error;
-    return data;
+    const title = type === 'offer'
+      ? recordData.studentName
+      : type === 'certificate'
+        ? recordData.recipientName
+        : type === 'mou'
+          ? `${recordData.disclosingPartyName || recordData.partyAName} & ${recordData.receivingPartyName || recordData.partyBName}`
+          : `Inv: ${recordData.clientName} (${recordData.invoiceNumber})`;
+
+    const recordRef = push(ref(db, `records/${orgId}`));
+    const record = {
+      id: recordRef.key,
+      data: recordData,
+      title,
+      type,
+      user_id: userId || null,
+      created_at: new Date().toISOString()
+    };
+
+    await set(recordRef, record);
+    return record;
   },
 
-  delete: async (id) => {
-    const { error } = await supabase
-      .from('records')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
+  delete: async (id, orgId) => {
+    if (!orgId) throw new Error('Organization ID is required');
+    const recordRef = ref(db, `records/${orgId}/${id}`);
+    await remove(recordRef);
   },
 
   exportToCSV: (records) => {

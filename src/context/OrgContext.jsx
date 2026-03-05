@@ -1,66 +1,95 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { ref, get, push, set } from 'firebase/database';
+import { db } from '../lib/firebase';
 import { useAuth } from './AuthContext';
 
 const OrgContext = createContext({});
 
 export const OrgProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, needsOnboarding } = useAuth();
   const [organizations, setOrganizations] = useState([]);
   const [activeOrg, setActiveOrg] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
+    if (user && !needsOnboarding) {
       fetchOrganizations();
     } else {
       setOrganizations([]);
       setActiveOrg(null);
       setLoading(false);
     }
-  }, [user]);
+  }, [user, needsOnboarding]);
 
   const fetchOrganizations = async () => {
     setLoading(true);
-    // This assumes a 'memberships' table that joins users to organizations
-    // For now, we'll implement a fallback if the table doesn't exist yet
     try {
-      const { data, error } = await supabase
-        .from('organizations')
-        .select('*, memberships!inner(user_id)')
-        .eq('memberships.user_id', user.id);
+      const userOrgsRef = ref(db, `users/${user.uid}/organizations`);
+      const snapshot = await get(userOrgsRef);
 
-      if (error) throw error;
-      setOrganizations(data);
-      if (data.length > 0) setActiveOrg(data[0]);
+      if (!snapshot.exists()) {
+        setOrganizations([]);
+        setActiveOrg(null);
+        setLoading(false);
+        return;
+      }
+
+      const orgIds = Object.keys(snapshot.val());
+      const orgs = [];
+
+      for (const orgId of orgIds) {
+        const orgRef = ref(db, `organizations/${orgId}`);
+        const orgSnap = await get(orgRef);
+        if (orgSnap.exists()) {
+          const orgData = orgSnap.val();
+          orgs.push({
+            id: orgId,
+            name: orgData.company_name,
+            ...orgData
+          });
+        }
+      }
+
+      setOrganizations(orgs);
+      if (orgs.length > 0) {
+        setActiveOrg(orgs[0]);
+      }
     } catch (err) {
-      console.warn("Could not fetch organizations. Make sure your database schema is set up.", err);
+      console.warn("Could not fetch organizations:", err);
     } finally {
       setLoading(false);
     }
   };
 
   const createOrganization = async (name) => {
-    const { data: org, error: orgError } = await supabase
-      .from('organizations')
-      .insert([{ name }])
-      .select()
-      .single();
+    const orgRef = push(ref(db, 'organizations'));
+    const orgId = orgRef.key;
 
-    if (orgError) throw orgError;
+    const orgData = {
+      id: orgId,
+      company_name: name,
+      company_email: user.email,
+      owner_uid: user.uid,
+      created_at: new Date().toISOString()
+    };
 
-    const { error: memError } = await supabase
-      .from('memberships')
-      .insert([{ organization_id: org.id, user_id: user.id, role: 'owner' }]);
+    await set(orgRef, orgData);
 
-    if (memError) throw memError;
+    const membershipRef = push(ref(db, 'memberships'));
+    await set(membershipRef, {
+      organization_id: orgId,
+      user_id: user.uid,
+      role: 'owner',
+      created_at: new Date().toISOString()
+    });
 
+    await set(ref(db, `users/${user.uid}/organizations/${orgId}`), true);
     await fetchOrganizations();
-    return org;
+    return orgData;
   };
 
   return (
-    <OrgContext.Provider value={{ organizations, activeOrg, setActiveOrg, loading, createOrganization }}>
+    <OrgContext.Provider value={{ organizations, activeOrg, setActiveOrg, loading, createOrganization, fetchOrganizations }}>
       {children}
     </OrgContext.Provider>
   );
