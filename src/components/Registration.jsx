@@ -163,6 +163,7 @@ export default function Registration({ onBack, isGoogleUser }) {
             account_usage: formData.account_usage,
             referral_source: formData.referral_source || null,
             created_at: new Date().toISOString(),
+            trial_start_date: new Date().toISOString(),
             owner_uid: userId
         };
 
@@ -213,8 +214,8 @@ export default function Registration({ onBack, isGoogleUser }) {
             console.error("Firebase Operation Failed:", err);
             const msg = err.code === 'auth/email-already-in-use' ? 'This email is already registered. Please sign in instead.'
                 : err.code === 'auth/weak-password' ? 'Password should be at least 6 characters.'
-                : err.code === 'auth/invalid-email' ? 'Please enter a valid email address.'
-                : err.message || 'Registration failed. Please try again.';
+                    : err.code === 'auth/invalid-email' ? 'Please enter a valid email address.'
+                        : err.message || 'Registration failed. Please try again.';
             setError(msg);
         } finally {
             setLoading(false);

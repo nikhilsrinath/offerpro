@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   LayoutDashboard, Briefcase, Award, Scale, Receipt,
   DollarSign, Layers, Archive, LogOut, Menu, X,
-  Zap, UserCircle, ChevronRight
+  Zap, UserCircle, ChevronRight, Clock, Mail, AlertTriangle
 } from 'lucide-react';
 
 import OfferForm from './components/OfferForm';
@@ -18,6 +18,7 @@ import Registration from './components/Registration';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { OrgProvider, useOrg } from './context/OrgContext';
 import Auth from './components/Auth';
+import { useTrialStatus } from './hooks/useTrialStatus';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -50,6 +51,7 @@ function AppContent() {
   const [showLanding, setShowLanding] = useState(true);
   const { user, loading, logout, needsOnboarding } = useAuth();
   const { activeOrg } = useOrg();
+  const { trialDaysLeft, isTrialExpired } = useTrialStatus();
 
   if (loading) {
     return (
@@ -149,6 +151,26 @@ function AppContent() {
           <UserCircle size={22} style={{ opacity: 0.5 }} />
         </div>
 
+        {/* Trial Status Banner */}
+        {user && !needsOnboarding && (
+          <div className="trial-banner">
+            <Clock size={14} />
+            {isTrialExpired ? (
+              <span className="trial-banner-badge expired">
+                <AlertTriangle size={12} /> Trial Expired
+              </span>
+            ) : (
+              <span className={`trial-banner-badge ${trialDaysLeft <= 2 ? 'warning' : ''}`}>
+                {trialDaysLeft} {trialDaysLeft === 1 ? 'day' : 'days'} left in trial
+              </span>
+            )}
+            <span>•</span>
+            <a href="mailto:sales@offerpro.com" style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 700, fontSize: '0.8125rem' }}>
+              Upgrade →
+            </a>
+          </div>
+        )}
+
         {/* Page Header (skip for dashboard - it has its own) */}
         {activePage !== 'dashboard' && (
           <div className="page-header">
@@ -171,6 +193,27 @@ function AppContent() {
           {activePage === 'records' && <InternRecords />}
         </div>
       </div>
+
+      {/* Trial Expired Overlay */}
+      {isTrialExpired && user && !needsOnboarding && (
+        <div className="trial-expired-overlay">
+          <div className="trial-expired-modal">
+            <div style={{ width: '56px', height: '56px', background: 'rgba(248,113,113,0.12)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+              <AlertTriangle size={28} color="#f87171" />
+            </div>
+            <h2>Your 7-Day Trial Has Expired</h2>
+            <p>Your free trial period has ended. Contact our sales team to get full access to OfferPro with unlimited documents, custom branding, and priority support.</p>
+            <div className="trial-expired-actions">
+              <a href="mailto:sales@offerpro.com" className="btn-cinematic" style={{ textDecoration: 'none' }}>
+                <Mail size={16} /> Contact Sales
+              </a>
+              <button onClick={logout} className="btn-cinematic btn-secondary">
+                <LogOut size={16} /> Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

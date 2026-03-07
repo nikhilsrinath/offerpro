@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { Upload, Download, CheckCircle, Camera, Building, User, Calendar, CreditCard, ChevronRight } from 'lucide-react';
+import { Upload, Download, CheckCircle, Camera, Building, User, Calendar, CreditCard, ChevronRight, AlertTriangle, Mail } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
+import { useTrialStatus, TRIAL_LIMITS } from '../hooks/useTrialStatus';
 
 export default function OfferForm({ onSuccess }) {
   const { user } = useAuth();
   const { activeOrg } = useOrg();
+  const { usage, canCreate, isTrialExpired, trialDaysLeft, refreshUsage } = useTrialStatus();
   const [formData, setFormData] = useState({
     offerType: 'internship',
     companyName: '',
@@ -67,10 +69,12 @@ export default function OfferForm({ onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canCreate('offer')) return;
     setIsSubmitting(true);
     try {
       await storageService.save(formData, 'offer', activeOrg?.id, user?.id);
       pdfService.generateOfferLetter(formData);
+      await refreshUsage();
       setTimeout(() => {
         setIsSubmitting(false);
         if (onSuccess) onSuccess();
@@ -82,8 +86,32 @@ export default function OfferForm({ onSuccess }) {
     }
   };
 
+  const limitReached = !canCreate('offer');
+  const fillPercent = (usage.offer / TRIAL_LIMITS.offer) * 100;
+  const fillClass = usage.offer >= TRIAL_LIMITS.offer ? 'full' : usage.offer >= TRIAL_LIMITS.offer - 1 ? 'warning' : '';
+
   return (
     <form onSubmit={handleSubmit} className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: '100%' }}>
+
+      {/* Usage Indicator */}
+      <div className="usage-indicator">
+        <span className="usage-indicator-label">Offer Letters</span>
+        <div className="usage-indicator-bar">
+          <div className={`usage-indicator-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
+        </div>
+        <span className="usage-indicator-count">{usage.offer}/{TRIAL_LIMITS.offer}</span>
+      </div>
+
+      {limitReached && (
+        <div className="limit-reached-alert">
+          <AlertTriangle size={32} />
+          <h3>{isTrialExpired ? 'Trial Expired' : 'Offer Letter Limit Reached'}</h3>
+          <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used all ${TRIAL_LIMITS.offer} offer letters in your free trial.`} Contact our sales team to upgrade.</p>
+          <a href="mailto:sales@offerpro.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
+            <Mail size={16} /> Contact Sales
+          </a>
+        </div>
+      )}
 
       {/* Offer Type Toggle */}
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
@@ -287,9 +315,9 @@ export default function OfferForm({ onSuccess }) {
       </div>
 
       {/* Submit */}
-      <button type="submit" className="btn btn-primary pro-btn" style={{ width: '100%', height: '52px', fontSize: '0.9375rem' }} disabled={isSubmitting}>
-        {isSubmitting ? 'Generating...' : 'Finalize & Download'}
-        {!isSubmitting && <ChevronRight size={18} />}
+      <button type="submit" className="btn btn-primary pro-btn" style={{ width: '100%', height: '52px', fontSize: '0.9375rem' }} disabled={isSubmitting || limitReached}>
+        {isSubmitting ? 'Generating...' : limitReached ? 'Limit Reached' : 'Finalize & Download'}
+        {!isSubmitting && !limitReached && <ChevronRight size={18} />}
       </button>
     </form>
   );

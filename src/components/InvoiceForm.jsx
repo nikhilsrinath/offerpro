@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, FileText, ChevronRight, Save, Receipt, Calculator, MapPin, Building2, Percent } from 'lucide-react';
+import { Plus, Trash2, FileText, ChevronRight, Save, Receipt, Calculator, MapPin, Building2, Percent, AlertTriangle, Mail } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { pdfService } from '../services/pdfService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
+import { useTrialStatus, TRIAL_LIMITS } from '../hooks/useTrialStatus';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -21,6 +22,7 @@ const GST_RATES = [0, 5, 12, 18, 28];
 export default function InvoiceForm({ onSuccess }) {
   const { user } = useAuth();
   const { activeOrg } = useOrg();
+  const { usage, canCreate, isTrialExpired, refreshUsage } = useTrialStatus();
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -104,11 +106,13 @@ export default function InvoiceForm({ onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canCreate('invoice')) return;
     setLoading(true);
     try {
       const dataToSave = { ...formData, totals, isInterState, orgName: activeOrg?.company_name || activeOrg?.name };
       await storageService.save(dataToSave, 'invoice', activeOrg?.id, user?.id);
       pdfService.generateInvoice(dataToSave);
+      await refreshUsage();
       if (onSuccess) onSuccess();
     } catch (err) {
       alert("Error saving invoice: " + err.message);
@@ -117,8 +121,32 @@ export default function InvoiceForm({ onSuccess }) {
     }
   };
 
+  const limitReached = !canCreate('invoice');
+  const fillPercent = (usage.invoice / TRIAL_LIMITS.invoice) * 100;
+  const fillClass = usage.invoice >= TRIAL_LIMITS.invoice ? 'full' : usage.invoice >= TRIAL_LIMITS.invoice - 1 ? 'warning' : '';
+
   return (
     <form onSubmit={handleSubmit} className="animate-in" style={{ maxWidth: '100%' }}>
+
+      {/* Usage Indicator */}
+      <div className="usage-indicator" style={{ marginBottom: '1.5rem' }}>
+        <span className="usage-indicator-label">Invoices</span>
+        <div className="usage-indicator-bar">
+          <div className={`usage-indicator-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
+        </div>
+        <span className="usage-indicator-count">{usage.invoice}/{TRIAL_LIMITS.invoice}</span>
+      </div>
+
+      {limitReached && (
+        <div className="limit-reached-alert" style={{ marginBottom: '1.5rem' }}>
+          <AlertTriangle size={32} />
+          <h3>{isTrialExpired ? 'Trial Expired' : 'Invoice Limit Reached'}</h3>
+          <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used all ${TRIAL_LIMITS.invoice} invoices in your free trial.`} Contact our sales team to upgrade.</p>
+          <a href="mailto:sales@offerpro.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
+            <Mail size={16} /> Contact Sales
+          </a>
+        </div>
+      )}
 
       {/* Invoice Header */}
       <div className="pro-card" style={{ marginBottom: '1.5rem' }}>
@@ -137,7 +165,7 @@ export default function InvoiceForm({ onSuccess }) {
             <input
               type="text"
               value={formData.invoiceNumber}
-              onChange={(e) => setFormData({...formData, invoiceNumber: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
               className="pro-input"
               style={{ fontWeight: 700, fontSize: '1.1rem', textAlign: 'right', width: '170px' }}
             />
@@ -155,28 +183,28 @@ export default function InvoiceForm({ onSuccess }) {
           <div>
             <label className="pro-label">Client / Organization Name</label>
             <input required type="text" placeholder="e.g. Acme Corp" value={formData.clientName}
-              onChange={(e) => setFormData({...formData, clientName: e.target.value})} className="pro-input" />
+              onChange={(e) => setFormData({ ...formData, clientName: e.target.value })} className="pro-input" />
           </div>
           <div>
             <label className="pro-label">Client Email</label>
             <input type="email" placeholder="billing@client.com" value={formData.clientEmail}
-              onChange={(e) => setFormData({...formData, clientEmail: e.target.value})} className="pro-input" />
+              onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })} className="pro-input" />
           </div>
           <div>
             <label className="pro-label">Client Address</label>
             <input type="text" placeholder="Full billing address" value={formData.clientAddress}
-              onChange={(e) => setFormData({...formData, clientAddress: e.target.value})} className="pro-input" />
+              onChange={(e) => setFormData({ ...formData, clientAddress: e.target.value })} className="pro-input" />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
               <label className="pro-label">Invoice Date</label>
               <input type="date" value={formData.invoiceDate}
-                onChange={(e) => setFormData({...formData, invoiceDate: e.target.value})} className="pro-input" />
+                onChange={(e) => setFormData({ ...formData, invoiceDate: e.target.value })} className="pro-input" />
             </div>
             <div>
               <label className="pro-label">Due Date</label>
               <input type="date" value={formData.dueDate}
-                onChange={(e) => setFormData({...formData, dueDate: e.target.value})} className="pro-input" />
+                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })} className="pro-input" />
             </div>
           </div>
         </div>
@@ -201,25 +229,25 @@ export default function InvoiceForm({ onSuccess }) {
           <div>
             <label className="pro-label">Seller GSTIN</label>
             <input type="text" placeholder="22AAAAA0000A1Z5" value={formData.sellerGSTIN}
-              onChange={(e) => setFormData({...formData, sellerGSTIN: e.target.value.toUpperCase()})}
+              onChange={(e) => setFormData({ ...formData, sellerGSTIN: e.target.value.toUpperCase() })}
               className="pro-input" maxLength={15} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
           </div>
           <div>
             <label className="pro-label">Buyer GSTIN</label>
             <input type="text" placeholder="22AAAAA0000A1Z5" value={formData.buyerGSTIN}
-              onChange={(e) => setFormData({...formData, buyerGSTIN: e.target.value.toUpperCase()})}
+              onChange={(e) => setFormData({ ...formData, buyerGSTIN: e.target.value.toUpperCase() })}
               className="pro-input" maxLength={15} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
           </div>
           <div>
             <label className="pro-label">Seller State (Place of Supply)</label>
-            <select value={formData.sellerState} onChange={(e) => setFormData({...formData, sellerState: e.target.value})} className="pro-input">
+            <select value={formData.sellerState} onChange={(e) => setFormData({ ...formData, sellerState: e.target.value })} className="pro-input">
               <option value="">Select State</option>
               {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
             <label className="pro-label">Buyer State</label>
-            <select value={formData.buyerState} onChange={(e) => setFormData({...formData, buyerState: e.target.value})} className="pro-input">
+            <select value={formData.buyerState} onChange={(e) => setFormData({ ...formData, buyerState: e.target.value })} className="pro-input">
               <option value="">Select State</option>
               {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -228,7 +256,7 @@ export default function InvoiceForm({ onSuccess }) {
             <label className="pro-label">GST Rate</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               {GST_RATES.map(rate => (
-                <button key={rate} type="button" onClick={() => setFormData({...formData, gstRate: rate})}
+                <button key={rate} type="button" onClick={() => setFormData({ ...formData, gstRate: rate })}
                   className={`pro-chip ${formData.gstRate === rate ? 'active' : ''}`}>
                   {rate}%
                 </button>
@@ -289,7 +317,7 @@ export default function InvoiceForm({ onSuccess }) {
           <label className="pro-label">Notes / Payment Terms</label>
           <textarea placeholder="Bank details, payment terms, or thank you note..."
             rows={7} value={formData.notes}
-            onChange={(e) => setFormData({...formData, notes: e.target.value})} className="pro-input" style={{ resize: 'none' }} />
+            onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="pro-input" style={{ resize: 'none' }} />
         </div>
 
         <div className="pro-card pro-totals-card">
@@ -302,7 +330,7 @@ export default function InvoiceForm({ onSuccess }) {
             <span>Discount</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <input type="number" value={formData.discountRate} min="0" max="100"
-                onChange={(e) => setFormData({...formData, discountRate: Number(e.target.value)})}
+                onChange={(e) => setFormData({ ...formData, discountRate: Number(e.target.value) })}
                 className="pro-input" style={{ width: '60px', textAlign: 'center', height: '32px', fontSize: '0.8rem' }} />
               <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>%</span>
             </div>
@@ -354,9 +382,9 @@ export default function InvoiceForm({ onSuccess }) {
         <button type="button" onClick={handlePreview} className="btn btn-outline pro-btn" style={{ height: '52px' }}>
           Live Preview
         </button>
-        <button type="submit" disabled={loading} className="btn btn-primary pro-btn" style={{ height: '52px' }}>
-          {loading ? 'Processing...' : 'Save & Issue Invoice'}
-          <ChevronRight size={18} />
+        <button type="submit" disabled={loading || limitReached} className="btn btn-primary pro-btn" style={{ height: '52px' }}>
+          {loading ? 'Processing...' : limitReached ? 'Limit Reached' : 'Save & Issue Invoice'}
+          {!limitReached && <ChevronRight size={18} />}
         </button>
       </div>
     </form>

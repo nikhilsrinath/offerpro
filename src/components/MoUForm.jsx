@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { Shield, Building, FileText, Lock, Clock, Gavel, Users, Camera, Eye, ChevronRight } from 'lucide-react';
+import { Shield, Building, FileText, Lock, Clock, Gavel, Users, Camera, Eye, ChevronRight, AlertTriangle, Mail } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 import NdaPreview from './NdaPreview';
+import { useTrialStatus, TRIAL_LIMITS } from '../hooks/useTrialStatus';
 
 export default function MoUForm({ onSuccess }) {
   const { user } = useAuth();
   const { activeOrg } = useOrg();
+  const { usage, canCreate, isTrialExpired, refreshUsage } = useTrialStatus();
   const [formData, setFormData] = useState({
     docType: 'nda',
 
@@ -70,10 +72,12 @@ export default function MoUForm({ onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canCreate('mou')) return;
     setIsSubmitting(true);
     try {
       await storageService.save(formData, 'mou', activeOrg?.id, user?.id);
       pdfService.generateMoU(formData);
+      await refreshUsage();
       setTimeout(() => {
         setIsSubmitting(false);
         if (onSuccess) onSuccess();
@@ -84,6 +88,10 @@ export default function MoUForm({ onSuccess }) {
       setIsSubmitting(false);
     }
   };
+
+  const limitReached = !canCreate('mou');
+  const fillPercent = (usage.mou / TRIAL_LIMITS.mou) * 100;
+  const fillClass = usage.mou >= TRIAL_LIMITS.mou ? 'full' : '';
 
   const handlePreview = () => {
     pdfService.generateMoU(formData, true);
@@ -97,6 +105,26 @@ export default function MoUForm({ onSuccess }) {
       {/* LEFT: Form Pane */}
       <div className="mou-form-pane">
         <form onSubmit={handleSubmit} className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+          {/* Usage Indicator */}
+          <div className="usage-indicator">
+            <span className="usage-indicator-label">MoU / NDA</span>
+            <div className="usage-indicator-bar">
+              <div className={`usage-indicator-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
+            </div>
+            <span className="usage-indicator-count">{usage.mou}/{TRIAL_LIMITS.mou}</span>
+          </div>
+
+          {limitReached && (
+            <div className="limit-reached-alert">
+              <AlertTriangle size={32} />
+              <h3>{isTrialExpired ? 'Trial Expired' : 'MoU/NDA Limit Reached'}</h3>
+              <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used your ${TRIAL_LIMITS.mou} MoU/NDA document in the free trial.`} Contact our sales team to upgrade.</p>
+              <a href="mailto:sales@offerpro.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
+                <Mail size={16} /> Contact Sales
+              </a>
+            </div>
+          )}
 
           {/* Document Type Toggle */}
           <div className="nda-type-toggle">
@@ -246,13 +274,13 @@ export default function MoUForm({ onSuccess }) {
               <div>
                 <label className="pro-label">Confidentiality Obligation (Years)</label>
                 <select name="obligationYears" value={formData.obligationYears} onChange={handleChange} className="pro-input">
-                  {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Year' : 'Years'}</option>)}
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Year' : 'Years'}</option>)}
                 </select>
               </div>
               <div>
                 <label className="pro-label">Non-Solicitation Period (Years)</label>
                 <select name="nonSolicitationYears" value={formData.nonSolicitationYears} onChange={handleChange} className="pro-input">
-                  {[1,2,3,4,5].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Year' : 'Years'}</option>)}
+                  {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Year' : 'Years'}</option>)}
                 </select>
               </div>
             </div>
@@ -360,9 +388,9 @@ export default function MoUForm({ onSuccess }) {
           </div>
 
           {/* Actions */}
-          <button type="submit" disabled={isSubmitting} className="btn btn-primary pro-btn" style={{ height: '52px', width: '100%' }}>
-            {isSubmitting ? 'Generating...' : `Save & Download ${docLabel}`}
-            {!isSubmitting && <ChevronRight size={18} />}
+          <button type="submit" disabled={isSubmitting || limitReached} className="btn btn-primary pro-btn" style={{ height: '52px', width: '100%' }}>
+            {isSubmitting ? 'Generating...' : limitReached ? 'Limit Reached' : `Save & Download ${docLabel}`}
+            {!isSubmitting && !limitReached && <ChevronRight size={18} />}
           </button>
 
           {/* Mobile-only preview button */}
