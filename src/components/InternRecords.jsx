@@ -8,7 +8,8 @@ import { useOrg } from '../context/OrgContext';
 const TYPE_CONFIG = {
   offer: { icon: Briefcase, color: '#3b82f6', bg: '#3b82f612', bgSolid: 'rgba(59,130,246,0.08)', label: 'Offer Letter' },
   certificate: { icon: Award, color: '#f59e0b', bg: '#f59e0b12', bgSolid: 'rgba(245,158,11,0.08)', label: 'Certificate' },
-  mou: { icon: FileCode, color: '#10b981', bg: '#10b98112', bgSolid: 'rgba(16,185,129,0.08)', label: 'Legal MoU' },
+  nda: { icon: FileCode, color: '#10b981', bg: '#10b98112', bgSolid: 'rgba(16,185,129,0.08)', label: 'NDA' },
+  mou: { icon: FileCode, color: '#14b8a6', bg: '#14b8a612', bgSolid: 'rgba(20,184,166,0.08)', label: 'MoU' },
   invoice: { icon: FileText, color: '#8b5cf6', bg: '#8b5cf612', bgSolid: 'rgba(139,92,246,0.08)', label: 'Invoice' }
 };
 
@@ -16,7 +17,8 @@ const TABS = [
   { id: 'all', label: 'All Documents' },
   { id: 'offer', label: 'Offer Letters' },
   { id: 'certificate', label: 'Certificates' },
-  { id: 'mou', label: 'Legal MoUs' },
+  { id: 'nda', label: 'NDAs' },
+  { id: 'mou', label: 'MoUs' },
   { id: 'invoice', label: 'Invoices' },
 ];
 
@@ -54,6 +56,7 @@ export default function InternRecords() {
   const handleDownloadPDF = (record) => {
     if (record.type === 'offer') pdfService.generateOfferLetter(record.data);
     else if (record.type === 'certificate') pdfService.generateCertificate(record.data);
+    else if (record.type === 'nda') pdfService.generateNda(record.data);
     else if (record.type === 'mou') pdfService.generateMoU(record.data);
     else if (record.type === 'invoice') pdfService.generateInvoice(record.data);
   };
@@ -62,6 +65,7 @@ export default function InternRecords() {
     all: records.length,
     offer: records.filter(r => r.type === 'offer').length,
     certificate: records.filter(r => r.type === 'certificate').length,
+    nda: records.filter(r => r.type === 'nda').length,
     mou: records.filter(r => r.type === 'mou').length,
     invoice: records.filter(r => r.type === 'invoice').length,
   }), [records]);
@@ -196,8 +200,11 @@ export default function InternRecords() {
                   {record.type === 'certificate' && record.data?.achievementTitle && (
                     <span>{record.data.achievementTitle}</span>
                   )}
+                  {record.type === 'nda' && (
+                    <span>{record.data?.receivingPartyName ? `with ${record.data.receivingPartyName}` : 'NDA Agreement'}</span>
+                  )}
                   {record.type === 'mou' && (
-                    <span>{(record.data?.receivingPartyName || record.data?.partyBName) ? `with ${record.data.receivingPartyName || record.data.partyBName}` : 'NDA Agreement'}</span>
+                    <span>{record.data?.secondPartyName ? `with ${record.data.secondPartyName}` : 'MoU Agreement'}</span>
                   )}
                   {record.type === 'invoice' && (
                     <span>₹{record.data?.totals?.grandTotal?.toLocaleString() || '0'}{record.data?.invoiceNumber ? ` · ${record.data.invoiceNumber}` : ''}</span>
@@ -259,13 +266,15 @@ export default function InternRecords() {
                       <div style={{ fontWeight: 500, fontSize: '0.8125rem' }}>
                         {record.type === 'offer' ? record.data?.role
                           : record.type === 'certificate' ? record.data?.achievementTitle
-                          : record.type === 'mou' ? 'NDA Agreement'
+                          : record.type === 'nda' ? 'NDA Agreement'
+                          : record.type === 'mou' ? 'MoU Agreement'
                           : `₹${record.data?.totals?.grandTotal?.toLocaleString()}`}
                       </div>
                       <div style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.25)' }}>
                         {record.type === 'offer' ? record.data?.department
                           : record.type === 'certificate' ? record.data?.issuingOrganization
-                          : record.type === 'mou' ? (record.data?.arbitrationCity ? `${record.data.arbitrationCity}, ${record.data.arbitrationState}` : record.data?.jurisdiction)
+                          : record.type === 'nda' ? (record.data?.arbitrationCity ? `${record.data.arbitrationCity}, ${record.data.arbitrationState}` : '')
+                          : record.type === 'mou' ? (record.data?.arbitrationCity || '')
                           : `Due: ${record.data?.dueDate}`}
                       </div>
                     </td>

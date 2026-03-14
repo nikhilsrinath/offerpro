@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, FileText, ChevronRight, Save, Receipt, Calculator, MapPin, Building2, Percent, AlertTriangle, Mail } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, Eye, AlertTriangle, Mail, Lock } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { pdfService } from '../services/pdfService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 import { useTrialStatus, TRIAL_LIMITS } from '../hooks/useTrialStatus';
+import InvoicePreview from './InvoicePreview';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -25,35 +26,28 @@ export default function InvoiceForm({ onSuccess }) {
   const { usage, canCreate, isTrialExpired, refreshUsage } = useTrialStatus();
   const [loading, setLoading] = useState(false);
 
+  const org = activeOrg || {};
   const [formData, setFormData] = useState({
-    // Client info
     clientName: '',
     clientEmail: '',
     clientAddress: '',
-    // Invoice meta
     invoiceNumber: `INV-${new Date().getTime().toString().slice(-6)}`,
     invoiceDate: new Date().toISOString().split('T')[0],
     dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    // GST details
-    sellerGSTIN: '',
+    sellerGSTIN: org.gstin || '',
     buyerGSTIN: '',
     sellerState: '',
     buyerState: '',
     gstRate: 18,
-    // Line items
-    items: [{ id: 1, description: '', hsnCode: '', quantity: 1, price: 0 }],
+    items: [{ id: 1, description: '', hsnCode: '', quantity: 1, price: 0, makingCost: 0 }],
     discountRate: 0,
-    notes: ''
+    notes: '',
+    orgName: org.company_name || org.name || ''
   });
 
   const [totals, setTotals] = useState({
-    subtotal: 0,
-    discountAmount: 0,
-    taxableAmount: 0,
-    cgst: 0,
-    sgst: 0,
-    igst: 0,
-    grandTotal: 0
+    subtotal: 0, discountAmount: 0, taxableAmount: 0,
+    cgst: 0, sgst: 0, igst: 0, grandTotal: 0
   });
 
   const isInterState = formData.sellerState && formData.buyerState && formData.sellerState !== formData.buyerState;
@@ -63,32 +57,22 @@ export default function InvoiceForm({ onSuccess }) {
     const discountAmount = subtotal * (formData.discountRate / 100);
     const taxableAmount = subtotal - discountAmount;
     const gstAmount = taxableAmount * (formData.gstRate / 100);
-
     let cgst = 0, sgst = 0, igst = 0;
-    if (isInterState) {
-      igst = gstAmount;
-    } else {
-      cgst = gstAmount / 2;
-      sgst = gstAmount / 2;
-    }
-
+    if (isInterState) { igst = gstAmount; } else { cgst = gstAmount / 2; sgst = gstAmount / 2; }
     const grandTotal = taxableAmount + gstAmount;
     setTotals({ subtotal, discountAmount, taxableAmount, cgst, sgst, igst, grandTotal });
   }, [formData.items, formData.gstRate, formData.discountRate, formData.sellerState, formData.buyerState]);
 
+  const totalMakingCost = formData.items.reduce((acc, item) => acc + ((Number(item.makingCost) || 0) * item.quantity), 0);
+  const estimatedProfit = totals.grandTotal - totalMakingCost;
+
   const handleAddItem = () => {
-    setFormData({
-      ...formData,
-      items: [...formData.items, { id: Date.now(), description: '', hsnCode: '', quantity: 1, price: 0 }]
-    });
+    setFormData({ ...formData, items: [...formData.items, { id: Date.now(), description: '', hsnCode: '', quantity: 1, price: 0, makingCost: 0 }] });
   };
 
   const handleRemoveItem = (id) => {
     if (formData.items.length === 1) return;
-    setFormData({
-      ...formData,
-      items: formData.items.filter(item => item.id !== id)
-    });
+    setFormData({ ...formData, items: formData.items.filter(item => item.id !== id) });
   };
 
   const handleItemChange = (id, field, value) => {
@@ -101,7 +85,7 @@ export default function InvoiceForm({ onSuccess }) {
   };
 
   const handlePreview = () => {
-    pdfService.generateInvoice({ ...formData, totals, isInterState, orgName: activeOrg?.company_name || activeOrg?.name }, true);
+    pdfService.generateInvoice({ ...formData, totals, isInterState, orgName: formData.orgName || activeOrg?.company_name || activeOrg?.name }, true);
   };
 
   const handleSubmit = async (e) => {
@@ -109,7 +93,7 @@ export default function InvoiceForm({ onSuccess }) {
     if (!canCreate('invoice')) return;
     setLoading(true);
     try {
-      const dataToSave = { ...formData, totals, isInterState, orgName: activeOrg?.company_name || activeOrg?.name };
+      const dataToSave = { ...formData, totals, isInterState, makingCharges: totalMakingCost, orgName: formData.orgName || activeOrg?.company_name || activeOrg?.name };
       await storageService.save(dataToSave, 'invoice', activeOrg?.id, user?.id);
       pdfService.generateInvoice(dataToSave);
       await refreshUsage();
@@ -126,267 +110,305 @@ export default function InvoiceForm({ onSuccess }) {
   const fillClass = usage.invoice >= TRIAL_LIMITS.invoice ? 'full' : usage.invoice >= TRIAL_LIMITS.invoice - 1 ? 'warning' : '';
 
   return (
-    <form onSubmit={handleSubmit} className="animate-in" style={{ maxWidth: '100%' }}>
+    <div className="mou-split-layout">
 
-      {/* Usage Indicator */}
-      <div className="usage-indicator" style={{ marginBottom: '1.5rem' }}>
-        <span className="usage-indicator-label">Invoices</span>
-        <div className="usage-indicator-bar">
-          <div className={`usage-indicator-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
-        </div>
-        <span className="usage-indicator-count">{usage.invoice}/{TRIAL_LIMITS.invoice}</span>
-      </div>
+      {/* LEFT: Form */}
+      <div className="mou-form-pane">
+        <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
 
-      {limitReached && (
-        <div className="limit-reached-alert" style={{ marginBottom: '1.5rem' }}>
-          <AlertTriangle size={32} />
-          <h3>{isTrialExpired ? 'Trial Expired' : 'Invoice Limit Reached'}</h3>
-          <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used all ${TRIAL_LIMITS.invoice} invoices in your free trial.`} Contact our sales team to upgrade.</p>
-          <a href="mailto:sales@offerpro.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
-            <Mail size={16} /> Contact Sales
-          </a>
-        </div>
-      )}
+          {/* Usage */}
+          <div className="easy-usage">
+            <span className="easy-usage-label">Invoices</span>
+            <div className="easy-usage-bar">
+              <div className={`easy-usage-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
+            </div>
+            <span className="easy-usage-count">{usage.invoice}/{TRIAL_LIMITS.invoice}</span>
+          </div>
 
-      {/* Invoice Header */}
-      <div className="pro-card" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem' }}>
-          <div>
-            <div className="pro-section-header">
-              <div className="pro-section-icon"><Receipt size={18} /></div>
-              <div>
-                <h3 className="pro-section-title">Invoice Details</h3>
-                <p className="pro-section-sub">Configure your GST-compliant billing document</p>
+          {limitReached && (
+            <div className="easy-limit-alert">
+              <AlertTriangle size={28} />
+              <h3>{isTrialExpired ? 'Trial Expired' : 'Invoice Limit Reached'}</h3>
+              <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used all ${TRIAL_LIMITS.invoice} invoices in your free trial.`} Contact our sales team to upgrade.</p>
+              <a href="mailto:sales@offerpro.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
+                <Mail size={16} /> Contact Sales
+              </a>
+            </div>
+          )}
+
+          {/* 1. Invoice Info */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <div className="easy-num">1</div>
+              <span className="easy-section-title">Invoice info</span>
+            </div>
+            <div className="easy-row">
+              <div className="easy-field">
+                <label className="easy-lbl">Invoice number</label>
+                <input type="text" value={formData.invoiceNumber}
+                  onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
+                  className="easy-inp" style={{ fontWeight: 700 }} />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Invoice date</label>
+                <input type="date" value={formData.invoiceDate}
+                  onChange={(e) => setFormData({ ...formData, invoiceDate: e.target.value })} className="easy-inp" />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Due date</label>
+                <input type="date" value={formData.dueDate}
+                  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })} className="easy-inp" />
               </div>
             </div>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <label className="pro-label">Invoice #</label>
-            <input
-              type="text"
-              value={formData.invoiceNumber}
-              onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
-              className="pro-input"
-              style={{ fontWeight: 700, fontSize: '1.1rem', textAlign: 'right', width: '170px' }}
-            />
-          </div>
-        </div>
-      </div>
 
-      {/* Client & Dates */}
-      <div className="pro-card" style={{ marginBottom: '1.5rem' }}>
-        <div className="pro-section-header" style={{ marginBottom: '1.5rem' }}>
-          <div className="pro-section-icon"><Building2 size={18} /></div>
-          <h3 className="pro-section-title">Client Information</h3>
-        </div>
-        <div className="form-grid">
-          <div>
-            <label className="pro-label">Client / Organization Name</label>
-            <input required type="text" placeholder="e.g. Acme Corp" value={formData.clientName}
-              onChange={(e) => setFormData({ ...formData, clientName: e.target.value })} className="pro-input" />
-          </div>
-          <div>
-            <label className="pro-label">Client Email</label>
-            <input type="email" placeholder="billing@client.com" value={formData.clientEmail}
-              onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })} className="pro-input" />
-          </div>
-          <div>
-            <label className="pro-label">Client Address</label>
-            <input type="text" placeholder="Full billing address" value={formData.clientAddress}
-              onChange={(e) => setFormData({ ...formData, clientAddress: e.target.value })} className="pro-input" />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div>
-              <label className="pro-label">Invoice Date</label>
-              <input type="date" value={formData.invoiceDate}
-                onChange={(e) => setFormData({ ...formData, invoiceDate: e.target.value })} className="pro-input" />
+          {/* 2. Client */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <div className="easy-num">2</div>
+              <span className="easy-section-title">Client details</span>
             </div>
-            <div>
-              <label className="pro-label">Due Date</label>
-              <input type="date" value={formData.dueDate}
-                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })} className="pro-input" />
+            <div className="easy-row">
+              <div className="easy-field">
+                <label className="easy-lbl">Client name</label>
+                <input required type="text" placeholder="e.g. Acme Corp" value={formData.clientName}
+                  onChange={(e) => setFormData({ ...formData, clientName: e.target.value })} className="easy-inp" />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Client email</label>
+                <input type="email" placeholder="billing@client.com" value={formData.clientEmail}
+                  onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })} className="easy-inp" />
+              </div>
+              <div className="easy-field full">
+                <label className="easy-lbl">Client address</label>
+                <input type="text" placeholder="Full billing address" value={formData.clientAddress}
+                  onChange={(e) => setFormData({ ...formData, clientAddress: e.target.value })} className="easy-inp" />
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* GST Details */}
-      <div className="pro-card" style={{ marginBottom: '1.5rem' }}>
-        <div className="pro-section-header" style={{ marginBottom: '1.5rem' }}>
-          <div className="pro-section-icon" style={{ background: '#10b98118', color: '#10b981' }}><Percent size={18} /></div>
-          <div>
-            <h3 className="pro-section-title">GST Information</h3>
-            <p className="pro-section-sub">
-              {formData.sellerState && formData.buyerState ? (
-                isInterState
-                  ? <span style={{ color: '#f59e0b' }}>Inter-State Supply (IGST applicable)</span>
-                  : <span style={{ color: '#10b981' }}>Intra-State Supply (CGST + SGST applicable)</span>
-              ) : 'Select states to auto-detect GST type'}
+          {/* 3. GST */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <div className="easy-num">3</div>
+              <span className="easy-section-title">GST information</span>
+            </div>
+            {formData.sellerState && formData.buyerState && (
+              <p style={{ fontSize: '0.8125rem', marginBottom: '1rem', color: isInterState ? '#f59e0b' : '#10b981', fontWeight: 500 }}>
+                {isInterState ? 'Inter-state supply (IGST)' : 'Intra-state supply (CGST + SGST)'}
+              </p>
+            )}
+            <div className="easy-row">
+              <div className="easy-field">
+                <label className="easy-lbl">Seller GSTIN</label>
+                <input type="text" placeholder="22AAAAA0000A1Z5" value={formData.sellerGSTIN}
+                  onChange={(e) => setFormData({ ...formData, sellerGSTIN: e.target.value.toUpperCase() })}
+                  className="easy-inp" maxLength={15} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Buyer GSTIN</label>
+                <input type="text" placeholder="22AAAAA0000A1Z5" value={formData.buyerGSTIN}
+                  onChange={(e) => setFormData({ ...formData, buyerGSTIN: e.target.value.toUpperCase() })}
+                  className="easy-inp" maxLength={15} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Seller state</label>
+                <select value={formData.sellerState} onChange={(e) => setFormData({ ...formData, sellerState: e.target.value })} className="easy-inp">
+                  <option value="">Select state</option>
+                  {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Buyer state</label>
+                <select value={formData.buyerState} onChange={(e) => setFormData({ ...formData, buyerState: e.target.value })} className="easy-inp">
+                  <option value="">Select state</option>
+                  {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="easy-field full">
+                <label className="easy-lbl">GST rate</label>
+                <div className="easy-chips">
+                  {GST_RATES.map(rate => (
+                    <button key={rate} type="button" onClick={() => setFormData({ ...formData, gstRate: rate })}
+                      className={`easy-chip ${formData.gstRate === rate ? 'active' : ''}`}>
+                      {rate}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Line Items */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <div className="easy-num">4</div>
+              <span className="easy-section-title">Line items</span>
+            </div>
+
+            {formData.items.map((item, index) => (
+              <div key={item.id} className="easy-line-item">
+                <div className="easy-line-num">{index + 1}</div>
+                <div className="easy-line-fields">
+                  <div className="easy-line-top">
+                    <input type="text" placeholder="Item description..." value={item.description}
+                      onChange={(e) => handleItemChange(item.id, 'description', e.target.value)} className="easy-inp" />
+                    <input type="text" placeholder="HSN/SAC" value={item.hsnCode}
+                      onChange={(e) => handleItemChange(item.id, 'hsnCode', e.target.value)} className="easy-inp" />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.625rem' }}>
+                    <div>
+                      <label className="easy-lbl-sm">Qty</label>
+                      <input type="number" value={item.quantity} min="1"
+                        onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)} className="easy-inp" />
+                    </div>
+                    <div>
+                      <label className="easy-lbl-sm">Unit price</label>
+                      <input type="number" value={item.price} min="0"
+                        onChange={(e) => handleItemChange(item.id, 'price', e.target.value)} className="easy-inp" />
+                    </div>
+                    <div>
+                      <label className="easy-lbl-sm" style={{ color: '#f59e0b' }}>Making cost</label>
+                      <input type="number" value={item.makingCost || ''} min="0" placeholder="0"
+                        onChange={(e) => handleItemChange(item.id, 'makingCost', e.target.value)} className="easy-inp"
+                        style={{ borderColor: 'rgba(245,158,11,0.15)' }} />
+                    </div>
+                    <div>
+                      <label className="easy-lbl-sm">Amount</label>
+                      <div className="easy-line-amount">{(item.quantity * item.price).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}</div>
+                    </div>
+                  </div>
+                </div>
+                <button type="button" onClick={() => handleRemoveItem(item.id)} className="easy-delete-btn" title="Remove">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+
+            <button type="button" onClick={handleAddItem} className="easy-add-btn">
+              <Plus size={16} /> Add item
+            </button>
+
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
+              <Lock size={11} style={{ display: 'inline', verticalAlign: '-1px', marginRight: '0.25rem' }} />
+              Making cost is internal — it won't appear on the invoice PDF. Used for profit tracking only.
             </p>
           </div>
-        </div>
-        <div className="form-grid">
-          <div>
-            <label className="pro-label">Seller GSTIN</label>
-            <input type="text" placeholder="22AAAAA0000A1Z5" value={formData.sellerGSTIN}
-              onChange={(e) => setFormData({ ...formData, sellerGSTIN: e.target.value.toUpperCase() })}
-              className="pro-input" maxLength={15} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
-          </div>
-          <div>
-            <label className="pro-label">Buyer GSTIN</label>
-            <input type="text" placeholder="22AAAAA0000A1Z5" value={formData.buyerGSTIN}
-              onChange={(e) => setFormData({ ...formData, buyerGSTIN: e.target.value.toUpperCase() })}
-              className="pro-input" maxLength={15} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
-          </div>
-          <div>
-            <label className="pro-label">Seller State (Place of Supply)</label>
-            <select value={formData.sellerState} onChange={(e) => setFormData({ ...formData, sellerState: e.target.value })} className="pro-input">
-              <option value="">Select State</option>
-              {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="pro-label">Buyer State</label>
-            <select value={formData.buyerState} onChange={(e) => setFormData({ ...formData, buyerState: e.target.value })} className="pro-input">
-              <option value="">Select State</option>
-              {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="pro-label">GST Rate</label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {GST_RATES.map(rate => (
-                <button key={rate} type="button" onClick={() => setFormData({ ...formData, gstRate: rate })}
-                  className={`pro-chip ${formData.gstRate === rate ? 'active' : ''}`}>
-                  {rate}%
-                </button>
-              ))}
+
+          {/* 5. Summary */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <div className="easy-num">5</div>
+              <span className="easy-section-title">Summary</span>
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Line Items */}
-      <div className="pro-card" style={{ marginBottom: '1.5rem' }}>
-        <div className="pro-section-header" style={{ marginBottom: '1.5rem' }}>
-          <div className="pro-section-icon" style={{ background: '#8b5cf618', color: '#8b5cf6' }}><Calculator size={18} /></div>
-          <h3 className="pro-section-title">Line Items</h3>
-        </div>
-
-        {formData.items.map((item, index) => (
-          <div key={item.id} className="pro-line-item">
-            <div className="pro-line-item-num">{index + 1}</div>
-            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: '0.75rem' }}>
-                <input type="text" placeholder="Item description..." value={item.description}
-                  onChange={(e) => handleItemChange(item.id, 'description', e.target.value)} className="pro-input" />
-                <input type="text" placeholder="HSN/SAC" value={item.hsnCode}
-                  onChange={(e) => handleItemChange(item.id, 'hsnCode', e.target.value)} className="pro-input" />
+            <div className="easy-summary-grid">
+              <div className="easy-field">
+                <label className="easy-lbl">Notes / payment terms</label>
+                <textarea placeholder="Bank details, payment terms, or thank you note..."
+                  rows={7} value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="easy-inp" style={{ resize: 'none' }} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
-                <div>
-                  <label className="pro-label-sm">Qty</label>
-                  <input type="number" value={item.quantity} min="1"
-                    onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)} className="pro-input" />
+
+              <div className="easy-totals">
+                <div className="easy-total-row">
+                  <span>Subtotal</span>
+                  <strong>{totals.subtotal.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</strong>
                 </div>
-                <div>
-                  <label className="pro-label-sm">Unit Price (₹)</label>
-                  <input type="number" value={item.price} min="0"
-                    onChange={(e) => handleItemChange(item.id, 'price', e.target.value)} className="pro-input" />
+
+                <div className="easy-total-row">
+                  <span>Discount</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                    <input type="number" value={formData.discountRate} min="0" max="100"
+                      onChange={(e) => setFormData({ ...formData, discountRate: Number(e.target.value) })}
+                      className="easy-inp" style={{ width: '56px', textAlign: 'center', padding: '0.375rem', fontSize: '0.8125rem' }} />
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>%</span>
+                  </div>
                 </div>
-                <div>
-                  <label className="pro-label-sm">Amount</label>
-                  <div className="pro-amount-display">₹{(item.quantity * item.price).toLocaleString()}</div>
+
+                {totals.discountAmount > 0 && (
+                  <div className="easy-total-row" style={{ color: '#ef4444' }}>
+                    <span>Discount amount</span>
+                    <span>-{totals.discountAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                  </div>
+                )}
+
+                <div className="easy-total-row">
+                  <span>Taxable amount</span>
+                  <strong>{totals.taxableAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</strong>
                 </div>
+
+                <div className="easy-total-divider" />
+
+                {isInterState ? (
+                  <div className="easy-total-row" style={{ color: 'rgba(59,130,246,0.7)' }}>
+                    <span>IGST @ {formData.gstRate}%</span>
+                    <span style={{ color: '#60a5fa', fontWeight: 600 }}>{totals.igst.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="easy-total-row" style={{ color: 'rgba(59,130,246,0.7)' }}>
+                      <span>CGST @ {formData.gstRate / 2}%</span>
+                      <span style={{ color: '#60a5fa', fontWeight: 600 }}>{totals.cgst.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                    </div>
+                    <div className="easy-total-row" style={{ color: 'rgba(59,130,246,0.7)' }}>
+                      <span>SGST @ {formData.gstRate / 2}%</span>
+                      <span style={{ color: '#60a5fa', fontWeight: 600 }}>{totals.sgst.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                    </div>
+                  </>
+                )}
+
+                <div className="easy-total-divider" />
+
+                <div className="easy-total-row easy-total-grand">
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-tertiary)' }}>Total</span>
+                  <span>{totals.grandTotal.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                </div>
+
+                {totalMakingCost > 0 && (
+                  <>
+                    <div className="easy-total-divider" />
+                    <div className="easy-total-row" style={{ color: '#f59e0b' }}>
+                      <span>Making cost</span>
+                      <span style={{ fontWeight: 600 }}>-{totalMakingCost.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                    </div>
+                    <div className="easy-total-row" style={{ fontWeight: 700, color: estimatedProfit >= 0 ? '#10b981' : '#ef4444' }}>
+                      <span>Profit</span>
+                      <span>{estimatedProfit.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
-            <button type="button" onClick={() => handleRemoveItem(item.id)} className="pro-delete-btn" title="Remove">
-              <Trash2 size={16} />
-            </button>
           </div>
-        ))}
 
-        <button type="button" onClick={handleAddItem} className="pro-add-item-btn">
-          <Plus size={16} /> Add Line Item
-        </button>
+          {/* Actions */}
+          <button type="submit" disabled={loading || limitReached} className="easy-submit">
+            {loading ? 'Processing...' : limitReached ? 'Limit Reached' : 'Save & Issue'}
+            {!limitReached && <ChevronRight size={18} />}
+          </button>
+
+          {/* Mobile preview */}
+          <button type="button" onClick={handlePreview} className="easy-submit-outline mou-mobile-preview-btn" style={{ marginTop: '0.75rem' }}>
+            <Eye size={16} /> Preview as PDF
+          </button>
+
+        </form>
       </div>
 
-      {/* Summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
-        <div className="pro-card">
-          <label className="pro-label">Notes / Payment Terms</label>
-          <textarea placeholder="Bank details, payment terms, or thank you note..."
-            rows={7} value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="pro-input" style={{ resize: 'none' }} />
+      {/* RIGHT: Live Preview */}
+      <div className="mou-preview-pane">
+        <div className="mou-preview-toolbar">
+          <span className="mou-preview-toolbar-label">Live Preview</span>
+          <button type="button" onClick={handlePreview} className="easy-submit-outline" style={{ padding: '0.375rem 0.875rem', fontSize: '0.75rem', width: 'auto' }}>
+            <Eye size={14} /> Open PDF
+          </button>
         </div>
-
-        <div className="pro-card pro-totals-card">
-          <div className="pro-total-row">
-            <span>Subtotal</span>
-            <span className="pro-total-value">₹{totals.subtotal.toLocaleString()}</span>
-          </div>
-
-          <div className="pro-total-row">
-            <span>Discount</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <input type="number" value={formData.discountRate} min="0" max="100"
-                onChange={(e) => setFormData({ ...formData, discountRate: Number(e.target.value) })}
-                className="pro-input" style={{ width: '60px', textAlign: 'center', height: '32px', fontSize: '0.8rem' }} />
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>%</span>
-            </div>
-          </div>
-
-          {totals.discountAmount > 0 && (
-            <div className="pro-total-row" style={{ color: '#ef4444' }}>
-              <span>Discount Amount</span>
-              <span>-₹{totals.discountAmount.toLocaleString()}</span>
-            </div>
-          )}
-
-          <div className="pro-total-row">
-            <span>Taxable Amount</span>
-            <span className="pro-total-value">₹{totals.taxableAmount.toLocaleString()}</span>
-          </div>
-
-          <div className="pro-total-divider" />
-
-          {isInterState ? (
-            <div className="pro-total-row pro-gst-row">
-              <span>IGST @ {formData.gstRate}%</span>
-              <span>₹{totals.igst.toLocaleString()}</span>
-            </div>
-          ) : (
-            <>
-              <div className="pro-total-row pro-gst-row">
-                <span>CGST @ {formData.gstRate / 2}%</span>
-                <span>₹{totals.cgst.toLocaleString()}</span>
-              </div>
-              <div className="pro-total-row pro-gst-row">
-                <span>SGST @ {formData.gstRate / 2}%</span>
-                <span>₹{totals.sgst.toLocaleString()}</span>
-              </div>
-            </>
-          )}
-
-          <div className="pro-total-divider" />
-
-          <div className="pro-total-row pro-grand-total">
-            <span>Total Amount</span>
-            <span>₹{totals.grandTotal.toLocaleString()}</span>
-          </div>
+        <div className="mou-a4-scroller">
+          <InvoicePreview formData={formData} totals={totals} isInterState={isInterState} />
         </div>
       </div>
 
-      {/* Actions */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-        <button type="button" onClick={handlePreview} className="btn btn-outline pro-btn" style={{ height: '52px' }}>
-          Live Preview
-        </button>
-        <button type="submit" disabled={loading || limitReached} className="btn btn-primary pro-btn" style={{ height: '52px' }}>
-          {loading ? 'Processing...' : limitReached ? 'Limit Reached' : 'Save & Issue Invoice'}
-          {!limitReached && <ChevronRight size={18} />}
-        </button>
-      </div>
-    </form>
+    </div>
   );
 }

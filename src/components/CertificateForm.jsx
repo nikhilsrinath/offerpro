@@ -1,26 +1,32 @@
 import { useState } from 'react';
-import { Award, Camera, User, Calendar, Building, ChevronRight } from 'lucide-react';
+import { Upload, CheckCircle, ChevronRight, Eye, Palette, X, Mail } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
+import { resolveFormImages } from '../utils/imageUtils';
+import { CERTIFICATE_TEMPLATES } from '../services/certificateTemplates';
+import CertificatePreview from './CertificatePreview';
 
 export default function CertificateForm({ onSuccess }) {
   const { user } = useAuth();
   const { activeOrg } = useOrg();
+  const org = activeOrg || {};
   const [formData, setFormData] = useState({
+    template: 'classic',
     recipientName: '',
     achievementTitle: '',
-    issuingOrganization: '',
+    issuingOrganization: org.company_name || '',
     issueDate: '',
     description: '',
-    authorizedSignatory: '',
-    signatoryDesignation: '',
-    logo: null,
-    signature: null,
+    authorizedSignatory: org.owner_full_name || '',
+    signatoryDesignation: org.document_designation || '',
+    logo: org.logo_url || null,
+    signature: org.signature_url || null,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showBranding, setShowBranding] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -40,8 +46,9 @@ export default function CertificateForm({ onSuccess }) {
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      const resolved = await resolveFormImages(formData, ['logo', 'signature']);
       await storageService.save(formData, 'certificate', activeOrg?.id, user?.id);
-      pdfService.generateCertificate(formData);
+      pdfService.generateCertificate(resolved);
       setTimeout(() => {
         setIsSubmitting(false);
         if (onSuccess) onSuccess();
@@ -53,98 +60,184 @@ export default function CertificateForm({ onSuccess }) {
     }
   };
 
+  const handlePreview = async () => {
+    const resolved = await resolveFormImages(formData, ['logo', 'signature']);
+    pdfService.generateCertificate(resolved, true);
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: '100%' }}>
+    <div className="mou-split-layout">
 
-      {/* Recipient */}
-      <div className="pro-card">
-        <div className="pro-section-header">
-          <div className="pro-section-icon" style={{ background: 'rgba(245,158,11,0.1)', color: '#fbbf24' }}><User size={18} /></div>
-          <div>
-            <h3 className="pro-section-title">Recipient Details</h3>
-            <p className="pro-section-sub">Person receiving the certificate</p>
-          </div>
-        </div>
-        <div className="form-grid">
-          <div style={{ gridColumn: 'span 2' }}>
-            <label className="pro-label">Recipient Full Name</label>
-            <input name="recipientName" value={formData.recipientName} onChange={handleChange} required placeholder="Jane Smith" className="pro-input" />
-          </div>
-          <div style={{ gridColumn: 'span 2' }}>
-            <label className="pro-label">Achievement / Certification Title</label>
-            <input name="achievementTitle" value={formData.achievementTitle} onChange={handleChange} required placeholder="Certificate of Excellence in React Development" className="pro-input" />
-          </div>
-        </div>
-      </div>
+      {/* LEFT: Form */}
+      <div className="mou-form-pane">
+        <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
 
-      {/* Organization */}
-      <div className="pro-card">
-        <div className="pro-section-header">
-          <div className="pro-section-icon"><Building size={18} /></div>
-          <div>
-            <h3 className="pro-section-title">Issuing Organization</h3>
-            <p className="pro-section-sub">Details of the certifying body</p>
-          </div>
-        </div>
-        <div className="form-grid">
-          <div>
-            <label className="pro-label">Organization Name</label>
-            <input name="issuingOrganization" value={formData.issuingOrganization} onChange={handleChange} required placeholder="Acme Academy" className="pro-input" />
-          </div>
-          <div>
-            <label className="pro-label">Issue Date</label>
-            <input type="date" name="issueDate" value={formData.issueDate} onChange={handleChange} required className="pro-input" />
-          </div>
-          <div>
-            <label className="pro-label">Upload Logo</label>
-            <div style={{ position: 'relative' }}>
-              <input type="file" onChange={(e) => handleFileUpload(e, 'logo')} accept="image/*" style={{ opacity: 0, position: 'absolute', inset: 0, cursor: 'pointer', zIndex: 10 }} />
-              <div className="pro-add-item-btn" style={{ height: '42px', margin: 0, borderStyle: 'dashed' }}>
-                <Camera size={16} /> {formData.logo ? 'Logo Uploaded' : 'Select File'}
+          {/* Template Selector */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <span className="easy-section-title">Choose template</span>
+            </div>
+            <div className="cert-template-strip">
+              {CERTIFICATE_TEMPLATES.map(tpl => (
+                <div
+                  key={tpl.id}
+                  className={`cert-tpl-card${formData.template === tpl.id ? ' active' : ''}`}
+                  onClick={() => setFormData(prev => ({ ...prev, template: tpl.id }))}
+                >
+                  <div className="cert-tpl-swatch" style={{ background: tpl.swatchBg }}>
+                    <div className="cert-tpl-swatch-bar" style={{ background: tpl.swatchPrimary }} />
+                    <div className="cert-tpl-swatch-dot" style={{ background: tpl.swatchAccent }} />
+                  </div>
+                  <div className="cert-tpl-name">{tpl.name}</div>
+                </div>
+              ))}
+              {/* Customize Branding Card */}
+              <div
+                className="cert-tpl-card cert-tpl-custom"
+                onClick={() => setShowBranding(true)}
+              >
+                <div className="cert-tpl-swatch cert-tpl-swatch-custom">
+                  <Palette size={20} />
+                </div>
+                <div className="cert-tpl-name">Custom</div>
               </div>
             </div>
           </div>
-          <div>
-            <label className="pro-label">Achievement Description</label>
-            <textarea name="description" value={formData.description} onChange={handleChange} required placeholder="For outstanding performance..." rows="2" className="pro-input" style={{ resize: 'none' }} />
-          </div>
-        </div>
-      </div>
 
-      {/* Signatory */}
-      <div className="pro-card">
-        <div className="pro-section-header">
-          <div className="pro-section-icon" style={{ background: 'rgba(16,185,129,0.1)', color: '#34d399' }}><Award size={18} /></div>
-          <div>
-            <h3 className="pro-section-title">Authorized Signatory</h3>
-            <p className="pro-section-sub">Person signing the certificate</p>
-          </div>
-        </div>
-        <div className="form-grid">
-          <div>
-            <label className="pro-label">Signatory Name</label>
-            <input name="authorizedSignatory" value={formData.authorizedSignatory} onChange={handleChange} required placeholder="Dr. Robert Johnson" className="pro-input" />
-          </div>
-          <div>
-            <label className="pro-label">Designation</label>
-            <input name="signatoryDesignation" value={formData.signatoryDesignation} onChange={handleChange} required placeholder="Program Director" className="pro-input" />
-          </div>
-          <div>
-            <label className="pro-label">Upload Signature</label>
-            <div style={{ position: 'relative' }}>
-              <input type="file" onChange={(e) => handleFileUpload(e, 'signature')} accept="image/*" style={{ opacity: 0, position: 'absolute', inset: 0, cursor: 'pointer', zIndex: 10 }} />
-              <div className="pro-add-item-btn" style={{ height: '42px', margin: 0, borderStyle: 'dotted' }}>
-                <Camera size={16} /> {formData.signature ? 'Signature Uploaded' : 'Upload Signature'}
+          {/* 1. Recipient */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <div className="easy-num">1</div>
+              <span className="easy-section-title">Recipient</span>
+            </div>
+            <div className="easy-row">
+              <div className="easy-field full">
+                <label className="easy-lbl">Full name</label>
+                <input name="recipientName" value={formData.recipientName} onChange={handleChange} required placeholder="Jane Smith" className="easy-inp" />
+              </div>
+              <div className="easy-field full">
+                <label className="easy-lbl">Achievement / certification title</label>
+                <input name="achievementTitle" value={formData.achievementTitle} onChange={handleChange} required placeholder="Certificate of Excellence in React Development" className="easy-inp" />
               </div>
             </div>
           </div>
+
+          {/* 2. Organization */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <div className="easy-num">2</div>
+              <span className="easy-section-title">Issuing organization</span>
+            </div>
+            <div className="easy-row">
+              <div className="easy-field">
+                <label className="easy-lbl">Organization name</label>
+                <input name="issuingOrganization" value={formData.issuingOrganization} onChange={handleChange} required placeholder="Acme Academy" className="easy-inp" />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Issue date</label>
+                <input type="date" name="issueDate" value={formData.issueDate} onChange={handleChange} required className="easy-inp" />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Organization logo</label>
+                <div className="easy-upload-wrap">
+                  <input type="file" onChange={(e) => handleFileUpload(e, 'logo')} accept="image/*" />
+                  <div className={`easy-upload ${formData.logo ? 'done' : ''}`}>
+                    {formData.logo ? <><CheckCircle size={16} /> Logo uploaded</> : <><Upload size={16} /> Choose file</>}
+                  </div>
+                </div>
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Description</label>
+                <textarea name="description" value={formData.description} onChange={handleChange} required placeholder="For outstanding performance..." rows="2" className="easy-inp" style={{ resize: 'none' }} />
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Signatory */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <div className="easy-num">3</div>
+              <span className="easy-section-title">Signatory</span>
+            </div>
+            <div className="easy-row">
+              <div className="easy-field">
+                <label className="easy-lbl">Signatory name</label>
+                <input name="authorizedSignatory" value={formData.authorizedSignatory} onChange={handleChange} required placeholder="Dr. Robert Johnson" className="easy-inp" />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Designation</label>
+                <input name="signatoryDesignation" value={formData.signatoryDesignation} onChange={handleChange} required placeholder="Program Director" className="easy-inp" />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Signature</label>
+                <div className="easy-upload-wrap">
+                  <input type="file" onChange={(e) => handleFileUpload(e, 'signature')} accept="image/*" />
+                  <div className={`easy-upload ${formData.signature ? 'done' : ''}`}>
+                    {formData.signature ? <><CheckCircle size={16} /> Signature uploaded</> : <><Upload size={16} /> Choose file</>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Submit */}
+          <button type="submit" className="easy-submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Generating...' : 'Issue Certificate'}
+            {!isSubmitting && <ChevronRight size={18} />}
+          </button>
+
+          {/* Mobile preview */}
+          <button type="button" onClick={handlePreview} className="easy-submit-outline mou-mobile-preview-btn" style={{ marginTop: '0.75rem' }}>
+            <Eye size={16} /> Preview as PDF
+          </button>
+
+        </form>
+      </div>
+
+      {/* RIGHT: Live Preview */}
+      <div className="mou-preview-pane">
+        <div className="mou-preview-toolbar">
+          <span className="mou-preview-toolbar-label">Live Preview</span>
+          <button type="button" onClick={handlePreview} className="easy-submit-outline" style={{ padding: '0.375rem 0.875rem', fontSize: '0.75rem', width: 'auto' }}>
+            <Eye size={14} /> Open PDF
+          </button>
+        </div>
+        <div className="mou-a4-scroller">
+          <CertificatePreview formData={formData} />
         </div>
       </div>
 
-      <button type="submit" className="btn btn-primary pro-btn" style={{ width: '100%', height: '52px', fontSize: '0.9375rem' }} disabled={isSubmitting}>
-        {isSubmitting ? 'Generating...' : 'Issue Certificate'}
-        {!isSubmitting && <ChevronRight size={18} />}
-      </button>
-    </form>
+      {/* Custom Branding Modal */}
+      {showBranding && (
+        <div className="cert-branding-overlay" onClick={() => setShowBranding(false)}>
+          <div className="cert-branding-modal" onClick={e => e.stopPropagation()}>
+            <button className="cert-branding-close" onClick={() => setShowBranding(false)}>
+              <X size={18} />
+            </button>
+            <div className="cert-branding-icon">
+              <Palette size={32} />
+            </div>
+            <h3 className="cert-branding-title">Customize Your Branding</h3>
+            <p className="cert-branding-desc">
+              Want a certificate template that matches your brand identity? Our team will design a fully custom template with your colors, fonts, watermarks, and layout preferences.
+            </p>
+            <ul className="cert-branding-features">
+              <li>Custom color scheme & typography</li>
+              <li>Your brand watermarks & patterns</li>
+              <li>Unique layout & decorations</li>
+              <li>Unlimited revisions</li>
+            </ul>
+            <a
+              href="mailto:sales@offerpro.in?subject=Custom%20Certificate%20Branding%20Request"
+              className="cert-branding-cta"
+            >
+              <Mail size={16} />
+              Contact Sales
+            </a>
+          </div>
+        </div>
+      )}
+
+    </div>
   );
 }

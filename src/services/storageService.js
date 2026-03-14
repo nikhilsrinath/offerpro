@@ -40,9 +40,11 @@ export const storageService = {
       ? recordData.studentName
       : type === 'certificate'
         ? recordData.recipientName
-        : type === 'mou'
-          ? `${recordData.disclosingPartyName || recordData.partyAName} & ${recordData.receivingPartyName || recordData.partyBName}`
-          : `Inv: ${recordData.clientName} (${recordData.invoiceNumber})`;
+        : type === 'nda'
+          ? `${recordData.disclosingPartyName || ''} & ${recordData.receivingPartyName || ''}`
+          : type === 'mou'
+            ? `${recordData.firstPartyName || ''} & ${recordData.secondPartyName || ''}`
+            : `Inv: ${recordData.clientName} (${recordData.invoiceNumber})`;
 
     const recordRef = push(ref(db, `records/${orgId}`));
     const record = {

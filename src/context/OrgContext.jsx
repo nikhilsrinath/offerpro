@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { ref, get, push, set } from 'firebase/database';
+import { ref, get, push, set, update } from 'firebase/database';
 import { db } from '../lib/firebase';
 import { useAuth } from './AuthContext';
 
@@ -88,8 +88,14 @@ export const OrgProvider = ({ children }) => {
     return orgData;
   };
 
+  const updateOrganization = async (orgId, updates) => {
+    const orgRef = ref(db, `organizations/${orgId}`);
+    await update(orgRef, updates);
+    await fetchOrganizations();
+  };
+
   return (
-    <OrgContext.Provider value={{ organizations, activeOrg, setActiveOrg, loading, createOrganization, fetchOrganizations }}>
+    <OrgContext.Provider value={{ organizations, activeOrg, setActiveOrg, loading, createOrganization, updateOrganization, fetchOrganizations }}>
       {children}
     </OrgContext.Provider>
   );

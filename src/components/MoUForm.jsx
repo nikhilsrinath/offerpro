@@ -1,57 +1,43 @@
 import { useState } from 'react';
-import { Shield, Building, FileText, Lock, Clock, Gavel, Users, Camera, Eye, ChevronRight, AlertTriangle, Mail } from 'lucide-react';
+import { Upload, CheckCircle, Eye, ChevronRight, AlertTriangle, Mail } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
-import NdaPreview from './NdaPreview';
+import MoUPreview from './MoUPreview';
 import { useTrialStatus, TRIAL_LIMITS } from '../hooks/useTrialStatus';
+import { resolveFormImages } from '../utils/imageUtils';
 
 export default function MoUForm({ onSuccess }) {
   const { user } = useAuth();
   const { activeOrg } = useOrg();
   const { usage, canCreate, isTrialExpired, refreshUsage } = useTrialStatus();
+  const org = activeOrg || {};
   const [formData, setFormData] = useState({
-    docType: 'nda',
-
-    // Agreement
     effectiveDate: '',
     executionCity: '',
     executionState: '',
-
-    // Disclosing Party
-    disclosingPartyName: '',
-    disclosingPartyIncorporation: 'India',
-    disclosingPartyAddress: '',
-
-    // Receiving Party
-    receivingPartyName: '',
-    receivingPartyIncorporation: 'India',
-    receivingPartyAddress: '',
-
-    // Transaction
-    proposedTransaction: '',
-    purposeOfDisclosure: '',
-    specificConfidentialItems: '',
-
-    // Terms
-    obligationYears: '5',
-    nonSolicitationYears: '1',
-
-    // Dispute Resolution
+    firstPartyName: org.company_name || 'AURALINKS CORPORATION LLC',
+    firstPartyIncorporation: 'India',
+    firstPartyAddress: org.company_address || '',
+    secondPartyName: '',
+    secondPartyType: 'company',
+    secondPartyIncorporation: 'India',
+    secondPartyAddress: '',
+    purpose: '',
+    scopeAreas: '',
+    firstPartyResponsibilities: '',
+    secondPartyResponsibilities: '',
+    mouTermYears: '2',
     arbitrationCity: '',
-    arbitrationState: '',
-
-    // Signatories
-    disclosingSignatoryName: '',
-    disclosingSignatoryDesignation: '',
-    disclosingSignatoryDate: '',
-    disclosingSignature: null,
-
-    receivingSignatoryName: '',
-    receivingSignatoryDesignation: '',
-    receivingSignatoryDate: '',
-    receivingSignature: null,
+    firstPartySignatoryName: org.owner_full_name || '',
+    firstPartySignatoryDesignation: org.document_designation || '',
+    firstPartySignatoryDate: '',
+    firstPartySignature: org.signature_url || null,
+    secondPartySignatoryName: '',
+    secondPartySignatoryDesignation: '',
+    secondPartySignatoryDate: '',
+    secondPartySignature: null,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,8 +61,9 @@ export default function MoUForm({ onSuccess }) {
     if (!canCreate('mou')) return;
     setIsSubmitting(true);
     try {
+      const resolved = await resolveFormImages(formData, ['firstPartySignature', 'secondPartySignature']);
       await storageService.save(formData, 'mou', activeOrg?.id, user?.id);
-      pdfService.generateMoU(formData);
+      pdfService.generateMoU(resolved);
       await refreshUsage();
       setTimeout(() => {
         setIsSubmitting(false);
@@ -84,7 +71,7 @@ export default function MoUForm({ onSuccess }) {
       }, 800);
     } catch (err) {
       console.error(err);
-      alert("Error saving NDA: " + err.message);
+      alert("Error saving MoU: " + err.message);
       setIsSubmitting(false);
     }
   };
@@ -93,326 +80,271 @@ export default function MoUForm({ onSuccess }) {
   const fillPercent = (usage.mou / TRIAL_LIMITS.mou) * 100;
   const fillClass = usage.mou >= TRIAL_LIMITS.mou ? 'full' : '';
 
-  const handlePreview = () => {
-    pdfService.generateMoU(formData, true);
+  const handlePreview = async () => {
+    const resolved = await resolveFormImages(formData, ['firstPartySignature', 'secondPartySignature']);
+    pdfService.generateMoU(resolved, true);
   };
-
-  const docLabel = formData.docType === 'mou' ? 'MoU' : 'NDA';
 
   return (
     <div className="mou-split-layout">
 
-      {/* LEFT: Form Pane */}
+      {/* LEFT: Form */}
       <div className="mou-form-pane">
-        <form onSubmit={handleSubmit} className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
 
-          {/* Usage Indicator */}
-          <div className="usage-indicator">
-            <span className="usage-indicator-label">MoU / NDA</span>
-            <div className="usage-indicator-bar">
-              <div className={`usage-indicator-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
+          {/* Usage */}
+          <div className="easy-usage">
+            <span className="easy-usage-label">MoU</span>
+            <div className="easy-usage-bar">
+              <div className={`easy-usage-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
             </div>
-            <span className="usage-indicator-count">{usage.mou}/{TRIAL_LIMITS.mou}</span>
+            <span className="easy-usage-count">{usage.mou}/{TRIAL_LIMITS.mou}</span>
           </div>
 
           {limitReached && (
-            <div className="limit-reached-alert">
-              <AlertTriangle size={32} />
-              <h3>{isTrialExpired ? 'Trial Expired' : 'MoU/NDA Limit Reached'}</h3>
-              <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used your ${TRIAL_LIMITS.mou} MoU/NDA document in the free trial.`} Contact our sales team to upgrade.</p>
+            <div className="easy-limit-alert">
+              <AlertTriangle size={28} />
+              <h3>{isTrialExpired ? 'Trial Expired' : 'MoU Limit Reached'}</h3>
+              <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used your ${TRIAL_LIMITS.mou} MoU document(s) in the free trial.`} Contact our sales team to upgrade.</p>
               <a href="mailto:sales@offerpro.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
                 <Mail size={16} /> Contact Sales
               </a>
             </div>
           )}
 
-          {/* Document Type Toggle */}
-          <div className="nda-type-toggle">
-            <button
-              type="button"
-              className={`nda-type-toggle-btn ${formData.docType === 'nda' ? 'active' : ''}`}
-              onClick={() => setFormData(prev => ({ ...prev, docType: 'nda' }))}
-            >
-              Non-Disclosure Agreement
-            </button>
-            <button
-              type="button"
-              className={`nda-type-toggle-btn ${formData.docType === 'mou' ? 'active' : ''}`}
-              onClick={() => setFormData(prev => ({ ...prev, docType: 'mou' }))}
-            >
-              Memorandum of Understanding
-            </button>
-          </div>
-
-          {/* Agreement Details */}
-          <div className="pro-card">
-            <div className="pro-section-header">
-              <div className="pro-section-icon" style={{ background: 'rgba(16,185,129,0.1)', color: '#34d399' }}><Shield size={18} /></div>
-              <div>
-                <h3 className="pro-section-title">Agreement Details</h3>
-                <p className="pro-section-sub">Date and place of execution</p>
-              </div>
+          {/* 1. Agreement Details */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <div className="easy-num">1</div>
+              <span className="easy-section-title">Agreement details</span>
             </div>
-            <div className="form-grid">
-              <div>
-                <label className="pro-label">Effective Date</label>
-                <input type="date" name="effectiveDate" value={formData.effectiveDate} onChange={handleChange} className="pro-input" required />
+            <div className="easy-row">
+              <div className="easy-field">
+                <label className="easy-lbl">Effective date</label>
+                <input type="date" name="effectiveDate" value={formData.effectiveDate} onChange={handleChange} className="easy-inp" required />
               </div>
-              <div>
-                <label className="pro-label">City of Execution</label>
-                <input name="executionCity" value={formData.executionCity} onChange={handleChange} placeholder="e.g. Chennai" className="pro-input" required />
+              <div className="easy-field">
+                <label className="easy-lbl">City of execution</label>
+                <input name="executionCity" value={formData.executionCity} onChange={handleChange} placeholder="e.g. Chennai" className="easy-inp" required />
               </div>
-              <div>
-                <label className="pro-label">State</label>
-                <input name="executionState" value={formData.executionState} onChange={handleChange} placeholder="e.g. Tamil Nadu" className="pro-input" required />
+              <div className="easy-field">
+                <label className="easy-lbl">State</label>
+                <input name="executionState" value={formData.executionState} onChange={handleChange} placeholder="e.g. Tamil Nadu" className="easy-inp" required />
               </div>
             </div>
           </div>
 
-          {/* Disclosing Party */}
-          <div className="pro-card">
-            <div className="pro-section-header">
-              <div className="pro-section-icon" style={{ background: 'rgba(59,130,246,0.1)', color: '#60a5fa' }}><Building size={18} /></div>
-              <div>
-                <h3 className="pro-section-title">Disclosing Party</h3>
-                <p className="pro-section-sub">Entity sharing confidential information</p>
-              </div>
+          {/* 2. First Party */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <div className="easy-num">2</div>
+              <span className="easy-section-title">First party</span>
             </div>
-            <div className="form-grid">
-              <div style={{ gridColumn: 'span 2' }}>
-                <label className="pro-label">Company / Entity Name</label>
-                <input name="disclosingPartyName" value={formData.disclosingPartyName} onChange={handleChange} placeholder="e.g. Acme Technologies Pvt Ltd" className="pro-input" required />
+            <div className="easy-row">
+              <div className="easy-field full">
+                <label className="easy-lbl">Company / entity name</label>
+                <input name="firstPartyName" value={formData.firstPartyName} onChange={handleChange} placeholder="e.g. Auralinks Corporation LLC" className="easy-inp" required />
               </div>
-              <div>
-                <label className="pro-label">Country of Incorporation</label>
-                <input name="disclosingPartyIncorporation" value={formData.disclosingPartyIncorporation} onChange={handleChange} placeholder="India" className="pro-input" required />
+              <div className="easy-field">
+                <label className="easy-lbl">Country of incorporation</label>
+                <input name="firstPartyIncorporation" value={formData.firstPartyIncorporation} onChange={handleChange} placeholder="India" className="easy-inp" required />
               </div>
-              <div>
-                <label className="pro-label">Registered Office Address</label>
-                <textarea name="disclosingPartyAddress" value={formData.disclosingPartyAddress} onChange={handleChange} placeholder="Full registered office address with PIN code" rows={2} className="pro-input" style={{ resize: 'none' }} required />
+              <div className="easy-field">
+                <label className="easy-lbl">Registered office address</label>
+                <textarea name="firstPartyAddress" value={formData.firstPartyAddress} onChange={handleChange} placeholder="Full address with PIN code" rows={2} className="easy-inp" style={{ resize: 'none' }} required />
               </div>
             </div>
           </div>
 
-          {/* Receiving Party */}
-          <div className="pro-card">
-            <div className="pro-section-header">
-              <div className="pro-section-icon" style={{ background: 'rgba(139,92,246,0.1)', color: '#a78bfa' }}><Building size={18} /></div>
-              <div>
-                <h3 className="pro-section-title">Receiving Party</h3>
-                <p className="pro-section-sub">Entity receiving confidential information</p>
-              </div>
+          {/* 3. Second Party */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <div className="easy-num">3</div>
+              <span className="easy-section-title">Second party</span>
             </div>
-            <div className="form-grid">
-              <div style={{ gridColumn: 'span 2' }}>
-                <label className="pro-label">Company / Entity Name</label>
-                <input name="receivingPartyName" value={formData.receivingPartyName} onChange={handleChange} placeholder="e.g. Beta Labs Private Limited" className="pro-input" required />
+            <div className="easy-row">
+              <div className="easy-field full">
+                <label className="easy-lbl">Company / individual name</label>
+                <input name="secondPartyName" value={formData.secondPartyName} onChange={handleChange} placeholder="e.g. Beta Labs Private Limited" className="easy-inp" required />
               </div>
-              <div>
-                <label className="pro-label">Country of Incorporation</label>
-                <input name="receivingPartyIncorporation" value={formData.receivingPartyIncorporation} onChange={handleChange} placeholder="India" className="pro-input" required />
+              <div className="easy-field">
+                <label className="easy-lbl">Entity type</label>
+                <select name="secondPartyType" value={formData.secondPartyType} onChange={handleChange} className="easy-inp">
+                  <option value="company">Company</option>
+                  <option value="individual">Individual</option>
+                </select>
               </div>
-              <div>
-                <label className="pro-label">Registered Office Address</label>
-                <textarea name="receivingPartyAddress" value={formData.receivingPartyAddress} onChange={handleChange} placeholder="Full registered office address with PIN code" rows={2} className="pro-input" style={{ resize: 'none' }} required />
+              <div className="easy-field">
+                <label className="easy-lbl">Country of incorporation</label>
+                <input name="secondPartyIncorporation" value={formData.secondPartyIncorporation} onChange={handleChange} placeholder="India" className="easy-inp" required />
               </div>
-            </div>
-          </div>
-
-          {/* Proposed Transaction & Purpose */}
-          <div className="pro-card">
-            <div className="pro-section-header">
-              <div className="pro-section-icon" style={{ background: 'rgba(245,158,11,0.1)', color: '#fbbf24' }}><FileText size={18} /></div>
-              <div>
-                <h3 className="pro-section-title">Transaction & Purpose</h3>
-                <p className="pro-section-sub">Describe the deal and why information is being shared</p>
-              </div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div>
-                <label className="pro-label">Proposed Transaction</label>
-                <textarea name="proposedTransaction" value={formData.proposedTransaction} onChange={handleChange}
-                  placeholder="e.g. proposes to provide [Receiving Party Name] with a sample unit of its product for evaluation, to assess potential bulk purchase and future commercial engagement. (Note: Disclosing Party name is auto-prepended)"
-                  rows={3} className="pro-input" style={{ resize: 'none' }} required />
-              </div>
-              <div>
-                <label className="pro-label">Purpose of Disclosing Confidential Information</label>
-                <textarea name="purposeOfDisclosure" value={formData.purposeOfDisclosure} onChange={handleChange}
-                  placeholder="e.g. [Disclosing Party] is sharing confidential information solely to enable [Receiving Party] to evaluate the technical capabilities, performance, and commercial viability of the product for potential bulk procurement and future business collaboration."
-                  rows={3} className="pro-input" style={{ resize: 'none' }} required />
+              <div className="easy-field">
+                <label className="easy-lbl">Registered office address</label>
+                <textarea name="secondPartyAddress" value={formData.secondPartyAddress} onChange={handleChange} placeholder="Full address with PIN code" rows={2} className="easy-inp" style={{ resize: 'none' }} required />
               </div>
             </div>
           </div>
 
-          {/* Specific Confidential Information */}
-          <div className="pro-card">
-            <div className="pro-section-header">
-              <div className="pro-section-icon" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}><Lock size={18} /></div>
-              <div>
-                <h3 className="pro-section-title">Specific Confidential Items</h3>
-                <p className="pro-section-sub">Enter each item on a new line — these become bullet points in the {docLabel}</p>
-              </div>
+          {/* 4. Purpose */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <div className="easy-num">4</div>
+              <span className="easy-section-title">Purpose of MoU</span>
             </div>
-            <div>
-              <label className="pro-label">Confidential Items</label>
-              <textarea name="specificConfidentialItems" value={formData.specificConfidentialItems} onChange={handleChange}
-                placeholder={"e.g.\nThe physical product sample provided for evaluation\nProprietary hardware architecture and board design\nInternal circuit design concepts and engineering logic\nFirmware behavior, embedded logic, and system functionality\nTechnical documentation, user guides, and evaluation materials\nCommercial pricing, bulk procurement terms, and business discussions"}
-                rows={6} className="pro-input" style={{ resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.6' }} required />
+            <div className="easy-field">
+              <label className="easy-lbl">Describe the purpose of this collaboration</label>
+              <textarea name="purpose" value={formData.purpose} onChange={handleChange}
+                placeholder="e.g. To establish a framework of cooperation for joint development and deployment of AI-powered solutions for the healthcare industry..."
+                rows={4} className="easy-inp" style={{ resize: 'vertical' }} required />
             </div>
           </div>
 
-          {/* Terms & Duration */}
-          <div className="pro-card">
-            <div className="pro-section-header">
-              <div className="pro-section-icon" style={{ background: 'rgba(6,182,212,0.1)', color: '#22d3ee' }}><Clock size={18} /></div>
-              <div>
-                <h3 className="pro-section-title">Terms & Duration</h3>
-                <p className="pro-section-sub">Obligation and non-solicitation periods</p>
+          {/* 5. Scope of Collaboration */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <div className="easy-num">5</div>
+              <span className="easy-section-title">Scope of collaboration</span>
+            </div>
+            <div className="easy-field">
+              <label className="easy-lbl">Enter each collaboration area on a new line</label>
+              <textarea name="scopeAreas" value={formData.scopeAreas} onChange={handleChange}
+                placeholder={"e.g.\nDevelopment of AI-powered analytics platform\nSharing of technical expertise and knowledge\nJoint exploration of market opportunities\nCo-development of research papers and publications"}
+                rows={5} className="easy-inp" style={{ resize: 'vertical', lineHeight: '1.6' }} required />
+            </div>
+          </div>
+
+          {/* 6. Responsibilities */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <div className="easy-num">6</div>
+              <span className="easy-section-title">Roles & responsibilities</span>
+            </div>
+            <div className="easy-row">
+              <div className="easy-field full">
+                <label className="easy-lbl">First party responsibilities (one per line)</label>
+                <textarea name="firstPartyResponsibilities" value={formData.firstPartyResponsibilities} onChange={handleChange}
+                  placeholder={"e.g.\nProvide technology platform and infrastructure\nParticipate in planning and coordination\nShare relevant knowledge and technical expertise\nFulfill commitments for successful implementation"}
+                  rows={4} className="easy-inp" style={{ resize: 'vertical', lineHeight: '1.6' }} required />
+              </div>
+              <div className="easy-field full">
+                <label className="easy-lbl">Second party responsibilities (one per line)</label>
+                <textarea name="secondPartyResponsibilities" value={formData.secondPartyResponsibilities} onChange={handleChange}
+                  placeholder={"e.g.\nProvide domain expertise and industry knowledge\nSupport implementation of collaborative activities\nCoordinate with First Party for execution\nEnsure timely performance of assigned duties"}
+                  rows={4} className="easy-inp" style={{ resize: 'vertical', lineHeight: '1.6' }} required />
               </div>
             </div>
-            <div className="form-grid">
-              <div>
-                <label className="pro-label">Confidentiality Obligation (Years)</label>
-                <select name="obligationYears" value={formData.obligationYears} onChange={handleChange} className="pro-input">
+          </div>
+
+          {/* 7. Term & Dispute Resolution */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <div className="easy-num">7</div>
+              <span className="easy-section-title">Term & dispute resolution</span>
+            </div>
+            <div className="easy-row">
+              <div className="easy-field">
+                <label className="easy-lbl">MoU term (years)</label>
+                <select name="mouTermYears" value={formData.mouTermYears} onChange={handleChange} className="easy-inp">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Year' : 'Years'}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="pro-label">Non-Solicitation Period (Years)</label>
-                <select name="nonSolicitationYears" value={formData.nonSolicitationYears} onChange={handleChange} className="pro-input">
-                  {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Year' : 'Years'}</option>)}
-                </select>
+              <div className="easy-field">
+                <label className="easy-lbl">Place of arbitration</label>
+                <input name="arbitrationCity" value={formData.arbitrationCity} onChange={handleChange} placeholder="e.g. Chennai" className="easy-inp" required />
               </div>
             </div>
           </div>
 
-          {/* Dispute Resolution */}
-          <div className="pro-card">
-            <div className="pro-section-header">
-              <div className="pro-section-icon" style={{ background: 'rgba(100,116,139,0.1)', color: '#94a3b8' }}><Gavel size={18} /></div>
-              <div>
-                <h3 className="pro-section-title">Dispute Resolution</h3>
-                <p className="pro-section-sub">Arbitration and court jurisdiction location</p>
-              </div>
-            </div>
-            <div className="form-grid">
-              <div>
-                <label className="pro-label">Arbitration City</label>
-                <input name="arbitrationCity" value={formData.arbitrationCity} onChange={handleChange} placeholder="e.g. Chennai" className="pro-input" required />
-              </div>
-              <div>
-                <label className="pro-label">Arbitration State</label>
-                <input name="arbitrationState" value={formData.arbitrationState} onChange={handleChange} placeholder="e.g. Tamil Nadu" className="pro-input" required />
-              </div>
-            </div>
-          </div>
-
-          {/* Signatories */}
-          <div className="pro-card">
-            <div className="pro-section-header">
-              <div className="pro-section-icon" style={{ background: 'rgba(99,102,241,0.1)', color: '#818cf8' }}><Users size={18} /></div>
-              <div>
-                <h3 className="pro-section-title">Authorized Signatories</h3>
-                <p className="pro-section-sub">Representatives signing on behalf of each party</p>
-              </div>
+          {/* 8. Signatories */}
+          <div className="easy-section">
+            <div className="easy-section-head">
+              <div className="easy-num">8</div>
+              <span className="easy-section-title">Signatories</span>
             </div>
 
-            {/* Disclosing Party Signatory */}
-            <div style={{ marginBottom: '1.5rem' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.875rem' }}>
-                Disclosing Party
+            {/* First Party */}
+            <div className="easy-party-label">First Party</div>
+            <div className="easy-row">
+              <div className="easy-field">
+                <label className="easy-lbl">Name</label>
+                <input name="firstPartySignatoryName" value={formData.firstPartySignatoryName} onChange={handleChange} placeholder="Full name" className="easy-inp" required />
               </div>
-              <div className="form-grid">
-                <div>
-                  <label className="pro-label">Signatory Name</label>
-                  <input name="disclosingSignatoryName" value={formData.disclosingSignatoryName} onChange={handleChange} placeholder="Full name" className="pro-input" required />
-                </div>
-                <div>
-                  <label className="pro-label">Designation</label>
-                  <input name="disclosingSignatoryDesignation" value={formData.disclosingSignatoryDesignation} onChange={handleChange} placeholder="e.g. CEO / Director" className="pro-input" required />
-                </div>
-                <div>
-                  <label className="pro-label">Signing Date</label>
-                  <input type="date" name="disclosingSignatoryDate" value={formData.disclosingSignatoryDate} onChange={handleChange} className="pro-input" required />
-                </div>
-                <div>
-                  <label className="pro-label">Upload Signature</label>
-                  <div style={{ position: 'relative' }}>
-                    <input type="file" onChange={(e) => handleFileUpload(e, 'disclosingSignature')} accept="image/*" style={{ opacity: 0, position: 'absolute', inset: 0, cursor: 'pointer', zIndex: 10 }} />
-                    <div className="pro-add-item-btn" style={{ height: '42px', margin: 0, borderStyle: 'dotted' }}>
-                      <Camera size={16} /> {formData.disclosingSignature ? 'Signature Uploaded' : 'Upload Signature'}
-                    </div>
-                    {formData.disclosingSignature && (
-                      <img src={formData.disclosingSignature} alt="Signature" style={{ height: '28px', display: 'block', margin: '0.25rem auto' }} />
-                    )}
+              <div className="easy-field">
+                <label className="easy-lbl">Designation</label>
+                <input name="firstPartySignatoryDesignation" value={formData.firstPartySignatoryDesignation} onChange={handleChange} placeholder="e.g. Managing Director & CEO" className="easy-inp" required />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Signing date</label>
+                <input type="date" name="firstPartySignatoryDate" value={formData.firstPartySignatoryDate} onChange={handleChange} className="easy-inp" required />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Signature</label>
+                <div className="easy-upload-wrap">
+                  <input type="file" onChange={(e) => handleFileUpload(e, 'firstPartySignature')} accept="image/*" />
+                  <div className={`easy-upload ${formData.firstPartySignature ? 'done' : ''}`}>
+                    {formData.firstPartySignature ? <><CheckCircle size={16} /> Uploaded</> : <><Upload size={16} /> Upload signature</>}
                   </div>
                 </div>
+                {formData.firstPartySignature && <img src={formData.firstPartySignature} alt="Signature" style={{ height: '28px', marginTop: '0.25rem' }} />}
               </div>
             </div>
 
-            {/* Divider */}
-            <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '0.5rem 0 1.5rem' }} />
+            <div className="easy-divider" />
 
-            {/* Receiving Party Signatory */}
-            <div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.875rem' }}>
-                Receiving Party
+            {/* Second Party */}
+            <div className="easy-party-label purple">Second Party</div>
+            <div className="easy-row">
+              <div className="easy-field">
+                <label className="easy-lbl">Name</label>
+                <input name="secondPartySignatoryName" value={formData.secondPartySignatoryName} onChange={handleChange} placeholder="Full name" className="easy-inp" required />
               </div>
-              <div className="form-grid">
-                <div>
-                  <label className="pro-label">Signatory Name</label>
-                  <input name="receivingSignatoryName" value={formData.receivingSignatoryName} onChange={handleChange} placeholder="Full name" className="pro-input" required />
-                </div>
-                <div>
-                  <label className="pro-label">Designation</label>
-                  <input name="receivingSignatoryDesignation" value={formData.receivingSignatoryDesignation} onChange={handleChange} placeholder="e.g. CEO / Director" className="pro-input" required />
-                </div>
-                <div>
-                  <label className="pro-label">Signing Date</label>
-                  <input type="date" name="receivingSignatoryDate" value={formData.receivingSignatoryDate} onChange={handleChange} className="pro-input" required />
-                </div>
-                <div>
-                  <label className="pro-label">Upload Signature</label>
-                  <div style={{ position: 'relative' }}>
-                    <input type="file" onChange={(e) => handleFileUpload(e, 'receivingSignature')} accept="image/*" style={{ opacity: 0, position: 'absolute', inset: 0, cursor: 'pointer', zIndex: 10 }} />
-                    <div className="pro-add-item-btn" style={{ height: '42px', margin: 0, borderStyle: 'dotted' }}>
-                      <Camera size={16} /> {formData.receivingSignature ? 'Signature Uploaded' : 'Upload Signature'}
-                    </div>
-                    {formData.receivingSignature && (
-                      <img src={formData.receivingSignature} alt="Signature" style={{ height: '28px', display: 'block', margin: '0.25rem auto' }} />
-                    )}
+              <div className="easy-field">
+                <label className="easy-lbl">Designation</label>
+                <input name="secondPartySignatoryDesignation" value={formData.secondPartySignatoryDesignation} onChange={handleChange} placeholder="e.g. CEO / Director" className="easy-inp" required />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Signing date</label>
+                <input type="date" name="secondPartySignatoryDate" value={formData.secondPartySignatoryDate} onChange={handleChange} className="easy-inp" required />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Signature</label>
+                <div className="easy-upload-wrap">
+                  <input type="file" onChange={(e) => handleFileUpload(e, 'secondPartySignature')} accept="image/*" />
+                  <div className={`easy-upload ${formData.secondPartySignature ? 'done' : ''}`}>
+                    {formData.secondPartySignature ? <><CheckCircle size={16} /> Uploaded</> : <><Upload size={16} /> Upload signature</>}
                   </div>
                 </div>
+                {formData.secondPartySignature && <img src={formData.secondPartySignature} alt="Signature" style={{ height: '28px', marginTop: '0.25rem' }} />}
               </div>
             </div>
           </div>
 
-          {/* Actions */}
-          <button type="submit" disabled={isSubmitting || limitReached} className="btn btn-primary pro-btn" style={{ height: '52px', width: '100%' }}>
-            {isSubmitting ? 'Generating...' : limitReached ? 'Limit Reached' : `Save & Download ${docLabel}`}
+          {/* Submit */}
+          <button type="submit" disabled={isSubmitting || limitReached} className="easy-submit">
+            {isSubmitting ? 'Generating...' : limitReached ? 'Limit Reached' : 'Save & Download MoU'}
             {!isSubmitting && !limitReached && <ChevronRight size={18} />}
           </button>
 
-          {/* Mobile-only preview button */}
-          <button type="button" onClick={handlePreview} className="btn btn-outline pro-btn mou-mobile-preview-btn" style={{ height: '44px', width: '100%' }}>
-            <Eye size={18} /> Preview as PDF
+          {/* Mobile preview */}
+          <button type="button" onClick={handlePreview} className="easy-submit-outline mou-mobile-preview-btn" style={{ marginTop: '0.75rem' }}>
+            <Eye size={16} /> Preview as PDF
           </button>
 
         </form>
       </div>
 
-      {/* RIGHT: Live Preview Pane */}
+      {/* RIGHT: Live Preview */}
       <div className="mou-preview-pane">
         <div className="mou-preview-toolbar">
           <span className="mou-preview-toolbar-label">
-            <FileText size={14} /> Live Preview
+            Live Preview
           </span>
-          <button type="button" onClick={handlePreview} className="btn btn-outline" style={{ padding: '0.375rem 0.875rem', fontSize: '0.75rem', height: '32px' }}>
+          <button type="button" onClick={handlePreview} className="easy-submit-outline" style={{ padding: '0.375rem 0.875rem', fontSize: '0.75rem', width: 'auto' }}>
             <Eye size={14} /> Open PDF
           </button>
         </div>
         <div className="mou-a4-scroller">
-          <NdaPreview formData={formData} />
+          <MoUPreview formData={formData} />
         </div>
       </div>
 

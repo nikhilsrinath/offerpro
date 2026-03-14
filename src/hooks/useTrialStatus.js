@@ -6,13 +6,14 @@ const TRIAL_DURATION_DAYS = 7;
 
 export const TRIAL_LIMITS = {
     offer: 5,
+    nda: 1,
     mou: 1,
     invoice: 5
 };
 
 export function useTrialStatus() {
     const { activeOrg } = useOrg();
-    const [usage, setUsage] = useState({ offer: 0, mou: 0, invoice: 0 });
+    const [usage, setUsage] = useState({ offer: 0, nda: 0, mou: 0, invoice: 0 });
     const [loading, setLoading] = useState(true);
 
     // Calculate trial days info from org data
@@ -46,9 +47,10 @@ export function useTrialStatus() {
             try {
                 const allRecords = await storageService.getAll(activeOrg.id);
 
-                const counts = { offer: 0, mou: 0, invoice: 0 };
+                const counts = { offer: 0, nda: 0, mou: 0, invoice: 0 };
                 allRecords.forEach(record => {
                     if (record.type === 'offer') counts.offer++;
+                    else if (record.type === 'nda') counts.nda++;
                     else if (record.type === 'mou') counts.mou++;
                     else if (record.type === 'invoice') counts.invoice++;
                 });

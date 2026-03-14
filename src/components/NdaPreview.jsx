@@ -19,7 +19,7 @@ export default function NdaPreview({ formData }) {
 
   const dp = formData.disclosingPartyName || '___________';
   const rp = formData.receivingPartyName || '___________';
-  const docTitle = formData.docType === 'mou' ? 'MEMORANDUM OF UNDERSTANDING' : 'NON-DISCLOSURE AGREEMENT';
+  const docTitle = 'NON-DISCLOSURE AGREEMENT';
 
   const oblYears = formData.obligationYears || 5;
   const nsYears = formData.nonSolicitationYears || 1;

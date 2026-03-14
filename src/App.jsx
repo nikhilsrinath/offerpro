@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  LayoutDashboard, Briefcase, Award, Scale, Receipt,
+  LayoutDashboard, Briefcase, Award, Scale, ShieldCheck, Receipt,
   DollarSign, Layers, Archive, LogOut, Menu, X,
   Zap, UserCircle, ChevronRight, Clock, Mail, AlertTriangle
 } from 'lucide-react';
@@ -9,12 +9,14 @@ import OfferForm from './components/OfferForm';
 import InternRecords from './components/InternRecords';
 import LandingPage from './components/LandingPage';
 import CertificateForm from './components/CertificateForm';
+import NdaForm from './components/NdaForm';
 import MoUForm from './components/MoUForm';
 import InvoiceForm from './components/InvoiceForm';
 import Dashboard from './components/Dashboard';
 import BillingRevenue from './components/BillingRevenue';
 import ProductPlanner from './components/ProductPlanner';
 import Registration from './components/Registration';
+import CompanyProfile from './components/CompanyProfile';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { OrgProvider, useOrg } from './context/OrgContext';
 import Auth from './components/Auth';
@@ -25,7 +27,8 @@ const NAV_ITEMS = [
   { section: 'DOCUMENTS' },
   { id: 'offers', label: 'Offer Letters', icon: Briefcase },
   { id: 'certificates', label: 'Certificates', icon: Award },
-  { id: 'mous', label: 'Legal MoUs', icon: Scale },
+  { id: 'ndas', label: 'NDA', icon: ShieldCheck },
+  { id: 'mous', label: 'MoU', icon: Scale },
   { id: 'invoices', label: 'Invoices', icon: Receipt },
   { section: 'BUSINESS' },
   { id: 'revenue', label: 'Billing & Revenue', icon: DollarSign },
@@ -36,9 +39,11 @@ const NAV_ITEMS = [
 
 const PAGE_META = {
   dashboard: { title: 'Dashboard', subtitle: 'Organization overview and analytics' },
+  profile: { title: 'Company Profile', subtitle: 'Manage your company details, logo, and signature' },
   offers: { title: 'Offer Letters', subtitle: 'Generate employment and internship offers' },
   certificates: { title: 'Certificates', subtitle: 'Issue professional attainment certificates' },
-  mous: { title: 'Legal MoUs', subtitle: 'Execute legal-grade agreements and partnerships' },
+  ndas: { title: 'Non-Disclosure Agreements', subtitle: 'Draft legal-grade confidentiality agreements' },
+  mous: { title: 'Memorandum of Understanding', subtitle: 'Establish collaboration frameworks and partnerships' },
   invoices: { title: 'Invoices', subtitle: 'Generate professional business invoices' },
   revenue: { title: 'Billing & Revenue', subtitle: 'Track revenue, expenses, and profitability' },
   planner: { title: 'Product Planner', subtitle: 'Plan and track products and projects' },
@@ -125,9 +130,19 @@ function AppContent() {
         {/* Footer */}
         <div className="sidebar-footer">
           {activeOrg && (
-            <div className="sidebar-org-info">
-              <span className="sidebar-org-name">{activeOrg.company_name || activeOrg.name}</span>
-              <span className="sidebar-org-email">{user.email}</span>
+            <div className="sidebar-org-info sidebar-org-clickable" onClick={() => navigate('profile')}>
+              {activeOrg.logo_url ? (
+                <img src={activeOrg.logo_url} alt="" className="sidebar-org-avatar" />
+              ) : (
+                <div className="sidebar-org-avatar-placeholder">
+                  {(activeOrg.company_name || 'O')[0].toUpperCase()}
+                </div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span className="sidebar-org-name">{activeOrg.company_name || activeOrg.name}</span>
+                <span className="sidebar-org-email">{user.email}</span>
+              </div>
+              <ChevronRight size={14} style={{ opacity: 0.3, flexShrink: 0 }} />
             </div>
           )}
           <button className="sidebar-logout-btn" onClick={logout}>
@@ -148,7 +163,7 @@ function AppContent() {
             <Zap size={18} fill="white" />
             <span>OfferPro</span>
           </div>
-          <UserCircle size={22} style={{ opacity: 0.5 }} />
+          <UserCircle size={22} style={{ opacity: 0.5, cursor: 'pointer' }} onClick={() => navigate('profile')} />
         </div>
 
         {/* Trial Status Banner */}
@@ -184,8 +199,10 @@ function AppContent() {
         {/* Page Content */}
         <div className="page-content">
           {activePage === 'dashboard' && <Dashboard onNavigate={navigate} />}
+          {activePage === 'profile' && <CompanyProfile />}
           {activePage === 'offers' && <OfferForm onSuccess={() => navigate('records')} />}
           {activePage === 'certificates' && <CertificateForm onSuccess={() => navigate('records')} />}
+          {activePage === 'ndas' && <NdaForm onSuccess={() => navigate('records')} />}
           {activePage === 'mous' && <MoUForm onSuccess={() => navigate('records')} />}
           {activePage === 'invoices' && <InvoiceForm onSuccess={() => navigate('records')} />}
           {activePage === 'revenue' && <BillingRevenue />}

@@ -57,8 +57,10 @@ export default function BillingRevenue() {
   const stats = useMemo(() => {
     const invoices = records.filter(r => r.type === 'invoice');
     const totalRevenue = invoices.reduce((acc, r) => acc + (r.data?.totals?.grandTotal || 0), 0);
+    const totalMakingCharges = invoices.reduce((acc, r) => acc + (Number(r.data?.makingCharges) || 0), 0);
     const totalExpenses = expenses.reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
-    const netProfit = totalRevenue - totalExpenses;
+    const grossProfit = totalRevenue - totalMakingCharges;
+    const netProfit = grossProfit - totalExpenses;
 
     const categoryBreakdown = {};
     expenses.forEach(e => {
@@ -70,17 +72,18 @@ export default function BillingRevenue() {
     const monthlyCashFlow = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const mRev = invoices
-        .filter(r => { const rd = new Date(r.created_at); return rd.getMonth() === d.getMonth() && rd.getFullYear() === d.getFullYear(); })
-        .reduce((acc, r) => acc + (r.data?.totals?.grandTotal || 0), 0);
+      const monthInvoices = invoices.filter(r => { const rd = new Date(r.created_at); return rd.getMonth() === d.getMonth() && rd.getFullYear() === d.getFullYear(); });
+      const mRev = monthInvoices.reduce((acc, r) => acc + (r.data?.totals?.grandTotal || 0), 0);
+      const mCost = monthInvoices.reduce((acc, r) => acc + (Number(r.data?.makingCharges) || 0), 0);
       const mExp = expenses
         .filter(e => { const ed = new Date(e.date); return ed.getMonth() === d.getMonth() && ed.getFullYear() === d.getFullYear(); })
         .reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
       monthlyCashFlow.push({
         month: d.toLocaleDateString('en-IN', { month: 'short' }),
         revenue: mRev,
+        makingCharges: mCost,
         expenses: mExp,
-        profit: mRev - mExp
+        profit: mRev - mCost - mExp
       });
     }
 
@@ -93,7 +96,7 @@ export default function BillingRevenue() {
       name, value, color: CATEGORY_COLORS[name] || '#6b7280'
     }));
 
-    return { totalRevenue, totalExpenses, netProfit, invoiceCount: invoices.length, categoryBreakdown, monthlyCashFlow, expensePieData };
+    return { totalRevenue, totalMakingCharges, grossProfit, totalExpenses, netProfit, invoiceCount: invoices.length, categoryBreakdown, monthlyCashFlow, expensePieData };
   }, [records, expenses]);
 
   const handleAddExpense = async (e) => {
@@ -132,7 +135,7 @@ export default function BillingRevenue() {
   return (
     <div style={{ maxWidth: '100%' }}>
       {/* Summary Cards */}
-      <div className="pro-stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+      <div className="pro-stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         <div className="pro-stat-card">
           <div className="pro-stat-top">
             <div className="pro-stat-icon" style={{ background: '#10b98112', color: '#10b981' }}>
@@ -140,7 +143,17 @@ export default function BillingRevenue() {
             </div>
           </div>
           <div className="pro-stat-value" style={{ color: '#10b981' }}>₹{stats.totalRevenue.toLocaleString()}</div>
-          <div className="pro-stat-label">Total Revenue · {stats.invoiceCount} invoice{stats.invoiceCount !== 1 ? 's' : ''}</div>
+          <div className="pro-stat-label">Revenue · {stats.invoiceCount} invoice{stats.invoiceCount !== 1 ? 's' : ''}</div>
+        </div>
+
+        <div className="pro-stat-card">
+          <div className="pro-stat-top">
+            <div className="pro-stat-icon" style={{ background: '#f59e0b12', color: '#f59e0b' }}>
+              <Wallet size={20} />
+            </div>
+          </div>
+          <div className="pro-stat-value" style={{ color: '#f59e0b' }}>₹{stats.totalMakingCharges.toLocaleString()}</div>
+          <div className="pro-stat-label">Making Charges · {stats.totalRevenue > 0 ? `${((stats.totalMakingCharges / stats.totalRevenue) * 100).toFixed(0)}% of revenue` : 'No data'}</div>
         </div>
 
         <div className="pro-stat-card">
@@ -150,7 +163,7 @@ export default function BillingRevenue() {
             </div>
           </div>
           <div className="pro-stat-value" style={{ color: '#ef4444' }}>₹{stats.totalExpenses.toLocaleString()}</div>
-          <div className="pro-stat-label">Total Expenses · {expenses.length} entries</div>
+          <div className="pro-stat-label">Expenses · {expenses.length} entries</div>
         </div>
 
         <div className="pro-stat-card">
@@ -330,15 +343,27 @@ export default function BillingRevenue() {
                 <p>No invoices issued yet</p>
               </div>
             ) : (
-              records.filter(r => r.type === 'invoice').slice(0, 8).map((r, i) => (
-                <div key={r.id || i} className="billing-invoice-item">
-                  <div className="billing-invoice-info">
-                    <span className="billing-invoice-title">{r.title}</span>
-                    <span className="billing-invoice-date">{new Date(r.created_at).toLocaleDateString()}</span>
+              records.filter(r => r.type === 'invoice').slice(0, 8).map((r, i) => {
+                const revenue = r.data?.totals?.grandTotal || 0;
+                const cost = Number(r.data?.makingCharges) || 0;
+                const profit = revenue - cost;
+                return (
+                  <div key={r.id || i} className="billing-invoice-item">
+                    <div className="billing-invoice-info">
+                      <span className="billing-invoice-title">{r.title}</span>
+                      <span className="billing-invoice-date">{new Date(r.created_at).toLocaleDateString()}{cost > 0 ? ` · Cost: ₹${cost.toLocaleString()}` : ''}</span>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span className="billing-invoice-amount">₹{revenue.toLocaleString()}</span>
+                      {cost > 0 && (
+                        <div style={{ fontSize: '0.6875rem', color: profit >= 0 ? '#10b981' : '#ef4444', fontWeight: 600, marginTop: '0.125rem' }}>
+                          {profit >= 0 ? '+' : ''}₹{profit.toLocaleString()} profit
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <span className="billing-invoice-amount">₹{(r.data?.totals?.grandTotal || 0).toLocaleString()}</span>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

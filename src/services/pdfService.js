@@ -1,7 +1,8 @@
 import { jsPDF } from 'jspdf';
+import { renderCertificatePdf } from './certificateTemplates';
 
 export const pdfService = {
-  generateOfferLetter: (data) => {
+  generateOfferLetter: (data, isPreview = false) => {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -269,123 +270,32 @@ export const pdfService = {
     addText(data.authorizedPersonDesignation, { size: 10, gap: 0.5 });
     addText(data.companyName, { style: 'bold', size: 10 });
 
-    const fileName = `Offer_${data.studentName.replace(/\s+/g, '_')}.pdf`;
-    doc.save(fileName);
+    if (isPreview) {
+      window.open(doc.output('bloburl'), '_blank');
+    } else {
+      const fileName = `Offer_${data.studentName.replace(/\s+/g, '_')}.pdf`;
+      doc.save(fileName);
+    }
   },
 
-  generateCertificate: (data) => {
+  generateCertificate: (data, isPreview = false) => {
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
       format: 'a4'
     });
 
-    const pageWidth = 297;
-    const pageHeight = 210;
+    renderCertificatePdf(doc, data);
 
-    // Background Decoration
-    doc.setFillColor(15, 23, 42); // Primary color
-    doc.rect(0, 0, pageWidth, 5, 'F');
-    doc.rect(0, pageHeight - 5, pageWidth, 5, 'F');
-
-    // Border
-    doc.setDrawColor(226, 232, 240);
-    doc.setLineWidth(1);
-    doc.rect(10, 10, pageWidth - 20, pageHeight - 20);
-
-    // Header logic
-    let y = 30;
-    
-    // Logo
-    if (data.logo) {
-      try {
-        const props = doc.getImageProperties(data.logo);
-        const displayWidth = 35;
-        const displayHeight = (props.height * displayWidth) / props.width;
-        doc.addImage(data.logo, 'PNG', (pageWidth / 2) - (displayWidth / 2), y, displayWidth, displayHeight);
-        y += displayHeight + 15;
-      } catch (e) {
-        console.error('Logo error:', e);
-        y += 20;
-      }
+    if (isPreview) {
+      window.open(doc.output('bloburl'), '_blank');
     } else {
-      y += 25;
+      const fileName = `Certificate_${(data.recipientName || 'Certificate').replace(/\s+/g, '_')}.pdf`;
+      doc.save(fileName);
     }
-
-    // Title
-    doc.setFont('times', 'bold');
-    doc.setFontSize(36);
-    doc.text('CERTIFICATE', pageWidth / 2, y, { align: 'center' });
-    y += 12;
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'normal');
-    doc.text('OF ACHIEVEMENT', pageWidth / 2, y, { align: 'center' });
-    y += 25;
-
-    // Body
-    doc.setFontSize(14);
-    doc.text('This is to certify that', pageWidth / 2, y, { align: 'center' });
-    y += 15;
-
-    doc.setFontSize(28);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(37, 99, 235); // Accent color
-    doc.text(data.recipientName.toUpperCase(), pageWidth / 2, y, { align: 'center' });
-    doc.setTextColor(15, 23, 42); // Reset to primary
-    y += 15;
-
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'normal');
-    doc.text('has successfully demonstrated excellence in', pageWidth / 2, y, { align: 'center' });
-    y += 10;
-
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.text(data.achievementTitle, pageWidth / 2, y, { align: 'center' });
-    y += 20;
-
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'italic');
-    const splitDesc = doc.splitTextToSize(data.description, 200);
-    doc.text(splitDesc, pageWidth / 2, y, { align: 'center' });
-    y += (splitDesc.length * 6) + 20;
-
-    // Footer - Signatures and Dates
-    const footerY = 175;
-    
-    // Left: Organization
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text(data.issuingOrganization, 50, footerY);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Organization', 50, footerY + 5);
-
-    // Center: Date
-    doc.setFont('helvetica', 'bold');
-    doc.text(new Date(data.issueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), pageWidth / 2, footerY, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
-    doc.text('Date of Issue', pageWidth / 2, footerY + 5, { align: 'center' });
-
-    // Right: Signature
-    if (data.signature) {
-      const sigW = 40;
-      doc.addImage(data.signature, 'PNG', pageWidth - 50 - sigW, footerY - 15, sigW, 15);
-    }
-    doc.setDrawColor(15, 23, 42);
-    doc.setLineWidth(0.5);
-    doc.line(pageWidth - 90, footerY - 2, pageWidth - 50, footerY - 2);
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(data.authorizedSignatory, pageWidth - 70, footerY, { align: 'center' });
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(data.signatoryDesignation, pageWidth - 70, footerY + 5, { align: 'center' });
-
-    const fileName = `Certificate_${data.recipientName.replace(/\s+/g, '_')}.pdf`;
-    doc.save(fileName);
   },
 
-  generateMoU: (data, isPreview = false) => {
+  generateNda: (data, isPreview = false) => {
     const doc = new jsPDF('portrait', 'mm', 'a4');
     const mg = 22;
     const pw = 210;
@@ -455,8 +365,7 @@ export const pdfService = {
     const rp = data.receivingPartyName || '___________';
 
     // ===== TITLE =====
-    const docTitle = data.docType === 'mou' ? 'MEMORANDUM OF UNDERSTANDING' : 'NON-DISCLOSURE AGREEMENT';
-    centerBold(docTitle, 16);
+    centerBold('NON-DISCLOSURE AGREEMENT', 16);
     y += 3;
 
     // ===== PREAMBLE =====
@@ -683,6 +592,258 @@ export const pdfService = {
       window.open(doc.output('bloburl'), '_blank');
     } else {
       const fileName = `NDA_${(dp).replace(/\s+/g, '_')}_${(rp).replace(/\s+/g, '_')}.pdf`;
+      doc.save(fileName);
+    }
+  },
+
+  generateMoU: (data, isPreview = false) => {
+    const doc = new jsPDF('portrait', 'mm', 'a4');
+    const mg = 22;
+    const pw = 210;
+    const cw = pw - mg * 2;
+    let y = 28;
+    const pageBottom = 278;
+    const lh = 5;
+
+    const checkPage = (needed = 8) => { if (y + needed > pageBottom) { doc.addPage(); y = 28; } };
+    const setN = (sz = 11) => { doc.setFont('times', 'normal'); doc.setFontSize(sz); };
+    const setB = (sz = 11) => { doc.setFont('times', 'bold'); doc.setFontSize(sz); };
+    const setI = (sz = 11) => { doc.setFont('times', 'italic'); doc.setFontSize(sz); };
+
+    const writeLines = (lines, x = mg) => {
+      for (const line of lines) { checkPage(lh); doc.text(line, x, y); y += lh; }
+    };
+
+    const para = (text, indent = 0, gap = 3) => {
+      setN(); const w = cw - indent;
+      writeLines(doc.splitTextToSize(text || '', w), mg + indent); y += gap;
+    };
+
+    const boldPara = (text, indent = 0, gap = 3) => {
+      setB(); const w = cw - indent;
+      writeLines(doc.splitTextToSize(text || '', w), mg + indent); y += gap;
+    };
+
+    const italicPara = (text, indent = 0, gap = 2, sz = 10) => {
+      setI(sz); const w = cw - indent;
+      writeLines(doc.splitTextToSize(text || '', w), mg + indent); y += gap;
+    };
+
+    const centerBold = (text, sz = 11) => {
+      setB(sz); checkPage(lh + 2);
+      doc.text(text, pw / 2, y, { align: 'center' }); y += sz * 0.42 + 3;
+    };
+
+    const bullet = (text, indent = 6) => {
+      setN(); const w = cw - indent - 4;
+      const lines = doc.splitTextToSize(text, w);
+      checkPage(lh); doc.text('\u2022', mg + indent, y);
+      for (let i = 0; i < lines.length; i++) { checkPage(lh); doc.text(lines[i], mg + indent + 4, y); y += lh; }
+      y += 1;
+    };
+
+    const heading = (text, gap = 3) => { checkPage(15); y += 4; boldPara(text, 0, gap); };
+
+    const fmtDate = (d) => {
+      if (!d) return '___________';
+      const dt = new Date(d);
+      const day = dt.getDate();
+      const suffix = [,'st','nd','rd'][day % 10 > 3 ? 0 : (day % 100 - day % 10 === 10 ? 0 : day % 10)] || 'th';
+      return `${day}${suffix} ${dt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+    };
+
+    const fmtDatePreamble = (d) => {
+      if (!d) return '___________';
+      return new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    };
+
+    const numWord = (n) => {
+      const w = ['zero','one','two','three','four','five','six','seven','eight','nine','ten'];
+      return w[parseInt(n)] || String(n);
+    };
+
+    const fp = data.firstPartyName || '___________';
+    const sp = data.secondPartyName || '___________';
+    const spType = data.secondPartyType === 'individual' ? 'an individual' : 'a company/individual';
+    const termYears = data.mouTermYears || 2;
+    const arbCity = data.arbitrationCity || '___________';
+
+    // ===== TITLE =====
+    centerBold('MEMORANDUM OF UNDERSTANDING (MoU)', 16);
+    y += 3;
+
+    // ===== PREAMBLE =====
+    para(`This Memorandum of Understanding ("MoU") is made on this ${fmtDatePreamble(data.effectiveDate)} ("Effective Date"), at ${data.executionCity || '___________'}, ${data.executionState || '___________'}.`);
+
+    boldPara('BY AND BETWEEN');
+
+    para(`${fp.toUpperCase()}, a company incorporated under the laws of ${data.firstPartyIncorporation || 'India'}, having its registered office at ${data.firstPartyAddress || '___________'} (hereinafter referred to as the "First Party", which expression shall unless repugnant to the context or meaning thereof include its successors and permitted assigns);`);
+
+    centerBold('AND');
+
+    para(`${sp.toUpperCase()}, ${spType} incorporated under the laws of ${data.secondPartyIncorporation || 'India'}, having its registered office at ${data.secondPartyAddress || '___________'} (hereinafter referred to as the "Second Party", which expression shall unless repugnant to the context or meaning thereof include its successors and permitted assigns).`);
+
+    italicPara('The First Party and Second Party shall hereinafter individually be referred to as a "Party" and collectively as the "Parties."', 0, 4);
+
+    // ===== 1. PURPOSE =====
+    heading('1. PURPOSE');
+    para('The purpose of this Memorandum of Understanding is to establish a framework of cooperation between the Parties for the purpose of:');
+    para(data.purpose || '________________________________________');
+    para('This MoU outlines the intentions of the Parties to collaborate in good faith and defines the roles, responsibilities, and expectations relating to the proposed collaboration.');
+
+    // ===== 2. SCOPE OF COLLABORATION =====
+    heading('2. SCOPE OF COLLABORATION');
+    para('The Parties agree to cooperate in the following areas:');
+
+    const scopeItems = (data.scopeAreas || '').split('\n').filter(l => l.trim());
+    if (scopeItems.length > 0) {
+      scopeItems.forEach(item => bullet(item.trim()));
+    } else {
+      bullet('Development, research, or deployment of ________________________');
+      bullet('Sharing of relevant expertise, knowledge, and technical capabilities');
+      bullet('Joint exploration of business opportunities related to ________________________');
+    }
+    bullet('Any other mutually agreed activity that supports the objectives of this collaboration.');
+    y += 2;
+    para('Any specific projects, commercial agreements, or transactions arising from this collaboration may be governed by separate definitive agreements.');
+
+    // ===== 3. ROLES AND RESPONSIBILITIES =====
+    heading('3. ROLES AND RESPONSIBILITIES');
+
+    boldPara('3.1 Responsibilities of the First Party');
+    para('The First Party agrees to:');
+    const fpResponsibilities = (data.firstPartyResponsibilities || '').split('\n').filter(l => l.trim());
+    if (fpResponsibilities.length > 0) {
+      fpResponsibilities.forEach(item => bullet(item.trim()));
+    } else {
+      bullet('Provide expertise, technology, or resources related to ________________________');
+      bullet('Participate in planning and coordination of collaborative activities');
+      bullet('Share relevant knowledge and information necessary for the collaboration');
+      bullet('Fulfill commitments required for successful implementation of the collaboration.');
+    }
+
+    y += 2;
+    boldPara('3.2 Responsibilities of the Second Party');
+    para('The Second Party agrees to:');
+    const spResponsibilities = (data.secondPartyResponsibilities || '').split('\n').filter(l => l.trim());
+    if (spResponsibilities.length > 0) {
+      spResponsibilities.forEach(item => bullet(item.trim()));
+    } else {
+      bullet('Provide expertise, services, or resources related to ________________________');
+      bullet('Support implementation of the agreed collaborative activities');
+      bullet('Coordinate with the First Party for execution of the objectives');
+      bullet('Ensure timely performance of assigned responsibilities.');
+    }
+
+    // ===== 4. CONFIDENTIALITY =====
+    heading('4. CONFIDENTIALITY');
+    para('Both Parties agree that any confidential information shared during the course of collaboration shall be treated as confidential and shall not be disclosed to third parties without prior written consent of the other Party.');
+    para('If required, the Parties may enter into a separate Non-Disclosure Agreement (NDA) governing confidentiality obligations.');
+
+    // ===== 5. FINANCIAL ARRANGEMENTS =====
+    heading('5. FINANCIAL ARRANGEMENTS');
+    para('Unless otherwise agreed in writing:');
+    bullet('Each Party shall bear its own costs and expenses incurred in relation to activities under this MoU.');
+    bullet('Any financial arrangements, investments, revenue sharing, or commercial terms shall be defined in a separate written agreement between the Parties.');
+
+    // ===== 6. INTELLECTUAL PROPERTY =====
+    heading('6. INTELLECTUAL PROPERTY');
+    para('6.1 Any intellectual property owned by a Party prior to entering into this MoU shall remain the property of that Party.');
+    para('6.2 Any intellectual property developed jointly during the course of collaboration shall be governed by a separate agreement mutually agreed by the Parties.');
+    para('6.3 Nothing contained in this MoU shall be deemed to grant either Party any license or rights to the intellectual property of the other Party unless expressly agreed in writing.');
+
+    // ===== 7. TERM AND TERMINATION =====
+    heading('7. TERM AND TERMINATION');
+    para(`7.1 This MoU shall remain in effect for a period of ${termYears} (${numWord(termYears)}) year${parseInt(termYears) !== 1 ? 's' : ''} from the Effective Date unless terminated earlier by mutual agreement of the Parties.`);
+    para('7.2 Either Party may terminate this MoU by giving 30 (thirty) days\' written notice to the other Party.');
+    para('7.3 Termination of this MoU shall not affect any obligations already incurred prior to termination.');
+
+    // ===== 8. NON-BINDING NATURE =====
+    heading('8. NON-BINDING NATURE');
+    para('This Memorandum of Understanding represents the mutual intentions of the Parties and does not constitute a legally binding agreement, except for clauses relating to confidentiality, dispute resolution, and intellectual property where applicable.');
+    para('The Parties acknowledge that definitive agreements may be executed in the future to formalize specific commercial arrangements.');
+
+    // ===== 9. DISPUTE RESOLUTION =====
+    heading('9. DISPUTE RESOLUTION');
+    para('9.1 The Parties shall first attempt to resolve any dispute arising out of this MoU through mutual discussions and negotiations.');
+    para('9.2 If the dispute cannot be resolved amicably, it shall be referred to arbitration by a sole arbitrator mutually appointed by the Parties.');
+    para('9.3 The arbitration shall be conducted in accordance with the Arbitration and Conciliation Act, 1996.');
+    para(`9.4 The place of arbitration shall be ${arbCity}, India.`);
+    para('9.5 The decision of the arbitrator shall be final and binding on the Parties.');
+
+    // ===== 10. GOVERNING LAW =====
+    heading('10. GOVERNING LAW');
+    para('This MoU shall be governed by and construed in accordance with the laws of India.');
+
+    // ===== 11. AMENDMENTS =====
+    heading('11. AMENDMENTS');
+    para('Any amendment or modification to this MoU shall be made only through a written document signed by authorized representatives of both Parties.');
+
+    // ===== 12. INDEPENDENT PARTIES =====
+    heading('12. INDEPENDENT PARTIES');
+    para('Nothing contained in this MoU shall be deemed to create any partnership, joint venture, employment, or agency relationship between the Parties unless expressly agreed through a separate written agreement.');
+
+    // ===== 13. ASSIGNMENT =====
+    heading('13. ASSIGNMENT');
+    para('Neither Party shall assign or transfer its rights or obligations under this MoU without the prior written consent of the other Party.');
+
+    // ===== 14. ENTIRE UNDERSTANDING =====
+    heading('14. ENTIRE UNDERSTANDING');
+    para('This MoU represents the entire understanding between the Parties with respect to the subject matter hereof and supersedes all prior discussions, negotiations, or communications.');
+
+    // ===== SIGNATURE BLOCK =====
+    checkPage(65);
+    y += 8;
+    boldPara('IN WITNESS WHEREOF');
+    para('The Parties have executed this Memorandum of Understanding on the date first written above.');
+    y += 6;
+
+    const halfW = (cw - 10) / 2;
+    const rightX = mg + halfW + 10;
+    const sigStartY = y;
+
+    // Left: First Party
+    setB(10);
+    const fpLines = doc.splitTextToSize(fp.toUpperCase(), halfW);
+    for (const line of fpLines) { doc.text(line, mg, y); y += 5; }
+    y += 4;
+
+    if (data.firstPartySignature) {
+      try { doc.addImage(data.firstPartySignature, 'PNG', mg, y, 38, 14); y += 17; }
+      catch { setN(10); doc.text('Signature: ___________________________', mg, y); y += 7; }
+    } else {
+      setN(10); doc.text('Signature: ___________________________', mg, y); y += 7;
+    }
+
+    setN(10);
+    doc.text(`Name: ${data.firstPartySignatoryName || '___________________'}`, mg, y); y += 5;
+    doc.text(`Designation: ${data.firstPartySignatoryDesignation || '___________________'}`, mg, y); y += 5;
+    doc.text(`Date: ${fmtDate(data.firstPartySignatoryDate || data.effectiveDate)}`, mg, y);
+
+    // Right: Second Party
+    y = sigStartY;
+    setB(10);
+    const spLines = doc.splitTextToSize(sp.toUpperCase(), halfW);
+    for (const line of spLines) { doc.text(line, rightX, y); y += 5; }
+    y += 4;
+
+    if (data.secondPartySignature) {
+      try { doc.addImage(data.secondPartySignature, 'PNG', rightX, y, 38, 14); y += 17; }
+      catch { setN(10); doc.text('Signature: ___________________________', rightX, y); y += 7; }
+    } else {
+      setN(10); doc.text('Signature: ___________________________', rightX, y); y += 7;
+    }
+
+    setN(10);
+    doc.text(`Name: ${data.secondPartySignatoryName || '___________________'}`, rightX, y); y += 5;
+    doc.text(`Designation: ${data.secondPartySignatoryDesignation || '___________________'}`, rightX, y); y += 5;
+    doc.text(`Date: ${fmtDate(data.secondPartySignatoryDate || data.effectiveDate)}`, rightX, y);
+
+    // Save or Preview
+    if (isPreview) {
+      window.open(doc.output('bloburl'), '_blank');
+    } else {
+      const fileName = `MoU_${(fp).replace(/\s+/g, '_')}_${(sp).replace(/\s+/g, '_')}.pdf`;
       doc.save(fileName);
     }
   },

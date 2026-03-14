@@ -31,9 +31,10 @@ export default function Dashboard({ onNavigate }) {
   }, [activeOrg]);
 
   const stats = useMemo(() => {
-    const revenue = records
-      .filter(r => r.type === 'invoice')
-      .reduce((acc, r) => acc + (r.data?.totals?.grandTotal || 0), 0);
+    const invoiceRecords = records.filter(r => r.type === 'invoice');
+    const revenue = invoiceRecords.reduce((acc, r) => acc + (r.data?.totals?.grandTotal || 0), 0);
+    const makingCharges = invoiceRecords.reduce((acc, r) => acc + (Number(r.data?.makingCharges) || 0), 0);
+    const grossProfit = revenue - makingCharges;
 
     const thisMonth = records.filter(r => {
       const d = new Date(r.created_at);
@@ -64,7 +65,8 @@ export default function Dashboard({ onNavigate }) {
     const typeDistribution = [
       { name: 'Offer Letters', value: records.filter(r => r.type === 'offer').length, color: '#3b82f6' },
       { name: 'Certificates', value: records.filter(r => r.type === 'certificate').length, color: '#f59e0b' },
-      { name: 'Legal MoUs', value: records.filter(r => r.type === 'mou').length, color: '#10b981' },
+      { name: 'NDAs', value: records.filter(r => r.type === 'nda').length, color: '#10b981' },
+      { name: 'MoUs', value: records.filter(r => r.type === 'mou').length, color: '#14b8a6' },
       { name: 'Invoices', value: records.filter(r => r.type === 'invoice').length, color: '#8b5cf6' },
     ].filter(d => d.value > 0);
 
@@ -72,9 +74,12 @@ export default function Dashboard({ onNavigate }) {
       total: records.length,
       offers: records.filter(r => r.type === 'offer').length,
       certificates: records.filter(r => r.type === 'certificate').length,
+      ndas: records.filter(r => r.type === 'nda').length,
       mous: records.filter(r => r.type === 'mou').length,
       invoices: records.filter(r => r.type === 'invoice').length,
       revenue,
+      makingCharges,
+      grossProfit,
       thisMonth: thisMonth.length,
       monthlyRevenue,
       typeDistribution
@@ -104,25 +109,26 @@ export default function Dashboard({ onNavigate }) {
   const STAT_CARDS = [
     { label: 'Total Documents', value: stats.total, icon: FileText, color: '#3b82f6', bg: '#3b82f612', nav: 'records' },
     { label: 'Revenue Generated', value: `₹${stats.revenue.toLocaleString()}`, icon: TrendingUp, color: '#10b981', bg: '#10b98112', nav: 'revenue' },
-    { label: 'Offer Letters', value: stats.offers, icon: Briefcase, color: '#8b5cf6', bg: '#8b5cf612', nav: 'offers' },
+    { label: 'Gross Profit', value: `₹${stats.grossProfit.toLocaleString()}`, icon: DollarSign, color: stats.grossProfit >= 0 ? '#3b82f6' : '#ef4444', bg: stats.grossProfit >= 0 ? '#3b82f612' : '#ef444412', nav: 'revenue' },
     { label: 'Invoices Issued', value: stats.invoices, icon: Receipt, color: '#f59e0b', bg: '#f59e0b12', nav: 'invoices' },
   ];
 
   const QUICK_ACTIONS = [
     { id: 'offers', label: 'Offer Letter', desc: 'Generate employment offers', icon: Briefcase, color: '#3b82f6' },
     { id: 'certificates', label: 'Certificate', desc: 'Issue achievement certs', icon: Award, color: '#f59e0b' },
-    { id: 'mous', label: 'Legal MoU', desc: 'Draft legal agreements', icon: FileCode, color: '#10b981' },
+    { id: 'ndas', label: 'NDA', desc: 'Draft confidentiality agreements', icon: FileCode, color: '#10b981' },
+    { id: 'mous', label: 'MoU', desc: 'Establish partnerships', icon: FileCode, color: '#14b8a6' },
     { id: 'invoices', label: 'Invoice', desc: 'Create GST invoices', icon: Receipt, color: '#8b5cf6' },
     { id: 'revenue', label: 'Revenue', desc: 'Track billing & P&L', icon: DollarSign, color: '#ec4899' },
     { id: 'planner', label: 'Planner', desc: 'Manage products & tasks', icon: Layers, color: '#06b6d4' },
   ];
 
   const TYPE_COLORS = {
-    offer: '#3b82f6', certificate: '#f59e0b', mou: '#10b981', invoice: '#8b5cf6'
+    offer: '#3b82f6', certificate: '#f59e0b', nda: '#10b981', mou: '#14b8a6', invoice: '#8b5cf6'
   };
 
   const TYPE_ICONS = {
-    offer: Briefcase, certificate: Award, mou: FileCode, invoice: Receipt
+    offer: Briefcase, certificate: Award, nda: FileCode, mou: FileCode, invoice: Receipt
   };
 
   return (
