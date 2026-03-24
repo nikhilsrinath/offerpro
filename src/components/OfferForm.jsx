@@ -5,7 +5,7 @@ import { storageService } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 import { useTrialStatus, TRIAL_LIMITS } from '../hooks/useTrialStatus';
-import { resolveFormImages } from '../utils/imageUtils';
+import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 import OfferPreview from './OfferPreview';
 
 export default function OfferForm({ onSuccess }) {
@@ -16,12 +16,18 @@ export default function OfferForm({ onSuccess }) {
   const [formData, setFormData] = useState({
     offerType: 'internship',
     companyName: org.company_name || '',
+    companyTagline: org.company_tagline || '',
     companyAddress: org.company_address || '',
     companyLogo: org.logo_url || null,
+    cin: org.cin || '',
+    companyWebsite: org.company_website || '',
     authorizedPersonName: org.owner_full_name || '',
     authorizedPersonDesignation: org.document_designation || '',
     contactEmail: org.company_email || '',
     contactPhone: org.company_phone || '',
+    stampType: org.stamp_type || 'generated',
+    stampUrl: org.stamp_url || '',
+    stampCity: org.stamp_city || '',
     studentName: '',
     signature: org.signature_url || null,
     studentAddress: '',
@@ -75,9 +81,12 @@ export default function OfferForm({ onSuccess }) {
     if (!canCreate('offer')) return;
     setIsSubmitting(true);
     try {
-      const resolved = await resolveFormImages(formData, ['companyLogo', 'signature']);
+      const resolved = await resolveFormImages(formData, ['companyLogo', 'signature', 'stampUrl']);
+      if (resolved.stampType === 'generated') {
+        resolved.stampPng = await generateStampPng(resolved.companyName, resolved.stampCity);
+      }
       await storageService.save(formData, 'offer', activeOrg?.id, user?.id);
-      pdfService.generateOfferLetter(resolved);
+      await pdfService.generateOfferLetter(resolved);
       await refreshUsage();
       setTimeout(() => {
         setIsSubmitting(false);
@@ -91,8 +100,11 @@ export default function OfferForm({ onSuccess }) {
   };
 
   const handlePreview = async () => {
-    const resolved = await resolveFormImages(formData, ['companyLogo', 'signature']);
-    pdfService.generateOfferLetter(resolved, true);
+    const resolved = await resolveFormImages(formData, ['companyLogo', 'signature', 'stampUrl']);
+    if (resolved.stampType === 'generated') {
+      resolved.stampPng = await generateStampPng(resolved.companyName, resolved.stampCity);
+    }
+    await pdfService.generateOfferLetter(resolved, true);
   };
 
   const limitReached = !canCreate('offer');

@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 import MoUPreview from './MoUPreview';
 import { useTrialStatus, TRIAL_LIMITS } from '../hooks/useTrialStatus';
-import { resolveFormImages } from '../utils/imageUtils';
+import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 
 export default function MoUForm({ onSuccess }) {
   const { user } = useAuth();
@@ -17,7 +17,16 @@ export default function MoUForm({ onSuccess }) {
     effectiveDate: '',
     executionCity: '',
     executionState: '',
-    firstPartyName: org.company_name || 'AURALINKS CORPORATION LLC',
+    companyLogo: org.logo_url || null,
+    companyTagline: org.company_tagline || '',
+    cin: org.cin || '',
+    companyPhone: org.company_phone || '',
+    companyEmail: org.company_email || '',
+    companyWebsite: org.company_website || '',
+    stampType: org.stamp_type || 'generated',
+    stampUrl: org.stamp_url || '',
+    stampCity: org.stamp_city || '',
+    firstPartyName: org.company_name || '',
     firstPartyIncorporation: 'India',
     firstPartyAddress: org.company_address || '',
     secondPartyName: '',
@@ -61,9 +70,12 @@ export default function MoUForm({ onSuccess }) {
     if (!canCreate('mou')) return;
     setIsSubmitting(true);
     try {
-      const resolved = await resolveFormImages(formData, ['firstPartySignature', 'secondPartySignature']);
+      const resolved = await resolveFormImages(formData, ['firstPartySignature', 'secondPartySignature', 'companyLogo', 'stampUrl']);
+      if (resolved.stampType === 'generated') {
+        resolved.stampPng = await generateStampPng(resolved.firstPartyName, resolved.stampCity);
+      }
       await storageService.save(formData, 'mou', activeOrg?.id, user?.id);
-      pdfService.generateMoU(resolved);
+      await pdfService.generateMoU(resolved);
       await refreshUsage();
       setTimeout(() => {
         setIsSubmitting(false);
@@ -81,8 +93,11 @@ export default function MoUForm({ onSuccess }) {
   const fillClass = usage.mou >= TRIAL_LIMITS.mou ? 'full' : '';
 
   const handlePreview = async () => {
-    const resolved = await resolveFormImages(formData, ['firstPartySignature', 'secondPartySignature']);
-    pdfService.generateMoU(resolved, true);
+    const resolved = await resolveFormImages(formData, ['firstPartySignature', 'secondPartySignature', 'companyLogo', 'stampUrl']);
+    if (resolved.stampType === 'generated') {
+      resolved.stampPng = await generateStampPng(resolved.firstPartyName, resolved.stampCity);
+    }
+    await pdfService.generateMoU(resolved, true);
   };
 
   return (

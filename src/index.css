@@ -5624,3 +5624,484 @@ label {
   left: 0;
   right: 0;
 }
+
+/* ───── Document Header ───── */
+.doc-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 4px;
+  border-bottom: 2px solid #000;
+  margin-bottom: 16px;
+  gap: 16px;
+}
+
+.doc-header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+
+.doc-header-logo {
+  max-height: 80px;
+  max-width: 200px;
+  object-fit: contain;
+  display: block;
+}
+
+.doc-header-tagline {
+  font-size: 7pt;
+  color: #555;
+  font-style: italic;
+  margin-top: 2px;
+  line-height: 1;
+}
+
+.doc-header-right {
+  text-align: right;
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-header-name {
+  font-size: 11pt;
+  font-weight: 700;
+  color: #000;
+  letter-spacing: 0.03em;
+  margin-bottom: 2px;
+}
+
+.doc-header-detail {
+  font-size: 7.5pt;
+  color: #333;
+  line-height: 1.5;
+}
+
+/* ───── Stamp Styles ───── */
+.stamp-svg {
+  display: inline-block;
+}
+
+.stamp-svg svg {
+  display: block;
+}
+
+.doc-stamp-img {
+  max-width: 200px;
+  max-height: 200px;
+  object-fit: contain;
+  transform: rotate(-8deg);
+}
+
+.offer-sig-stamp-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: 1.5em;
+  gap: 16px;
+}
+
+.offer-sig-stamp-row .offer-sig-left {
+  flex: 1;
+}
+
+.offer-sig-stamp-row .offer-stamp-right {
+  flex-shrink: 0;
+}
+
+/* NDA / MoU stamp next to signature */
+.nda-sig-col .nda-stamp-area {
+  margin-top: 8px;
+}
+
+/* ───── Stamp Type Toggle (Profile) ───── */
+.stamp-type-toggle {
+  display: flex;
+  gap: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  width: fit-content;
+}
+
+.stamp-type-toggle-btn {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background: var(--surface-1);
+  color: var(--text-muted);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.stamp-type-toggle-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.stamp-type-toggle-btn:hover:not(.active) {
+  background: var(--surface-2);
+}
+
+.stamp-preview-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 10px;
+  min-height: 180px;
+}
+
+/* ═══════════════════════════════════════════════════
+   Image Editor Modal
+   ═══════════════════════════════════════════════════ */
+
+.img-editor-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.img-editor-modal {
+  background: var(--bg-elevated, #111113);
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.09));
+  border-radius: 16px;
+  width: 90vw;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-xl, 0 20px 40px rgba(0, 0, 0, 0.45));
+}
+
+.img-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.img-editor-header h3 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary, #fafafa);
+  margin: 0;
+}
+
+.img-editor-canvas-wrap {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-height: 280px;
+  max-height: 50vh;
+  background:
+    repeating-conic-gradient(#1a1a1d 0% 25%, #141416 0% 50%) 0 0 / 20px 20px;
+}
+
+.img-editor-canvas-wrap canvas {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+}
+
+.img-editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.625rem 1rem;
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  flex-wrap: wrap;
+}
+
+.img-editor-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  background: transparent;
+  color: var(--text-secondary, #a1a1aa);
+  font-size: 0.75rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.img-editor-toolbar button:hover {
+  background: var(--bg-raised, #18181b);
+  color: var(--text-primary, #fafafa);
+  border-color: var(--border-default, rgba(255, 255, 255, 0.09));
+}
+
+.img-editor-toolbar button.active {
+  background: var(--blue-muted, rgba(59, 130, 246, 0.12));
+  color: var(--blue-hover, #60a5fa);
+  border-color: var(--blue-border, rgba(59, 130, 246, 0.25));
+}
+
+.img-editor-toolbar .toolbar-divider {
+  width: 1px;
+  height: 1.25rem;
+  background: var(--border-subtle, rgba(255, 255, 255, 0.06));
+  margin: 0 0.25rem;
+}
+
+.img-editor-sliders {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.625rem 1.25rem;
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  flex-wrap: wrap;
+}
+
+.img-editor-slider-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 180px;
+}
+
+.img-editor-slider-group label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-tertiary, #71717a);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  min-width: 56px;
+}
+
+.img-editor-slider-group input[type="range"] {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--bg-raised, #18181b);
+  border-radius: 2px;
+  outline: none;
+}
+
+.img-editor-slider-group input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-primary, #fafafa);
+  cursor: pointer;
+  border: 2px solid var(--bg-elevated, #111113);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.img-editor-slider-group input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-primary, #fafafa);
+  cursor: pointer;
+  border: 2px solid var(--bg-elevated, #111113);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.img-editor-slider-group .slider-value {
+  font-size: 0.6875rem;
+  color: var(--text-tertiary, #71717a);
+  min-width: 28px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.img-editor-presets {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1.25rem;
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  flex-wrap: wrap;
+}
+
+.img-editor-presets button {
+  padding: 0.3rem 0.7rem;
+  border-radius: 20px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  background: transparent;
+  color: var(--text-tertiary, #71717a);
+  font-size: 0.6875rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.img-editor-presets button:hover {
+  color: var(--text-secondary, #a1a1aa);
+  border-color: var(--border-default, rgba(255, 255, 255, 0.09));
+}
+
+.img-editor-presets button.active {
+  background: var(--text-primary, #fafafa);
+  color: var(--bg-base, #09090b);
+  border-color: var(--text-primary, #fafafa);
+}
+
+.img-editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.img-editor-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.img-editor-actions .btn-reset {
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary, #71717a);
+  margin-right: auto;
+}
+
+.img-editor-actions .btn-reset:hover {
+  color: var(--text-secondary, #a1a1aa);
+}
+
+.img-editor-actions .btn-cancel {
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.09));
+  background: transparent;
+  color: var(--text-secondary, #a1a1aa);
+}
+
+.img-editor-actions .btn-cancel:hover {
+  background: var(--bg-raised, #18181b);
+  color: var(--text-primary, #fafafa);
+}
+
+.img-editor-actions .btn-save {
+  border: none;
+  background: var(--text-primary, #fafafa);
+  color: var(--bg-base, #09090b);
+}
+
+.img-editor-actions .btn-save:hover {
+  background: #e4e4e7;
+}
+
+/* Crop overlay */
+.img-editor-crop-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.img-editor-crop-overlay.active {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
+.img-editor-crop-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--text-primary, #fafafa);
+  border: 2px solid var(--blue, #3b82f6);
+  border-radius: 2px;
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.img-editor-crop-handle.tl { cursor: nw-resize; }
+.img-editor-crop-handle.tr { cursor: ne-resize; }
+.img-editor-crop-handle.bl { cursor: sw-resize; }
+.img-editor-crop-handle.br { cursor: se-resize; }
+
+/* Edit pencil button on image previews */
+.img-preview-wrap {
+  position: relative;
+  padding: 1rem;
+  background: white;
+  border-radius: 10px;
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.img-preview-wrap .edit-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.img-preview-wrap:hover .edit-btn {
+  opacity: 1;
+}
+
+.img-preview-wrap .edit-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+@media (max-width: 640px) {
+  .img-editor-modal {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .img-editor-sliders {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .img-editor-toolbar {
+    gap: 0.375rem;
+  }
+
+  .img-editor-toolbar button {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.6875rem;
+  }
+}

@@ -16,6 +16,8 @@ export function useTrialStatus() {
     const [usage, setUsage] = useState({ offer: 0, nda: 0, mou: 0, invoice: 0 });
     const [loading, setLoading] = useState(true);
 
+    const isPremium = activeOrg?.is_premium || false;
+
     // Calculate trial days info from org data
     const trialStartDate = activeOrg?.trial_start_date
         ? new Date(activeOrg.trial_start_date)
@@ -31,7 +33,8 @@ export function useTrialStatus() {
         : 0;
 
     const trialDaysLeft = Math.max(0, TRIAL_DURATION_DAYS - daysSinceStart);
-    const isTrialExpired = trialStartDate ? daysSinceStart >= TRIAL_DURATION_DAYS : false;
+    // If premium, trial never expires
+    const isTrialExpired = isPremium ? false : (trialStartDate ? daysSinceStart >= TRIAL_DURATION_DAYS : false);
 
     // Fetch document counts
     useEffect(() => {
@@ -70,6 +73,7 @@ export function useTrialStatus() {
     }, [activeOrg?.id]);
 
     const canCreate = (type) => {
+        if (isPremium) return true; // Premium has unlimited access
         if (isTrialExpired) return false;
         const limit = TRIAL_LIMITS[type];
         if (limit === undefined) return true;
@@ -96,6 +100,7 @@ export function useTrialStatus() {
     return {
         trialDaysLeft,
         isTrialExpired,
+        isPremium,
         usage,
         limits: TRIAL_LIMITS,
         canCreate,

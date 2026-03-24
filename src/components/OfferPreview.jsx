@@ -1,3 +1,6 @@
+import DocumentHeader from './DocumentHeader';
+import StampPreview from './StampPreview';
+
 export default function OfferPreview({ formData }) {
   const formatDate = (dateStr) => {
     if (!dateStr) return '___________';
@@ -18,17 +21,11 @@ export default function OfferPreview({ formData }) {
 
   return (
     <div className="a4-sheet offer-preview">
-      {/* Logo */}
-      {formData.companyLogo && (
-        <img src={formData.companyLogo} alt="Logo" className="offer-logo" />
-      )}
-
-      {/* Company Header */}
-      <div className="offer-company-name">{(formData.companyName || '___________').toUpperCase()}</div>
-      <div className="offer-company-addr">{formData.companyAddress || ''}</div>
+      {/* Professional Header */}
+      <DocumentHeader formData={formData} />
 
       {/* Date */}
-      <p className="offer-text" style={{ marginTop: '1.2em' }}>Date: {formatDate(today)}</p>
+      <p className="offer-text" style={{ marginTop: '1.8em' }}>Date: {formatDate(today)}</p>
 
       {/* Recipient */}
       <p className="offer-bold">To,</p>
@@ -86,18 +83,27 @@ export default function OfferPreview({ formData }) {
         </>
       )}
 
-      {/* Signature Block */}
-      <p className="offer-text" style={{ marginTop: '1.5em' }}>Sincerely,</p>
-
-      {formData.signature ? (
-        <img src={formData.signature} alt="Signature" className="offer-sig-img" />
-      ) : (
-        <div style={{ height: '40px' }} />
-      )}
-
-      <p className="offer-bold">{formData.authorizedPersonName || ''}</p>
-      <p className="offer-small">{formData.authorizedPersonDesignation || ''}</p>
-      <p className="offer-bold" style={{ fontSize: '10pt' }}>{formData.companyName || ''}</p>
+      {/* Signature + Stamp Row */}
+      <div className="offer-sig-stamp-row">
+        <div className="offer-sig-left">
+          <p className="offer-text">Sincerely,</p>
+          {formData.signature ? (
+            <img src={formData.signature} alt="Signature" className="offer-sig-img" />
+          ) : (
+            <div style={{ height: '40px' }} />
+          )}
+          <p className="offer-bold">{formData.authorizedPersonName || ''}</p>
+          <p className="offer-small">{formData.authorizedPersonDesignation || ''}</p>
+          <p className="offer-bold" style={{ fontSize: '10pt' }}>{formData.companyName || ''}</p>
+        </div>
+        <div className="offer-stamp-right">
+          {formData.stampType === 'uploaded' && formData.stampUrl ? (
+            <img src={formData.stampUrl} alt="Company Stamp" className="doc-stamp-img" />
+          ) : formData.stampType === 'generated' && formData.companyName ? (
+            <StampPreview companyName={formData.companyName} city={formData.stampCity} size={90} />
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,3 +1,6 @@
+import DocumentHeader from './DocumentHeader';
+import StampPreview from './StampPreview';
+
 export default function MoUPreview({ formData }) {
   const fmtDatePreamble = (d) => {
     if (!d) return '___________';
@@ -27,8 +30,22 @@ export default function MoUPreview({ formData }) {
   const fpResponsibilities = (formData.firstPartyResponsibilities || '').split('\n').filter(l => l.trim());
   const spResponsibilities = (formData.secondPartyResponsibilities || '').split('\n').filter(l => l.trim());
 
+  const headerData = {
+    companyLogo: formData.companyLogo,
+    companyName: formData.firstPartyName,
+    companyTagline: formData.companyTagline,
+    cin: formData.cin,
+    companyAddress: formData.firstPartyAddress,
+    companyPhone: formData.companyPhone,
+    companyEmail: formData.companyEmail,
+    companyWebsite: formData.companyWebsite,
+  };
+
   return (
     <div className="a4-sheet">
+      {/* Professional Header */}
+      <DocumentHeader formData={headerData} />
+
       {/* TITLE */}
       <div className="nda-title">MEMORANDUM OF UNDERSTANDING (MoU)</div>
 
@@ -235,6 +252,13 @@ export default function MoUPreview({ formData }) {
           <div>Name: {formData.firstPartySignatoryName || '___________________'}</div>
           <div>Designation: {formData.firstPartySignatoryDesignation || '___________________'}</div>
           <div>Date: {fmtDate(formData.firstPartySignatoryDate || formData.effectiveDate)}</div>
+          <div className="nda-stamp-area">
+            {formData.stampType === 'uploaded' && formData.stampUrl ? (
+              <img src={formData.stampUrl} alt="Company Stamp" className="doc-stamp-img" />
+            ) : formData.stampType === 'generated' && formData.firstPartyName ? (
+              <StampPreview companyName={formData.firstPartyName} city={formData.stampCity} size={80} />
+            ) : null}
+          </div>
         </div>
         <div className="nda-sig-col">
           <div className="nda-sig-name">{sp.toUpperCase()}</div>

@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 import NdaPreview from './NdaPreview';
 import { useTrialStatus, TRIAL_LIMITS } from '../hooks/useTrialStatus';
-import { resolveFormImages } from '../utils/imageUtils';
+import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 
 export default function NdaForm({ onSuccess }) {
   const { user } = useAuth();
@@ -17,6 +17,15 @@ export default function NdaForm({ onSuccess }) {
     effectiveDate: '',
     executionCity: '',
     executionState: '',
+    companyLogo: org.logo_url || null,
+    companyTagline: org.company_tagline || '',
+    cin: org.cin || '',
+    companyPhone: org.company_phone || '',
+    companyEmail: org.company_email || '',
+    companyWebsite: org.company_website || '',
+    stampType: org.stamp_type || 'generated',
+    stampUrl: org.stamp_url || '',
+    stampCity: org.stamp_city || '',
     disclosingPartyName: org.company_name || '',
     disclosingPartyIncorporation: 'India',
     disclosingPartyAddress: org.company_address || '',
@@ -61,9 +70,12 @@ export default function NdaForm({ onSuccess }) {
     if (!canCreate('nda')) return;
     setIsSubmitting(true);
     try {
-      const resolved = await resolveFormImages(formData, ['disclosingSignature', 'receivingSignature']);
+      const resolved = await resolveFormImages(formData, ['disclosingSignature', 'receivingSignature', 'companyLogo', 'stampUrl']);
+      if (resolved.stampType === 'generated') {
+        resolved.stampPng = await generateStampPng(resolved.disclosingPartyName, resolved.stampCity);
+      }
       await storageService.save(formData, 'nda', activeOrg?.id, user?.id);
-      pdfService.generateNda(resolved);
+      await pdfService.generateNda(resolved);
       await refreshUsage();
       setTimeout(() => {
         setIsSubmitting(false);
@@ -81,8 +93,11 @@ export default function NdaForm({ onSuccess }) {
   const fillClass = usage.nda >= TRIAL_LIMITS.nda ? 'full' : '';
 
   const handlePreview = async () => {
-    const resolved = await resolveFormImages(formData, ['disclosingSignature', 'receivingSignature']);
-    pdfService.generateNda(resolved, true);
+    const resolved = await resolveFormImages(formData, ['disclosingSignature', 'receivingSignature', 'companyLogo', 'stampUrl']);
+    if (resolved.stampType === 'generated') {
+      resolved.stampPng = await generateStampPng(resolved.disclosingPartyName, resolved.stampCity);
+    }
+    await pdfService.generateNda(resolved, true);
   };
 
   return (

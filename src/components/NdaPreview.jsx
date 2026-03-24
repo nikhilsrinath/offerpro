@@ -1,3 +1,6 @@
+import DocumentHeader from './DocumentHeader';
+import StampPreview from './StampPreview';
+
 export default function NdaPreview({ formData }) {
   const fmtDatePreamble = (d) => {
     if (!d) return '___________';
@@ -28,8 +31,23 @@ export default function NdaPreview({ formData }) {
 
   const items = (formData.specificConfidentialItems || '').split('\n').filter(l => l.trim());
 
+  // Map NDA fields to DocumentHeader expected names
+  const headerData = {
+    companyLogo: formData.companyLogo,
+    companyName: formData.disclosingPartyName,
+    companyTagline: formData.companyTagline,
+    cin: formData.cin,
+    companyAddress: formData.disclosingPartyAddress,
+    companyPhone: formData.companyPhone,
+    companyEmail: formData.companyEmail,
+    companyWebsite: formData.companyWebsite,
+  };
+
   return (
     <div className="a4-sheet">
+      {/* Professional Header */}
+      <DocumentHeader formData={headerData} />
+
       {/* TITLE */}
       <div className="nda-title">{docTitle}</div>
 
@@ -303,6 +321,13 @@ export default function NdaPreview({ formData }) {
           <div>Name: {formData.disclosingSignatoryName || ''}</div>
           <div>Designation: {formData.disclosingSignatoryDesignation || ''}</div>
           <div>Date: {fmtDate(formData.disclosingSignatoryDate || formData.effectiveDate)}</div>
+          <div className="nda-stamp-area">
+            {formData.stampType === 'uploaded' && formData.stampUrl ? (
+              <img src={formData.stampUrl} alt="Company Stamp" className="doc-stamp-img" />
+            ) : formData.stampType === 'generated' && formData.disclosingPartyName ? (
+              <StampPreview companyName={formData.disclosingPartyName} city={formData.stampCity} size={80} />
+            ) : null}
+          </div>
         </div>
         <div className="nda-sig-col">
           <div className="nda-sig-name">{rp.toUpperCase()}</div>

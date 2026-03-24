@@ -53,11 +53,11 @@ export default function InternRecords() {
     }
   };
 
-  const handleDownloadPDF = (record) => {
-    if (record.type === 'offer') pdfService.generateOfferLetter(record.data);
+  const handleDownloadPDF = async (record) => {
+    if (record.type === 'offer') await pdfService.generateOfferLetter(record.data);
     else if (record.type === 'certificate') pdfService.generateCertificate(record.data);
-    else if (record.type === 'nda') pdfService.generateNda(record.data);
-    else if (record.type === 'mou') pdfService.generateMoU(record.data);
+    else if (record.type === 'nda') await pdfService.generateNda(record.data);
+    else if (record.type === 'mou') await pdfService.generateMoU(record.data);
     else if (record.type === 'invoice') pdfService.generateInvoice(record.data);
   };
 

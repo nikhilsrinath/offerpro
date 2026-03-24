@@ -56,7 +56,7 @@ function AppContent() {
   const [showLanding, setShowLanding] = useState(true);
   const { user, loading, logout, needsOnboarding } = useAuth();
   const { activeOrg } = useOrg();
-  const { trialDaysLeft, isTrialExpired } = useTrialStatus();
+  const { trialDaysLeft, isTrialExpired, isPremium } = useTrialStatus();
 
   if (loading) {
     return (
@@ -167,7 +167,7 @@ function AppContent() {
         </div>
 
         {/* Trial Status Banner */}
-        {user && !needsOnboarding && (
+        {user && !needsOnboarding && !isPremium && (
           <div className="trial-banner">
             <Clock size={14} />
             {isTrialExpired ? (
@@ -212,7 +212,7 @@ function AppContent() {
       </div>
 
       {/* Trial Expired Overlay */}
-      {isTrialExpired && user && !needsOnboarding && (
+      {isTrialExpired && user && !needsOnboarding && !isPremium && (
         <div className="trial-expired-overlay">
           <div className="trial-expired-modal">
             <div style={{ width: '56px', height: '56px', background: 'rgba(248,113,113,0.12)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>

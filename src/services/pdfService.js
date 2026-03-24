@@ -1,8 +1,152 @@
 import { jsPDF } from 'jspdf';
 import { renderCertificatePdf } from './certificateTemplates';
 
+/**
+ * Render a professional document header in the PDF.
+ * Left: logo + tagline. Right: company name, CIN, address, phone, email, website.
+ * Returns the new Y position after the header.
+ */
+function renderDocumentHeader(doc, data, options = {}) {
+  const { margin = 25, pageWidth = 210 } = options;
+  const contentWidth = pageWidth - margin * 2;
+  let y = options.startY || 15;
+
+  const companyName = data.companyName || data.disclosingPartyName || data.firstPartyName || '';
+  const tagline = data.companyTagline || '';
+  const cin = data.cin || '';
+  const address = data.companyAddress || data.disclosingPartyAddress || data.firstPartyAddress || '';
+  const phone = data.contactPhone || data.companyPhone || '';
+  const email = data.contactEmail || data.companyEmail || '';
+  const website = data.companyWebsite || '';
+  const logo = data.companyLogo || '';
+
+  const rightX = pageWidth - margin;
+  let leftBottomY = y;
+
+  // Left side: Logo
+  if (logo) {
+    try {
+      const props = doc.getImageProperties(logo);
+      const maxH = 26;
+      const displayH = Math.min(maxH, props.height * (42 / props.width));
+      const displayW = (props.width * displayH) / props.height;
+      doc.addImage(logo, 'PNG', margin, y, displayW, displayH);
+      leftBottomY = y + displayH;
+
+      // Tagline below logo
+      if (tagline) {
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(7);
+        doc.setTextColor(100, 100, 100);
+        doc.text(tagline, margin, leftBottomY + 2);
+        leftBottomY += 4;
+      }
+    } catch (e) {
+      console.error('Header logo error:', e);
+    }
+  } else if (tagline) {
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 100, 100);
+    doc.text(tagline, margin, y + 4);
+    leftBottomY = y + 8;
+  }
+
+  // Right side: Company details (right-aligned)
+  let ry = y;
+  doc.setTextColor(0, 0, 0);
+
+  // Company name
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text(companyName.toUpperCase(), rightX, ry + 4, { align: 'right' });
+  ry += 8;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+
+  if (cin) {
+    doc.text(`CIN: ${cin}`, rightX, ry, { align: 'right' });
+    ry += 3.5;
+  }
+  if (address) {
+    const addrLines = doc.splitTextToSize(address, contentWidth * 0.5);
+    for (const line of addrLines) {
+      doc.text(line, rightX, ry, { align: 'right' });
+      ry += 3.5;
+    }
+  }
+  if (phone) {
+    doc.text(phone, rightX, ry, { align: 'right' });
+    ry += 3.5;
+  }
+  if (email) {
+    doc.text(email, rightX, ry, { align: 'right' });
+    ry += 3.5;
+  }
+  if (website) {
+    doc.text(website, rightX, ry, { align: 'right' });
+    ry += 3.5;
+  }
+
+  // Horizontal line
+  const lineY = Math.max(leftBottomY, ry) + 2;
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.5);
+  doc.line(margin, lineY, pageWidth - margin, lineY);
+
+  doc.setTextColor(0, 0, 0);
+  return lineY + 9;
+}
+
+/**
+ * Pre-rotate stamp on a square canvas so the circle stays round in PDF.
+ */
+function preRotateStamp(src, angleDeg) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      // Use the larger dimension so the rotated image fits in a square
+      const dim = Math.max(img.width, img.height);
+      // After rotation the bounding box grows — pad enough
+      const rad = (angleDeg * Math.PI) / 180;
+      const sin = Math.abs(Math.sin(rad));
+      const cos = Math.abs(Math.cos(rad));
+      const needed = Math.ceil(dim * cos + dim * sin);
+      const size = Math.max(needed, dim);
+      const c = document.createElement('canvas');
+      c.width = size;
+      c.height = size;
+      const ctx = c.getContext('2d');
+      ctx.translate(size / 2, size / 2);
+      ctx.rotate(rad);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+      resolve(c.toDataURL('image/png'));
+    };
+    img.onerror = () => resolve(src);
+    img.src = src;
+  });
+}
+
+/**
+ * Render stamp image in PDF at given position.
+ * Pre-rotates -8° on canvas, then places as a square in the PDF.
+ */
+async function renderStamp(doc, data, x, y) {
+  const stampImg = data.stampUrl && data.stampType === 'uploaded' ? data.stampUrl : data.stampPng;
+  if (!stampImg) return;
+  const size = 52; // mm — matches ~200px HTML preview
+  try {
+    const rotated = await preRotateStamp(stampImg, -8);
+    doc.addImage(rotated, 'PNG', x, y, size, size);
+  } catch (e) {
+    // Fallback without rotation
+    try { doc.addImage(stampImg, 'PNG', x, y, size, size); } catch (_) {}
+  }
+}
+
 export const pdfService = {
-  generateOfferLetter: (data, isPreview = false) => {
+  generateOfferLetter: async (data, isPreview = false) => {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -133,21 +277,8 @@ export const pdfService = {
       return `${day}${suffix} ${month} ${year}`;
     };
 
-    // 1. Branding (Logo & Header)
-    if (data.companyLogo) {
-      try {
-        const props = doc.getImageProperties(data.companyLogo);
-        const displayWidth = 28;
-        const displayHeight = (props.height * displayWidth) / props.width;
-        doc.addImage(data.companyLogo, 'PNG', margin, y, displayWidth, displayHeight);
-        y += displayHeight + 12; // Increased gap as requested
-      } catch (e) {
-        console.error('Logo error:', e);
-      }
-    }
-
-    addText(data.companyName.toUpperCase(), { style: 'bold', size: 13, gap: 0 });
-    addText(data.companyAddress, { size: 9, gap: 4 });
+    // 1. Branding (Professional Header)
+    y = renderDocumentHeader(doc, data, { margin, pageWidth, startY: y });
 
     // 2. Recipient & Date
     const today = new Date().toISOString().split('T')[0];
@@ -270,6 +401,9 @@ export const pdfService = {
     addText(data.authorizedPersonDesignation, { size: 10, gap: 0.5 });
     addText(data.companyName, { style: 'bold', size: 10 });
 
+    // Stamp
+    await renderStamp(doc, data, margin + 90, y - 30);
+
     if (isPreview) {
       window.open(doc.output('bloburl'), '_blank');
     } else {
@@ -295,7 +429,7 @@ export const pdfService = {
     }
   },
 
-  generateNda: (data, isPreview = false) => {
+  generateNda: async (data, isPreview = false) => {
     const doc = new jsPDF('portrait', 'mm', 'a4');
     const mg = 22;
     const pw = 210;
@@ -363,6 +497,9 @@ export const pdfService = {
 
     const dp = data.disclosingPartyName || '___________';
     const rp = data.receivingPartyName || '___________';
+
+    // ===== PROFESSIONAL HEADER =====
+    y = renderDocumentHeader(doc, data, { margin: mg, pageWidth: pw, startY: y });
 
     // ===== TITLE =====
     centerBold('NON-DISCLOSURE AGREEMENT', 16);
@@ -567,6 +704,8 @@ export const pdfService = {
     doc.text(`Name: ${data.disclosingSignatoryName || ''}`, mg, y); y += 5;
     doc.text(`Designation: ${data.disclosingSignatoryDesignation || ''}`, mg, y); y += 5;
     doc.text(`Date: ${fmtDate(data.disclosingSignatoryDate || data.effectiveDate)}`, mg, y);
+    y += 5;
+    await renderStamp(doc, data, mg, y);
 
     // Right: Receiving Party
     y = sigStartY;
@@ -596,7 +735,7 @@ export const pdfService = {
     }
   },
 
-  generateMoU: (data, isPreview = false) => {
+  generateMoU: async (data, isPreview = false) => {
     const doc = new jsPDF('portrait', 'mm', 'a4');
     const mg = 22;
     const pw = 210;
@@ -667,6 +806,9 @@ export const pdfService = {
     const spType = data.secondPartyType === 'individual' ? 'an individual' : 'a company/individual';
     const termYears = data.mouTermYears || 2;
     const arbCity = data.arbitrationCity || '___________';
+
+    // ===== PROFESSIONAL HEADER =====
+    y = renderDocumentHeader(doc, data, { margin: mg, pageWidth: pw, startY: y });
 
     // ===== TITLE =====
     centerBold('MEMORANDUM OF UNDERSTANDING (MoU)', 16);
@@ -819,6 +961,8 @@ export const pdfService = {
     doc.text(`Name: ${data.firstPartySignatoryName || '___________________'}`, mg, y); y += 5;
     doc.text(`Designation: ${data.firstPartySignatoryDesignation || '___________________'}`, mg, y); y += 5;
     doc.text(`Date: ${fmtDate(data.firstPartySignatoryDate || data.effectiveDate)}`, mg, y);
+    y += 5;
+    await renderStamp(doc, data, mg, y);
 
     // Right: Second Party
     y = sigStartY;

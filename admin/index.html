@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OfferPro Admin Dashboard</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --accent: #3b82f6;
+            --background: #f8fafc;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .chart-container {
+            position: relative;
+            height: 200px;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body class="bg-[#f8fafc] min-h-screen text-gray-800 font-sans pb-20">
+
+    <div id="app">
+        <!-- Auth Section -->
+        <div id="loginSection"
+            class="hidden max-w-md mx-auto mt-32 bg-white p-10 rounded-2xl shadow-xl border border-gray-100">
+            <div class="text-center mb-8">
+                <div
+                    class="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6 text-blue-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                </div>
+                <h2 class="text-3xl font-extrabold text-gray-900 mb-2">OfferPro Admin</h2>
+                <p class="text-gray-500">Secure entry for high-level operations</p>
+            </div>
+
+            <form id="loginForm" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Admin Email</label>
+                    <input type="text" id="username" placeholder="admin@offerpro.com" required
+                        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                    <input type="password" id="password" required
+                        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                </div>
+                <div id="loginError" class="text-red-500 text-sm hidden bg-red-50 p-3 rounded-lg border border-red-100">
+                </div>
+                <button type="submit"
+                    class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-blue-200">
+                    Access Dashboard
+                </button>
+            </form>
+        </div>
+
+        <!-- Main Dashboard Section -->
+        <div id="adminSection" class="hidden">
+            <!-- Header -->
+            <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 px-8 py-4">
+                <div class="max-w-7xl mx-auto flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="bg-blue-600 p-2 rounded-xl text-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="m8 3 4 8 5-5 5 15H2L8 3z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-bold text-gray-900 tracking-tight">OfferPro <span
+                                    class="text-blue-600">Admin</span></h1>
+                            <p id="userDisplay" class="text-xs text-gray-500 font-medium"></p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-6">
+                        <button id="refreshBtn"
+                            class="text-gray-500 hover:text-blue-600 transition-colors p-2 rounded-full hover:bg-blue-50">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M3 12a9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                                <path d="M21 3v5h-5" />
+                                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                                <path d="M3 21v-5h5" />
+                            </svg>
+                        </button>
+                        <div class="h-6 w-px bg-gray-200"></div>
+                        <button id="logoutBtn"
+                            class="flex items-center gap-2 text-gray-600 hover:text-red-500 font-semibold text-sm transition-all">
+                            <span>Sign Out</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                                <polyline points="16 17 21 12 16 7" />
+                                <line x1="21" y1="12" x2="9" y2="12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <main class="max-w-7xl mx-auto px-8 py-10">
+                <!-- Stats Grid -->
+                <div id="listStats" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+                    <div
+                        class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition-transform hover:translate-y-[-2px]">
+                        <p class="text-sm font-semibold text-gray-500 mb-1 uppercase tracking-wider">Total Organizations
+                        </p>
+                        <h3 id="totalOrgsStat" class="text-3xl font-black text-gray-900 font-mono">--</h3>
+                    </div>
+                    <div
+                        class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition-transform hover:translate-y-[-2px]">
+                        <p class="text-sm font-semibold text-gray-500 mb-1 uppercase tracking-wider">Total Documents</p>
+                        <h3 id="totalDocsStat" class="text-3xl font-black text-gray-900 font-mono">--</h3>
+                    </div>
+                    <div
+                        class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition-transform hover:translate-y-[-2px]">
+                        <p class="text-sm font-semibold text-gray-500 mb-1 uppercase tracking-wider">Active Trials</p>
+                        <h3 id="activeTrialsStat" class="text-3xl font-black text-blue-600 font-mono">--</h3>
+                    </div>
+                    <div
+                        class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition-transform hover:translate-y-[-2px]">
+                        <p class="text-sm font-semibold text-gray-500 mb-1 uppercase tracking-wider">Est. Platform
+                            Revenue</p>
+                        <h3 id="totalRevenueStat" class="text-3xl font-black text-green-600 font-mono">--</h3>
+                    </div>
+                </div>
+
+                <!-- Views Container -->
+                <div id="viewContainer">
+                    <!-- Organizations List View -->
+                    <div id="listView" class="fade-in">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-2xl font-black text-gray-900">Partner Organizations</h2>
+                            <div class="flex gap-2">
+                                <input type="text" id="searchOrgs" placeholder="Search organizations..."
+                                    class="px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 w-64">
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr
+                                        class="bg-gray-50/50 border-b border-gray-200 text-gray-500 text-xs uppercase font-bold tracking-widest">
+                                        <th class="py-5 px-6">Organization</th>
+                                        <th class="py-5 px-6">Contact / Owner</th>
+                                        <th class="py-5 px-6">Created On</th>
+                                        <th class="py-5 px-6">Current Status</th>
+                                        <th class="py-5 px-6 text-right">Premium Control</th>
+                                        <th class="py-5 px-6">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="orgList" class="divide-y divide-gray-100">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Organization Detail View -->
+                    <div id="detailView" class="hidden fade-in">
+                        <button onclick="showListView()"
+                            class="flex items-center gap-2 text-blue-600 font-bold text-sm mb-6 hover:translate-x-[-4px] transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="m15 18-6-6 6-6" />
+                            </svg>
+                            Back to All Organizations
+                        </button>
+
+                        <div class="flex flex-col md:flex-row gap-8">
+                            <!-- Left Col: Profile & Actions -->
+                            <div class="w-full md:w-1/3 space-y-6">
+                                <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+                                    <div class="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center text-blue-600 mb-6 text-3xl font-black"
+                                        id="orgLogoPlaceholder">
+                                        -
+                                    </div>
+                                    <h2 id="detailOrgName" class="text-2xl font-black text-gray-900 mb-1">--</h2>
+                                    <p id="detailOrgEmail" class="text-gray-500 font-medium mb-6">--</p>
+
+                                    <div class="space-y-4 pt-6 border-t border-gray-100">
+                                        <div class="flex items-center justify-between text-sm">
+                                            <span class="text-gray-500">Premium Status</span>
+                                            <span id="detailPremiumBadge" class="font-bold">--</span>
+                                        </div>
+                                        <div class="flex items-center justify-between text-sm">
+                                            <span class="text-gray-500">Member Since</span>
+                                            <span id="detailCreatedAt" class="font-bold">--</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                                        Administrative Controls</h4>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <a id="emailContactBtn" href="#"
+                                            class="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors group">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                class="mb-2">
+                                                <rect width="20" height="16" x="2" y="4" rx="2" />
+                                                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                                            </svg>
+                                            <span class="text-[10px] uppercase font-bold">Email Warning</span>
+                                        </a>
+                                        <a id="whatsappContactBtn" href="#" target="_blank"
+                                            class="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-xl hover:bg-green-50 hover:text-green-600 transition-colors group">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                class="mb-2">
+                                                <path
+                                                    d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                                            </svg>
+                                            <span class="text-[10px] uppercase font-bold">WhatsApp</span>
+                                        </a>
+                                    </div>
+                                    <button id="deleteOrgBtn"
+                                        class="w-full flex items-center justify-center gap-2 py-4 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-600 hover:text-white transition-all">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M3 6h18" />
+                                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                            <line x1="10" y1="11" x2="10" y2="17" />
+                                            <line x1="14" y1="11" x2="14" y2="17" />
+                                        </svg>
+                                        Delete Entire Account
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Right Col: Detailed Usage & Charts -->
+                            <div class="flex-1 space-y-8">
+                                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm text-center">
+                                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                                            Total Docs</p>
+                                        <div id="detailTotalDocs" class="text-3xl font-black">0</div>
+                                    </div>
+                                    <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm text-center">
+                                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                                            Est. Revenue</p>
+                                        <div id="detailRevenue" class="text-3xl font-black text-green-600">0</div>
+                                    </div>
+                                    <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm text-center">
+                                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                                            Est. Profit</p>
+                                        <div id="detailProfit" class="text-3xl font-black text-blue-600">0</div>
+                                    </div>
+                                    <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm text-center">
+                                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                                            MoU Usage</p>
+                                        <div id="detailMouCount" class="text-3xl font-black">0</div>
+                                    </div>
+                                </div>
+
+                                <!-- Graphical Analysis Section -->
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+                                        <h3 class="font-black text-lg mb-6">Invoicing & Profit Analysis</h3>
+                                        <div class="chart-container">
+                                            <canvas id="revenueChart"></canvas>
+                                        </div>
+                                    </div>
+                                    <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+                                        <h3 class="font-black text-lg mb-6">Document Distribution</h3>
+                                        <div class="chart-container">
+                                            <canvas id="distributionChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-white rounded-2xl border border-gray-200 shadow-sm">
+                                    <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+                                        <h3 class="font-black text-lg">Document History</h3>
+                                        <span class="text-xs text-gray-400 font-bold uppercase tracking-widest">Recent
+                                            Activity</span>
+                                    </div>
+                                    <div class="max-h-[300px] overflow-y-auto">
+                                        <table class="w-full text-left">
+                                            <thead>
+                                                <tr
+                                                    class="text-xs text-gray-400 uppercase tracking-widest bg-gray-50/50">
+                                                    <th class="py-4 px-6 border-b border-gray-100">Audience/Client</th>
+                                                    <th class="py-4 px-6 border-b border-gray-100">Document Type</th>
+                                                    <th class="py-4 px-6 border-b border-gray-100">Issued On</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="orgRecordsList" class="divide-y divide-gray-50">
+                                                <!-- Dynamic rows -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getDatabase, ref, get, update, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // Config from current implementation
+        const firebaseConfig = {
+            apiKey: "AIzaSyCqe28dSIfjzI9Ra7lgVlZpiHVnWTD1wk8",
+            authDomain: "offerpro-892b9.firebaseapp.com",
+            databaseURL: "https://offerpro-892b9-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "offerpro-892b9",
+            storageBucket: "offerpro-892b9.firebasestorage.app",
+            messagingSenderId: "881939498050",
+            appId: "1:881939498050:web:b53cc4c683e356d28719db",
+            measurementId: "G-NJ2EKT3FH3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        // Global State
+        let organizations = {};
+        let selectedOrgId = null;
+        let revenueChart = null;
+        let distributionChart = null;
+
+        // UI Handlers
+        window.showListView = () => {
+            document.getElementById('listView').classList.remove('hidden');
+            document.getElementById('detailView').classList.add('hidden');
+            document.getElementById('listStats').classList.remove('hidden');
+            selectedOrgId = null;
+        };
+
+        window.showDetailView = async (orgId) => {
+            selectedOrgId = orgId;
+            const org = organizations[orgId];
+            if (!org) return;
+
+            // Switch UI
+            document.getElementById('listView').classList.add('hidden');
+            document.getElementById('detailView').classList.remove('hidden');
+            document.getElementById('listStats').classList.add('hidden');
+
+            // Set Basic Info
+            document.getElementById('detailOrgName').textContent = org.company_name || 'N/A';
+            document.getElementById('detailOrgEmail').textContent = org.company_email || 'N/A';
+            document.getElementById('orgLogoPlaceholder').textContent = (org.company_name || 'N')[0];
+            document.getElementById('detailCreatedAt').textContent = org.created_at ? new Date(org.created_at).toLocaleDateString() : 'N/A';
+
+            const badge = document.getElementById('detailPremiumBadge');
+            badge.textContent = org.is_premium ? 'PREMIUM' : 'TRIAL';
+            badge.className = `px-2 py-1 rounded text-[10px] font-bold ${org.is_premium ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`;
+
+            // Prepare Contact Links
+            document.getElementById('emailContactBtn').href = `mailto:${org.company_email}?subject=Important Notice: OfferPro Account Update&body=Hello ${org.company_name},\n\nThis is a notice regarding your OfferPro account...`;
+            document.getElementById('whatsappContactBtn').href = `https://wa.me/${org.phone || ''}?text=Hello ${org.company_name || ''}, this is from OfferPro Admin.`;
+
+            // Reset Stats
+            ['detailTotalDocs', 'detailRevenue', 'detailProfit', 'detailMouCount'].forEach(id => {
+                document.getElementById(id).textContent = '0';
+            });
+            document.getElementById('orgRecordsList').innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-400">Loading records...</td></tr>';
+
+            // Fetch Records for this Org
+            await fetchOrgRecords(orgId);
+        };
+
+        async function fetchOrgRecords(orgId) {
+            const recordsRef = ref(db, `records/${orgId}`);
+            try {
+                const snapshot = await get(recordsRef);
+                const list = document.getElementById('orgRecordsList');
+                list.innerHTML = '';
+
+                let counts = { total: 0, mou: 0, offer: 0, invoice: 0, revenue: 0, profit: 0 };
+                let monthlyData = {}; // Format: { "Jan 2024": { rev: 0, prof: 0 } }
+                let typesData = { offer: 0, mou: 0, invoice: 0, certificate: 0 };
+
+                if (snapshot.exists()) {
+                    const records = snapshot.val();
+                    const sortedRecords = Object.values(records).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+                    sortedRecords.forEach(r => {
+                        counts.total++;
+                        const date = new Date(r.created_at);
+                        const monthKey = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+
+                        if (!monthlyData[monthKey]) monthlyData[monthKey] = { rev: 0, prof: 0, docs: 0 };
+                        monthlyData[monthKey].docs++;
+
+                        if (r.type === 'mou' || r.type === 'nda') { counts.mou++; typesData.mou++; }
+                        if (r.type === 'offer') { counts.offer++; typesData.offer++; }
+                        if (r.type === 'certificate') typesData.certificate++;
+
+                        if (r.type === 'invoice') {
+                            counts.invoice++;
+                            typesData.invoice++;
+                            const rev = Number(r.totals?.grandTotal) || 0;
+                            const cost = Number(r.makingCharges) || 0;
+                            const prof = rev - cost;
+
+                            counts.revenue += rev;
+                            counts.profit += prof;
+                            monthlyData[monthKey].rev += rev;
+                            monthlyData[monthKey].prof += prof;
+                        }
+
+                        const tr = document.createElement('tr');
+                        tr.className = 'hover:bg-gray-50/50 transition-colors';
+                        tr.innerHTML = `
+                            <td class="py-4 px-6 font-bold text-gray-800 text-sm">${r.title || 'N/A'}</td>
+                            <td class="py-4 px-6">
+                                <span class="px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-tight bg-gray-100 text-gray-600">${r.type}</span>
+                            </td>
+                            <td class="py-4 px-6 text-xs text-gray-400 font-medium">${date.toLocaleDateString()}</td>
+                        `;
+                        list.appendChild(tr);
+                    });
+
+                    updateCharts(monthlyData, typesData);
+                } else {
+                    list.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-400 font-medium">No documents issued yet.</td></tr>';
+                    updateCharts({}, {});
+                }
+
+                // Update Detailed Stats
+                document.getElementById('detailTotalDocs').textContent = counts.total;
+                document.getElementById('detailRevenue').textContent = '₹' + Math.round(counts.revenue).toLocaleString('en-IN');
+                document.getElementById('detailProfit').textContent = '₹' + Math.round(counts.profit).toLocaleString('en-IN');
+                document.getElementById('detailMouCount').textContent = counts.mou;
+
+            } catch (err) {
+                console.error("Error fetching org records:", err);
+            }
+        }
+
+        function updateCharts(monthlyData, typesData) {
+            // Destroy existing charts if they exist
+            if (revenueChart) revenueChart.destroy();
+            if (distributionChart) distributionChart.destroy();
+
+            const months = Object.keys(monthlyData).reverse();
+            const revenues = months.map(m => monthlyData[m].rev);
+            const profits = months.map(m => monthlyData[m].prof);
+
+            const revCtx = document.getElementById('revenueChart').getContext('2d');
+            revenueChart = new Chart(revCtx, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [
+                        { label: 'Revenue', data: revenues, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.4 },
+                        { label: 'Profit', data: profits, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.4 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } } }
+            });
+
+            const distCtx = document.getElementById('distributionChart').getContext('2d');
+            distributionChart = new Chart(distCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Offers', 'MoUs', 'Invoices', 'Certificates'],
+                    datasets: [{
+                        data: [typesData.offer || 0, typesData.mou || 0, typesData.invoice || 0, typesData.certificate || 0],
+                        backgroundColor: ['#60a5fa', '#f59e0b', '#10b981', '#8b5cf6'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10, weight: 'bold' } } } }, cutout: '70%' }
+            });
+        }
+
+        // Firebase Listeners & Auth
+        onAuthStateChanged(auth, (user) => {
+            const loginSection = document.getElementById('loginSection');
+            const adminSection = document.getElementById('adminSection');
+            if (user) {
+                loginSection.classList.add('hidden');
+                adminSection.classList.remove('hidden');
+                document.getElementById('userDisplay').textContent = user.email;
+                fetchDashboardData();
+            } else {
+                loginSection.classList.remove('hidden');
+                adminSection.classList.add('hidden');
+            }
+        });
+
+        async function fetchDashboardData() {
+            const orgsRef = ref(db, 'organizations');
+            const recordsBaseRef = ref(db, 'records');
+
+            try {
+                const [orgsSnap, recordsSnap] = await Promise.all([get(orgsRef), get(recordsBaseRef)]);
+
+                if (orgsSnap.exists()) {
+                    organizations = orgsSnap.val();
+                    const allOrgs = Object.entries(organizations);
+
+                    // Calculate Global Stats
+                    let premiumCount = 0;
+                    let totalDocsCount = 0;
+                    let platformRevenue = 0;
+
+                    if (recordsSnap.exists()) {
+                        const recordsData = recordsSnap.val();
+                        Object.values(recordsData).forEach(orgDocs => {
+                            const docs = Object.values(orgDocs);
+                            totalDocsCount += docs.length;
+                            docs.forEach(d => {
+                                if (d.type === 'invoice') platformRevenue += (Number(d.totals?.grandTotal) || 0);
+                            });
+                        });
+                    }
+
+                    allOrgs.forEach(([id, org]) => {
+                        if (org.is_premium) premiumCount++;
+                    });
+
+                    // Update UI Stats
+                    document.getElementById('totalOrgsStat').textContent = allOrgs.length;
+                    document.getElementById('totalDocsStat').textContent = totalDocsCount;
+                    document.getElementById('totalRevenueStat').textContent = '₹' + Math.round(platformRevenue).toLocaleString('en-IN');
+                    document.getElementById('activeTrialsStat').textContent = allOrgs.length - premiumCount;
+
+                    // Render List
+                    renderOrgList(allOrgs, recordsSnap.val() || {});
+                }
+            } catch (err) {
+                console.error("Dashboard data load error:", err);
+            }
+        }
+
+        function renderOrgList(orgEntries, allRecords) {
+            const tbody = document.getElementById('orgList');
+            tbody.innerHTML = '';
+
+            orgEntries.sort((a, b) => new Date(b[1].created_at) - new Date(a[1].created_at)).forEach(([id, org]) => {
+                const docCount = allRecords[id] ? Object.keys(allRecords[id]).length : 0;
+                const isPremium = org.is_premium || false;
+
+                const tr = document.createElement('tr');
+                tr.className = 'group hover:bg-gray-50/50 transition-colors';
+                tr.innerHTML = `
+                    <td class="py-4 px-6">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 font-black text-xs">
+                                ${(org.company_name || 'N')[0]}
+                            </div>
+                            <span class="font-bold text-gray-900">${org.company_name || 'N/A'}</span>
+                        </div>
+                    </td>
+                    <td class="py-4 px-6 text-sm text-gray-600 font-medium">${org.company_email || 'N/A'}</td>
+                    <td class="py-4 px-6 text-xs text-gray-400 font-bold uppercase">${org.created_at ? new Date(org.created_at).toLocaleDateString() : 'N/A'}</td>
+                    <td class="py-4 px-6">
+                        <span class="px-3 py-1 text-[10px] font-black rounded-full uppercase tracking-tighter ${isPremium ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">
+                            ${isPremium ? 'Premium' : 'Free Trial'}
+                        </span>
+                    </td>
+                    <td class="py-4 px-6 text-right">
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" class="sr-only peer toggle-premium" data-id="${id}" ${isPremium ? 'checked' : ''}>
+                            <div class="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </td>
+                    <td class="py-4 px-6">
+                        <button onclick="showDetailView('${id}')" class="px-4 py-2 bg-gray-100 text-gray-700 text-xs font-bold rounded-xl hover:bg-blue-600 hover:text-white transition-all">
+                            View Deep Dive
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Re-bind toggles
+            document.querySelectorAll('.toggle-premium').forEach(input => {
+                input.addEventListener('change', async (e) => {
+                    const orgId = e.target.dataset.id;
+                    const premium = e.target.checked;
+                    await update(ref(db, `organizations/${orgId}`), { is_premium: premium });
+                    fetchDashboardData();
+                });
+            });
+        }
+
+        // Action Handlers
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const loginEmail = document.getElementById('username').value;
+            const loginPass = document.getElementById('password').value;
+            const errorEl = document.getElementById('loginError');
+
+            try {
+                const finalEmail = loginEmail.includes('@') ? loginEmail : `${loginEmail}@offerpro.com`;
+                await signInWithEmailAndPassword(auth, finalEmail, loginPass);
+                errorEl.classList.add('hidden');
+            } catch (err) {
+                errorEl.textContent = "Access Denied: Invalid Administrative Credentials.";
+                errorEl.classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+        document.getElementById('refreshBtn').addEventListener('click', () => fetchDashboardData());
+
+        document.getElementById('deleteOrgBtn').addEventListener('click', async () => {
+            if (!selectedOrgId) return;
+            const confirmName = prompt("WARNING: This will permanently delete this organization and ALL its records including invoices, MOUs, and offer letters. To confirm, type 'DELETE THIS ACCOUNT':");
+            if (confirmName === 'DELETE THIS ACCOUNT') {
+                try {
+                    await Promise.all([
+                        remove(ref(db, `organizations/${selectedOrgId}`)),
+                        remove(ref(db, `records/${selectedOrgId}`))
+                    ]);
+                    showListView();
+                    fetchDashboardData();
+                } catch (err) {
+                    alert("Deletion failed. Check Firebase permissions.");
+                }
+            }
+        });
+
+        // Search Implementation
+        document.getElementById('searchOrgs').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = Object.entries(organizations).filter(([id, org]) =>
+                (org.company_name || '').toLowerCase().includes(term) ||
+                (org.company_email || '').toLowerCase().includes(term)
+            );
+            // This would need a global records list to pass, or just re-render list
+            // For now, simpler filter:
+            const rows = document.querySelectorAll('#orgList tr');
+            rows.forEach(row => {
+                const name = row.cells[0].textContent.toLowerCase();
+                const email = row.cells[1].textContent.toLowerCase();
+                row.style.display = (name.includes(term) || email.includes(term)) ? '' : 'none';
+            });
+        });
+    </script>
+</body>
+
+</html>
