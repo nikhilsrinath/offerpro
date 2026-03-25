@@ -125,7 +125,7 @@ export default function InternRecords() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="records-page">
 
       {/* Summary Cards */}
       <div className="records-summary-grid">
@@ -167,7 +167,7 @@ export default function InternRecords() {
           ))}
         </div>
         <div className="records-toolbar-right">
-          <div style={{ position: 'relative', minWidth: '200px' }}>
+          <div className="records-search-wrap">
             <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
               type="text"
@@ -178,18 +178,20 @@ export default function InternRecords() {
               style={{ paddingLeft: '2rem', height: '36px', fontSize: '0.8125rem' }}
             />
           </div>
-          <div className="records-view-toggle">
-            <button className={`records-view-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')} title="Grid view">
-              <LayoutGrid size={16} />
-            </button>
-            <button className={`records-view-btn ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')} title="List view">
-              <List size={16} />
+          <div className="records-toolbar-actions">
+            <div className="records-view-toggle">
+              <button className={`records-view-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')} title="Grid view">
+                <LayoutGrid size={16} />
+              </button>
+              <button className={`records-view-btn ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')} title="List view">
+                <List size={16} />
+              </button>
+            </div>
+            <button onClick={() => storageService.exportToCSV(records)} className="records-export-btn" disabled={records.length === 0}>
+              <FileSpreadsheet size={16} />
+              <span className="hide-mobile">Export</span>
             </button>
           </div>
-          <button onClick={() => storageService.exportToCSV(records)} className="records-export-btn" disabled={records.length === 0}>
-            <FileSpreadsheet size={16} />
-            <span className="hide-mobile">Export</span>
-          </button>
         </div>
       </div>
 
