@@ -322,11 +322,15 @@ export default function NdaPreview({ formData }) {
           <div>Designation: {formData.disclosingSignatoryDesignation || ''}</div>
           <div>Date: {fmtDate(formData.disclosingSignatoryDate || formData.effectiveDate)}</div>
           <div className="nda-stamp-area">
-            {formData.stampType === 'uploaded' && formData.stampUrl ? (
-              <img src={formData.stampUrl} alt="Company Stamp" className="doc-stamp-img" />
-            ) : formData.stampType === 'generated' && formData.disclosingPartyName ? (
-              <StampPreview companyName={formData.disclosingPartyName} city={formData.stampCity} size={80} />
-            ) : null}
+            {formData.showStamp && (
+              <>
+                {formData.stampType === 'uploaded' && formData.stampUrl ? (
+                  <img src={formData.stampUrl} alt="Company Stamp" className="doc-stamp-img" />
+                ) : formData.stampType === 'generated' && formData.disclosingPartyName ? (
+                  <StampPreview companyName={formData.disclosingPartyName} city={formData.stampCity} size={65} />
+                ) : null}
+              </>
+            )}
           </div>
         </div>
         <div className="nda-sig-col">

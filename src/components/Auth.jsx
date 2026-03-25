@@ -95,8 +95,8 @@ const Auth = () => {
       <div className="auth-form-side">
         <div style={{ width: '100%', maxWidth: '400px' }} className="animate-in">
           <div style={{ marginBottom: '2.5rem' }}>
-            <div className="nav-logo" style={{ marginBottom: '2rem', fontSize: '1.25rem' }}>
-              <Zap size={28} fill="white" />
+            <div className="nav-logo" style={{ marginBottom: '2rem', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+              <Zap size={28} fill="currentColor" />
               OFFERPRO
             </div>
             <h2 style={{
@@ -140,10 +140,10 @@ const Auth = () => {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '0.75rem',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border-default)',
               borderRadius: '12px',
-              color: 'white',
+              color: 'var(--text-primary)',
               fontSize: '0.9375rem',
               fontWeight: 600,
               cursor: 'pointer',
@@ -162,9 +162,9 @@ const Auth = () => {
             gap: '1rem',
             marginBottom: '1.5rem'
           }}>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+            <div style={{ flex: 1, height: '1px', background: 'var(--border-default)' }} />
             <span style={{ color: 'var(--accent-muted)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>or</span>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+            <div style={{ flex: 1, height: '1px', background: 'var(--border-default)' }} />
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -188,11 +188,11 @@ const Auth = () => {
                   required
                   style={{
                     width: '100%',
-                    background: 'rgba(255,255,255,0.02)',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: 'var(--bg-sunken)',
+                    border: '1px solid var(--border-subtle)',
                     borderRadius: '12px',
                     padding: '0.875rem 1rem 0.875rem 3rem',
-                    color: 'white',
+                    color: 'var(--text-primary)',
                     outline: 'none',
                     fontSize: '0.9375rem',
                     transition: 'all 0.3s ease'
@@ -222,11 +222,11 @@ const Auth = () => {
                   required
                   style={{
                     width: '100%',
-                    background: 'rgba(255,255,255,0.02)',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: 'var(--bg-sunken)',
+                    border: '1px solid var(--border-subtle)',
                     borderRadius: '12px',
                     padding: '0.875rem 1rem 0.875rem 3rem',
-                    color: 'white',
+                    color: 'var(--text-primary)',
                     outline: 'none',
                     fontSize: '0.9375rem',
                     transition: 'all 0.3s ease'

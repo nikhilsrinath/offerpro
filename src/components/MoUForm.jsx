@@ -11,7 +11,7 @@ import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 export default function MoUForm({ onSuccess }) {
   const { user } = useAuth();
   const { activeOrg } = useOrg();
-  const { usage, canCreate, isTrialExpired, refreshUsage } = useTrialStatus();
+  const { usage, canCreate, isTrialExpired, isPremium, refreshUsage } = useTrialStatus();
   const org = activeOrg || {};
   const [formData, setFormData] = useState({
     effectiveDate: '',
@@ -26,6 +26,7 @@ export default function MoUForm({ onSuccess }) {
     stampType: org.stamp_type || 'generated',
     stampUrl: org.stamp_url || '',
     stampCity: org.stamp_city || '',
+    showStamp: true,
     firstPartyName: org.company_name || '',
     firstPartyIncorporation: 'India',
     firstPartyAddress: org.company_address || '',
@@ -108,23 +109,27 @@ export default function MoUForm({ onSuccess }) {
         <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
 
           {/* Usage */}
-          <div className="easy-usage">
-            <span className="easy-usage-label">MoU</span>
-            <div className="easy-usage-bar">
-              <div className={`easy-usage-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
-            </div>
-            <span className="easy-usage-count">{usage.mou}/{TRIAL_LIMITS.mou}</span>
-          </div>
+          {!isPremium && (
+            <>
+              <div className="easy-usage">
+                <span className="easy-usage-label">MoU</span>
+                <div className="easy-usage-bar">
+                  <div className={`easy-usage-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
+                </div>
+                <span className="easy-usage-count">{usage.mou}/{TRIAL_LIMITS.mou}</span>
+              </div>
 
-          {limitReached && (
-            <div className="easy-limit-alert">
-              <AlertTriangle size={28} />
-              <h3>{isTrialExpired ? 'Trial Expired' : 'MoU Limit Reached'}</h3>
-              <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used your ${TRIAL_LIMITS.mou} MoU document(s) in the free trial.`} Contact our sales team to upgrade.</p>
-              <a href="mailto:sales@offerpro.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
-                <Mail size={16} /> Contact Sales
-              </a>
-            </div>
+              {limitReached && (
+                <div className="easy-limit-alert">
+                  <AlertTriangle size={28} />
+                  <h3>{isTrialExpired ? 'Trial Expired' : 'MoU Limit Reached'}</h3>
+                  <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used your ${TRIAL_LIMITS.mou} MoU document(s) in the free trial.`} Contact our sales team to upgrade.</p>
+                  <a href="mailto:sales@offerpro.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
+                    <Mail size={16} /> Contact Sales
+                  </a>
+                </div>
+              )}
+            </>
           )}
 
           {/* 1. Agreement Details */}
@@ -331,13 +336,23 @@ export default function MoUForm({ onSuccess }) {
                 </div>
                 {formData.secondPartySignature && <img src={formData.secondPartySignature} alt="Signature" style={{ height: '28px', marginTop: '0.25rem' }} />}
               </div>
+              <div className="easy-field full">
+                <div
+                  className={`easy-switch-row ${formData.showStamp ? 'active' : ''}`}
+                  onClick={() => handleChange({ target: { name: 'showStamp', checked: !formData.showStamp, type: 'checkbox' } })}
+                  style={{ marginTop: '0.5rem' }}
+                >
+                  <span className="easy-switch-label">Include company stamp</span>
+                  <div className="easy-switch-dot" />
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Submit */}
-          <button type="submit" disabled={isSubmitting || limitReached} className="easy-submit">
-            {isSubmitting ? 'Generating...' : limitReached ? 'Limit Reached' : 'Save & Download MoU'}
-            {!isSubmitting && !limitReached && <ChevronRight size={18} />}
+          <button type="submit" disabled={isSubmitting || (limitReached && !isPremium)} className="easy-submit">
+            {isSubmitting ? 'Generating...' : (limitReached && !isPremium) ? 'Limit Reached' : 'Save & Download MoU'}
+            {!isSubmitting && !(limitReached && !isPremium) && <ChevronRight size={18} />}
           </button>
 
           {/* Mobile preview */}

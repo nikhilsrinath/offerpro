@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Upload, CheckCircle, ChevronRight, Eye, AlertTriangle, Mail } from 'lucide-react';
+import { Upload, CheckCircle, ChevronRight, Eye, AlertTriangle, Mail, Send, Loader } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
+import { emailService } from '../services/emailService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 import { useTrialStatus, TRIAL_LIMITS } from '../hooks/useTrialStatus';
@@ -11,7 +12,7 @@ import OfferPreview from './OfferPreview';
 export default function OfferForm({ onSuccess }) {
   const { user } = useAuth();
   const { activeOrg } = useOrg();
-  const { usage, canCreate, isTrialExpired, trialDaysLeft, refreshUsage } = useTrialStatus();
+  const { usage, canCreate, isTrialExpired, isPremium, trialDaysLeft, refreshUsage } = useTrialStatus();
   const org = activeOrg || {};
   const [formData, setFormData] = useState({
     offerType: 'internship',
@@ -28,6 +29,7 @@ export default function OfferForm({ onSuccess }) {
     stampType: org.stamp_type || 'generated',
     stampUrl: org.stamp_url || '',
     stampCity: org.stamp_city || '',
+    showStamp: true,
     studentName: '',
     signature: org.signature_url || null,
     studentAddress: '',
@@ -47,6 +49,8 @@ export default function OfferForm({ onSuccess }) {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailResult, setEmailResult] = useState(null);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -107,6 +111,38 @@ export default function OfferForm({ onSuccess }) {
     await pdfService.generateOfferLetter(resolved, true);
   };
 
+  const handleNotifyEmployee = async () => {
+    if (!formData.email) {
+      setEmailResult({ success: false, message: 'Please enter the employee\'s email address first.' });
+      setTimeout(() => setEmailResult(null), 4000);
+      return;
+    }
+    setIsSendingEmail(true);
+    setEmailResult(null);
+    try {
+      const resolved = await resolveFormImages(formData, ['companyLogo', 'signature', 'stampUrl']);
+      if (resolved.stampType === 'generated') {
+        resolved.stampPng = await generateStampPng(resolved.companyName, resolved.stampCity);
+      }
+      const result = await emailService.sendOfferNotification({
+        recordData: resolved,
+        emailConfig: {
+          serviceId: activeOrg?.emailjs_service_id,
+          templateId: activeOrg?.emailjs_template_id,
+          publicKey: activeOrg?.emailjs_public_key,
+        },
+        companyName: activeOrg?.company_name || formData.companyName || 'Company',
+      });
+      setEmailResult(result);
+      setTimeout(() => setEmailResult(null), 5000);
+    } catch (err) {
+      setEmailResult({ success: false, message: 'Failed to send email.' });
+      setTimeout(() => setEmailResult(null), 5000);
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
   const limitReached = !canCreate('offer');
   const fillPercent = (usage.offer / TRIAL_LIMITS.offer) * 100;
   const fillClass = usage.offer >= TRIAL_LIMITS.offer ? 'full' : usage.offer >= TRIAL_LIMITS.offer - 1 ? 'warning' : '';
@@ -119,23 +155,27 @@ export default function OfferForm({ onSuccess }) {
         <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
 
           {/* Usage */}
-          <div className="easy-usage">
-            <span className="easy-usage-label">Offer Letters</span>
-            <div className="easy-usage-bar">
-              <div className={`easy-usage-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
-            </div>
-            <span className="easy-usage-count">{usage.offer}/{TRIAL_LIMITS.offer}</span>
-          </div>
+          {!isPremium && (
+            <>
+              <div className="easy-usage">
+                <span className="easy-usage-label">Offer Letters</span>
+                <div className="easy-usage-bar">
+                  <div className={`easy-usage-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
+                </div>
+                <span className="easy-usage-count">{usage.offer}/{TRIAL_LIMITS.offer}</span>
+              </div>
 
-          {limitReached && (
-            <div className="easy-limit-alert">
-              <AlertTriangle size={28} />
-              <h3>{isTrialExpired ? 'Trial Expired' : 'Offer Letter Limit Reached'}</h3>
-              <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used all ${TRIAL_LIMITS.offer} offer letters in your free trial.`} Contact our sales team to upgrade.</p>
-              <a href="mailto:sales@offerpro.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
-                <Mail size={16} /> Contact Sales
-              </a>
-            </div>
+              {limitReached && (
+                <div className="easy-limit-alert">
+                  <AlertTriangle size={28} />
+                  <h3>{isTrialExpired ? 'Trial Expired' : 'Offer Letter Limit Reached'}</h3>
+                  <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used all ${TRIAL_LIMITS.offer} offer letters in your free trial.`} Contact our sales team to upgrade.</p>
+                  <a href="mailto:sales@offerpro.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
+                    <Mail size={16} /> Contact Sales
+                  </a>
+                </div>
+              )}
+            </>
           )}
 
           {/* Type Toggle */}
@@ -189,6 +229,16 @@ export default function OfferForm({ onSuccess }) {
                   </div>
                 </div>
                 {formData.signature && <img src={formData.signature} alt="Signature" style={{ height: '28px', marginTop: '0.25rem' }} />}
+              </div>
+              <div className="easy-field full">
+                <div
+                  className={`easy-switch-row ${formData.showStamp ? 'active' : ''}`}
+                  onClick={() => handleChange({ target: { name: 'showStamp', checked: !formData.showStamp, type: 'checkbox' } })}
+                  style={{ marginTop: '0.5rem' }}
+                >
+                  <span className="easy-switch-label">Include company stamp</span>
+                  <div className="easy-switch-dot" />
+                </div>
               </div>
             </div>
           </div>
@@ -305,10 +355,29 @@ export default function OfferForm({ onSuccess }) {
           </div>
 
           {/* Submit */}
-          <button type="submit" className="easy-submit" disabled={isSubmitting || limitReached}>
-            {isSubmitting ? 'Generating...' : limitReached ? 'Limit Reached' : 'Finalize & Download'}
-            {!isSubmitting && !limitReached && <ChevronRight size={18} />}
+          <button type="submit" className="easy-submit" disabled={isSubmitting || (limitReached && !isPremium)}>
+            {isSubmitting ? 'Generating...' : (limitReached && !isPremium) ? 'Limit Reached' : 'Finalize & Download'}
+            {!isSubmitting && !(limitReached && !isPremium) && <ChevronRight size={18} />}
           </button>
+
+          {/* Notify Employee */}
+          <button
+            type="button"
+            onClick={handleNotifyEmployee}
+            disabled={isSendingEmail || (limitReached && !isPremium)}
+            className="offer-notify-btn"
+            style={{ marginTop: '0.75rem' }}
+          >
+            {isSendingEmail ? <><Loader size={16} className="spin-icon" /> Sending Email...</>
+              : emailResult?.success ? <><CheckCircle size={16} /> Sent to {formData.email}</>
+              : <><Send size={16} /> Send Offer to Employee</>}
+          </button>
+
+          {emailResult && !emailResult.success && (
+            <div className="offer-notify-error">
+              {emailResult.message}
+            </div>
+          )}
 
           {/* Mobile preview */}
           <button type="button" onClick={handlePreview} className="easy-submit-outline mou-mobile-preview-btn" style={{ marginTop: '0.75rem' }}>

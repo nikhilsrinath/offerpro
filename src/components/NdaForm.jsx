@@ -11,7 +11,7 @@ import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 export default function NdaForm({ onSuccess }) {
   const { user } = useAuth();
   const { activeOrg } = useOrg();
-  const { usage, canCreate, isTrialExpired, refreshUsage } = useTrialStatus();
+  const { usage, canCreate, isTrialExpired, isPremium, refreshUsage } = useTrialStatus();
   const org = activeOrg || {};
   const [formData, setFormData] = useState({
     effectiveDate: '',
@@ -26,6 +26,7 @@ export default function NdaForm({ onSuccess }) {
     stampType: org.stamp_type || 'generated',
     stampUrl: org.stamp_url || '',
     stampCity: org.stamp_city || '',
+    showStamp: true,
     disclosingPartyName: org.company_name || '',
     disclosingPartyIncorporation: 'India',
     disclosingPartyAddress: org.company_address || '',
@@ -108,23 +109,27 @@ export default function NdaForm({ onSuccess }) {
         <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
 
           {/* Usage */}
-          <div className="easy-usage">
-            <span className="easy-usage-label">NDA</span>
-            <div className="easy-usage-bar">
-              <div className={`easy-usage-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
-            </div>
-            <span className="easy-usage-count">{usage.nda}/{TRIAL_LIMITS.nda}</span>
-          </div>
+          {!isPremium && (
+            <>
+              <div className="easy-usage">
+                <span className="easy-usage-label">NDA</span>
+                <div className="easy-usage-bar">
+                  <div className={`easy-usage-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
+                </div>
+                <span className="easy-usage-count">{usage.nda}/{TRIAL_LIMITS.nda}</span>
+              </div>
 
-          {limitReached && (
-            <div className="easy-limit-alert">
-              <AlertTriangle size={28} />
-              <h3>{isTrialExpired ? 'Trial Expired' : 'NDA Limit Reached'}</h3>
-              <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used your ${TRIAL_LIMITS.nda} NDA document(s) in the free trial.`} Contact our sales team to upgrade.</p>
-              <a href="mailto:sales@offerpro.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
-                <Mail size={16} /> Contact Sales
-              </a>
-            </div>
+              {limitReached && (
+                <div className="easy-limit-alert">
+                  <AlertTriangle size={28} />
+                  <h3>{isTrialExpired ? 'Trial Expired' : 'NDA Limit Reached'}</h3>
+                  <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used your ${TRIAL_LIMITS.nda} NDA document(s) in the free trial.`} Contact our sales team to upgrade.</p>
+                  <a href="mailto:sales@offerpro.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
+                    <Mail size={16} /> Contact Sales
+                  </a>
+                </div>
+              )}
+            </>
           )}
 
           {/* 1. Agreement Details */}
@@ -330,13 +335,23 @@ export default function NdaForm({ onSuccess }) {
                 </div>
                 {formData.receivingSignature && <img src={formData.receivingSignature} alt="Signature" style={{ height: '28px', marginTop: '0.25rem' }} />}
               </div>
+              <div className="easy-field full">
+                <div
+                  className={`easy-switch-row ${formData.showStamp ? 'active' : ''}`}
+                  onClick={() => handleChange({ target: { name: 'showStamp', checked: !formData.showStamp, type: 'checkbox' } })}
+                  style={{ marginTop: '0.5rem' }}
+                >
+                  <span className="easy-switch-label">Include company stamp</span>
+                  <div className="easy-switch-dot" />
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Submit */}
-          <button type="submit" disabled={isSubmitting || limitReached} className="easy-submit">
-            {isSubmitting ? 'Generating...' : limitReached ? 'Limit Reached' : 'Save & Download NDA'}
-            {!isSubmitting && !limitReached && <ChevronRight size={18} />}
+          <button type="submit" disabled={isSubmitting || (limitReached && !isPremium)} className="easy-submit">
+            {isSubmitting ? 'Generating...' : (limitReached && !isPremium) ? 'Limit Reached' : 'Save & Download NDA'}
+            {!isSubmitting && !(limitReached && !isPremium) && <ChevronRight size={18} />}
           </button>
 
           {/* Mobile preview */}

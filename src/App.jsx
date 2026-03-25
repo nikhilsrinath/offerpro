@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   LayoutDashboard, Briefcase, Award, Scale, ShieldCheck, Receipt,
   DollarSign, Layers, Archive, LogOut, Menu, X,
-  Zap, UserCircle, ChevronRight, Clock, Mail, AlertTriangle
+  Zap, UserCircle, ChevronRight, Clock, Mail, AlertTriangle, Users
 } from 'lucide-react';
 
 import OfferForm from './components/OfferForm';
@@ -13,6 +13,7 @@ import NdaForm from './components/NdaForm';
 import MoUForm from './components/MoUForm';
 import InvoiceForm from './components/InvoiceForm';
 import Dashboard from './components/Dashboard';
+import Customers from './components/Customers';
 import BillingRevenue from './components/BillingRevenue';
 import ProductPlanner from './components/ProductPlanner';
 import Registration from './components/Registration';
@@ -20,10 +21,14 @@ import CompanyProfile from './components/CompanyProfile';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { OrgProvider, useOrg } from './context/OrgContext';
 import Auth from './components/Auth';
+import Employees from './components/Employees';
 import { useTrialStatus } from './hooks/useTrialStatus';
+import { useTheme } from './hooks/useTheme';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { section: 'TEAM' },
+  { id: 'employees', label: 'Employees', icon: Users },
   { section: 'DOCUMENTS' },
   { id: 'offers', label: 'Offer Letters', icon: Briefcase },
   { id: 'certificates', label: 'Certificates', icon: Award },
@@ -31,6 +36,7 @@ const NAV_ITEMS = [
   { id: 'mous', label: 'MoU', icon: Scale },
   { id: 'invoices', label: 'Invoices', icon: Receipt },
   { section: 'BUSINESS' },
+  { id: 'customers', label: 'Customers', icon: Users },
   { id: 'revenue', label: 'Billing & Revenue', icon: DollarSign },
   { id: 'planner', label: 'Product Planner', icon: Layers },
   { section: 'DATA' },
@@ -45,9 +51,11 @@ const PAGE_META = {
   ndas: { title: 'Non-Disclosure Agreements', subtitle: 'Draft legal-grade confidentiality agreements' },
   mous: { title: 'Memorandum of Understanding', subtitle: 'Establish collaboration frameworks and partnerships' },
   invoices: { title: 'Invoices', subtitle: 'Generate professional business invoices' },
+  customers: { title: 'Customers', subtitle: 'Manage your client database' },
   revenue: { title: 'Billing & Revenue', subtitle: 'Track revenue, expenses, and profitability' },
   planner: { title: 'Product Planner', subtitle: 'Plan and track products and projects' },
   records: { title: 'Records', subtitle: 'Manage and download issued documents' },
+  employees: { title: 'Employee Registry', subtitle: 'Manage your internal team and onboarding' },
 };
 
 function AppContent() {
@@ -57,12 +65,13 @@ function AppContent() {
   const { user, loading, logout, needsOnboarding } = useAuth();
   const { activeOrg } = useOrg();
   const { trialDaysLeft, isTrialExpired, isPremium } = useTrialStatus();
+  const { theme, toggleTheme } = useTheme();
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--background)', color: 'white' }}>
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--background)', color: 'var(--text-primary)' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ width: '40px', height: '40px', border: '3px solid rgba(255,255,255,0.1)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 1.5rem' }} />
+          <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-default)', borderTopColor: 'var(--text-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 1.5rem' }} />
           <span style={{ fontWeight: 600, fontSize: '0.875rem', opacity: 0.6 }}>Loading OfferPro...</span>
           <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
         </div>
@@ -100,7 +109,7 @@ function AppContent() {
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         {/* Brand */}
         <div className="sidebar-brand">
-          <Zap size={22} fill="white" />
+          <Zap size={22} fill="currentColor" />
           <span className="sidebar-brand-text">OfferPro</span>
           <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)}>
             <X size={20} />
@@ -160,7 +169,7 @@ function AppContent() {
             <Menu size={22} />
           </button>
           <div className="mobile-topbar-brand">
-            <Zap size={18} fill="white" />
+            <Zap size={18} fill="currentColor" />
             <span>OfferPro</span>
           </div>
           <UserCircle size={22} style={{ opacity: 0.5, cursor: 'pointer' }} onClick={() => navigate('profile')} />
@@ -199,15 +208,17 @@ function AppContent() {
         {/* Page Content */}
         <div className="page-content">
           {activePage === 'dashboard' && <Dashboard onNavigate={navigate} />}
-          {activePage === 'profile' && <CompanyProfile />}
+          {activePage === 'profile' && <CompanyProfile theme={theme} onToggleTheme={toggleTheme} />}
           {activePage === 'offers' && <OfferForm onSuccess={() => navigate('records')} />}
           {activePage === 'certificates' && <CertificateForm onSuccess={() => navigate('records')} />}
           {activePage === 'ndas' && <NdaForm onSuccess={() => navigate('records')} />}
           {activePage === 'mous' && <MoUForm onSuccess={() => navigate('records')} />}
           {activePage === 'invoices' && <InvoiceForm onSuccess={() => navigate('records')} />}
+          {activePage === 'customers' && <Customers />}
           {activePage === 'revenue' && <BillingRevenue />}
           {activePage === 'planner' && <ProductPlanner />}
           {activePage === 'records' && <InternRecords />}
+          {activePage === 'employees' && <Employees />}
         </div>
       </div>
 

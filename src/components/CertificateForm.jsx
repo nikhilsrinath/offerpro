@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, CheckCircle, ChevronRight, Eye, Palette, X, Mail } from 'lucide-react';
+import { Upload, CheckCircle, ChevronRight, Eye } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
@@ -13,7 +13,7 @@ export default function CertificateForm({ onSuccess }) {
   const { activeOrg } = useOrg();
   const org = activeOrg || {};
   const [formData, setFormData] = useState({
-    template: 'classic',
+    template: 'custom',
     recipientName: '',
     achievementTitle: '',
     issuingOrganization: org.company_name || '',
@@ -72,37 +72,6 @@ export default function CertificateForm({ onSuccess }) {
       <div className="mou-form-pane">
         <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
 
-          {/* Template Selector */}
-          <div className="easy-section">
-            <div className="easy-section-head">
-              <span className="easy-section-title">Choose template</span>
-            </div>
-            <div className="cert-template-strip">
-              {CERTIFICATE_TEMPLATES.map(tpl => (
-                <div
-                  key={tpl.id}
-                  className={`cert-tpl-card${formData.template === tpl.id ? ' active' : ''}`}
-                  onClick={() => setFormData(prev => ({ ...prev, template: tpl.id }))}
-                >
-                  <div className="cert-tpl-swatch" style={{ background: tpl.swatchBg }}>
-                    <div className="cert-tpl-swatch-bar" style={{ background: tpl.swatchPrimary }} />
-                    <div className="cert-tpl-swatch-dot" style={{ background: tpl.swatchAccent }} />
-                  </div>
-                  <div className="cert-tpl-name">{tpl.name}</div>
-                </div>
-              ))}
-              {/* Customize Branding Card */}
-              <div
-                className="cert-tpl-card cert-tpl-custom"
-                onClick={() => setShowBranding(true)}
-              >
-                <div className="cert-tpl-swatch cert-tpl-swatch-custom">
-                  <Palette size={20} />
-                </div>
-                <div className="cert-tpl-name">Custom</div>
-              </div>
-            </div>
-          </div>
 
           {/* 1. Recipient */}
           <div className="easy-section">
@@ -207,36 +176,6 @@ export default function CertificateForm({ onSuccess }) {
         </div>
       </div>
 
-      {/* Custom Branding Modal */}
-      {showBranding && (
-        <div className="cert-branding-overlay" onClick={() => setShowBranding(false)}>
-          <div className="cert-branding-modal" onClick={e => e.stopPropagation()}>
-            <button className="cert-branding-close" onClick={() => setShowBranding(false)}>
-              <X size={18} />
-            </button>
-            <div className="cert-branding-icon">
-              <Palette size={32} />
-            </div>
-            <h3 className="cert-branding-title">Customize Your Branding</h3>
-            <p className="cert-branding-desc">
-              Want a certificate template that matches your brand identity? Our team will design a fully custom template with your colors, fonts, watermarks, and layout preferences.
-            </p>
-            <ul className="cert-branding-features">
-              <li>Custom color scheme & typography</li>
-              <li>Your brand watermarks & patterns</li>
-              <li>Unique layout & decorations</li>
-              <li>Unlimited revisions</li>
-            </ul>
-            <a
-              href="mailto:sales@offerpro.in?subject=Custom%20Certificate%20Branding%20Request"
-              className="cert-branding-cta"
-            >
-              <Mail size={16} />
-              Contact Sales
-            </a>
-          </div>
-        </div>
-      )}
 
     </div>
   );

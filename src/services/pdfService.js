@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import { renderCertificatePdf } from './certificateTemplates';
 
 /**
@@ -27,7 +28,7 @@ function renderDocumentHeader(doc, data, options = {}) {
   if (logo) {
     try {
       const props = doc.getImageProperties(logo);
-      const maxH = 26;
+      const maxH = 18;
       const displayH = Math.min(maxH, props.height * (42 / props.width));
       const displayW = (props.width * displayH) / props.height;
       doc.addImage(logo, 'PNG', margin, y, displayW, displayH);
@@ -38,7 +39,7 @@ function renderDocumentHeader(doc, data, options = {}) {
         doc.setFont('helvetica', 'italic');
         doc.setFontSize(7);
         doc.setTextColor(100, 100, 100);
-        doc.text(tagline, margin, leftBottomY + 2);
+        doc.text(tagline, margin, leftBottomY + 5);
         leftBottomY += 4;
       }
     } catch (e) {
@@ -89,11 +90,16 @@ function renderDocumentHeader(doc, data, options = {}) {
     ry += 3.5;
   }
 
-  // Horizontal line
-  const lineY = Math.max(leftBottomY, ry) + 2;
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.5);
-  doc.line(margin, lineY, pageWidth - margin, lineY);
+  // Space after header
+  const baseSpacing = options.spacing || 2;
+  const lineY = Math.max(leftBottomY, ry) + baseSpacing;
+
+  if (options.showLine) {
+    doc.setDrawColor(226, 232, 240); // #e2e8f0
+    doc.setLineWidth(0.3);
+    doc.line(margin, lineY, pageWidth - margin, lineY);
+    return lineY + baseSpacing;
+  }
 
   doc.setTextColor(0, 0, 0);
   return lineY + 9;
@@ -132,16 +138,17 @@ function preRotateStamp(src, angleDeg) {
  * Render stamp image in PDF at given position.
  * Pre-rotates -8° on canvas, then places as a square in the PDF.
  */
-async function renderStamp(doc, data, x, y) {
+async function renderStamp(doc, data, x, y, size = 35) {
+  if (!data.showStamp) return;
   const stampImg = data.stampUrl && data.stampType === 'uploaded' ? data.stampUrl : data.stampPng;
   if (!stampImg) return;
-  const size = 52; // mm — matches ~200px HTML preview
+
   try {
     const rotated = await preRotateStamp(stampImg, -8);
     doc.addImage(rotated, 'PNG', x, y, size, size);
   } catch (e) {
     // Fallback without rotation
-    try { doc.addImage(stampImg, 'PNG', x, y, size, size); } catch (_) {}
+    try { doc.addImage(stampImg, 'PNG', x, y, size, size); } catch (_) { }
   }
 }
 
@@ -161,23 +168,23 @@ export const pdfService = {
 
     // Helper: Simple text with standard alignment
     const addText = (text, options = {}) => {
-      const { 
-        font = 'helvetica', 
-        size = bodySize, 
-        style = 'normal', 
+      const {
+        font = 'helvetica',
+        size = bodySize,
+        style = 'normal',
         alignment = 'left',
         gap = 2
       } = options;
-      
+
       doc.setFont(font, style);
       doc.setFontSize(size);
-      
+
       const splitText = doc.splitTextToSize(text || '', contentWidth);
       const lineHeight = size * 0.3527 * 1.3;
-      
+
       let x = margin;
       if (alignment === 'center') x = pageWidth / 2;
-      
+
       doc.text(splitText, x, y, { align: alignment });
       y += (splitText.length * lineHeight) + gap;
     };
@@ -217,7 +224,7 @@ export const pdfService = {
           currentLine = [];
           currentLineWidth = 0;
           // If the word triggered wrap and is a space, ignore it at start of next line
-          if (word.isSpace) return; 
+          if (word.isSpace) return;
         }
 
         currentLine.push(word);
@@ -289,94 +296,94 @@ export const pdfService = {
 
     // 5. Template Logic (Strict Separation)
     const isFT = data.offerType === 'fulltime';
-    
+
     if (isFT) {
-        // --- FULL-TIME TEMPLATE ---
-        addText('Subject: Offer of Full-Time Employment', { style: 'bold', alignment: 'center', gap: 6 });
-        addText(`Dear ${data.studentName},`, { style: 'bold', gap: 4 });
+      // --- FULL-TIME TEMPLATE ---
+      addText('Subject: Offer of Full-Time Employment', { style: 'bold', alignment: 'center', gap: 6 });
+      addText(`Dear ${data.studentName},`, { style: 'bold', gap: 4 });
 
-        renderJustifiedParagraph([
-          { text: 'We are pleased to offer you the position of ' },
-          { text: data.role, bold: true },
-          { text: ' at ' },
-          { text: data.companyName, bold: true },
-          { text: `, effective ` },
-          { text: formatDateToWording(data.startDate), bold: true },
-          { text: '. You will be associated with the ' },
-          { text: data.department, bold: true },
-          { text: ' and will report to ' },
-          { text: data.supervisorName, bold: true },
-          { text: '.' }
-        ]);
+      renderJustifiedParagraph([
+        { text: 'We are pleased to offer you the position of ' },
+        { text: data.role, bold: true },
+        { text: ' at ' },
+        { text: data.companyName, bold: true },
+        { text: `, effective ` },
+        { text: formatDateToWording(data.startDate), bold: true },
+        { text: '. You will be associated with the ' },
+        { text: data.department, bold: true },
+        { text: ' and will report to ' },
+        { text: data.supervisorName, bold: true },
+        { text: '.' }
+      ]);
 
-        renderJustifiedParagraph([
-          { text: 'In this role, you will be responsible for ' },
-          { text: data.responsibilities, bold: false },
-          { text: ', contributing to the company’s strategic, operational, and financial objectives.' }
-        ]);
+      renderJustifiedParagraph([
+        { text: 'In this role, you will be responsible for ' },
+        { text: data.responsibilities, bold: false },
+        { text: ', contributing to the company’s strategic, operational, and financial objectives.' }
+      ]);
 
-        const payTerm = data.paymentFrequency === 'Annual' ? 'an annual compensation' : 'a compensation';
-        renderJustifiedParagraph([
-          { text: 'This is a full-time employment position. You will receive ' },
-          { text: `${payTerm} of `, bold: false },
-          { text: `${data.stipend} ${data.currency}`, bold: true },
-          { text: `, payable as per company policy, along with applicable benefits.` }
-        ]);
+      const payTerm = data.paymentFrequency === 'Annual' ? 'an annual compensation' : 'a compensation';
+      renderJustifiedParagraph([
+        { text: 'This is a full-time employment position. You will receive ' },
+        { text: `${payTerm} of `, bold: false },
+        { text: `${data.stipend} ${data.currency}`, bold: true },
+        { text: `, payable as per company policy, along with applicable benefits.` }
+      ]);
 
-        renderJustifiedParagraph([
-          { text: 'You are required to maintain the highest standards of professional conduct and confidentiality during and after your employment with the company. Your employment will be governed by company policies and applicable laws.' }
-        ]);
+      renderJustifiedParagraph([
+        { text: 'You are required to maintain the highest standards of professional conduct and confidentiality during and after your employment with the company. Your employment will be governed by company policies and applicable laws.' }
+      ]);
 
-        renderJustifiedParagraph([
-          { text: 'To confirm your acceptance of this offer, please reply to this email with your confirmation by ' },
-          { text: formatDateToWording(data.acceptanceDeadline), bold: true },
-          { text: '.' }
-        ]);
+      renderJustifiedParagraph([
+        { text: 'To confirm your acceptance of this offer, please reply to this email with your confirmation by ' },
+        { text: formatDateToWording(data.acceptanceDeadline), bold: true },
+        { text: '.' }
+      ]);
 
-        renderJustifiedParagraph([
-          { text: `We look forward to your association and contributions to ${data.companyName}.` }
-        ]);
+      renderJustifiedParagraph([
+        { text: `We look forward to your association and contributions to ${data.companyName}.` }
+      ]);
 
     } else {
-        // --- INTERNSHIP TEMPLATE ---
-        addText('Subject: Internship Offer Letter', { style: 'bold', alignment: 'center', gap: 6 });
-        addText(`Dear ${data.studentName},`, { style: 'bold', gap: 4 });
+      // --- INTERNSHIP TEMPLATE ---
+      addText('Subject: Internship Offer Letter', { style: 'bold', alignment: 'center', gap: 6 });
+      addText(`Dear ${data.studentName},`, { style: 'bold', gap: 4 });
 
-        renderJustifiedParagraph([
-          { text: 'We are pleased to offer you the position of ' },
-          { text: data.role, bold: true },
-          { text: ' at ' },
-          { text: data.companyName, bold: true },
-          { text: '. This internship will commence on ' },
-          { text: formatDateToWording(data.startDate), bold: true },
-          { text: ' and conclude on ' },
-          { text: formatDateToWording(data.endDate), bold: true },
-          { text: '. You will be associated with the ' },
-          { text: data.department, bold: true },
-          { text: ' and report to ' },
-          { text: data.supervisorName, bold: true },
-          { text: '.' }
-        ]);
+      renderJustifiedParagraph([
+        { text: 'We are pleased to offer you the position of ' },
+        { text: data.role, bold: true },
+        { text: ' at ' },
+        { text: data.companyName, bold: true },
+        { text: '. This internship will commence on ' },
+        { text: formatDateToWording(data.startDate), bold: true },
+        { text: ' and conclude on ' },
+        { text: formatDateToWording(data.endDate), bold: true },
+        { text: '. You will be associated with the ' },
+        { text: data.department, bold: true },
+        { text: ' and report to ' },
+        { text: data.supervisorName, bold: true },
+        { text: '.' }
+      ]);
 
-        const payText = data.isPaid 
-            ? `This is a paid internship. You will receive a stipend of ${data.stipend} ${data.currency}, disbursed on a ${data.paymentFrequency} basis.`
-            : `This is an unpaid internship. No financial remuneration or benefits will be provided by the organization.`;
+      const payText = data.isPaid
+        ? `This is a paid internship. You will receive a stipend of ${data.stipend} ${data.currency}, disbursed on a ${data.paymentFrequency} basis.`
+        : `This is an unpaid internship. No financial remuneration or benefits will be provided by the organization.`;
 
-        renderJustifiedParagraph([
-          { text: 'Your responsibilities will include ' },
-          { text: data.responsibilities, bold: false },
-          { text: `. ${payText} This offer does not guarantee permanent employment.` }
-        ]);
+      renderJustifiedParagraph([
+        { text: 'Your responsibilities will include ' },
+        { text: data.responsibilities, bold: false },
+        { text: `. ${payText} This offer does not guarantee permanent employment.` }
+      ]);
 
-        renderJustifiedParagraph([
-          { text: 'You are required to maintain professional conduct and confidentiality during and after your tenure. To accept this offer, please confirm your acceptance by replying to this email by ' },
-          { text: formatDateToWording(data.acceptanceDeadline), bold: true },
-          { text: '.' }
-        ]);
+      renderJustifiedParagraph([
+        { text: 'You are required to maintain professional conduct and confidentiality during and after your tenure. To accept this offer, please confirm your acceptance by replying to this email by ' },
+        { text: formatDateToWording(data.acceptanceDeadline), bold: true },
+        { text: '.' }
+      ]);
 
-        renderJustifiedParagraph([
-          { text: 'We wish you a productive learning experience with us.' }
-        ]);
+      renderJustifiedParagraph([
+        { text: 'We wish you a productive learning experience with us.' }
+      ]);
     }
 
     y += 2;
@@ -402,9 +409,17 @@ export const pdfService = {
     addText(data.companyName, { style: 'bold', size: 10 });
 
     // Stamp
-    await renderStamp(doc, data, margin + 90, y - 30);
+    await renderStamp(doc, data, margin + 95, y - 25);
 
-    if (isPreview) {
+    if (isPreview === 'base64') {
+      const arrBuf = doc.output('arraybuffer');
+      const bytes = new Uint8Array(arrBuf);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary);
+    } else if (isPreview) {
       window.open(doc.output('bloburl'), '_blank');
     } else {
       const fileName = `Offer_${data.studentName.replace(/\s+/g, '_')}.pdf`;
@@ -412,14 +427,36 @@ export const pdfService = {
     }
   },
 
-  generateCertificate: (data, isPreview = false) => {
+  generateCertificate: async (data, isPreview = false) => {
+    const element = document.getElementById('certificate-capture-area');
+    if (!element) {
+      console.error('Certificate capture area not found');
+      return;
+    }
+
+    // Capture the exact DOM state as a high-resolution canvas
+    const canvas = await html2canvas(element, {
+      scale: 3,
+      useCORS: true,
+      logging: false,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: 1123,
+      windowHeight: 794
+    });
+
+    const imgData = canvas.toDataURL('image/png', 1.0);
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
-      format: 'a4'
+      format: 'a4',
+      compress: true
     });
 
-    renderCertificatePdf(doc, data);
+    // Add the image to the PDF spanning the entire A4 Landscape page (297x210)
+    doc.addImage(imgData, 'PNG', 0, 0, 297, 210, undefined, 'FAST');
 
     if (isPreview) {
       window.open(doc.output('bloburl'), '_blank');
@@ -481,7 +518,7 @@ export const pdfService = {
       if (!d) return '___________';
       const dt = new Date(d);
       const day = dt.getDate();
-      const suffix = [,'st','nd','rd'][day % 10 > 3 ? 0 : (day % 100 - day % 10 === 10 ? 0 : day % 10)] || 'th';
+      const suffix = [, 'st', 'nd', 'rd'][day % 10 > 3 ? 0 : (day % 100 - day % 10 === 10 ? 0 : day % 10)] || 'th';
       return `${day}${suffix} ${dt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
     };
 
@@ -491,7 +528,7 @@ export const pdfService = {
     };
 
     const numWord = (n) => {
-      const w = ['zero','one','two','three','four','five','six','seven','eight','nine','ten'];
+      const w = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
       return w[parseInt(n)] || String(n);
     };
 
@@ -787,7 +824,7 @@ export const pdfService = {
       if (!d) return '___________';
       const dt = new Date(d);
       const day = dt.getDate();
-      const suffix = [,'st','nd','rd'][day % 10 > 3 ? 0 : (day % 100 - day % 10 === 10 ? 0 : day % 10)] || 'th';
+      const suffix = [, 'st', 'nd', 'rd'][day % 10 > 3 ? 0 : (day % 100 - day % 10 === 10 ? 0 : day % 10)] || 'th';
       return `${day}${suffix} ${dt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
     };
 
@@ -797,7 +834,7 @@ export const pdfService = {
     };
 
     const numWord = (n) => {
-      const w = ['zero','one','two','three','four','five','six','seven','eight','nine','ten'];
+      const w = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
       return w[parseInt(n)] || String(n);
     };
 
@@ -992,191 +1029,39 @@ export const pdfService = {
     }
   },
 
-  generateInvoice: (data, isPreview = false) => {
+  generateInvoice: async (data, isPreview = false) => {
+    const element = document.getElementById('invoice-capture-area');
+    if (!element) {
+      console.error('Invoice capture area not found');
+      return;
+    }
+
+    // Capture the exact DOM state as a high-resolution canvas
+    const canvas = await html2canvas(element, {
+      scale: 3, // High scale for crisp text (translates to ~288 DPI)
+      useCORS: true,
+      logging: false,
+      allowTaint: true,
+      backgroundColor: data.templateId === 'saffron' ? '#e8d5a3' : '#ffffff'
+    });
+
+    const imgData = canvas.toDataURL('image/png', 1.0);
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: 'a4'
+      format: 'a4',
+      compress: true
     });
 
-    const margin = 20;
-    const pageWidth = 210;
-    const contentWidth = pageWidth - (margin * 2);
-    let y = 20;
-
-    const addText = (text, options = {}) => {
-      const { font = 'helvetica', size = 10, style = 'normal', alignment = 'left', gap = 2, color = [0, 0, 0], maxWidth = contentWidth } = options;
-      doc.setFont(font, style);
-      doc.setFontSize(size);
-      doc.setTextColor(color[0], color[1], color[2]);
-      const splitText = doc.splitTextToSize(text || '', maxWidth);
-      const lineHeight = size * 0.3527 * 1.3;
-      let x = margin;
-      if (alignment === 'center') x = pageWidth / 2;
-      if (alignment === 'right') x = pageWidth - margin;
-      doc.text(splitText, x, y, { align: alignment });
-      y += (splitText.length * lineHeight) + gap;
-    };
-
-    // ===== HEADER =====
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, pageWidth, 45, 'F');
-    y = 18;
-    addText('TAX INVOICE', { style: 'bold', size: 22, color: [255, 255, 255], alignment: 'center', gap: 3 });
-    addText(data.invoiceNumber || '', { size: 10, color: [148, 163, 184], alignment: 'center', gap: 0 });
-    y = 50;
-
-    // ===== FROM / BILL TO =====
-    const infoY = y;
-    addText('FROM', { size: 7, style: 'bold', color: [100, 116, 139], gap: 2 });
-    addText(data.orgName || 'Your Organization', { size: 11, style: 'bold', gap: 1 });
-    if (data.sellerGSTIN) {
-      addText(`GSTIN: ${data.sellerGSTIN}`, { size: 8, color: [100, 116, 139], gap: 1 });
-    }
-    if (data.sellerState) {
-      addText(`State: ${data.sellerState}`, { size: 8, color: [100, 116, 139] });
-    }
-    const fromEndY = y;
-
-    y = infoY;
-    addText('BILL TO', { alignment: 'right', size: 7, style: 'bold', color: [100, 116, 139], gap: 2 });
-    addText(data.clientName || 'Client Name', { alignment: 'right', size: 11, style: 'bold', gap: 1 });
-    if (data.clientEmail) {
-      addText(data.clientEmail, { alignment: 'right', size: 8, color: [100, 116, 139], gap: 1 });
-    }
-    if (data.clientAddress) {
-      addText(data.clientAddress, { alignment: 'right', size: 8, color: [100, 116, 139], gap: 1, maxWidth: contentWidth / 2 });
-    }
-    if (data.buyerGSTIN) {
-      addText(`GSTIN: ${data.buyerGSTIN}`, { alignment: 'right', size: 8, color: [100, 116, 139], gap: 1 });
-    }
-    if (data.buyerState) {
-      addText(`State: ${data.buyerState}`, { alignment: 'right', size: 8, color: [100, 116, 139] });
-    }
-
-    y = Math.max(fromEndY, y) + 5;
-
-    // ===== DATES =====
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(margin, y, contentWidth, 12, 2, 2, 'F');
-    y += 8;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(71, 85, 105);
-    doc.text(`Invoice Date: ${data.invoiceDate || '-'}`, margin + 5, y);
-    doc.text(`Due Date: ${data.dueDate || '-'}`, pageWidth - margin - 5, y, { align: 'right' });
-    if (data.isInterState !== undefined) {
-      doc.text(`Supply Type: ${data.isInterState ? 'Inter-State' : 'Intra-State'}`, pageWidth / 2, y, { align: 'center' });
-    }
-    y += 12;
-
-    // ===== TABLE HEADER =====
-    doc.setFillColor(241, 245, 249);
-    doc.rect(margin, y, contentWidth, 10, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(51, 65, 85);
-    const colX = {
-      desc: margin + 3,
-      hsn: margin + 85,
-      qty: margin + 110,
-      price: margin + 130,
-      total: pageWidth - margin - 3
-    };
-    doc.text('Description', colX.desc, y + 7);
-    doc.text('HSN/SAC', colX.hsn, y + 7);
-    doc.text('Qty', colX.qty, y + 7);
-    doc.text('Rate', colX.price, y + 7);
-    doc.text('Amount', colX.total, y + 7, { align: 'right' });
-    y += 14;
-
-    // ===== LINE ITEMS =====
-    doc.setTextColor(30, 41, 59);
-    if (data.items && data.items.length > 0) {
-      data.items.forEach((item, index) => {
-        if (y > 250) { doc.addPage(); y = 20; }
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        doc.text((item.description || '-').substring(0, 45), colX.desc, y);
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
-        doc.text(item.hsnCode || '-', colX.hsn, y);
-        doc.setTextColor(30, 41, 59);
-        doc.setFontSize(9);
-        doc.text((item.quantity || 0).toString(), colX.qty, y);
-        doc.text(`₹${(item.price || 0).toLocaleString()}`, colX.price, y);
-        const lineTotal = (item.quantity || 0) * (item.price || 0);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`₹${lineTotal.toLocaleString()}`, colX.total, y, { align: 'right' });
-        y += 9;
-
-        doc.setDrawColor(241, 245, 249);
-        doc.setLineWidth(0.3);
-        doc.line(margin, y - 2, pageWidth - margin, y - 2);
-      });
-    }
-
-    y += 8;
-
-    // ===== TOTALS =====
-    const totalsX = pageWidth - margin;
-    const labelX = pageWidth - margin - 55;
-
-    const addTotalLine = (label, value, options = {}) => {
-      const { bold = false, color = [30, 41, 59], size = 9 } = options;
-      doc.setFont('helvetica', bold ? 'bold' : 'normal');
-      doc.setFontSize(size);
-      doc.setTextColor(color[0], color[1], color[2]);
-      doc.text(label, labelX, y);
-      doc.text(`₹${value.toLocaleString()}`, totalsX, y, { align: 'right' });
-      y += 7;
-    };
-
-    addTotalLine('Subtotal:', data.totals?.subtotal || 0);
-
-    if (data.discountRate > 0) {
-      addTotalLine(`Discount (${data.discountRate}%):`, -(data.totals?.discountAmount || 0), { color: [239, 68, 68] });
-    }
-
-    addTotalLine('Taxable Amount:', data.totals?.taxableAmount || 0);
-
-    // GST Breakdown
-    y += 2;
-    doc.setDrawColor(226, 232, 240);
-    doc.setLineWidth(0.3);
-    doc.line(labelX, y - 4, totalsX, y - 4);
-
-    if (data.isInterState) {
-      addTotalLine(`IGST @ ${data.gstRate || 0}%:`, data.totals?.igst || 0, { color: [37, 99, 235] });
-    } else {
-      addTotalLine(`CGST @ ${(data.gstRate || 0) / 2}%:`, data.totals?.cgst || 0, { color: [37, 99, 235] });
-      addTotalLine(`SGST @ ${(data.gstRate || 0) / 2}%:`, data.totals?.sgst || 0, { color: [37, 99, 235] });
-    }
-
-    y += 2;
-    doc.setDrawColor(15, 23, 42);
-    doc.setLineWidth(0.8);
-    doc.line(labelX, y - 4, totalsX, y - 4);
-    addTotalLine('TOTAL AMOUNT:', data.totals?.grandTotal || 0, { bold: true, size: 12 });
-
-    // ===== NOTES =====
-    if (data.notes) {
-      y += 15;
-      if (y > 250) { doc.addPage(); y = 20; }
-      addText('NOTES / TERMS:', { size: 7, style: 'bold', color: [100, 116, 139], gap: 3 });
-      addText(data.notes, { size: 8, color: [71, 85, 105] });
-    }
-
-    // ===== FOOTER =====
-    doc.setFontSize(7);
-    doc.setTextColor(148, 163, 184);
-    doc.text('This is a computer-generated invoice. Generated via OfferPro Suite.', pageWidth / 2, 285, { align: 'center' });
+    // Add the image to the PDF spanning the entire A4 page
+    doc.addImage(imgData, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
 
     if (isPreview) {
       window.open(doc.output('bloburl'), '_blank');
     } else {
-      const fileName = `Invoice_${(data.clientName || 'Client').replace(/\s+/g, '_')}_${data.invoiceNumber}.pdf`;
+      const status = data.isPaid ? 'PAID' : 'UNPAID';
+      const fileName = `${status}_Invoice_${(data.clientName || 'Client').replace(/\s+/g, '_')}_${data.invoiceNumber || 'INV'}.pdf`;
       doc.save(fileName);
     }
-  }
+  },
 };

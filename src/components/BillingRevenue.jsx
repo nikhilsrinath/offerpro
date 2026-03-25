@@ -14,6 +14,14 @@ import { useOrg } from '../context/OrgContext';
 
 const EXPENSE_CATEGORIES = ['Operations', 'Marketing', 'Salaries', 'Tools & Software', 'Office', 'Travel', 'Other'];
 
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const chartStyles = () => ({
+  tooltip: { background: css('--chart-tooltip-bg'), border: `1px solid ${css('--chart-tooltip-border')}`, borderRadius: 10, fontSize: 12, color: css('--chart-tooltip-text') },
+  label: { color: css('--chart-axis-text') },
+  axis: { fill: css('--chart-axis-text'), fontSize: 11 },
+  grid: css('--chart-grid'),
+});
+
 export default function BillingRevenue() {
   const { activeOrg } = useOrg();
   const [records, setRecords] = useState([]);
@@ -133,9 +141,9 @@ export default function BillingRevenue() {
   }
 
   return (
-    <div style={{ maxWidth: '100%' }}>
+    <div className="finance-page">
       {/* Summary Cards */}
-      <div className="pro-stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+      <div className="pro-stats-grid">
         <div className="pro-stat-card">
           <div className="pro-stat-top">
             <div className="pro-stat-icon" style={{ background: '#10b98112', color: '#10b981' }}>
@@ -192,22 +200,22 @@ export default function BillingRevenue() {
               <TrendingUp size={18} style={{ color: '#10b981' }} />
               <h3>Revenue vs Expenses</h3>
             </div>
-            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>Last 6 months</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Last 6 months</span>
           </div>
           <div style={{ width: '100%', height: 260, marginTop: '0.5rem' }}>
             <ResponsiveContainer>
               <BarChart data={stats.monthlyCashFlow} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartStyles().grid} />
+                <XAxis dataKey="month" tick={chartStyles().axis} axisLine={false} tickLine={false} />
+                <YAxis tick={chartStyles().axis} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
                 <Tooltip
-                  contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, fontSize: 12, color: '#fff' }}
+                  contentStyle={chartStyles().tooltip}
                   formatter={(v, name) => [`₹${v.toLocaleString()}`, name === 'revenue' ? 'Revenue' : 'Expenses']}
-                  labelStyle={{ color: 'rgba(255,255,255,0.5)' }}
+                  labelStyle={chartStyles().label}
                 />
                 <Legend
                   iconType="circle" iconSize={8}
-                  wrapperStyle={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}
+                  wrapperStyle={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}
                   formatter={(value) => value === 'revenue' ? 'Revenue' : 'Expenses'}
                 />
                 <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={32} />
@@ -241,7 +249,7 @@ export default function BillingRevenue() {
                       ))}
                     </Pie>
                     <Tooltip
-                      contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, fontSize: 12, color: '#fff' }}
+                      contentStyle={chartStyles().tooltip}
                       formatter={(v, name) => [`₹${v.toLocaleString()}`, name]}
                     />
                   </PieChart>
@@ -251,8 +259,8 @@ export default function BillingRevenue() {
                 {stats.expensePieData.map((d, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <div style={{ width: 10, height: 10, borderRadius: '50%', background: d.color, flexShrink: 0 }} />
-                    <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', flex: 1 }}>{d.name}</span>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'white' }}>₹{d.value.toLocaleString()}</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', flex: 1 }}>{d.name}</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>₹{d.value.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
@@ -268,7 +276,7 @@ export default function BillingRevenue() {
             <PiggyBank size={18} style={{ color: '#3b82f6' }} />
             <h3>Profit & Loss Trend</h3>
           </div>
-          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>Monthly net</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Monthly net</span>
         </div>
         <div style={{ width: '100%', height: 220, marginTop: '0.5rem' }}>
           <ResponsiveContainer>
@@ -279,13 +287,13 @@ export default function BillingRevenue() {
                   <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-              <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v < -1000 ? `${(v/1000).toFixed(0)}k` : v} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartStyles().grid} />
+              <XAxis dataKey="month" tick={chartStyles().axis} axisLine={false} tickLine={false} />
+              <YAxis tick={chartStyles().axis} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v < -1000 ? `${(v/1000).toFixed(0)}k` : v} />
               <Tooltip
-                contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, fontSize: 12, color: '#fff' }}
+                contentStyle={chartStyles().tooltip}
                 formatter={(v) => [`₹${v.toLocaleString()}`, 'Net Profit']}
-                labelStyle={{ color: 'rgba(255,255,255,0.5)' }}
+                labelStyle={chartStyles().label}
               />
               <Area type="monotone" dataKey="profit" stroke="#3b82f6" strokeWidth={2.5} fill="url(#profitGrad)" />
             </AreaChart>

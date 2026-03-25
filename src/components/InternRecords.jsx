@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Download, Trash2, Search, FileSpreadsheet, ClipboardCheck, FileText, Award, Briefcase, FileCode, LayoutGrid, List, Eye } from 'lucide-react';
+import { Download, Trash2, Search, FileSpreadsheet, ClipboardCheck, FileText, Award, Briefcase, FileCode, LayoutGrid, List, Eye, Send, Loader, CheckCircle } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { pdfService } from '../services/pdfService';
+import { emailService } from '../services/emailService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 
@@ -30,6 +31,8 @@ export default function InternRecords() {
   const [activeTab, setActiveTab] = useState('all');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
   const [loading, setLoading] = useState(true);
+  const [sendingEmail, setSendingEmail] = useState(null); // record id being sent
+  const [emailStatus, setEmailStatus] = useState(null); // { id, success, message }
 
   useEffect(() => {
     if (activeOrg) loadRecords();
@@ -61,6 +64,31 @@ export default function InternRecords() {
     else if (record.type === 'invoice') pdfService.generateInvoice(record.data);
   };
 
+  const handleNotify = async (record) => {
+    if (sendingEmail) return;
+    setSendingEmail(record.id);
+    setEmailStatus(null);
+
+    const result = await emailService.sendOfferNotification({
+      recordData: record.data,
+      emailConfig: {
+        serviceId: activeOrg?.emailjs_service_id,
+        templateId: activeOrg?.emailjs_template_id,
+        publicKey: activeOrg?.emailjs_public_key,
+      },
+      companyName: activeOrg?.company_name || 'Company',
+    });
+
+    setEmailStatus({ id: record.id, ...result });
+    setSendingEmail(null);
+
+    if (result.success) {
+      setTimeout(() => setEmailStatus(null), 4000);
+    } else {
+      setTimeout(() => setEmailStatus(null), 6000);
+    }
+  };
+
   const counts = useMemo(() => ({
     all: records.length,
     offer: records.filter(r => r.type === 'offer').length,
@@ -90,7 +118,7 @@ export default function InternRecords() {
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '8rem 2rem' }}>
         <div style={{ textAlign: 'center' }}>
           <div className="pro-spinner" />
-          <p style={{ color: 'rgba(255,255,255,0.4)', marginTop: '1rem', fontSize: '0.875rem' }}>Loading records...</p>
+          <p style={{ color: 'var(--text-muted)', marginTop: '1rem', fontSize: '0.875rem' }}>Loading records...</p>
         </div>
       </div>
     );
@@ -140,7 +168,7 @@ export default function InternRecords() {
         </div>
         <div className="records-toolbar-right">
           <div style={{ position: 'relative', minWidth: '200px' }}>
-            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.2)' }} />
+            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
               type="text"
               placeholder="Search..."
@@ -219,6 +247,18 @@ export default function InternRecords() {
                   <button onClick={() => handleDownloadPDF(record)} className="records-action-btn download" title="Download PDF">
                     <Download size={14} /> Download
                   </button>
+                  {record.type === 'offer' && record.data?.email && (
+                    <button
+                      onClick={() => handleNotify(record)}
+                      className={`records-action-btn notify ${emailStatus?.id === record.id ? (emailStatus.success ? 'sent' : 'failed') : ''}`}
+                      title={`Send offer to ${record.data.email}`}
+                      disabled={sendingEmail === record.id}
+                    >
+                      {sendingEmail === record.id ? <><Loader size={13} className="spin-icon" /> Sending</>
+                        : emailStatus?.id === record.id && emailStatus.success ? <><CheckCircle size={13} /> Sent</>
+                        : <><Send size={13} /> Notify</>}
+                    </button>
+                  )}
                   <button onClick={() => handleDelete(record.id)} className="records-action-btn delete" title="Delete">
                     <Trash2 size={14} />
                   </button>
@@ -256,7 +296,7 @@ export default function InternRecords() {
                         </div>
                         <div>
                           <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{record.title}</div>
-                          <div style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.3)', textTransform: 'capitalize' }}>
+                          <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
                             {cfg.label}
                           </div>
                         </div>
@@ -270,7 +310,7 @@ export default function InternRecords() {
                           : record.type === 'mou' ? 'MoU Agreement'
                           : `₹${record.data?.totals?.grandTotal?.toLocaleString()}`}
                       </div>
-                      <div style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.25)' }}>
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
                         {record.type === 'offer' ? record.data?.department
                           : record.type === 'certificate' ? record.data?.issuingOrganization
                           : record.type === 'nda' ? (record.data?.arbitrationCity ? `${record.data.arbitrationCity}, ${record.data.arbitrationState}` : '')
@@ -279,7 +319,7 @@ export default function InternRecords() {
                       </div>
                     </td>
                     <td style={{ padding: '1rem' }}>
-                      <div style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.5)' }}>
+                      <div style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>
                         {new Date(record.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </div>
                     </td>
@@ -288,6 +328,19 @@ export default function InternRecords() {
                         <button onClick={() => handleDownloadPDF(record)} className="btn btn-outline" style={{ padding: '0.375rem 0.75rem', height: '30px', fontSize: '0.75rem' }} title="Download PDF">
                           <Download size={13} /> PDF
                         </button>
+                        {record.type === 'offer' && record.data?.email && (
+                          <button
+                            onClick={() => handleNotify(record)}
+                            className={`records-action-btn notify compact ${emailStatus?.id === record.id ? (emailStatus.success ? 'sent' : 'failed') : ''}`}
+                            title={`Send offer to ${record.data.email}`}
+                            disabled={sendingEmail === record.id}
+                            style={{ padding: '0.375rem 0.625rem', height: '30px', fontSize: '0.75rem' }}
+                          >
+                            {sendingEmail === record.id ? <Loader size={12} className="spin-icon" />
+                              : emailStatus?.id === record.id && emailStatus.success ? <CheckCircle size={12} />
+                              : <Send size={12} />}
+                          </button>
+                        )}
                         <button onClick={() => handleDelete(record.id)} className="pro-delete-btn" title="Delete">
                           <Trash2 size={13} />
                         </button>
@@ -307,7 +360,7 @@ export default function InternRecords() {
               return (
                 <div key={record.id} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.04)', gap: '1rem'
+                  padding: '1.25rem', borderBottom: '1px solid var(--border-subtle)', gap: '1rem'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', flex: 1, minWidth: 0 }}>
                     <div style={{
@@ -321,7 +374,7 @@ export default function InternRecords() {
                       <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {record.title}
                       </h4>
-                      <div style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600 }}>
                         {cfg.label} · {new Date(record.created_at).toLocaleDateString()}
                       </div>
                     </div>
@@ -330,6 +383,18 @@ export default function InternRecords() {
                     <button onClick={() => handleDownloadPDF(record)} className="btn btn-outline" style={{ width: '36px', height: '36px', padding: 0, borderRadius: '8px' }}>
                       <Download size={14} />
                     </button>
+                    {record.type === 'offer' && record.data?.email && (
+                      <button
+                        onClick={() => handleNotify(record)}
+                        className={`records-action-btn notify compact ${emailStatus?.id === record.id ? (emailStatus.success ? 'sent' : '') : ''}`}
+                        disabled={sendingEmail === record.id}
+                        style={{ width: '36px', height: '36px', padding: 0, borderRadius: '8px' }}
+                      >
+                        {sendingEmail === record.id ? <Loader size={14} className="spin-icon" />
+                          : emailStatus?.id === record.id && emailStatus.success ? <CheckCircle size={14} />
+                          : <Send size={14} />}
+                      </button>
+                    )}
                     <button onClick={() => handleDelete(record.id)} className="pro-delete-btn" style={{ width: '36px', height: '36px' }}>
                       <Trash2 size={14} />
                     </button>
@@ -343,8 +408,16 @@ export default function InternRecords() {
 
       {/* Footer count */}
       {filteredRecords.length > 0 && (
-        <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'rgba(255,255,255,0.2)', fontWeight: 500 }}>
+        <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
           Showing {filteredRecords.length} of {records.length} record{records.length !== 1 ? 's' : ''}
+        </div>
+      )}
+
+      {/* Email Status Toast */}
+      {emailStatus && (
+        <div className={`email-toast ${emailStatus.success ? 'success' : 'error'} animate-in`}>
+          {emailStatus.success ? <CheckCircle size={16} /> : <Send size={16} />}
+          <span>{emailStatus.message}</span>
         </div>
       )}
     </div>

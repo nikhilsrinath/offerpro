@@ -253,11 +253,15 @@ export default function MoUPreview({ formData }) {
           <div>Designation: {formData.firstPartySignatoryDesignation || '___________________'}</div>
           <div>Date: {fmtDate(formData.firstPartySignatoryDate || formData.effectiveDate)}</div>
           <div className="nda-stamp-area">
-            {formData.stampType === 'uploaded' && formData.stampUrl ? (
-              <img src={formData.stampUrl} alt="Company Stamp" className="doc-stamp-img" />
-            ) : formData.stampType === 'generated' && formData.firstPartyName ? (
-              <StampPreview companyName={formData.firstPartyName} city={formData.stampCity} size={80} />
-            ) : null}
+            {formData.showStamp && (
+              <>
+                {formData.stampType === 'uploaded' && formData.stampUrl ? (
+                  <img src={formData.stampUrl} alt="Company Stamp" className="doc-stamp-img" />
+                ) : formData.stampType === 'generated' && formData.firstPartyName ? (
+                  <StampPreview companyName={formData.firstPartyName} city={formData.stampCity} size={65} />
+                ) : null}
+              </>
+            )}
           </div>
         </div>
         <div className="nda-sig-col">

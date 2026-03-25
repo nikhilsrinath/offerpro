@@ -13,16 +13,29 @@ import { storageService } from '../services/storageService';
 import { useOrg } from '../context/OrgContext';
 import { useAuth } from '../context/AuthContext';
 
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const chartStyles = () => ({
+  tooltip: { background: css('--chart-tooltip-bg'), border: `1px solid ${css('--chart-tooltip-border')}`, borderRadius: 10, fontSize: 12, color: css('--chart-tooltip-text') },
+  label: { color: css('--chart-axis-text') },
+  axis: { fill: css('--chart-axis-text'), fontSize: 11 },
+  grid: css('--chart-grid'),
+});
+
 export default function Dashboard({ onNavigate }) {
   const { activeOrg } = useOrg();
   const { user } = useAuth();
   const [records, setRecords] = useState([]);
+  const [employeeCount, setEmployeeCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (activeOrg) {
-      storageService.getAll(activeOrg.id).then(data => {
+      Promise.all([
+        storageService.getAll(activeOrg.id),
+        storageService.getEmployees(activeOrg.id)
+      ]).then(([data, emps]) => {
         setRecords(data || []);
+        setEmployeeCount((emps || []).length);
         setLoading(false);
       }).catch(() => setLoading(false));
     } else {
@@ -108,12 +121,13 @@ export default function Dashboard({ onNavigate }) {
 
   const STAT_CARDS = [
     { label: 'Total Documents', value: stats.total, icon: FileText, color: '#3b82f6', bg: '#3b82f612', nav: 'records' },
+    { label: 'Team Members', value: employeeCount, icon: Users, color: '#8b5cf6', bg: '#8b5cf612', nav: 'employees' },
     { label: 'Revenue Generated', value: `₹${stats.revenue.toLocaleString()}`, icon: TrendingUp, color: '#10b981', bg: '#10b98112', nav: 'revenue' },
-    { label: 'Gross Profit', value: `₹${stats.grossProfit.toLocaleString()}`, icon: DollarSign, color: stats.grossProfit >= 0 ? '#3b82f6' : '#ef4444', bg: stats.grossProfit >= 0 ? '#3b82f612' : '#ef444412', nav: 'revenue' },
     { label: 'Invoices Issued', value: stats.invoices, icon: Receipt, color: '#f59e0b', bg: '#f59e0b12', nav: 'invoices' },
   ];
 
   const QUICK_ACTIONS = [
+    { id: 'employees', label: 'Employees', desc: 'Manage your team', icon: Users, color: '#8b5cf6' },
     { id: 'offers', label: 'Offer Letter', desc: 'Generate employment offers', icon: Briefcase, color: '#3b82f6' },
     { id: 'certificates', label: 'Certificate', desc: 'Issue achievement certs', icon: Award, color: '#f59e0b' },
     { id: 'ndas', label: 'NDA', desc: 'Draft confidentiality agreements', icon: FileCode, color: '#10b981' },
@@ -132,7 +146,7 @@ export default function Dashboard({ onNavigate }) {
   };
 
   return (
-    <div className="pro-dashboard" style={{ maxWidth: '100%' }}>
+    <div className="pro-dashboard">
       {/* Welcome Banner */}
       <div className="pro-welcome">
         <div className="pro-welcome-content">
@@ -198,13 +212,13 @@ export default function Dashboard({ onNavigate }) {
                     <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartStyles().grid} />
+                <XAxis dataKey="month" tick={chartStyles().axis} axisLine={false} tickLine={false} />
+                <YAxis tick={chartStyles().axis} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
                 <Tooltip
-                  contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, fontSize: 12, color: '#fff' }}
+                  contentStyle={chartStyles().tooltip}
                   formatter={(v) => [`₹${v.toLocaleString()}`, 'Revenue']}
-                  labelStyle={{ color: 'rgba(255,255,255,0.5)' }}
+                  labelStyle={chartStyles().label}
                 />
                 <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2.5} fill="url(#revenueGrad)" />
               </AreaChart>
@@ -218,7 +232,7 @@ export default function Dashboard({ onNavigate }) {
               <PieChart size={18} style={{ color: '#8b5cf6' }} />
               <h3>Document Distribution</h3>
             </div>
-            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>{stats.total} total</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{stats.total} total</span>
           </div>
           {stats.typeDistribution.length === 0 ? (
             <div className="pro-empty" style={{ padding: '3rem' }}>
@@ -237,7 +251,7 @@ export default function Dashboard({ onNavigate }) {
                       ))}
                     </Pie>
                     <Tooltip
-                      contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, fontSize: 12, color: '#fff' }}
+                      contentStyle={chartStyles().tooltip}
                       formatter={(v, name) => [v, name]}
                     />
                   </RechartsPie>
@@ -247,8 +261,8 @@ export default function Dashboard({ onNavigate }) {
                 {stats.typeDistribution.map((d, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <div style={{ width: 10, height: 10, borderRadius: '50%', background: d.color, flexShrink: 0 }} />
-                    <span style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.6)', flex: 1 }}>{d.name}</span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'white' }}>{d.value}</span>
+                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)', flex: 1 }}>{d.name}</span>
+                    <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>{d.value}</span>
                   </div>
                 ))}
               </div>
@@ -275,13 +289,13 @@ export default function Dashboard({ onNavigate }) {
                     <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.7} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartStyles().grid} />
+                <XAxis dataKey="month" tick={chartStyles().axis} axisLine={false} tickLine={false} />
+                <YAxis tick={chartStyles().axis} axisLine={false} tickLine={false} allowDecimals={false} />
                 <Tooltip
-                  contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, fontSize: 12, color: '#fff' }}
+                  contentStyle={chartStyles().tooltip}
                   formatter={(v) => [v, 'Documents']}
-                  labelStyle={{ color: 'rgba(255,255,255,0.5)' }}
+                  labelStyle={chartStyles().label}
                 />
                 <Bar dataKey="documents" fill="url(#barGrad)" radius={[6, 6, 0, 0]} maxBarSize={40} />
               </BarChart>

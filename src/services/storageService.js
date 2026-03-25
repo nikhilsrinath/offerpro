@@ -66,6 +66,42 @@ export const storageService = {
     await remove(recordRef);
   },
 
+  // Employees registry
+  getEmployees: async (orgId) => {
+    if (!orgId) return [];
+    try {
+      const empRef = ref(db, `employees/${orgId}`);
+      const snapshot = await get(empRef);
+      if (!snapshot.exists()) return [];
+      const employees = [];
+      snapshot.forEach((child) => {
+        employees.push({ id: child.key, ...child.val() });
+      });
+      return employees.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    } catch (err) {
+      console.warn("Error fetching employees:", err);
+      return [];
+    }
+  },
+
+  saveEmployee: async (empData, orgId) => {
+    if (!orgId) throw new Error('Organization ID is required');
+    const empRef = push(ref(db, `employees/${orgId}`));
+    const employee = {
+      id: empRef.key,
+      ...empData,
+      created_at: new Date().toISOString()
+    };
+    await set(empRef, employee);
+    return employee;
+  },
+
+  deleteEmployee: async (id, orgId) => {
+    if (!orgId) throw new Error('Organization ID is required');
+    const empRef = ref(db, `employees/${orgId}/${id}`);
+    await remove(empRef);
+  },
+
   exportToCSV: (records) => {
     if (!records || records.length === 0) return;
 

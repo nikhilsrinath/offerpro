@@ -117,7 +117,7 @@ export default function ProductPlanner() {
               style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
               {f.label}
               <span style={{
-                fontSize: '0.6875rem', background: 'rgba(255,255,255,0.07)',
+                fontSize: '0.6875rem', background: 'var(--num-badge-bg)',
                 padding: '0.1rem 0.375rem', borderRadius: '4px', fontWeight: 700
               }}>{counts[f.id]}</span>
             </button>

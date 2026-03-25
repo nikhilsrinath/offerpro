@@ -97,11 +97,15 @@ export default function OfferPreview({ formData }) {
           <p className="offer-bold" style={{ fontSize: '10pt' }}>{formData.companyName || ''}</p>
         </div>
         <div className="offer-stamp-right">
-          {formData.stampType === 'uploaded' && formData.stampUrl ? (
-            <img src={formData.stampUrl} alt="Company Stamp" className="doc-stamp-img" />
-          ) : formData.stampType === 'generated' && formData.companyName ? (
-            <StampPreview companyName={formData.companyName} city={formData.stampCity} size={90} />
-          ) : null}
+          {formData.showStamp && (
+            <>
+              {formData.stampType === 'uploaded' && formData.stampUrl ? (
+                <img src={formData.stampUrl} alt="Company Stamp" className="doc-stamp-img" />
+              ) : formData.stampType === 'generated' && formData.companyName ? (
+                <StampPreview companyName={formData.companyName} city={formData.stampCity} size={70} />
+              ) : null}
+            </>
+          )}
         </div>
       </div>
     </div>

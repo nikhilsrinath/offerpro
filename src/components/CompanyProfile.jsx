@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Upload, CheckCircle, Save, Loader, AlertCircle, Pencil } from 'lucide-react';
+import { Upload, CheckCircle, Save, Loader, AlertCircle, Pencil, Sun, Moon, Mail, Zap, XCircle } from 'lucide-react';
 import { useOrg } from '../context/OrgContext';
+import { emailService } from '../services/emailService';
 
 import StampPreview from './StampPreview';
 import ImageEditor from './ImageEditor';
 
-export default function CompanyProfile() {
+export default function CompanyProfile({ theme, onToggleTheme }) {
   const { activeOrg, updateOrganization } = useOrg();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -15,6 +16,8 @@ export default function CompanyProfile() {
   const [uploadingStamp, setUploadingStamp] = useState(false);
   const [editorImage, setEditorImage] = useState(null);
   const [editorField, setEditorField] = useState('');
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [testResult, setTestResult] = useState(null);
 
   const [form, setForm] = useState({
     company_name: '',
@@ -32,6 +35,9 @@ export default function CompanyProfile() {
     stamp_type: 'generated',
     stamp_url: '',
     stamp_city: '',
+    emailjs_service_id: '',
+    emailjs_template_id: '',
+    emailjs_public_key: '',
   });
 
   useEffect(() => {
@@ -52,6 +58,9 @@ export default function CompanyProfile() {
         stamp_type: activeOrg.stamp_type || 'generated',
         stamp_url: activeOrg.stamp_url || '',
         stamp_city: activeOrg.stamp_city || '',
+        emailjs_service_id: activeOrg.emailjs_service_id || '',
+        emailjs_template_id: activeOrg.emailjs_template_id || '',
+        emailjs_public_key: activeOrg.emailjs_public_key || '',
       });
     }
   }, [activeOrg]);
@@ -111,6 +120,19 @@ export default function CompanyProfile() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleTestEmail = async () => {
+    setTestingEmail(true);
+    setTestResult(null);
+    const result = await emailService.testConnection({
+      serviceId: form.emailjs_service_id,
+      templateId: form.emailjs_template_id,
+      publicKey: form.emailjs_public_key,
+    });
+    setTestResult(result);
+    setTestingEmail(false);
+    setTimeout(() => setTestResult(null), 8000);
   };
 
   if (!activeOrg) return null;
@@ -324,6 +346,140 @@ export default function CompanyProfile() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* 5. Appearance */}
+      <div className="easy-section">
+        <div className="easy-section-head">
+          <div className="easy-num">5</div>
+          <span className="easy-section-title">Appearance</span>
+        </div>
+        <div className="theme-toggle-row">
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Theme</div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Switch between light and dark mode</div>
+          </div>
+          <button type="button" className="theme-toggle-btn" onClick={onToggleTheme} aria-label="Toggle theme">
+            <div className={`theme-toggle-track ${theme === 'dark' ? 'dark' : ''}`}>
+              <Sun size={14} className="theme-toggle-icon sun" />
+              <Moon size={14} className="theme-toggle-icon moon" />
+              <div className="theme-toggle-thumb" />
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* 6. Email Integration */}
+      <div className="easy-section">
+        <div className="easy-section-head">
+          <div className="easy-num">6</div>
+          <span className="easy-section-title">Email Integration</span>
+        </div>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.6 }}>
+          Send offer letters directly to employees via email using <strong>EmailJS</strong> — a free service that works right from the browser. No backend or scripts needed.
+        </p>
+
+        <div className="easy-row">
+          <div className="easy-field">
+            <label className="easy-lbl">Service ID</label>
+            <input
+              name="emailjs_service_id"
+              value={form.emailjs_service_id}
+              onChange={handleChange}
+              placeholder="e.g. service_abc123"
+              className="easy-inp"
+              style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}
+            />
+          </div>
+          <div className="easy-field">
+            <label className="easy-lbl">Template ID</label>
+            <input
+              name="emailjs_template_id"
+              value={form.emailjs_template_id}
+              onChange={handleChange}
+              placeholder="e.g. template_xyz789"
+              className="easy-inp"
+              style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}
+            />
+          </div>
+        </div>
+        <div className="easy-row">
+          <div className="easy-field full">
+            <label className="easy-lbl">Public Key</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                name="emailjs_public_key"
+                value={form.emailjs_public_key}
+                onChange={handleChange}
+                placeholder="e.g. user_aBcDeFgHiJk"
+                className="easy-inp"
+                style={{ fontFamily: 'monospace', fontSize: '0.8125rem', flex: 1 }}
+              />
+              <button
+                type="button"
+                onClick={handleTestEmail}
+                disabled={!form.emailjs_service_id || !form.emailjs_template_id || !form.emailjs_public_key || testingEmail}
+                style={{
+                  padding: '0 1rem', borderRadius: '10px', border: '1px solid var(--border-default)',
+                  background: 'var(--bg-elevated)', color: 'var(--text-secondary)', fontWeight: 600,
+                  fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'var(--font-main)',
+                  display: 'flex', alignItems: 'center', gap: '0.375rem', whiteSpace: 'nowrap',
+                  opacity: (!form.emailjs_service_id || !form.emailjs_template_id || !form.emailjs_public_key) ? 0.4 : 1,
+                }}
+              >
+                {testingEmail ? <><Loader size={13} className="spin-icon" /> Testing</> : <><Zap size={13} /> Test</>}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {testResult && (
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+            marginTop: '0.75rem', padding: '0.75rem 1rem',
+            background: testResult.success ? 'rgba(16,185,129,0.06)' : 'rgba(239,68,68,0.06)',
+            border: `1px solid ${testResult.success ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'}`,
+            borderRadius: '8px', fontSize: '0.8125rem',
+            color: testResult.success ? '#10b981' : '#ef4444', fontWeight: 600
+          }}>
+            {testResult.success ? <CheckCircle size={14} style={{ marginTop: '1px', flexShrink: 0 }} /> : <XCircle size={14} style={{ marginTop: '1px', flexShrink: 0 }} />}
+            <span>{testResult.message}</span>
+          </div>
+        )}
+
+        <div style={{
+          background: 'var(--bg-raised)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: '10px',
+          padding: '1rem 1.25rem',
+          marginTop: '0.75rem',
+          fontSize: '0.8125rem',
+          lineHeight: 1.7,
+          color: 'var(--text-secondary)'
+        }}>
+          <strong style={{ color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.5rem' }}>
+            <Mail size={14} /> Setup Instructions (5 min)
+          </strong>
+          <ol style={{ margin: '0.5rem 0 0', paddingLeft: '1.25rem' }}>
+            <li>Go to <a href="https://www.emailjs.com" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>emailjs.com</a> and <strong>create a free account</strong></li>
+            <li>Click <strong>"Add New Service"</strong> → choose <strong>Gmail</strong> → connect your Gmail account → note the <strong>Service ID</strong></li>
+            <li>Go to <strong>"Email Templates"</strong> → click <strong>"Create New Template"</strong></li>
+            <li>Set <strong>Subject</strong> to: <code style={{ background: 'var(--bg-elevated)', padding: '1px 6px', borderRadius: '4px', fontSize: '0.75rem' }}>{'{{subject}}'}</code></li>
+            <li>Set <strong>Body</strong> (Content) to: <code style={{ background: 'var(--bg-elevated)', padding: '1px 6px', borderRadius: '4px', fontSize: '0.75rem' }}>{'{{{message}}}'}</code> <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>(triple braces for HTML)</span></li>
+            <li>In <strong>"To Email"</strong> field, put: <code style={{ background: 'var(--bg-elevated)', padding: '1px 6px', borderRadius: '4px', fontSize: '0.75rem' }}>{'{{to_email}}'}</code></li>
+            <li>Click <strong>Save</strong> → note the <strong>Template ID</strong></li>
+            <li>Go to <strong>Account → General</strong> → copy your <strong>Public Key</strong></li>
+            <li>Paste all three values above → click <strong>Test</strong></li>
+          </ol>
+
+          <div style={{
+            marginTop: '0.75rem', padding: '0.75rem 1rem',
+            background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.12)',
+            borderRadius: '8px', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.6
+          }}>
+            <strong style={{ color: '#3b82f6' }}>Free tier:</strong> 200 emails/month, 2 templates. More than enough for most teams.
+          </div>
+        </div>
       </div>
 
       {/* Save */}

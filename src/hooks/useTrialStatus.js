@@ -85,9 +85,10 @@ export function useTrialStatus() {
         if (!activeOrg?.id) return;
         try {
             const allRecords = await storageService.getAll(activeOrg.id);
-            const counts = { offer: 0, mou: 0, invoice: 0 };
+            const counts = { offer: 0, nda: 0, mou: 0, invoice: 0 };
             allRecords.forEach(record => {
                 if (record.type === 'offer') counts.offer++;
+                else if (record.type === 'nda') counts.nda++;
                 else if (record.type === 'mou') counts.mou++;
                 else if (record.type === 'invoice') counts.invoice++;
             });
