@@ -2,7 +2,8 @@ import { useState } from 'react';
 import {
   LayoutDashboard, Briefcase, Award, Scale, ShieldCheck, Receipt,
   DollarSign, Layers, Archive, LogOut, Menu, X,
-  Zap, UserCircle, ChevronRight, Clock, Mail, AlertTriangle, Users
+  Zap, UserCircle, ChevronRight, Clock, Mail, AlertTriangle, Users,
+  UploadCloud, FileCheck, FileSignature, History
 } from 'lucide-react';
 
 import OfferForm from './components/OfferForm';
@@ -25,6 +26,12 @@ import Employees from './components/Employees';
 import { useTrialStatus } from './hooks/useTrialStatus';
 import { useTheme } from './hooks/useTheme';
 
+import BulkOfferLetters from './components/bulk/BulkOfferLetters';
+import BulkCertificates from './components/bulk/BulkCertificates';
+import BulkTeamMembers from './components/bulk/BulkTeamMembers';
+import BulkHistory from './components/bulk/BulkHistory';
+import RecipientPortal from './components/portal/RecipientPortal';
+
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { section: 'TEAM' },
@@ -41,6 +48,11 @@ const NAV_ITEMS = [
   { id: 'planner', label: 'Product Planner', icon: Layers },
   { section: 'DATA' },
   { id: 'records', label: 'Records', icon: Archive },
+  { section: 'BULK OPERATIONS' },
+  { id: 'bulk-offers', label: 'Bulk Offers', icon: UploadCloud },
+  { id: 'bulk-certificates', label: 'Bulk Certificates', icon: FileCheck },
+  { id: 'bulk-team', label: 'Bulk Team Members', icon: FileSignature },
+  { id: 'bulk-history', label: 'Bulk History', icon: History },
 ];
 
 const PAGE_META = {
@@ -56,10 +68,14 @@ const PAGE_META = {
   planner: { title: 'Product Planner', subtitle: 'Plan and track products and projects' },
   records: { title: 'Records', subtitle: 'Manage and download issued documents' },
   employees: { title: 'Employee Registry', subtitle: 'Manage your internal team and onboarding' },
+  'bulk-offers': { title: 'Bulk Offer Letters', subtitle: 'Generate and distribute multiple offer letters at once' },
+  'bulk-certificates': { title: 'Bulk Certificates', subtitle: 'Issue batches of certificates efficiently' },
+  'bulk-team': { title: 'Bulk Team Members', subtitle: 'Import your team registry from a CSV file' },
+  'bulk-history': { title: 'Bulk History', subtitle: 'Track and review past bulk generation jobs' },
 };
 
 function AppContent() {
-  const [activePage, setActivePage] = useState('dashboard');
+  const [activePage, setActivePage] = useState(() => sessionStorage.getItem('initialPage') || 'dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showLanding, setShowLanding] = useState(true);
   const { user, loading, logout, needsOnboarding } = useAuth();
@@ -93,6 +109,7 @@ function AppContent() {
 
   const navigate = (page) => {
     setActivePage(page);
+    sessionStorage.setItem('initialPage', page);
     setSidebarOpen(false);
   };
 
@@ -219,6 +236,10 @@ function AppContent() {
           {activePage === 'planner' && <ProductPlanner />}
           {activePage === 'records' && <InternRecords />}
           {activePage === 'employees' && <Employees />}
+          {activePage === 'bulk-offers' && <BulkOfferLetters />}
+          {activePage === 'bulk-certificates' && <BulkCertificates />}
+          {activePage === 'bulk-team' && <BulkTeamMembers />}
+          {activePage === 'bulk-history' && <BulkHistory />}
         </div>
       </div>
 
@@ -247,6 +268,28 @@ function AppContent() {
 }
 
 function App() {
+  const path = window.location.pathname;
+  if (path.startsWith('/portal/')) {
+    const documentId = path.split('/')[2];
+    return <RecipientPortal documentId={documentId} />;
+  }
+
+  // Handle URL-based basic routing for the app
+  // In a real app we'd use react-router, but this matches the existing pattern
+  if (path.startsWith('/bulk/offer-letters')) {
+    window.history.pushState({}, '', '/');
+    sessionStorage.setItem('initialPage', 'bulk-offers');
+  } else if (path.startsWith('/bulk/certificates')) {
+    window.history.pushState({}, '', '/');
+    sessionStorage.setItem('initialPage', 'bulk-certificates');
+  } else if (path.startsWith('/bulk/team-members')) {
+    window.history.pushState({}, '', '/');
+    sessionStorage.setItem('initialPage', 'bulk-team');
+  } else if (path.startsWith('/bulk/history')) {
+    window.history.pushState({}, '', '/');
+    sessionStorage.setItem('initialPage', 'bulk-history');
+  }
+
   return (
     <AuthProvider>
       <OrgProvider>
