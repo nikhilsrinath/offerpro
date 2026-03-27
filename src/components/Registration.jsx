@@ -251,18 +251,7 @@ export default function Registration({ onBack, isGoogleUser }) {
                     onChange={(e) => setFormData({ ...formData, [currentQ.id]: e.target.value })}
                     onKeyDown={handleKeyDown}
                     placeholder="Type your answer here..."
-                    style={{
-                        width: '100%',
-                        background: 'transparent',
-                        border: 'none',
-                        borderBottom: '2px solid rgba(255,255,255,0.2)',
-                        color: 'white',
-                        fontSize: '1.75rem',
-                        padding: '0.5rem 0',
-                        outline: 'none',
-                        fontFamily: 'var(--font-main)'
-                    }}
-                    className="registration-input"
+                    className="reg-text-input registration-input"
                 />
             );
         }
@@ -275,115 +264,70 @@ export default function Registration({ onBack, isGoogleUser }) {
                     onChange={(e) => setFormData({ ...formData, [currentQ.id]: e.target.value })}
                     rows={3}
                     placeholder="Start typing..."
-                    style={{
-                        width: '100%',
-                        background: 'transparent',
-                        border: '1px solid rgba(255,255,255,0.2)',
-                        borderRadius: '12px',
-                        color: 'white',
-                        fontSize: '1.25rem',
-                        padding: '1rem',
-                        outline: 'none',
-                        fontFamily: 'var(--font-main)',
-                        resize: 'none'
-                    }}
+                    className="reg-textarea"
                 />
             );
         }
 
         if (currentQ.type === 'select' || currentQ.type === 'select_boolean') {
             return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {currentQ.options.map((option, idx) => (
-                        <button
-                            key={option}
-                            onClick={() => {
-                                setFormData({ ...formData, [currentQ.id]: option });
-                                setTimeout(handleNext, 300);
-                            }}
-                            style={{
-                                background: formData[currentQ.id] === option ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.02)',
-                                border: `1px solid ${formData[currentQ.id] === option ? 'white' : 'rgba(255,255,255,0.1)'}`,
-                                padding: '1rem 1.5rem',
-                                borderRadius: '12px',
-                                color: 'white',
-                                fontSize: '1.125rem',
-                                textAlign: 'left',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '1rem',
-                                transition: 'all 0.2s',
-                            }}
-                        >
-                            <div style={{
-                                width: '24px', height: '24px',
-                                borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                background: formData[currentQ.id] === option ? 'white' : 'transparent'
-                            }}>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'black' }}>
-                                    {String.fromCharCode(65 + idx)}
-                                </span>
-                            </div>
-                            {option}
-                        </button>
-                    ))
-                    }
-                </div >
+                <div className="reg-options-list">
+                    {currentQ.options.map((option, idx) => {
+                        const isSelected = formData[currentQ.id] === option;
+                        return (
+                            <button
+                                key={option}
+                                onClick={() => {
+                                    setFormData({ ...formData, [currentQ.id]: option });
+                                    setTimeout(handleNext, 300);
+                                }}
+                                className={`reg-option-btn ${isSelected ? 'selected' : ''}`}
+                            >
+                                <div className={`reg-option-key ${isSelected ? 'selected' : ''}`}>
+                                    <span className="reg-option-key-text">
+                                        {String.fromCharCode(65 + idx)}
+                                    </span>
+                                </div>
+                                {option}
+                            </button>
+                        );
+                    })}
+                </div>
             );
         }
 
         if (currentQ.type === 'multiselect') {
             return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div className="reg-options-list">
                     {currentQ.options.map((option) => {
                         const isSelected = formData[currentQ.id].includes(option);
                         return (
                             <button
                                 key={option}
                                 onClick={() => toggleMultiSelect(option)}
-                                style={{
-                                    background: isSelected ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.02)',
-                                    border: `1px solid ${isSelected ? 'white' : 'rgba(255,255,255,0.1)'}`,
-                                    padding: '1rem 1.5rem',
-                                    borderRadius: '12px',
-                                    color: 'white',
-                                    fontSize: '1.125rem',
-                                    textAlign: 'left',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '1rem',
-                                    transition: 'all 0.2s',
-                                }}
+                                className={`reg-option-btn ${isSelected ? 'selected' : ''}`}
                             >
-                                <div style={{
-                                    width: '24px', height: '24px',
-                                    borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    background: isSelected ? 'white' : 'transparent'
-                                }}>
-                                    {isSelected && <Check size={16} color="black" />}
+                                <div className={`reg-option-key ${isSelected ? 'selected' : ''}`}>
+                                    {isSelected && <Check size={16} style={{ color: 'var(--background)' }} />}
                                 </div>
                                 {option}
                             </button>
-                        )
+                        );
                     })}
-                </div >
+                </div>
             );
         }
     };
 
     if (step === 'success') {
         return (
-            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'var(--background)', zIndex: 9999, display: 'flex', flexDirection: 'column', color: 'white', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="reg-fullscreen-centered">
                 <div className="animate-in" style={{ textAlign: 'center', maxWidth: '500px' }}>
-                    <div style={{ width: '64px', height: '64px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem' }}>
+                    <div className="reg-success-icon">
                         <Check size={32} />
                     </div>
-                    <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '1rem' }}>Configuration Complete</h1>
-                    <p style={{ color: 'var(--accent-muted)', fontSize: '1.25rem', marginBottom: '3rem' }}>
+                    <h1 className="reg-success-title">Configuration Complete</h1>
+                    <p className="reg-success-subtitle">
                         Your core organizational identity has been successfully initialized.
                     </p>
                     <button onClick={onBack} className="btn-cinematic" style={{ padding: '1rem 3rem', borderRadius: '99px', fontSize: '1.125rem' }}>
@@ -396,40 +340,32 @@ export default function Registration({ onBack, isGoogleUser }) {
 
     if (step === 'redirecting') {
         return (
-            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'var(--background)', zIndex: 9999, display: 'flex', flexDirection: 'column', color: 'white', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="reg-fullscreen-centered">
                 <div className="animate-in" style={{ textAlign: 'center' }}>
-                    <div style={{ width: '48px', height: '48px', border: '3px solid rgba(255,255,255,0.1)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 2rem' }} />
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Initializing Workspace...</h2>
-                    <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                    <div className="reg-spinner" />
+                    <h2 className="reg-spinner-title">Initializing Workspace...</h2>
                 </div>
             </div>
         );
     }
 
     return (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'var(--background)', zIndex: 9999, display: 'flex', flexDirection: 'column', color: 'white' }}>
+        <div className="reg-fullscreen">
             {/* Top Progress Bar */}
             {typeof step === 'number' && step > 0 && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: '4px', background: 'rgba(255,255,255,0.1)', zIndex: 10 }}>
-                    <div style={{
-                        height: '100%', background: 'white',
-                        width: `${progress}%`, transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
-                    }} />
+                <div className="reg-progress-bar">
+                    <div className="reg-progress-fill" style={{ width: `${progress}%` }} />
                 </div>
             )}
 
             {/* Main Content Vertical Center */}
-            <div style={{
-                flex: 1, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', padding: '2rem'
-            }}>
-
-                <div style={{ width: '100%', maxWidth: '600px', position: 'relative' }}>
+            <div className="reg-content">
+                <div className="reg-content-inner">
                     <div key={`step-${step}`} className="animate-in" style={{ animationDuration: '0.5s' }}>
 
                         {typeof step === 'number' && step > 0 && (
-                            <div style={{ color: 'var(--accent-muted)', fontSize: '0.875rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <span style={{ color: 'white' }}>{step}</span>
+                            <div className="reg-step-indicator">
+                                <span className="reg-step-number">{step}</span>
                                 <span><ArrowRight size={14} opacity={0.5} /></span>
                                 <span>{currentQ.id.replace('_', ' ').toUpperCase()}</span>
                             </div>
@@ -437,16 +373,10 @@ export default function Registration({ onBack, isGoogleUser }) {
 
                         {currentQ.type === 'welcome' ? (
                             <div style={{ textAlign: 'center' }}>
-                                <h1 style={{
-                                    fontSize: 'clamp(2.5rem, 5vw, 4rem)',
-                                    fontWeight: 800,
-                                    letterSpacing: '-0.04em',
-                                    marginBottom: '1rem',
-                                    lineHeight: 1.1
-                                }}>
+                                <h1 className="reg-welcome-title">
                                     {isGoogleUser ? 'Complete Your Profile' : 'Welcome to OfferPro'}
                                 </h1>
-                                <p style={{ color: 'var(--accent-muted)', fontSize: '1.25rem', marginBottom: '3rem', maxWidth: '400px', margin: '0 auto 3rem auto' }}>
+                                <p className="reg-welcome-subtitle">
                                     {isGoogleUser
                                         ? "You're almost there. Let's set up your organization to get started."
                                         : "Let's initialize your corporate workspace. This multi-step process configures your organization's entire document footprint."
@@ -462,35 +392,27 @@ export default function Registration({ onBack, isGoogleUser }) {
                             </div>
                         ) : (
                             <div>
-                                <h2 style={{
-                                    fontSize: 'clamp(1.5rem, 3vw, 2.25rem)',
-                                    fontWeight: 800,
-                                    letterSpacing: '-0.02em',
-                                    marginBottom: currentQ.subtitle ? '0.5rem' : '2rem',
-                                    lineHeight: 1.2
-                                }}>
+                                <h2 className="reg-question-title" style={{ marginBottom: currentQ.subtitle ? '0.5rem' : '2rem' }}>
                                     {currentQ.label}
-                                    {currentQ.optional && <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '1rem', fontWeight: 400, marginLeft: '0.5rem' }}>(Optional)</span>}
+                                    {currentQ.optional && <span className="reg-optional-tag">(Optional)</span>}
                                 </h2>
 
                                 {currentQ.subtitle && (
-                                    <p style={{ color: 'var(--accent-muted)', fontSize: '1.125rem', marginBottom: '2rem' }}>
-                                        {currentQ.subtitle}
-                                    </p>
+                                    <p className="reg-question-subtitle">{currentQ.subtitle}</p>
                                 )}
 
                                 {renderInput()}
 
                                 {error && (
-                                    <div style={{ color: '#f87171', marginTop: '1rem', fontSize: '1rem', display: 'flex', alignItems: 'flex-start', gap: '0.75rem', background: 'rgba(248, 113, 113, 0.1)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(248, 113, 113, 0.2)', maxWidth: '600px' }}>
-                                        <div style={{ width: '6px', height: '6px', background: '#f87171', borderRadius: '50%', marginTop: '0.4rem', flexShrink: 0 }} />
-                                        <div style={{ flex: 1, wordBreak: 'break-word', lineHeight: 1.5 }}>
+                                    <div className="reg-error">
+                                        <div className="reg-error-dot" />
+                                        <div className="reg-error-text">
                                             <strong>Error:</strong> {error}
                                         </div>
                                     </div>
                                 )}
 
-                                <div style={{ marginTop: '3rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <div className="reg-actions">
                                     <button
                                         onClick={handleNext}
                                         disabled={loading}
@@ -502,7 +424,7 @@ export default function Registration({ onBack, isGoogleUser }) {
                                     </button>
 
                                     {currentQ.type === 'text' || currentQ.type === 'email' || currentQ.type === 'password' || currentQ.type === 'textarea' ? (
-                                        <span style={{ color: 'var(--accent-muted)', fontSize: '0.75rem', letterSpacing: '0.05em' }}>
+                                        <span className="reg-enter-hint">
                                             Press <strong>Enter ↵</strong>
                                         </span>
                                     ) : null}
@@ -515,22 +437,18 @@ export default function Registration({ onBack, isGoogleUser }) {
             </div>
 
             {/* Navigation Controls Footer */}
-            <div style={{ padding: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="reg-footer">
                 <button
                     onClick={handleBack}
                     disabled={loading}
-                    style={{
-                        background: 'transparent', border: 'none', color: 'var(--accent-muted)',
-                        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem',
-                        fontSize: '0.875rem', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase'
-                    }}
+                    className="reg-back-btn"
                 >
                     <ArrowLeft size={16} />
                     {step === 0 ? (isGoogleUser ? 'Sign Out' : 'Back to Sign In') : 'Go Back'}
                 </button>
 
                 {typeof step === 'number' && step > 0 && (
-                    <div style={{ color: 'var(--accent-muted)', fontSize: '0.875rem', fontWeight: 600, textTransform: 'uppercase' }}>
+                    <div className="reg-progress-text">
                         {Math.round(progress)}% COMPLETED
                     </div>
                 )}

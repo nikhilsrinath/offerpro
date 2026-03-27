@@ -69,7 +69,6 @@ export default function RecipientPortal({ documentId }) {
             <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#0A0A0F', color: '#fff' }}>
                 <div style={{ width: '40px', height: '40px', border: '3px solid rgba(255,255,255,0.1)', borderTopColor: 'var(--gold, #F5C842)', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '1.5rem' }} />
                 <span style={{ fontWeight: 600, fontSize: '0.875rem', opacity: 0.6, letterSpacing: '0.05em' }}>SECURING SECURE CONNECTION...</span>
-                <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
             </div>
         );
     }

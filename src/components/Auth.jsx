@@ -60,32 +60,18 @@ const Auth = () => {
     <div className="auth-split-wrapper">
       {/* Left Side: Premium Visual */}
       <div className="auth-visual-side">
-        <div className="sparkle-container" style={{ position: 'relative', zIndex: 10, textAlign: 'center', padding: '2rem' }}>
+        <div className="sparkle-container auth-sparkle-container">
           <div className="animate-in" style={{ animationDelay: '0.1s' }}>
             <div className="badge-cinematic" style={{ marginBottom: '2rem' }}>Royal Infrastructure</div>
-            <h1 style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(3rem, 5vw, 5rem)',
-              lineHeight: 0.9,
-              marginBottom: '2rem',
-              letterSpacing: '-0.04em',
-              fontWeight: 800
-            }}>
+            <h1 className="auth-hero-title">
               Pure <br /> Intelligence.
             </h1>
-            <p style={{
-              color: 'var(--accent-muted)',
-              fontSize: '1.25rem',
-              maxWidth: '460px',
-              margin: '0 auto',
-              lineHeight: 1.5,
-              fontWeight: 400
-            }}>
+            <p className="auth-hero-subtitle">
               The ultimate high-performance workspace for elite business automation and document engineering.
             </p>
           </div>
 
-          <div style={{ marginTop: '5rem', opacity: 0.3 }}>
+          <div className="auth-hero-icon">
             <Zap size={120} strokeWidth={0.5} />
           </div>
         </div>
@@ -93,39 +79,18 @@ const Auth = () => {
 
       {/* Right Side: Form */}
       <div className="auth-form-side">
-        <div style={{ width: '100%', maxWidth: '400px' }} className="animate-in">
-          <div style={{ marginBottom: '2.5rem' }}>
-            <div className="nav-logo" style={{ marginBottom: '2rem', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+        <div className="auth-form-container animate-in">
+          <div className="auth-form-header">
+            <div className="nav-logo auth-logo">
               <Zap size={28} fill="currentColor" />
               OFFERPRO
             </div>
-            <h2 style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '2.5rem',
-              marginBottom: '0.25rem',
-              letterSpacing: '-0.04em',
-              fontWeight: 800
-            }}>
-              Sign In
-            </h2>
-            <p style={{ color: 'var(--accent-muted)', fontSize: '1rem' }}>
-              Welcome to the elite workspace.
-            </p>
+            <h2 className="auth-form-title">Sign In</h2>
+            <p className="auth-form-subtitle">Welcome to the elite workspace.</p>
           </div>
 
           {error && (
-            <div style={{
-              background: 'rgba(220, 38, 38, 0.05)',
-              color: '#f87171',
-              padding: '1rem',
-              borderRadius: '12px',
-              marginBottom: '2rem',
-              fontSize: '0.875rem',
-              border: '1px solid rgba(220, 38, 38, 0.1)',
-              textAlign: 'center'
-            }}>
-              {error}
-            </div>
+            <div className="auth-error-banner">{error}</div>
           )}
 
           {/* Google Sign-In Button */}
@@ -133,105 +98,45 @@ const Auth = () => {
             type="button"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            style={{
-              width: '100%',
-              height: '52px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.75rem',
-              background: 'var(--bg-elevated)',
-              border: '1px solid var(--border-default)',
-              borderRadius: '12px',
-              color: 'var(--text-primary)',
-              fontSize: '0.9375rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              marginBottom: '1.5rem'
-            }}
-            className="auth-input-focus"
+            className="auth-google-btn auth-input-focus"
           >
             <GoogleIcon />
             Continue with Google
           </button>
 
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-            marginBottom: '1.5rem'
-          }}>
-            <div style={{ flex: 1, height: '1px', background: 'var(--border-default)' }} />
-            <span style={{ color: 'var(--accent-muted)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>or</span>
-            <div style={{ flex: 1, height: '1px', background: 'var(--border-default)' }} />
+          <div className="auth-divider">
+            <div className="auth-divider-line" />
+            <span className="auth-divider-text">or</span>
+            <div className="auth-divider-line" />
           </div>
 
           <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '1.25rem' }}>
-              <label style={{
-                display: 'block',
-                fontSize: '0.65rem',
-                fontWeight: 850,
-                textTransform: 'uppercase',
-                color: 'var(--accent-muted)',
-                marginBottom: '0.5rem',
-                letterSpacing: '0.15em'
-              }}>Corporate Identity</label>
-              <div style={{ position: 'relative' }}>
-                <Mail size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--accent-muted)', opacity: 0.5 }} />
+            <div className="auth-field">
+              <label className="auth-label">Corporate Identity</label>
+              <div className="auth-input-wrapper">
+                <Mail size={16} className="auth-input-icon" />
                 <input
                   type="email"
                   placeholder="name@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  style={{
-                    width: '100%',
-                    background: 'var(--bg-sunken)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '12px',
-                    padding: '0.875rem 1rem 0.875rem 3rem',
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                    fontSize: '0.9375rem',
-                    transition: 'all 0.3s ease'
-                  }}
-                  className="auth-input-focus"
+                  className="auth-input auth-input-focus"
                 />
               </div>
             </div>
 
-            <div style={{ marginBottom: '2rem' }}>
-              <label style={{
-                display: 'block',
-                fontSize: '0.65rem',
-                fontWeight: 850,
-                textTransform: 'uppercase',
-                color: 'var(--accent-muted)',
-                marginBottom: '0.5rem',
-                letterSpacing: '0.15em'
-              }}>Access Key</label>
-              <div style={{ position: 'relative' }}>
-                <Lock size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--accent-muted)', opacity: 0.5 }} />
+            <div className="auth-field-last">
+              <label className="auth-label">Access Key</label>
+              <div className="auth-input-wrapper">
+                <Lock size={16} className="auth-input-icon" />
                 <input
                   type="password"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  style={{
-                    width: '100%',
-                    background: 'var(--bg-sunken)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '12px',
-                    padding: '0.875rem 1rem 0.875rem 3rem',
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                    fontSize: '0.9375rem',
-                    transition: 'all 0.3s ease'
-                  }}
-                  className="auth-input-focus"
+                  className="auth-input auth-input-focus"
                 />
               </div>
             </div>
@@ -239,18 +144,17 @@ const Auth = () => {
             <button
               type="submit"
               disabled={loading}
-              className="btn-cinematic"
-              style={{ width: '100%', height: '52px', justifyContent: 'center', fontSize: '0.9375rem', borderRadius: '12px' }}
+              className="btn-cinematic auth-submit-btn"
             >
               {loading ? 'Authenticating...' : 'Initialize Access'}
               {!loading && <ArrowRight size={18} />}
             </button>
           </form>
 
-          <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+          <div className="auth-footer">
             <button
               onClick={() => setIsLogin(!isLogin)}
-              style={{ background: 'none', border: 'none', color: 'var(--accent-muted)', fontWeight: 600, cursor: 'pointer', fontSize: '0.8125rem' }}
+              className="auth-switch-btn"
             >
               New to the suite? Request access
             </button>

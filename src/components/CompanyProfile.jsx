@@ -489,7 +489,6 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
           : <><Save size={16} /> Save profile</>}
       </button>
 
-      <style>{`.spin-icon { animation: spin 1s linear infinite; } @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </form>
 
     {editorImage && (
