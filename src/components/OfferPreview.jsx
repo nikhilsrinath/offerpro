@@ -108,6 +108,45 @@ export default function OfferPreview({ formData }) {
           )}
         </div>
       </div>
+
+      {/* Acceptance & Signature Section */}
+      <div className="offer-acceptance-section">
+        <div className="offer-acceptance-divider" />
+        <h4 className="offer-acceptance-title">ACCEPTANCE &amp; SIGNATURE</h4>
+        <div className="offer-acceptance-divider" />
+
+        <p className="offer-para" style={{ marginTop: '1em' }}>
+          I, _________________________, hereby accept the terms and conditions of this offer letter.
+        </p>
+
+        <div className="offer-acceptance-columns">
+          <div className="offer-acceptance-col">
+            <p className="offer-bold" style={{ fontSize: '9pt', marginBottom: '0.5em' }}>Authorized Signatory</p>
+            <p className="offer-text" style={{ fontSize: '9pt' }}>{formData.authorizedPersonName || '___________________'}</p>
+            <p className="offer-text" style={{ fontSize: '9pt' }}>{formData.companyName || '___________________'}</p>
+            <p className="offer-text" style={{ fontSize: '9pt' }}>Date: {formatDate(today)}</p>
+            {formData.signature ? (
+              <img src={formData.signature} alt="Signature" className="offer-sig-img" style={{ maxHeight: '35px', marginTop: '0.5em' }} />
+            ) : (
+              <div style={{ borderBottom: '1px solid #333', width: '180px', marginTop: '1em', paddingTop: '1.5em' }} />
+            )}
+            <p className="offer-small" style={{ marginTop: '0.25em' }}>Signature</p>
+          </div>
+
+          <div className="offer-acceptance-col">
+            <p className="offer-bold" style={{ fontSize: '9pt', marginBottom: '0.5em' }}>Candidate Signature</p>
+            <p className="offer-text" style={{ fontSize: '9pt' }}>Name: &nbsp;_______________________</p>
+            <p className="offer-text" style={{ fontSize: '9pt' }}>Date: &nbsp;&nbsp;_______________________</p>
+            <p className="offer-text" style={{ fontSize: '9pt' }}>Place: _______________________</p>
+            <div style={{ borderBottom: '1px solid #333', width: '180px', marginTop: '1em', paddingTop: '1.5em' }} />
+            <p className="offer-small" style={{ marginTop: '0.25em' }}>Signature</p>
+          </div>
+        </div>
+
+        <p className="offer-small" style={{ textAlign: 'center', color: '#888', marginTop: '1.5em', fontSize: '7pt' }}>
+          For digital acceptance, please use the secure link provided. For physical copy, sign above and return to HR.
+        </p>
+      </div>
     </div>
   );
 }

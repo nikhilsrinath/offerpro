@@ -345,6 +345,28 @@ export default function NdaPreview({ formData }) {
           <div>Date: {fmtDate(formData.receivingSignatoryDate || formData.effectiveDate)}</div>
         </div>
       </div>
+
+      {/* Witness Section */}
+      <div className="nda-witness-section">
+        <p className="nda-bold-para" style={{ marginTop: '1.5em', fontSize: '10pt' }}>WITNESSES:</p>
+        <div className="nda-sig-block" style={{ marginTop: '0.5em' }}>
+          <div className="nda-sig-col">
+            <div style={{ fontSize: '9pt' }}>1. Name: ___________________________</div>
+            <div style={{ fontSize: '9pt', marginTop: '0.5em' }}>Address: ___________________________</div>
+            <div style={{ borderBottom: '1px solid #333', width: '180px', marginTop: '1.5em' }} />
+            <div style={{ fontSize: '8pt', marginTop: '0.25em' }}>Signature</div>
+          </div>
+          <div className="nda-sig-col">
+            <div style={{ fontSize: '9pt' }}>2. Name: ___________________________</div>
+            <div style={{ fontSize: '9pt', marginTop: '0.5em' }}>Address: ___________________________</div>
+            <div style={{ borderBottom: '1px solid #333', width: '180px', marginTop: '1.5em' }} />
+            <div style={{ fontSize: '8pt', marginTop: '0.25em' }}>Signature</div>
+          </div>
+        </div>
+        <p style={{ textAlign: 'center', color: '#888', fontSize: '7pt', marginTop: '1em' }}>
+          For digital acceptance, please use the secure link provided. For physical copy, sign above and return to the respective parties.
+        </p>
+      </div>
     </div>
   );
 }

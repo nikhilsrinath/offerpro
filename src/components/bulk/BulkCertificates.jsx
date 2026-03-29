@@ -115,7 +115,7 @@ export default function BulkCertificates() {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                 <div style={{ padding: '2rem', background: 'var(--surface)', borderRadius: '16px', border: '1px solid var(--border)', position: 'relative', overflow: 'hidden' }}>
                     {/* Subtle background glow */}
-                    <div style={{ position: 'absolute', top: -100, right: -100, width: 300, height: 300, background: 'radial-gradient(circle, rgba(245, 200, 66, 0.05) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', top: -100, right: -100, width: 300, height: 300, background: 'radial-gradient(circle, rgba(59, 130, 246, 0.04) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
 
                     <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2.5rem', margin: '0 0 0.5rem 0', fontWeight: 800, letterSpacing: '-0.02em' }}>Bulk Certificate Generation</h1>
                     <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '1rem' }}>Issue verifiable certificates to multiple recipients simultaneously.</p>
@@ -131,7 +131,7 @@ export default function BulkCertificates() {
                                 {/* Left: Certificate Type */}
                                 <div style={{ flex: 1 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-                                        <div style={{ background: 'rgba(245, 200, 66, 0.1)', color: 'var(--gold)', width: 32, height: 32, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>1</div>
+                                        <div style={{ background: 'var(--blue-muted)', color: 'var(--blue)', width: 32, height: 32, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>1</div>
                                         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Certificate Type</h3>
                                     </div>
 
@@ -148,7 +148,7 @@ export default function BulkCertificates() {
                                                 fontSize: '1rem', outline: 'none', cursor: 'pointer', transition: 'border-color 0.2s',
                                                 boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
                                             }}
-                                            onFocus={e => e.target.style.borderColor = 'var(--gold)'}
+                                            onFocus={e => e.target.style.borderColor = 'var(--blue)'}
                                             onBlur={e => e.target.style.borderColor = 'var(--border)'}
                                         >
                                             {CERTIFICATE_TYPES.map(t => (
@@ -195,7 +195,7 @@ export default function BulkCertificates() {
                                                     <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>E.g. CERT-2026-64921</div>
                                                 </div>
                                             </div>
-                                            <div style={{ width: 44, height: 24, background: autoGenId ? 'var(--gold)' : 'var(--border)', borderRadius: '12px', padding: 2, display: 'flex', alignItems: 'center', transition: 'background 0.3s' }}>
+                                            <div style={{ width: 44, height: 24, background: autoGenId ? 'var(--blue)' : 'var(--border)', borderRadius: '12px', padding: 2, display: 'flex', alignItems: 'center', transition: 'background 0.3s' }}>
                                                 <motion.div animate={{ x: autoGenId ? 20 : 0 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} style={{ width: 20, height: 20, background: autoGenId ? '#000' : '#fff', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }} />
                                             </div>
                                         </div>
@@ -216,7 +216,7 @@ export default function BulkCertificates() {
                                                     <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Embeds a scannable verification code</div>
                                                 </div>
                                             </div>
-                                            <div style={{ width: 44, height: 24, background: addQr ? 'var(--gold)' : 'var(--border)', borderRadius: '12px', padding: 2, display: 'flex', alignItems: 'center', transition: 'background 0.3s' }}>
+                                            <div style={{ width: 44, height: 24, background: addQr ? 'var(--blue)' : 'var(--border)', borderRadius: '12px', padding: 2, display: 'flex', alignItems: 'center', transition: 'background 0.3s' }}>
                                                 <motion.div animate={{ x: addQr ? 20 : 0 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} style={{ width: 20, height: 20, background: addQr ? '#000' : '#fff', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }} />
                                             </div>
                                         </div>
@@ -229,7 +229,7 @@ export default function BulkCertificates() {
                                             onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
                                         >
                                             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                                <div style={{ width: 40, height: 40, borderRadius: '10px', background: 'rgba(245, 200, 66, 0.1)', color: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <div style={{ width: 40, height: 40, borderRadius: '10px', background: 'var(--blue-muted)', color: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                     <Database size={20} />
                                                 </div>
                                                 <div>
@@ -237,7 +237,7 @@ export default function BulkCertificates() {
                                                     <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Save to your permanent records database</div>
                                                 </div>
                                             </div>
-                                            <div style={{ width: 44, height: 24, background: addRegistry ? 'var(--gold)' : 'var(--border)', borderRadius: '12px', padding: 2, display: 'flex', alignItems: 'center', transition: 'background 0.3s' }}>
+                                            <div style={{ width: 44, height: 24, background: addRegistry ? 'var(--blue)' : 'var(--border)', borderRadius: '12px', padding: 2, display: 'flex', alignItems: 'center', transition: 'background 0.3s' }}>
                                                 <motion.div animate={{ x: addRegistry ? 20 : 0 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} style={{ width: 20, height: 20, background: addRegistry ? '#000' : '#fff', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }} />
                                             </div>
                                         </div>
@@ -249,7 +249,7 @@ export default function BulkCertificates() {
                             {/* Upload Data Panel */}
                             <div style={{ background: 'var(--surface)', borderRadius: '16px', border: '1px solid var(--border)', padding: '2.5rem', boxShadow: '0 10px 40px rgba(0,0,0,0.02)' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-                                    <div style={{ background: 'var(--gold)', color: '#000', width: 32, height: 32, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>2</div>
+                                    <div style={{ background: 'var(--btn-accent-bg)', color: 'var(--btn-accent-text)', width: 32, height: 32, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>2</div>
                                     <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Import Recipient Data</h3>
                                 </div>
                                 <CSVUploader columns={COLUMNS} onUpload={handleUpload} sampleData={MOCK_CERT_SAMPLE} />
@@ -262,7 +262,7 @@ export default function BulkCertificates() {
                             <div style={{ background: 'var(--surface)', borderRadius: '16px', border: '1px solid var(--border)', padding: '2rem' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                                     <h3 style={{ fontSize: '1.125rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                                        <div style={{ background: 'var(--gold)', color: '#000', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem' }}>3</div>
+                                        <div style={{ background: 'var(--btn-accent-bg)', color: 'var(--btn-accent-text)', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem' }}>3</div>
                                         Validation & Preview
                                     </h3>
                                     <button onClick={() => setStep(1)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.875rem', textDecoration: 'underline' }}>Configure again</button>
@@ -283,8 +283,8 @@ export default function BulkCertificates() {
                                         onClick={startGeneration}
                                         disabled={validCount === 0}
                                         style={{
-                                            background: validCount > 0 ? 'var(--gold)' : 'var(--background)',
-                                            color: validCount > 0 ? '#000' : 'var(--text-muted)',
+                                            background: validCount > 0 ? 'var(--btn-accent-bg)' : 'var(--background)',
+                                            color: validCount > 0 ? 'var(--btn-accent-text)' : 'var(--text-muted)',
                                             border: 'none',
                                             padding: '1rem 2rem',
                                             borderRadius: '8px',
@@ -325,7 +325,7 @@ export default function BulkCertificates() {
                                             </div>
                                         </div>
                                         <div style={{ display: 'flex', gap: '1rem' }}>
-                                            <button style={{ background: 'var(--gold)', color: '#000', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                            <button style={{ background: 'var(--btn-accent-bg)', color: 'var(--btn-accent-text)', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
                                                 <Download size={16} /> Download All as ZIP
                                             </button>
                                         </div>
@@ -371,7 +371,7 @@ export default function BulkCertificates() {
                                             (r.id || '').toLowerCase().includes(searchQuery.toLowerCase())
                                         )).map((res, i) => (
                                             <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                                                <td style={{ padding: '1rem', fontFamily: 'monospace', color: 'var(--gold)' }}>{res.id}</td>
+                                                <td style={{ padding: '1rem', fontFamily: 'monospace', color: 'var(--blue)' }}>{res.id}</td>
                                                 <td style={{ padding: '1rem', fontWeight: 600 }}>{res.recipient_name}</td>
                                                 <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{res.course_name}</td>
                                                 <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{new Date().toLocaleDateString()}</td>

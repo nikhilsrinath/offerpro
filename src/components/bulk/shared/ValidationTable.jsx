@@ -80,8 +80,8 @@ export default function ValidationTable({ data, columns, onEdit, validationConfi
                             className={`bulk-filter-btn ${filter === f ? 'active' : ''}`}
                             style={{
                                 background: filter === f ? 'var(--surface)' : 'transparent',
-                                border: `1px solid ${filter === f ? 'var(--gold)' : 'var(--border)'}`,
-                                color: filter === f ? 'var(--gold)' : 'var(--text-secondary)',
+                                border: `1px solid ${filter === f ? 'var(--blue)' : 'var(--border)'}`,
+                                color: filter === f ? 'var(--blue)' : 'var(--text-secondary)',
                                 padding: '0.4rem 1rem',
                                 borderRadius: '99px',
                                 fontSize: '0.8125rem',
@@ -128,8 +128,8 @@ export default function ValidationTable({ data, columns, onEdit, validationConfi
                                             <XCircle size={18} fill="rgba(231,76,60,0.1)" /> <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Invalid</span>
                                         </div>
                                     ) : row.__warnings.length > 0 ? (
-                                        <div title={row.__warnings.join(', ')} style={{ color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'help' }}>
-                                            <AlertTriangle size={18} fill="rgba(245,200,66,0.1)" /> <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Warning</span>
+                                        <div title={row.__warnings.join(', ')} style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'help' }}>
+                                            <AlertTriangle size={18} fill="rgba(245,158,11,0.1)" /> <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Warning</span>
                                         </div>
                                     ) : (
                                         <div style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -165,7 +165,7 @@ export default function ValidationTable({ data, columns, onEdit, validationConfi
                                                     style={{
                                                         width: '100%',
                                                         background: 'var(--background)',
-                                                        border: '1px solid var(--gold)',
+                                                        border: '1px solid var(--blue)',
                                                         color: 'var(--text-primary)',
                                                         padding: '0.25rem 0.5rem',
                                                         borderRadius: '4px',

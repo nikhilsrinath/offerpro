@@ -6,9 +6,9 @@ export default function RecipientStatusBadge({ status }) {
         switch (status) {
             case 'pending':
                 return {
-                    bg: 'rgba(245, 200, 66, 0.1)',
-                    color: '#F5C842', // var(--gold)
-                    border: 'rgba(245, 200, 66, 0.2)',
+                    bg: 'rgba(59, 130, 246, 0.1)',
+                    color: '#3b82f6',
+                    border: 'rgba(59, 130, 246, 0.2)',
                     label: 'Awaiting Your Response'
                 };
             case 'accepted':

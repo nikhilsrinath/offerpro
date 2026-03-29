@@ -30,6 +30,11 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
     company_website: '',
     gstin: '',
     cin: '',
+    upi_id: '',
+    bank_name: '',
+    bank_account_number: '',
+    bank_ifsc: '',
+    bank_account_type: 'Current',
     logo_url: '',
     signature_url: '',
     stamp_type: 'generated',
@@ -42,7 +47,7 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
 
   useEffect(() => {
     if (activeOrg) {
-      setForm({
+      const formData = {
         company_name: activeOrg.company_name || '',
         company_tagline: activeOrg.company_tagline || '',
         company_address: activeOrg.company_address || '',
@@ -53,6 +58,11 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         company_website: activeOrg.company_website || '',
         gstin: activeOrg.gstin || '',
         cin: activeOrg.cin || '',
+        upi_id: activeOrg.upi_id || '',
+        bank_name: activeOrg.bank_name || '',
+        bank_account_number: activeOrg.bank_account_number || '',
+        bank_ifsc: activeOrg.bank_ifsc || '',
+        bank_account_type: activeOrg.bank_account_type || 'Current',
         logo_url: activeOrg.logo_url || '',
         signature_url: activeOrg.signature_url || '',
         stamp_type: activeOrg.stamp_type || 'generated',
@@ -61,7 +71,10 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         emailjs_service_id: activeOrg.emailjs_service_id || '',
         emailjs_template_id: activeOrg.emailjs_template_id || '',
         emailjs_public_key: activeOrg.emailjs_public_key || '',
-      });
+      };
+      setForm(formData);
+      // Keep localStorage in sync for documentStore.getCompanyProfile()
+      localStorage.setItem('offerpro_company_profile', JSON.stringify(formData));
     }
   }, [activeOrg]);
 
@@ -113,6 +126,8 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
     setError('');
     try {
       await updateOrganization(activeOrg.id, form);
+      // Sync to localStorage for documentStore.getCompanyProfile()
+      localStorage.setItem('offerpro_company_profile', JSON.stringify(form));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -208,10 +223,53 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         </div>
       </div>
 
-      {/* 2. Authorized Person */}
+      {/* 2. Payment & Banking */}
       <div className="easy-section">
         <div className="easy-section-head">
           <div className="easy-num">2</div>
+          <span className="easy-section-title">Payment & Banking</span>
+        </div>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+          These details are used to generate UPI QR codes and display bank info on invoices, quotations, and the recipient portal.
+        </p>
+        <div className="easy-row">
+          <div className="easy-field">
+            <label className="easy-lbl">UPI ID</label>
+            <input name="upi_id" value={form.upi_id} onChange={handleChange}
+              placeholder="yourname@upi" className="easy-inp"
+              style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }} />
+          </div>
+          <div className="easy-field">
+            <label className="easy-lbl">Bank name</label>
+            <input name="bank_name" value={form.bank_name} onChange={handleChange}
+              placeholder="e.g. HDFC Bank" className="easy-inp" />
+          </div>
+          <div className="easy-field">
+            <label className="easy-lbl">Account number</label>
+            <input name="bank_account_number" value={form.bank_account_number} onChange={handleChange}
+              placeholder="e.g. 1234567890123" className="easy-inp"
+              style={{ fontFamily: 'monospace', letterSpacing: '0.05em' }} />
+          </div>
+          <div className="easy-field">
+            <label className="easy-lbl">IFSC code</label>
+            <input name="bank_ifsc" value={form.bank_ifsc} onChange={handleChange}
+              placeholder="e.g. HDFC0001234" className="easy-inp"
+              style={{ textTransform: 'uppercase', fontFamily: 'monospace', letterSpacing: '0.05em' }} />
+          </div>
+          <div className="easy-field">
+            <label className="easy-lbl">Account type</label>
+            <select name="bank_account_type" value={form.bank_account_type} onChange={handleChange} className="easy-inp">
+              <option value="Current">Current</option>
+              <option value="Savings">Savings</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Authorized Person */}
+      <div className="easy-section">
+        <div className="easy-section-head">
+          <div className="easy-num">3</div>
           <span className="easy-section-title">Authorized person</span>
         </div>
         <div className="easy-row">
@@ -228,10 +286,10 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         </div>
       </div>
 
-      {/* 3. Branding */}
+      {/* 4. Branding */}
       <div className="easy-section">
         <div className="easy-section-head">
-          <div className="easy-num">3</div>
+          <div className="easy-num">4</div>
           <span className="easy-section-title">Logo & signature</span>
         </div>
         <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
@@ -282,10 +340,10 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         </div>
       </div>
 
-      {/* 4. Company Stamp */}
+      {/* 5. Company Stamp */}
       <div className="easy-section">
         <div className="easy-section-head">
-          <div className="easy-num">4</div>
+          <div className="easy-num">5</div>
           <span className="easy-section-title">Company stamp</span>
         </div>
         <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
@@ -348,10 +406,10 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         )}
       </div>
 
-      {/* 5. Appearance */}
+      {/* 6. Appearance */}
       <div className="easy-section">
         <div className="easy-section-head">
-          <div className="easy-num">5</div>
+          <div className="easy-num">6</div>
           <span className="easy-section-title">Appearance</span>
         </div>
         <div className="theme-toggle-row">
@@ -369,10 +427,10 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         </div>
       </div>
 
-      {/* 6. Email Integration */}
+      {/* 7. Email Integration */}
       <div className="easy-section">
         <div className="easy-section-head">
-          <div className="easy-num">6</div>
+          <div className="easy-num">7</div>
           <span className="easy-section-title">Email Integration</span>
         </div>
         <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.6 }}>

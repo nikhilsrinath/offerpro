@@ -21,6 +21,15 @@ const LandingPage = ({ onEnter }) => {
   const containerRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
+  // Force dark theme on landing page
+  useEffect(() => {
+    const prev = document.documentElement.getAttribute('data-theme');
+    document.documentElement.setAttribute('data-theme', 'dark');
+    return () => {
+      document.documentElement.setAttribute('data-theme', prev || 'light');
+    };
+  }, []);
+
   const testimonials = [
     {
       name: "Sarah Chen",

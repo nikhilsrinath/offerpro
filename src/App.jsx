@@ -3,7 +3,8 @@ import {
   LayoutDashboard, Briefcase, Award, Scale, ShieldCheck, Receipt,
   DollarSign, Layers, Archive, LogOut, Menu, X,
   Zap, UserCircle, ChevronRight, Clock, Mail, AlertTriangle, Users,
-  UploadCloud, FileCheck, FileSignature, History
+  UploadCloud, FileCheck, FileSignature, History,
+  FileSpreadsheet, FilePlus, RotateCcw, Activity
 } from 'lucide-react';
 
 import OfferForm from './components/OfferForm';
@@ -31,6 +32,15 @@ import BulkCertificates from './components/bulk/BulkCertificates';
 import BulkTeamMembers from './components/bulk/BulkTeamMembers';
 import BulkHistory from './components/bulk/BulkHistory';
 import RecipientPortal from './components/portal/RecipientPortal';
+import { ToastProvider } from './components/shared/Toast';
+
+// Financial Documents
+import QuotationForm from './components/financial/QuotationForm';
+import ProformaInvoiceForm from './components/financial/ProformaInvoiceForm';
+import RecurringInvoicePage from './components/financial/RecurringInvoiceForm';
+import InvoiceList from './components/financial/InvoiceList';
+import FinanceStatus from './components/financial/FinanceStatus';
+
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -41,7 +51,13 @@ const NAV_ITEMS = [
   { id: 'certificates', label: 'Certificates', icon: Award },
   { id: 'ndas', label: 'NDA', icon: ShieldCheck },
   { id: 'mous', label: 'MoU', icon: Scale },
+  { section: 'FINANCE' },
+  { id: 'finance-status', label: 'Status', icon: Activity },
   { id: 'invoices', label: 'Invoices', icon: Receipt },
+  { id: 'invoice-list', label: 'Invoice List', icon: FileSpreadsheet },
+  { id: 'quotations', label: 'Quotations', icon: FilePlus },
+  { id: 'proforma', label: 'Proforma Invoice', icon: FileCheck },
+  { id: 'recurring', label: 'Recurring Invoices', icon: RotateCcw },
   { section: 'BUSINESS' },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'revenue', label: 'Billing & Revenue', icon: DollarSign },
@@ -62,7 +78,14 @@ const PAGE_META = {
   certificates: { title: 'Certificates', subtitle: 'Issue professional attainment certificates' },
   ndas: { title: 'Non-Disclosure Agreements', subtitle: 'Draft legal-grade confidentiality agreements' },
   mous: { title: 'Memorandum of Understanding', subtitle: 'Establish collaboration frameworks and partnerships' },
-  invoices: { title: 'Invoices', subtitle: 'Generate professional business invoices' },
+  'finance-status': { title: 'Finance Status', subtitle: 'Track all financial documents through their lifecycle' },
+  invoices: { title: 'New Invoice', subtitle: 'Generate professional business invoices' },
+  'invoice-list': { title: 'Invoices', subtitle: 'Manage and track all your invoices' },
+  quotations: { title: 'Quotations', subtitle: 'Create and manage quotations for clients' },
+  'quotation-list': { title: 'Quotation List', subtitle: 'Track all quotations and their status' },
+  proforma: { title: 'Proforma Invoice', subtitle: 'Create proforma invoices with advance payment tracking' },
+  'proforma-list': { title: 'Proforma List', subtitle: 'Track all proforma invoices' },
+  recurring: { title: 'Recurring Invoices', subtitle: 'Manage automated recurring invoice schedules' },
   customers: { title: 'Customers', subtitle: 'Manage your client database' },
   revenue: { title: 'Billing & Revenue', subtitle: 'Track revenue, expenses, and profitability' },
   planner: { title: 'Product Planner', subtitle: 'Plan and track products and projects' },
@@ -229,7 +252,14 @@ function AppContent() {
           {activePage === 'certificates' && <CertificateForm onSuccess={() => navigate('records')} />}
           {activePage === 'ndas' && <NdaForm onSuccess={() => navigate('records')} />}
           {activePage === 'mous' && <MoUForm onSuccess={() => navigate('records')} />}
-          {activePage === 'invoices' && <InvoiceForm onSuccess={() => navigate('records')} />}
+          {activePage === 'finance-status' && <FinanceStatus />}
+          {activePage === 'invoices' && <InvoiceForm onSuccess={() => navigate('invoice-list')} />}
+          {activePage === 'invoice-list' && <InvoiceList type="invoice" onNavigateToNew={() => navigate('invoices')} />}
+          {activePage === 'quotations' && <QuotationForm />}
+          {activePage === 'quotation-list' && <InvoiceList type="quotation" onNavigateToNew={() => navigate('quotations')} />}
+          {activePage === 'proforma' && <ProformaInvoiceForm />}
+          {activePage === 'proforma-list' && <InvoiceList type="proforma" onNavigateToNew={() => navigate('proforma')} />}
+          {activePage === 'recurring' && <RecurringInvoicePage />}
           {activePage === 'customers' && <Customers />}
           {activePage === 'revenue' && <BillingRevenue />}
           {activePage === 'planner' && <ProductPlanner />}
@@ -270,11 +300,14 @@ function App() {
   const path = window.location.pathname;
   if (path.startsWith('/portal/')) {
     const documentId = path.split('/')[2];
-    return <RecipientPortal documentId={documentId} />;
+    return (
+      <ToastProvider>
+        <RecipientPortal documentId={documentId} />
+      </ToastProvider>
+    );
   }
 
   // Handle URL-based basic routing for the app
-  // In a real app we'd use react-router, but this matches the existing pattern
   if (path.startsWith('/bulk/offer-letters')) {
     window.history.pushState({}, '', '/');
     sessionStorage.setItem('initialPage', 'bulk-offers');
@@ -292,7 +325,9 @@ function App() {
   return (
     <AuthProvider>
       <OrgProvider>
-        <AppContent />
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
       </OrgProvider>
     </AuthProvider>
   );

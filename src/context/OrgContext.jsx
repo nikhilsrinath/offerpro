@@ -53,6 +53,10 @@ export const OrgProvider = ({ children }) => {
       setOrganizations(orgs);
       if (orgs.length > 0) {
         setActiveOrg(orgs[0]);
+        // Sync company profile to localStorage for documentStore
+        try {
+          localStorage.setItem('offerpro_company_profile', JSON.stringify(orgs[0]));
+        } catch {}
       }
     } catch (err) {
       console.warn("Could not fetch organizations:", err);

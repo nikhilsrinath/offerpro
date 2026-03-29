@@ -42,7 +42,7 @@ export default function DocumentCard({ title, subtitle, status, timestamp, onPre
             {/* Format Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ width: 40, height: 40, borderRadius: '8px', background: 'rgba(245, 200, 66, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold)' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: '8px', background: 'var(--blue-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--blue)' }}>
                         <FileText size={20} />
                     </div>
                     <div>

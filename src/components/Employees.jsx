@@ -20,6 +20,14 @@ function getAvatarColor(name) {
     return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
+function getDisplayName(emp) {
+    if (emp.studentName) return emp.studentName;
+    const first = (emp.first_name || '').trim();
+    const last = (emp.last_name || '').trim();
+    if (first || last) return `${first} ${last}`.trim();
+    return '';
+}
+
 export default function Employees() {
     const { activeOrg } = useOrg();
     const [employees, setEmployees] = useState([]);
@@ -102,7 +110,7 @@ export default function Employees() {
         if (!searchTerm) return list;
         const term = searchTerm.toLowerCase();
         return list.filter(emp =>
-            emp.studentName?.toLowerCase().includes(term) ||
+            getDisplayName(emp).toLowerCase().includes(term) ||
             emp.role?.toLowerCase().includes(term) ||
             emp.department?.toLowerCase().includes(term) ||
             emp.email?.toLowerCase().includes(term)
@@ -143,7 +151,7 @@ export default function Employees() {
                     {[
                         { label: 'Total Members', value: counts.all, color: '#3b82f6', icon: Users },
                         { label: 'Full-Time', value: counts.fulltime, color: '#10b981', icon: Briefcase },
-                        { label: 'Interns', value: counts.intern, color: '#f59e0b', icon: Calendar },
+                        { label: 'Interns', value: counts.intern, color: '#a1a1aa', icon: Calendar },
                         { label: 'Departments', value: counts.departments, color: '#8b5cf6', icon: Building },
                     ].map((s, i) => {
                         const Icon = s.icon;
@@ -241,15 +249,16 @@ export default function Employees() {
                         </thead>
                         <tbody>
                             {filteredEmployees.map((emp) => {
-                                const [c1, c2] = getAvatarColor(emp.studentName);
+                                const name = getDisplayName(emp);
+                                const [c1, c2] = getAvatarColor(name);
                                 return (
                                     <tr key={emp.id}>
                                         <td>
                                             <div className="emp-table-name">
                                                 <div className="emp-avatar" style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
-                                                    {emp.studentName?.[0]?.toUpperCase()}
+                                                    {name?.[0]?.toUpperCase()}
                                                 </div>
-                                                <span>{emp.studentName}</span>
+                                                <span>{name}</span>
                                             </div>
                                         </td>
                                         <td>
@@ -291,18 +300,19 @@ export default function Employees() {
                 /* Grid View */
                 <div className="emp-grid">
                     {filteredEmployees.map((emp) => {
-                        const [c1, c2] = getAvatarColor(emp.studentName);
+                        const name = getDisplayName(emp);
+                        const [c1, c2] = getAvatarColor(name);
                         return (
                             <div key={emp.id} className="emp-grid-card">
                                 <div className="emp-grid-card-top">
                                     <div className="emp-avatar emp-avatar-lg" style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
-                                        {emp.studentName?.[0]?.toUpperCase()}
+                                        {name?.[0]?.toUpperCase()}
                                     </div>
                                     <button onClick={() => handleDelete(emp.id)} className="emp-delete-btn">
                                         <Trash2 size={15} />
                                     </button>
                                 </div>
-                                <h4 className="emp-card-name">{emp.studentName}</h4>
+                                <h4 className="emp-card-name">{name}</h4>
                                 <p className="emp-card-role">{emp.role}</p>
                                 <div className="emp-card-badges">
                                     <span className={`emp-type-badge ${emp.offerType === 'fulltime' ? 'fulltime' : 'intern'}`}>

@@ -1,272 +1,1000 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Check, X, ShieldCheck, Mail, AlertCircle, Building, FileText, CheckCircle2 } from 'lucide-react';
-import SignatureCanvas from '../bulk/shared/SignatureCanvas';
-import RecipientStatusBadge from '../bulk/shared/RecipientStatusBadge';
+import {
+  Download, Check, X, ShieldCheck, Building2, FileText, CheckCircle2,
+  AlertCircle, Calendar, Clock, Lock, User, ZoomIn, ZoomOut,
+  Copy, CreditCard, Banknote, MessageSquare, ExternalLink, Shield,
+  Sparkles, ArrowRight, Eye, Hash, Mail
+} from 'lucide-react';
+import { documentStore } from '../../services/documentStore';
+import SignatureCapture from '../shared/SignatureCapture';
+import UPIQRGenerator from '../shared/UPIQRGenerator';
+import PaymentConfirmationForm from '../shared/PaymentConfirmationForm';
+import DocumentStatusBadge from '../shared/DocumentStatusBadge';
+
+const fadeUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+};
+
+const stagger = {
+  animate: { transition: { staggerChildren: 0.08 } },
+};
+
+function formatDocType(type) {
+  const map = {
+    offer_letter: 'Offer Letter',
+    mou: 'Memorandum of Understanding',
+    nda: 'Non-Disclosure Agreement',
+    invoice: 'Tax Invoice',
+    quotation: 'Quotation',
+    proforma: 'Proforma Invoice',
+  };
+  return map[type] || type?.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'Document';
+}
 
 export default function RecipientPortal({ documentId }) {
-    const [loading, setLoading] = useState(true);
-    const [docData, setDocData] = useState(null);
-    const [status, setStatus] = useState('pending'); // pending, signed, declined, expired
-    const [showSignModal, setShowSignModal] = useState(false);
-    const [showDeclineModal, setShowDeclineModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [docData, setDocData] = useState(null);
+  const [status, setStatus] = useState('pending');
+  const [zoom, setZoom] = useState(100);
+  const [signature, setSignature] = useState(null);
+  const [signatureMethod, setSignatureMethod] = useState(null);
+  const [agreed, setAgreed] = useState(false);
+  const [showDeclineModal, setShowDeclineModal] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
+  const [showBankDetails, setShowBankDetails] = useState(false);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [paymentSubmitted, setPaymentSubmitted] = useState(false);
+  const [revisionText, setRevisionText] = useState('');
+  const [showRevisionModal, setShowRevisionModal] = useState(false);
+  const [orderConfirmed, setOrderConfirmed] = useState(false);
+  const [candidateName, setCandidateName] = useState('');
+  const [candidateDesignation, setCandidateDesignation] = useState('');
+  const [candidateDate, setCandidateDate] = useState(new Date().toISOString().split('T')[0]);
+  const [partyBSignature, setPartyBSignature] = useState(null);
+  const [partyBAgreed, setPartyBAgreed] = useState(false);
+  const [copied, setCopied] = useState('');
 
-    const signatureRef = useRef(null);
+  useEffect(() => {
+    documentStore.init();
+    const timer = setTimeout(() => {
+      const doc = documentStore.getById(documentId);
+      if (doc) {
+        setDocData(doc);
+        setStatus(doc.status);
+        if (doc.issued_to) setCandidateName(doc.issued_to);
+      } else {
+        setDocData(null);
+      }
+      setLoading(false);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [documentId]);
 
-    useEffect(() => {
-        // Simulate fetching document data securely via token/ID
-        const timer = setTimeout(() => {
-            setDocData({
-                id: documentId || 'DOC-90210',
-                type: 'Offer Letter',
-                title: 'Full-Time Employment Offer',
-                companyName: 'Acme Corp',
-                recipientName: 'Rahul Sharma',
-                role: 'UI Designer',
-                expiryDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-                contentHtml: `
-          <div style="font-family: serif; line-height: 1.6; color: #333;">
-            <h2 style="text-align: center; margin-bottom: 2rem;">OFFER OF EMPLOYMENT</h2>
-            <p>Dear Rahul,</p>
-            <p>We are thrilled to offer you the position of <strong>UI Designer</strong> at Acme Corp. We believe your skills and experience are an excellent match for our company.</p>
-            <p><strong>Start Date:</strong> April 1, 2026<br/>
-               <strong>Location:</strong> Chennai (Hybrid)<br/>
-               <strong>Compensation:</strong> ₹25,000 per month
-            </p>
-            <p>This offer is contingent upon the successful completion of a background check. By signing this document, you accept the terms outlined within the full employment agreement attached.</p>
-            <br/><br/>
-            <p>Sincerely,</p>
-            <p><strong>Nikhil Srinath</strong><br/>CEO, Acme Corp</p>
-          </div>
-        `
-            });
-            setLoading(false);
-        }, 1200);
-        return () => clearTimeout(timer);
-    }, [documentId]);
+  // ── Handlers ──
+  const handleAcceptOffer = () => {
+    if (!signature || !agreed) return;
+    documentStore.updateStatus(docData.id, 'signed', {
+      candidate_signature: signature,
+      signature_method: signatureMethod,
+      candidate_name: candidateName,
+      signed_at: new Date().toISOString(),
+    });
+    documentStore.addNotification({
+      type: 'offer_signed',
+      title: `Offer accepted by ${candidateName}`,
+      message: `${candidateName} has signed the offer letter ${docData.id}`,
+      document_id: docData.id,
+    });
+    setStatus('signed');
+  };
 
-    const handleSign = () => {
-        if (signatureRef.current) {
-            const sigData = signatureRef.current.getSignatureData();
-            if (!sigData) {
-                alert('Please provide a signature before submitting.');
-                return;
-            }
-            // Simulate API call to save signature
-            setShowSignModal(false);
-            setStatus('signed');
-        }
-    };
+  const handleDecline = () => {
+    documentStore.updateStatus(docData.id, 'declined', { decline_reason: declineReason });
+    documentStore.addNotification({
+      type: 'document_declined',
+      title: `Document declined`,
+      message: `${docData.issued_to} has declined ${docData.id}. Reason: ${declineReason || 'Not specified'}`,
+      document_id: docData.id,
+    });
+    setShowDeclineModal(false);
+    setStatus('declined');
+  };
 
-    const handleDecline = () => {
-        // Simulate API call to decline offer
-        setShowDeclineModal(false);
-        setStatus('declined');
-    };
+  const handleMoUSign = () => {
+    if (!partyBSignature || !partyBAgreed) return;
+    documentStore.updateStatus(docData.id, 'fully_signed', {
+      party_b: {
+        ...docData.party_b,
+        signature: partyBSignature,
+        representative: candidateName || docData.party_b?.representative,
+        designation: candidateDesignation || docData.party_b?.designation,
+        signed_at: new Date().toISOString(),
+      },
+    });
+    documentStore.addNotification({
+      type: 'mou_fully_signed',
+      title: `MoU fully signed`,
+      message: `Both parties have signed ${docData.id}`,
+      document_id: docData.id,
+    });
+    setStatus('fully_signed');
+  };
 
-    if (loading) {
-        return (
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#0A0A0F', color: '#fff' }}>
-                <div style={{ width: '40px', height: '40px', border: '3px solid rgba(255,255,255,0.1)', borderTopColor: 'var(--gold, #F5C842)', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '1.5rem' }} />
-                <span style={{ fontWeight: 600, fontSize: '0.875rem', opacity: 0.6, letterSpacing: '0.05em' }}>SECURING SECURE CONNECTION...</span>
-            </div>
-        );
-    }
+  const handlePaymentConfirmation = (data) => {
+    documentStore.updateStatus(docData.id, 'payment_submitted', { payment_confirmation: data });
+    documentStore.addNotification({
+      type: 'payment_submitted',
+      title: `Payment submitted for ${docData.id}`,
+      message: `₹${data.amountPaid?.toLocaleString('en-IN')} — UTR: ${data.transactionId}`,
+      document_id: docData.id,
+    });
+    setPaymentSubmitted(true);
+    setStatus('payment_submitted');
+  };
 
-    // Determine portal theme based on light/dark. We force a clean, trusted look.
+  const handleAcceptQuotation = () => {
+    if (!signature || !agreed) return;
+    documentStore.updateStatus(docData.id, 'accepted', {
+      accepted_by: candidateName,
+      accepted_signature: signature,
+      accepted_at: new Date().toISOString(),
+    });
+    documentStore.addNotification({
+      type: 'quotation_accepted',
+      title: `Quotation accepted`,
+      message: `${candidateName} accepted ${docData.id}`,
+      document_id: docData.id,
+    });
+    setStatus('accepted');
+  };
+
+  const handleRevisionRequest = () => {
+    documentStore.updateStatus(docData.id, 'revision_requested', { revision_notes: revisionText });
+    documentStore.addNotification({
+      type: 'revision_requested',
+      title: `Revision requested for ${docData.id}`,
+      message: revisionText,
+      document_id: docData.id,
+    });
+    setShowRevisionModal(false);
+    setStatus('revision_requested');
+  };
+
+  const handleConfirmOrder = () => {
+    documentStore.updateStatus(docData.id, 'order_confirmed');
+    setOrderConfirmed(true);
+  };
+
+  const handleProformaPayment = (data) => {
+    documentStore.updateStatus(docData.id, 'advance_paid', { payment_confirmation: data });
+    documentStore.addNotification({
+      type: 'advance_paid',
+      title: `Advance payment received for ${docData.id}`,
+      message: `₹${data.amountPaid?.toLocaleString('en-IN')} advance paid`,
+      document_id: docData.id,
+    });
+    setPaymentSubmitted(true);
+    setStatus('advance_paid');
+  };
+
+  const handleCopy = async (text, label) => {
+    await navigator.clipboard.writeText(text);
+    setCopied(label);
+    setTimeout(() => setCopied(''), 2000);
+  };
+
+  // ── Loading ──
+  if (loading) {
     return (
-        <div style={{ minHeight: '100vh', background: '#f8f9fb', fontFamily: 'var(--font-main, sans-serif)', color: '#18181b' }}>
-            {/* Top Navbar */}
-            <nav style={{ background: '#fff', borderBottom: '1px solid rgba(0,0,0,0.08)', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ background: '#0A0A0F', color: '#F5C842', padding: '0.5rem', borderRadius: '8px' }}>
-                        <Building size={20} />
-                    </div>
-                    <div>
-                        <h1 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 800 }}>{docData?.companyName}</h1>
-                        <p style={{ margin: 0, fontSize: '0.75rem', color: '#71717a' }}>Secure Document Portal</p>
-                    </div>
+      <div className="rp-loading">
+        <div className="rp-loading-inner">
+          <div className="rp-loading-spinner" />
+          <div className="rp-loading-text">
+            <Shield size={14} />
+            <span>Establishing secure connection...</span>
+          </div>
+        </div>
+        <footer className="rp-footer">
+          <div className="rp-footer-inner">
+            <div className="rp-footer-brand"><Shield size={13} /><span>Powered by <strong>OfferPro Suite</strong></span></div>
+            <p className="rp-footer-tagline">Secure document management for businesses</p>
+          </div>
+        </footer>
+      </div>
+    );
+  }
+
+  // ── Not Found ──
+  if (!docData) {
+    return (
+      <div className="rp-loading">
+        <div className="rp-loading-inner">
+          <div className="rp-notfound-icon"><AlertCircle size={32} /></div>
+          <h2>Document Not Found</h2>
+          <p>This link may have expired or the document ID is invalid.</p>
+        </div>
+        <footer className="rp-footer">
+          <div className="rp-footer-inner">
+            <div className="rp-footer-brand"><Shield size={13} /><span>Powered by <strong>OfferPro Suite</strong></span></div>
+            <p className="rp-footer-tagline">Secure document management for businesses</p>
+          </div>
+        </footer>
+      </div>
+    );
+  }
+
+  const isActionTaken = ['signed', 'declined', 'paid', 'payment_submitted', 'accepted', 'fully_signed', 'advance_paid', 'revision_requested'].includes(status);
+  const company = documentStore.getCompanyProfile();
+
+  // ── Render ──
+  return (
+    <div className="rp-page">
+      {/* ── Top Navigation ── */}
+      <header className="rp-header">
+        <div className="rp-header-inner">
+          <div className="rp-header-left">
+            {company.logo_url ? (
+              <img src={company.logo_url} alt="" className="rp-header-logo" />
+            ) : (
+              <div className="rp-header-logo-placeholder">
+                <Building2 size={18} />
+              </div>
+            )}
+            <div className="rp-header-brand">
+              <h1>{docData.issued_by || company.company_name || 'Company'}</h1>
+              <span>Secure Document Portal</span>
+            </div>
+          </div>
+          <div className="rp-header-right">
+            <div className="rp-header-doctype">{formatDocType(docData.type)}</div>
+            <DocumentStatusBadge status={status} />
+          </div>
+        </div>
+      </header>
+
+      {/* ── Security Bar ── */}
+      <div className="rp-security-bar">
+        <div className="rp-security-inner">
+          <Lock size={11} />
+          <span>End-to-end encrypted</span>
+          <span className="rp-security-sep">|</span>
+          <span>Document ID: {docData.id}</span>
+          <span className="rp-security-sep">|</span>
+          <span>Powered by OfferPro</span>
+        </div>
+      </div>
+
+      {/* ── Main Content ── */}
+      <div className="rp-main">
+        <motion.div className="rp-layout" initial="initial" animate="animate" variants={stagger}>
+
+          {/* Left: Document Viewer */}
+          <motion.div className="rp-viewer" variants={fadeUp}>
+            {/* Document Info Card */}
+            <div className="rp-doc-info-card">
+              <div className="rp-doc-info-grid">
+                <div className="rp-doc-info-item">
+                  <FileText size={14} />
+                  <div>
+                    <span className="rp-doc-info-label">Document</span>
+                    <span className="rp-doc-info-value">{docData.title || formatDocType(docData.type)}</span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.875rem', color: '#71717a' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><ShieldCheck size={16} color="#2EE8A0" /> Encrypted</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Mail size={16} /> {docData?.recipientName}</span>
+                <div className="rp-doc-info-item">
+                  <User size={14} />
+                  <div>
+                    <span className="rp-doc-info-label">Recipient</span>
+                    <span className="rp-doc-info-value">{docData.issued_to || docData.party_b?.company || 'Recipient'}</span>
+                  </div>
                 </div>
-            </nav>
-
-            {/* Main Content Area */}
-            <div className="recipient-portal-layout" style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
-
-                {/* Document Viewer */}
-                <div style={{ flex: 1 }}>
-                    {status === 'signed' && (
-                        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-                            <CheckCircle2 size={24} color="#059669" style={{ marginTop: '0.25rem' }} />
-                            <div>
-                                <h3 style={{ margin: '0 0 0.25rem 0', color: '#065f46', fontSize: '1.125rem' }}>Document Signed Successfully</h3>
-                                <p style={{ margin: 0, color: '#047857', fontSize: '0.875rem' }}>You have legally signed this document. A confirmation email with the final PDF will be sent to your inbox shortly.</p>
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {status === 'declined' && (
-                        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-                            <AlertCircle size={24} color="#dc2626" style={{ marginTop: '0.25rem' }} />
-                            <div>
-                                <h3 style={{ margin: '0 0 0.25rem 0', color: '#991b1b', fontSize: '1.125rem' }}>Document Declined</h3>
-                                <p style={{ margin: 0, color: '#b91c1c', fontSize: '0.875rem' }}>You have declined this document. The issuer has been notified of your decision.</p>
-                            </div>
-                        </motion.div>
-                    )}
-
-                    <div style={{ background: '#fff', borderRadius: '12px', boxShadow: '0 4px 24px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-                        <div style={{ padding: '1.5rem', borderBottom: '1px solid rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fafafa' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                <FileText size={20} color="#71717a" />
-                                <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Page 1 of 1</span>
-                            </div>
-                            <button style={{ background: 'transparent', border: '1px solid rgba(0,0,0,0.1)', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8125rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem', fontWeight: 600 }}>
-                                <Download size={14} /> Download PDF
-                            </button>
-                        </div>
-
-                        {/* The Document Page */}
-                        <div style={{ padding: '4rem', minHeight: '800px', background: '#fff' }} dangerouslySetInnerHTML={{ __html: docData?.contentHtml }} />
-
-                        {status === 'signed' && (
-                            <div style={{ padding: '0 4rem 4rem 4rem' }}>
-                                <div style={{ borderTop: '2px solid #000', width: '250px', paddingTop: '0.5rem', marginTop: '2rem' }}>
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Signature_of_John_Hancock.png" alt="Signature" style={{ maxHeight: '60px', width: 'auto', display: 'block', marginBottom: '0.5rem', opacity: 0.8 }} />
-                                    <div style={{ fontSize: '0.75rem', color: '#71717a', fontFamily: 'monospace' }}>
-                                        Digitally Signed by {docData?.recipientName}<br />
-                                        {new Date().toLocaleString()}<br />
-                                        IP: 192.168.1.1 &bull; ID: {docData?.id}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                <div className="rp-doc-info-item">
+                  <Calendar size={14} />
+                  <div>
+                    <span className="rp-doc-info-label">Issued</span>
+                    <span className="rp-doc-info-value">{docData.issue_date || '-'}</span>
+                  </div>
                 </div>
-
-                {/* Action Sidebar */}
-                <div className="recipient-portal-sidebar">
-                    <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.08)', padding: '2rem', boxShadow: '0 10px 30px rgba(0,0,0,0.04)' }}>
-                        <div style={{ marginBottom: '1.5rem' }}>
-                            <RecipientStatusBadge status={status === 'signed' ? 'accepted' : status} />
-                        </div>
-                        <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem', fontWeight: 800 }}>{docData?.title}</h2>
-                        <p style={{ margin: '0 0 2rem 0', color: '#71717a', fontSize: '0.875rem', lineHeight: 1.6 }}>Please review the document carefully. By signing, you agree to the terms and conditions set forth by {docData?.companyName}.</p>
-
-                        <div style={{ background: '#f4f4f5', padding: '1rem', borderRadius: '8px', marginBottom: '2rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
-                                <span style={{ color: '#71717a' }}>Document ID</span>
-                                <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{docData?.id}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                                <span style={{ color: '#71717a' }}>Expires On</span>
-                                <span style={{ fontWeight: 600 }}>{docData?.expiryDate}</span>
-                            </div>
-                        </div>
-
-                        {status === 'pending' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                <button onClick={() => setShowSignModal(true)} style={{ width: '100%', background: '#0A0A0F', color: '#F5C842', border: 'none', padding: '1rem', borderRadius: '8px', fontSize: '1rem', fontWeight: 700, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', transition: 'transform 0.2s', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                                    <Check size={18} /> Sign Document
-                                </button>
-                                <button onClick={() => setShowDeclineModal(true)} style={{ width: '100%', background: 'transparent', color: '#71717a', border: '1px solid rgba(0,0,0,0.1)', padding: '1rem', borderRadius: '8px', fontSize: '1rem', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}>
-                                    Decline to Sign
-                                </button>
-                            </div>
-                        )}
-
-                        {(status === 'signed' || status === 'declined') && (
-                            <div style={{ textAlign: 'center', padding: '1rem', background: '#f4f4f5', borderRadius: '8px', color: '#71717a', fontSize: '0.875rem' }}>
-                                Your response has been recorded securely. You may safely close this tab window.
-                            </div>
-                        )}
-                    </div>
-
-                    <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.75rem', color: '#a1a1aa' }}>
-                        Powered securely by <strong>OfferPro Sign</strong>
-                    </div>
+                <div className="rp-doc-info-item">
+                  <Clock size={14} />
+                  <div>
+                    <span className="rp-doc-info-label">{docData.type === 'quotation' ? 'Valid Until' : docData.type === 'offer_letter' ? 'Respond By' : 'Due Date'}</span>
+                    <span className="rp-doc-info-value">{docData.valid_until || docData.due_date || '-'}</span>
+                  </div>
                 </div>
+              </div>
             </div>
 
-            {/* Signature Modal */}
-            <AnimatePresence>
-                {showSignModal && (
-                    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowSignModal(false)} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }} />
+            {/* Zoom Controls */}
+            <div className="rp-zoom-bar">
+              <button onClick={() => setZoom(Math.max(50, zoom - 10))}><ZoomOut size={14} /></button>
+              <span>{zoom}%</span>
+              <button onClick={() => setZoom(Math.min(150, zoom + 10))}><ZoomIn size={14} /></button>
+              <button onClick={() => setZoom(100)} className="rp-zoom-reset">Reset</button>
+            </div>
 
-                        <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} style={{ position: 'relative', width: '100%', maxWidth: '600px', background: 'var(--surface, #161619)', borderRadius: '16px', border: '1px solid var(--border, rgba(255,255,255,0.1))', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }} className="dark-theme-override">
-                            {/* Force dark mode specifically for this modal to match OfferPro aesthetics */}
-                            <style>{`
-                .dark-theme-override {
-                  --surface: #0f0f12;
-                  --background: #09090b;
-                  --border: rgba(255,255,255,0.08);
-                  --text-primary: #fff;
-                  --text-secondary: #a1a1aa;
-                  --text-muted: #71717a;
-                  --gold: #F5C842;
-                }
-              `}</style>
+            {/* A4 Document Preview */}
+            <div className="rp-a4-wrapper">
+              <div className="rp-a4" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}>
+                {!isActionTaken && <div className="rp-watermark">PREVIEW</div>}
 
-                            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)' }}>
-                                <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: 700 }}>Adopt Your Signature</h3>
-                                <button onClick={() => setShowSignModal(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.25rem' }}><X size={20} /></button>
-                            </div>
-
-                            <div style={{ padding: '1.5rem', background: 'var(--background)' }}>
-                                <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                                    By signing, you agree that your electronic signature is the legally binding equivalent to your handwritten signature.
-                                </p>
-                                <SignatureCanvas onSave={signatureRef} />
-                            </div>
-
-                            <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)' }}>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                                    <ShieldCheck size={14} /> Legally Binding
-                                </div>
-                                <div style={{ display: 'flex', gap: '1rem' }}>
-                                    <button onClick={() => setShowSignModal(false)} style={{ background: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border)', padding: '0.75rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
-                                    <button onClick={handleSign} style={{ background: 'var(--gold)', color: '#000', border: 'none', padding: '0.75rem 2rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, fontSize: '1rem', boxShadow: '0 4px 12px rgba(245, 200, 66, 0.2)' }}>Adopt & Sign</button>
-                                </div>
-                            </div>
-                        </motion.div>
+                <div className="rp-doc-content">
+                  {/* Letterhead */}
+                  <div className="rp-letterhead">
+                    {company.logo_url && <img src={company.logo_url} alt="" className="rp-letterhead-logo" />}
+                    <div className="rp-letterhead-text">
+                      <h2>{docData.issued_by || company.company_name}</h2>
+                      {company.company_address && <p>{company.company_address}</p>}
+                      <p>
+                        {[company.company_email, company.company_phone].filter(Boolean).join(' | ')}
+                      </p>
+                      {company.gstin && <p className="rp-letterhead-gstin">GSTIN: {company.gstin}</p>}
                     </div>
-                )}
-            </AnimatePresence>
+                  </div>
 
-            {/* Decline Modal */}
-            <AnimatePresence>
-                {showDeclineModal && (
-                    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowDeclineModal(false)} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }} />
+                  <div className="rp-doc-rule" />
 
-                        <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} style={{ position: 'relative', width: '100%', maxWidth: '500px', background: '#fff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
-                            <div style={{ padding: '2rem' }}>
-                                <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem' }}>
-                                    <AlertCircle size={24} color="#dc2626" />
-                                </div>
-                                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: 800 }}>Decline to Sign?</h3>
-                                <p style={{ margin: '0 0 1.5rem 0', color: '#71717a', fontSize: '0.875rem', lineHeight: 1.6 }}>
-                                    If you choose to decline, you will not be able to sign this document later without the issuer sending a new request. Please provide a reason for the issuer (optional).
-                                </p>
+                  {/* ── Offer Letter ── */}
+                  {docData.type === 'offer_letter' && (
+                    <div className="rp-doc-body">
+                      <h3 className="rp-doc-title">OFFER OF EMPLOYMENT</h3>
+                      <p className="rp-doc-date">Date: {docData.issue_date}</p>
+                      <p><strong>To,</strong></p>
+                      <p><strong>{docData.issued_to}</strong></p>
+                      <p className="rp-doc-para">Dear {docData.issued_to},</p>
+                      <p className="rp-doc-para">
+                        We are pleased to offer you the position of <strong>{docData.role}</strong> in the <strong>{docData.department}</strong> department
+                        at {docData.issued_by}. Your start date is <strong>{docData.start_date}</strong>.
+                      </p>
+                      <p className="rp-doc-para">
+                        Your compensation will be <strong>₹{docData.salary}</strong> per month, payable as per company policy.
+                      </p>
+                      <p className="rp-doc-para">Please confirm your acceptance by <strong>{docData.valid_until}</strong>.</p>
+                      <p className="rp-doc-sign-line">Sincerely,</p>
+                      <p><strong>{docData.issued_by}</strong></p>
 
-                                <textarea
-                                    placeholder="Reason for declining..."
-                                    style={{ width: '100%', padding: '1rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '8px', minHeight: '100px', outline: 'none', fontFamily: 'inherit', resize: 'vertical' }}
-                                />
-
-                                <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
-                                    <button onClick={() => setShowDeclineModal(false)} style={{ flex: 1, background: '#f4f4f5', color: '#18181b', border: 'none', padding: '0.75rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
-                                    <button onClick={handleDecline} style={{ flex: 1, background: '#dc2626', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Yes, Decline</button>
-                                </div>
-                            </div>
-                        </motion.div>
+                      <div className="rp-doc-sig-section">
+                        <h4>ACCEPTANCE & SIGNATURE</h4>
+                        <div className="rp-doc-sig-rule" />
+                        <p>I, _________________________, hereby accept the terms and conditions of this offer letter.</p>
+                        <div className="rp-doc-sig-grid">
+                          <div className="rp-doc-sig-col">
+                            <p className="rp-doc-sig-heading">Authorized Signatory</p>
+                            <p>{docData.issued_by}</p>
+                            <p>Date: {docData.issue_date}</p>
+                            {company.signature_url && <img src={company.signature_url} alt="Signature" className="rp-doc-sig-img" />}
+                            <div className="rp-doc-sig-line" />
+                            <p className="rp-doc-sig-caption">Signature</p>
+                          </div>
+                          <div className="rp-doc-sig-col">
+                            <p className="rp-doc-sig-heading">Candidate Signature</p>
+                            {status === 'signed' && signature ? (
+                              <>
+                                <img src={signature} alt="Candidate Signature" className="rp-doc-sig-img" />
+                                <p>Name: {candidateName}</p>
+                                <p>Date: {new Date().toLocaleDateString()}</p>
+                              </>
+                            ) : (
+                              <>
+                                <p>Name: _______________________</p>
+                                <p>Date: _______________________</p>
+                                <p>Place: _______________________</p>
+                                <div className="rp-doc-sig-line" />
+                                <p className="rp-doc-sig-caption">Signature</p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
+                  )}
+
+                  {/* ── MoU ── */}
+                  {docData.type === 'mou' && (
+                    <div className="rp-doc-body">
+                      <h3 className="rp-doc-title">MEMORANDUM OF UNDERSTANDING</h3>
+                      <p className="rp-doc-para">
+                        This MoU is entered into between <strong>{docData.party_a?.company}</strong> (First Party)
+                        and <strong>{docData.party_b?.company}</strong> (Second Party).
+                      </p>
+                      <p className="rp-doc-date">Date: {docData.issue_date}</p>
+                      <p className="rp-doc-para">The parties agree to collaborate in good faith under the terms outlined in this agreement.</p>
+                      <div className="rp-doc-sig-grid" style={{ marginTop: '2.5em' }}>
+                        <div className="rp-doc-sig-col">
+                          <p className="rp-doc-sig-heading">{docData.party_a?.company}</p>
+                          <p>{docData.party_a?.representative} — {docData.party_a?.designation}</p>
+                          {docData.party_a?.signed_at && <p className="rp-doc-signed-badge">Signed: {docData.party_a.signed_at}</p>}
+                          {docData.party_a?.signature ? (
+                            <img src={docData.party_a.signature} alt="" className="rp-doc-sig-img" style={{ opacity: 0.6 }} />
+                          ) : (
+                            <div className="rp-doc-sig-line" />
+                          )}
+                        </div>
+                        <div className="rp-doc-sig-col">
+                          <p className="rp-doc-sig-heading">{docData.party_b?.company}</p>
+                          <p>{docData.party_b?.representative} — {docData.party_b?.designation}</p>
+                          {status === 'fully_signed' && partyBSignature ? (
+                            <>
+                              <p className="rp-doc-signed-badge">Signed: {new Date().toLocaleString()}</p>
+                              <img src={partyBSignature} alt="" className="rp-doc-sig-img" />
+                            </>
+                          ) : (
+                            <div className="rp-doc-sig-line" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Invoice / Proforma ── */}
+                  {(docData.type === 'invoice' || docData.type === 'proforma') && (
+                    <div className="rp-doc-body">
+                      <h3 className="rp-doc-title">{docData.type === 'proforma' ? 'PROFORMA INVOICE' : 'TAX INVOICE'}</h3>
+                      <div className="rp-doc-invoice-meta">
+                        <div>
+                          <p className="rp-doc-meta-label">Bill To</p>
+                          <p className="rp-doc-meta-value">{docData.issued_to || docData.client?.name}</p>
+                          {docData.client?.address && <p>{docData.client.address}</p>}
+                          {docData.client?.gstin && <p className="rp-letterhead-gstin">GSTIN: {docData.client.gstin}</p>}
+                        </div>
+                        <div className="rp-doc-invoice-ids">
+                          <p><strong>{docData.id}</strong></p>
+                          <p>Date: {docData.issue_date}</p>
+                          <p>Due: {docData.due_date}</p>
+                        </div>
+                      </div>
+                      <table className="rp-doc-table">
+                        <thead>
+                          <tr>
+                            <th>Description</th>
+                            <th>Qty</th>
+                            <th>Rate</th>
+                            <th>Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(docData.items || []).map((item, i) => (
+                            <tr key={i}>
+                              <td>{item.description}</td>
+                              <td className="rp-doc-table-center">{item.quantity} {item.unit || ''}</td>
+                              <td className="rp-doc-table-right">₹{item.rate?.toLocaleString('en-IN')}</td>
+                              <td className="rp-doc-table-right">₹{((item.quantity || 0) * (item.rate || 0)).toLocaleString('en-IN')}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div className="rp-doc-totals">
+                        <div className="rp-doc-total-row"><span>Subtotal</span><span>₹{(docData.subtotal || 0).toLocaleString('en-IN')}</span></div>
+                        {docData.gst > 0 && <div className="rp-doc-total-row"><span>GST</span><span>₹{docData.gst.toLocaleString('en-IN')}</span></div>}
+                        <div className="rp-doc-total-row rp-doc-grand-total">
+                          <span>Total Due</span>
+                          <span>₹{(docData.grand_total || docData.amount || 0).toLocaleString('en-IN')}</span>
+                        </div>
+                      </div>
+                      {docData.type === 'proforma' && (
+                        <p className="rp-doc-disclaimer">This is a proforma invoice and is not valid for GST input tax credit.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Quotation ── */}
+                  {docData.type === 'quotation' && (
+                    <div className="rp-doc-body">
+                      <h3 className="rp-doc-title">QUOTATION</h3>
+                      <div className="rp-doc-invoice-meta">
+                        <div>
+                          <p className="rp-doc-meta-label">Prepared For</p>
+                          <p className="rp-doc-meta-value">{docData.issued_to || docData.client?.name}</p>
+                        </div>
+                        <div className="rp-doc-invoice-ids">
+                          <p><strong>{docData.id}</strong></p>
+                          <p>Date: {docData.issue_date}</p>
+                          <p>Valid Until: {docData.valid_until}</p>
+                        </div>
+                      </div>
+                      <table className="rp-doc-table">
+                        <thead>
+                          <tr>
+                            <th>Description</th>
+                            <th>Qty</th>
+                            <th>Rate</th>
+                            <th>Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(docData.items || []).map((item, i) => (
+                            <tr key={i}>
+                              <td>{item.description}</td>
+                              <td className="rp-doc-table-center">{item.quantity}</td>
+                              <td className="rp-doc-table-right">₹{item.rate?.toLocaleString('en-IN')}</td>
+                              <td className="rp-doc-table-right">₹{((item.quantity || 0) * (item.rate || 0)).toLocaleString('en-IN')}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div className="rp-doc-totals">
+                        <div className="rp-doc-total-row rp-doc-grand-total">
+                          <span>Total</span>
+                          <span>₹{(docData.subtotal || docData.amount || 0).toLocaleString('en-IN')}</span>
+                        </div>
+                      </div>
+                      <p className="rp-doc-disclaimer">This is not a tax invoice.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Right: Action Panel */}
+          <motion.div className="rp-actions" variants={fadeUp}>
+
+            {/* ════════ OFFER LETTER ════════ */}
+            {docData.type === 'offer_letter' && status === 'pending' && (
+              <div className="rp-card">
+                <div className="rp-card-header">
+                  <Sparkles size={18} />
+                  <h3>Your Response</h3>
+                </div>
+                <p className="rp-card-desc">Review the offer letter on the left, then provide your signature below to accept.</p>
+
+                <SignatureCapture onSignatureChange={(sig, method) => { setSignature(sig); setSignatureMethod(method); }} />
+
+                <label className="rp-agree">
+                  <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+                  <span>I, <strong>{candidateName || docData.issued_to}</strong>, confirm I have read and accept all terms of this offer letter.</span>
+                </label>
+
+                <div className="rp-card-actions">
+                  <button className="rp-btn rp-btn-primary" disabled={!signature || !agreed} onClick={handleAcceptOffer}>
+                    <Check size={16} /> Accept & Sign
+                  </button>
+                  <button className="rp-btn rp-btn-danger-outline" onClick={() => setShowDeclineModal(true)}>
+                    <X size={16} /> Decline
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {docData.type === 'offer_letter' && status === 'signed' && (
+              <SuccessCard
+                title="Offer Accepted"
+                subtitle={`Thank you, ${candidateName || docData.issued_to}`}
+                details={[
+                  { label: 'Signed on', value: new Date().toLocaleString() },
+                  { label: 'Method', value: signatureMethod === 'draw' ? 'Drawn' : signatureMethod === 'upload' ? 'Uploaded' : 'Typed' },
+                  { label: 'Document', value: docData.id },
+                ]}
+              />
+            )}
+
+            {/* ════════ MoU / NDA ════════ */}
+            {docData.type === 'mou' && status === 'party_a_signed' && (
+              <div className="rp-card">
+                <div className="rp-card-header">
+                  <ShieldCheck size={18} />
+                  <h3>Counter-Sign Agreement</h3>
+                </div>
+
+                <div className="rp-party-status">
+                  <div className="rp-party-row rp-party-done">
+                    <Check size={14} />
+                    <div>
+                      <strong>{docData.party_a?.company}</strong>
+                      <span>Signed by {docData.party_a?.representative} — {docData.party_a?.signed_at}</span>
+                    </div>
+                  </div>
+                  <div className="rp-party-row rp-party-pending">
+                    <Clock size={14} />
+                    <div>
+                      <strong>{docData.party_b?.company}</strong>
+                      <span>Awaiting your signature</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rp-field-group">
+                  <label className="rp-label">Your Signature</label>
+                  <SignatureCapture onSignatureChange={(sig) => setPartyBSignature(sig)} />
+                </div>
+
+                <div className="rp-fields-row">
+                  <div className="rp-field">
+                    <label>Full Name</label>
+                    <input type="text" value={candidateName} onChange={(e) => setCandidateName(e.target.value)} placeholder="Enter your name" />
+                  </div>
+                  <div className="rp-field">
+                    <label>Designation</label>
+                    <input type="text" value={candidateDesignation} onChange={(e) => setCandidateDesignation(e.target.value)} placeholder="e.g. CEO" />
+                  </div>
+                  <div className="rp-field">
+                    <label>Date</label>
+                    <input type="date" value={candidateDate} onChange={(e) => setCandidateDate(e.target.value)} />
+                  </div>
+                </div>
+
+                <label className="rp-agree">
+                  <input type="checkbox" checked={partyBAgreed} onChange={(e) => setPartyBAgreed(e.target.checked)} />
+                  <span>I am authorized to sign on behalf of <strong>{docData.party_b?.company}</strong>.</span>
+                </label>
+
+                <button className="rp-btn rp-btn-primary" disabled={!partyBSignature || !partyBAgreed} onClick={handleMoUSign}>
+                  <Check size={16} /> Sign Agreement
+                </button>
+              </div>
+            )}
+
+            {docData.type === 'mou' && status === 'fully_signed' && (
+              <SuccessCard title="Agreement Fully Signed" subtitle="Both parties have signed the document." />
+            )}
+
+            {/* ════════ INVOICE ════════ */}
+            {docData.type === 'invoice' && !paymentSubmitted && status !== 'paid' && status !== 'payment_submitted' && (
+              <div className="rp-card">
+                <div className="rp-card-header">
+                  <CreditCard size={18} />
+                  <h3>Pay Invoice</h3>
+                </div>
+
+                <div className="rp-amount-hero">
+                  <span className="rp-amount-label">Amount Due</span>
+                  <span className="rp-amount-value">₹{(docData.grand_total || docData.amount || 0).toLocaleString('en-IN')}</span>
+                  <div className="rp-amount-meta-row">
+                    <span><Calendar size={12} /> Due: {docData.due_date}</span>
+                    <span><Hash size={12} /> {docData.id}</span>
+                  </div>
+                </div>
+
+                <div className="rp-payment-method">
+                  <h4>UPI Payment</h4>
+                  <UPIQRGenerator
+                    upiId={docData.upi_id || company.upi_id}
+                    payeeName={docData.issued_by || company.company_name}
+                    amount={docData.grand_total || docData.amount}
+                    transactionNote={docData.id}
+                  />
+                </div>
+
+                <div className="rp-payment-method">
+                  <button className="rp-bank-toggle" onClick={() => setShowBankDetails(!showBankDetails)}>
+                    <Banknote size={15} />
+                    <span>Bank Transfer Details</span>
+                    <span className="rp-bank-arrow">{showBankDetails ? '−' : '+'}</span>
+                  </button>
+                  <AnimatePresence>
+                    {showBankDetails && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="rp-bank-details"
+                      >
+                        <BankRow label="Bank Name" value={docData.bank?.name || company.bank_name} />
+                        <BankRow label="Account No." value={docData.bank?.account || company.bank_account_number} copyable onCopy={(v) => handleCopy(v, 'account')} copied={copied === 'account'} />
+                        <BankRow label="IFSC Code" value={docData.bank?.ifsc || company.bank_ifsc} copyable onCopy={(v) => handleCopy(v, 'ifsc')} copied={copied === 'ifsc'} />
+                        <BankRow label="Account Type" value={docData.bank?.type || company.bank_account_type} />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {!showPaymentForm ? (
+                  <button className="rp-btn rp-btn-primary" onClick={() => setShowPaymentForm(true)}>
+                    <Check size={16} /> I Have Made the Payment
+                  </button>
+                ) : (
+                  <PaymentConfirmationForm
+                    amount={docData.grand_total || docData.amount}
+                    invoiceId={docData.id}
+                    onSubmit={handlePaymentConfirmation}
+                  />
                 )}
-            </AnimatePresence>
+              </div>
+            )}
+
+            {docData.type === 'invoice' && (paymentSubmitted || status === 'payment_submitted') && (
+              <SuccessCard title="Payment Submitted" subtitle="Your payment confirmation is under review. You'll receive a receipt once verified." />
+            )}
+
+            {docData.type === 'invoice' && status === 'paid' && (
+              <SuccessCard title="Invoice Paid" subtitle="Payment verified successfully. Thank you!" />
+            )}
+
+            {/* ════════ QUOTATION ════════ */}
+            {docData.type === 'quotation' && status !== 'accepted' && status !== 'declined' && status !== 'revision_requested' && (
+              <div className="rp-card">
+                <div className="rp-card-header">
+                  <FileText size={18} />
+                  <h3>Review Quotation</h3>
+                </div>
+
+                <div className="rp-amount-hero">
+                  <span className="rp-amount-label">Quoted Amount</span>
+                  <span className="rp-amount-value">₹{(docData.subtotal || docData.amount || 0).toLocaleString('en-IN')}</span>
+                  <div className="rp-amount-meta-row">
+                    <span><Calendar size={12} /> Valid until: {docData.valid_until}</span>
+                    <span><Hash size={12} /> {docData.id}</span>
+                  </div>
+                </div>
+
+                <div className="rp-field-group">
+                  <label className="rp-label">Your Signature</label>
+                  <SignatureCapture onSignatureChange={(sig, method) => { setSignature(sig); setSignatureMethod(method); }} />
+                </div>
+
+                <div className="rp-fields-row">
+                  <div className="rp-field">
+                    <label>Full Name</label>
+                    <input type="text" value={candidateName} onChange={(e) => setCandidateName(e.target.value)} placeholder="Enter your name" />
+                  </div>
+                  <div className="rp-field">
+                    <label>Designation</label>
+                    <input type="text" value={candidateDesignation} onChange={(e) => setCandidateDesignation(e.target.value)} placeholder="e.g. Procurement Head" />
+                  </div>
+                  <div className="rp-field">
+                    <label>Date</label>
+                    <input type="date" value={candidateDate} onChange={(e) => setCandidateDate(e.target.value)} />
+                  </div>
+                </div>
+
+                <label className="rp-agree">
+                  <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+                  <span>I accept this quotation and authorize <strong>{docData.issued_by || company.company_name}</strong> to proceed.</span>
+                </label>
+
+                <div className="rp-card-actions">
+                  <button className="rp-btn rp-btn-primary" disabled={!signature || !agreed} onClick={handleAcceptQuotation}>
+                    <Check size={16} /> Accept Quotation
+                  </button>
+                  <button className="rp-btn rp-btn-outline" onClick={() => setShowRevisionModal(true)}>
+                    <MessageSquare size={14} /> Request Revision
+                  </button>
+                  <button className="rp-btn rp-btn-danger-outline" onClick={() => setShowDeclineModal(true)}>
+                    <X size={14} /> Decline
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {docData.type === 'quotation' && status === 'accepted' && (
+              <SuccessCard title="Quotation Accepted" subtitle={`Thank you, ${candidateName}`} />
+            )}
+
+            {docData.type === 'quotation' && status === 'revision_requested' && (
+              <StatusCard icon={<MessageSquare size={28} />} color="#6366f1" title="Revision Requested" subtitle="The issuer has been notified. You'll receive an updated quotation." />
+            )}
+
+            {/* ════════ PROFORMA ════════ */}
+            {docData.type === 'proforma' && !paymentSubmitted && status !== 'advance_paid' && (
+              <div className="rp-card">
+                <div className="rp-card-header">
+                  <CreditCard size={18} />
+                  <h3>Confirm & Pay Advance</h3>
+                </div>
+
+                <div className="rp-amount-breakdown">
+                  <div className="rp-amount-break-row">
+                    <span>Total Value</span>
+                    <strong>₹{(docData.grand_total || docData.amount || 0).toLocaleString('en-IN')}</strong>
+                  </div>
+                  <div className="rp-amount-break-row rp-amount-highlight">
+                    <span>Advance ({docData.advance_percent || 50}%)</span>
+                    <strong>₹{(docData.advance_amount || 0).toLocaleString('en-IN')}</strong>
+                    <span className="rp-amount-badge">Pay now</span>
+                  </div>
+                  <div className="rp-amount-break-row">
+                    <span>Balance Due</span>
+                    <strong>₹{(docData.balance_due || 0).toLocaleString('en-IN')}</strong>
+                    <span className="rp-amount-badge rp-amount-badge-muted">On delivery</span>
+                  </div>
+                </div>
+
+                {!orderConfirmed ? (
+                  <div className="rp-step">
+                    <div className="rp-step-num">1</div>
+                    <div className="rp-step-body">
+                      <label className="rp-agree">
+                        <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+                        <span>I confirm the order details in this proforma invoice.</span>
+                      </label>
+                      <button className="rp-btn rp-btn-primary" disabled={!agreed} onClick={handleConfirmOrder}>
+                        Confirm Order
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="rp-step rp-step-done">
+                      <div className="rp-step-num rp-step-check"><Check size={12} /></div>
+                      <span>Order Confirmed</span>
+                    </div>
+
+                    <div className="rp-step">
+                      <div className="rp-step-num">2</div>
+                      <div className="rp-step-body">
+                        <h4 className="rp-step-title">Pay Advance — ₹{(docData.advance_amount || 0).toLocaleString('en-IN')}</h4>
+                        <UPIQRGenerator
+                          upiId={docData.upi_id || company.upi_id}
+                          payeeName={docData.issued_by || company.company_name}
+                          amount={docData.advance_amount}
+                          transactionNote={`${docData.id} Advance`}
+                        />
+                        <button className="rp-bank-toggle" onClick={() => setShowBankDetails(!showBankDetails)}>
+                          <Banknote size={15} />
+                          <span>Bank Transfer</span>
+                          <span className="rp-bank-arrow">{showBankDetails ? '−' : '+'}</span>
+                        </button>
+                        {showBankDetails && (
+                          <div className="rp-bank-details" style={{ marginTop: '0.5rem' }}>
+                            <BankRow label="Bank" value={company.bank_name} />
+                            <BankRow label="A/C" value={company.bank_account_number} />
+                            <BankRow label="IFSC" value={company.bank_ifsc} />
+                          </div>
+                        )}
+                        {!showPaymentForm ? (
+                          <button className="rp-btn rp-btn-primary" onClick={() => setShowPaymentForm(true)}>
+                            <Check size={16} /> I Have Paid the Advance
+                          </button>
+                        ) : (
+                          <PaymentConfirmationForm
+                            amount={docData.advance_amount}
+                            invoiceId={docData.id}
+                            onSubmit={handleProformaPayment}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {docData.type === 'proforma' && (paymentSubmitted || status === 'advance_paid') && (
+              <SuccessCard title="Advance Payment Submitted" subtitle="Order confirmed. A tax invoice will be issued upon delivery." />
+            )}
+
+            {/* ════════ DECLINED (shared) ════════ */}
+            {status === 'declined' && (
+              <StatusCard icon={<AlertCircle size={28} />} color="#ef4444" title="Document Declined" subtitle="The issuer has been notified of your decision." />
+            )}
+          </motion.div>
+        </motion.div>
+      </div>
+
+      {/* ── Decline Modal ── */}
+      <AnimatePresence>
+        {showDeclineModal && (
+          <ModalOverlay onClose={() => setShowDeclineModal(false)}>
+            <div className="rp-modal-icon rp-modal-icon-danger"><AlertCircle size={22} /></div>
+            <h3>Decline this document?</h3>
+            <p>This action cannot be undone. The issuer will be notified.</p>
+            <textarea
+              className="rp-modal-textarea"
+              placeholder="Reason for declining (optional)..."
+              value={declineReason}
+              onChange={(e) => setDeclineReason(e.target.value)}
+            />
+            <div className="rp-modal-actions">
+              <button className="rp-btn rp-btn-ghost" onClick={() => setShowDeclineModal(false)}>Cancel</button>
+              <button className="rp-btn rp-btn-danger" onClick={handleDecline}>Confirm Decline</button>
+            </div>
+          </ModalOverlay>
+        )}
+      </AnimatePresence>
+
+      {/* ── Revision Modal ── */}
+      <AnimatePresence>
+        {showRevisionModal && (
+          <ModalOverlay onClose={() => setShowRevisionModal(false)}>
+            <h3>Request Revision</h3>
+            <p>Describe the changes you'd like made to this quotation.</p>
+            <textarea
+              className="rp-modal-textarea"
+              placeholder="Describe the changes needed..."
+              value={revisionText}
+              onChange={(e) => setRevisionText(e.target.value)}
+            />
+            <div className="rp-modal-actions">
+              <button className="rp-btn rp-btn-ghost" onClick={() => setShowRevisionModal(false)}>Cancel</button>
+              <button className="rp-btn rp-btn-primary" onClick={handleRevisionRequest} disabled={!revisionText.trim()}>
+                Submit Request
+              </button>
+            </div>
+          </ModalOverlay>
+        )}
+      </AnimatePresence>
+
+      {/* ── Footer — always visible ── */}
+      <footer className="rp-footer">
+        <div className="rp-footer-inner">
+          <div className="rp-footer-brand">
+            <Shield size={13} />
+            <span>Powered by <strong>OfferPro Suite</strong></span>
+          </div>
+          <p className="rp-footer-tagline">Secure document management for businesses</p>
         </div>
-    );
+      </footer>
+    </div>
+  );
+}
+
+// ── Sub-components ──
+
+function ModalOverlay({ children, onClose }) {
+  return (
+    <div className="rp-overlay" onClick={onClose}>
+      <motion.div
+        className="rp-modal"
+        initial={{ scale: 0.95, opacity: 0, y: 10 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 10 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </motion.div>
+    </div>
+  );
+}
+
+function SuccessCard({ title, subtitle, details }) {
+  return (
+    <motion.div
+      className="rp-success"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: 'spring', duration: 0.6 }}
+    >
+      <motion.div
+        className="rp-success-icon"
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ delay: 0.15, type: 'spring', stiffness: 200 }}
+      >
+        <CheckCircle2 size={36} />
+      </motion.div>
+      <h3>{title}</h3>
+      {subtitle && <p>{subtitle}</p>}
+      {details && (
+        <div className="rp-success-details">
+          {details.map((d, i) => (
+            <div key={i}><span>{d.label}</span><strong>{d.value}</strong></div>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+function StatusCard({ icon, color, title, subtitle }) {
+  return (
+    <motion.div
+      className="rp-status-card"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      style={{ '--status-color': color }}
+    >
+      <div className="rp-status-card-icon">{icon}</div>
+      <h3>{title}</h3>
+      <p>{subtitle}</p>
+    </motion.div>
+  );
+}
+
+function BankRow({ label, value, copyable, onCopy, copied }) {
+  return (
+    <div className="rp-bank-row">
+      <span>{label}</span>
+      <div className="rp-bank-val">
+        <strong>{value || '—'}</strong>
+        {copyable && value && (
+          <button onClick={() => onCopy(value)} className="rp-copy-btn" title="Copy">
+            {copied ? <Check size={11} /> : <Copy size={11} />}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }

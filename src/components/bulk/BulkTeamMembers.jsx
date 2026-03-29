@@ -5,6 +5,8 @@ import { Users, Play, CheckCircle2, UserPlus, FileSpreadsheet } from 'lucide-rea
 import CSVUploader from './shared/CSVUploader';
 import ValidationTable from './shared/ValidationTable';
 import BulkProgressTracker from './shared/BulkProgressTracker';
+import { useOrg } from '../../context/OrgContext';
+import { storageService } from '../../services/storageService';
 
 const MOCK_TEAM_SAMPLE = [
     { first_name: "Rahul", last_name: "Sharma", email: "rahul@example.com", role: "UI Designer", department: "Product", location: "Chennai", start_date: "01-Apr-2026", employee_id: "EMP100" },
@@ -22,6 +24,7 @@ const VALIDATION_CONFIG = {
 };
 
 export default function BulkTeamMembers() {
+    const { activeOrg } = useOrg();
     const [step, setStep] = useState(1);
     const [data, setData] = useState([]);
 
@@ -57,6 +60,9 @@ export default function BulkTeamMembers() {
         const validRows = data.filter(r => validateRow(r));
         if (validRows.length === 0) return;
 
+        const orgId = activeOrg?.id;
+        if (!orgId) return;
+
         setStep(3);
         setImportStatus('processing');
         setProcessed(0);
@@ -69,18 +75,26 @@ export default function BulkTeamMembers() {
 
         for (let i = 0; i < validRows.length; i++) {
             const row = validRows[i];
-            await new Promise(resolve => setTimeout(resolve, 600 + Math.random() * 300));
 
-            const hasError = !row.employee_id; // Simulating duplication or missing ID issue
+            try {
+                await storageService.saveEmployee({
+                    first_name: row.first_name || '',
+                    last_name: row.last_name || '',
+                    email: row.email || '',
+                    role: row.role || '',
+                    department: row.department || '',
+                    location: row.location || '',
+                    start_date: row.start_date || '',
+                    employee_id: row.employee_id || '',
+                }, orgId);
 
-            if (hasError) {
-                fCount++;
-                setFailed(fCount);
-                newResults.push({ ...row, status: 'Failed', error: 'Missing logic or duplicate ID' });
-            } else {
                 pCount++;
                 setProcessed(pCount);
                 newResults.push({ ...row, status: 'Imported', timestamp: new Date().toLocaleTimeString() });
+            } catch (err) {
+                fCount++;
+                setFailed(fCount);
+                newResults.push({ ...row, status: 'Failed', error: err.message || 'Failed to save employee' });
             }
             setResults([...newResults]);
         }
@@ -105,7 +119,7 @@ export default function BulkTeamMembers() {
                             <div style={{ background: 'var(--surface)', borderRadius: '16px', border: '1px solid var(--border)', padding: '2rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '2rem' }}>
                                     <h3 style={{ fontSize: '1.125rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                                        <div style={{ background: 'var(--gold)', color: '#000', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem' }}>1</div>
+                                        <div style={{ background: 'var(--btn-accent-bg)', color: 'var(--btn-accent-text)', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem' }}>1</div>
                                         Upload Employee Data
                                     </h3>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
@@ -123,7 +137,7 @@ export default function BulkTeamMembers() {
                             <div style={{ background: 'var(--surface)', borderRadius: '16px', border: '1px solid var(--border)', padding: '2rem' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                                     <h3 style={{ fontSize: '1.125rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                                        <div style={{ background: 'var(--gold)', color: '#000', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem' }}>2</div>
+                                        <div style={{ background: 'var(--btn-accent-bg)', color: 'var(--btn-accent-text)', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem' }}>2</div>
                                         Validation & Editing
                                     </h3>
                                     <button onClick={() => setStep(1)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.875rem', textDecoration: 'underline' }}>Upload different file</button>
@@ -144,8 +158,8 @@ export default function BulkTeamMembers() {
                                         onClick={startImport}
                                         disabled={validCount === 0}
                                         style={{
-                                            background: validCount > 0 ? 'var(--gold)' : 'var(--background)',
-                                            color: validCount > 0 ? '#000' : 'var(--text-muted)',
+                                            background: validCount > 0 ? 'var(--btn-accent-bg)' : 'var(--background)',
+                                            color: validCount > 0 ? 'var(--btn-accent-text)' : 'var(--text-muted)',
                                             border: 'none',
                                             padding: '1rem 2rem',
                                             borderRadius: '8px',

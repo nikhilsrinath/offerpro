@@ -14,20 +14,20 @@ export default function BulkProgressTracker({ total, processed, failed, status }
 
     // Colors based on status
     const getColor = () => {
-        if (status === 'error') return '#E74C3C'; // var(--error)
-        if (status === 'done' && failed === 0) return '#2EE8A0'; // var(--success)
-        if (status === 'done' && failed > 0) return '#F5C842'; // var(--gold)
-        return '#F5C842'; // var(--gold) processing
+        if (status === 'error') return '#E74C3C';
+        if (status === 'done' && failed === 0) return '#2EE8A0';
+        if (status === 'done' && failed > 0) return '#f59e0b';
+        return 'var(--text-primary)';
     };
 
     const getStatusIcon = () => {
         if (status === 'done') {
-            return failed > 0 ? <AlertTriangle size={24} color="#F5C842" /> : <CheckCircle2 size={24} color="#2EE8A0" />;
+            return failed > 0 ? <AlertTriangle size={24} color="#f59e0b" /> : <CheckCircle2 size={24} color="#2EE8A0" />;
         }
         if (status === 'error') {
             return <AlertTriangle size={24} color="#E74C3C" />;
         }
-        return <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }}><Loader2 size={24} color="#F5C842" /></motion.div>;
+        return <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }}><Loader2 size={24} color="var(--text-primary)" /></motion.div>;
     };
 
     const strokeDasharray = 283; // 2 * pi * r (r=45)
@@ -86,7 +86,7 @@ export default function BulkProgressTracker({ total, processed, failed, status }
                     </div>
                     {status === 'processing' && (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <span style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--gold)' }}>{total - processed - failed}</span>
+                            <span style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{total - processed - failed}</span>
                             <span>Pending</span>
                         </div>
                     )}

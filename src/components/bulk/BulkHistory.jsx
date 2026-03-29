@@ -24,9 +24,9 @@ export default function BulkHistory() {
                                 onClick={() => setFilter(f)}
                                 className={`bulk-filter-btn ${filter === f ? 'active' : ''}`}
                                 style={{
-                                    background: filter === f ? 'var(--gold)' : 'transparent',
-                                    border: filter === f ? '1px solid var(--gold)' : '1px solid var(--border)',
-                                    color: filter === f ? '#000' : 'var(--text-secondary)',
+                                    background: filter === f ? 'var(--btn-accent-bg)' : 'transparent',
+                                    border: filter === f ? '1px solid var(--btn-accent-bg)' : '1px solid var(--border)',
+                                    color: filter === f ? 'var(--btn-accent-text)' : 'var(--text-secondary)',
                                     padding: '0.4rem 1rem',
                                     borderRadius: '99px',
                                     fontSize: '0.8125rem',
@@ -89,7 +89,7 @@ export default function BulkHistory() {
                                                 <Archive size={14} /> View Log
                                             </button>
                                             {job.failed > 0 && (
-                                                <button style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', borderRadius: '4px', background: 'rgba(245, 200, 66, 0.1)', color: 'var(--gold)', border: '1px solid rgba(245, 200, 66, 0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                <button style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', borderRadius: '4px', background: 'var(--blue-muted)', color: 'var(--blue)', border: '1px solid var(--blue-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                                                     <RefreshCw size={14} /> Retry Failed
                                                 </button>
                                             )}

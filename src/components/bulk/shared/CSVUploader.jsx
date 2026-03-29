@@ -90,8 +90,8 @@ export default function CSVUploader({ columns, onUpload, sampleData }) {
                 onDrop={handleDrop}
                 onClick={() => inputRef.current.click()}
                 style={{
-                    border: `2px dashed ${dragActive ? 'var(--gold)' : 'var(--border)'}`,
-                    background: dragActive ? 'rgba(245, 200, 66, 0.05)' : 'var(--surface)',
+                    border: `2px dashed ${dragActive ? 'var(--blue)' : 'var(--border)'}`,
+                    background: dragActive ? 'var(--blue-muted)' : 'var(--surface)',
                     padding: '4rem 2rem',
                     borderRadius: '16px',
                     textAlign: 'center',
@@ -104,8 +104,8 @@ export default function CSVUploader({ columns, onUpload, sampleData }) {
                     gap: '1rem'
                 }}
             >
-                <div style={{ background: 'rgba(245, 200, 66, 0.1)', padding: '1rem', borderRadius: '50%' }}>
-                    <UploadCloud size={32} color="var(--gold)" />
+                <div style={{ background: 'var(--blue-muted)', padding: '1rem', borderRadius: '50%' }}>
+                    <UploadCloud size={32} color="var(--blue)" />
                 </div>
                 <div>
                     <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>

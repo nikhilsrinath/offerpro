@@ -64,10 +64,10 @@ export default function SignatureCanvas({ onSave }) {
                         style={{
                             flex: 1,
                             padding: '1rem',
-                            background: activeTab === tab.id ? 'rgba(245, 200, 66, 0.05)' : 'transparent',
+                            background: activeTab === tab.id ? 'var(--blue-muted)' : 'transparent',
                             border: 'none',
-                            borderBottom: activeTab === tab.id ? '2px solid var(--gold)' : '2px solid transparent',
-                            color: activeTab === tab.id ? 'var(--gold)' : 'var(--text-muted)',
+                            borderBottom: activeTab === tab.id ? '2px solid var(--blue)' : '2px solid transparent',
+                            color: activeTab === tab.id ? 'var(--blue)' : 'var(--text-muted)',
                             fontSize: '0.875rem',
                             fontWeight: 600,
                             cursor: 'pointer',
@@ -151,12 +151,12 @@ export default function SignatureCanvas({ onSave }) {
                                         name="signature-font"
                                         checked={selectedFont === `font-${idx}`}
                                         onChange={() => setSelectedFont(`font-${idx}`)}
-                                        style={{ accentColor: 'var(--gold)' }}
+                                        style={{ accentColor: 'var(--blue)' }}
                                     />
                                     <div style={{
                                         padding: '1rem 1.5rem',
-                                        background: selectedFont === `font-${idx}` ? 'rgba(245, 200, 66, 0.05)' : 'var(--background)',
-                                        border: `1px solid ${selectedFont === `font-${idx}` ? 'var(--gold)' : 'var(--border)'}`,
+                                        background: selectedFont === `font-${idx}` ? 'var(--blue-muted)' : 'var(--background)',
+                                        border: `1px solid ${selectedFont === `font-${idx}` ? 'var(--blue)' : 'var(--border)'}`,
                                         borderRadius: '8px',
                                         fontFamily: `"${font}", cursive`,
                                         fontSize: '1.5rem',
