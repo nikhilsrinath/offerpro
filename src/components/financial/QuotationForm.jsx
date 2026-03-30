@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Plus, Trash2, ChevronRight, Eye, Send, Save } from 'lucide-react';
 import { documentStore } from '../../services/documentStore';
+import { customerService } from '../../services/customerService';
+import { useOrg } from '../../context/OrgContext';
 import PortalLinkGenerator from '../shared/PortalLinkGenerator';
 import { useToast } from '../shared/Toast';
 
@@ -42,8 +44,9 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export default function QuotationForm() {
+export default function QuotationForm({ editDocId }) {
   const toast = useToast();
+  const { activeOrg } = useOrg();
   const company = documentStore.getCompanyProfile();
   const savedClients = documentStore.getSavedClients();
 
@@ -52,6 +55,8 @@ export default function QuotationForm() {
   const clientDropdownRef = useRef(null);
 
   const [portalDoc, setPortalDoc] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [originalCreatedAt, setOriginalCreatedAt] = useState(null);
 
   const [formData, setFormData] = useState({
     clientName: '',
@@ -73,6 +78,48 @@ export default function QuotationForm() {
     paymentInstructions: '',
     terms: '',
   });
+
+  // Load existing document for editing
+  useEffect(() => {
+    if (!editDocId) return;
+    const doc = documentStore.getById(editDocId);
+    if (!doc) return;
+
+    setIsEditing(true);
+    setOriginalCreatedAt(doc.created_at);
+
+    // Bump revision: v1 → v2, v2 → v3, etc.
+    const currentRev = doc.revision || 'v1';
+    const revNum = parseInt(currentRev.replace(/\D/g, ''), 10) || 1;
+    const nextRevision = `v${revNum + 1}`;
+
+    setFormData({
+      clientName: doc.client?.name || doc.issued_to || '',
+      clientCompany: doc.client?.company || '',
+      clientAddress: doc.client?.address || '',
+      clientGstin: doc.client?.gstin || '',
+      clientEmail: doc.client?.email || '',
+      quotationNumber: doc.id,
+      quotationDate: doc.issue_date || new Date().toISOString().split('T')[0],
+      validUntil: doc.valid_until || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      revision: nextRevision,
+      discountType: doc.discount?.type || 'percent',
+      discountValue: doc.discount?.value || 0,
+      enableGst: doc.enableGst || false,
+      gstRate: doc.gstRate || 18,
+      items: (doc.items || []).map((item, i) => ({
+        id: Date.now() + i,
+        description: item.description || '',
+        quantity: item.quantity || 1,
+        unit: item.unit || 'Nos',
+        rate: item.rate || item.price || 0,
+        hsnSac: item.hsnSac || item.hsnCode || '',
+      })),
+      paymentInstructions: doc.payment_instructions || '',
+      terms: doc.terms || '',
+    });
+    setClientSearch(doc.client?.name || doc.issued_to || '');
+  }, [editDocId]);
 
   const [totals, setTotals] = useState({
     subtotal: 0,
@@ -222,13 +269,25 @@ export default function QuotationForm() {
       amount_in_words: totals.amountInWords,
       payment_instructions: formData.paymentInstructions,
       terms: formData.terms,
-      created_at: new Date().toISOString(),
+      created_at: isEditing && originalCreatedAt ? originalCreatedAt : new Date().toISOString(),
     };
+  };
+
+  const syncCustomer = () => {
+    if (activeOrg?.id && formData.clientName) {
+      customerService.upsert(activeOrg.id, {
+        clientName: formData.clientCompany || formData.clientName,
+        clientEmail: formData.clientEmail || '',
+        clientAddress: formData.clientAddress || '',
+        buyerGSTIN: formData.clientGstin || '',
+      }).catch(() => {});
+    }
   };
 
   const handleSaveDraft = () => {
     const doc = buildDocument('draft');
     documentStore.save(doc);
+    syncCustomer();
     toast('Quotation saved as draft', 'success');
   };
 
@@ -244,6 +303,7 @@ export default function QuotationForm() {
 
     const doc = buildDocument('sent');
     documentStore.save(doc);
+    syncCustomer();
 
     documentStore.addNotification({
       type: 'quotation_sent',

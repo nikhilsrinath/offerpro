@@ -3,6 +3,7 @@ import { Plus, Trash2, ChevronRight, Eye, AlertTriangle, Mail, Lock, UserPlus } 
 import { storageService } from '../services/storageService';
 import { pdfService } from '../services/pdfService';
 import { customerService } from '../services/customerService';
+import { documentStore } from '../services/documentStore';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 import { useTrialStatus, TRIAL_LIMITS } from '../hooks/useTrialStatus';
@@ -199,6 +200,38 @@ export default function InvoiceForm({ onSuccess }) {
       const dataToSave = { ...resolved, totals, isInterState, makingCharges: totalMakingCost, orgName: formData.orgName || activeOrg?.company_name || activeOrg?.name };
       await storageService.save(dataToSave, 'invoice', activeOrg?.id, user?.id);
       await pdfService.generateInvoice(dataToSave);
+
+      // Sync to documentStore so it appears in the financial module's InvoiceList
+      documentStore.init();
+      documentStore.save({
+        id: formData.invoiceNumber,
+        type: 'invoice',
+        status: formData.isPaid ? 'paid' : 'sent',
+        title: 'Tax Invoice',
+        issued_by: formData.orgName || activeOrg?.company_name || '',
+        issued_to: formData.clientName,
+        client: {
+          name: formData.clientName,
+          email: formData.clientEmail,
+          address: formData.clientAddress,
+          gstin: formData.buyerGSTIN,
+        },
+        items: (formData.items || []).map((item) => ({
+          description: item.description,
+          quantity: Number(item.quantity) || 0,
+          rate: Number(item.price) || 0,
+          hsnSac: item.hsnCode || '',
+          unit: '',
+        })),
+        subtotal: totals.subtotal,
+        gstRate: formData.gstRate,
+        gst: (totals.cgst || 0) + (totals.sgst || 0) + (totals.igst || 0),
+        grand_total: totals.grandTotal,
+        amount: totals.grandTotal,
+        issue_date: formData.invoiceDate,
+        due_date: formData.dueDate,
+      });
+
       // Auto-save customer to customer database
       if (formData.clientName) {
         customerService.upsert(activeOrg.id, {

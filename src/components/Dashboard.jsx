@@ -10,6 +10,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { storageService } from '../services/storageService';
+import { documentStore } from '../services/documentStore';
 import { useOrg } from '../context/OrgContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -45,14 +46,28 @@ export default function Dashboard({ onNavigate }) {
 
   const stats = useMemo(() => {
     const invoiceRecords = records.filter(r => r.type === 'invoice');
-    const revenue = invoiceRecords.reduce((acc, r) => acc + (r.data?.totals?.grandTotal || 0), 0);
+    const oldRevenue = invoiceRecords.reduce((acc, r) => acc + (r.data?.totals?.grandTotal || 0), 0);
     const makingCharges = invoiceRecords.reduce((acc, r) => acc + (Number(r.data?.makingCharges) || 0), 0);
+
+    // Include paid invoices from financial documentStore
+    documentStore.init();
+    const finDocs = documentStore.getAll();
+    const paidFinInvoices = finDocs.filter(d => d.type === 'invoice' && d.status === 'paid');
+    const finRevenue = paidFinInvoices.reduce((acc, d) => acc + (d.grand_total || d.amount || d.subtotal || 0), 0);
+    const finDocCount = finDocs.length;
+
+    const revenue = oldRevenue + finRevenue;
     const grossProfit = revenue - makingCharges;
 
     const thisMonth = records.filter(r => {
       const d = new Date(r.created_at);
       const now = new Date();
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    const finThisMonth = finDocs.filter(d => {
+      const dt = new Date(d.created_at);
+      const now = new Date();
+      return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear();
     });
 
     // Monthly revenue data (last 6 months)
@@ -64,36 +79,51 @@ export default function Dashboard({ onNavigate }) {
         const rd = new Date(r.created_at);
         return rd.getMonth() === d.getMonth() && rd.getFullYear() === d.getFullYear();
       });
-      const monthInvoiceRevenue = monthRecords
+      const monthOldRevenue = monthRecords
         .filter(r => r.type === 'invoice')
         .reduce((acc, r) => acc + (r.data?.totals?.grandTotal || 0), 0);
+      const monthFinRevenue = paidFinInvoices
+        .filter(d2 => {
+          const rd = new Date(d2.created_at);
+          return rd.getMonth() === d.getMonth() && rd.getFullYear() === d.getFullYear();
+        })
+        .reduce((acc, d2) => acc + (d2.grand_total || d2.amount || d2.subtotal || 0), 0);
+      const monthFinDocs = finDocs.filter(d2 => {
+        const rd = new Date(d2.created_at);
+        return rd.getMonth() === d.getMonth() && rd.getFullYear() === d.getFullYear();
+      });
       monthlyRevenue.push({
         month: d.toLocaleDateString('en-IN', { month: 'short' }),
-        revenue: monthInvoiceRevenue,
-        documents: monthRecords.length
+        revenue: monthOldRevenue + monthFinRevenue,
+        documents: monthRecords.length + monthFinDocs.length
       });
     }
 
     // Document type distribution
+    const finQuotations = finDocs.filter(d => d.type === 'quotation').length;
+    const finProformas = finDocs.filter(d => d.type === 'proforma').length;
+    const finInvoices = finDocs.filter(d => d.type === 'invoice').length;
     const typeDistribution = [
       { name: 'Offer Letters', value: records.filter(r => r.type === 'offer').length, color: '#3b82f6' },
       { name: 'Certificates', value: records.filter(r => r.type === 'certificate').length, color: '#f59e0b' },
       { name: 'NDAs', value: records.filter(r => r.type === 'nda').length, color: '#10b981' },
       { name: 'MoUs', value: records.filter(r => r.type === 'mou').length, color: '#14b8a6' },
-      { name: 'Invoices', value: records.filter(r => r.type === 'invoice').length, color: '#8b5cf6' },
+      { name: 'Invoices', value: records.filter(r => r.type === 'invoice').length + finInvoices, color: '#8b5cf6' },
+      { name: 'Quotations', value: finQuotations, color: '#f97316' },
+      { name: 'Proformas', value: finProformas, color: '#06b6d4' },
     ].filter(d => d.value > 0);
 
     return {
-      total: records.length,
+      total: records.length + finDocCount,
       offers: records.filter(r => r.type === 'offer').length,
       certificates: records.filter(r => r.type === 'certificate').length,
       ndas: records.filter(r => r.type === 'nda').length,
       mous: records.filter(r => r.type === 'mou').length,
-      invoices: records.filter(r => r.type === 'invoice').length,
+      invoices: records.filter(r => r.type === 'invoice').length + finInvoices,
       revenue,
       makingCharges,
       grossProfit,
-      thisMonth: thisMonth.length,
+      thisMonth: thisMonth.length + finThisMonth.length,
       monthlyRevenue,
       typeDistribution
     };

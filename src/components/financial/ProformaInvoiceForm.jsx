@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Plus, Trash2, ChevronRight, Eye, Send, Save } from 'lucide-react';
 import { documentStore } from '../../services/documentStore';
+import { customerService } from '../../services/customerService';
+import { useOrg } from '../../context/OrgContext';
 import PortalLinkGenerator from '../shared/PortalLinkGenerator';
 import { useToast } from '../shared/Toast';
 
@@ -10,6 +12,7 @@ const UNIT_OPTIONS = ['Nos', 'Hrs', 'Days', 'Months', 'Units', 'Pcs', 'Lots', 'K
 
 export default function ProformaInvoiceForm() {
   const toast = useToast();
+  const { activeOrg } = useOrg();
   const company = documentStore.getCompanyProfile();
   const savedClients = documentStore.getSavedClients();
 
@@ -197,9 +200,21 @@ export default function ProformaInvoiceForm() {
     };
   };
 
+  const syncCustomer = () => {
+    if (activeOrg?.id && (formData.clientName || formData.clientCompany)) {
+      customerService.upsert(activeOrg.id, {
+        clientName: formData.clientCompany || formData.clientName,
+        clientEmail: formData.clientEmail || '',
+        clientAddress: formData.clientAddress || '',
+        buyerGSTIN: formData.clientGSTIN || '',
+      }).catch(() => {});
+    }
+  };
+
   const handleSaveDraft = () => {
     const doc = buildDocument('draft');
     documentStore.save(doc);
+    syncCustomer();
     toast('Proforma invoice saved as draft', 'success');
   };
 
@@ -210,6 +225,7 @@ export default function ProformaInvoiceForm() {
     }
     const doc = buildDocument('sent');
     documentStore.save(doc);
+    syncCustomer();
     documentStore.addNotification({
       type: 'proforma_sent',
       title: 'Proforma Invoice Sent',

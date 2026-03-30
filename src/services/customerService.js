@@ -1,5 +1,6 @@
 import { ref, push, set, get, update, remove } from 'firebase/database';
 import { db } from '../lib/firebase';
+import { documentStore } from './documentStore';
 
 export const customerService = {
   getAll: async (orgId) => {
@@ -126,6 +127,24 @@ export const customerService = {
           clientAddress: record.data.clientAddress || '',
           buyerGSTIN: record.data.buyerGSTIN || '',
           buyerState: record.data.buyerState || '',
+          contactPhone: '',
+        });
+      });
+
+      // Also sync from documentStore (financial module — quotations, proformas, invoices)
+      documentStore.init();
+      const finDocs = documentStore.getAll();
+      finDocs.forEach((doc) => {
+        const name = (doc.client?.company || doc.client?.name || doc.issued_to || '').trim();
+        if (!name) return;
+        const nameKey = name.toLowerCase();
+        if (existingNames.has(nameKey) || invoiceCustomers.has(nameKey)) return;
+        invoiceCustomers.set(nameKey, {
+          clientName: name,
+          clientEmail: doc.client?.email || '',
+          clientAddress: doc.client?.address || '',
+          buyerGSTIN: doc.client?.gstin || '',
+          buyerState: '',
           contactPhone: '',
         });
       });

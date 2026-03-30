@@ -36,19 +36,8 @@ function setNotifications(data) {
   localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(data));
 }
 
-// Clean up any previously seeded demo data
-function seedIfEmpty() {
-  const SEED_IDS = ['OL-2026-0001', 'MOU-2026-0001', 'INV-2026-0001', 'QUO-2026-0001', 'PI-2026-0001'];
-  const store = getStore();
-  let changed = false;
-  SEED_IDS.forEach((id) => {
-    if (store[id]) {
-      delete store[id];
-      changed = true;
-    }
-  });
-  if (changed) setStore(store);
-}
+// Seed cleanup removed — was deleting real documents whose IDs matched old demo IDs
+function seedIfEmpty() {}
 
 export const documentStore = {
   init: seedIfEmpty,
@@ -56,7 +45,6 @@ export const documentStore = {
   getSavedClients: () => SAVED_CLIENTS,
 
   getAll: () => {
-    seedIfEmpty();
     return Object.values(getStore()).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   },
 
@@ -65,7 +53,6 @@ export const documentStore = {
   },
 
   getById: (id) => {
-    seedIfEmpty();
     return getStore()[id] || null;
   },
 

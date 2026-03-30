@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-  LayoutDashboard, Briefcase, Award, Scale, ShieldCheck, Receipt,
-  DollarSign, Layers, Archive, LogOut, Menu, X,
+  LayoutDashboard, Briefcase, Award, Scale, ShieldCheck,
+  DollarSign, Layers, Archive, LogOut, Menu, X, Bell,
   Zap, UserCircle, ChevronRight, Clock, Mail, AlertTriangle, Users,
   UploadCloud, FileCheck, FileSignature, History,
-  FileSpreadsheet, FilePlus, RotateCcw, Activity
+  FileSpreadsheet, Activity, Receipt, FilePlus, RotateCcw
 } from 'lucide-react';
 
 import OfferForm from './components/OfferForm';
@@ -37,9 +37,10 @@ import { ToastProvider } from './components/shared/Toast';
 // Financial Documents
 import QuotationForm from './components/financial/QuotationForm';
 import ProformaInvoiceForm from './components/financial/ProformaInvoiceForm';
-import RecurringInvoicePage from './components/financial/RecurringInvoiceForm';
-import InvoiceList from './components/financial/InvoiceList';
 import FinanceStatus from './components/financial/FinanceStatus';
+import InvoiceList from './components/financial/InvoiceList';
+import RecurringInvoiceForm from './components/financial/RecurringInvoiceForm';
+import { documentStore } from './services/documentStore';
 
 
 const NAV_ITEMS = [
@@ -52,12 +53,11 @@ const NAV_ITEMS = [
   { id: 'ndas', label: 'NDA', icon: ShieldCheck },
   { id: 'mous', label: 'MoU', icon: Scale },
   { section: 'FINANCE' },
-  { id: 'finance-status', label: 'Status', icon: Activity },
+  { id: 'finance-status', label: 'Finance Status', icon: Activity },
   { id: 'invoices', label: 'Invoices', icon: Receipt },
-  { id: 'invoice-list', label: 'Invoice List', icon: FileSpreadsheet },
   { id: 'quotations', label: 'Quotations', icon: FilePlus },
   { id: 'proforma', label: 'Proforma Invoice', icon: FileCheck },
-  { id: 'recurring', label: 'Recurring Invoices', icon: RotateCcw },
+  { id: 'recurring', label: 'Recurring', icon: RotateCcw },
   { section: 'BUSINESS' },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'revenue', label: 'Billing & Revenue', icon: DollarSign },
@@ -79,13 +79,13 @@ const PAGE_META = {
   ndas: { title: 'Non-Disclosure Agreements', subtitle: 'Draft legal-grade confidentiality agreements' },
   mous: { title: 'Memorandum of Understanding', subtitle: 'Establish collaboration frameworks and partnerships' },
   'finance-status': { title: 'Finance Status', subtitle: 'Track all financial documents through their lifecycle' },
-  invoices: { title: 'New Invoice', subtitle: 'Generate professional business invoices' },
-  'invoice-list': { title: 'Invoices', subtitle: 'Manage and track all your invoices' },
-  quotations: { title: 'Quotations', subtitle: 'Create and manage quotations for clients' },
-  'quotation-list': { title: 'Quotation List', subtitle: 'Track all quotations and their status' },
-  proforma: { title: 'Proforma Invoice', subtitle: 'Create proforma invoices with advance payment tracking' },
-  'proforma-list': { title: 'Proforma List', subtitle: 'Track all proforma invoices' },
-  recurring: { title: 'Recurring Invoices', subtitle: 'Manage automated recurring invoice schedules' },
+  invoices: { title: 'Invoices', subtitle: 'View and manage your invoices' },
+  quotations: { title: 'Quotations', subtitle: 'View and manage your quotations' },
+  proforma: { title: 'Proforma Invoices', subtitle: 'View and manage your proforma invoices' },
+  recurring: { title: 'Recurring Invoices', subtitle: 'Set up and manage recurring invoices' },
+  'new-invoice': { title: 'New Invoice', subtitle: 'Generate professional business invoices' },
+  'new-quotation': { title: 'New Quotation', subtitle: 'Create a quotation for your client' },
+  'new-proforma': { title: 'New Proforma Invoice', subtitle: 'Create proforma invoices with advance payment tracking' },
   customers: { title: 'Customers', subtitle: 'Manage your client database' },
   revenue: { title: 'Billing & Revenue', subtitle: 'Track revenue, expenses, and profitability' },
   planner: { title: 'Product Planner', subtitle: 'Plan and track products and projects' },
@@ -101,10 +101,41 @@ function AppContent() {
   const [activePage, setActivePage] = useState(() => sessionStorage.getItem('initialPage') || 'dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showLanding, setShowLanding] = useState(true);
+  const [editingDocId, setEditingDocId] = useState(null);
   const { user, loading, logout, needsOnboarding } = useAuth();
   const { activeOrg } = useOrg();
   const { trialDaysLeft, isTrialExpired, isPremium } = useTrialStatus();
   const { theme, toggleTheme } = useTheme();
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const refreshNotifications = useCallback(() => {
+    setNotifications(documentStore.getNotifications());
+  }, []);
+
+  useEffect(() => {
+    refreshNotifications();
+    const interval = setInterval(refreshNotifications, 3000);
+    return () => clearInterval(interval);
+  }, [refreshNotifications]);
+
+  const handleMarkRead = (id) => {
+    documentStore.markNotificationRead(id);
+    refreshNotifications();
+  };
+
+  const handleNotifClick = (notif) => {
+    handleMarkRead(notif.id);
+    if (notif.type === 'quotation_accepted' || notif.type === 'quotation_sent') {
+      navigate('quotations');
+    } else if (notif.type === 'revision_requested') {
+      navigate('quotations');
+    } else if (notif.type === 'payment_submitted') {
+      navigate('invoices');
+    }
+    setShowNotifPanel(false);
+  };
 
   if (loading) {
     return (
@@ -129,13 +160,16 @@ function AppContent() {
     return <Registration isGoogleUser={true} onBack={() => logout()} />;
   }
 
-  const navigate = (page) => {
+  const navigate = (page, docId = null) => {
     setActivePage(page);
     sessionStorage.setItem('initialPage', page);
     setSidebarOpen(false);
+    setEditingDocId(page === 'new-quotation' ? docId : null);
   };
 
-  const meta = PAGE_META[activePage] || PAGE_META.dashboard;
+  const meta = activePage === 'new-quotation' && editingDocId
+    ? { title: 'Edit Quotation', subtitle: `Revising ${editingDocId}` }
+    : (PAGE_META[activePage] || PAGE_META.dashboard);
 
   return (
     <div className="app-layout">
@@ -211,7 +245,13 @@ function AppContent() {
             <Zap size={18} fill="currentColor" />
             <span>OfferPro</span>
           </div>
-          <UserCircle size={22} style={{ opacity: 0.5, cursor: 'pointer' }} onClick={() => navigate('profile')} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ position: 'relative' }}>
+              <Bell size={20} style={{ opacity: 0.6, cursor: 'pointer' }} onClick={() => setShowNotifPanel((p) => !p)} />
+              {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
+            </div>
+            <UserCircle size={22} style={{ opacity: 0.5, cursor: 'pointer' }} onClick={() => navigate('profile')} />
+          </div>
         </div>
 
         {/* Trial Status Banner */}
@@ -234,6 +274,37 @@ function AppContent() {
           </div>
         )}
 
+        {/* Notification Panel */}
+        {showNotifPanel && (
+          <div className="notif-panel-overlay" onClick={() => setShowNotifPanel(false)}>
+            <div className="notif-panel" onClick={(e) => e.stopPropagation()}>
+              <div className="notif-panel-header">
+                <h3>Notifications</h3>
+                {unreadCount > 0 && <span className="notif-panel-count">{unreadCount} new</span>}
+              </div>
+              {notifications.length === 0 ? (
+                <div className="notif-panel-empty">No notifications yet</div>
+              ) : (
+                <div className="notif-panel-list">
+                  {notifications.slice(0, 20).map((n) => (
+                    <div
+                      key={n.id}
+                      className={`notif-panel-item ${!n.read ? 'unread' : ''}`}
+                      onClick={() => handleNotifClick(n)}
+                    >
+                      <div className="notif-panel-item-title">{n.title}</div>
+                      <div className="notif-panel-item-msg">{n.message}</div>
+                      <div className="notif-panel-item-time">
+                        {n.created_at ? new Date(n.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : ''}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Page Header (skip for dashboard - it has its own) */}
         {activePage !== 'dashboard' && (
           <div className="page-header">
@@ -253,13 +324,13 @@ function AppContent() {
           {activePage === 'ndas' && <NdaForm onSuccess={() => navigate('records')} />}
           {activePage === 'mous' && <MoUForm onSuccess={() => navigate('records')} />}
           {activePage === 'finance-status' && <FinanceStatus />}
-          {activePage === 'invoices' && <InvoiceForm onSuccess={() => navigate('invoice-list')} />}
-          {activePage === 'invoice-list' && <InvoiceList type="invoice" onNavigateToNew={() => navigate('invoices')} />}
-          {activePage === 'quotations' && <QuotationForm />}
-          {activePage === 'quotation-list' && <InvoiceList type="quotation" onNavigateToNew={() => navigate('quotations')} />}
-          {activePage === 'proforma' && <ProformaInvoiceForm />}
-          {activePage === 'proforma-list' && <InvoiceList type="proforma" onNavigateToNew={() => navigate('proforma')} />}
-          {activePage === 'recurring' && <RecurringInvoicePage />}
+          {activePage === 'invoices' && <InvoiceList type="invoice" onNavigateToNew={() => navigate('new-invoice')} />}
+          {activePage === 'quotations' && <InvoiceList type="quotation" onNavigateToNew={() => navigate('new-quotation')} onEdit={(id) => navigate('new-quotation', id)} />}
+          {activePage === 'proforma' && <InvoiceList type="proforma" onNavigateToNew={() => navigate('new-proforma')} />}
+          {activePage === 'recurring' && <RecurringInvoiceForm />}
+          {activePage === 'new-invoice' && <InvoiceForm onSuccess={() => navigate('invoices')} />}
+          {activePage === 'new-quotation' && <QuotationForm editDocId={editingDocId} />}
+          {activePage === 'new-proforma' && <ProformaInvoiceForm />}
           {activePage === 'customers' && <Customers />}
           {activePage === 'revenue' && <BillingRevenue />}
           {activePage === 'planner' && <ProductPlanner />}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Download, Check, X, ShieldCheck, Building2, FileText, CheckCircle2,
@@ -6,6 +6,8 @@ import {
   Copy, CreditCard, Banknote, MessageSquare, ExternalLink, Shield,
   Sparkles, ArrowRight, Eye, Hash, Mail
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { documentStore } from '../../services/documentStore';
 import SignatureCapture from '../shared/SignatureCapture';
 import UPIQRGenerator from '../shared/UPIQRGenerator';
@@ -56,6 +58,8 @@ export default function RecipientPortal({ documentId }) {
   const [partyBSignature, setPartyBSignature] = useState(null);
   const [partyBAgreed, setPartyBAgreed] = useState(false);
   const [copied, setCopied] = useState('');
+  const [downloading, setDownloading] = useState(false);
+  const a4Ref = useRef(null);
 
   useEffect(() => {
     documentStore.init();
@@ -65,6 +69,14 @@ export default function RecipientPortal({ documentId }) {
         setDocData(doc);
         setStatus(doc.status);
         if (doc.issued_to) setCandidateName(doc.issued_to);
+        // Auto-mark as viewed when client opens the portal link
+        if (doc.status === 'sent') {
+          documentStore.updateStatus(doc.id, 'viewed', {
+            first_viewed_at: doc.first_viewed_at || new Date().toISOString(),
+            last_viewed_at: new Date().toISOString(),
+          });
+          setStatus('viewed');
+        }
       } else {
         setDocData(null);
       }
@@ -184,6 +196,84 @@ export default function RecipientPortal({ documentId }) {
     await navigator.clipboard.writeText(text);
     setCopied(label);
     setTimeout(() => setCopied(''), 2000);
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!a4Ref.current || downloading) return;
+    setDownloading(true);
+    const element = a4Ref.current;
+
+    // Save original styles
+    const origTransform = element.style.transform;
+    const origWidth = element.style.width;
+    const origMinWidth = element.style.minWidth;
+    const origMaxWidth = element.style.maxWidth;
+    const origPosition = element.style.position;
+    const origLeft = element.style.left;
+
+    // Force a fixed A4-like width and reset zoom so the capture matches the preview exactly
+    const captureWidth = 794; // 210mm at 96dpi
+    element.style.transform = 'none';
+    element.style.width = captureWidth + 'px';
+    element.style.minWidth = captureWidth + 'px';
+    element.style.maxWidth = captureWidth + 'px';
+    element.style.position = 'absolute';
+    element.style.left = '-9999px';
+
+    // Let browser reflow
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#fff',
+        width: captureWidth,
+        windowWidth: captureWidth,
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = pdf.internal.pageSize.getHeight();
+      const imgAspect = canvas.height / canvas.width;
+      const totalH = pdfW * imgAspect;
+
+      if (totalH <= pdfH) {
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfW, totalH);
+      } else {
+        // Multi-page: slice the canvas into page-sized chunks
+        const pageCanvasH = Math.floor(canvas.width * (pdfH / pdfW));
+        let yOffset = 0;
+        let page = 0;
+        while (yOffset < canvas.height) {
+          const sliceH = Math.min(pageCanvasH, canvas.height - yOffset);
+          const pageCanvas = document.createElement('canvas');
+          pageCanvas.width = canvas.width;
+          pageCanvas.height = sliceH;
+          const ctx = pageCanvas.getContext('2d');
+          ctx.drawImage(canvas, 0, -yOffset);
+          const pageImg = pageCanvas.toDataURL('image/png');
+          if (page > 0) pdf.addPage();
+          pdf.addImage(pageImg, 'PNG', 0, 0, pdfW, (sliceH / canvas.width) * pdfW);
+          yOffset += pageCanvasH;
+          page++;
+        }
+      }
+      const clientName = (docData.issued_to || docData.client?.name || 'Client').replace(/\s+/g, '_');
+      pdf.save(`${formatDocType(docData.type).replace(/\s+/g, '_')}_${docData.id}_${clientName}.pdf`);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+    } finally {
+      // Restore all original styles
+      element.style.transform = origTransform;
+      element.style.width = origWidth;
+      element.style.minWidth = origMinWidth;
+      element.style.maxWidth = origMaxWidth;
+      element.style.position = origPosition;
+      element.style.left = origLeft;
+      setDownloading(false);
+    }
   };
 
   // ── Loading ──
@@ -313,11 +403,16 @@ export default function RecipientPortal({ documentId }) {
               <span>{zoom}%</span>
               <button onClick={() => setZoom(Math.min(150, zoom + 10))}><ZoomIn size={14} /></button>
               <button onClick={() => setZoom(100)} className="rp-zoom-reset">Reset</button>
+              {['quotation', 'proforma', 'invoice'].includes(docData.type) && (
+                <button className="rp-download-pdf-btn" onClick={handleDownloadPDF} disabled={downloading}>
+                  <Download size={13} /> {downloading ? 'Generating...' : 'Download PDF'}
+                </button>
+              )}
             </div>
 
             {/* A4 Document Preview */}
             <div className="rp-a4-wrapper">
-              <div className="rp-a4" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}>
+              <div ref={a4Ref} className="rp-a4" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}>
                 {!isActionTaken && <div className="rp-watermark">PREVIEW</div>}
 
                 <div className="rp-doc-content">
@@ -473,6 +568,28 @@ export default function RecipientPortal({ documentId }) {
                           <span>₹{(docData.grand_total || docData.amount || 0).toLocaleString('en-IN')}</span>
                         </div>
                       </div>
+                      {docData.accepted_signature && (
+                        <div className="rp-doc-sig-section">
+                          <h4>SIGNATURES</h4>
+                          <div className="rp-doc-sig-rule" />
+                          <div className="rp-doc-sig-grid">
+                            <div className="rp-doc-sig-col">
+                              <p className="rp-doc-sig-heading">Authorized Signatory</p>
+                              <p>{docData.issued_by || company.company_name}</p>
+                              <p>Date: {docData.issue_date}</p>
+                              {company.signature_url && <img src={company.signature_url} alt="Company Signature" className="rp-doc-sig-img" />}
+                              <div className="rp-doc-sig-line" />
+                            </div>
+                            <div className="rp-doc-sig-col">
+                              <p className="rp-doc-sig-heading">Accepted By</p>
+                              <img src={docData.accepted_signature} alt="Accepted Signature" className="rp-doc-sig-img" />
+                              <p>{docData.accepted_by || docData.issued_to}</p>
+                              <p>Date: {docData.accepted_at ? new Date(docData.accepted_at).toLocaleDateString() : ''}</p>
+                              {docData.converted_from && <p style={{ fontSize: '7pt', color: '#999', marginTop: '0.5em' }}>Ref: {docData.converted_from}</p>}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       {docData.type === 'proforma' && (
                         <p className="rp-doc-disclaimer">This is a proforma invoice and is not valid for GST input tax credit.</p>
                       )}
@@ -520,6 +637,27 @@ export default function RecipientPortal({ documentId }) {
                           <span>₹{(docData.subtotal || docData.amount || 0).toLocaleString('en-IN')}</span>
                         </div>
                       </div>
+                      {(docData.accepted_signature || (status === 'accepted' && signature)) && (
+                        <div className="rp-doc-sig-section">
+                          <h4>SIGNATURES</h4>
+                          <div className="rp-doc-sig-rule" />
+                          <div className="rp-doc-sig-grid">
+                            <div className="rp-doc-sig-col">
+                              <p className="rp-doc-sig-heading">Authorized Signatory</p>
+                              <p>{docData.issued_by || company.company_name}</p>
+                              <p>Date: {docData.issue_date}</p>
+                              {company.signature_url && <img src={company.signature_url} alt="Company Signature" className="rp-doc-sig-img" />}
+                              <div className="rp-doc-sig-line" />
+                            </div>
+                            <div className="rp-doc-sig-col">
+                              <p className="rp-doc-sig-heading">Accepted By</p>
+                              <img src={docData.accepted_signature || signature} alt="Accepted Signature" className="rp-doc-sig-img" />
+                              <p>{docData.accepted_by || candidateName || docData.issued_to}</p>
+                              <p>Date: {docData.accepted_at ? new Date(docData.accepted_at).toLocaleDateString() : new Date().toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <p className="rp-doc-disclaimer">This is not a tax invoice.</p>
                     </div>
                   )}
@@ -703,7 +841,7 @@ export default function RecipientPortal({ documentId }) {
             )}
 
             {/* ════════ QUOTATION ════════ */}
-            {docData.type === 'quotation' && status !== 'accepted' && status !== 'declined' && status !== 'revision_requested' && (
+            {docData.type === 'quotation' && status !== 'accepted' && status !== 'declined' && status !== 'revision_requested' && status !== 'converted' && (
               <div className="rp-card">
                 <div className="rp-card-header">
                   <FileText size={18} />
@@ -764,6 +902,10 @@ export default function RecipientPortal({ documentId }) {
 
             {docData.type === 'quotation' && status === 'revision_requested' && (
               <StatusCard icon={<MessageSquare size={28} />} color="#6366f1" title="Revision Requested" subtitle="The issuer has been notified. You'll receive an updated quotation." />
+            )}
+
+            {docData.type === 'quotation' && status === 'converted' && (
+              <SuccessCard title="Quotation Converted" subtitle="This quotation has been converted to a proforma invoice. No further action is needed." />
             )}
 
             {/* ════════ PROFORMA ════════ */}

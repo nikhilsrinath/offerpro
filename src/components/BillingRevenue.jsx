@@ -10,6 +10,7 @@ import {
 import { ref, push, set, get, remove } from 'firebase/database';
 import { db } from '../lib/firebase';
 import { storageService } from '../services/storageService';
+import { documentStore } from '../services/documentStore';
 import { useOrg } from '../context/OrgContext';
 
 const EXPENSE_CATEGORIES = ['Operations', 'Marketing', 'Salaries', 'Tools & Software', 'Office', 'Travel', 'Other'];
@@ -64,9 +65,17 @@ export default function BillingRevenue() {
 
   const stats = useMemo(() => {
     const invoices = records.filter(r => r.type === 'invoice');
-    const totalRevenue = invoices.reduce((acc, r) => acc + (r.data?.totals?.grandTotal || 0), 0);
+    const oldRevenue = invoices.reduce((acc, r) => acc + (r.data?.totals?.grandTotal || 0), 0);
     const totalMakingCharges = invoices.reduce((acc, r) => acc + (Number(r.data?.makingCharges) || 0), 0);
     const totalExpenses = expenses.reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
+
+    // Include paid invoices from financial documentStore
+    documentStore.init();
+    const finDocs = documentStore.getAll();
+    const paidFinInvoices = finDocs.filter(d => d.type === 'invoice' && d.status === 'paid');
+    const finRevenue = paidFinInvoices.reduce((acc, d) => acc + (d.grand_total || d.amount || d.subtotal || 0), 0);
+
+    const totalRevenue = oldRevenue + finRevenue;
     const grossProfit = totalRevenue - totalMakingCharges;
     const netProfit = grossProfit - totalExpenses;
 
@@ -82,16 +91,19 @@ export default function BillingRevenue() {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthInvoices = invoices.filter(r => { const rd = new Date(r.created_at); return rd.getMonth() === d.getMonth() && rd.getFullYear() === d.getFullYear(); });
       const mRev = monthInvoices.reduce((acc, r) => acc + (r.data?.totals?.grandTotal || 0), 0);
+      const mFinRev = paidFinInvoices
+        .filter(fd => { const rd = new Date(fd.created_at); return rd.getMonth() === d.getMonth() && rd.getFullYear() === d.getFullYear(); })
+        .reduce((acc, fd) => acc + (fd.grand_total || fd.amount || fd.subtotal || 0), 0);
       const mCost = monthInvoices.reduce((acc, r) => acc + (Number(r.data?.makingCharges) || 0), 0);
       const mExp = expenses
         .filter(e => { const ed = new Date(e.date); return ed.getMonth() === d.getMonth() && ed.getFullYear() === d.getFullYear(); })
         .reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
       monthlyCashFlow.push({
         month: d.toLocaleDateString('en-IN', { month: 'short' }),
-        revenue: mRev,
+        revenue: mRev + mFinRev,
         makingCharges: mCost,
         expenses: mExp,
-        profit: mRev - mCost - mExp
+        profit: (mRev + mFinRev) - mCost - mExp
       });
     }
 
@@ -104,7 +116,7 @@ export default function BillingRevenue() {
       name, value, color: CATEGORY_COLORS[name] || '#6b7280'
     }));
 
-    return { totalRevenue, totalMakingCharges, grossProfit, totalExpenses, netProfit, invoiceCount: invoices.length, categoryBreakdown, monthlyCashFlow, expensePieData };
+    return { totalRevenue, totalMakingCharges, grossProfit, totalExpenses, netProfit, invoiceCount: invoices.length + paidFinInvoices.length, categoryBreakdown, monthlyCashFlow, expensePieData };
   }, [records, expenses]);
 
   const handleAddExpense = async (e) => {

@@ -47,7 +47,9 @@ function groupByClient(docs) {
       };
     }
     groups[clientKey].documents.push(doc);
-    groups[clientKey].totalValue += (doc.grand_total || doc.amount || doc.subtotal || 0);
+    if (doc.status !== 'converted') {
+      groups[clientKey].totalValue += (doc.grand_total || doc.amount || doc.subtotal || 0);
+    }
     if (new Date(doc.created_at) > new Date(groups[clientKey].latestDate)) {
       groups[clientKey].latestDate = doc.created_at;
       groups[clientKey].latestStatus = doc.status;
@@ -100,7 +102,7 @@ export default function FinanceStatus() {
     const proformas = documents.filter((d) => d.type === 'proforma').length;
     const invoices = documents.filter((d) => d.type === 'invoice').length;
     const paid = documents.filter((d) => d.status === 'paid').length;
-    const totalValue = documents.reduce((sum, d) => sum + (d.grand_total || d.amount || d.subtotal || 0), 0);
+    const totalValue = documents.filter((d) => d.status !== 'converted').reduce((sum, d) => sum + (d.grand_total || d.amount || d.subtotal || 0), 0);
     const paidValue = documents.filter((d) => d.status === 'paid').reduce((sum, d) => sum + (d.grand_total || d.amount || d.subtotal || 0), 0);
     return { total, quotations, proformas, invoices, paid, totalValue, paidValue };
   }, [documents]);
