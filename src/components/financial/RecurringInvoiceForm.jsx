@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Plus, Trash2, ChevronRight, Pause, Play, X as XIcon, Calendar, RotateCcw } from 'lucide-react';
 import { documentStore } from '../../services/documentStore';
+import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
 import { useToast } from '../shared/Toast';
 
@@ -1073,8 +1074,17 @@ function RecurringInvoiceList({ onCreateNew, onEdit }) {
    Toggles between list view and form view
    ═══════════════════════════════════════ */
 export default function RecurringInvoicePage() {
+  const { activeOrg } = useOrg();
   const [view, setView] = useState('list'); // 'list' | 'create' | 'edit'
   const [editItem, setEditItem] = useState(null);
+
+  // Set Firebase context for cloud sync
+  useEffect(() => {
+    if (activeOrg?.id) {
+      documentStore.setContext(activeOrg.id);
+      documentStore.init().catch(() => {});
+    }
+  }, [activeOrg]);
 
   const handleCreateNew = () => {
     setEditItem(null);

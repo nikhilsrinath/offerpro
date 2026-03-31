@@ -79,6 +79,14 @@ export default function QuotationForm({ editDocId }) {
     terms: '',
   });
 
+  // Set Firebase context for cloud sync
+  useEffect(() => {
+    if (activeOrg?.id) {
+      documentStore.setContext(activeOrg.id);
+      documentStore.init().catch(() => {});
+    }
+  }, [activeOrg]);
+
   // Load existing document for editing
   useEffect(() => {
     if (!editDocId) return;

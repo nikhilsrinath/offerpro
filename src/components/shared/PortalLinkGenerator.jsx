@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Copy, Check, ExternalLink, QrCode } from 'lucide-react';
+import { useOrg } from '../../context/OrgContext';
 
 export default function PortalLinkGenerator({ documentId, documentType }) {
+  const { activeOrg } = useOrg();
   const [copied, setCopied] = useState(false);
   const [showQR, setShowQR] = useState(false);
 
   const token = Math.random().toString(36).substring(2, 10);
-  const portalUrl = `${window.location.origin}/portal/${documentId}?token=${token}`;
+  const orgId = activeOrg?.id || '';
+  const portalUrl = `${window.location.origin}/portal/${documentId}?token=${token}&org=${orgId}`;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(portalUrl);

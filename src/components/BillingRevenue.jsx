@@ -29,6 +29,7 @@ export default function BillingRevenue() {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const [finDocs, setFinDocs] = useState([]);
   const [newExpense, setNewExpense] = useState({
     description: '',
     amount: '',
@@ -45,6 +46,11 @@ export default function BillingRevenue() {
     try {
       const data = await storageService.getAll(activeOrg.id);
       setRecords(data || []);
+
+      // Load financial documents from Firebase-synced store
+      documentStore.setContext(activeOrg.id);
+      await documentStore.init();
+      setFinDocs(documentStore.getAll());
 
       const expRef = ref(db, `expenses/${activeOrg.id}`);
       const snap = await get(expRef);
@@ -69,9 +75,7 @@ export default function BillingRevenue() {
     const totalMakingCharges = invoices.reduce((acc, r) => acc + (Number(r.data?.makingCharges) || 0), 0);
     const totalExpenses = expenses.reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
 
-    // Include paid invoices from financial documentStore
-    documentStore.init();
-    const finDocs = documentStore.getAll();
+    // Include paid invoices from financial documentStore (loaded from Firebase in loadData)
     const paidFinInvoices = finDocs.filter(d => d.type === 'invoice' && d.status === 'paid');
     const finRevenue = paidFinInvoices.reduce((acc, d) => acc + (d.grand_total || d.amount || d.subtotal || 0), 0);
 
@@ -117,7 +121,7 @@ export default function BillingRevenue() {
     }));
 
     return { totalRevenue, totalMakingCharges, grossProfit, totalExpenses, netProfit, invoiceCount: invoices.length + paidFinInvoices.length, categoryBreakdown, monthlyCashFlow, expensePieData };
-  }, [records, expenses]);
+  }, [records, expenses, finDocs]);
 
   const handleAddExpense = async (e) => {
     e.preventDefault();

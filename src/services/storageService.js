@@ -13,6 +13,8 @@ export const storageService = {
 
       const records = [];
       snapshot.forEach((child) => {
+        // Skip internal financial document store nodes
+        if (child.key.startsWith('_fin_')) return;
         const data = child.val();
         if (!type || data.type === type) {
           records.push({ id: child.key, ...data });

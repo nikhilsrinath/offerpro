@@ -40,6 +40,14 @@ export default function ProformaInvoiceForm() {
     notes: 'This is a proforma invoice and is not valid for GST input tax credit. GST amounts shown are indicative and subject to actuals at the time of invoicing.',
   });
 
+  // Set Firebase context for cloud sync
+  useEffect(() => {
+    if (activeOrg?.id) {
+      documentStore.setContext(activeOrg.id);
+      documentStore.init().catch(() => {});
+    }
+  }, [activeOrg]);
+
   // Close client dropdown on outside click
   useEffect(() => {
     const handleClick = (e) => {

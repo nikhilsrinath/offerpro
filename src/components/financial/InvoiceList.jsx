@@ -4,12 +4,14 @@ import { Eye, Edit3, Copy, CheckCircle, Bell, Search, Filter, Plus, ChevronDown,
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { documentStore } from '../../services/documentStore';
+import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
 import PortalLinkGenerator from '../shared/PortalLinkGenerator';
 import { useToast } from '../shared/Toast';
 
 export default function InvoiceList({ onNavigateToNew, onEdit, type = 'invoice' }) {
   const toast = useToast();
+  const { activeOrg } = useOrg();
   const [documents, setDocuments] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -30,10 +32,13 @@ export default function InvoiceList({ onNavigateToNew, onEdit, type = 'invoice' 
 
   useEffect(() => {
     loadDocuments();
-  }, [type]);
+  }, [type, activeOrg]);
 
-  const loadDocuments = () => {
-    documentStore.init();
+  const loadDocuments = async () => {
+    if (activeOrg?.id) {
+      documentStore.setContext(activeOrg.id);
+      await documentStore.init();
+    }
     setDocuments(documentStore.getByType(type));
   };
 

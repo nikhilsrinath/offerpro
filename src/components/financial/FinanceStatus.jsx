@@ -7,6 +7,7 @@ import {
   ArrowUpRight, XCircle
 } from 'lucide-react';
 import { documentStore } from '../../services/documentStore';
+import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
 import PortalLinkGenerator from '../shared/PortalLinkGenerator';
 import { useToast } from '../shared/Toast';
@@ -64,6 +65,7 @@ function groupByClient(docs) {
 
 export default function FinanceStatus() {
   const toast = useToast();
+  const { activeOrg } = useOrg();
   const [documents, setDocuments] = useState([]);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -73,10 +75,13 @@ export default function FinanceStatus() {
 
   useEffect(() => {
     loadDocuments();
-  }, []);
+  }, [activeOrg]);
 
-  const loadDocuments = () => {
-    documentStore.init();
+  const loadDocuments = async () => {
+    if (activeOrg?.id) {
+      documentStore.setContext(activeOrg.id);
+      await documentStore.init();
+    }
     const all = documentStore.getAll();
     const financial = all.filter((d) => ['invoice', 'quotation', 'proforma'].includes(d.type));
     setDocuments(financial);

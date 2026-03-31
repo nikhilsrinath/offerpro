@@ -62,8 +62,15 @@ export default function RecipientPortal({ documentId }) {
   const a4Ref = useRef(null);
 
   useEffect(() => {
-    documentStore.init();
-    const timer = setTimeout(() => {
+    const loadDocument = async () => {
+      // Extract orgId from URL query params for Firebase sync
+      const params = new URLSearchParams(window.location.search);
+      const orgId = params.get('org');
+      if (orgId) {
+        documentStore.setContext(orgId);
+        await documentStore.init();
+      }
+
       const doc = documentStore.getById(documentId);
       if (doc) {
         setDocData(doc);
@@ -81,7 +88,10 @@ export default function RecipientPortal({ documentId }) {
         setDocData(null);
       }
       setLoading(false);
-    }, 1200);
+    };
+
+    // Small delay for loading animation
+    const timer = setTimeout(loadDocument, 1200);
     return () => clearTimeout(timer);
   }, [documentId]);
 

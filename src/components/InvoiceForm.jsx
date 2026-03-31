@@ -202,7 +202,8 @@ export default function InvoiceForm({ onSuccess }) {
       await pdfService.generateInvoice(dataToSave);
 
       // Sync to documentStore so it appears in the financial module's InvoiceList
-      documentStore.init();
+      if (activeOrg?.id) documentStore.setContext(activeOrg.id);
+      await documentStore.init();
       documentStore.save({
         id: formData.invoiceNumber,
         type: 'invoice',

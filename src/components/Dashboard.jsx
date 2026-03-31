@@ -26,19 +26,31 @@ export default function Dashboard({ onNavigate }) {
   const { activeOrg } = useOrg();
   const { user } = useAuth();
   const [records, setRecords] = useState([]);
+  const [finDocs, setFinDocs] = useState([]);
   const [employeeCount, setEmployeeCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (activeOrg) {
-      Promise.all([
-        storageService.getAll(activeOrg.id),
-        storageService.getEmployees(activeOrg.id)
-      ]).then(([data, emps]) => {
-        setRecords(data || []);
-        setEmployeeCount((emps || []).length);
+      const loadAll = async () => {
+        try {
+          const [data, emps] = await Promise.all([
+            storageService.getAll(activeOrg.id),
+            storageService.getEmployees(activeOrg.id)
+          ]);
+          setRecords(data || []);
+          setEmployeeCount((emps || []).length);
+
+          // Load financial documents from Firebase-synced store
+          documentStore.setContext(activeOrg.id);
+          await documentStore.init();
+          setFinDocs(documentStore.getAll());
+        } catch {
+          // ignore
+        }
         setLoading(false);
-      }).catch(() => setLoading(false));
+      };
+      loadAll();
     } else {
       setLoading(false);
     }
@@ -49,9 +61,7 @@ export default function Dashboard({ onNavigate }) {
     const oldRevenue = invoiceRecords.reduce((acc, r) => acc + (r.data?.totals?.grandTotal || 0), 0);
     const makingCharges = invoiceRecords.reduce((acc, r) => acc + (Number(r.data?.makingCharges) || 0), 0);
 
-    // Include paid invoices from financial documentStore
-    documentStore.init();
-    const finDocs = documentStore.getAll();
+    // Include paid invoices from financial documentStore (loaded from Firebase in useEffect)
     const paidFinInvoices = finDocs.filter(d => d.type === 'invoice' && d.status === 'paid');
     const finRevenue = paidFinInvoices.reduce((acc, d) => acc + (d.grand_total || d.amount || d.subtotal || 0), 0);
     const finDocCount = finDocs.length;
@@ -127,7 +137,7 @@ export default function Dashboard({ onNavigate }) {
       monthlyRevenue,
       typeDistribution
     };
-  }, [records]);
+  }, [records, finDocs]);
 
   const greeting = () => {
     const h = new Date().getHours();

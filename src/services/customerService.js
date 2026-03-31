@@ -132,7 +132,8 @@ export const customerService = {
       });
 
       // Also sync from documentStore (financial module — quotations, proformas, invoices)
-      documentStore.init();
+      documentStore.setContext(orgId);
+      await documentStore.init();
       const finDocs = documentStore.getAll();
       finDocs.forEach((doc) => {
         const name = (doc.client?.company || doc.client?.name || doc.issued_to || '').trim();
