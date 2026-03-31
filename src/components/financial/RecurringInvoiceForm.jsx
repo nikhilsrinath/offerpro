@@ -108,8 +108,17 @@ function generateRecurringId() {
    ═══════════════════════════════════════ */
 function RecurringInvoiceForm({ onCancel, editItem }) {
   const toast = useToast();
-  const company = documentStore.getCompanyProfile();
+  const { activeOrg } = useOrg();
   const savedClients = documentStore.getSavedClients();
+
+  // Build company info from activeOrg (dynamic)
+  const company = {
+    company_name: activeOrg?.company_name || '',
+    address: activeOrg?.company_address || activeOrg?.address || '',
+    email: activeOrg?.company_email || activeOrg?.email || '',
+    phone: activeOrg?.company_phone || activeOrg?.phone || '',
+    gstin: activeOrg?.gstin || '',
+  };
 
   const [clientSearch, setClientSearch] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);

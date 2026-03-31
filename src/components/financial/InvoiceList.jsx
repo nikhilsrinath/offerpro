@@ -93,7 +93,19 @@ export default function InvoiceList({ onNavigateToNew, onEdit, type = 'invoice' 
   const handleDownloadPDF = async (doc) => {
     if (downloadingId) return;
     setDownloadingId(doc.id);
-    const company = documentStore.getCompanyProfile();
+    // Build company from activeOrg (dynamic)
+    const company = {
+      company_name: activeOrg?.company_name || '',
+      company_address: activeOrg?.company_address || activeOrg?.address || '',
+      company_email: activeOrg?.company_email || activeOrg?.email || '',
+      company_phone: activeOrg?.company_phone || activeOrg?.phone || '',
+      company_website: activeOrg?.company_website || '',
+      gstin: activeOrg?.gstin || '',
+      cin: activeOrg?.cin || '',
+      logo_url: activeOrg?.logo_url || '',
+      stamp_url: activeOrg?.stamp_url || '',
+      company_tagline: activeOrg?.company_tagline || '',
+    };
     const docTypeLabel = doc.type === 'proforma' ? 'Proforma_Invoice' : doc.type === 'quotation' ? 'Quotation' : 'Tax_Invoice';
     const titleText = doc.type === 'proforma' ? 'PROFORMA INVOICE' : doc.type === 'quotation' ? 'QUOTATION' : (doc.gstRate > 0 || doc.gst > 0) ? 'TAX INVOICE' : 'INVOICE';
 

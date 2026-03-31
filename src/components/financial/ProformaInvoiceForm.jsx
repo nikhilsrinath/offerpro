@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Trash2, ChevronRight, Eye, Send, Save } from 'lucide-react';
+import { Plus, Trash2, Eye, Send, Save, MessageCircle } from 'lucide-react';
 import { documentStore } from '../../services/documentStore';
 import { customerService } from '../../services/customerService';
 import { useOrg } from '../../context/OrgContext';
@@ -13,8 +13,21 @@ const UNIT_OPTIONS = ['Nos', 'Hrs', 'Days', 'Months', 'Units', 'Pcs', 'Lots', 'K
 export default function ProformaInvoiceForm() {
   const toast = useToast();
   const { activeOrg } = useOrg();
-  const company = documentStore.getCompanyProfile();
   const savedClients = documentStore.getSavedClients();
+
+  // Build company info from activeOrg (dynamic, not stale localStorage)
+  const company = {
+    company_name: activeOrg?.company_name || '',
+    address: activeOrg?.company_address || activeOrg?.address || '',
+    email: activeOrg?.company_email || activeOrg?.email || '',
+    phone: activeOrg?.company_phone || activeOrg?.phone || '',
+    gstin: activeOrg?.gstin || '',
+    logo_url: activeOrg?.logo_url || '',
+    stamp_url: activeOrg?.stamp_url || '',
+    cin: activeOrg?.cin || '',
+    company_tagline: activeOrg?.company_tagline || '',
+    company_website: activeOrg?.company_website || '',
+  };
 
   const [clientSearch, setClientSearch] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);
@@ -28,6 +41,7 @@ export default function ProformaInvoiceForm() {
     clientAddress: '',
     clientGSTIN: '',
     clientEmail: '',
+    clientPhone: '',
     proformaNumber: documentStore.nextId('PI'),
     date: new Date().toISOString().split('T')[0],
     dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -239,9 +253,21 @@ export default function ProformaInvoiceForm() {
       title: 'Proforma Invoice Sent',
       message: `${formData.proformaNumber} sent to ${formData.clientCompany || formData.clientName}`,
     });
+
+    // Build portal link
+    const token = Math.random().toString(36).substring(2, 10);
+    const orgId = activeOrg?.id || '';
+    const portalUrl = `${window.location.origin}/portal/${doc.id}?token=${token}&org=${orgId}`;
+
+    // Open WhatsApp with pre-filled message
+    const phone = (formData.clientPhone || '').replace(/[^0-9+]/g, '');
+    const message = `Hi ${formData.clientName},\n\nPlease find your proforma invoice *${doc.id}* from *${company.company_name}*.\n\nTotal: ₹${totals.grandTotal.toLocaleString('en-IN')}\nAdvance (${activeAdvancePercent}%): ₹${totals.advanceAmount.toLocaleString('en-IN')}\nDue: ${formData.dueDate}\n\nView & respond here:\n${portalUrl}\n\nThank you!`;
+    const waUrl = `https://wa.me/${phone.replace('+', '')}?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank');
+
     setSavedDocId(doc.id);
     setShowPortalLink(true);
-    toast('Proforma invoice sent to client', 'success');
+    toast('Proforma sent — WhatsApp opened', 'success');
   };
 
   return (
@@ -320,6 +346,16 @@ export default function ProformaInvoiceForm() {
                   placeholder="billing@client.com"
                   value={formData.clientEmail}
                   onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })}
+                  className="easy-inp"
+                />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Client phone (WhatsApp)</label>
+                <input
+                  type="tel"
+                  placeholder="+91 98765 43210"
+                  value={formData.clientPhone}
+                  onChange={(e) => setFormData({ ...formData, clientPhone: e.target.value })}
                   className="easy-inp"
                 />
               </div>
@@ -591,13 +627,17 @@ export default function ProformaInvoiceForm() {
           </div>
 
           {/* 6. Actions */}
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <button type="button" onClick={handleSaveDraft} className="easy-submit-outline" style={{ flex: 1, minWidth: '160px' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+            <button type="button" onClick={handleSaveDraft} className="easy-submit-outline" style={{ flex: '1 1 140px', minWidth: 0 }}>
               <Save size={16} /> Save Draft
             </button>
-            <button type="button" onClick={handleSendToClient} className="easy-submit" style={{ flex: 1, minWidth: '160px' }}>
-              <Send size={16} /> Send to Client
-              <ChevronRight size={18} />
+            <button
+              type="button"
+              onClick={handleSendToClient}
+              className="easy-submit"
+              style={{ flex: '2 1 200px', minWidth: 0, background: '#25D366', gap: '0.5rem' }}
+            >
+              <MessageCircle size={16} /> Send via WhatsApp
             </button>
           </div>
 

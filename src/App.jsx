@@ -126,7 +126,9 @@ function AppContent() {
   };
 
   const handleNotifClick = (notif) => {
-    handleMarkRead(notif.id);
+    // Remove the notification on click
+    documentStore.deleteNotification(notif.id);
+    refreshNotifications();
     if (notif.type === 'quotation_accepted' || notif.type === 'quotation_sent') {
       navigate('quotations');
     } else if (notif.type === 'revision_requested') {
@@ -135,6 +137,11 @@ function AppContent() {
       navigate('invoices');
     }
     setShowNotifPanel(false);
+  };
+
+  const handleClearAllNotifs = () => {
+    documentStore.clearAllNotifications();
+    refreshNotifications();
   };
 
   if (loading) {
@@ -280,7 +287,21 @@ function AppContent() {
             <div className="notif-panel" onClick={(e) => e.stopPropagation()}>
               <div className="notif-panel-header">
                 <h3>Notifications</h3>
-                {unreadCount > 0 && <span className="notif-panel-count">{unreadCount} new</span>}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {unreadCount > 0 && <span className="notif-panel-count">{unreadCount} new</span>}
+                  {notifications.length > 0 && (
+                    <button
+                      onClick={handleClearAllNotifs}
+                      style={{
+                        background: 'none', border: 'none', color: 'var(--text-muted)',
+                        fontSize: '0.75rem', cursor: 'pointer', padding: '2px 6px',
+                        borderRadius: 4, textDecoration: 'underline',
+                      }}
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
               </div>
               {notifications.length === 0 ? (
                 <div className="notif-panel-empty">No notifications yet</div>

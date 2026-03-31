@@ -316,6 +316,15 @@ export const documentStore = {
     setNotifications(notifs);
     syncNotifsToCloud(notifs);
   },
+  deleteNotification: (id) => {
+    const notifs = getNotifications().filter((n) => n.id !== id);
+    setNotifications(notifs);
+    syncNotifsToCloud(notifs);
+  },
+  clearAllNotifications: () => {
+    setNotifications([]);
+    syncNotifsToCloud([]);
+  },
   getUnreadCount: () => {
     return getNotifications().filter((n) => !n.read).length;
   },
