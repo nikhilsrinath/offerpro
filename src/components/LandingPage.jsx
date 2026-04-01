@@ -226,42 +226,42 @@ const LandingPage = ({ onEnter }) => {
               <div className="eos-fc-image">
                 <svg viewBox="0 0 480 210" fill="none" xmlns="http://www.w3.org/2000/svg" className="eos-fc-svg">
                   <defs>
-                    <filter id="g1" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                    <filter id="g1s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                    <radialGradient id="ig" cx="70%" cy="90%" r="55%"><stop offset="0" stopColor="rgba(255,255,255,0.15)"/><stop offset="1" stopColor="transparent"/></radialGradient>
+                    <filter id="g1" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                    <filter id="g1s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                    <radialGradient id="ig" cx="70%" cy="90%" r="55%"><stop offset="0" stopColor="rgba(255,255,255,0.15)" /><stop offset="1" stopColor="transparent" /></radialGradient>
                   </defs>
-                  <rect x="8" y="5" width="464" height="200" rx="12" fill="#0a0a0a" stroke="rgba(255,255,255,0.15)" strokeWidth="1"/>
-                  <rect x="8" y="5" width="464" height="200" rx="12" fill="url(#ig)"/>
+                  <rect x="8" y="5" width="464" height="200" rx="12" fill="#0a0a0a" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                  <rect x="8" y="5" width="464" height="200" rx="12" fill="url(#ig)" />
                   {/* Header */}
-                  <rect x="28" y="22" width="70" height="10" rx="5" fill="rgba(255,255,255,0.7)"/>
-                  <rect x="28" y="36" width="100" height="5" rx="2.5" fill="rgba(255,255,255,0.3)"/>
-                  <rect x="370" y="20" width="80" height="18" rx="9" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.4)" strokeWidth="0.7"/>
+                  <rect x="28" y="22" width="70" height="10" rx="5" fill="rgba(255,255,255,0.7)" />
+                  <rect x="28" y="36" width="100" height="5" rx="2.5" fill="rgba(255,255,255,0.3)" />
+                  <rect x="370" y="20" width="80" height="18" rx="9" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.4)" strokeWidth="0.7" />
                   <text x="410" y="32" textAnchor="middle" fill="rgba(255,255,255,0.9)" fontSize="7" fontWeight="600" fontFamily="Inter,sans-serif">INVOICE</text>
-                  <line x1="28" y1="52" x2="452" y2="52" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5"/>
+                  <line x1="28" y1="52" x2="452" y2="52" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
                   {/* Table headers */}
-                  {[['28','60'],['200','35'],['290','35'],['380','50']].map(([x,w],i) => (
-                    <rect key={i} x={x} y="60" width={w} height="5" rx="2.5" fill="rgba(255,255,255,0.5)"/>
+                  {[['28', '60'], ['200', '35'], ['290', '35'], ['380', '50']].map(([x, w], i) => (
+                    <rect key={i} x={x} y="60" width={w} height="5" rx="2.5" fill="rgba(255,255,255,0.5)" />
                   ))}
                   {/* Data rows */}
-                  {[78,96,114].map((y,i) => (
+                  {[78, 96, 114].map((y, i) => (
                     <g key={i}>
-                      {i%2===0 && <rect x="20" y={y-4} width="440" height="16" rx="4" fill="rgba(255,255,255,0.04)"/>}
-                      <rect x="28" y={y} width={120-i*15} height="4" rx="2" fill="rgba(255,255,255,0.35)"/>
-                      <rect x="200" y={y} width="22" height="4" rx="2" fill="rgba(255,255,255,0.25)"/>
-                      <rect x="290" y={y} width="35" height="4" rx="2" fill="rgba(255,255,255,0.25)"/>
-                      <rect x="380" y={y} width="48" height="4" rx="2" fill="rgba(255,255,255,0.4)"/>
+                      {i % 2 === 0 && <rect x="20" y={y - 4} width="440" height="16" rx="4" fill="rgba(255,255,255,0.04)" />}
+                      <rect x="28" y={y} width={120 - i * 15} height="4" rx="2" fill="rgba(255,255,255,0.35)" />
+                      <rect x="200" y={y} width="22" height="4" rx="2" fill="rgba(255,255,255,0.25)" />
+                      <rect x="290" y={y} width="35" height="4" rx="2" fill="rgba(255,255,255,0.25)" />
+                      <rect x="380" y={y} width="48" height="4" rx="2" fill="rgba(255,255,255,0.4)" />
                     </g>
                   ))}
                   {/* Totals */}
-                  <line x1="280" y1="138" x2="452" y2="138" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
-                  <rect x="290" y="146" width="50" height="5" rx="2.5" fill="rgba(255,255,255,0.4)"/>
-                  <rect x="395" y="144" width="55" height="9" rx="4.5" fill="rgba(255,255,255,0.55)" filter="url(#g1)"/>
-                  <rect x="290" y="162" width="35" height="4" rx="2" fill="rgba(255,255,255,0.3)"/>
-                  <rect x="400" y="162" width="48" height="4" rx="2" fill="rgba(255,255,255,0.25)"/>
+                  <line x1="280" y1="138" x2="452" y2="138" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5" />
+                  <rect x="290" y="146" width="50" height="5" rx="2.5" fill="rgba(255,255,255,0.4)" />
+                  <rect x="395" y="144" width="55" height="9" rx="4.5" fill="rgba(255,255,255,0.55)" filter="url(#g1)" />
+                  <rect x="290" y="162" width="35" height="4" rx="2" fill="rgba(255,255,255,0.3)" />
+                  <rect x="400" y="162" width="48" height="4" rx="2" fill="rgba(255,255,255,0.25)" />
                   {/* Grand total — bright glow */}
-                  <line x1="280" y1="176" x2="452" y2="176" stroke="rgba(255,255,255,0.25)" strokeWidth="0.7"/>
-                  <rect x="290" y="183" width="60" height="7" rx="3.5" fill="rgba(255,255,255,0.6)" filter="url(#g1)"/>
-                  <rect x="388" y="182" width="64" height="10" rx="5" fill="#fff" opacity="0.75" filter="url(#g1s)"/>
+                  <line x1="280" y1="176" x2="452" y2="176" stroke="rgba(255,255,255,0.25)" strokeWidth="0.7" />
+                  <rect x="290" y="183" width="60" height="7" rx="3.5" fill="rgba(255,255,255,0.6)" filter="url(#g1)" />
+                  <rect x="388" y="182" width="64" height="10" rx="5" fill="#fff" opacity="0.75" filter="url(#g1s)" />
                 </svg>
               </div>
               <div className="eos-fc-metrics">
@@ -289,33 +289,33 @@ const LandingPage = ({ onEnter }) => {
               <div className="eos-fc-image">
                 <svg viewBox="0 0 320 210" fill="none" xmlns="http://www.w3.org/2000/svg" className="eos-fc-svg">
                   <defs>
-                    <filter id="g2" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                    <filter id="g2b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                    <radialGradient id="mg" cx="50%" cy="80%" r="45%"><stop offset="0" stopColor="rgba(255,255,255,0.12)"/><stop offset="1" stopColor="transparent"/></radialGradient>
+                    <filter id="g2" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                    <filter id="g2b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                    <radialGradient id="mg" cx="50%" cy="80%" r="45%"><stop offset="0" stopColor="rgba(255,255,255,0.12)" /><stop offset="1" stopColor="transparent" /></radialGradient>
                   </defs>
-                  <rect x="10" y="5" width="300" height="200" rx="12" fill="#0a0a0a" stroke="rgba(255,255,255,0.15)" strokeWidth="1"/>
-                  <rect x="10" y="5" width="300" height="200" rx="12" fill="url(#mg)"/>
+                  <rect x="10" y="5" width="300" height="200" rx="12" fill="#0a0a0a" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                  <rect x="10" y="5" width="300" height="200" rx="12" fill="url(#mg)" />
                   {/* Title */}
-                  <rect x="85" y="20" width="150" height="10" rx="5" fill="rgba(255,255,255,0.7)"/>
-                  <rect x="70" y="36" width="180" height="5" rx="2.5" fill="rgba(255,255,255,0.3)"/>
-                  <line x1="50" y1="50" x2="270" y2="50" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5"/>
+                  <rect x="85" y="20" width="150" height="10" rx="5" fill="rgba(255,255,255,0.7)" />
+                  <rect x="70" y="36" width="180" height="5" rx="2.5" fill="rgba(255,255,255,0.3)" />
+                  <line x1="50" y1="50" x2="270" y2="50" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
                   {/* Text lines */}
-                  {[60,68,76,84].map((y,i) => (
-                    <rect key={i} x="32" y={y} width={260-(i===3?80:i===1?20:0)} height="3.5" rx="1.75" fill={`rgba(255,255,255,${0.2+i*0.03})`}/>
+                  {[60, 68, 76, 84].map((y, i) => (
+                    <rect key={i} x="32" y={y} width={260 - (i === 3 ? 80 : i === 1 ? 20 : 0)} height="3.5" rx="1.75" fill={`rgba(255,255,255,${0.2 + i * 0.03})`} />
                   ))}
-                  {[98,106,114,122].map((y,i) => (
-                    <rect key={`b${i}`} x="32" y={y} width={260-(i===3?100:i===1?30:0)} height="3.5" rx="1.75" fill={`rgba(255,255,255,${0.18+i*0.03})`}/>
+                  {[98, 106, 114, 122].map((y, i) => (
+                    <rect key={`b${i}`} x="32" y={y} width={260 - (i === 3 ? 100 : i === 1 ? 30 : 0)} height="3.5" rx="1.75" fill={`rgba(255,255,255,${0.18 + i * 0.03})`} />
                   ))}
                   {/* Signatures — bright white glow */}
-                  <line x1="32" y1="150" x2="140" y2="150" stroke="rgba(255,255,255,0.3)" strokeWidth="0.7" strokeDasharray="3 2"/>
-                  <line x1="180" y1="150" x2="288" y2="150" stroke="rgba(255,255,255,0.3)" strokeWidth="0.7" strokeDasharray="3 2"/>
-                  <path d="M45 142 Q58 128 70 138 Q80 148 92 134 Q100 126 112 136" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round" filter="url(#g2)"/>
-                  <path d="M195 142 Q208 126 218 137 Q226 148 238 132 Q246 124 258 135" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round" filter="url(#g2)"/>
-                  <rect x="48" y="156" width="65" height="4" rx="2" fill="rgba(255,255,255,0.4)"/>
-                  <rect x="198" y="156" width="65" height="4" rx="2" fill="rgba(255,255,255,0.4)"/>
+                  <line x1="32" y1="150" x2="140" y2="150" stroke="rgba(255,255,255,0.3)" strokeWidth="0.7" strokeDasharray="3 2" />
+                  <line x1="180" y1="150" x2="288" y2="150" stroke="rgba(255,255,255,0.3)" strokeWidth="0.7" strokeDasharray="3 2" />
+                  <path d="M45 142 Q58 128 70 138 Q80 148 92 134 Q100 126 112 136" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round" filter="url(#g2)" />
+                  <path d="M195 142 Q208 126 218 137 Q226 148 238 132 Q246 124 258 135" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round" filter="url(#g2)" />
+                  <rect x="48" y="156" width="65" height="4" rx="2" fill="rgba(255,255,255,0.4)" />
+                  <rect x="198" y="156" width="65" height="4" rx="2" fill="rgba(255,255,255,0.4)" />
                   {/* Seal — glowing white */}
-                  <circle cx="160" cy="182" r="16" stroke="#fff" strokeWidth="1.5" fill="rgba(255,255,255,0.08)" filter="url(#g2b)"/>
-                  <circle cx="160" cy="182" r="11" stroke="rgba(255,255,255,0.5)" strokeWidth="0.7" fill="none"/>
+                  <circle cx="160" cy="182" r="16" stroke="#fff" strokeWidth="1.5" fill="rgba(255,255,255,0.08)" filter="url(#g2b)" />
+                  <circle cx="160" cy="182" r="11" stroke="rgba(255,255,255,0.5)" strokeWidth="0.7" fill="none" />
                   <text x="160" y="185" textAnchor="middle" fill="rgba(255,255,255,0.85)" fontSize="5.5" fontWeight="700" fontFamily="Inter,sans-serif">SEAL</text>
                 </svg>
               </div>
@@ -331,39 +331,39 @@ const LandingPage = ({ onEnter }) => {
               <div className="eos-fc-image">
                 <svg viewBox="0 0 320 210" fill="none" xmlns="http://www.w3.org/2000/svg" className="eos-fc-svg">
                   <defs>
-                    <filter id="g3" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                    <filter id="g3b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="10" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                    <linearGradient id="cb" x1="0" y1="0" x2="320" y2="210" gradientUnits="userSpaceOnUse"><stop offset="0" stopColor="rgba(255,255,255,0.5)"/><stop offset="0.5" stopColor="rgba(255,255,255,0.12)"/><stop offset="1" stopColor="rgba(255,255,255,0.5)"/></linearGradient>
-                    <radialGradient id="cg" cx="50%" cy="25%" r="50%"><stop offset="0" stopColor="rgba(255,255,255,0.15)"/><stop offset="1" stopColor="transparent"/></radialGradient>
+                    <filter id="g3" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                    <filter id="g3b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="10" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                    <linearGradient id="cb" x1="0" y1="0" x2="320" y2="210" gradientUnits="userSpaceOnUse"><stop offset="0" stopColor="rgba(255,255,255,0.5)" /><stop offset="0.5" stopColor="rgba(255,255,255,0.12)" /><stop offset="1" stopColor="rgba(255,255,255,0.5)" /></linearGradient>
+                    <radialGradient id="cg" cx="50%" cy="25%" r="50%"><stop offset="0" stopColor="rgba(255,255,255,0.15)" /><stop offset="1" stopColor="transparent" /></radialGradient>
                   </defs>
-                  <rect x="10" y="5" width="300" height="200" rx="6" fill="#0a0a0a" stroke="url(#cb)" strokeWidth="1.5"/>
-                  <rect x="10" y="5" width="300" height="200" rx="6" fill="url(#cg)"/>
-                  <rect x="20" y="15" width="280" height="180" rx="4" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" fill="none" strokeDasharray="6 3"/>
+                  <rect x="10" y="5" width="300" height="200" rx="6" fill="#0a0a0a" stroke="url(#cb)" strokeWidth="1.5" />
+                  <rect x="10" y="5" width="300" height="200" rx="6" fill="url(#cg)" />
+                  <rect x="20" y="15" width="280" height="180" rx="4" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" fill="none" strokeDasharray="6 3" />
                   {/* Star — bright white glow */}
-                  <polygon points="160,28 165,43 180,43 168,52 172,67 160,58 148,67 152,52 140,43 155,43" fill="#fff" opacity="0.7" filter="url(#g3b)"/>
+                  <polygon points="160,28 165,43 180,43 168,52 172,67 160,58 148,67 152,52 140,43 155,43" fill="#fff" opacity="0.7" filter="url(#g3b)" />
                   {/* Title */}
-                  <rect x="90" y="78" width="140" height="9" rx="4.5" fill="rgba(255,255,255,0.7)"/>
-                  <rect x="75" y="94" width="170" height="5" rx="2.5" fill="rgba(255,255,255,0.35)"/>
+                  <rect x="90" y="78" width="140" height="9" rx="4.5" fill="rgba(255,255,255,0.7)" />
+                  <rect x="75" y="94" width="170" height="5" rx="2.5" fill="rgba(255,255,255,0.35)" />
                   {/* Name — glowing white */}
-                  <rect x="85" y="112" width="150" height="8" rx="4" fill="#fff" opacity="0.6" filter="url(#g3)"/>
-                  <line x1="70" y1="126" x2="250" y2="126" stroke="rgba(255,255,255,0.25)" strokeWidth="0.5"/>
+                  <rect x="85" y="112" width="150" height="8" rx="4" fill="#fff" opacity="0.6" filter="url(#g3)" />
+                  <line x1="70" y1="126" x2="250" y2="126" stroke="rgba(255,255,255,0.25)" strokeWidth="0.5" />
                   {/* Description */}
-                  <rect x="55" y="136" width="210" height="3.5" rx="1.75" fill="rgba(255,255,255,0.2)"/>
-                  <rect x="70" y="144" width="180" height="3.5" rx="1.75" fill="rgba(255,255,255,0.2)"/>
+                  <rect x="55" y="136" width="210" height="3.5" rx="1.75" fill="rgba(255,255,255,0.2)" />
+                  <rect x="70" y="144" width="180" height="3.5" rx="1.75" fill="rgba(255,255,255,0.2)" />
                   {/* Bottom */}
-                  <line x1="35" y1="160" x2="95" y2="160" stroke="rgba(255,255,255,0.25)" strokeWidth="0.5" strokeDasharray="2 1.5"/>
-                  <rect x="40" y="164" width="50" height="3.5" rx="1.75" fill="rgba(255,255,255,0.3)"/>
-                  <line x1="225" y1="160" x2="285" y2="160" stroke="rgba(255,255,255,0.25)" strokeWidth="0.5" strokeDasharray="2 1.5"/>
-                  <path d="M235 154 Q245 142 255 152 Q262 160 272 148" stroke="#fff" strokeWidth="1.2" fill="none" strokeLinecap="round" filter="url(#g3)"/>
-                  <rect x="230" y="164" width="50" height="3.5" rx="1.75" fill="rgba(255,255,255,0.3)"/>
+                  <line x1="35" y1="160" x2="95" y2="160" stroke="rgba(255,255,255,0.25)" strokeWidth="0.5" strokeDasharray="2 1.5" />
+                  <rect x="40" y="164" width="50" height="3.5" rx="1.75" fill="rgba(255,255,255,0.3)" />
+                  <line x1="225" y1="160" x2="285" y2="160" stroke="rgba(255,255,255,0.25)" strokeWidth="0.5" strokeDasharray="2 1.5" />
+                  <path d="M235 154 Q245 142 255 152 Q262 160 272 148" stroke="#fff" strokeWidth="1.2" fill="none" strokeLinecap="round" filter="url(#g3)" />
+                  <rect x="230" y="164" width="50" height="3.5" rx="1.75" fill="rgba(255,255,255,0.3)" />
                   {/* QR */}
-                  <rect x="138" y="160" width="24" height="24" rx="3" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.4)" strokeWidth="0.7"/>
+                  <rect x="138" y="160" width="24" height="24" rx="3" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.4)" strokeWidth="0.7" />
                   <g opacity="0.7">
-                    <rect x="142" y="164" width="5" height="5" rx="1" fill="#fff"/><rect x="149" y="164" width="5" height="5" rx="1" fill="#fff"/>
-                    <rect x="142" y="171" width="3" height="5" rx="0.5" fill="#fff"/><rect x="147" y="171" width="5" height="3" rx="0.5" fill="#fff"/>
-                    <rect x="154" y="171" width="5" height="5" rx="1" fill="#fff"/><rect x="155" y="164" width="3" height="3" rx="0.5" fill="#fff"/>
-                    <rect x="142" y="178" width="5" height="3" rx="0.5" fill="#fff"/><rect x="149" y="178" width="3" height="3" rx="0.5" fill="#fff"/>
-                    <rect x="154" y="178" width="5" height="3" rx="0.5" fill="#fff"/>
+                    <rect x="142" y="164" width="5" height="5" rx="1" fill="#fff" /><rect x="149" y="164" width="5" height="5" rx="1" fill="#fff" />
+                    <rect x="142" y="171" width="3" height="5" rx="0.5" fill="#fff" /><rect x="147" y="171" width="5" height="3" rx="0.5" fill="#fff" />
+                    <rect x="154" y="171" width="5" height="5" rx="1" fill="#fff" /><rect x="155" y="164" width="3" height="3" rx="0.5" fill="#fff" />
+                    <rect x="142" y="178" width="5" height="3" rx="0.5" fill="#fff" /><rect x="149" y="178" width="3" height="3" rx="0.5" fill="#fff" />
+                    <rect x="154" y="178" width="5" height="3" rx="0.5" fill="#fff" />
                   </g>
                 </svg>
               </div>
@@ -378,46 +378,42 @@ const LandingPage = ({ onEnter }) => {
                     Generate professional offer letters for full-time employees and interns. Customize with your company logo, digital signature, job title, department, compensation details, start date, and reporting manager. Recipients receive the offer through a branded portal where they can review all terms, digitally sign, and confirm acceptance — no account required. Track acceptance status in real time. Upload a CSV to generate hundreds of personalized offers in one batch.
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <div className="eos-fc-icon" style={{ marginBottom: 0 }}><Briefcase size={18} /></div>
-                  <div className="eos-fc-icon" style={{ marginBottom: 0 }}><Send size={18} /></div>
-                </div>
               </div>
               <div className="eos-fc-image">
                 <svg viewBox="0 0 480 210" fill="none" xmlns="http://www.w3.org/2000/svg" className="eos-fc-svg">
                   <defs>
-                    <filter id="g4" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                    <filter id="g4b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                    <radialGradient id="og" cx="15%" cy="15%" r="55%"><stop offset="0" stopColor="rgba(255,255,255,0.12)"/><stop offset="1" stopColor="transparent"/></radialGradient>
+                    <filter id="g4" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                    <filter id="g4b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                    <radialGradient id="og" cx="15%" cy="15%" r="55%"><stop offset="0" stopColor="rgba(255,255,255,0.12)" /><stop offset="1" stopColor="transparent" /></radialGradient>
                   </defs>
-                  <rect x="8" y="5" width="464" height="200" rx="12" fill="#0a0a0a" stroke="rgba(255,255,255,0.15)" strokeWidth="1"/>
-                  <rect x="8" y="5" width="464" height="200" rx="12" fill="url(#og)"/>
+                  <rect x="8" y="5" width="464" height="200" rx="12" fill="#0a0a0a" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                  <rect x="8" y="5" width="464" height="200" rx="12" fill="url(#og)" />
                   {/* Logo */}
-                  <rect x="28" y="18" width="32" height="32" rx="8" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.35)" strokeWidth="0.7"/>
-                  <rect x="35" y="28" width="18" height="4" rx="2" fill="rgba(255,255,255,0.6)"/>
-                  <rect x="37" y="36" width="12" height="2.5" rx="1.25" fill="rgba(255,255,255,0.3)"/>
-                  <rect x="68" y="22" width="90" height="8" rx="4" fill="rgba(255,255,255,0.65)"/>
-                  <rect x="68" y="36" width="130" height="4" rx="2" fill="rgba(255,255,255,0.25)"/>
-                  <rect x="380" y="24" width="70" height="5" rx="2.5" fill="rgba(255,255,255,0.3)"/>
-                  <line x1="28" y1="58" x2="452" y2="58" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5"/>
+                  <rect x="28" y="18" width="32" height="32" rx="8" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.35)" strokeWidth="0.7" />
+                  <rect x="35" y="28" width="18" height="4" rx="2" fill="rgba(255,255,255,0.6)" />
+                  <rect x="37" y="36" width="12" height="2.5" rx="1.25" fill="rgba(255,255,255,0.3)" />
+                  <rect x="68" y="22" width="90" height="8" rx="4" fill="rgba(255,255,255,0.65)" />
+                  <rect x="68" y="36" width="130" height="4" rx="2" fill="rgba(255,255,255,0.25)" />
+                  <rect x="380" y="24" width="70" height="5" rx="2.5" fill="rgba(255,255,255,0.3)" />
+                  <line x1="28" y1="58" x2="452" y2="58" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
                   {/* Subject */}
-                  <rect x="28" y="68" width="180" height="7" rx="3.5" fill="rgba(255,255,255,0.6)"/>
-                  <rect x="28" y="84" width="110" height="5" rx="2.5" fill="rgba(255,255,255,0.35)"/>
+                  <rect x="28" y="68" width="180" height="7" rx="3.5" fill="rgba(255,255,255,0.6)" />
+                  <rect x="28" y="84" width="110" height="5" rx="2.5" fill="rgba(255,255,255,0.35)" />
                   {/* Body */}
-                  {[98,108,118,128].map((y,i) => (
-                    <rect key={i} x="28" y={y} width={420-(i===3?130:0)} height="3.5" rx="1.75" fill={`rgba(255,255,255,${0.15+i*0.02})`}/>
+                  {[98, 108, 118, 128].map((y, i) => (
+                    <rect key={i} x="28" y={y} width={420 - (i === 3 ? 130 : 0)} height="3.5" rx="1.75" fill={`rgba(255,255,255,${0.15 + i * 0.02})`} />
                   ))}
                   {/* CTC boxes — glowing */}
-                  <rect x="28" y="144" width="195" height="24" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.25)" strokeWidth="0.7"/>
-                  <rect x="38" y="150" width="35" height="3.5" rx="1.75" fill="rgba(255,255,255,0.4)"/>
-                  <rect x="38" y="158" width="60" height="6" rx="3" fill="#fff" opacity="0.6" filter="url(#g4)"/>
-                  <rect x="240" y="144" width="195" height="24" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.25)" strokeWidth="0.7"/>
-                  <rect x="250" y="150" width="45" height="3.5" rx="1.75" fill="rgba(255,255,255,0.4)"/>
-                  <rect x="250" y="158" width="70" height="6" rx="3" fill="#fff" opacity="0.6" filter="url(#g4)"/>
+                  <rect x="28" y="144" width="195" height="24" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.25)" strokeWidth="0.7" />
+                  <rect x="38" y="150" width="35" height="3.5" rx="1.75" fill="rgba(255,255,255,0.4)" />
+                  <rect x="38" y="158" width="60" height="6" rx="3" fill="#fff" opacity="0.6" filter="url(#g4)" />
+                  <rect x="240" y="144" width="195" height="24" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.25)" strokeWidth="0.7" />
+                  <rect x="250" y="150" width="45" height="3.5" rx="1.75" fill="rgba(255,255,255,0.4)" />
+                  <rect x="250" y="158" width="70" height="6" rx="3" fill="#fff" opacity="0.6" filter="url(#g4)" />
                   {/* Accept — bright white glow */}
-                  <rect x="28" y="180" width="90" height="22" rx="11" fill="#fff" opacity="0.5" filter="url(#g4b)"/>
+                  <rect x="28" y="180" width="90" height="22" rx="11" fill="#fff" opacity="0.5" filter="url(#g4b)" />
                   <text x="73" y="194" textAnchor="middle" fill="#fff" fontSize="7.5" fontWeight="600" fontFamily="Inter,sans-serif">Accept</text>
-                  <rect x="128" y="180" width="90" height="22" rx="11" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="0.7"/>
+                  <rect x="128" y="180" width="90" height="22" rx="11" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="0.7" />
                   <text x="173" y="194" textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="7.5" fontFamily="Inter,sans-serif">Decline</text>
                 </svg>
               </div>
@@ -433,43 +429,43 @@ const LandingPage = ({ onEnter }) => {
               <div className="eos-fc-image">
                 <svg viewBox="0 0 260 180" fill="none" xmlns="http://www.w3.org/2000/svg" className="eos-fc-svg">
                   <defs>
-                    <filter id="g5" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                    <filter id="g5b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                    <radialGradient id="pg" cx="50%" cy="55%" r="50%"><stop offset="0" stopColor="rgba(255,255,255,0.12)"/><stop offset="1" stopColor="transparent"/></radialGradient>
+                    <filter id="g5" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                    <filter id="g5b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                    <radialGradient id="pg" cx="50%" cy="55%" r="50%"><stop offset="0" stopColor="rgba(255,255,255,0.12)" /><stop offset="1" stopColor="transparent" /></radialGradient>
                   </defs>
-                  <rect x="6" y="4" width="248" height="172" rx="10" fill="#0a0a0a" stroke="rgba(255,255,255,0.15)" strokeWidth="1"/>
-                  <rect x="6" y="4" width="248" height="172" rx="10" fill="url(#pg)"/>
+                  <rect x="6" y="4" width="248" height="172" rx="10" fill="#0a0a0a" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                  <rect x="6" y="4" width="248" height="172" rx="10" fill="url(#pg)" />
                   {/* Title bar */}
-                  <rect x="6" y="4" width="248" height="26" rx="10" fill="rgba(255,255,255,0.06)"/>
-                  <rect x="6" y="22" width="248" height="8" fill="rgba(255,255,255,0.06)"/>
+                  <rect x="6" y="4" width="248" height="26" rx="10" fill="rgba(255,255,255,0.06)" />
+                  <rect x="6" y="22" width="248" height="8" fill="rgba(255,255,255,0.06)" />
                   {/* Traffic dots */}
-                  <circle cx="20" cy="17" r="3.5" fill="rgba(255,255,255,0.3)"/>
-                  <circle cx="31" cy="17" r="3.5" fill="rgba(255,255,255,0.25)"/>
-                  <circle cx="42" cy="17" r="3.5" fill="rgba(255,255,255,0.2)"/>
+                  <circle cx="20" cy="17" r="3.5" fill="rgba(255,255,255,0.3)" />
+                  <circle cx="31" cy="17" r="3.5" fill="rgba(255,255,255,0.25)" />
+                  <circle cx="42" cy="17" r="3.5" fill="rgba(255,255,255,0.2)" />
                   {/* URL bar */}
-                  <rect x="56" y="10" width="150" height="14" rx="7" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
-                  <rect x="66" y="15" width="70" height="3.5" rx="1.75" fill="rgba(255,255,255,0.4)"/>
+                  <rect x="56" y="10" width="150" height="14" rx="7" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5" />
+                  <rect x="66" y="15" width="70" height="3.5" rx="1.75" fill="rgba(255,255,255,0.4)" />
                   {/* Lock glow */}
-                  <circle cx="140" cy="17" r="4" fill="#fff" opacity="0.4" filter="url(#g5)"/>
+                  <circle cx="140" cy="17" r="4" fill="#fff" opacity="0.4" filter="url(#g5)" />
                   {/* Content */}
-                  <rect x="20" y="42" width="90" height="7" rx="3.5" fill="rgba(255,255,255,0.6)"/>
-                  <rect x="20" y="54" width="55" height="4" rx="2" fill="rgba(255,255,255,0.25)"/>
+                  <rect x="20" y="42" width="90" height="7" rx="3.5" fill="rgba(255,255,255,0.6)" />
+                  <rect x="20" y="54" width="55" height="4" rx="2" fill="rgba(255,255,255,0.25)" />
                   {/* Status pill */}
-                  <rect x="170" y="42" width="65" height="16" rx="8" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
-                  <circle cx="182" cy="50" r="3" fill="#fff" opacity="0.7" filter="url(#g5)"/>
-                  <rect x="190" y="48" width="32" height="3.5" rx="1.75" fill="rgba(255,255,255,0.4)"/>
+                  <rect x="170" y="42" width="65" height="16" rx="8" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
+                  <circle cx="182" cy="50" r="3" fill="#fff" opacity="0.7" filter="url(#g5)" />
+                  <rect x="190" y="48" width="32" height="3.5" rx="1.75" fill="rgba(255,255,255,0.4)" />
                   {/* Document card */}
-                  <rect x="20" y="68" width="220" height="65" rx="6" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)" strokeWidth="0.7"/>
-                  <rect x="32" y="78" width="90" height="5" rx="2.5" fill="rgba(255,255,255,0.4)"/>
-                  <rect x="32" y="88" width="150" height="3.5" rx="1.75" fill="rgba(255,255,255,0.2)"/>
-                  <rect x="32" y="96" width="130" height="3.5" rx="1.75" fill="rgba(255,255,255,0.2)"/>
-                  <rect x="32" y="104" width="100" height="3.5" rx="1.75" fill="rgba(255,255,255,0.2)"/>
+                  <rect x="20" y="68" width="220" height="65" rx="6" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)" strokeWidth="0.7" />
+                  <rect x="32" y="78" width="90" height="5" rx="2.5" fill="rgba(255,255,255,0.4)" />
+                  <rect x="32" y="88" width="150" height="3.5" rx="1.75" fill="rgba(255,255,255,0.2)" />
+                  <rect x="32" y="96" width="130" height="3.5" rx="1.75" fill="rgba(255,255,255,0.2)" />
+                  <rect x="32" y="104" width="100" height="3.5" rx="1.75" fill="rgba(255,255,255,0.2)" />
                   {/* Amount — bright glow */}
-                  <rect x="155" y="115" width="75" height="8" rx="4" fill="#fff" opacity="0.5" filter="url(#g5b)"/>
+                  <rect x="155" y="115" width="75" height="8" rx="4" fill="#fff" opacity="0.5" filter="url(#g5b)" />
                   {/* Buttons */}
-                  <rect x="20" y="146" width="75" height="20" rx="10" fill="#fff" opacity="0.35" filter="url(#g5b)"/>
+                  <rect x="20" y="146" width="75" height="20" rx="10" fill="#fff" opacity="0.35" filter="url(#g5b)" />
                   <text x="57" y="159" textAnchor="middle" fill="#fff" fontSize="6.5" fontWeight="600" fontFamily="Inter,sans-serif">Download</text>
-                  <rect x="103" y="146" width="60" height="20" rx="10" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
+                  <rect x="103" y="146" width="60" height="20" rx="10" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5" />
                   <text x="133" y="159" textAnchor="middle" fill="rgba(255,255,255,0.7)" fontSize="6.5" fontFamily="Inter,sans-serif">Pay</text>
                 </svg>
               </div>
@@ -484,56 +480,56 @@ const LandingPage = ({ onEnter }) => {
               <div className="eos-fc-image">
                 <svg viewBox="0 0 260 180" fill="none" xmlns="http://www.w3.org/2000/svg" className="eos-fc-svg">
                   <defs>
-                    <filter id="g6" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                    <filter id="g6b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                    <linearGradient id="cg6" x1="0" y1="55" x2="0" y2="148" gradientUnits="userSpaceOnUse"><stop offset="0" stopColor="rgba(255,255,255,0.3)"/><stop offset="1" stopColor="rgba(255,255,255,0)"/></linearGradient>
-                    <radialGradient id="ag" cx="40%" cy="70%" r="50%"><stop offset="0" stopColor="rgba(255,255,255,0.12)"/><stop offset="1" stopColor="transparent"/></radialGradient>
-                    <linearGradient id="lg6" x1="42" y1="0" x2="155" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stopColor="rgba(255,255,255,0.4)"/><stop offset="1" stopColor="#fff"/></linearGradient>
+                    <filter id="g6" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                    <filter id="g6b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                    <linearGradient id="cg6" x1="0" y1="55" x2="0" y2="148" gradientUnits="userSpaceOnUse"><stop offset="0" stopColor="rgba(255,255,255,0.3)" /><stop offset="1" stopColor="rgba(255,255,255,0)" /></linearGradient>
+                    <radialGradient id="ag" cx="40%" cy="70%" r="50%"><stop offset="0" stopColor="rgba(255,255,255,0.12)" /><stop offset="1" stopColor="transparent" /></radialGradient>
+                    <linearGradient id="lg6" x1="42" y1="0" x2="155" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stopColor="rgba(255,255,255,0.4)" /><stop offset="1" stopColor="#fff" /></linearGradient>
                   </defs>
-                  <rect x="6" y="4" width="248" height="172" rx="10" fill="#0a0a0a" stroke="rgba(255,255,255,0.15)" strokeWidth="1"/>
-                  <rect x="6" y="4" width="248" height="172" rx="10" fill="url(#ag)"/>
+                  <rect x="6" y="4" width="248" height="172" rx="10" fill="#0a0a0a" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                  <rect x="6" y="4" width="248" height="172" rx="10" fill="url(#ag)" />
                   {/* Stat cards */}
-                  {[{x:18,w:68},{x:94,w:68},{x:170,w:68}].map((c,i) => (
+                  {[{ x: 18, w: 68 }, { x: 94, w: 68 }, { x: 170, w: 68 }].map((c, i) => (
                     <g key={i}>
-                      <rect x={c.x} y="16" width={c.w} height="34" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5"/>
-                      <rect x={c.x+10} y="24" width="32" height="3.5" rx="1.75" fill="rgba(255,255,255,0.3)"/>
-                      <rect x={c.x+10} y="32" width="42" height="7" rx="3.5" fill="rgba(255,255,255,0.6)"/>
-                      <rect x={c.x+10} y="43" width="22" height="3" rx="1.5" fill="rgba(255,255,255,0.35)"/>
+                      <rect x={c.x} y="16" width={c.w} height="34" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
+                      <rect x={c.x + 10} y="24" width="32" height="3.5" rx="1.75" fill="rgba(255,255,255,0.3)" />
+                      <rect x={c.x + 10} y="32" width="42" height="7" rx="3.5" fill="rgba(255,255,255,0.6)" />
+                      <rect x={c.x + 10} y="43" width="22" height="3" rx="1.5" fill="rgba(255,255,255,0.35)" />
                     </g>
                   ))}
                   {/* Chart area */}
-                  <rect x="18" y="58" width="148" height="105" rx="6" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5"/>
+                  <rect x="18" y="58" width="148" height="105" rx="6" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
                   {/* Grid */}
-                  {[70,88,106,124].map((y,i) => (
+                  {[70, 88, 106, 124].map((y, i) => (
                     <g key={i}>
-                      <rect x="22" y={y} width="14" height="2" rx="1" fill="rgba(255,255,255,0.15)"/>
-                      <line x1="40" y1={y+1} x2="160" y2={y+1} stroke="rgba(255,255,255,0.06)" strokeWidth="0.5"/>
+                      <rect x="22" y={y} width="14" height="2" rx="1" fill="rgba(255,255,255,0.15)" />
+                      <line x1="40" y1={y + 1} x2="160" y2={y + 1} stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
                     </g>
                   ))}
                   {/* Chart line — bright white glow */}
-                  <path d="M42 125 L58 108 L74 115 L90 88 L106 94 L122 74 L138 66 L155 58" stroke="url(#lg6)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" filter="url(#g6)"/>
-                  <path d="M42 125 L58 108 L74 115 L90 88 L106 94 L122 74 L138 66 L155 58 L155 148 L42 148 Z" fill="url(#cg6)"/>
+                  <path d="M42 125 L58 108 L74 115 L90 88 L106 94 L122 74 L138 66 L155 58" stroke="url(#lg6)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" filter="url(#g6)" />
+                  <path d="M42 125 L58 108 L74 115 L90 88 L106 94 L122 74 L138 66 L155 58 L155 148 L42 148 Z" fill="url(#cg6)" />
                   {/* Glowing data points */}
-                  {[[90,88],[122,74],[155,58]].map(([cx,cy],i) => (
+                  {[[90, 88], [122, 74], [155, 58]].map(([cx, cy], i) => (
                     <g key={i}>
-                      <circle cx={cx} cy={cy} r="6" fill="#fff" opacity="0.15" filter="url(#g6b)"/>
-                      <circle cx={cx} cy={cy} r="3" fill="#0a0a0a" stroke="#fff" strokeWidth="1.5"/>
+                      <circle cx={cx} cy={cy} r="6" fill="#fff" opacity="0.15" filter="url(#g6b)" />
+                      <circle cx={cx} cy={cy} r="3" fill="#0a0a0a" stroke="#fff" strokeWidth="1.5" />
                     </g>
                   ))}
                   {/* Tooltip */}
-                  <rect x="132" y="40" width="44" height="16" rx="4" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.35)" strokeWidth="0.5"/>
-                  <rect x="138" y="45" width="32" height="5" rx="2.5" fill="rgba(255,255,255,0.65)"/>
+                  <rect x="132" y="40" width="44" height="16" rx="4" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.35)" strokeWidth="0.5" />
+                  <rect x="138" y="45" width="32" height="5" rx="2.5" fill="rgba(255,255,255,0.65)" />
                   {/* Donut */}
-                  <rect x="174" y="58" width="72" height="105" rx="6" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5"/>
-                  <circle cx="210" cy="88" r="20" stroke="rgba(255,255,255,0.15)" strokeWidth="5" fill="none"/>
-                  <path d="M210 68 A20 20 0 0 1 230 88" stroke="#fff" strokeWidth="5" fill="none" strokeLinecap="round" filter="url(#g6)"/>
-                  <path d="M230 88 A20 20 0 0 1 220 106" stroke="rgba(255,255,255,0.5)" strokeWidth="5" fill="none" strokeLinecap="round"/>
+                  <rect x="174" y="58" width="72" height="105" rx="6" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
+                  <circle cx="210" cy="88" r="20" stroke="rgba(255,255,255,0.15)" strokeWidth="5" fill="none" />
+                  <path d="M210 68 A20 20 0 0 1 230 88" stroke="#fff" strokeWidth="5" fill="none" strokeLinecap="round" filter="url(#g6)" />
+                  <path d="M230 88 A20 20 0 0 1 220 106" stroke="rgba(255,255,255,0.5)" strokeWidth="5" fill="none" strokeLinecap="round" />
                   <text x="210" y="91" textAnchor="middle" fill="rgba(255,255,255,0.85)" fontSize="8" fontWeight="700" fontFamily="Inter,sans-serif">68%</text>
                   {/* Legend */}
-                  {[{y:122,w:0.8,lw:32},{y:134,w:0.5,lw:28},{y:146,w:0.25,lw:36}].map((l,i) => (
+                  {[{ y: 122, w: 0.8, lw: 32 }, { y: 134, w: 0.5, lw: 28 }, { y: 146, w: 0.25, lw: 36 }].map((l, i) => (
                     <g key={i}>
-                      <circle cx="184" cy={l.y} r="2.5" fill={`rgba(255,255,255,${l.w})`}/>
-                      <rect x="192" y={l.y-1.5} width={l.lw} height="3" rx="1.5" fill="rgba(255,255,255,0.25)"/>
+                      <circle cx="184" cy={l.y} r="2.5" fill={`rgba(255,255,255,${l.w})`} />
+                      <rect x="192" y={l.y - 1.5} width={l.lw} height="3" rx="1.5" fill="rgba(255,255,255,0.25)" />
                     </g>
                   ))}
                 </svg>
@@ -549,45 +545,45 @@ const LandingPage = ({ onEnter }) => {
               <div className="eos-fc-image">
                 <svg viewBox="0 0 260 180" fill="none" xmlns="http://www.w3.org/2000/svg" className="eos-fc-svg">
                   <defs>
-                    <filter id="g7" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                    <filter id="g7b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="10" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                    <filter id="g7s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                    <radialGradient id="sg" cx="50%" cy="40%" r="40%"><stop offset="0" stopColor="rgba(255,255,255,0.2)"/><stop offset="1" stopColor="transparent"/></radialGradient>
-                    <linearGradient id="sf" x1="130" y1="24" x2="130" y2="120" gradientUnits="userSpaceOnUse"><stop offset="0" stopColor="rgba(255,255,255,0.15)"/><stop offset="1" stopColor="rgba(255,255,255,0.03)"/></linearGradient>
+                    <filter id="g7" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                    <filter id="g7b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="10" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                    <filter id="g7s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                    <radialGradient id="sg" cx="50%" cy="40%" r="40%"><stop offset="0" stopColor="rgba(255,255,255,0.2)" /><stop offset="1" stopColor="transparent" /></radialGradient>
+                    <linearGradient id="sf" x1="130" y1="24" x2="130" y2="120" gradientUnits="userSpaceOnUse"><stop offset="0" stopColor="rgba(255,255,255,0.15)" /><stop offset="1" stopColor="rgba(255,255,255,0.03)" /></linearGradient>
                   </defs>
-                  <rect x="6" y="4" width="248" height="172" rx="10" fill="#0a0a0a" stroke="rgba(255,255,255,0.15)" strokeWidth="1"/>
-                  <rect x="6" y="4" width="248" height="172" rx="10" fill="url(#sg)"/>
+                  <rect x="6" y="4" width="248" height="172" rx="10" fill="#0a0a0a" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                  <rect x="6" y="4" width="248" height="172" rx="10" fill="url(#sg)" />
                   {/* Orbit rings */}
-                  <ellipse cx="130" cy="76" rx="100" ry="35" stroke="rgba(255,255,255,0.08)" strokeWidth="0.5" fill="none"/>
-                  <ellipse cx="130" cy="76" rx="75" ry="25" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" fill="none"/>
+                  <ellipse cx="130" cy="76" rx="100" ry="35" stroke="rgba(255,255,255,0.08)" strokeWidth="0.5" fill="none" />
+                  <ellipse cx="130" cy="76" rx="75" ry="25" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" fill="none" />
                   {/* Shield — bright white glow */}
-                  <path d="M130 24 L165 38 L165 76 C165 100 150 116 130 124 C110 116 95 100 95 76 L95 38 Z" fill="url(#sf)" stroke="#fff" strokeWidth="1.5" opacity="0.6" filter="url(#g7b)"/>
-                  <path d="M130 36 L157 47 L157 76 C157 94 146 107 130 114 C114 107 103 94 103 76 L103 47 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.3)" strokeWidth="0.7"/>
+                  <path d="M130 24 L165 38 L165 76 C165 100 150 116 130 124 C110 116 95 100 95 76 L95 38 Z" fill="url(#sf)" stroke="#fff" strokeWidth="1.5" opacity="0.6" filter="url(#g7b)" />
+                  <path d="M130 36 L157 47 L157 76 C157 94 146 107 130 114 C114 107 103 94 103 76 L103 47 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.3)" strokeWidth="0.7" />
                   {/* Checkmark — pure white glow */}
-                  <path d="M117 74 L126 84 L145 60" stroke="#fff" strokeWidth="3.5" fill="none" strokeLinecap="round" strokeLinejoin="round" filter="url(#g7b)"/>
+                  <path d="M117 74 L126 84 L145 60" stroke="#fff" strokeWidth="3.5" fill="none" strokeLinecap="round" strokeLinejoin="round" filter="url(#g7b)" />
                   {/* Nodes — left */}
-                  {[{x:22,y:36},{x:18,y:68},{x:22,y:100}].map((n,i) => (
+                  {[{ x: 22, y: 36 }, { x: 18, y: 68 }, { x: 22, y: 100 }].map((n, i) => (
                     <g key={i}>
-                      <rect x={n.x} y={n.y} width="62" height="24" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
-                      <circle cx={n.x+12} cy={n.y+12} r="4" fill="#fff" opacity="0.4" filter="url(#g7s)"/>
-                      <rect x={n.x+20} y={n.y+8} width="34" height="3.5" rx="1.75" fill="rgba(255,255,255,0.35)"/>
-                      <rect x={n.x+20} y={n.y+14} width="22" height="2.5" rx="1.25" fill="rgba(255,255,255,0.15)"/>
-                      <line x1={n.x+62} y1={n.y+12} x2="95" y2={i===0?50:i===1?76:100} stroke="rgba(255,255,255,0.15)" strokeWidth="0.7" strokeDasharray="3 2"/>
+                      <rect x={n.x} y={n.y} width="62" height="24" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5" />
+                      <circle cx={n.x + 12} cy={n.y + 12} r="4" fill="#fff" opacity="0.4" filter="url(#g7s)" />
+                      <rect x={n.x + 20} y={n.y + 8} width="34" height="3.5" rx="1.75" fill="rgba(255,255,255,0.35)" />
+                      <rect x={n.x + 20} y={n.y + 14} width="22" height="2.5" rx="1.25" fill="rgba(255,255,255,0.15)" />
+                      <line x1={n.x + 62} y1={n.y + 12} x2="95" y2={i === 0 ? 50 : i === 1 ? 76 : 100} stroke="rgba(255,255,255,0.15)" strokeWidth="0.7" strokeDasharray="3 2" />
                     </g>
                   ))}
                   {/* Nodes — right */}
-                  {[{x:176,y:36},{x:180,y:68},{x:176,y:100}].map((n,i) => (
+                  {[{ x: 176, y: 36 }, { x: 180, y: 68 }, { x: 176, y: 100 }].map((n, i) => (
                     <g key={i}>
-                      <rect x={n.x} y={n.y} width="62" height="24" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
-                      <circle cx={n.x+50} cy={n.y+12} r="4" fill="#fff" opacity="0.4" filter="url(#g7s)"/>
-                      <rect x={n.x+8} y={n.y+8} width="34" height="3.5" rx="1.75" fill="rgba(255,255,255,0.35)"/>
-                      <rect x={n.x+8} y={n.y+14} width="22" height="2.5" rx="1.25" fill="rgba(255,255,255,0.15)"/>
-                      <line x1={n.x} y1={n.y+12} x2="165" y2={i===0?50:i===1?76:100} stroke="rgba(255,255,255,0.15)" strokeWidth="0.7" strokeDasharray="3 2"/>
+                      <rect x={n.x} y={n.y} width="62" height="24" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5" />
+                      <circle cx={n.x + 50} cy={n.y + 12} r="4" fill="#fff" opacity="0.4" filter="url(#g7s)" />
+                      <rect x={n.x + 8} y={n.y + 8} width="34" height="3.5" rx="1.75" fill="rgba(255,255,255,0.35)" />
+                      <rect x={n.x + 8} y={n.y + 14} width="22" height="2.5" rx="1.25" fill="rgba(255,255,255,0.15)" />
+                      <line x1={n.x} y1={n.y + 12} x2="165" y2={i === 0 ? 50 : i === 1 ? 76 : 100} stroke="rgba(255,255,255,0.15)" strokeWidth="0.7" strokeDasharray="3 2" />
                     </g>
                   ))}
                   {/* Status bar — glowing */}
-                  <rect x="50" y="138" width="160" height="8" rx="4" fill="rgba(255,255,255,0.06)"/>
-                  <rect x="50" y="138" width="128" height="8" rx="4" fill="#fff" opacity="0.25" filter="url(#g7s)"/>
+                  <rect x="50" y="138" width="160" height="8" rx="4" fill="rgba(255,255,255,0.06)" />
+                  <rect x="50" y="138" width="128" height="8" rx="4" fill="#fff" opacity="0.25" filter="url(#g7s)" />
                   <text x="130" y="158" textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="5.5" fontWeight="500" fontFamily="Inter,sans-serif" letterSpacing="0.5">ALL SYSTEMS PROTECTED</text>
                 </svg>
               </div>

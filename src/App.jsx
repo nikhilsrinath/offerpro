@@ -191,8 +191,7 @@ function AppContent() {
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         {/* Brand */}
         <div className="sidebar-brand">
-          <Zap size={22} fill="currentColor" />
-          <span className="sidebar-brand-text">OfferPro</span>
+          <img src="/edgeos-logo.png" alt="EdgeOS" style={{ height: '20px', width: 'auto' }} />
           <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)}>
             <X size={20} />
           </button>
