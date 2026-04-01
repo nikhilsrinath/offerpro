@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import { ref, get } from 'firebase/database';
+import { db } from '../../lib/firebase';
 import { documentStore } from '../../services/documentStore';
 import SignatureCapture from '../shared/SignatureCapture';
 import UPIQRGenerator from '../shared/UPIQRGenerator';
@@ -73,6 +75,40 @@ export default function RecipientPortal({ documentId }) {
 
       const doc = documentStore.getById(documentId);
       if (doc) {
+        // Compute advance_amount & balance_due if missing
+        const total = doc.grand_total || doc.amount || 0;
+        const pct = doc.advance_percent || 50;
+        if (total && !doc.advance_amount) {
+          doc.advance_amount = Math.round(total * (pct / 100));
+          doc.balance_due = total - doc.advance_amount;
+        }
+        // Load company profile from Firebase if not embedded in document
+        if (!doc.company_profile && orgId) {
+          try {
+            const orgSnap = await get(ref(db, `organizations/${orgId}`));
+            if (orgSnap.exists()) {
+              const org = orgSnap.val();
+              doc.company_profile = {
+                company_name: org.company_name || '',
+                address: org.company_address || org.address || '',
+                email: org.company_email || org.email || '',
+                phone: org.company_phone || org.phone || '',
+                gstin: org.gstin || '',
+                logo_url: org.logo_url || '',
+                signature_url: org.signature_url || '',
+                upi_id: org.upi_id || '',
+                bank_name: org.bank_name || '',
+                bank_account_number: org.bank_account_number || '',
+                bank_ifsc: org.bank_ifsc || '',
+                bank_account_type: org.bank_account_type || '',
+                company_tagline: org.company_tagline || '',
+                company_website: org.company_website || '',
+              };
+            }
+          } catch (err) {
+            console.error('[RecipientPortal] Failed to load org profile:', err.message);
+          }
+        }
         setDocData(doc);
         setStatus(doc.status);
         if (doc.issued_to) setCandidateName(doc.issued_to);
@@ -327,7 +363,8 @@ export default function RecipientPortal({ documentId }) {
   }
 
   const isActionTaken = ['signed', 'declined', 'paid', 'payment_submitted', 'accepted', 'fully_signed', 'advance_paid', 'revision_requested'].includes(status);
-  const company = documentStore.getCompanyProfile();
+  // Use company profile embedded in the document (for recipients), fall back to localStorage
+  const company = docData.company_profile || documentStore.getCompanyProfile();
 
   // ── Render ──
   return (
@@ -344,7 +381,7 @@ export default function RecipientPortal({ documentId }) {
               </div>
             )}
             <div className="rp-header-brand">
-              <h1>{docData.issued_by || company.company_name || 'Company'}</h1>
+              <h1>{company.company_name || docData.issued_by || 'Company'}</h1>
               <span>Secure Document Portal</span>
             </div>
           </div>
@@ -430,10 +467,10 @@ export default function RecipientPortal({ documentId }) {
                   <div className="rp-letterhead">
                     {company.logo_url && <img src={company.logo_url} alt="" className="rp-letterhead-logo" />}
                     <div className="rp-letterhead-text">
-                      <h2>{docData.issued_by || company.company_name}</h2>
-                      {company.company_address && <p>{company.company_address}</p>}
+                      <h2>{company.company_name || docData.issued_by}</h2>
+                      {(company.company_address || company.address) && <p>{company.company_address || company.address}</p>}
                       <p>
-                        {[company.company_email, company.company_phone].filter(Boolean).join(' | ')}
+                        {[company.company_email || company.email, company.company_phone || company.phone].filter(Boolean).join(' | ')}
                       </p>
                       {company.gstin && <p className="rp-letterhead-gstin">GSTIN: {company.gstin}</p>}
                     </div>
@@ -451,14 +488,14 @@ export default function RecipientPortal({ documentId }) {
                       <p className="rp-doc-para">Dear {docData.issued_to},</p>
                       <p className="rp-doc-para">
                         We are pleased to offer you the position of <strong>{docData.role}</strong> in the <strong>{docData.department}</strong> department
-                        at {docData.issued_by}. Your start date is <strong>{docData.start_date}</strong>.
+                        at {company.company_name || docData.issued_by}. Your start date is <strong>{docData.start_date}</strong>.
                       </p>
                       <p className="rp-doc-para">
                         Your compensation will be <strong>₹{docData.salary}</strong> per month, payable as per company policy.
                       </p>
                       <p className="rp-doc-para">Please confirm your acceptance by <strong>{docData.valid_until}</strong>.</p>
                       <p className="rp-doc-sign-line">Sincerely,</p>
-                      <p><strong>{docData.issued_by}</strong></p>
+                      <p><strong>{company.company_name || docData.issued_by}</strong></p>
 
                       <div className="rp-doc-sig-section">
                         <h4>ACCEPTANCE & SIGNATURE</h4>
@@ -467,7 +504,7 @@ export default function RecipientPortal({ documentId }) {
                         <div className="rp-doc-sig-grid">
                           <div className="rp-doc-sig-col">
                             <p className="rp-doc-sig-heading">Authorized Signatory</p>
-                            <p>{docData.issued_by}</p>
+                            <p>{company.company_name || docData.issued_by}</p>
                             <p>Date: {docData.issue_date}</p>
                             {company.signature_url && <img src={company.signature_url} alt="Signature" className="rp-doc-sig-img" />}
                             <div className="rp-doc-sig-line" />
@@ -585,7 +622,7 @@ export default function RecipientPortal({ documentId }) {
                           <div className="rp-doc-sig-grid">
                             <div className="rp-doc-sig-col">
                               <p className="rp-doc-sig-heading">Authorized Signatory</p>
-                              <p>{docData.issued_by || company.company_name}</p>
+                              <p>{company.company_name || docData.issued_by}</p>
                               <p>Date: {docData.issue_date}</p>
                               {company.signature_url && <img src={company.signature_url} alt="Company Signature" className="rp-doc-sig-img" />}
                               <div className="rp-doc-sig-line" />
@@ -654,7 +691,7 @@ export default function RecipientPortal({ documentId }) {
                           <div className="rp-doc-sig-grid">
                             <div className="rp-doc-sig-col">
                               <p className="rp-doc-sig-heading">Authorized Signatory</p>
-                              <p>{docData.issued_by || company.company_name}</p>
+                              <p>{company.company_name || docData.issued_by}</p>
                               <p>Date: {docData.issue_date}</p>
                               {company.signature_url && <img src={company.signature_url} alt="Company Signature" className="rp-doc-sig-img" />}
                               <div className="rp-doc-sig-line" />
@@ -799,7 +836,7 @@ export default function RecipientPortal({ documentId }) {
                   <h4>UPI Payment</h4>
                   <UPIQRGenerator
                     upiId={docData.upi_id || company.upi_id}
-                    payeeName={docData.issued_by || company.company_name}
+                    payeeName={company.company_name || docData.issued_by}
                     amount={docData.grand_total || docData.amount}
                     transactionNote={docData.id}
                   />
@@ -889,7 +926,7 @@ export default function RecipientPortal({ documentId }) {
 
                 <label className="rp-agree">
                   <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-                  <span>I accept this quotation and authorize <strong>{docData.issued_by || company.company_name}</strong> to proceed.</span>
+                  <span>I accept this quotation and authorize <strong>{company.company_name || docData.issued_by}</strong> to proceed.</span>
                 </label>
 
                 <div className="rp-card-actions">
@@ -969,7 +1006,7 @@ export default function RecipientPortal({ documentId }) {
                         <h4 className="rp-step-title">Pay Advance — ₹{(docData.advance_amount || 0).toLocaleString('en-IN')}</h4>
                         <UPIQRGenerator
                           upiId={docData.upi_id || company.upi_id}
-                          payeeName={docData.issued_by || company.company_name}
+                          payeeName={company.company_name || docData.issued_by}
                           amount={docData.advance_amount}
                           transactionNote={`${docData.id} Advance`}
                         />

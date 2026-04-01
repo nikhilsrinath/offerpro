@@ -61,6 +61,12 @@ export default function QuotationForm({ editDocId }) {
     cin: activeOrg?.cin || '',
     company_tagline: activeOrg?.company_tagline || '',
     company_website: activeOrg?.company_website || '',
+    signature_url: activeOrg?.signature_url || '',
+    upi_id: activeOrg?.upi_id || '',
+    bank_name: activeOrg?.bank_name || '',
+    bank_account_number: activeOrg?.bank_account_number || '',
+    bank_ifsc: activeOrg?.bank_ifsc || '',
+    bank_account_type: activeOrg?.bank_account_type || '',
   };
 
   const [clientSearch, setClientSearch] = useState('');
@@ -266,6 +272,7 @@ export default function QuotationForm({ editDocId }) {
       title: 'Quotation',
       issued_by: company.company_name,
       issued_to: formData.clientCompany || formData.clientName,
+      company_profile: { ...company },
       client,
       amount: totals.grandTotal,
       valid_until: formData.validUntil,

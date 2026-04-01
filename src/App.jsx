@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import {
   LayoutDashboard, Briefcase, Award, Scale, ShieldCheck,
   DollarSign, Layers, Archive, LogOut, Menu, X, Bell,
@@ -6,6 +6,8 @@ import {
   UploadCloud, FileCheck, FileSignature, History,
   FileSpreadsheet, Activity, Receipt, FilePlus, RotateCcw
 } from 'lucide-react';
+import SubPage from './components/landing/SubPage';
+import subPages from './components/landing/subPageData';
 
 import OfferForm from './components/OfferForm';
 import InternRecords from './components/InternRecords';
@@ -396,6 +398,16 @@ function App() {
       <ToastProvider>
         <RecipientPortal documentId={documentId} />
       </ToastProvider>
+    );
+  }
+
+  // Landing sub-pages (platform, resources, legal)
+  const SubPageComponent = subPages[path];
+  if (SubPageComponent) {
+    return (
+      <SubPage>
+        <SubPageComponent />
+      </SubPage>
     );
   }
 
