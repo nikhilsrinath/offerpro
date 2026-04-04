@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Upload, CheckCircle, ChevronRight, Eye, AlertTriangle, Mail, Send, Loader } from 'lucide-react';
+import { Upload, CheckCircle, ChevronRight, Eye, AlertTriangle, Mail, Send, Loader, ExternalLink, Copy, X } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
+import { documentStore } from '../services/documentStore';
 import { emailService } from '../services/emailService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
@@ -51,6 +52,10 @@ export default function OfferForm({ onSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailResult, setEmailResult] = useState(null);
+  const [showPortalModal, setShowPortalModal] = useState(false);
+  const [portalUrl, setPortalUrl] = useState('');
+  const [portalLinkLoading, setPortalLinkLoading] = useState(false);
+  const [portalCopied, setPortalCopied] = useState(false);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -109,6 +114,67 @@ export default function OfferForm({ onSuccess }) {
       resolved.stampPng = await generateStampPng(resolved.companyName, resolved.stampCity);
     }
     await pdfService.generateOfferLetter(resolved, true);
+  };
+
+  const handleCreatePortalLink = async () => {
+    if (!formData.studentName || !formData.role) {
+      alert('Please fill in at least the candidate name and role before creating a portal link.');
+      return;
+    }
+    setPortalLinkLoading(true);
+    try {
+      documentStore.setContext(activeOrg?.id);
+      await documentStore.init();
+      const docId = documentStore.nextId('OL');
+      const today = new Date().toISOString().split('T')[0];
+      const doc = {
+        id: docId,
+        type: 'offer_letter',
+        status: 'pending',
+        issued_to: formData.studentName,
+        recipient_email: formData.email || '',
+        role: formData.role,
+        department: formData.department || '',
+        offer_type: formData.offerType,
+        start_date: formData.startDate || '',
+        end_date: formData.endDate || '',
+        salary: formData.isPaid ? formData.stipend : null,
+        currency: formData.currency || 'INR',
+        payment_frequency: formData.paymentFrequency || 'Monthly',
+        is_paid: formData.isPaid,
+        responsibilities: formData.responsibilities || '',
+        supervisor: formData.supervisorName || '',
+        valid_until: formData.acceptanceDeadline || '',
+        issue_date: today,
+        created_at: new Date().toISOString(),
+        company_profile: {
+          company_name: activeOrg?.company_name || formData.companyName || '',
+          address: activeOrg?.company_address || formData.companyAddress || '',
+          email: activeOrg?.company_email || formData.contactEmail || '',
+          phone: activeOrg?.company_phone || formData.contactPhone || '',
+          logo_url: activeOrg?.logo_url || formData.companyLogo || '',
+          signature_url: activeOrg?.signature_url || formData.signature || '',
+          company_tagline: activeOrg?.company_tagline || formData.companyTagline || '',
+          authorized_person: formData.authorizedPersonName || '',
+          authorized_designation: formData.authorizedPersonDesignation || '',
+        },
+      };
+      documentStore.save(doc);
+      const url = `${window.location.origin}/portal/${docId}?org=${activeOrg?.id || ''}`;
+      setPortalUrl(url);
+      setShowPortalModal(true);
+    } catch (err) {
+      console.error('Portal link error:', err);
+      alert('Failed to create portal link: ' + err.message);
+    } finally {
+      setPortalLinkLoading(false);
+    }
+  };
+
+  const handleCopyPortalLink = async () => {
+    await navigator.clipboard.writeText(portalUrl);
+    setPortalCopied(true);
+    setTimeout(() => setPortalCopied(false), 2000);
   };
 
   const handleNotifyEmployee = async () => {
@@ -170,7 +236,7 @@ export default function OfferForm({ onSuccess }) {
                   <AlertTriangle size={28} />
                   <h3>{isTrialExpired ? 'Trial Expired' : 'Offer Letter Limit Reached'}</h3>
                   <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used all ${TRIAL_LIMITS.offer} offer letters in your free trial.`} Contact our sales team to upgrade.</p>
-                  <a href="mailto:sales@offerpro.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
+                  <a href="mailto:sales@edgeos.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
                     <Mail size={16} /> Contact Sales
                   </a>
                 </div>
@@ -370,7 +436,7 @@ export default function OfferForm({ onSuccess }) {
           >
             {isSendingEmail ? <><Loader size={16} className="spin-icon" /> Sending Email...</>
               : emailResult?.success ? <><CheckCircle size={16} /> Sent to {formData.email}</>
-              : <><Send size={16} /> Send Offer to Employee</>}
+                : <><Send size={16} /> Send Offer to Employee</>}
           </button>
 
           {emailResult && !emailResult.success && (
@@ -379,6 +445,19 @@ export default function OfferForm({ onSuccess }) {
             </div>
           )}
 
+          {/* Portal Link */}
+          <button
+            type="button"
+            onClick={handleCreatePortalLink}
+            disabled={portalLinkLoading}
+            className="offer-notify-btn"
+            style={{ marginTop: '0.75rem' }}
+          >
+            {portalLinkLoading
+              ? <><Loader size={16} className="spin-icon" /> Creating Link...</>
+              : <><ExternalLink size={16} /> Create Recipient Portal Link</>}
+          </button>
+
           {/* Mobile preview */}
           <button type="button" onClick={handlePreview} className="easy-submit-outline mou-mobile-preview-btn" style={{ marginTop: '0.75rem' }}>
             <Eye size={16} /> Preview as PDF
@@ -386,6 +465,29 @@ export default function OfferForm({ onSuccess }) {
 
         </form>
       </div>
+
+      {/* Portal Link Modal */}
+      {showPortalModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border-default)', borderRadius: '1rem', padding: '2rem', maxWidth: '480px', width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Recipient Portal Link</h3>
+              <button onClick={() => setShowPortalModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '0.25rem' }}>
+                <X size={18} />
+              </button>
+            </div>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.6 }}>
+              Share this link with <strong style={{ color: 'var(--text-primary)' }}>{formData.studentName}</strong> so they can view and e-sign the offer letter online.
+            </p>
+            <div style={{ background: 'var(--background)', border: '1px solid var(--border-default)', borderRadius: '0.5rem', padding: '0.75rem 1rem', fontFamily: 'monospace', fontSize: '0.72rem', color: 'var(--text-primary)', wordBreak: 'break-all', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+              {portalUrl}
+            </div>
+            <button onClick={handleCopyPortalLink} className="easy-submit" style={{ margin: 0 }}>
+              {portalCopied ? <><CheckCircle size={16} /> Copied!</> : <><Copy size={16} /> Copy Link</>}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* RIGHT: Live Preview */}
       <div className="mou-preview-pane">

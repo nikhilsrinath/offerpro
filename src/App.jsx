@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import {
   LayoutDashboard, Briefcase, Award, Scale, ShieldCheck,
   DollarSign, Layers, Archive, LogOut, Menu, X, Bell,
-  Zap, UserCircle, ChevronRight, Clock, Mail, AlertTriangle, Users,
+  Zap, UserCircle, ChevronRight, ChevronDown, Clock, Mail, AlertTriangle, Users,
   UploadCloud, FileCheck, FileSignature, History,
-  FileSpreadsheet, Activity, Receipt, FilePlus, RotateCcw
+  FileSpreadsheet, Activity, Receipt, FilePlus, RotateCcw, ArrowLeft,
+  Sun, Moon
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
 import subPages from './components/landing/subPageData';
@@ -17,6 +18,7 @@ import NdaForm from './components/NdaForm';
 import MoUForm from './components/MoUForm';
 import InvoiceForm from './components/InvoiceForm';
 import Dashboard from './components/Dashboard';
+import Hub from './components/Hub';
 import Customers from './components/Customers';
 import BillingRevenue from './components/BillingRevenue';
 import ProductPlanner from './components/ProductPlanner';
@@ -32,6 +34,7 @@ import { useTheme } from './hooks/useTheme';
 import BulkOfferLetters from './components/bulk/BulkOfferLetters';
 import BulkCertificates from './components/bulk/BulkCertificates';
 import BulkTeamMembers from './components/bulk/BulkTeamMembers';
+import OfferTracker from './components/OfferTracker';
 import BulkHistory from './components/bulk/BulkHistory';
 import RecipientPortal from './components/portal/RecipientPortal';
 import { ToastProvider } from './components/shared/Toast';
@@ -45,10 +48,20 @@ import RecurringInvoiceForm from './components/financial/RecurringInvoiceForm';
 import { documentStore } from './services/documentStore';
 
 
+const MODULE_FILTER = {
+  overall: ['dashboard'],
+  team: ['employees', 'offer-tracker', 'bulk-team'],
+  documents: ['offers', 'certificates', 'ndas', 'mous', 'bulk-offers', 'bulk-certificates'],
+  finance: ['finance-status', 'invoices', 'quotations', 'proforma', 'recurring'],
+  business: ['customers', 'revenue', 'planner'],
+  data: ['records', 'bulk-history']
+};
+
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { section: 'TEAM' },
   { id: 'employees', label: 'Employees', icon: Users },
+  { id: 'offer-tracker', label: 'Offer Tracker', icon: Activity },
   { section: 'DOCUMENTS' },
   { id: 'offers', label: 'Offer Letters', icon: Briefcase },
   { id: 'certificates', label: 'Certificates', icon: Award },
@@ -93,6 +106,7 @@ const PAGE_META = {
   planner: { title: 'Product Planner', subtitle: 'Plan and track products and projects' },
   records: { title: 'Records', subtitle: 'Manage and download issued documents' },
   employees: { title: 'Employee Registry', subtitle: 'Manage your internal team and onboarding' },
+  'offer-tracker': { title: 'Offer Tracker', subtitle: 'Real-time acceptance status for all sent offer letters' },
   'bulk-offers': { title: 'Bulk Offer Letters', subtitle: 'Generate and distribute multiple offer letters at once' },
   'bulk-certificates': { title: 'Bulk Certificates', subtitle: 'Issue batches of certificates efficiently' },
   'bulk-team': { title: 'Bulk Team Members', subtitle: 'Import your team registry from a CSV file' },
@@ -100,7 +114,8 @@ const PAGE_META = {
 };
 
 function AppContent() {
-  const [activePage, setActivePage] = useState(() => sessionStorage.getItem('initialPage') || 'dashboard');
+  const [activeModule, setActiveModule] = useState(() => sessionStorage.getItem('activeModule') || null);
+  const [activePage, setActivePage] = useState(() => sessionStorage.getItem('initialPage') || 'hub');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showLanding, setShowLanding] = useState(true);
   const [editingDocId, setEditingDocId] = useState(null);
@@ -131,7 +146,9 @@ function AppContent() {
     // Remove the notification on click
     documentStore.deleteNotification(notif.id);
     refreshNotifications();
-    if (notif.type === 'quotation_accepted' || notif.type === 'quotation_sent') {
+    if (notif.type === 'offer_signed' || notif.type === 'document_declined' && notif.document_id?.startsWith('OL')) {
+      handleSelectModule('team', 'offer-tracker');
+    } else if (notif.type === 'quotation_accepted' || notif.type === 'quotation_sent') {
       navigate('quotations');
     } else if (notif.type === 'revision_requested') {
       navigate('quotations');
@@ -151,7 +168,7 @@ function AppContent() {
       <div className="app-loading">
         <div style={{ textAlign: 'center' }}>
           <div className="app-loading-spinner" />
-          <span className="app-loading-text">Loading OfferPro...</span>
+          <span className="app-loading-text">Loading EdgeOS...</span>
         </div>
       </div>
     );
@@ -176,71 +193,94 @@ function AppContent() {
     setEditingDocId(page === 'new-quotation' ? docId : null);
   };
 
+  const handleSelectModule = (modId, defaultPage) => {
+    setActiveModule(modId);
+    sessionStorage.setItem('activeModule', modId);
+    navigate(defaultPage);
+  };
+
+  const handleBackToHub = () => {
+    setActiveModule(null);
+    sessionStorage.removeItem('activeModule');
+    navigate('hub');
+  };
+
   const meta = activePage === 'new-quotation' && editingDocId
     ? { title: 'Edit Quotation', subtitle: `Revising ${editingDocId}` }
     : (PAGE_META[activePage] || PAGE_META.dashboard);
 
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${!activeModule || activePage === 'hub' ? 'no-sidebar' : ''}`}>
       {/* Sidebar Overlay (mobile) */}
       {sidebarOpen && (
         <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Sidebar */}
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        {/* Brand */}
-        <div className="sidebar-brand">
-          <img src="/edgeos-logo.png" alt="EdgeOS" style={{ height: '20px', width: 'auto' }} />
-          <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)}>
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Navigation */}
-        <nav className="sidebar-nav">
-          {NAV_ITEMS.map((item, i) => {
-            if (item.section) {
-              return <div key={`section-${i}`} className="sidebar-section-label">{item.section}</div>;
-            }
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                className={`sidebar-item ${activePage === item.id ? 'active' : ''}`}
-                onClick={() => navigate(item.id)}
-              >
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Footer */}
-        <div className="sidebar-footer">
-          {activeOrg && (
-            <div className="sidebar-org-info sidebar-org-clickable" onClick={() => navigate('profile')}>
-              {activeOrg.logo_url ? (
-                <img src={activeOrg.logo_url} alt="" className="sidebar-org-avatar" />
-              ) : (
-                <div className="sidebar-org-avatar-placeholder">
-                  {(activeOrg.company_name || 'O')[0].toUpperCase()}
-                </div>
-              )}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <span className="sidebar-org-name">{activeOrg.company_name || activeOrg.name}</span>
-                <span className="sidebar-org-email">{user.email}</span>
-              </div>
-              <ChevronRight size={14} style={{ opacity: 0.3, flexShrink: 0 }} />
+      {activeModule && activePage !== 'hub' && (
+        <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+          {/* Brand */}
+          <div className="sidebar-brand">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <img src="/app-icon.png" alt="" className="app-con" />
+              <span className="sidebar-brand-text">EdgeOS</span>
             </div>
-          )}
-          <button className="sidebar-logout-btn" onClick={logout}>
-            <LogOut size={16} />
-            <span>Log Out</span>
-          </button>
-        </div>
-      </aside>
+            <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)}>
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Navigation */}
+          <nav className="sidebar-nav">
+            <div style={{ padding: '0.5rem 1.25rem', marginBottom: '1rem' }}>
+              <button onClick={handleBackToHub} className="btn-cinematic btn-secondary" style={{ width: '100%', padding: '0.625rem', justifyContent: 'center', fontSize: '0.8125rem' }}>
+                <ArrowLeft size={16} /> Back to Hub
+              </button>
+            </div>
+            {NAV_ITEMS.map((item, i) => {
+              if (activeModule && item.id && !MODULE_FILTER[activeModule]?.includes(item.id)) return null;
+              if (item.section) {
+                return activeModule ? null : <div key={`section-${i}`} className="sidebar-section-label">{item.section}</div>;
+              }
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  className={`sidebar-item ${activePage === item.id ? 'active' : ''}`}
+                  onClick={() => navigate(item.id)}
+                >
+                  <Icon size={18} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Footer */}
+          <div className="sidebar-footer">
+            {activeOrg && (
+              <div className="sidebar-org-info sidebar-org-clickable" onClick={() => navigate('profile')}>
+                {activeOrg.logo_url ? (
+                  <img src={activeOrg.logo_url} alt="" className="sidebar-org-avatar" />
+                ) : (
+                  <div className="sidebar-org-avatar-placeholder">
+                    {(activeOrg.company_name || 'O')[0].toUpperCase()}
+                  </div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span className="sidebar-org-name">{activeOrg.company_name || activeOrg.name}</span>
+                  <span className="sidebar-org-email">{user.email}</span>
+                </div>
+                <ChevronRight size={14} style={{ opacity: 0.3, flexShrink: 0 }} />
+              </div>
+            )}
+            <button className="sidebar-logout-btn" onClick={logout}>
+              <LogOut size={16} />
+              <span>Log Out</span>
+            </button>
+          </div>
+        </aside>
+      )}
 
       {/* Main Content */}
       <div className="main-content">
@@ -250,8 +290,8 @@ function AppContent() {
             <Menu size={22} />
           </button>
           <div className="mobile-topbar-brand">
-            <Zap size={18} fill="currentColor" />
-            <span>OfferPro</span>
+            <img src="/app-icon.png" alt="" className="app-con" style={{ height: '18px', width: '18px' }} />
+            <span className="brand-text-poppins">EdgeOS</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ position: 'relative' }}>
@@ -276,7 +316,7 @@ function AppContent() {
               </span>
             )}
             <span>•</span>
-            <a href="mailto:sales@offerpro.com" style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 700, fontSize: '0.8125rem' }}>
+            <a href="mailto:sales@edgeos.com" style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 700, fontSize: '0.8125rem' }}>
               Upgrade →
             </a>
           </div>
@@ -328,8 +368,231 @@ function AppContent() {
         )}
 
         {/* Page Header (skip for dashboard - it has its own) */}
-        {activePage !== 'dashboard' && (
-          <div className="page-header">
+        {activePage === 'hub' ? (
+          <>
+            <style>{`.hub-topnav{display:flex!important}@media(max-width:768px){.hub-topnav{display:none!important}}`}</style>
+            <nav className="hub-topnav" style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 100,
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0 4rem',
+              height: '56px',
+              background: theme === 'dark' ? 'rgba(9,9,11,0.88)' : 'rgba(248,249,251,0.92)',
+              backdropFilter: 'blur(24px)',
+              WebkitBackdropFilter: 'blur(24px)',
+              borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}`,
+              fontFamily: "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
+              WebkitFontSmoothing: 'antialiased',
+              gap: '1rem',
+            }}>
+
+              {/* LEFT — Brand */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexShrink: 0 }}>
+                <img src="/app-icon.png" alt="" style={{ height: 24, width: 24, objectFit: 'contain' }} />
+                <span style={{
+                  fontSize: '0.9375rem', fontWeight: 800, letterSpacing: '-0.035em',
+                  color: theme === 'dark' ? '#fafafa' : '#18181b',
+                }}>EdgeOS</span>
+                <div style={{ width: 1, height: 14, background: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', margin: '0 0.125rem' }} />
+                <span style={{
+                  fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+                  color: theme === 'dark' ? 'rgba(255,255,255,0.3)' : '#a1a1aa',
+                  padding: '0.175rem 0.5rem',
+                  background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                  border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'}`,
+                  borderRadius: '999px',
+                }}>Hub</span>
+              </div>
+
+              {/* CENTER — Module quick-links */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', flex: 1, justifyContent: 'center' }}>
+                {[
+                  { id: 'team',      label: 'Team',      defaultPage: 'employees' },
+                  { id: 'documents', label: 'Documents',  defaultPage: 'offers' },
+                  { id: 'finance',   label: 'Finance',    defaultPage: 'finance-status' },
+                  { id: 'business',  label: 'Business',   defaultPage: 'customers' },
+                  { id: 'data',      label: 'Records',    defaultPage: 'records' },
+                  { id: 'overall',   label: 'Overview',   defaultPage: 'dashboard' },
+                ].map(link => (
+                  <button
+                    key={link.id}
+                    onClick={() => handleSelectModule(link.id, link.defaultPage)}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)';
+                      e.currentTarget.style.color = theme === 'dark' ? '#fafafa' : '#18181b';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'none';
+                      e.currentTarget.style.color = theme === 'dark' ? 'rgba(255,255,255,0.42)' : '#71717a';
+                    }}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: '8px',
+                      fontSize: '0.8125rem', fontWeight: 500,
+                      color: theme === 'dark' ? 'rgba(255,255,255,0.42)' : '#71717a',
+                      fontFamily: 'inherit',
+                      transition: 'background 0.15s ease, color 0.15s ease',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {link.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* RIGHT — Actions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexShrink: 0 }}>
+
+                {/* Status pill */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '0.35rem',
+                  padding: '0.275rem 0.75rem',
+                  background: theme === 'dark' ? 'rgba(16,185,129,0.07)' : 'rgba(16,185,129,0.06)',
+                  border: `1px solid rgba(16,185,129,0.22)`,
+                  borderRadius: '999px',
+                  fontSize: '0.6875rem', fontWeight: 600, color: '#10b981',
+                  marginRight: '0.25rem',
+                  userSelect: 'none',
+                }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 7px #10b981', display: 'inline-block', flexShrink: 0 }} />
+                  All systems active
+                </div>
+
+                {/* Theme toggle */}
+                <button
+                  onClick={toggleTheme}
+                  title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                  onMouseEnter={e => { e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'; e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'; }}
+                  style={{
+                    width: 32, height: 32, borderRadius: '9px',
+                    background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                    border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', color: theme === 'dark' ? 'rgba(255,255,255,0.5)' : '#71717a',
+                    transition: 'background 0.15s ease, border-color 0.15s ease',
+                  }}
+                >
+                  {theme === 'dark' ? <Sun size={14} strokeWidth={2} /> : <Moon size={14} strokeWidth={2} />}
+                </button>
+
+                {/* Notifications */}
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => setShowNotifPanel(p => !p)}
+                    title="Notifications"
+                    onMouseEnter={e => { e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'; e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'; }}
+                    style={{
+                      width: 32, height: 32, borderRadius: '9px',
+                      background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                      border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', color: theme === 'dark' ? 'rgba(255,255,255,0.5)' : '#71717a',
+                      transition: 'background 0.15s ease, border-color 0.15s ease',
+                    }}
+                  >
+                    <Bell size={14} strokeWidth={2} />
+                  </button>
+                  {unreadCount > 0 && (
+                    <span style={{
+                      position: 'absolute', top: -4, right: -4,
+                      minWidth: 16, height: 16, borderRadius: '999px',
+                      background: '#ef4444',
+                      fontSize: '0.5rem', fontWeight: 800, color: '#fff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      padding: '0 3px',
+                      border: `2px solid ${theme === 'dark' ? '#09090b' : '#f8f9fb'}`,
+                      lineHeight: 1,
+                    }}>
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </div>
+
+                {/* Logout */}
+                <button
+                  onClick={logout}
+                  title="Log out"
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.2)'; e.currentTarget.style.color = '#ef4444'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'; e.currentTarget.style.color = theme === 'dark' ? 'rgba(255,255,255,0.5)' : '#71717a'; }}
+                  style={{
+                    width: 32, height: 32, borderRadius: '9px',
+                    background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                    border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', color: theme === 'dark' ? 'rgba(255,255,255,0.5)' : '#71717a',
+                    transition: 'background 0.15s ease, border-color 0.15s ease, color 0.15s ease',
+                  }}
+                >
+                  <LogOut size={14} strokeWidth={2} />
+                </button>
+
+                {/* Vertical divider */}
+                <div style={{ width: 1, height: 22, background: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)', margin: '0 0.125rem' }} />
+
+                {/* Org / Profile button */}
+                {activeOrg && (
+                  <button
+                    onClick={() => navigate('profile')}
+                    onMouseEnter={e => { e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'; e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'; }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.5rem',
+                      padding: '0.3rem 0.5rem 0.3rem 0.3rem',
+                      background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                      border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      transition: 'background 0.15s ease, border-color 0.15s ease',
+                    }}
+                  >
+                    {activeOrg.logo_url ? (
+                      <img src={activeOrg.logo_url} alt="" style={{ width: 22, height: 22, borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
+                    ) : (
+                      <div style={{
+                        width: 22, height: 22, borderRadius: '6px', flexShrink: 0,
+                        background: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.5625rem', fontWeight: 800,
+                        color: theme === 'dark' ? 'rgba(255,255,255,0.7)' : '#3f3f46',
+                      }}>
+                        {(activeOrg.company_name || 'O')[0].toUpperCase()}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.05rem', minWidth: 0, maxWidth: 130 }}>
+                      <span style={{
+                        fontSize: '0.75rem', fontWeight: 700, lineHeight: 1.2,
+                        color: theme === 'dark' ? 'rgba(255,255,255,0.8)' : '#18181b',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%',
+                      }}>
+                        {activeOrg.company_name || activeOrg.name}
+                      </span>
+                      <span style={{ fontSize: '0.5625rem', fontWeight: 500, color: theme === 'dark' ? 'rgba(255,255,255,0.28)' : '#a1a1aa', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                        {user?.email?.split('@')[0]}
+                      </span>
+                    </div>
+                    <ChevronDown size={11} style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.28)' : '#a1a1aa', flexShrink: 0 }} />
+                  </button>
+                )}
+              </div>
+            </nav>
+          </>
+        ) : activePage !== 'dashboard' && (
+          <div className="page-header" style={{ display: 'flex', alignItems: 'center' }}>
+            {(!activeModule || activePage === 'profile') && (
+              <button
+                onClick={() => navigate('hub')}
+                className="btn-cinematic btn-secondary"
+                style={{ marginRight: '1.5rem', padding: '0.5rem 0.85rem', height: 'fit-content', gap: '8px' }}
+              >
+                <ArrowLeft size={16} /> Back to Hub
+              </button>
+            )}
             <div>
               <h1 className="page-title">{meta.title}</h1>
               <p className="page-subtitle">{meta.subtitle}</p>
@@ -339,6 +602,7 @@ function AppContent() {
 
         {/* Page Content */}
         <div className="page-content">
+          {activePage === 'hub' && <Hub onSelectModule={handleSelectModule} user={user} activeOrg={activeOrg} theme={theme} />}
           {activePage === 'dashboard' && <Dashboard onNavigate={navigate} />}
           {activePage === 'profile' && <CompanyProfile theme={theme} onToggleTheme={toggleTheme} />}
           {activePage === 'offers' && <OfferForm onSuccess={() => navigate('records')} />}
@@ -358,6 +622,7 @@ function AppContent() {
           {activePage === 'planner' && <ProductPlanner />}
           {activePage === 'records' && <InternRecords />}
           {activePage === 'employees' && <Employees />}
+          {activePage === 'offer-tracker' && <OfferTracker />}
           {activePage === 'bulk-offers' && <BulkOfferLetters />}
           {activePage === 'bulk-certificates' && <BulkCertificates />}
           {activePage === 'bulk-team' && <BulkTeamMembers />}
@@ -373,9 +638,9 @@ function AppContent() {
               <AlertTriangle size={28} color="var(--error)" />
             </div>
             <h2>Your 7-Day Trial Has Expired</h2>
-            <p>Your free trial period has ended. Contact our sales team to get full access to OfferPro with unlimited documents, custom branding, and priority support.</p>
+            <p>Your free trial period has ended. Contact our sales team to get full access to EdgeOS with unlimited documents, custom branding, and priority support.</p>
             <div className="trial-expired-actions">
-              <a href="mailto:sales@offerpro.com" className="btn-cinematic" style={{ textDecoration: 'none' }}>
+              <a href="mailto:sales@edgeos.com" className="btn-cinematic" style={{ textDecoration: 'none' }}>
                 <Mail size={16} /> Contact Sales
               </a>
               <button onClick={logout} className="btn-cinematic btn-secondary">

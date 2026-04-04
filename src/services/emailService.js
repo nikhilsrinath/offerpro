@@ -21,8 +21,8 @@ export const emailService = {
           template_params: {
             to_email: 'test@test.com',
             to_name: 'Test',
-            subject: 'OfferPro Connection Test',
-            message: 'This is a test from OfferPro.',
+            subject: 'EdgeOS Connection Test',
+            message: 'This is a test from EdgeOS.',
           },
         }),
       });
@@ -91,6 +91,48 @@ export const emailService = {
         success: false,
         message: 'Failed to send email. Check your EmailJS configuration in Company Profile.',
       };
+    }
+  },
+
+  sendPortalLink: async ({ recipientEmail, recipientName, role, companyName, portalUrl, deadline, emailConfig }) => {
+    const { serviceId, templateId, publicKey } = emailConfig || {};
+    if (!serviceId || !templateId || !publicKey) {
+      return { success: false, message: 'Email not configured. Go to Company Profile → Email Integration and add your EmailJS credentials.' };
+    }
+    if (!recipientEmail) {
+      return { success: false, message: 'No email address saved for this candidate.' };
+    }
+
+    const deadlineStr = deadline
+      ? new Date(deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+      : '';
+
+    try {
+      const response = await fetch(EMAILJS_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service_id: serviceId,
+          template_id: templateId,
+          user_id: publicKey,
+          template_params: {
+            to_email: recipientEmail,
+            to_name: recipientName || 'Candidate',
+            from_name: companyName,
+            subject: `Your Offer Letter from ${companyName} – Action Required`,
+            message: buildPortalLinkEmail({ recipientName, role, companyName, portalUrl, deadline: deadlineStr }),
+          },
+        }),
+      });
+
+      if (response.ok || response.status === 200) {
+        return { success: true, message: `Email sent to ${recipientEmail}` };
+      }
+      const text = await response.text();
+      return { success: false, message: text || 'EmailJS returned an error.' };
+    } catch (err) {
+      console.error('Portal link email error:', err);
+      return { success: false, message: 'Failed to send email. Check your EmailJS configuration.' };
     }
   },
 };
@@ -224,5 +266,56 @@ function buildEmailBody(data, companyName) {
     </p>
   </div>
 
+</div>`.trim();
+}
+
+function buildPortalLinkEmail({ recipientName, role, companyName, portalUrl, deadline }) {
+  const name = recipientName || 'Candidate';
+  const deadlineBlock = deadline ? `
+  <div style="margin-top:24px;padding:18px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;">
+    <p style="margin:0;font-size:13px;font-weight:600;color:#92400e;margin-bottom:4px;">Response Deadline</p>
+    <p style="margin:0;font-size:13px;line-height:1.6;color:#78350f;">
+      Please confirm your acceptance on or before <strong>${deadline}</strong>.
+    </p>
+  </div>` : '';
+
+  return `
+<div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;">
+  <div style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);padding:36px 32px 28px;text-align:center;">
+    <h1 style="margin:0 0 4px;font-size:24px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">${companyName}</h1>
+    <p style="margin:0;font-size:12px;color:#94a3b8;">Secure Offer Letter Portal</p>
+  </div>
+
+  <div style="padding:32px;">
+    <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#374151;">
+      Dear <strong style="color:#18181b;">${name}</strong>,
+    </p>
+    <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#374151;">
+      <strong style="color:#18181b;">${companyName}</strong> has issued you an offer letter for the role of
+      <strong style="color:#18181b;">${role}</strong>. Please click the button below to securely view and sign your offer letter.
+    </p>
+
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${portalUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;font-size:14px;font-weight:700;padding:14px 32px;border-radius:8px;text-decoration:none;letter-spacing:0.01em;">
+        View &amp; Sign Offer Letter
+      </a>
+    </div>
+
+    <p style="margin:0 0 8px;font-size:12px;color:#94a3b8;text-align:center;">Or copy this link:</p>
+    <p style="margin:0 0 24px;font-size:11px;color:#6b7280;text-align:center;word-break:break-all;font-family:monospace;">${portalUrl}</p>
+
+    ${deadlineBlock}
+
+    <div style="margin-top:32px;padding-top:20px;border-top:1px solid #e5e7eb;">
+      <p style="margin:0;font-size:13px;color:#6b7280;">Warm regards,</p>
+      <p style="margin:6px 0 0;font-size:14px;font-weight:700;color:#18181b;">${companyName}</p>
+    </div>
+  </div>
+
+  <div style="background:#f8fafc;border-top:1px solid #e5e7eb;padding:16px 32px;text-align:center;">
+    <p style="margin:0;font-size:10px;color:#cbd5e1;">
+      This is a secure link from ${companyName} via EdgeOS. Do not share this link with others.
+    </p>
+  </div>
 </div>`.trim();
 }
