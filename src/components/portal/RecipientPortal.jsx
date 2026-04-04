@@ -9,7 +9,8 @@ import {
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { ref, get } from 'firebase/database';
-import { db } from '../../lib/firebase';
+import { signInAnonymously } from 'firebase/auth';
+import { db, auth } from '../../lib/firebase';
 import { documentStore } from '../../services/documentStore';
 import SignatureCapture from '../shared/SignatureCapture';
 import UPIQRGenerator from '../shared/UPIQRGenerator';
@@ -74,12 +75,36 @@ export default function RecipientPortal({ documentId }) {
       // Extract orgId from URL query params for Firebase sync
       const params = new URLSearchParams(window.location.search);
       const orgId = params.get('org');
+
+      // Sign in anonymously so Firebase security rules (auth != null) are satisfied
+      // on ANY device — the employee's phone/laptop has no session, this gives them
+      // a temporary anonymous token without requiring a login screen.
+      try {
+        if (!auth.currentUser) {
+          await signInAnonymously(auth);
+        }
+      } catch (authErr) {
+        console.warn('[RecipientPortal] Anonymous sign-in failed:', authErr.message);
+      }
+
       if (orgId) {
         documentStore.setContext(orgId);
         await documentStore.init();
       }
 
-      const doc = documentStore.getById(documentId);
+      let doc = documentStore.getById(documentId);
+
+      // Fallback: direct Firebase fetch if localStorage cache missed (always the case
+      // on a fresh device). This works once anonymous auth has been granted above.
+      if (!doc && orgId) {
+        try {
+          const snap = await get(ref(db, `records/${orgId}/_fin_docs/${documentId}`));
+          if (snap.exists()) doc = snap.val();
+        } catch (fbErr) {
+          console.error('[RecipientPortal] Firebase direct read failed:', fbErr.message);
+        }
+      }
+
       if (doc) {
         // Compute advance_amount & balance_due if missing
         const total = doc.grand_total || doc.amount || 0;
