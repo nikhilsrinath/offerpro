@@ -1,16 +1,27 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ArrowRight, Zap, Shield, Clock, Star, Check, Mail,
   FileText, Receipt, Scale, Award, Briefcase, BarChart3,
-  ChevronRight, Users, FileCheck, TrendingUp, Globe,
-  Lock, CreditCard, Send, Layers, ArrowUpRight, Activity
+  ChevronRight, ChevronDown, Users, FileCheck, TrendingUp, Globe,
+  Lock, CreditCard, Send, Layers, ArrowUpRight, Activity,
+  Menu, X
 } from 'lucide-react';
 import './LandingPage.css';
 import { useScrollParallax } from '../hooks/useScrollParallax';
 import { useCardGlow } from '../hooks/useCardGlow';
 
+const FEATURE_ITEMS = [
+  { href: '/invoicing', icon: Receipt, label: 'Invoicing', desc: 'GST-compliant tax invoices & billing' },
+  { href: '/quotations', icon: FileText, label: 'Quotations', desc: 'Dynamic quotes with revision tracking' },
+  { href: '/offer-letters', icon: Briefcase, label: 'Offer Letters', desc: 'Professional employment offers' },
+  { href: '/legal-documents', icon: Scale, label: 'Legal Documents', desc: 'MoUs, NDAs & agreements' },
+  { href: '/certificates', icon: Award, label: 'Certificates', desc: 'Branded certificates with QR codes' },
+];
+
 const LandingPage = ({ onEnter }) => {
   const landingRef = useRef(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileFeaturesOpen, setMobileFeaturesOpen] = useState(false);
   useCardGlow(landingRef);
   useScrollParallax();
 
@@ -49,7 +60,29 @@ const LandingPage = ({ onEnter }) => {
           </div>
 
           <div className="eos-nav-links">
-            <a href="#features" className="eos-nav-link">Features</a>
+            <div className="eos-nav-dropdown">
+              <a href="#features" className="eos-nav-link eos-nav-link-features">
+                Features <ChevronDown size={14} className="eos-chevron-icon" />
+              </a>
+              <div className="eos-features-dropdown">
+                <div className="eos-features-dropdown-inner">
+                  {FEATURE_ITEMS.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <a key={item.href} href={item.href} className="eos-dropdown-item">
+                        <div className="eos-dropdown-item-icon">
+                          <Icon size={18} />
+                        </div>
+                        <div className="eos-dropdown-item-text">
+                          <span className="eos-dropdown-item-label">{item.label}</span>
+                          <span className="eos-dropdown-item-desc">{item.desc}</span>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
             <a href="#how-it-works" className="eos-nav-link">How It Works</a>
             <a href="#pricing" className="eos-nav-link">Pricing</a>
             <a href="#testimonials" className="eos-nav-link">Testimonials</a>
@@ -60,9 +93,69 @@ const LandingPage = ({ onEnter }) => {
             <button onClick={onEnter} className="eos-btn eos-btn-primary" style={{ padding: '0.5rem 1.25rem' }}>
               Get Started
             </button>
+            <button
+              className="eos-mobile-menu-btn"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open menu"
+            >
+              <Menu size={22} />
+            </button>
           </div>
         </div>
       </nav>
+
+      {/* ════════════════ MOBILE MENU ════════════════ */}
+      {mobileMenuOpen && (
+        <div className="eos-mobile-overlay" onClick={() => setMobileMenuOpen(false)}>
+          <div className="eos-mobile-menu" onClick={(e) => e.stopPropagation()}>
+            <div className="eos-mobile-menu-header">
+              <img src="/edgeos-logo.png" alt="EdgeOS" className="eos-logo-img" style={{ height: 32 }} />
+              <button
+                className="eos-mobile-close-btn"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Close menu"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="eos-mobile-menu-body">
+              {/* Features Accordion */}
+              <button
+                className={`eos-mobile-nav-link eos-mobile-features-trigger ${mobileFeaturesOpen ? 'open' : ''}`}
+                onClick={() => setMobileFeaturesOpen(!mobileFeaturesOpen)}
+              >
+                Features
+                <ChevronDown size={16} className={`eos-mobile-chevron ${mobileFeaturesOpen ? 'rotated' : ''}`} />
+              </button>
+              <div className={`eos-mobile-features-list ${mobileFeaturesOpen ? 'open' : ''}`}>
+                {FEATURE_ITEMS.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <a key={item.href} href={item.href} className="eos-mobile-feature-item" onClick={() => setMobileMenuOpen(false)}>
+                      <Icon size={16} />
+                      <span>{item.label}</span>
+                    </a>
+                  );
+                })}
+              </div>
+
+              <a href="#how-it-works" className="eos-mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>How It Works</a>
+              <a href="#pricing" className="eos-mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
+              <a href="#testimonials" className="eos-mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>Testimonials</a>
+            </div>
+
+            <div className="eos-mobile-menu-footer">
+              <button onClick={() => { setMobileMenuOpen(false); onEnter(); }} className="eos-btn eos-btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+                Get Started <ArrowRight size={16} />
+              </button>
+              <button onClick={() => { setMobileMenuOpen(false); onEnter(); }} className="eos-btn eos-btn-ghost" style={{ width: '100%', justifyContent: 'center' }}>
+                Sign In
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ════════════════ HERO ════════════════ */}
       <section className="eos-hero">
@@ -105,7 +198,7 @@ const LandingPage = ({ onEnter }) => {
             </div>
 
             <h1 className="eos-hero-title">
-              One Platform for<br />Business Operations
+              Edge-to-Edge<br />Business Operating System
             </h1>
 
             <p className="eos-hero-subtitle">

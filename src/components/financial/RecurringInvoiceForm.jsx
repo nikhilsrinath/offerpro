@@ -849,7 +849,7 @@ function RecurringInvoicePreview({ formData, totals, dueDatePreview, company }) 
       )}
 
       <div className="inv-footer">
-        This is a computer-generated recurring invoice template. Generated via OfferPro Suite.
+        This is a computer-generated recurring invoice template. Generated via EdgeOS.
       </div>
     </div>
   );
@@ -1091,7 +1091,7 @@ export default function RecurringInvoicePage() {
   useEffect(() => {
     if (activeOrg?.id) {
       documentStore.setContext(activeOrg.id);
-      documentStore.init().catch(() => {});
+      documentStore.init().catch(() => { });
     }
   }, [activeOrg]);
 

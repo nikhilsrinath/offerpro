@@ -64,7 +64,7 @@ export default function ProformaInvoiceForm() {
   useEffect(() => {
     if (activeOrg?.id) {
       documentStore.setContext(activeOrg.id);
-      documentStore.init().catch(() => {});
+      documentStore.init().catch(() => { });
     }
   }, [activeOrg]);
 
@@ -236,7 +236,7 @@ export default function ProformaInvoiceForm() {
         clientEmail: formData.clientEmail || '',
         clientAddress: formData.clientAddress || '',
         buyerGSTIN: formData.clientGSTIN || '',
-      }).catch(() => {});
+      }).catch(() => { });
     }
   };
 
@@ -841,7 +841,7 @@ function ProformaPreview({ formData, totals, itemCalcs, company, activeAdvancePe
 
       {/* Footer */}
       <div className="inv-footer">
-        This is a computer-generated proforma invoice. Generated via OfferPro Suite.
+        This is a computer-generated proforma invoice. Generated via EdgeOS.
       </div>
     </div>
   );

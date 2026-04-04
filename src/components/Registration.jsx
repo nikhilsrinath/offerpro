@@ -23,7 +23,7 @@ const QUESTIONS = [
     { id: 'include_logo', type: 'select_boolean', label: "Include company logo on generated documents?", options: ['Yes', 'No'] },
     { id: 'logo_url', type: 'text', label: "Company Logo URL", subtitle: "Provide a link to your asset. You can configure this later in settings.", optional: true },
     { id: 'account_usage', type: 'select', label: "Account Scope:", options: ['Just me', 'Small team', 'Entire organization'] },
-    { id: 'referral_source', type: 'text', label: "How did you discover OfferPro?", optional: true }
+    { id: 'referral_source', type: 'text', label: "How did you discover EdgeOS?", optional: true }
 ];
 
 // Questions for Google-authenticated users (skip email/password)
@@ -374,7 +374,7 @@ export default function Registration({ onBack, isGoogleUser }) {
                         {currentQ.type === 'welcome' ? (
                             <div style={{ textAlign: 'center' }}>
                                 <h1 className="reg-welcome-title">
-                                    {isGoogleUser ? 'Complete Your Profile' : 'Welcome to OfferPro'}
+                                    {isGoogleUser ? 'Complete Your Profile' : 'Welcome to EdgeOS'}
                                 </h1>
                                 <p className="reg-welcome-subtitle">
                                     {isGoogleUser

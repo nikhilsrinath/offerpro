@@ -320,7 +320,7 @@ export default function InvoicePreview({ formData, totals, isInterState }) {
       )}
 
       <div className="inv-footer">
-        This is a computer-generated invoice. Generated via OfferPro Suite.
+        This is a computer-generated invoice. Generated via EdgeOS.
       </div>
     </div>
   );

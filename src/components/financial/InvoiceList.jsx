@@ -170,9 +170,9 @@ export default function InvoiceList({ onNavigateToNew, onEdit, type = 'invoice' 
         <div class="inv-dates-bar">
           <span>${doc.type === 'quotation' ? 'Date' : 'Invoice Date'}: ${doc.issue_date || '-'}</span>
           ${isPaid
-            ? '<span class="inv-paid-badge">PAID</span>'
-            : `<span>${doc.type === 'quotation' ? 'Valid Until' : 'Due Date'}: ${doc.valid_until || doc.due_date || '-'}</span>`
-          }
+        ? '<span class="inv-paid-badge">PAID</span>'
+        : `<span>${doc.type === 'quotation' ? 'Valid Until' : 'Due Date'}: ${doc.valid_until || doc.due_date || '-'}</span>`
+      }
         </div>
 
         <!-- Items Table -->
@@ -188,8 +188,8 @@ export default function InvoiceList({ onNavigateToNew, onEdit, type = 'invoice' 
           </thead>
           <tbody>
             ${(doc.items || []).map(item => {
-              const lineTotal = (Number(item.quantity) || 0) * (Number(item.rate) || Number(item.price) || 0);
-              return `
+        const lineTotal = (Number(item.quantity) || 0) * (Number(item.rate) || Number(item.price) || 0);
+        return `
                 <tr>
                   <td>${item.description || '-'}</td>
                   ${gstRate > 0 ? `<td class="inv-td-muted">${item.hsnSac || item.hsnCode || '-'}</td>` : ''}
@@ -197,7 +197,7 @@ export default function InvoiceList({ onNavigateToNew, onEdit, type = 'invoice' 
                   <td>\u20B9${(Number(item.rate) || Number(item.price) || 0).toLocaleString('en-IN')}</td>
                   <td class="inv-td-amount">\u20B9${lineTotal.toLocaleString('en-IN')}</td>
                 </tr>`;
-            }).join('')}
+      }).join('')}
           </tbody>
         </table>
 
@@ -229,7 +229,7 @@ export default function InvoiceList({ onNavigateToNew, onEdit, type = 'invoice' 
         ` : ''}
 
         <div class="inv-footer">
-          This is a computer-generated ${doc.type === 'quotation' ? 'quotation' : doc.type === 'proforma' ? 'proforma invoice' : 'invoice'}. Generated via OfferPro Suite.
+          This is a computer-generated ${doc.type === 'quotation' ? 'quotation' : doc.type === 'proforma' ? 'proforma invoice' : 'invoice'}. Generated via EdgeOS.
         </div>
       </div>
     `;

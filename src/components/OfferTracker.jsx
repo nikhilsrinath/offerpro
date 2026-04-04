@@ -6,7 +6,7 @@ import { emailService } from '../services/emailService';
 import { useOrg } from '../context/OrgContext';
 import {
   Plus, Mail, MessageSquare, Copy, CheckCircle,
-  X, Loader, FileText, AlertCircle, Check,
+  X, Loader, FileText, AlertCircle, Check, Calendar,
 } from 'lucide-react';
 
 const STATUS_CONFIG = {
@@ -16,6 +16,16 @@ const STATUS_CONFIG = {
   signed:   { label: 'Accepted', color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
   declined: { label: 'Declined', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
 };
+
+function useWindowWidth() {
+  const [w, setW] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setW(window.innerWidth);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return w;
+}
 
 function StatusPill({ status }) {
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
@@ -38,7 +48,7 @@ function fmtDate(d) {
   catch { return d; }
 }
 
-function ActionBtn({ children, onClick, disabled, title, highlight, highlightColor, color }) {
+function ActionBtn({ children, onClick, disabled, title, highlight, highlightColor, color, fullWidth }) {
   return (
     <button
       onClick={onClick}
@@ -47,14 +57,18 @@ function ActionBtn({ children, onClick, disabled, title, highlight, highlightCol
       style={{
         background: highlight ? `${highlightColor || '#10b981'}18` : 'none',
         border: `1px solid ${highlight ? (highlightColor || '#10b981') : 'var(--border-default)'}`,
-        borderRadius: '0.375rem',
-        padding: '0.35rem 0.5rem',
+        borderRadius: '0.5rem',
+        padding: fullWidth ? '0.6rem 0.75rem' : '0.35rem 0.5rem',
         cursor: disabled ? 'not-allowed' : 'pointer',
         color: highlight ? (highlightColor || '#10b981') : (color || 'var(--text-secondary)'),
-        display: 'flex', alignItems: 'center',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        gap: '0.375rem',
         transition: 'all 0.15s',
         opacity: disabled ? 0.5 : 1,
-        flexShrink: 0,
+        flexShrink: fullWidth ? 0 : 1,
+        flex: fullWidth ? 1 : undefined,
+        fontSize: fullWidth ? '0.8rem' : undefined,
+        fontWeight: fullWidth ? 600 : undefined,
       }}
     >
       {children}
@@ -64,6 +78,9 @@ function ActionBtn({ children, onClick, disabled, title, highlight, highlightCol
 
 export default function OfferTracker() {
   const { activeOrg } = useOrg();
+  const winW = useWindowWidth();
+  const isMobile = winW < 768;
+
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -74,7 +91,6 @@ export default function OfferTracker() {
   const portalUrl = (docId) =>
     `${window.location.origin}/portal/${docId}?org=${activeOrg?.id || ''}`;
 
-  // Real-time Firebase listener — picks up status changes the moment recipient signs
   useEffect(() => {
     if (!activeOrg?.id) return;
     documentStore.setContext(activeOrg.id);
@@ -92,7 +108,6 @@ export default function OfferTracker() {
               .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
           );
         } else {
-          // Firebase has nothing yet — fall back to localStorage cache
           setOffers(
             documentStore.getAll().filter((d) => d.type === 'offer_letter')
           );
@@ -166,16 +181,61 @@ export default function OfferTracker() {
     window.open(url, '_blank');
   };
 
+  const renderActions = (offer, fullWidth = false) => (
+    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+      <ActionBtn
+        onClick={() => handleCopy(offer.id)}
+        title="Copy portal link"
+        highlight={copiedId === offer.id}
+        highlightColor="#10b981"
+        fullWidth={fullWidth}
+      >
+        {copiedId === offer.id ? <CheckCircle size={14} /> : <Copy size={14} />}
+        {fullWidth && <span>{copiedId === offer.id ? 'Copied!' : 'Copy Link'}</span>}
+      </ActionBtn>
+
+      <ActionBtn
+        onClick={() => handleSendMail(offer)}
+        disabled={sendingMail === offer.id}
+        title={offer.recipient_email ? `Send email to ${offer.recipient_email}` : 'No email saved'}
+        highlight={!!mailState[offer.id]}
+        highlightColor={mailState[offer.id] === 'fail' ? '#ef4444' : '#10b981'}
+        fullWidth={fullWidth}
+      >
+        {sendingMail === offer.id
+          ? <Loader size={14} className="spin-icon" />
+          : mailState[offer.id] === 'ok'
+            ? <CheckCircle size={14} />
+            : mailState[offer.id] === 'fail'
+              ? <AlertCircle size={14} />
+              : <Mail size={14} />}
+        {fullWidth && <span>
+          {sendingMail === offer.id ? 'Sending…' : mailState[offer.id] === 'ok' ? 'Sent!' : mailState[offer.id] === 'fail' ? 'Failed' : 'Email'}
+        </span>}
+      </ActionBtn>
+
+      <ActionBtn
+        onClick={() => handleWhatsApp(offer)}
+        title="Send via WhatsApp"
+        color="#25d366"
+        fullWidth={fullWidth}
+      >
+        <MessageSquare size={14} />
+        {fullWidth && <span>WhatsApp</span>}
+      </ActionBtn>
+    </div>
+  );
+
   return (
     <div>
       {/* ── Header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.75rem', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <h2 style={{ margin: 0, fontSize: isMobile ? '1rem' : '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             Offer Letter Tracker
           </h2>
-          <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-            Real-time acceptance status — updates instantly when a candidate signs
+          <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+            Real-time status — updates instantly when a candidate signs
           </p>
         </div>
         <button className="btn-cinematic" onClick={() => setShowCreate(true)} style={{ flexShrink: 0 }}>
@@ -185,7 +245,7 @@ export default function OfferTracker() {
 
       {/* ── Status summary chips ── */}
       {!loading && offers.length > 0 && (
-        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '0.625rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           {Object.entries(
             offers.reduce((acc, o) => {
               const k = o.status || 'pending';
@@ -203,7 +263,7 @@ export default function OfferTracker() {
         </div>
       )}
 
-      {/* ── Table ── */}
+      {/* ── Content ── */}
       {loading ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem', gap: '0.75rem', color: 'var(--text-secondary)' }}>
           <Loader size={18} className="spin-icon" />
@@ -220,7 +280,102 @@ export default function OfferTracker() {
             <Plus size={15} /> Create First Offer
           </button>
         </div>
+      ) : isMobile ? (
+        /* ── Mobile: Card Grid ── */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+          {offers.map((offer) => {
+            const typeLabel = offer.offer_type === 'fulltime' ? 'Full-Time' : 'Internship';
+            const typeColor = offer.offer_type === 'fulltime' ? '#3b82f6' : '#8b5cf6';
+            return (
+              <div
+                key={offer.id}
+                style={{
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: '0.875rem',
+                  padding: '1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.875rem',
+                }}
+              >
+                {/* Card top: name + status */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
+                      {offer.issued_to || '—'}
+                    </div>
+                    <div style={{ fontSize: '0.65rem', fontFamily: 'monospace', color: 'var(--text-secondary)', opacity: 0.8 }}>
+                      {offer.id}
+                    </div>
+                    {offer.recipient_email && (
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {offer.recipient_email}
+                      </div>
+                    )}
+                  </div>
+                  <StatusPill status={offer.status} />
+                </div>
+
+                {/* Role + type badge */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {offer.role || '—'}
+                  </span>
+                  <span style={{
+                    fontSize: '0.65rem', fontWeight: 700, padding: '0.15rem 0.5rem',
+                    borderRadius: '20px', background: `${typeColor}18`, color: typeColor,
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {typeLabel}
+                  </span>
+                  {offer.department && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      · {offer.department}
+                    </span>
+                  )}
+                </div>
+
+                {/* Dates row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                  <div style={{ background: 'var(--background)', borderRadius: '0.5rem', padding: '0.5rem 0.625rem' }}>
+                    <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Issued</div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <Calendar size={11} style={{ opacity: 0.6 }} />
+                      {fmtDate(offer.issue_date)}
+                    </div>
+                  </div>
+                  <div style={{ background: 'var(--background)', borderRadius: '0.5rem', padding: '0.5rem 0.625rem' }}>
+                    <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Deadline</div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <Calendar size={11} style={{ opacity: 0.6 }} />
+                      {fmtDate(offer.valid_until)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Signed/declined info */}
+                {offer.signed_at && (
+                  <div style={{ fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <CheckCircle size={13} />
+                    Signed on {fmtDate(offer.signed_at)}
+                  </div>
+                )}
+                {offer.decline_reason && (
+                  <div style={{ fontSize: '0.75rem', color: '#ef4444', display: 'flex', alignItems: 'flex-start', gap: '0.35rem' }}>
+                    <AlertCircle size={13} style={{ flexShrink: 0, marginTop: '0.1rem' }} />
+                    <span>{offer.decline_reason}</span>
+                  </div>
+                )}
+
+                {/* Action buttons — full width, touch-friendly */}
+                {renderActions(offer, true)}
+              </div>
+            );
+          })}
+        </div>
       ) : (
+        /* ── Desktop: Table ── */
         <div style={{ background: 'var(--surface)', borderRadius: '1rem', border: '1px solid var(--border-default)', overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -239,7 +394,6 @@ export default function OfferTracker() {
                     key={offer.id}
                     style={{ borderBottom: i < offers.length - 1 ? '1px solid var(--border-default)' : 'none' }}
                   >
-                    {/* Candidate */}
                     <td style={{ padding: '0.875rem 1rem' }}>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
                         {offer.issued_to || '—'}
@@ -254,7 +408,6 @@ export default function OfferTracker() {
                       )}
                     </td>
 
-                    {/* Role */}
                     <td style={{ padding: '0.875rem 1rem' }}>
                       <div style={{ fontSize: '0.875rem', color: 'var(--text-primary)', fontWeight: 500 }}>
                         {offer.role || '—'}
@@ -264,17 +417,14 @@ export default function OfferTracker() {
                       </div>
                     </td>
 
-                    {/* Issued */}
                     <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                       {fmtDate(offer.issue_date)}
                     </td>
 
-                    {/* Deadline */}
                     <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                       {fmtDate(offer.valid_until)}
                     </td>
 
-                    {/* Status */}
                     <td style={{ padding: '0.875rem 1rem' }}>
                       <StatusPill status={offer.status} />
                       {offer.signed_at && (
@@ -289,45 +439,8 @@ export default function OfferTracker() {
                       )}
                     </td>
 
-                    {/* Actions */}
                     <td style={{ padding: '0.875rem 1rem' }}>
-                      <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
-                        {/* Copy portal link */}
-                        <ActionBtn
-                          onClick={() => handleCopy(offer.id)}
-                          title="Copy portal link"
-                          highlight={copiedId === offer.id}
-                          highlightColor="#10b981"
-                        >
-                          {copiedId === offer.id ? <CheckCircle size={13} /> : <Copy size={13} />}
-                        </ActionBtn>
-
-                        {/* Send email */}
-                        <ActionBtn
-                          onClick={() => handleSendMail(offer)}
-                          disabled={sendingMail === offer.id}
-                          title={offer.recipient_email ? `Send email to ${offer.recipient_email}` : 'No email saved'}
-                          highlight={!!mailState[offer.id]}
-                          highlightColor={mailState[offer.id] === 'fail' ? '#ef4444' : '#10b981'}
-                        >
-                          {sendingMail === offer.id
-                            ? <Loader size={13} className="spin-icon" />
-                            : mailState[offer.id] === 'ok'
-                              ? <CheckCircle size={13} />
-                              : mailState[offer.id] === 'fail'
-                                ? <AlertCircle size={13} />
-                                : <Mail size={13} />}
-                        </ActionBtn>
-
-                        {/* Send WhatsApp */}
-                        <ActionBtn
-                          onClick={() => handleWhatsApp(offer)}
-                          title="Send via WhatsApp"
-                          color="#25d366"
-                        >
-                          <MessageSquare size={13} />
-                        </ActionBtn>
-                      </div>
+                      {renderActions(offer, false)}
                     </td>
                   </tr>
                 ))}
@@ -351,6 +464,9 @@ export default function OfferTracker() {
 // ── Create Offer Modal ────────────────────────────────────────────────────────
 
 function CreateOfferModal({ activeOrg, onClose }) {
+  const winW = useWindowWidth();
+  const isMobile = winW < 640;
+
   const [form, setForm] = useState({
     offerType: 'internship',
     studentName: '',
@@ -369,7 +485,7 @@ function CreateOfferModal({ activeOrg, onClose }) {
     responsibilities: '',
   });
   const [saving, setSaving] = useState(false);
-  const [created, setCreated] = useState(null); // { docId, portalUrl }
+  const [created, setCreated] = useState(null);
   const [copied, setCopied] = useState(false);
 
   const onChg = (e) => {
@@ -444,16 +560,26 @@ function CreateOfferModal({ activeOrg, onClose }) {
   };
   const labelStyle = { fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem' };
   const sectionLabel = { fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 0.75rem' };
-  const grid2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' };
+  const grid2 = { display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0.75rem' };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 9999, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? '0' : '1rem' }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border-default)', borderRadius: '1rem', width: '100%', maxWidth: '580px', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
+      <div style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border-default)',
+        borderRadius: isMobile ? '1rem 1rem 0 0' : '1rem',
+        width: '100%',
+        maxWidth: isMobile ? '100%' : '580px',
+        maxHeight: isMobile ? '92vh' : '92vh',
+        display: 'flex',
+        flexDirection: 'column',
+      }}>
 
         {/* Modal header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-default)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.25rem', borderBottom: '1px solid var(--border-default)', flexShrink: 0 }}>
           <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             {created ? 'Offer Created' : 'New Offer Letter'}
           </h3>
@@ -464,7 +590,7 @@ function CreateOfferModal({ activeOrg, onClose }) {
 
         {created ? (
           /* ── Success state ── */
-          <div style={{ padding: '2rem 1.5rem', textAlign: 'center' }}>
+          <div style={{ padding: '2rem 1.25rem', textAlign: 'center' }}>
             <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(16,185,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
               <Check size={28} color="#10b981" />
             </div>
@@ -475,7 +601,7 @@ function CreateOfferModal({ activeOrg, onClose }) {
             <div style={{ background: 'var(--background)', border: '1px solid var(--border-default)', borderRadius: '0.5rem', padding: '0.75rem 1rem', fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--text-primary)', wordBreak: 'break-all', marginBottom: '1.25rem', textAlign: 'left', lineHeight: 1.6 }}>
               {created.portalUrl}
             </div>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', flexDirection: isMobile ? 'column' : 'row' }}>
               <button onClick={handleCopy} className="btn-cinematic" style={{ flex: 1 }}>
                 {copied ? <><CheckCircle size={14} /> Copied!</> : <><Copy size={14} /> Copy Portal Link</>}
               </button>
@@ -486,7 +612,7 @@ function CreateOfferModal({ activeOrg, onClose }) {
           </div>
         ) : (
           /* ── Form ── */
-          <form onSubmit={handleCreate} style={{ overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <form onSubmit={handleCreate} style={{ overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
             {/* Offer type toggle */}
             <div className="easy-toggle-bar" style={{ margin: 0 }}>

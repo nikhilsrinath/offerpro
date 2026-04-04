@@ -124,7 +124,7 @@ export default function NdaForm({ onSuccess }) {
                   <AlertTriangle size={28} />
                   <h3>{isTrialExpired ? 'Trial Expired' : 'NDA Limit Reached'}</h3>
                   <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used your ${TRIAL_LIMITS.nda} NDA document(s) in the free trial.`} Contact our sales team to upgrade.</p>
-                  <a href="mailto:sales@offerpro.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
+                  <a href="mailto:sales@edgeos.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
                     <Mail size={16} /> Contact Sales
                   </a>
                 </div>

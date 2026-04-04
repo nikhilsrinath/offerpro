@@ -103,7 +103,7 @@ export default function QuotationForm({ editDocId }) {
   useEffect(() => {
     if (activeOrg?.id) {
       documentStore.setContext(activeOrg.id);
-      documentStore.init().catch(() => {});
+      documentStore.init().catch(() => { });
     }
   }, [activeOrg]);
 
@@ -309,7 +309,7 @@ export default function QuotationForm({ editDocId }) {
         clientEmail: formData.clientEmail || '',
         clientAddress: formData.clientAddress || '',
         buyerGSTIN: formData.clientGstin || '',
-      }).catch(() => {});
+      }).catch(() => { });
     }
   };
 
@@ -1254,7 +1254,7 @@ export default function QuotationForm({ editDocId }) {
             >
               This is not a tax invoice. This is a quotation/estimate only.
               <br />
-              Generated via OfferPro Suite.
+              Generated via EdgeOS.
             </div>
           </div>
         </div>
