@@ -28,6 +28,7 @@ export default function InternRecords() {
   const { activeOrg } = useOrg();
   const [records, setRecords] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('date_desc');
   const [activeTab, setActiveTab] = useState('all');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
   const [loading, setLoading] = useState(true);
@@ -110,8 +111,14 @@ export default function InternRecords() {
         r.type?.toLowerCase().includes(term)
       );
     }
-    return filtered;
-  }, [records, activeTab, searchTerm]);
+    return [...filtered].sort((a, b) => {
+      if (sortBy === 'date_desc')   return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      if (sortBy === 'date_asc')    return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+      if (sortBy === 'title_asc')   return (a.title || '').localeCompare(b.title || '');
+      if (sortBy === 'title_desc')  return (b.title || '').localeCompare(a.title || '');
+      return 0;
+    });
+  }, [records, activeTab, searchTerm, sortBy]);
 
   if (loading) {
     return (
@@ -178,6 +185,23 @@ export default function InternRecords() {
               style={{ paddingLeft: '2rem', height: '36px', fontSize: '0.8125rem' }}
             />
           </div>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            style={{
+              height: '36px', padding: '0 0.625rem',
+              borderRadius: '0.5rem',
+              border: '1px solid var(--border-default)',
+              background: 'var(--background)',
+              color: 'var(--text-secondary)',
+              fontSize: '0.8rem', cursor: 'pointer', outline: 'none', flexShrink: 0,
+            }}
+          >
+            <option value="date_desc">Newest first</option>
+            <option value="date_asc">Oldest first</option>
+            <option value="title_asc">Title A–Z</option>
+            <option value="title_desc">Title Z–A</option>
+          </select>
           <div className="records-toolbar-actions">
             <div className="records-view-toggle">
               <button className={`records-view-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')} title="Grid view">

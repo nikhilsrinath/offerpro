@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, Edit3, Copy, CheckCircle, Bell, Search, Filter, Plus, ChevronDown, ChevronUp, X, Download, MessageSquare, RotateCcw, XCircle } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -14,6 +14,7 @@ export default function InvoiceList({ onNavigateToNew, onEdit, type = 'invoice' 
   const { activeOrg } = useOrg();
   const [documents, setDocuments] = useState([]);
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('date_desc');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showPortalLink, setShowPortalLink] = useState(null);
   const [expandedPayment, setExpandedPayment] = useState(null);
@@ -42,14 +43,28 @@ export default function InvoiceList({ onNavigateToNew, onEdit, type = 'invoice' 
     setDocuments(documentStore.getByType(type));
   };
 
-  const filteredDocs = documents.filter((d) => {
-    const matchesSearch = !search ||
-      d.id.toLowerCase().includes(search.toLowerCase()) ||
-      (d.issued_to || '').toLowerCase().includes(search.toLowerCase()) ||
-      (d.client?.name || '').toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || d.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredDocs = useMemo(() => {
+    const filtered = documents.filter((d) => {
+      const matchesSearch = !search ||
+        d.id.toLowerCase().includes(search.toLowerCase()) ||
+        (d.issued_to || '').toLowerCase().includes(search.toLowerCase()) ||
+        (d.client?.name || '').toLowerCase().includes(search.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || d.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+    return [...filtered].sort((a, b) => {
+      const dateA = new Date(a.issue_date || a.created_at || 0);
+      const dateB = new Date(b.issue_date || b.created_at || 0);
+      const amtA = a.grand_total || a.amount || 0;
+      const amtB = b.grand_total || b.amount || 0;
+      if (sortBy === 'date_desc')   return dateB - dateA;
+      if (sortBy === 'date_asc')    return dateA - dateB;
+      if (sortBy === 'amount_desc') return amtB - amtA;
+      if (sortBy === 'amount_asc')  return amtA - amtB;
+      if (sortBy === 'client')      return (a.issued_to || a.client?.name || '').localeCompare(b.issued_to || b.client?.name || '');
+      return 0;
+    });
+  }, [documents, search, statusFilter, sortBy]);
 
   // Auto-detect overdue invoices
   useEffect(() => {
@@ -363,6 +378,24 @@ export default function InvoiceList({ onNavigateToNew, onEdit, type = 'invoice' 
             className="fin-list-search"
           />
         </div>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          style={{
+            height: '36px', padding: '0 0.625rem',
+            borderRadius: '0.5rem',
+            border: '1px solid var(--border-default)',
+            background: 'var(--background)',
+            color: 'var(--text-secondary)',
+            fontSize: '0.8rem', cursor: 'pointer', outline: 'none', flexShrink: 0,
+          }}
+        >
+          <option value="date_desc">Newest first</option>
+          <option value="date_asc">Oldest first</option>
+          <option value="amount_desc">Amount ↓</option>
+          <option value="amount_asc">Amount ↑</option>
+          <option value="client">Client A–Z</option>
+        </select>
         <div className="fin-list-filters">
           {statuses.map((s) => (
             <button

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Upload, CheckCircle, ChevronRight, Eye, AlertTriangle, Mail, Send, Loader, ExternalLink, Copy, X } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
@@ -10,9 +10,32 @@ import { useTrialStatus, TRIAL_LIMITS } from '../hooks/useTrialStatus';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 import OfferPreview from './OfferPreview';
 
+function getDisplayName(emp) {
+  if (emp.studentName) return emp.studentName;
+  const f = (emp.first_name || '').trim();
+  const l = (emp.last_name || '').trim();
+  return `${f} ${l}`.trim() || emp.email || '';
+}
+
 export default function OfferForm({ onSuccess }) {
   const { user } = useAuth();
   const { activeOrg } = useOrg();
+  const [employees, setEmployees] = useState([]);
+  const [deptOptions, setDeptOptions] = useState([]);
+
+  useEffect(() => {
+    if (!activeOrg?.id) return;
+    Promise.all([
+      storageService.getEmployees(activeOrg.id),
+      storageService.getDepartments(activeOrg.id),
+    ]).then(([emps, fbDepts]) => {
+      setEmployees(emps);
+      // Derive dept names from employees and merge with any Firebase-stored ones
+      const fromEmps = emps.map(e => e.department).filter(Boolean);
+      const fromFb   = fbDepts.map(d => d.name);
+      setDeptOptions([...new Set([...fromEmps, ...fromFb])].sort());
+    });
+  }, [activeOrg?.id]);
   const { usage, canCreate, isTrialExpired, isPremium, trialDaysLeft, refreshUsage } = useTrialStatus();
   const org = activeOrg || {};
   const [formData, setFormData] = useState({
@@ -348,7 +371,16 @@ export default function OfferForm({ onSuccess }) {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Department</label>
-                <input name="department" value={formData.department} onChange={handleChange} required placeholder="e.g. Operations" className="easy-inp" />
+                {deptOptions.length > 0 ? (
+                  <select name="department" value={formData.department} onChange={handleChange} required className="easy-inp">
+                    <option value="">Select department…</option>
+                    {deptOptions.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input name="department" value={formData.department} onChange={handleChange} required placeholder="e.g. Operations" className="easy-inp" />
+                )}
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Start date</label>
@@ -362,7 +394,17 @@ export default function OfferForm({ onSuccess }) {
               )}
               <div className="easy-field">
                 <label className="easy-lbl">Reporting supervisor</label>
-                <input name="supervisorName" value={formData.supervisorName} onChange={handleChange} required placeholder="Reports to..." className="easy-inp" />
+                {employees.length > 0 ? (
+                  <select name="supervisorName" value={formData.supervisorName} onChange={handleChange} required className="easy-inp">
+                    <option value="">Select supervisor…</option>
+                    {employees.map(e => {
+                      const name = getDisplayName(e);
+                      return name ? <option key={e.id} value={name}>{name}{e.role ? ` — ${e.role}` : ''}</option> : null;
+                    })}
+                  </select>
+                ) : (
+                  <input name="supervisorName" value={formData.supervisorName} onChange={handleChange} required placeholder="Reports to..." className="easy-inp" />
+                )}
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Reply deadline</label>

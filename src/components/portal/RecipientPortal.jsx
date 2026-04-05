@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { ref, get } from 'firebase/database';
+import { ref, get, update } from 'firebase/database';
 import { signInAnonymously } from 'firebase/auth';
 import { db, auth } from '../../lib/firebase';
 import { documentStore } from '../../services/documentStore';
@@ -41,8 +41,25 @@ function formatDocType(type) {
     invoice: 'Tax Invoice',
     quotation: 'Quotation',
     proforma: 'Proforma Invoice',
+    role_change: 'Role Change Notice',
+    termination: 'Termination Notice',
   };
   return map[type] || type?.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'Document';
+}
+
+function DetailRow({ label, value, highlight, isRed }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '0.5rem 0.75rem', borderRadius: 8,
+      background: highlight ? (isRed ? 'rgba(239,68,68,0.08)' : 'rgba(99,102,241,0.08)') : 'rgba(255,255,255,0.04)',
+      border: `1px solid ${highlight ? (isRed ? 'rgba(239,68,68,0.2)' : 'rgba(99,102,241,0.2)') : 'rgba(255,255,255,0.06)'}`,
+      gap: '0.75rem',
+    }}>
+      <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>{label}</span>
+      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: highlight ? (isRed ? '#f87171' : '#a5b4fc') : 'rgba(255,255,255,0.8)', textAlign: 'right' }}>{value}</span>
+    </div>
+  );
 }
 
 export default function RecipientPortal({ documentId }) {
@@ -99,7 +116,11 @@ export default function RecipientPortal({ documentId }) {
       if (!doc && orgId) {
         try {
           const snap = await get(ref(db, `records/${orgId}/_fin_docs/${documentId}`));
-          if (snap.exists()) doc = snap.val();
+          if (snap.exists()) {
+            doc = snap.val();
+            // Save into documentStore so updateStatus() can find it and sync back to Firebase
+            documentStore.save(doc);
+          }
         } catch (fbErr) {
           console.error('[RecipientPortal] Firebase direct read failed:', fbErr.message);
         }
@@ -393,9 +414,51 @@ export default function RecipientPortal({ documentId }) {
     );
   }
 
-  const isActionTaken = ['signed', 'declined', 'paid', 'payment_submitted', 'accepted', 'fully_signed', 'advance_paid', 'revision_requested'].includes(status);
+  const isActionTaken = ['signed', 'declined', 'paid', 'payment_submitted', 'accepted', 'fully_signed', 'advance_paid', 'revision_requested', 'acknowledged'].includes(status);
   // Use company profile embedded in the document (for recipients), fall back to localStorage
   const company = docData.company_profile || documentStore.getCompanyProfile();
+
+  // ── HR Notice acknowledge (role_change / termination) ──
+  const handleAcknowledge = async () => {
+    if (!signature || !agreed) return;
+    const portalOrgId = new URLSearchParams(window.location.search).get('org');
+
+    documentStore.updateStatus(docData.id, 'acknowledged', {
+      acknowledged_at: new Date().toISOString(),
+      acknowledged_by: candidateName || docData.issued_to,
+      candidate_signature: signature,
+      signature_method: signatureMethod,
+    });
+
+    // Write changes back to employee record
+    if (portalOrgId && docData.employee_id) {
+      try {
+        if (docData.type === 'role_change') {
+          const empUpdates = { role: docData.new_role };
+          if (docData.new_department) empUpdates.department = docData.new_department;
+          if (docData.new_salary) empUpdates.salary = Number(docData.new_salary);
+          await update(ref(db, `employees/${portalOrgId}/${docData.employee_id}`), empUpdates);
+        } else if (docData.type === 'termination') {
+          await update(ref(db, `employees/${portalOrgId}/${docData.employee_id}`), {
+            status: 'terminated',
+            termination_date: docData.last_day,
+          });
+        }
+      } catch (err) {
+        console.warn('[RecipientPortal] Failed to update employee record:', err.message);
+      }
+    }
+
+    documentStore.addNotification({
+      type: docData.type === 'role_change' ? 'role_change_acknowledged' : 'termination_acknowledged',
+      title: docData.type === 'role_change'
+        ? `Role change acknowledged by ${candidateName || docData.issued_to}`
+        : `Termination acknowledged by ${candidateName || docData.issued_to}`,
+      message: `${candidateName || docData.issued_to} has acknowledged the ${docData.type === 'role_change' ? 'role change notice' : 'termination notice'}.`,
+      document_id: docData.id,
+    });
+    setStatus('acknowledged');
+  };
 
   // ── Render ──
   return (
@@ -468,8 +531,10 @@ export default function RecipientPortal({ documentId }) {
                 <div className="rp-doc-info-item">
                   <Clock size={14} />
                   <div>
-                    <span className="rp-doc-info-label">{docData.type === 'quotation' ? 'Valid Until' : docData.type === 'offer_letter' ? 'Respond By' : 'Due Date'}</span>
-                    <span className="rp-doc-info-value">{docData.valid_until || docData.due_date || '-'}</span>
+                    <span className="rp-doc-info-label">
+                      {docData.type === 'quotation' ? 'Valid Until' : docData.type === 'offer_letter' ? 'Respond By' : docData.type === 'role_change' ? 'Effective Date' : docData.type === 'termination' ? 'Last Working Day' : 'Due Date'}
+                    </span>
+                    <span className="rp-doc-info-value">{docData.valid_until || docData.due_date || docData.effective_date || docData.last_day || '-'}</span>
                   </div>
                 </div>
               </div>
@@ -481,7 +546,7 @@ export default function RecipientPortal({ documentId }) {
               <span>{zoom}%</span>
               <button onClick={() => setZoom(Math.min(150, zoom + 10))}><ZoomIn size={14} /></button>
               <button onClick={() => setZoom(100)} className="rp-zoom-reset">Reset</button>
-              {['quotation', 'proforma', 'invoice', 'offer_letter'].includes(docData.type) && (
+              {['quotation', 'proforma', 'invoice', 'offer_letter', 'role_change', 'termination'].includes(docData.type) && (
                 <button className="rp-download-pdf-btn" onClick={handleDownloadPDF} disabled={downloading}>
                   <Download size={13} /> {downloading ? 'Generating...' : 'Download PDF'}
                 </button>
@@ -607,6 +672,134 @@ export default function RecipientPortal({ documentId }) {
                       </div>
                     );
                   })()}
+
+                  {/* ── Role Change Notice ── */}
+                  {docData.type === 'role_change' && (
+                    <div className="rp-doc-body">
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1em', gap: '0.5em' }}>
+                        <h3 className="rp-doc-title" style={{ margin: 0 }}>ROLE CHANGE NOTICE</h3>
+                        <span style={{ flexShrink: 0, display: 'inline-block', background: '#4f46e5', color: '#fff', fontSize: '8pt', fontWeight: 700, padding: '3px 12px', borderRadius: '20px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Internal</span>
+                      </div>
+                      <p className="rp-doc-date">Date: {fmtOfferDate(docData.issue_date)}</p>
+                      <p><strong>To,</strong></p>
+                      <p><strong>{docData.issued_to}</strong></p>
+                      {(docData.current_role || docData.current_department) && (
+                        <p style={{ fontSize: '10pt', color: '#6b7280', marginTop: '-0.5em' }}>{[docData.current_role, docData.current_department].filter(Boolean).join(', ')}</p>
+                      )}
+                      <p className="rp-doc-para">Dear <strong>{docData.issued_to}</strong>,</p>
+                      <p className="rp-doc-para">
+                        We are pleased to inform you that, effective <strong>{fmtOfferDate(docData.effective_date)}</strong>, your role at <strong>{company.company_name || 'the company'}</strong> will be updated as detailed below.
+                      </p>
+                      <table className="rp-doc-table" style={{ marginBottom: '1.5em' }}>
+                        <thead><tr><th colSpan={2} style={{ textAlign: 'left' }}>Role Change Details</th></tr></thead>
+                        <tbody>
+                          <tr><td style={{ width: '38%', color: '#6b7280', fontWeight: 500 }}>Current Role</td><td style={{ fontWeight: 600 }}>{docData.current_role || '—'}</td></tr>
+                          <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>New Role</td><td style={{ fontWeight: 700 }}>{docData.new_role || '—'}</td></tr>
+                          {docData.current_department && <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>Current Dept.</td><td style={{ fontWeight: 600 }}>{docData.current_department}</td></tr>}
+                          {docData.new_department && <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>New Dept.</td><td style={{ fontWeight: 700 }}>{docData.new_department}</td></tr>}
+                          {docData.new_salary && <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>New Compensation</td><td style={{ fontWeight: 700 }}>₹ {Number(docData.new_salary).toLocaleString('en-IN')} / {docData.salary_frequency || 'month'}</td></tr>}
+                          <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>Effective Date</td><td style={{ fontWeight: 700 }}>{fmtOfferDate(docData.effective_date)}</td></tr>
+                        </tbody>
+                      </table>
+                      {docData.message && (
+                        <div style={{ marginBottom: '1.5em' }}>
+                          <p style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '8pt', letterSpacing: '0.06em', color: '#374151', marginBottom: '0.5em' }}>Additional Information</p>
+                          <p style={{ fontSize: '10pt', lineHeight: 1.7, whiteSpace: 'pre-line', color: '#374151' }}>{docData.message}</p>
+                        </div>
+                      )}
+                      <p className="rp-doc-para">We look forward to your continued contributions in this new capacity. Should you have any questions, please reach out to the HR department.</p>
+                      <p className="rp-doc-sign-line">Sincerely,</p>
+                      <p><strong>{company.authorized_person || company.company_name || 'HR Department'}</strong></p>
+                      {company.authorized_designation && <p style={{ fontSize: '9pt', color: '#6b7280' }}>{company.authorized_designation}</p>}
+                      {company.signature_url && <img src={company.signature_url} alt="Authorized Signature" className="rp-doc-sig-img" />}
+                      <div className="rp-doc-sig-section">
+                        <h4>ACKNOWLEDGEMENT</h4>
+                        <div className="rp-doc-sig-rule" />
+                        <p>I, <strong>{docData.issued_to}</strong>, hereby acknowledge receipt and understanding of this role change notice.</p>
+                        <div className="rp-doc-sig-grid">
+                          <div className="rp-doc-sig-col">
+                            <p className="rp-doc-sig-heading">Authorized Signatory</p>
+                            <p>{company.company_name || 'HR Department'}</p>
+                            <p>Date: {fmtOfferDate(docData.issue_date)}</p>
+                            {company.signature_url && <img src={company.signature_url} alt="Signature" className="rp-doc-sig-img" style={{ opacity: 0.6 }} />}
+                            <div className="rp-doc-sig-line" /><p className="rp-doc-sig-caption">Signature</p>
+                          </div>
+                          <div className="rp-doc-sig-col">
+                            <p className="rp-doc-sig-heading">Employee Acknowledgement</p>
+                            {status === 'acknowledged' && signature ? (
+                              <><img src={signature} alt="Employee Signature" className="rp-doc-sig-img" /><p>Name: {candidateName || docData.issued_to}</p><p>Date: {new Date().toLocaleDateString()}</p></>
+                            ) : (
+                              <><p>Name: _______________________</p><p>Date: _______________________</p><div className="rp-doc-sig-line" /><p className="rp-doc-sig-caption">Signature</p></>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Termination Notice ── */}
+                  {docData.type === 'termination' && (
+                    <div className="rp-doc-body">
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1em', gap: '0.5em' }}>
+                        <h3 className="rp-doc-title" style={{ margin: 0 }}>EMPLOYMENT TERMINATION NOTICE</h3>
+                        <span style={{ flexShrink: 0, display: 'inline-block', background: '#dc2626', color: '#fff', fontSize: '8pt', fontWeight: 700, padding: '3px 12px', borderRadius: '20px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Confidential</span>
+                      </div>
+                      <p className="rp-doc-date">Date: {fmtOfferDate(docData.issue_date)}</p>
+                      <p><strong>To,</strong></p>
+                      <p><strong>{docData.issued_to}</strong></p>
+                      {(docData.current_role || docData.current_department) && (
+                        <p style={{ fontSize: '10pt', color: '#6b7280', marginTop: '-0.5em' }}>{[docData.current_role, docData.current_department].filter(Boolean).join(', ')}</p>
+                      )}
+                      <p className="rp-doc-para">Dear <strong>{docData.issued_to}</strong>,</p>
+                      <p className="rp-doc-para">
+                        We regret to inform you that your employment with <strong>{company.company_name || 'the company'}</strong> will be concluded effective <strong>{fmtOfferDate(docData.last_day)}</strong>, which shall be your last working day.
+                      </p>
+                      <table className="rp-doc-table" style={{ marginBottom: '1.5em' }}>
+                        <thead><tr><th colSpan={2} style={{ textAlign: 'left' }}>Termination Details</th></tr></thead>
+                        <tbody>
+                          <tr><td style={{ width: '38%', color: '#6b7280', fontWeight: 500 }}>Employee</td><td style={{ fontWeight: 600 }}>{docData.issued_to}</td></tr>
+                          {docData.current_role && <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>Role</td><td style={{ fontWeight: 600 }}>{docData.current_role}</td></tr>}
+                          {docData.current_department && <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>Department</td><td style={{ fontWeight: 600 }}>{docData.current_department}</td></tr>}
+                          <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>Last Working Day</td><td style={{ fontWeight: 700, color: '#dc2626' }}>{fmtOfferDate(docData.last_day)}</td></tr>
+                        </tbody>
+                      </table>
+                      {docData.message && (
+                        <div style={{ marginBottom: '1.5em' }}>
+                          <p style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '8pt', letterSpacing: '0.06em', color: '#374151', marginBottom: '0.5em' }}>Additional Details</p>
+                          <p style={{ fontSize: '10pt', lineHeight: 1.7, whiteSpace: 'pre-line', color: '#374151' }}>{docData.message}</p>
+                        </div>
+                      )}
+                      <p className="rp-doc-para">
+                        Please ensure all company property and documents are returned and knowledge transfer is completed by your last working day. Your final settlement will be processed in accordance with company policy.
+                      </p>
+                      <p className="rp-doc-sign-line">Sincerely,</p>
+                      <p><strong>{company.authorized_person || company.company_name || 'HR Department'}</strong></p>
+                      {company.authorized_designation && <p style={{ fontSize: '9pt', color: '#6b7280' }}>{company.authorized_designation}</p>}
+                      {company.signature_url && <img src={company.signature_url} alt="Authorized Signature" className="rp-doc-sig-img" />}
+                      <div className="rp-doc-sig-section">
+                        <h4>ACKNOWLEDGEMENT</h4>
+                        <div className="rp-doc-sig-rule" />
+                        <p>I, <strong>{docData.issued_to}</strong>, hereby acknowledge receipt of this termination notice.</p>
+                        <div className="rp-doc-sig-grid">
+                          <div className="rp-doc-sig-col">
+                            <p className="rp-doc-sig-heading">Authorized Signatory</p>
+                            <p>{company.company_name || 'HR Department'}</p>
+                            <p>Date: {fmtOfferDate(docData.issue_date)}</p>
+                            {company.signature_url && <img src={company.signature_url} alt="Signature" className="rp-doc-sig-img" style={{ opacity: 0.6 }} />}
+                            <div className="rp-doc-sig-line" /><p className="rp-doc-sig-caption">Signature</p>
+                          </div>
+                          <div className="rp-doc-sig-col">
+                            <p className="rp-doc-sig-heading">Employee Acknowledgement</p>
+                            {status === 'acknowledged' && signature ? (
+                              <><img src={signature} alt="Employee Signature" className="rp-doc-sig-img" /><p>Name: {candidateName || docData.issued_to}</p><p>Date: {new Date().toLocaleDateString()}</p></>
+                            ) : (
+                              <><p>Name: _______________________</p><p>Date: _______________________</p><div className="rp-doc-sig-line" /><p className="rp-doc-sig-caption">Signature</p></>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* ── MoU ── */}
                   {docData.type === 'mou' && (
@@ -1117,6 +1310,116 @@ export default function RecipientPortal({ documentId }) {
 
             {docData.type === 'proforma' && (paymentSubmitted || status === 'advance_paid') && (
               <SuccessCard title="Advance Payment Submitted" subtitle="Order confirmed. A tax invoice will be issued upon delivery." />
+            )}
+
+            {/* ════════ ROLE CHANGE ════════ */}
+            {docData.type === 'role_change' && !isActionTaken && (
+              <div className="rp-card">
+                <div className="rp-card-header">
+                  <Sparkles size={18} />
+                  <h3>Acknowledge Role Change</h3>
+                </div>
+                <p className="rp-card-desc">Review the notice on the left, then sign below to acknowledge your updated role.</p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginBottom: '1rem', padding: '0.75rem', background: 'rgba(99,102,241,0.06)', borderRadius: '10px', border: '1px solid rgba(99,102,241,0.18)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                    <span style={{ color: 'var(--rp-text-muted)' }}>New Role</span>
+                    <strong>{docData.new_role}</strong>
+                  </div>
+                  {docData.new_department && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                      <span style={{ color: 'var(--rp-text-muted)' }}>Department</span>
+                      <strong>{docData.new_department}</strong>
+                    </div>
+                  )}
+                  {docData.new_salary && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                      <span style={{ color: 'var(--rp-text-muted)' }}>New Compensation</span>
+                      <strong>₹{Number(docData.new_salary).toLocaleString('en-IN')} / {docData.salary_frequency || 'month'}</strong>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                    <span style={{ color: 'var(--rp-text-muted)' }}>Effective</span>
+                    <strong>{fmtOfferDate(docData.effective_date)}</strong>
+                  </div>
+                </div>
+
+                <div className="rp-field-group">
+                  <label className="rp-label">Your Signature</label>
+                  <SignatureCapture onSignatureChange={(sig, method) => { setSignature(sig); setSignatureMethod(method); }} />
+                </div>
+
+                <label className="rp-agree">
+                  <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} />
+                  <span>I, <strong>{candidateName || docData.issued_to}</strong>, acknowledge this role change effective <strong>{fmtOfferDate(docData.effective_date)}</strong>.</span>
+                </label>
+
+                <div className="rp-card-actions">
+                  <button className="rp-btn rp-btn-primary" disabled={!signature || !agreed} onClick={handleAcknowledge}>
+                    <Check size={16} /> Acknowledge & Sign
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {docData.type === 'role_change' && status === 'acknowledged' && (
+              <SuccessCard
+                title="Role Change Acknowledged"
+                subtitle={`Thank you, ${candidateName || docData.issued_to}`}
+                details={[
+                  { label: 'New Role', value: docData.new_role },
+                  { label: 'Effective', value: fmtOfferDate(docData.effective_date) },
+                  { label: 'Document', value: docData.id },
+                ]}
+              />
+            )}
+
+            {/* ════════ TERMINATION ════════ */}
+            {docData.type === 'termination' && !isActionTaken && (
+              <div className="rp-card">
+                <div className="rp-card-header" style={{ color: '#ef4444' }}>
+                  <AlertCircle size={18} />
+                  <h3>Acknowledgement Required</h3>
+                </div>
+                <p className="rp-card-desc">Please review the termination notice on the left and provide your signature below.</p>
+
+                <div style={{ padding: '0.6rem 0.875rem', background: 'rgba(239,68,68,0.07)', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.2)', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                  <span style={{ color: '#f87171' }}>Last Working Day</span>
+                  <strong style={{ color: '#f87171' }}>{fmtOfferDate(docData.last_day)}</strong>
+                </div>
+
+                <div style={{ fontSize: '0.72rem', color: 'var(--rp-text-muted)', padding: '0.5rem 0.75rem', background: 'rgba(239,68,68,0.04)', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.12)', marginBottom: '1rem' }}>
+                  This acknowledgement is mandatory and cannot be declined.
+                </div>
+
+                <div className="rp-field-group">
+                  <label className="rp-label">Your Signature</label>
+                  <SignatureCapture onSignatureChange={(sig, method) => { setSignature(sig); setSignatureMethod(method); }} />
+                </div>
+
+                <label className="rp-agree">
+                  <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} />
+                  <span>I, <strong>{candidateName || docData.issued_to}</strong>, acknowledge this termination notice. My last working day is <strong>{fmtOfferDate(docData.last_day)}</strong>.</span>
+                </label>
+
+                <div className="rp-card-actions">
+                  <button className="rp-btn rp-btn-danger" disabled={!signature || !agreed} onClick={handleAcknowledge}>
+                    <Check size={16} /> Acknowledge & Sign
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {docData.type === 'termination' && status === 'acknowledged' && (
+              <SuccessCard
+                title="Notice Acknowledged"
+                subtitle={`Recorded for ${candidateName || docData.issued_to}`}
+                details={[
+                  { label: 'Last Working Day', value: fmtOfferDate(docData.last_day) },
+                  { label: 'Acknowledged on', value: new Date().toLocaleDateString() },
+                  { label: 'Document', value: docData.id },
+                ]}
+              />
             )}
 
             {/* ════════ DECLINED (shared) ════════ */}

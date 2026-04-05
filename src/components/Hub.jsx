@@ -13,7 +13,7 @@ import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
 
 const MODULES = [
-    { id: 'team',      label: 'Team',          desc: 'Employee registry, offer tracker & bulk imports.',       icon: Users,        defaultPage: 'employees',      color: '#8b5cf6' },
+    { id: 'team',      label: 'Team',          desc: 'Employee registry, offer tracker & bulk imports.',       icon: Users,        defaultPage: 'team-hierarchy', color: '#8b5cf6' },
     { id: 'documents', label: 'Documents',      desc: 'Offer letters, NDAs, MoUs, and certificates.',          icon: FileText,     defaultPage: 'offers',         color: '#10b981' },
     { id: 'finance',   label: 'Finance',        desc: 'Invoices, quotations, proformas & financial status.',   icon: Receipt,      defaultPage: 'finance-status', color: '#f59e0b' },
     { id: 'business',  label: 'Business',       desc: 'Client database and revenue analytics.',                icon: BarChart3,    defaultPage: 'customers',      color: '#d946ef' },

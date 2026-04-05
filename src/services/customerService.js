@@ -99,48 +99,68 @@ export const customerService = {
   /** Sync customers from existing invoice records. Runs once per session per org. */
   syncFromInvoices: async (orgId) => {
     if (!orgId) return;
+
+    // v2: one-time cleanup that removes customers not backed by any financial doc.
+    // Clears the session flag so the full sync (with cleanup) runs once per device.
+    const cleanupDoneKey = `customers_fin_cleanup_v2_${orgId}`;
+    if (!localStorage.getItem(cleanupDoneKey)) {
+      sessionStorage.removeItem(`customers_synced_${orgId}`);
+      localStorage.setItem(cleanupDoneKey, '1');
+    }
+
     const flag = `customers_synced_${orgId}`;
     if (sessionStorage.getItem(flag)) return;
     sessionStorage.setItem(flag, '1');
+
     try {
-      // First deduplicate any existing duplicates
       await customerService.deduplicate(orgId);
 
-      const recordsRef = ref(db, `records/${orgId}`);
-      const snapshot = await get(recordsRef);
-      if (!snapshot.exists()) return;
+      const FINANCIAL_TYPES = new Set(['invoice', 'quotation', 'proforma']);
 
-      const existing = await customerService.getAll(orgId);
-      const existingNames = new Set(existing.map((c) => (c.clientName || '').toLowerCase().trim()));
-
-      // Collect unique invoice customers not already in the customer DB
-      const invoiceCustomers = new Map();
-      snapshot.forEach((child) => {
-        const record = child.val();
-        if (record.type !== 'invoice' || !record.data?.clientName) return;
-        const name = record.data.clientName.trim();
-        const nameKey = name.toLowerCase();
-        if (existingNames.has(nameKey) || invoiceCustomers.has(nameKey)) return;
-        invoiceCustomers.set(nameKey, {
-          clientName: name,
-          clientEmail: record.data.clientEmail || '',
-          clientAddress: record.data.clientAddress || '',
-          buyerGSTIN: record.data.buyerGSTIN || '',
-          buyerState: record.data.buyerState || '',
-          contactPhone: '',
-        });
-      });
-
-      // Also sync from documentStore (financial module — quotations, proformas, invoices)
+      // Load all financial docs from the new module
       documentStore.setContext(orgId);
       await documentStore.init();
-      const finDocs = documentStore.getAll();
-      finDocs.forEach((doc) => {
+      const finDocs = documentStore.getAll().filter(d => FINANCIAL_TYPES.has(d.type));
+
+      // Build the set of names that appear in real financial docs
+      const financialNames = new Set();
+      finDocs.forEach(d => {
+        const name = (d.client?.company || d.client?.name || d.issued_to || '').toLowerCase().trim();
+        if (name) financialNames.add(name);
+      });
+
+      // Also check legacy invoice records (old storage format)
+      const recordsRef = ref(db, `records/${orgId}`);
+      const snapshot = await get(recordsRef);
+      if (snapshot.exists()) {
+        snapshot.forEach((child) => {
+          const record = child.val();
+          if (record.type === 'invoice' && record.data?.clientName) {
+            financialNames.add(record.data.clientName.toLowerCase().trim());
+          }
+        });
+      }
+
+      // Delete any existing customer whose name is not in any financial doc
+      const existing = await customerService.getAll(orgId);
+      await Promise.all(
+        existing
+          .filter(c => !financialNames.has((c.clientName || '').toLowerCase().trim()))
+          .map(c => customerService.delete(orgId, c.id))
+      );
+
+      // Re-fetch after cleanup
+      const remaining = await customerService.getAll(orgId);
+      const remainingNames = new Set(remaining.map(c => (c.clientName || '').toLowerCase().trim()));
+
+      // Add missing customers from new financial docs
+      const toAdd = new Map();
+      finDocs.forEach(doc => {
         const name = (doc.client?.company || doc.client?.name || doc.issued_to || '').trim();
         if (!name) return;
-        const nameKey = name.toLowerCase();
-        if (existingNames.has(nameKey) || invoiceCustomers.has(nameKey)) return;
-        invoiceCustomers.set(nameKey, {
+        const key = name.toLowerCase();
+        if (remainingNames.has(key) || toAdd.has(key)) return;
+        toAdd.set(key, {
           clientName: name,
           clientEmail: doc.client?.email || '',
           clientAddress: doc.client?.address || '',
@@ -150,12 +170,26 @@ export const customerService = {
         });
       });
 
-      // Create missing customers
-      const promises = [];
-      for (const data of invoiceCustomers.values()) {
-        promises.push(customerService.create(orgId, data));
+      // Add missing customers from legacy invoice records
+      if (snapshot.exists()) {
+        snapshot.forEach((child) => {
+          const record = child.val();
+          if (record.type !== 'invoice' || !record.data?.clientName) return;
+          const name = record.data.clientName.trim();
+          const key = name.toLowerCase();
+          if (remainingNames.has(key) || toAdd.has(key)) return;
+          toAdd.set(key, {
+            clientName: name,
+            clientEmail: record.data.clientEmail || '',
+            clientAddress: record.data.clientAddress || '',
+            buyerGSTIN: record.data.buyerGSTIN || '',
+            buyerState: record.data.buyerState || '',
+            contactPhone: '',
+          });
+        });
       }
-      await Promise.all(promises);
+
+      await Promise.all([...toAdd.values()].map(data => customerService.create(orgId, data)));
     } catch (err) {
       console.warn('Error syncing customers from invoices:', err);
     }

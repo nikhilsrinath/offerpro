@@ -68,6 +68,7 @@ export default function FinanceStatus() {
   const { activeOrg } = useOrg();
   const [documents, setDocuments] = useState([]);
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('date_desc');
   const [typeFilter, setTypeFilter] = useState('all');
   const [expandedClient, setExpandedClient] = useState(null);
   const [showPortalLink, setShowPortalLink] = useState(null);
@@ -88,7 +89,7 @@ export default function FinanceStatus() {
   };
 
   const filteredDocs = useMemo(() => {
-    return documents.filter((d) => {
+    const filtered = documents.filter((d) => {
       const matchesSearch = !search ||
         d.id.toLowerCase().includes(search.toLowerCase()) ||
         (d.issued_to || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -97,7 +98,20 @@ export default function FinanceStatus() {
       const matchesType = typeFilter === 'all' || d.type === typeFilter;
       return matchesSearch && matchesType;
     });
-  }, [documents, search, typeFilter]);
+    return [...filtered].sort((a, b) => {
+      const dateA = new Date(a.created_at || a.issue_date || 0);
+      const dateB = new Date(b.created_at || b.issue_date || 0);
+      const amtA = a.grand_total || a.amount || a.subtotal || 0;
+      const amtB = b.grand_total || b.amount || b.subtotal || 0;
+      if (sortBy === 'date_desc')    return dateB - dateA;
+      if (sortBy === 'date_asc')     return dateA - dateB;
+      if (sortBy === 'amount_desc')  return amtB - amtA;
+      if (sortBy === 'amount_asc')   return amtA - amtB;
+      if (sortBy === 'client')       return (a.issued_to || a.client?.name || '').localeCompare(b.issued_to || b.client?.name || '');
+      if (sortBy === 'status')       return (a.status || '').localeCompare(b.status || '');
+      return 0;
+    });
+  }, [documents, search, typeFilter, sortBy]);
 
   const clientGroups = useMemo(() => groupByClient(filteredDocs), [filteredDocs]);
 
@@ -170,6 +184,25 @@ export default function FinanceStatus() {
             className="fin-list-search"
           />
         </div>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          style={{
+            height: '36px', padding: '0 0.625rem',
+            borderRadius: '0.5rem',
+            border: '1px solid var(--border-default)',
+            background: 'var(--background)',
+            color: 'var(--text-secondary)',
+            fontSize: '0.8rem', cursor: 'pointer', outline: 'none', flexShrink: 0,
+          }}
+        >
+          <option value="date_desc">Newest first</option>
+          <option value="date_asc">Oldest first</option>
+          <option value="amount_desc">Amount ↓</option>
+          <option value="amount_asc">Amount ↑</option>
+          <option value="client">Client A–Z</option>
+          <option value="status">By status</option>
+        </select>
         <div className="fin-status-filters">
           {['all', 'quotation', 'proforma', 'invoice'].map((t) => (
             <button

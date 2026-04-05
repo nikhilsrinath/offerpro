@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Download, Play, CheckCircle2 } from 'lucide-react';
+import { FileText, Download, Play, CheckCircle2, Copy, Check, ExternalLink } from 'lucide-react';
 
 import CSVUploader from './shared/CSVUploader';
 import ValidationTable from './shared/ValidationTable';
 import BulkProgressTracker from './shared/BulkProgressTracker';
 import DocumentCard from './shared/DocumentCard';
+import { documentStore } from '../../services/documentStore';
+import { useOrg } from '../../context/OrgContext';
 
 const MOCK_OFFER_SAMPLE = [
-    { candidate_name: "Rahul Sharma", role: "UI Designer", department: "Product", salary: "25000", start_date: "01-Apr-2026", manager_name: "Nikhil", location: "Chennai", email: "rahul@example.com" },
-    { candidate_name: "Priya Menon", role: "Backend Developer", department: "Engineering", salary: "35000", start_date: "01-Apr-2026", manager_name: "Sujan", location: "Bangalore", email: "priya@example.com" },
-    { candidate_name: "Arjun Kumar", role: "Marketing Analyst", department: "Marketing", salary: "", start_date: "01-Apr-2026", manager_name: "Jeremiah", location: "Chennai", email: "invalid-email" },
-    { candidate_name: "Sneha Rao", role: "Data Scientist", department: "Analytics", salary: "45000", start_date: "01-Apr-2026", manager_name: "Nikhil", location: "Hyderabad", email: "sneha@example.com" }
+    { candidate_name: "Rahul Sharma", role: "UI Designer", department: "Product", salary: "25000", start_date: "2026-04-01", manager_name: "Nikhil", location: "Chennai", email: "rahul@example.com" },
+    { candidate_name: "Priya Menon", role: "Backend Developer", department: "Engineering", salary: "35000", start_date: "2026-04-01", manager_name: "Sujan", location: "Bangalore", email: "priya@example.com" },
+    { candidate_name: "Arjun Kumar", role: "Marketing Analyst", department: "Marketing", salary: "", start_date: "2026-04-01", manager_name: "Jeremiah", location: "Chennai", email: "invalid-email" },
+    { candidate_name: "Sneha Rao", role: "Data Scientist", department: "Analytics", salary: "45000", start_date: "2026-04-01", manager_name: "Nikhil", location: "Hyderabad", email: "sneha@example.com" }
 ];
 
 const COLUMNS = ['candidate_name', 'role', 'department', 'salary', 'start_date', 'manager_name', 'location', 'email'];
@@ -24,21 +26,30 @@ const VALIDATION_CONFIG = {
 };
 
 const TEMPLATES = [
-    { id: 't1', name: 'Standard Full-Time Offer' },
-    { id: 't2', name: 'Internship Offer Letter' },
-    { id: 't3', name: 'Executive Contract' }
+    { id: 't1', name: 'Standard Full-Time Offer', offerType: 'fulltime' },
+    { id: 't2', name: 'Internship Offer Letter', offerType: 'internship' },
+    { id: 't3', name: 'Executive Contract', offerType: 'fulltime' },
 ];
 
+function parseDate(raw) {
+    if (!raw) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    const d = new Date(raw);
+    if (!isNaN(d)) return d.toISOString().split('T')[0];
+    return '';
+}
+
 export default function BulkOfferLetters() {
-    const [step, setStep] = useState(1); // 1: config/upload, 2: validate, 3: generating, 4: results
+    const { activeOrg } = useOrg();
+    const [step, setStep] = useState(1);
     const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0].id);
     const [data, setData] = useState([]);
 
-    // Progress states
     const [processed, setProcessed] = useState(0);
     const [failed, setFailed] = useState(0);
-    const [generationStatus, setGenerationStatus] = useState('idle'); // idle, processing, done, error
+    const [generationStatus, setGenerationStatus] = useState('idle');
     const [results, setResults] = useState([]);
+    const [copiedId, setCopiedId] = useState(null);
 
     const handleUpload = (parsedData) => {
         setData(parsedData);
@@ -62,6 +73,12 @@ export default function BulkOfferLetters() {
         return isValid;
     };
 
+    const handleCopyLink = async (portalUrl, docId) => {
+        await navigator.clipboard.writeText(portalUrl);
+        setCopiedId(docId);
+        setTimeout(() => setCopiedId(null), 2000);
+    };
+
     const startGeneration = async () => {
         const validRows = data.filter(r => validateRow(r));
         if (validRows.length === 0) return;
@@ -72,29 +89,76 @@ export default function BulkOfferLetters() {
         setFailed(0);
         setResults([]);
 
+        const template = TEMPLATES.find(t => t.id === selectedTemplate) || TEMPLATES[0];
+        const offerType = template.offerType;
+        const today = new Date().toISOString().split('T')[0];
+
+        documentStore.setContext(activeOrg?.id);
+        await documentStore.init();
+
         const newResults = [];
         let pCount = 0;
         let fCount = 0;
 
         for (let i = 0; i < validRows.length; i++) {
             const row = validRows[i];
-            // Simulate delay for generation
-            await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 400));
+            try {
+                const docId = documentStore.nextId('OL');
+                const salary = row.salary ? parseFloat(row.salary) : null;
 
-            // Randomly fail ~5% of the time just to show error states (unless we want perfect for this demo)
-            // Let's make it 100% success for valid rows usually, but we can simulate a failure manually if they had no manager_name
-            const hasError = !row.manager_name;
+                const doc = {
+                    id: docId,
+                    type: 'offer_letter',
+                    status: 'pending',
+                    issued_to: (row.candidate_name || '').trim(),
+                    recipient_email: (row.email || '').trim(),
+                    recipient_phone: (row.phone || '').trim(),
+                    role: (row.role || '').trim(),
+                    department: (row.department || '').trim(),
+                    offer_type: offerType,
+                    start_date: parseDate(row.start_date),
+                    end_date: '',
+                    salary: salary,
+                    currency: 'INR',
+                    payment_frequency: 'Monthly',
+                    is_paid: !!salary,
+                    responsibilities: '',
+                    supervisor: (row.manager_name || '').trim(),
+                    location: (row.location || '').trim(),
+                    valid_until: '',
+                    issue_date: today,
+                    created_at: new Date().toISOString(),
+                    company_profile: {
+                        company_name: activeOrg?.company_name || '',
+                        address: activeOrg?.company_address || '',
+                        email: activeOrg?.company_email || '',
+                        phone: activeOrg?.company_phone || '',
+                        logo_url: activeOrg?.logo_url || '',
+                        signature_url: activeOrg?.signature_url || '',
+                        company_tagline: activeOrg?.company_tagline || '',
+                        authorized_person: activeOrg?.owner_full_name || '',
+                        authorized_designation: activeOrg?.document_designation || '',
+                    },
+                };
 
-            if (hasError) {
-                fCount++;
-                setFailed(fCount);
-                newResults.push({ ...row, status: 'Failed', error: 'Missing manager signature mapping' });
-            } else {
+                documentStore.save(doc);
+
+                const portalUrl = `${window.location.origin}/portal/${docId}?org=${activeOrg?.id || ''}`;
                 pCount++;
                 setProcessed(pCount);
-                newResults.push({ ...row, status: 'Generated', timestamp: new Date().toLocaleTimeString() });
+                newResults.push({
+                    ...row,
+                    status: 'Generated',
+                    timestamp: new Date().toLocaleTimeString(),
+                    docId,
+                    portalUrl,
+                });
+            } catch (err) {
+                fCount++;
+                setFailed(fCount);
+                newResults.push({ ...row, status: 'Failed', error: err.message || 'Failed to create offer' });
             }
-            setResults([...newResults]); // update real-time
+            setResults([...newResults]);
         }
 
         setGenerationStatus('done');
@@ -109,7 +173,6 @@ export default function BulkOfferLetters() {
             {/* LEFT COLUMN: Main Config & Work Area */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                 <div style={{ padding: '2rem', background: 'var(--surface)', borderRadius: '16px', border: '1px solid var(--border)', position: 'relative', overflow: 'hidden' }}>
-                    {/* Subtle background glow */}
                     <div style={{ position: 'absolute', top: -100, right: -100, width: 300, height: 300, background: 'radial-gradient(circle, rgba(59, 130, 246, 0.04) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
                     <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2.5rem', margin: '0 0 0.5rem 0', fontWeight: 800, letterSpacing: '-0.02em' }}>Bulk Offer Letters</h1>
                     <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '1rem' }}>Generate and distribute hundreds of personalized offer letters in minutes.</p>
@@ -168,24 +231,17 @@ export default function BulkOfferLetters() {
                                     position: 'relative', overflow: 'hidden', transform: 'rotate(1deg)',
                                     transformOrigin: 'bottom right'
                                 }}>
-                                    {/* Template Name overlay */}
                                     <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'var(--btn-accent-bg)', color: 'var(--btn-accent-text)', fontSize: '0.6rem', fontWeight: 800, padding: '0.2rem 0.4rem', borderRadius: '4px', maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                         {TEMPLATES.find(t => t.id === selectedTemplate)?.name}
                                     </div>
-
-                                    {/* Fake text lines representing the document */}
                                     <div style={{ width: '35%', height: '10px', background: '#d4d4d8', borderRadius: '3px', marginBottom: '1.25rem' }} />
                                     <div style={{ width: '100%', height: '6px', background: '#e4e4e7', borderRadius: '3px' }} />
                                     <div style={{ width: '100%', height: '6px', background: '#e4e4e7', borderRadius: '3px' }} />
                                     <div style={{ width: '85%', height: '6px', background: '#e4e4e7', borderRadius: '3px', marginBottom: '0.5rem' }} />
-
                                     <div style={{ width: '100%', height: '6px', background: '#e4e4e7', borderRadius: '3px' }} />
                                     <div style={{ width: '90%', height: '6px', background: '#e4e4e7', borderRadius: '3px', marginBottom: '0.5rem' }} />
-
                                     <div style={{ width: '100%', height: '6px', background: '#e4e4e7', borderRadius: '3px' }} />
                                     <div style={{ width: '70%', height: '6px', background: '#e4e4e7', borderRadius: '3px' }} />
-
-                                    {/* Fake signature area at the bottom */}
                                     <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                         <div style={{ width: '40%', height: '6px', background: '#d4d4d8', borderRadius: '3px' }} />
                                         <div style={{ width: '60%', height: '18px', background: 'rgba(59, 130, 246, 0.1)', borderBottom: '1px solid rgba(59, 130, 246, 0.4)', borderRadius: '2px', display: 'flex', alignItems: 'center', padding: '0 0.25rem' }}>
@@ -270,19 +326,9 @@ export default function BulkOfferLetters() {
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                             <CheckCircle2 size={24} color="var(--success)" />
                                             <div>
-                                                <h4 style={{ margin: 0, fontSize: '1.125rem', color: 'var(--success)' }}>{processed} Offer Letters Generated Successfully</h4>
-                                                {failed > 0 && <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--error)' }}>{failed} records failed generation.</p>}
+                                                <h4 style={{ margin: 0, fontSize: '1.125rem', color: 'var(--success)' }}>{processed} Offer Letters Created & Added to Tracker</h4>
+                                                {failed > 0 && <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--error)' }}>{failed} records failed.</p>}
                                             </div>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '1rem' }}>
-                                            {failed > 0 && (
-                                                <button className="btn-secondary" style={{ padding: '0.75rem 1.5rem', borderRadius: '8px', fontSize: '0.875rem' }}>
-                                                    Download Failed Records CSV
-                                                </button>
-                                            )}
-                                            <button style={{ background: 'var(--btn-accent-bg)', color: 'var(--btn-accent-text)', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                                <Download size={16} /> Download All as ZIP
-                                            </button>
                                         </div>
                                     </div>
 
@@ -294,9 +340,9 @@ export default function BulkOfferLetters() {
                                                 title={res.candidate_name}
                                                 subtitle={`${res.role} • ${res.department}`}
                                                 status={res.status}
-                                                timestamp={res.timestamp || '-'}
-                                                onPreview={res.status === 'Generated' ? () => alert(`Previewing document for ${res.candidate_name}`) : null}
-                                                onDownload={res.status === 'Generated' ? () => alert(`Downloading PDF for ${res.candidate_name}`) : null}
+                                                timestamp={res.status === 'Generated' ? `ID: ${res.docId}` : (res.error || '-')}
+                                                onPreview={res.status === 'Generated' ? () => window.open(res.portalUrl, '_blank') : null}
+                                                onDownload={res.status === 'Generated' ? () => handleCopyLink(res.portalUrl, res.docId) : null}
                                             />
                                         ))}
                                     </div>
@@ -307,7 +353,7 @@ export default function BulkOfferLetters() {
                 </AnimatePresence>
             </div>
 
-            {/* RIGHT COLUMN: Live Results Panel (only when generating or done) */}
+            {/* RIGHT COLUMN: Live Results Panel */}
             <AnimatePresence>
                 {(step === 3 || step === 4) && (
                     <motion.div
@@ -334,7 +380,10 @@ export default function BulkOfferLetters() {
                                         <span style={{ fontSize: '0.75rem', color: res.status === 'Failed' ? 'var(--error)' : 'var(--success)', fontWeight: 600 }}>{res.status}</span>
                                     </div>
                                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                        {res.status === 'Failed' ? res.error : `${res.role} offer generated.`}
+                                        {res.status === 'Failed'
+                                            ? res.error
+                                            : <span style={{ fontFamily: 'monospace' }}>{res.docId}</span>
+                                        }
                                     </div>
                                 </div>
                             ))}

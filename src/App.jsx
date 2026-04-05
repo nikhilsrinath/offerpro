@@ -5,7 +5,7 @@ import {
   Zap, UserCircle, ChevronRight, ChevronDown, Clock, Mail, AlertTriangle, Users,
   UploadCloud, FileCheck, FileSignature, History,
   FileSpreadsheet, Activity, Receipt, FilePlus, RotateCcw, ArrowLeft,
-  Sun, Moon
+  Sun, Moon, GitBranch, UserX
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
 import subPages from './components/landing/subPageData';
@@ -28,6 +28,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { OrgProvider, useOrg } from './context/OrgContext';
 import Auth from './components/Auth';
 import Employees from './components/Employees';
+import ExEmployees from './components/ExEmployees';
+import TeamHierarchy from './components/TeamHierarchy';
 import { useTrialStatus } from './hooks/useTrialStatus';
 import { useTheme } from './hooks/useTheme';
 
@@ -50,7 +52,7 @@ import { documentStore } from './services/documentStore';
 
 const MODULE_FILTER = {
   overall: ['dashboard'],
-  team: ['employees', 'offer-tracker', 'bulk-team'],
+  team: ['team-hierarchy', 'employees', 'offer-tracker', 'ex-employees', 'bulk-team'],
   documents: ['offers', 'certificates', 'ndas', 'mous', 'bulk-offers', 'bulk-certificates'],
   finance: ['finance-status', 'invoices', 'quotations', 'proforma', 'recurring'],
   business: ['customers', 'revenue', 'planner'],
@@ -60,8 +62,10 @@ const MODULE_FILTER = {
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { section: 'TEAM' },
+  { id: 'team-hierarchy', label: 'Team Hierarchy', icon: GitBranch },
   { id: 'employees', label: 'Employees', icon: Users },
   { id: 'offer-tracker', label: 'Offer Tracker', icon: Activity },
+  { id: 'ex-employees', label: 'Ex-Employees', icon: UserX },
   { section: 'DOCUMENTS' },
   { id: 'offers', label: 'Offer Letters', icon: Briefcase },
   { id: 'certificates', label: 'Certificates', icon: Award },
@@ -106,6 +110,8 @@ const PAGE_META = {
   planner: { title: 'Product Planner', subtitle: 'Plan and track products and projects' },
   records: { title: 'Records', subtitle: 'Manage and download issued documents' },
   employees: { title: 'Employee Registry', subtitle: 'Manage your internal team and onboarding' },
+  'ex-employees': { title: 'Ex-Employees', subtitle: 'Archive of employees who have left the organization' },
+  'team-hierarchy': { title: 'Team Hierarchy', subtitle: 'Visual org chart — drag nodes and connect reporting lines' },
   'offer-tracker': { title: 'Offer Tracker', subtitle: 'Real-time acceptance status for all sent offer letters' },
   'bulk-offers': { title: 'Bulk Offer Letters', subtitle: 'Generate and distribute multiple offer letters at once' },
   'bulk-certificates': { title: 'Bulk Certificates', subtitle: 'Issue batches of certificates efficiently' },
@@ -147,6 +153,10 @@ function AppContent() {
     documentStore.deleteNotification(notif.id);
     refreshNotifications();
     if (notif.type === 'offer_signed' || notif.type === 'document_declined' && notif.document_id?.startsWith('OL')) {
+      handleSelectModule('team', 'offer-tracker');
+    } else if (notif.type === 'role_change_acknowledged') {
+      handleSelectModule('team', 'offer-tracker');
+    } else if (notif.type === 'termination_acknowledged') {
       handleSelectModule('team', 'offer-tracker');
     } else if (notif.type === 'quotation_accepted' || notif.type === 'quotation_sent') {
       navigate('quotations');
@@ -232,11 +242,10 @@ function AppContent() {
 
           {/* Navigation */}
           <nav className="sidebar-nav">
-            <div style={{ padding: '0.5rem 1.25rem', marginBottom: '1rem' }}>
-              <button onClick={handleBackToHub} className="btn-cinematic btn-secondary" style={{ width: '100%', padding: '0.625rem', justifyContent: 'center', fontSize: '0.8125rem' }}>
-                <ArrowLeft size={16} /> Back to Hub
-              </button>
-            </div>
+            <button onClick={handleBackToHub} className="sidebar-item sidebar-back-btn">
+              <ArrowLeft size={20} />
+              <span>Back to Hub</span>
+            </button>
             {NAV_ITEMS.map((item, i) => {
               if (activeModule && item.id && !MODULE_FILTER[activeModule]?.includes(item.id)) return null;
               if (item.section) {
@@ -249,7 +258,7 @@ function AppContent() {
                   className={`sidebar-item ${activePage === item.id ? 'active' : ''}`}
                   onClick={() => navigate(item.id)}
                 >
-                  <Icon size={18} />
+                  <Icon size={20} />
                   <span>{item.label}</span>
                 </button>
               );
@@ -267,11 +276,11 @@ function AppContent() {
                     {(activeOrg.company_name || 'O')[0].toUpperCase()}
                   </div>
                 )}
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="sidebar-org-text" style={{ flex: 1, minWidth: 0 }}>
                   <span className="sidebar-org-name">{activeOrg.company_name || activeOrg.name}</span>
                   <span className="sidebar-org-email">{user.email}</span>
                 </div>
-                <ChevronRight size={14} style={{ opacity: 0.3, flexShrink: 0 }} />
+                <ChevronRight size={14} className="sidebar-chevron" style={{ flexShrink: 0 }} />
               </div>
             )}
             <button className="sidebar-logout-btn" onClick={logout}>
@@ -409,7 +418,7 @@ function AppContent() {
               {/* CENTER — Module quick-links */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', flex: 1, justifyContent: 'center' }}>
                 {[
-                  { id: 'team',      label: 'Team',      defaultPage: 'employees' },
+                  { id: 'team',      label: 'Team',      defaultPage: 'team-hierarchy' },
                   { id: 'documents', label: 'Documents',  defaultPage: 'offers' },
                   { id: 'finance',   label: 'Finance',    defaultPage: 'finance-status' },
                   { id: 'business',  label: 'Business',   defaultPage: 'customers' },
@@ -601,7 +610,7 @@ function AppContent() {
         )}
 
         {/* Page Content */}
-        <div className="page-content">
+        <div className={`page-content${activePage === 'team-hierarchy' ? ' page-content-canvas' : ''}`}>
           {activePage === 'hub' && <Hub onSelectModule={handleSelectModule} user={user} activeOrg={activeOrg} theme={theme} />}
           {activePage === 'dashboard' && <Dashboard onNavigate={navigate} />}
           {activePage === 'profile' && <CompanyProfile theme={theme} onToggleTheme={toggleTheme} />}
@@ -622,6 +631,8 @@ function AppContent() {
           {activePage === 'planner' && <ProductPlanner />}
           {activePage === 'records' && <InternRecords />}
           {activePage === 'employees' && <Employees />}
+          {activePage === 'ex-employees' && <ExEmployees />}
+          {activePage === 'team-hierarchy' && <TeamHierarchy />}
           {activePage === 'offer-tracker' && <OfferTracker />}
           {activePage === 'bulk-offers' && <BulkOfferLetters />}
           {activePage === 'bulk-certificates' && <BulkCertificates />}

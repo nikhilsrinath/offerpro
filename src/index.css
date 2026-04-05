@@ -2268,7 +2268,7 @@ h3 {
 
 /* Sidebar */
 .sidebar {
-  width: 260px;
+  width: 58px;
   background: var(--bg-elevated);
   border-right: 1px solid var(--border-default);
   position: fixed;
@@ -2278,6 +2278,8 @@ h3 {
   display: flex;
   flex-direction: column;
   z-index: 200;
+  overflow: hidden;
+  transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sidebar-brand {
@@ -2467,7 +2469,7 @@ h3 {
 /* Main Content */
 .main-content {
   flex: 1;
-  margin-left: 260px;
+  margin-left: 58px;
   min-height: 100vh;
   transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -2512,16 +2514,68 @@ h3 {
 
 @media (max-width: 768px) {
   .sidebar {
+    width: 280px;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .sidebar.open {
     transform: translateX(0);
+    box-shadow: 4px 0 32px rgba(0,0,0,0.25);
+  }
+
+  .sidebar-brand {
+    padding: 1.25rem 1.25rem;
+    justify-content: space-between;
+  }
+
+  .sidebar-brand-text {
+    display: flex !important;
   }
 
   .sidebar-close-btn {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-default) !important;
+    color: var(--text-secondary) !important;
+    cursor: pointer;
+  }
+
+  .sidebar-nav {
+    padding: 0.75rem;
+  }
+
+  .sidebar-item {
+    padding: 0.7rem 0.875rem;
+    font-size: 0.9375rem;
+    border-radius: 10px;
+    gap: 0.75rem;
+  }
+
+  .sidebar-item span {
+    display: block !important;
+    opacity: 1 !important;
+  }
+
+  .sidebar-section-label {
+    display: block !important;
+    padding: 1rem 0.875rem 0.4rem;
+    font-size: 0.65rem;
+  }
+
+  .sidebar-footer {
+    padding: 1rem 1.25rem;
+  }
+
+  .sidebar-org-name,
+  .sidebar-org-email,
+  .sidebar-chevron {
+    display: block !important;
   }
 
   .sidebar-overlay {
@@ -2569,7 +2623,6 @@ h3 {
     letter-spacing: -1px;
     color: var(--text-primary);
   }
-
 
   .page-header {
     padding: 1.5rem 1.25rem 0.75rem !important;
@@ -4071,6 +4124,156 @@ label {
 
 .sidebar-brand {
   padding: 1.25rem 1.5rem !important;
+}
+
+/* ---- ICON-RAIL SIDEBAR (hover-expand) ---- */
+.sidebar:hover {
+  width: 260px !important;
+  box-shadow: 4px 0 32px rgba(0,0,0,0.18);
+}
+
+/* Paddings: compact when collapsed, full when expanded */
+.sidebar-brand {
+  padding: 1.25rem 0.875rem !important;
+  justify-content: center;
+  transition: padding 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sidebar:hover .sidebar-brand {
+  padding: 1.25rem 1.5rem !important;
+  justify-content: flex-start;
+}
+
+.sidebar-nav {
+  padding: 0.75rem 0.375rem !important;
+  transition: padding 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sidebar:hover .sidebar-nav {
+  padding: 0.75rem !important;
+}
+
+.sidebar-footer {
+  padding: 1rem 0.5rem !important;
+  transition: padding 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sidebar:hover .sidebar-footer {
+  padding: 1rem 1.25rem !important;
+}
+
+/* Center icons when collapsed — gap:0 is critical so the
+   zero-width hidden span doesn't push the icon off-center */
+.sidebar-item {
+  justify-content: center !important;
+  gap: 0 !important;
+  padding: 0.65rem !important;
+  overflow: hidden;
+}
+.sidebar:hover .sidebar-item {
+  justify-content: flex-start !important;
+  gap: 0.75rem !important;
+  padding: 0.6rem 0.75rem !important;
+}
+.sidebar-org-clickable {
+  justify-content: center;
+  gap: 0 !important;
+  overflow: hidden;
+}
+.sidebar:hover .sidebar-org-clickable {
+  justify-content: flex-start;
+  gap: 0.625rem !important;
+}
+
+/*
+ * KEY FIX: use max-width:0 + overflow:hidden so text spans
+ * take ZERO layout space when collapsed — keeping the icon
+ * perfectly centered. opacity-only still occupies flex width.
+ */
+.sidebar-item > span,
+.sidebar-brand-text,
+.sidebar-logout-btn > span {
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: max-width 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.15s ease;
+}
+.sidebar:hover .sidebar-item > span,
+.sidebar:hover .sidebar-brand-text,
+.sidebar:hover .sidebar-logout-btn > span {
+  max-width: 220px;
+  opacity: 1;
+  transition-delay: 0.1s;
+}
+
+/* Org info text block — also collapses to zero width */
+.sidebar-org-text {
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  flex-shrink: 0 !important;
+  white-space: nowrap;
+  transition: max-width 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.15s ease;
+}
+.sidebar:hover .sidebar-org-text {
+  max-width: 160px;
+  opacity: 1;
+  flex-shrink: 1 !important;
+  transition-delay: 0.1s;
+}
+
+/* Chevron in org row */
+.sidebar-chevron {
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0 !important;
+  flex-shrink: 0;
+  transition: max-width 0.28s ease, opacity 0.15s ease;
+}
+.sidebar:hover .sidebar-chevron {
+  max-width: 20px;
+  opacity: 0.3 !important;
+  transition-delay: 0.1s;
+}
+
+/* Section labels: collapse to zero height when icon-only */
+.sidebar-section-label {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  overflow: hidden;
+  transition: opacity 0.1s ease, max-height 0.28s cubic-bezier(0.16, 1, 0.3, 1), padding 0.28s ease;
+}
+.sidebar:hover .sidebar-section-label {
+  opacity: 1;
+  max-height: 50px;
+  padding-top: 1.25rem !important;
+  padding-bottom: 0.5rem !important;
+  transition-delay: 0.08s;
+}
+
+/* Back-to-hub button — styled as a nav item with accent colour */
+.sidebar-back-btn {
+  color: var(--blue-hover) !important;
+  margin-bottom: 0.25rem;
+}
+.sidebar-back-btn:hover {
+  background: var(--blue-muted) !important;
+  color: var(--blue-hover) !important;
+}
+
+/* Drop the left-border accent on active items when collapsed (looks odd on icon-only) */
+.sidebar:not(:hover) .sidebar-item.active {
+  border-left: none !important;
+  margin-left: 0 !important;
+}
+
+/* Full-canvas page layout: zero padding so content fills the area */
+.page-content-canvas {
+  padding: 0 !important;
+  height: calc(100vh - 108px);
 }
 
 /* ---- REFINED PAGE HEADER ---- */
@@ -7205,6 +7408,20 @@ label {
 
 .emp-table tbody tr:hover {
   background: var(--bg-raised);
+}
+
+.emp-table-row-clickable:hover td:first-child {
+  color: var(--text-primary);
+}
+
+.emp-grid-card-clickable:hover {
+  transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, 0.3) !important;
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.08);
+}
+
+.emp-grid-card-clickable:active {
+  transform: translateY(0);
 }
 
 .emp-table td {
@@ -12050,5 +12267,98 @@ label {
     right: 8px;
     left: 8px;
     width: auto;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE SIDEBAR — final overrides (must remain LAST in file)
+   These beat the icon-rail !important rules above because they
+   appear later in the stylesheet with equal specificity.
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Disable hover-expand on mobile; sidebar is a fixed-width drawer */
+  .sidebar:hover {
+    width: 280px !important;
+    box-shadow: none !important;
+  }
+  .sidebar.open {
+    box-shadow: 4px 0 32px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  /* Restore proper drawer padding */
+  .sidebar-brand,
+  .sidebar:hover .sidebar-brand {
+    padding: 1.125rem 1.25rem !important;
+    justify-content: space-between !important;
+  }
+  .sidebar-nav,
+  .sidebar:hover .sidebar-nav {
+    padding: 0.75rem !important;
+  }
+  .sidebar-footer,
+  .sidebar:hover .sidebar-footer {
+    padding: 1rem 1.25rem !important;
+  }
+
+  /* Restore item layout: icon + text side by side */
+  .sidebar-item,
+  .sidebar:hover .sidebar-item {
+    justify-content: flex-start !important;
+    gap: 0.75rem !important;
+    padding: 0.7rem 0.875rem !important;
+  }
+
+  /* Unhide text labels */
+  .sidebar-item > span,
+  .sidebar-brand-text,
+  .sidebar-logout-btn > span,
+  .sidebar:hover .sidebar-item > span,
+  .sidebar:hover .sidebar-brand-text,
+  .sidebar:hover .sidebar-logout-btn > span {
+    max-width: 220px !important;
+    opacity: 1 !important;
+    overflow: visible !important;
+  }
+
+  /* Unhide org info text block */
+  .sidebar-org-text,
+  .sidebar:hover .sidebar-org-text {
+    max-width: 180px !important;
+    opacity: 1 !important;
+    overflow: hidden !important;
+    flex-shrink: 1 !important;
+  }
+
+  /* Unhide section labels */
+  .sidebar-section-label,
+  .sidebar:hover .sidebar-section-label {
+    opacity: 1 !important;
+    max-height: 50px !important;
+    overflow: visible !important;
+    padding-top: 1rem !important;
+    padding-bottom: 0.4rem !important;
+  }
+
+  /* Restore org row layout */
+  .sidebar-org-clickable,
+  .sidebar:hover .sidebar-org-clickable {
+    justify-content: flex-start !important;
+    gap: 0.625rem !important;
+    overflow: visible !important;
+  }
+
+  /* Show chevron */
+  .sidebar-chevron,
+  .sidebar:hover .sidebar-chevron {
+    max-width: 20px !important;
+    opacity: 0.35 !important;
+    overflow: visible !important;
+  }
+
+  /* Active item: always show accent border when drawer is open */
+  .sidebar.open .sidebar-item.active,
+  .sidebar:not(:hover) .sidebar-item.active {
+    border-left: 2px solid var(--blue) !important;
+    margin-left: -1px !important;
   }
 }
