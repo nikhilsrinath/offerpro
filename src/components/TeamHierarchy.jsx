@@ -802,7 +802,7 @@ export default function TeamHierarchy() {
 
   // ── Desktop: Flow canvas ─────────────────────────────────────────────────
   return (
-    <div style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }} onKeyDown={onKeyDown} onDrop={onDrop} onDragOver={onDragOver} tabIndex={0}>
+    <div style={{ width: '100%', height: '100vh', overflow: 'hidden', position: 'relative' }} onKeyDown={onKeyDown} onDrop={onDrop} onDragOver={onDragOver} tabIndex={0}>
       <ReactFlow
         nodes={nodes} edges={edges}
         onNodesChange={editMode ? onNodesChange : undefined}
@@ -889,8 +889,8 @@ export default function TeamHierarchy() {
           </Panel>
         )}
 
-        <Panel position="bottom-center">
-          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-elevated)', backdropFilter: 'blur(20px)', borderRadius: '99px', boxShadow: '0 8px 32px rgba(0,0,0,0.35)', border: '1px solid var(--border-default)', overflow: 'hidden', marginBottom: '0.5rem' }}>
+        <Panel position="top-center">
+          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-elevated)', backdropFilter: 'blur(20px)', borderRadius: '99px', boxShadow: '0 8px 32px rgba(0,0,0,0.35)', border: '1px solid var(--border-default)', overflow: 'hidden', marginTop: '0.5rem' }}>
             {!editMode ? (
               <>
                 <TBtn accent icon={<Edit2 size={13} />} label="Edit Structure" onClick={() => { setEditMode(true); if (!hasHierarchy) handleSetupHierarchy(); }} />
