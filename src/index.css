@@ -2470,7 +2470,10 @@ h3 {
 .main-content {
   flex: 1;
   margin-left: 58px;
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -2501,6 +2504,9 @@ h3 {
 
 .page-content {
   padding: 1.5rem 2.5rem 3rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* Mobile Top Bar */
@@ -4273,7 +4279,8 @@ label {
 /* Full-canvas page layout: zero padding so content fills the area */
 .page-content-canvas {
   padding: 0 !important;
-  height: calc(100vh - 108px) !important;
+  flex: 1 !important;
+  min-height: 0 !important;
   overflow: hidden !important;
 }
 
