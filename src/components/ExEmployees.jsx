@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { onValue, ref as dbRef } from 'firebase/database';
-import { db } from '../lib/firebase';
 import { storageService } from '../services/storageService';
 import { useOrg } from '../context/OrgContext';
+import { orgStore } from '../services/orgStore';
 import { Search, Users, Calendar, Briefcase, Building, UserX, LayoutGrid, List } from 'lucide-react';
 import { DEPT_PALETTE } from './TeamHierarchy';
 
@@ -178,27 +177,12 @@ export default function ExEmployees() {
 
     useEffect(() => {
         if (!activeOrg?.id) return;
-        const path = `ex_employees/${activeOrg.id}`;
-        const unsubscribe = onValue(
-            dbRef(db, path),
-            (snap) => {
-                if (snap.exists()) {
-                    const list = Object.values(snap.val());
-                    list.sort((a, b) => new Date(b.terminated_at || b.archived_at || 0) - new Date(a.terminated_at || a.archived_at || 0));
-                    setExEmployees(list);
-                } else {
-                    setExEmployees([]);
-                }
-                setLoading(false);
-            },
-            (err) => {
-                console.error('[ExEmployees] Firebase error:', err);
-                storageService.getExEmployees(activeOrg.id).then(list => {
-                    setExEmployees(list);
-                    setLoading(false);
-                });
-            }
-        );
+        const unsubscribe = orgStore.listenSection('ex_employees', (data) => {
+            const list = Object.values(data || {});
+            list.sort((a, b) => new Date(b.terminated_at || b.archived_at || 0) - new Date(a.terminated_at || a.archived_at || 0));
+            setExEmployees(list);
+            setLoading(false);
+        });
         return () => unsubscribe();
     }, [activeOrg?.id]);
 

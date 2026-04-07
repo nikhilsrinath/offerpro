@@ -73,8 +73,7 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         emailjs_public_key: activeOrg.emailjs_public_key || '',
       };
       setForm(formData);
-      // Keep localStorage in sync for documentStore.getCompanyProfile()
-      localStorage.setItem('offerpro_company_profile', JSON.stringify(formData));
+      // orgStore handles caching — no localStorage write needed
     }
   }, [activeOrg]);
 
@@ -126,8 +125,7 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
     setError('');
     try {
       await updateOrganization(activeOrg.id, form);
-      // Sync to localStorage for documentStore.getCompanyProfile()
-      localStorage.setItem('offerpro_company_profile', JSON.stringify(form));
+      // orgStore cache is updated via updateOrganization → orgStore.updateProfile
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {

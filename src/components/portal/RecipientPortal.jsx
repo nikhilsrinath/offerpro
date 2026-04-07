@@ -115,7 +115,7 @@ export default function RecipientPortal({ documentId }) {
       // on a fresh device). This works once anonymous auth has been granted above.
       if (!doc && orgId) {
         try {
-          const snap = await get(ref(db, `records/${orgId}/_fin_docs/${documentId}`));
+          const snap = await get(ref(db, `organizations/${orgId}/fin_docs/${documentId}`));
           if (snap.exists()) {
             doc = snap.val();
             // Save into documentStore so updateStatus() can find it and sync back to Firebase
@@ -437,9 +437,9 @@ export default function RecipientPortal({ documentId }) {
           const empUpdates = { role: docData.new_role };
           if (docData.new_department) empUpdates.department = docData.new_department;
           if (docData.new_salary) empUpdates.salary = Number(docData.new_salary);
-          await update(ref(db, `employees/${portalOrgId}/${docData.employee_id}`), empUpdates);
+          await update(ref(db, `organizations/${portalOrgId}/employees/${docData.employee_id}`), empUpdates);
         } else if (docData.type === 'termination') {
-          await update(ref(db, `employees/${portalOrgId}/${docData.employee_id}`), {
+          await update(ref(db, `organizations/${portalOrgId}/employees/${docData.employee_id}`), {
             status: 'terminated',
             termination_date: docData.last_day,
           });

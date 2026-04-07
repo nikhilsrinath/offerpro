@@ -5,10 +5,9 @@ import {
     Plus, X, ArrowLeft, Copy, Check, Loader,
     AlertTriangle, TrendingUp, ExternalLink, Shield,
 } from 'lucide-react';
-import { ref, get, update } from 'firebase/database';
-import { db } from '../lib/firebase';
 import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
+import { orgStore } from '../services/orgStore';
 import { DEPT_PALETTE } from './TeamHierarchy';
 import { useOrg } from '../context/OrgContext';
 import EmployeeForm from './EmployeeForm';
@@ -596,7 +595,7 @@ export default function Employees() {
             const email = (r.data?.email || '').toLowerCase();
             if (r.data?.studentName && email && !seenEmails.has(email) && !r.employee_synced) {
                 await storageService.saveEmployee(r.data, orgId);
-                await update(ref(db, `records/${orgId}/${r.id}`), { employee_synced: true });
+                orgStore.updateItem('records', r.id, { employee_synced: true });
                 seenEmails.set(email, true);
                 changed = true;
             }
@@ -604,9 +603,9 @@ export default function Employees() {
 
         // 3. Sync from OfferTracker accepted offer letters
         try {
-            const finSnap = await get(ref(db, `records/${orgId}/_fin_docs`));
-            if (finSnap.exists()) {
-                for (const doc of Object.values(finSnap.val())) {
+            const finDocsData = orgStore.getSection('fin_docs');
+            if (finDocsData && Object.keys(finDocsData).length > 0) {
+                for (const doc of Object.values(finDocsData)) {
                     if (doc.type !== 'offer_letter' || doc.status !== 'signed' || doc.employee_synced) continue;
                     const email = (doc.recipient_email || '').toLowerCase();
                     if (!doc.issued_to || !email || seenEmails.has(email)) continue;
@@ -623,7 +622,7 @@ export default function Employees() {
                         signed_at: doc.signed_at || '',
                     };
                     await storageService.saveEmployee(empData, orgId);
-                    await update(ref(db, `records/${orgId}/_fin_docs/${doc.id}`), { employee_synced: true });
+                    orgStore.updateItem('fin_docs', doc.id, { employee_synced: true });
                     seenEmails.set(email, empData);
                     changed = true;
                 }

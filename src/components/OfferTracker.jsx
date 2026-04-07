@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { onValue, ref as dbRef } from 'firebase/database';
-import { db } from '../lib/firebase';
 import { documentStore } from '../services/documentStore';
+import { orgStore } from '../services/orgStore';
 import { emailService } from '../services/emailService';
 import { useOrg } from '../context/OrgContext';
 import {
@@ -133,29 +132,11 @@ export default function OfferTracker() {
 
   useEffect(() => {
     if (!activeOrg?.id) return;
-    documentStore.setContext(activeOrg.id);
-    documentStore.init();
-
-    const path = `records/${activeOrg.id}/_fin_docs`;
-    const unsubscribe = onValue(
-      dbRef(db, path),
-      (snap) => {
-        if (snap.exists()) {
-          const all = Object.values(snap.val());
-          setAllDocs(all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
-        } else {
-          setAllDocs(
-            documentStore.getAll().sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-          );
-        }
-        setLoading(false);
-      },
-      (err) => {
-        console.error('[OfferTracker] Firebase listener error:', err);
-        setAllDocs(documentStore.getAll().sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
-        setLoading(false);
-      }
-    );
+    const unsubscribe = orgStore.listenSection('fin_docs', (data) => {
+      const all = Object.values(data || {});
+      setAllDocs(all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+      setLoading(false);
+    });
 
     return () => unsubscribe();
   }, [activeOrg?.id]);

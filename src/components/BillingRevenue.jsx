@@ -7,10 +7,9 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import { ref, push, set, get, remove } from 'firebase/database';
-import { db } from '../lib/firebase';
 import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
+import { orgStore } from '../services/orgStore';
 import { useOrg } from '../context/OrgContext';
 
 const EXPENSE_CATEGORIES = ['Operations', 'Marketing', 'Salaries', 'Tools & Software', 'Office', 'Travel', 'Other'];
@@ -47,21 +46,13 @@ export default function BillingRevenue() {
       const data = await storageService.getAll(activeOrg.id);
       setRecords(data || []);
 
-      // Load financial documents from Firebase-synced store
-      documentStore.setContext(activeOrg.id);
-      await documentStore.init();
+      // Load financial documents from orgStore
       setFinDocs(documentStore.getAll());
 
-      const expRef = ref(db, `expenses/${activeOrg.id}`);
-      const snap = await get(expRef);
-      if (snap.exists()) {
-        const expList = [];
-        snap.forEach(child => expList.push({ id: child.key, ...child.val() }));
-        expList.sort((a, b) => new Date(b.date) - new Date(a.date));
-        setExpenses(expList);
-      } else {
-        setExpenses([]);
-      }
+      // Load expenses from orgStore
+      const expList = orgStore.getSectionAsList('expenses');
+      expList.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setExpenses(expList);
     } catch (err) {
       console.error("Error loading billing data:", err);
     } finally {
@@ -127,11 +118,9 @@ export default function BillingRevenue() {
     e.preventDefault();
     if (!newExpense.description || !newExpense.amount) return;
 
-    const expRef = push(ref(db, `expenses/${activeOrg.id}`));
-    await set(expRef, {
+    await orgStore.addItem('expenses', {
       ...newExpense,
       amount: Number(newExpense.amount),
-      created_at: new Date().toISOString()
     });
 
     setNewExpense({ description: '', amount: '', category: 'Operations', date: new Date().toISOString().split('T')[0] });
@@ -141,7 +130,7 @@ export default function BillingRevenue() {
 
   const handleDeleteExpense = async (id) => {
     if (!window.confirm('Delete this expense?')) return;
-    await remove(ref(db, `expenses/${activeOrg.id}/${id}`));
+    orgStore.removeItem('expenses', id);
     loadData();
   };
 

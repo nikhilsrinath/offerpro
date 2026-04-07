@@ -97,20 +97,12 @@ export default function Hub({ onSelectModule, user, theme }) {
             { name: 'Proformas',     value: finDocs.filter(d => d.type === 'proforma').length },
         ].filter(d => d.value > 0);
 
-        const typeDistribution = rawDistribution.length > 0 ? rawDistribution : [
-            { name: 'Offer Letters', value: 1 }, { name: 'Invoices', value: 1 },
-            { name: 'Quotations', value: 2 },    { name: 'Proformas', value: 2 },
-        ];
-
         return {
-            total:    records.length + finDocCount || 6,
-            revenue:  revenue || 90,
-            invoices: invoiceRecords.length + finInvoices || 1,
-            monthlyRevenue: revenue > 0 ? monthlyRevenue : [
-                { month: 'Nov', revenue: 25 }, { month: 'Dec', revenue: 40 }, { month: 'Jan', revenue: 50 },
-                { month: 'Feb', revenue: 30 }, { month: 'Mar', revenue: 90 }, { month: 'Apr', revenue: 40 },
-            ],
-            typeDistribution,
+            total:    records.length + finDocCount,
+            revenue,
+            invoices: invoiceRecords.length + finInvoices,
+            monthlyRevenue,
+            typeDistribution: rawDistribution,
         };
     }, [records, finDocs]);
 
@@ -396,6 +388,12 @@ export default function Hub({ onSelectModule, user, theme }) {
                                 {stats.total} total
                             </span>
                         </div>
+                        {stats.typeDistribution.length === 0 ? (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: chartH, flexDirection: 'column', gap: '0.5rem' }}>
+                                <FileText size={28} strokeWidth={1} style={{ color: isDark ? 'rgba(255,255,255,0.15)' : '#d4d4d8' }} />
+                                <span style={{ fontSize: '0.75rem', color: isDark ? 'rgba(255,255,255,0.25)' : '#a1a1aa' }}>No documents yet</span>
+                            </div>
+                        ) : (
                         <div style={{ display: 'flex', alignItems: 'center', height: chartH }}>
                             <div style={{ width: isMobile ? '48%' : '52%', height: chartH }}>
                                 <ResponsiveContainer>
@@ -433,6 +431,7 @@ export default function Hub({ onSelectModule, user, theme }) {
                                 ))}
                             </div>
                         </div>
+                        )}
                     </div>
                 </div>
 

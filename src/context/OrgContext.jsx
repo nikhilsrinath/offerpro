@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { ref, get, push, set, update } from 'firebase/database';
 import { db } from '../lib/firebase';
 import { useAuth } from './AuthContext';
+import { orgStore } from '../services/orgStore';
 
 const OrgContext = createContext({});
 
@@ -17,6 +18,7 @@ export const OrgProvider = ({ children }) => {
     } else {
       setOrganizations([]);
       setActiveOrg(null);
+      orgStore.clear();
       setLoading(false);
     }
   }, [user, needsOnboarding]);
@@ -38,14 +40,14 @@ export const OrgProvider = ({ children }) => {
       const orgs = [];
 
       for (const orgId of orgIds) {
-        const orgRef = ref(db, `organizations/${orgId}`);
-        const orgSnap = await get(orgRef);
-        if (orgSnap.exists()) {
-          const orgData = orgSnap.val();
+        // Load entire org data via orgStore (fetches from Firebase, caches in localStorage)
+        const orgData = await orgStore.load(orgId);
+        const profile = orgStore.getProfile();
+        if (profile.company_name || profile.owner_uid) {
           orgs.push({
             id: orgId,
-            name: orgData.company_name,
-            ...orgData
+            name: profile.company_name,
+            ...profile,
           });
         }
       }
@@ -53,10 +55,8 @@ export const OrgProvider = ({ children }) => {
       setOrganizations(orgs);
       if (orgs.length > 0) {
         setActiveOrg(orgs[0]);
-        // Sync company profile to localStorage for documentStore
-        try {
-          localStorage.setItem('offerpro_company_profile', JSON.stringify(orgs[0]));
-        } catch {}
+        // Ensure orgStore is pointed at the active org
+        await orgStore.load(orgs[0].id);
       }
     } catch (err) {
       console.warn("Could not fetch organizations:", err);
@@ -93,8 +93,8 @@ export const OrgProvider = ({ children }) => {
   };
 
   const updateOrganization = async (orgId, updates) => {
-    const orgRef = ref(db, `organizations/${orgId}`);
-    await update(orgRef, updates);
+    // Update Firebase + orgStore cache
+    await orgStore.updateProfile(updates);
     await fetchOrganizations();
   };
 

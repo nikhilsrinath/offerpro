@@ -3,9 +3,8 @@ import {
   Plus, Trash2, Clock, CheckCircle,
   Circle, Layers, Calendar, Flag
 } from 'lucide-react';
-import { ref, push, set, get, remove, update } from 'firebase/database';
-import { db } from '../lib/firebase';
 import { useOrg } from '../context/OrgContext';
+import { orgStore } from '../services/orgStore';
 
 const STATUS_CONFIG = {
   planned: { label: 'Planned', color: '#94a3b8', icon: Circle, bg: '#94a3b810' },
@@ -40,16 +39,9 @@ export default function ProductPlanner() {
   const loadProducts = async () => {
     setLoading(true);
     try {
-      const prodRef = ref(db, `products/${activeOrg.id}`);
-      const snap = await get(prodRef);
-      if (snap.exists()) {
-        const items = [];
-        snap.forEach(child => items.push({ id: child.key, ...child.val() }));
-        items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        setProducts(items);
-      } else {
-        setProducts([]);
-      }
+      const items = orgStore.getSectionAsList('products');
+      items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      setProducts(items);
     } catch (err) {
       console.error("Error loading products:", err);
     } finally {
@@ -61,8 +53,7 @@ export default function ProductPlanner() {
     e.preventDefault();
     if (!newItem.name) return;
 
-    const prodRef = push(ref(db, `products/${activeOrg.id}`));
-    await set(prodRef, { ...newItem, created_at: new Date().toISOString() });
+    await orgStore.addItem('products', { ...newItem });
 
     setNewItem({ name: '', description: '', status: 'planned', priority: 'medium', due_date: '' });
     setShowAdd(false);
@@ -70,13 +61,13 @@ export default function ProductPlanner() {
   };
 
   const handleStatusChange = async (id, newStatus) => {
-    await update(ref(db, `products/${activeOrg.id}/${id}`), { status: newStatus });
+    orgStore.updateItem('products', id, { status: newStatus });
     loadProducts();
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this item?')) return;
-    await remove(ref(db, `products/${activeOrg.id}/${id}`));
+    orgStore.removeItem('products', id);
     loadProducts();
   };
 

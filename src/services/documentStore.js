@@ -1,85 +1,10 @@
-// Firebase-synced document store for financial documents
-// Uses localStorage as a fast cache, Firebase as the cloud source of truth
-// Stores under records/{orgId}/_fin_* paths (reuses existing Firebase rules)
-import { ref, set, get, remove } from 'firebase/database';
+// documentStore.js — Thin wrapper around orgStore for financial documents
+// Same exported API as before. Data now under organizations/{orgId}/fin_docs, fin_notifs, fin_recurring.
+import { ref, set, get } from 'firebase/database';
 import { db } from '../lib/firebase';
+import { orgStore } from './orgStore';
 
-const STORE_KEY = 'offerpro_documents';
-const NOTIFICATIONS_KEY = 'offerpro_notifications';
-const RECURRING_KEY = 'offerpro_recurring';
-
-let _orgId = null;
-let _initDone = false;
-
-// ─── LocalStorage helpers ───────────────────────────────────────────────────
-
-function getCompanyProfileFromStorage() {
-  try {
-    return JSON.parse(localStorage.getItem('offerpro_company_profile') || '{}');
-  } catch {
-    return {};
-  }
-}
-
-function getStore() {
-  try {
-    return JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
-  } catch {
-    return {};
-  }
-}
-
-function setStore(data) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(data));
-}
-
-function getNotifications() {
-  try {
-    return JSON.parse(localStorage.getItem(NOTIFICATIONS_KEY) || '[]');
-  } catch {
-    return [];
-  }
-}
-
-function setNotifications(data) {
-  localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(data));
-}
-
-function getRecurringLocal() {
-  try {
-    return JSON.parse(localStorage.getItem(RECURRING_KEY) || '[]');
-  } catch {
-    return [];
-  }
-}
-
-function setRecurringLocal(data) {
-  localStorage.setItem(RECURRING_KEY, JSON.stringify(data));
-}
-
-// ─── Firebase paths (under records/{orgId} which has proven write access) ────
-
-function fbDocsRef() {
-  if (!_orgId) return null;
-  return `records/${_orgId}/_fin_docs`;
-}
-
-function fbDocRef(docId) {
-  if (!_orgId) return null;
-  return `records/${_orgId}/_fin_docs/${docId}`;
-}
-
-function fbNotifsRef() {
-  if (!_orgId) return null;
-  return `records/${_orgId}/_fin_notifs`;
-}
-
-function fbRecurringRef() {
-  if (!_orgId) return null;
-  return `records/${_orgId}/_fin_recurring`;
-}
-
-// ─── Sanitize data for Firebase (remove undefined values) ────────────────────
+let _portalOrgId = null; // for portal fallback (anonymous auth, no orgStore loaded)
 
 function sanitize(obj) {
   if (obj === null || obj === undefined) return null;
@@ -87,262 +12,128 @@ function sanitize(obj) {
   if (Array.isArray(obj)) return obj.map(sanitize);
   const clean = {};
   for (const [k, v] of Object.entries(obj)) {
-    if (v !== undefined) {
-      clean[k] = sanitize(v);
-    }
+    if (v !== undefined) clean[k] = sanitize(v);
   }
   return clean;
 }
 
-// ─── Firebase write helpers (fire-and-forget with error logging) ─────────────
-
-function syncDoc(docId, doc) {
-  const path = fbDocRef(docId);
-  if (!path) {
-    console.error('[documentStore] Cannot sync: orgId not set. Call setContext() first.');
-    return;
-  }
-  const clean = sanitize(doc);
-  set(ref(db, path), clean).catch(err => {
-    console.error('[documentStore] Firebase write FAILED for', docId, ':', err.message);
-  });
-}
-
-function removeDocFromCloud(docId) {
-  const path = fbDocRef(docId);
-  if (!path) return;
-  remove(ref(db, path)).catch(err => {
-    console.error('[documentStore] Firebase delete FAILED for', docId, ':', err.message);
-  });
-}
-
-function syncNotifsToCloud(notifications) {
-  const path = fbNotifsRef();
-  if (!path) return;
-  set(ref(db, path), sanitize(notifications)).catch(err => {
-    console.error('[documentStore] Firebase notif sync FAILED:', err.message);
-  });
-}
-
-function syncRecurringToCloud(list) {
-  const path = fbRecurringRef();
-  if (!path) return;
-  set(ref(db, path), sanitize(list)).catch(err => {
-    console.error('[documentStore] Firebase recurring sync FAILED:', err.message);
-  });
-}
-
-// ─── Migrate existing localStorage data to Firebase (one-time per org) ───────
-
-async function migrateLocalToCloud() {
-  if (!_orgId) return;
-  const migKey = `fin_migrated_${_orgId}`;
-  if (sessionStorage.getItem(migKey)) return; // Already migrated this session
-
-  const localDocs = getStore();
-  const localDocCount = Object.keys(localDocs).length;
-  if (localDocCount === 0) {
-    sessionStorage.setItem(migKey, '1');
-    return;
-  }
-
-  try {
-    const path = fbDocsRef();
-    if (!path) return;
-    const snap = await get(ref(db, path));
-    if (snap.exists()) {
-      // Firebase already has data — merge: push local docs that don't exist in cloud
-      const cloudData = snap.val();
-      let pushed = 0;
-      for (const [id, doc] of Object.entries(localDocs)) {
-        if (!cloudData[id]) {
-          await set(ref(db, fbDocRef(id)), sanitize(doc));
-          pushed++;
-        }
-      }
-      if (pushed > 0) console.log(`[documentStore] Migrated ${pushed} local docs to cloud`);
-    } else {
-      // No cloud data yet — push everything
-      await set(ref(db, path), sanitize(localDocs));
-      console.log(`[documentStore] Migrated all ${localDocCount} local docs to cloud`);
-    }
-
-    // Migrate notifications
-    const notifs = getNotifications();
-    if (notifs.length > 0) {
-      const np = fbNotifsRef();
-      if (np) {
-        const nSnap = await get(ref(db, np));
-        if (!nSnap.exists()) {
-          await set(ref(db, np), sanitize(notifs));
-        }
-      }
-    }
-
-    // Migrate recurring
-    const recurring = getRecurringLocal();
-    if (recurring.length > 0) {
-      const rp = fbRecurringRef();
-      if (rp) {
-        const rSnap = await get(ref(db, rp));
-        if (!rSnap.exists()) {
-          await set(ref(db, rp), sanitize(recurring));
-        }
-      }
-    }
-
-    sessionStorage.setItem(migKey, '1');
-  } catch (err) {
-    console.error('[documentStore] Migration error:', err.message);
-  }
-}
-
-// ─── Public API ─────────────────────────────────────────────────────────────
-
 export const documentStore = {
-  // Set org context — must be called before init
+  // Set org context — kept for backward compat. orgStore is already loaded by OrgContext.
   setContext: (orgId) => {
-    if (orgId && orgId !== _orgId) {
-      _orgId = orgId;
-      _initDone = false; // Reset init flag for new org
-    }
+    _portalOrgId = orgId;
   },
 
-  // Load data from Firebase into localStorage cache
-  // Returns a promise; callers should await before reading
+  // Init — no-op since orgStore is loaded by OrgContext on login.
+  // For portal context (anonymous), does a direct Firebase fetch.
   init: async () => {
-    if (!_orgId) return;
-    if (_initDone) return; // Already loaded this session
-
-    // Migrate pre-existing localStorage data to cloud (one-time)
-    await migrateLocalToCloud();
-
-    try {
-      // Load documents from cloud
-      const docPath = fbDocsRef();
-      if (docPath) {
-        const snap = await get(ref(db, docPath));
-        if (snap.exists()) {
-          setStore(snap.val());
-        }
-      }
-
-      // Load notifications from cloud
-      const nPath = fbNotifsRef();
-      if (nPath) {
-        const nSnap = await get(ref(db, nPath));
-        if (nSnap.exists()) {
-          setNotifications(nSnap.val());
-        }
-      }
-
-      // Load recurring from cloud
-      const rPath = fbRecurringRef();
-      if (rPath) {
-        const rSnap = await get(ref(db, rPath));
-        if (rSnap.exists()) {
-          setRecurringLocal(rSnap.val());
-        }
-      }
-
-      _initDone = true;
-    } catch (err) {
-      console.error('[documentStore] Failed to load from Firebase:', err.message);
-      // Falls back to whatever is in localStorage
+    if (!orgStore.isLoaded() && _portalOrgId) {
+      await orgStore.load(_portalOrgId);
     }
   },
 
-  getCompanyProfile: () => getCompanyProfileFromStorage(),
+  getCompanyProfile: () => orgStore.isLoaded() ? orgStore.getProfile() : {},
   getSavedClients: () => [],
 
   getAll: () => {
-    return Object.values(getStore()).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const list = orgStore.getSectionAsList('fin_docs');
+    return list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   },
 
-  getByType: (type) => {
-    return documentStore.getAll().filter((d) => d.type === type);
-  },
+  getByType: (type) => documentStore.getAll().filter(d => d.type === type),
 
-  getById: (id) => {
-    return getStore()[id] || null;
-  },
+  getById: (id) => orgStore.getItem('fin_docs', id),
 
   save: (doc) => {
-    const store = getStore();
-    store[doc.id] = { ...doc, updated_at: new Date().toISOString() };
-    if (!doc.created_at) store[doc.id].created_at = new Date().toISOString();
-    setStore(store);
-    syncDoc(doc.id, store[doc.id]);
-    return store[doc.id];
+    const data = {
+      ...doc,
+      updated_at: new Date().toISOString(),
+      created_at: doc.created_at || new Date().toISOString(),
+    };
+
+    if (orgStore.isLoaded()) {
+      orgStore.setItem('fin_docs', doc.id, data);
+    } else if (_portalOrgId) {
+      // Portal fallback: direct Firebase write
+      const path = `organizations/${_portalOrgId}/fin_docs/${doc.id}`;
+      set(ref(db, path), sanitize(data)).catch(e =>
+        console.error('[documentStore] portal write FAILED:', e.message));
+    }
+    return data;
   },
 
   updateStatus: (id, status, extra = {}) => {
-    const store = getStore();
-    if (store[id]) {
-      store[id] = { ...store[id], status, ...extra, updated_at: new Date().toISOString() };
-      setStore(store);
-      syncDoc(id, store[id]);
+    const existing = orgStore.getItem('fin_docs', id);
+    const updates = { status, ...extra, updated_at: new Date().toISOString() };
+
+    if (orgStore.isLoaded()) {
+      orgStore.updateItem('fin_docs', id, updates);
+    } else if (_portalOrgId) {
+      // Portal fallback
+      const path = `organizations/${_portalOrgId}/fin_docs/${id}`;
+      set(ref(db, path), sanitize({ ...existing, ...updates })).catch(e =>
+        console.error('[documentStore] portal status update FAILED:', e.message));
     }
-    return store[id];
+    return existing ? { ...existing, ...updates } : null;
   },
 
   delete: (id) => {
-    const store = getStore();
-    delete store[id];
-    setStore(store);
-    removeDocFromCloud(id);
+    orgStore.removeItem('fin_docs', id);
   },
 
-  // Generate sequential IDs
   nextId: (prefix) => {
     const all = documentStore.getAll();
-    const matching = all.filter((d) => d.id.startsWith(prefix));
+    const matching = all.filter(d => d.id && d.id.startsWith(prefix));
     const num = matching.length + 1;
     return `${prefix}-2026-${String(num).padStart(4, '0')}`;
   },
 
-  // Notifications
-  getNotifications,
-  addNotification: (notification) => {
-    const notifs = getNotifications();
-    notifs.unshift({ ...notification, id: Date.now(), read: false, created_at: new Date().toISOString() });
-    setNotifications(notifs);
-    syncNotifsToCloud(notifs);
-  },
-  markNotificationRead: (id) => {
-    const notifs = getNotifications();
-    const n = notifs.find((n) => n.id === id);
-    if (n) n.read = true;
-    setNotifications(notifs);
-    syncNotifsToCloud(notifs);
-  },
-  deleteNotification: (id) => {
-    const notifs = getNotifications().filter((n) => n.id !== id);
-    setNotifications(notifs);
-    syncNotifsToCloud(notifs);
-  },
-  clearAllNotifications: () => {
-    setNotifications([]);
-    syncNotifsToCloud([]);
-  },
-  getUnreadCount: () => {
-    return getNotifications().filter((n) => !n.read).length;
+  // ── Notifications ─────────────────────────────────────────────────────────
+  getNotifications: () => {
+    const notifs = orgStore.getSection('fin_notifs');
+    return Array.isArray(notifs) ? notifs : [];
   },
 
-  // Recurring invoices
-  getRecurring: () => getRecurringLocal(),
+  addNotification: (notification) => {
+    const notifs = documentStore.getNotifications();
+    notifs.unshift({ ...notification, id: Date.now(), read: false, created_at: new Date().toISOString() });
+    orgStore.setSection('fin_notifs', notifs);
+  },
+
+  markNotificationRead: (id) => {
+    const notifs = documentStore.getNotifications();
+    const n = notifs.find(n => n.id === id);
+    if (n) n.read = true;
+    orgStore.setSection('fin_notifs', notifs);
+  },
+
+  deleteNotification: (id) => {
+    const notifs = documentStore.getNotifications().filter(n => n.id !== id);
+    orgStore.setSection('fin_notifs', notifs);
+  },
+
+  clearAllNotifications: () => {
+    orgStore.setSection('fin_notifs', []);
+  },
+
+  getUnreadCount: () => documentStore.getNotifications().filter(n => !n.read).length,
+
+  // ── Recurring invoices ────────────────────────────────────────────────────
+  getRecurring: () => {
+    const list = orgStore.getSection('fin_recurring');
+    return Array.isArray(list) ? list : [];
+  },
+
   saveRecurring: (item) => {
     const list = documentStore.getRecurring();
-    const idx = list.findIndex((r) => r.id === item.id);
+    const idx = list.findIndex(r => r.id === item.id);
     if (idx >= 0) list[idx] = item;
     else list.push(item);
-    setRecurringLocal(list);
-    syncRecurringToCloud(list);
+    orgStore.setSection('fin_recurring', list);
     return item;
   },
+
   deleteRecurring: (id) => {
-    const list = documentStore.getRecurring().filter((r) => r.id !== id);
-    setRecurringLocal(list);
-    syncRecurringToCloud(list);
+    const list = documentStore.getRecurring().filter(r => r.id !== id);
+    orgStore.setSection('fin_recurring', list);
   },
 };

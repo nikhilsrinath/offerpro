@@ -5,9 +5,8 @@ import {
   MarkerType, Panel, BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ref, get, set } from 'firebase/database';
-import { db } from '../lib/firebase';
 import { storageService } from '../services/storageService';
+import { orgStore } from '../services/orgStore';
 import { useOrg } from '../context/OrgContext';
 import {
   Save, Edit2, X, Users, GitBranch, Plus, Trash2,
@@ -579,17 +578,17 @@ export default function TeamHierarchy() {
     if (!activeOrg?.id) return;
     (async () => {
       setLoading(true);
-      const [emps, depts, snap] = await Promise.all([
+      const [emps, depts] = await Promise.all([
         storageService.getEmployees(activeOrg.id),
         storageService.getDepartments(activeOrg.id),
-        get(ref(db, `hierarchy/${activeOrg.id}`)),
       ]);
       setEmployees(emps);
       setDepartments(depts);
       const dm = Object.fromEntries(depts.map(d => [d.name, d.color]));
-      if (snap.exists()) {
+      const hierarchyData = orgStore.getSection('hierarchy');
+      if (hierarchyData && (hierarchyData.nodes || hierarchyData.edges)) {
         const empMap = Object.fromEntries(emps.map(e => [e.id, e]));
-        const { nodes: fn, edges: fe } = buildFlowData(snap.val(), empMap, dm);
+        const { nodes: fn, edges: fe } = buildFlowData(hierarchyData, empMap, dm);
         if (fn.length > 0) { setNodes(fn); setEdges(fe); setHasHierarchy(true); }
       }
       setLoading(false);
@@ -629,7 +628,7 @@ export default function TeamHierarchy() {
 
       const nodesObj = Object.fromEntries(saveNodes.map(n => [n.id, { id: n.id, position: n.position }]));
       const edgesObj = Object.fromEntries(saveEdges.map(e => [e.id, { id: e.id, source: e.source, target: e.target }]));
-      await set(ref(db, `hierarchy/${orgId}`), { nodes: nodesObj, edges: edgesObj });
+      orgStore.setSection('hierarchy', { nodes: nodesObj, edges: edgesObj });
 
       const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
       const supervisorOf = {};
@@ -686,10 +685,10 @@ export default function TeamHierarchy() {
     setEditMode(false);
     setMobileEdit(false);
     if (!hasHierarchy) { setNodes([]); setEdges([]); return; }
-    const snap = await get(ref(db, `hierarchy/${activeOrg.id}`));
-    if (snap.exists()) {
+    const hierarchyData = orgStore.getSection('hierarchy');
+    if (hierarchyData && (hierarchyData.nodes || hierarchyData.edges)) {
       const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
-      const { nodes: fn, edges: fe } = buildFlowData(snap.val(), empMap, deptMap);
+      const { nodes: fn, edges: fe } = buildFlowData(hierarchyData, empMap, deptMap);
       setNodes(fn); setEdges(fe);
     }
   };
