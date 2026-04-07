@@ -170,6 +170,27 @@ export default function Registration({ onBack, isGoogleUser }) {
         // Store the organization data
         await set(orgRef, orgData);
 
+        // Add org owner as first employee under Founder's Office
+        const empRef = push(ref(db, `organizations/${orgId}/employees`));
+        await set(empRef, {
+            id: empRef.key,
+            studentName: formData.owner_full_name,
+            email: isGoogleUser ? user.email : formData.company_email,
+            role: formData.owner_role || 'Founder',
+            department: "Founder's Office",
+            offerType: 'fulltime',
+            is_owner: true,
+            created_at: new Date().toISOString(),
+        });
+
+        // Create the Founder's Office department
+        const deptRef = push(ref(db, `organizations/${orgId}/departments`));
+        await set(deptRef, {
+            id: deptRef.key,
+            name: "Founder's Office",
+            created_at: new Date().toISOString(),
+        });
+
         // Create membership: link user to org
         const membershipRef = push(ref(db, 'memberships'));
         await set(membershipRef, {
