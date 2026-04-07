@@ -4273,7 +4273,8 @@ label {
 /* Full-canvas page layout: zero padding so content fills the area */
 .page-content-canvas {
   padding: 0 !important;
-  height: calc(100vh - 108px);
+  height: calc(100vh - 108px) !important;
+  overflow: hidden !important;
 }
 
 /* ---- REFINED PAGE HEADER ---- */
