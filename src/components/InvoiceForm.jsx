@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Plus, Trash2, ChevronRight, Eye, AlertTriangle, Mail, Lock, UserPlus } from 'lucide-react';
-import { storageService } from '../services/storageService';
 import { pdfService } from '../services/pdfService';
 import { customerService } from '../services/customerService';
 import { documentStore } from '../services/documentStore';
@@ -198,10 +197,9 @@ export default function InvoiceForm({ onSuccess }) {
         resolved.stampPng = await generateStampPng(resolved.companyName, resolved.stampCity);
       }
       const dataToSave = { ...resolved, totals, isInterState, makingCharges: totalMakingCost, orgName: formData.orgName || activeOrg?.company_name || activeOrg?.name };
-      await storageService.save(dataToSave, 'invoice', activeOrg?.id, user?.id);
       await pdfService.generateInvoice(dataToSave);
 
-      // Sync to documentStore so it appears in the financial module's InvoiceList
+      // Save to documentStore (fin_docs) — single source of truth for invoices
       if (activeOrg?.id) documentStore.setContext(activeOrg.id);
       await documentStore.init();
       documentStore.save({

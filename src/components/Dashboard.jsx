@@ -57,79 +57,67 @@ export default function Dashboard({ onNavigate }) {
   }, [activeOrg]);
 
   const stats = useMemo(() => {
-    const invoiceRecords = records.filter(r => r.type === 'invoice');
-    const oldRevenue = invoiceRecords.reduce((acc, r) => acc + (r.data?.totals?.grandTotal || 0), 0);
-    const makingCharges = invoiceRecords.reduce((acc, r) => acc + (Number(r.data?.makingCharges) || 0), 0);
-
-    // Include paid invoices from financial documentStore (loaded from Firebase in useEffect)
-    const paidFinInvoices = finDocs.filter(d => d.type === 'invoice' && d.status === 'paid');
-    const finRevenue = paidFinInvoices.reduce((acc, d) => acc + (d.grand_total || d.amount || d.subtotal || 0), 0);
-    const finDocCount = finDocs.length;
-
-    const revenue = oldRevenue + finRevenue;
+    // Records = legacy docs (offers, certs, NDAs, MoUs). Invoices live in fin_docs only.
+    const nonInvoiceRecords = records.filter(r => r.type !== 'invoice');
+    const finInvoices = finDocs.filter(d => d.type === 'invoice');
+    const paidFinInvoices = finInvoices.filter(d => d.status === 'paid');
+    const revenue = paidFinInvoices.reduce((acc, d) => acc + (d.grand_total || d.amount || d.subtotal || 0), 0);
+    const makingCharges = 0; // making charges only existed in old records invoices
     const grossProfit = revenue - makingCharges;
 
-    const thisMonth = records.filter(r => {
+    const now = new Date();
+    const thisMonth = nonInvoiceRecords.filter(r => {
       const d = new Date(r.created_at);
-      const now = new Date();
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     });
     const finThisMonth = finDocs.filter(d => {
-      const dt = new Date(d.created_at);
-      const now = new Date();
+      const dt = new Date(d.issue_date || d.created_at);
       return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear();
     });
 
-    // Monthly revenue data (last 6 months)
+    // Monthly revenue + document count (last 6 months) — use issue_date for invoices
     const monthlyRevenue = [];
-    const now = new Date();
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthRecords = records.filter(r => {
+      const monthRecords = nonInvoiceRecords.filter(r => {
         const rd = new Date(r.created_at);
         return rd.getMonth() === d.getMonth() && rd.getFullYear() === d.getFullYear();
       });
-      const monthOldRevenue = monthRecords
-        .filter(r => r.type === 'invoice')
-        .reduce((acc, r) => acc + (r.data?.totals?.grandTotal || 0), 0);
       const monthFinRevenue = paidFinInvoices
-        .filter(d2 => {
-          const rd = new Date(d2.created_at);
+        .filter(inv => {
+          const rd = new Date(inv.issue_date || inv.created_at);
           return rd.getMonth() === d.getMonth() && rd.getFullYear() === d.getFullYear();
         })
-        .reduce((acc, d2) => acc + (d2.grand_total || d2.amount || d2.subtotal || 0), 0);
+        .reduce((acc, inv) => acc + (inv.grand_total || inv.amount || inv.subtotal || 0), 0);
       const monthFinDocs = finDocs.filter(d2 => {
-        const rd = new Date(d2.created_at);
+        const rd = new Date(d2.issue_date || d2.created_at);
         return rd.getMonth() === d.getMonth() && rd.getFullYear() === d.getFullYear();
       });
       monthlyRevenue.push({
         month: d.toLocaleDateString('en-IN', { month: 'short' }),
-        revenue: monthOldRevenue + monthFinRevenue,
+        revenue: monthFinRevenue,
         documents: monthRecords.length + monthFinDocs.length
       });
     }
 
     // Document type distribution
-    const finQuotations = finDocs.filter(d => d.type === 'quotation').length;
-    const finProformas = finDocs.filter(d => d.type === 'proforma').length;
-    const finInvoices = finDocs.filter(d => d.type === 'invoice').length;
     const typeDistribution = [
       { name: 'Offer Letters', value: records.filter(r => r.type === 'offer').length, color: '#3b82f6' },
       { name: 'Certificates', value: records.filter(r => r.type === 'certificate').length, color: '#f59e0b' },
       { name: 'NDAs', value: records.filter(r => r.type === 'nda').length, color: '#10b981' },
       { name: 'MoUs', value: records.filter(r => r.type === 'mou').length, color: '#14b8a6' },
-      { name: 'Invoices', value: records.filter(r => r.type === 'invoice').length + finInvoices, color: '#8b5cf6' },
-      { name: 'Quotations', value: finQuotations, color: '#f97316' },
-      { name: 'Proformas', value: finProformas, color: '#06b6d4' },
+      { name: 'Invoices', value: finInvoices.length, color: '#8b5cf6' },
+      { name: 'Quotations', value: finDocs.filter(d => d.type === 'quotation').length, color: '#f97316' },
+      { name: 'Proformas', value: finDocs.filter(d => d.type === 'proforma').length, color: '#06b6d4' },
     ].filter(d => d.value > 0);
 
     return {
-      total: records.length + finDocCount,
+      total: nonInvoiceRecords.length + finDocs.length,
       offers: records.filter(r => r.type === 'offer').length,
       certificates: records.filter(r => r.type === 'certificate').length,
       ndas: records.filter(r => r.type === 'nda').length,
       mous: records.filter(r => r.type === 'mou').length,
-      invoices: records.filter(r => r.type === 'invoice').length + finInvoices,
+      invoices: finInvoices.length,
       revenue,
       makingCharges,
       grossProfit,

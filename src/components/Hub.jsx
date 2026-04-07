@@ -69,38 +69,37 @@ export default function Hub({ onSelectModule, user, theme }) {
     }, [activeOrg]);
 
     const stats = useMemo(() => {
-        const invoiceRecords = records.filter(r => r.type === 'invoice');
-        const oldRevenue = invoiceRecords.reduce((acc, r) => acc + (r.data?.totals?.grandTotal || 0), 0);
-        const paidFinInvoices = finDocs.filter(d => d.type === 'invoice' && d.status === 'paid');
-        const finRevenue = paidFinInvoices.reduce((acc, d) => acc + (d.grand_total || d.amount || d.subtotal || 0), 0);
-        const finDocCount = finDocs.length;
-        const revenue = oldRevenue + finRevenue;
-        const finInvoices = finDocs.filter(d => d.type === 'invoice').length;
+        // Records = legacy docs (offers, certs, NDAs, MoUs). Invoices live in fin_docs only.
+        const nonInvoiceRecords = records.filter(r => r.type !== 'invoice');
+        const finInvoices = finDocs.filter(d => d.type === 'invoice');
+        const paidFinInvoices = finInvoices.filter(d => d.status === 'paid');
+        const revenue = paidFinInvoices.reduce((acc, d) => acc + (d.grand_total || d.amount || d.subtotal || 0), 0);
 
+        // Monthly revenue — use issue_date (when invoice was issued), not created_at
         const now = new Date();
         const monthlyRevenue = [];
         for (let i = 5; i >= 0; i--) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const monthOldRevenue = records
-                .filter(r => r.type === 'invoice' && new Date(r.created_at).getMonth() === d.getMonth() && new Date(r.created_at).getFullYear() === d.getFullYear())
-                .reduce((acc, r) => acc + (r.data?.totals?.grandTotal || 0), 0);
-            const monthFinRevenue = paidFinInvoices
-                .filter(d2 => new Date(d2.created_at).getMonth() === d.getMonth() && new Date(d2.created_at).getFullYear() === d.getFullYear())
-                .reduce((acc, d2) => acc + (d2.grand_total || d2.amount || d2.subtotal || 0), 0);
-            monthlyRevenue.push({ month: d.toLocaleDateString('en-IN', { month: 'short' }), revenue: monthOldRevenue + monthFinRevenue });
+            const monthRevenue = paidFinInvoices
+                .filter(inv => {
+                    const dt = new Date(inv.issue_date || inv.created_at);
+                    return dt.getMonth() === d.getMonth() && dt.getFullYear() === d.getFullYear();
+                })
+                .reduce((acc, inv) => acc + (inv.grand_total || inv.amount || inv.subtotal || 0), 0);
+            monthlyRevenue.push({ month: d.toLocaleDateString('en-IN', { month: 'short' }), revenue: monthRevenue });
         }
 
         const rawDistribution = [
             { name: 'Offer Letters', value: records.filter(r => r.type === 'offer').length },
-            { name: 'Invoices',      value: invoiceRecords.length + finDocs.filter(d => d.type === 'invoice').length },
+            { name: 'Invoices',      value: finInvoices.length },
             { name: 'Quotations',    value: finDocs.filter(d => d.type === 'quotation').length },
             { name: 'Proformas',     value: finDocs.filter(d => d.type === 'proforma').length },
         ].filter(d => d.value > 0);
 
         return {
-            total:    records.length + finDocCount,
+            total:    nonInvoiceRecords.length + finDocs.length,
             revenue,
-            invoices: invoiceRecords.length + finInvoices,
+            invoices: finInvoices.length,
             monthlyRevenue,
             typeDistribution: rawDistribution,
         };
