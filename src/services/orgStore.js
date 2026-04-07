@@ -13,7 +13,7 @@ let _listeners = [];   // active onValue unsubscribers
 // Sections that hold keyed objects (push-ID children)
 const KEYED_SECTIONS = new Set([
   'employees', 'ex_employees', 'departments', 'customers',
-  'expenses', 'records', 'fin_docs', 'products',
+  'expenses', 'records', 'fin_docs', 'products', 'crm_leads',
 ]);
 
 // Profile fields stored at org root level (not sections)

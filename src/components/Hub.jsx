@@ -16,7 +16,7 @@ const MODULES = [
     { id: 'team',      label: 'Team',          desc: 'Employee registry, offer tracker & bulk imports.',       icon: Users,        defaultPage: 'team-hierarchy', color: '#8b5cf6' },
     { id: 'documents', label: 'Documents',      desc: 'Offer letters, NDAs, MoUs, and certificates.',          icon: FileText,     defaultPage: 'offers',         color: '#10b981' },
     { id: 'finance',   label: 'Finance',        desc: 'Invoices, quotations, proformas & financial status.',   icon: Receipt,      defaultPage: 'finance-status', color: '#f59e0b' },
-    { id: 'business',  label: 'Business',       desc: 'Client database and revenue analytics.',                icon: BarChart3,    defaultPage: 'customers',      color: '#d946ef' },
+    { id: 'business',  label: 'Business',       desc: 'CRM pipeline, client database, and revenue analytics.', icon: BarChart3,    defaultPage: 'crm',            color: '#d946ef' },
     { id: 'data',      label: 'Records',        desc: 'Past documents and bulk operation history.',            icon: File,         defaultPage: 'records',        color: '#ef4444' },
     { id: 'overall',   label: 'Overview',       desc: 'Comprehensive analytics and business stats.',           icon: PieChartIcon, defaultPage: 'dashboard',      color: '#64748b' },
 ];

@@ -5,7 +5,7 @@ import {
   Zap, UserCircle, ChevronRight, ChevronDown, Clock, Mail, AlertTriangle, Users,
   UploadCloud, FileCheck, FileSignature, History,
   FileSpreadsheet, Activity, Receipt, FilePlus, RotateCcw, ArrowLeft,
-  Sun, Moon, GitBranch, UserX
+  Sun, Moon, GitBranch, UserX, Kanban
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
 import subPages from './components/landing/subPageData';
@@ -27,6 +27,7 @@ import CompanyProfile from './components/CompanyProfile';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { OrgProvider, useOrg } from './context/OrgContext';
 import Auth from './components/Auth';
+import CRM from './components/CRM';
 import Employees from './components/Employees';
 import ExEmployees from './components/ExEmployees';
 import TeamHierarchy from './components/TeamHierarchy';
@@ -55,7 +56,7 @@ const MODULE_FILTER = {
   team: ['team-hierarchy', 'employees', 'offer-tracker', 'ex-employees', 'bulk-team'],
   documents: ['offers', 'certificates', 'ndas', 'mous', 'bulk-offers', 'bulk-certificates'],
   finance: ['finance-status', 'invoices', 'quotations', 'proforma', 'recurring'],
-  business: ['customers', 'revenue', 'planner'],
+  business: ['crm', 'customers', 'revenue', 'planner'],
   data: ['records', 'bulk-history']
 };
 
@@ -78,6 +79,7 @@ const NAV_ITEMS = [
   { id: 'proforma', label: 'Proforma Invoice', icon: FileCheck },
   { id: 'recurring', label: 'Recurring', icon: RotateCcw },
   { section: 'BUSINESS' },
+  { id: 'crm', label: 'CRM', icon: Kanban },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'revenue', label: 'Billing & Revenue', icon: DollarSign },
   { id: 'planner', label: 'Product Planner', icon: Layers },
@@ -105,6 +107,7 @@ const PAGE_META = {
   'new-invoice': { title: 'New Invoice', subtitle: 'Generate professional business invoices' },
   'new-quotation': { title: 'New Quotation', subtitle: 'Create a quotation for your client' },
   'new-proforma': { title: 'New Proforma Invoice', subtitle: 'Create proforma invoices with advance payment tracking' },
+  crm: { title: 'CRM', subtitle: 'Manage your sales pipeline' },
   customers: { title: 'Customers', subtitle: 'Manage your client database' },
   revenue: { title: 'Billing & Revenue', subtitle: 'Track revenue, expenses, and profitability' },
   planner: { title: 'Product Planner', subtitle: 'Plan and track products and projects' },
@@ -421,7 +424,7 @@ function AppContent() {
                   { id: 'team',      label: 'Team',      defaultPage: 'team-hierarchy' },
                   { id: 'documents', label: 'Documents',  defaultPage: 'offers' },
                   { id: 'finance',   label: 'Finance',    defaultPage: 'finance-status' },
-                  { id: 'business',  label: 'Business',   defaultPage: 'customers' },
+                  { id: 'business',  label: 'Business',   defaultPage: 'crm' },
                   { id: 'data',      label: 'Records',    defaultPage: 'records' },
                   { id: 'overall',   label: 'Overview',   defaultPage: 'dashboard' },
                 ].map(link => (
@@ -626,6 +629,7 @@ function AppContent() {
           {activePage === 'new-invoice' && <InvoiceForm onSuccess={() => navigate('invoices')} />}
           {activePage === 'new-quotation' && <QuotationForm editDocId={editingDocId} />}
           {activePage === 'new-proforma' && <ProformaInvoiceForm />}
+          {activePage === 'crm' && <CRM />}
           {activePage === 'customers' && <Customers />}
           {activePage === 'revenue' && <BillingRevenue />}
           {activePage === 'planner' && <ProductPlanner />}
