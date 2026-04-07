@@ -2473,7 +2473,6 @@ h3 {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -2507,6 +2506,9 @@ h3 {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 /* Mobile Top Bar */
@@ -7091,12 +7093,14 @@ label {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 /* ── Summary Stats ── */
 .emp-summary-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.875rem;
 }
 
@@ -7161,6 +7165,7 @@ label {
   gap: 0.875rem;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .emp-toolbar-right {
@@ -7212,6 +7217,13 @@ label {
   background: var(--bg-raised);
   border-radius: 10px;
   padding: 3px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
+}
+
+.emp-filter-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .emp-filter-tab {
