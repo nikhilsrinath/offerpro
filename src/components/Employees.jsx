@@ -533,10 +533,40 @@ export default function Employees() {
     const [newDeptColor, setNewDeptColor] = useState(DEPT_PALETTE[0]);
     const [deptSaving, setDeptSaving] = useState(false);
     const [selectedEmp, setSelectedEmp] = useState(null);
+    const [addingSelf, setAddingSelf] = useState(false);
 
     useEffect(() => {
         if (activeOrg) { loadEmployees(); loadDepartments(); }
     }, [activeOrg]);
+
+    const ownerEmail = (activeOrg?.company_email || '').toLowerCase();
+    const ownerIsEmployee = ownerEmail && employees.some(e => (e.email || '').toLowerCase() === ownerEmail);
+
+    const handleAddSelf = async () => {
+        if (!activeOrg || ownerIsEmployee) return;
+        setAddingSelf(true);
+        try {
+            await storageService.saveEmployee({
+                studentName: activeOrg.owner_full_name || 'Owner',
+                email: activeOrg.company_email || '',
+                role: activeOrg.owner_role || 'Founder',
+                department: "Founder's Office",
+                offerType: 'fulltime',
+                is_owner: true,
+            }, activeOrg.id);
+            // Ensure Founder's Office department exists
+            const depts = await storageService.getDepartments(activeOrg.id);
+            if (!depts.some(d => d.name === "Founder's Office")) {
+                await storageService.saveDepartment({ name: "Founder's Office" }, activeOrg.id);
+                loadDepartments();
+            }
+            loadEmployees();
+        } catch (err) {
+            console.error('Error adding self:', err);
+        } finally {
+            setAddingSelf(false);
+        }
+    };
 
     const loadDepartments = async () => {
         const depts = await storageService.getDepartments(activeOrg?.id);
@@ -823,6 +853,17 @@ export default function Employees() {
                             <List size={18} />
                         </button>
                     </div>
+                    {!ownerIsEmployee && (
+                        <button
+                            className="btn-cinematic"
+                            onClick={handleAddSelf}
+                            disabled={addingSelf}
+                            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                        >
+                            <Shield size={16} />
+                            <span>{addingSelf ? 'Adding...' : 'Add Yourself'}</span>
+                        </button>
+                    )}
                     <button className="btn-cinematic" onClick={() => setShowAddForm(true)}>
                         <UserPlus size={16} />
                         <span>Add Employee</span>
