@@ -171,8 +171,8 @@ function EmployeeDetailModal({ emp, orgId, org, departments, onClose, onDelete }
                                     <div>
                                         <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>{name}</h2>
                                         <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
-                                            <span className={`emp-type-badge ${emp.offerType === 'fulltime' ? 'fulltime' : 'intern'}`}>
-                                                {emp.offerType === 'fulltime' ? 'Full-Time' : 'Intern'}
+                                            <span className={`emp-type-badge ${emp.offerType === 'fulltime' ? 'fulltime' : emp.offerType === 'collaboration' ? 'collab' : 'intern'}`}>
+                                                {emp.offerType === 'fulltime' ? 'Full-Time' : emp.offerType === 'collaboration' ? 'Collaborator' : 'Intern'}
                                             </span>
                                             {emp.department && (
                                                 <span style={{ fontSize: '0.68rem', fontWeight: 600, padding: '0.2rem 0.55rem', borderRadius: '99px', background: 'rgba(255,255,255,0.07)', color: 'var(--text-muted)' }}>
@@ -1000,8 +1000,8 @@ export default function Employees() {
                                             )}
                                         </td>
                                         <td>
-                                            <span className={`emp-type-badge ${emp.offerType === 'fulltime' ? 'fulltime' : 'intern'}`}>
-                                                {emp.offerType === 'fulltime' ? 'Full-Time' : 'Intern'}
+                                            <span className={`emp-type-badge ${emp.offerType === 'fulltime' ? 'fulltime' : emp.offerType === 'collaboration' ? 'collab' : 'intern'}`}>
+                                                {emp.offerType === 'fulltime' ? 'Full-Time' : emp.offerType === 'collaboration' ? 'Collaborator' : 'Intern'}
                                             </span>
                                         </td>
                                         <td>

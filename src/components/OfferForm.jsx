@@ -269,10 +269,10 @@ export default function OfferForm({ onSuccess }) {
 
           {/* Type Toggle */}
           <div className="easy-toggle-bar">
-            {['internship', 'fulltime'].map((type) => (
+            {['internship', 'fulltime', 'collaboration'].map((type) => (
               <button key={type} type="button" onClick={() => setOfferType(type)}
                 className={`easy-toggle-btn ${formData.offerType === type ? 'active' : ''}`}>
-                {type === 'internship' ? 'Internship' : 'Full-Time'}
+                {type === 'internship' ? 'Internship' : type === 'fulltime' ? 'Full-Time' : 'Collaboration'}
               </button>
             ))}
           </div>
@@ -336,7 +336,7 @@ export default function OfferForm({ onSuccess }) {
           <div className="easy-section">
             <div className="easy-section-head">
               <div className="easy-num">2</div>
-              <span className="easy-section-title">{formData.offerType === 'internship' ? 'Intern' : 'Employee'} details</span>
+              <span className="easy-section-title">{formData.offerType === 'internship' ? 'Intern' : formData.offerType === 'collaboration' ? 'Collaborator' : 'Employee'} details</span>
             </div>
             <div className="easy-row">
               <div className="easy-field">
@@ -386,7 +386,7 @@ export default function OfferForm({ onSuccess }) {
                 <label className="easy-lbl">Start date</label>
                 <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required className="easy-inp" />
               </div>
-              {formData.offerType === 'internship' && (
+              {(formData.offerType === 'internship' || formData.offerType === 'collaboration') && (
                 <div className="easy-field">
                   <label className="easy-lbl">End date</label>
                   <input type="date" name="endDate" value={formData.endDate} onChange={handleChange} required className="easy-inp" />
@@ -429,7 +429,7 @@ export default function OfferForm({ onSuccess }) {
               onClick={() => handleChange({ target: { name: 'isPaid', checked: !formData.isPaid, type: 'checkbox' } })}
             >
               <span className="easy-switch-label">
-                {formData.offerType === 'internship' ? 'Paid internship' : 'Paid position'}
+                {formData.offerType === 'internship' ? 'Paid internship' : formData.offerType === 'collaboration' ? 'Paid collaboration' : 'Paid position'}
               </span>
               <div className="easy-switch-dot" />
             </div>
@@ -437,7 +437,7 @@ export default function OfferForm({ onSuccess }) {
             {formData.isPaid && (
               <div className="easy-row animate-in" style={{ marginTop: '1.25rem' }}>
                 <div className="easy-field">
-                  <label className="easy-lbl">{formData.offerType === 'internship' ? 'Stipend amount' : 'Salary amount'}</label>
+                  <label className="easy-lbl">{formData.offerType === 'internship' ? 'Stipend amount' : formData.offerType === 'collaboration' ? 'Collaboration fee' : 'Salary amount'}</label>
                   <input type="number" name="stipend" value={formData.stipend} onChange={handleChange} required placeholder="0.00" className="easy-inp" />
                 </div>
                 <div className="easy-field">
@@ -450,10 +450,15 @@ export default function OfferForm({ onSuccess }) {
                     </select>
                     <select name="paymentFrequency" value={formData.paymentFrequency} onChange={handleChange} className="easy-inp" style={{ flex: 1.5 }}>
                       <option value="Monthly">Monthly</option>
-                      {formData.offerType === 'internship' ? (
-                        <option value="Once">One-time</option>
-                      ) : (
+                      {formData.offerType === 'fulltime' ? (
                         <option value="Annual">Annual (CTC)</option>
+                      ) : formData.offerType === 'collaboration' ? (
+                        <>
+                          <option value="Once">One-time</option>
+                          <option value="Milestone">Milestone</option>
+                        </>
+                      ) : (
+                        <option value="Once">One-time</option>
                       )}
                     </select>
                   </div>

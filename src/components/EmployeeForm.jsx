@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
     ArrowLeft, ArrowRight, ChevronRight, UserCircle, Briefcase,
     Mail, Phone, Calendar, MapPin, DollarSign, FileText, Users,
-    CheckCircle, Zap, Hash, Building
+    CheckCircle, Zap, Hash, Building, Link2
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
@@ -155,6 +155,7 @@ export default function EmployeeForm({ onBack, onSuccess }) {
                                 {[
                                     { id: 'fulltime', label: 'Full-Time Employee', desc: 'Permanent position with full benefits and salary', icon: Briefcase, color: '#10b981' },
                                     { id: 'internship', label: 'Intern', desc: 'Fixed-term internship with stipend compensation', icon: Calendar, color: '#f59e0b' },
+                                    { id: 'collaboration', label: 'Collaborator', desc: 'Fixed-term collaboration for a defined project or scope', icon: Link2, color: '#0d9488' },
                                 ].map(t => {
                                     const TIcon = t.icon;
                                     return (
@@ -250,7 +251,7 @@ export default function EmployeeForm({ onBack, onSuccess }) {
                                         <input name="supervisorName" value={formData.supervisorName} onChange={handleChange} required placeholder="Manager's full name" className="empf-input" />
                                     </div>
                                 </div>
-                                <div className={`empf-row-${formData.offerType === 'internship' ? '3' : '2'}`}>
+                                <div className={`empf-row-${(formData.offerType === 'internship' || formData.offerType === 'collaboration') ? '3' : '2'}`}>
                                     <div className="empf-field">
                                         <label className="empf-label">Joining Date</label>
                                         <div className="empf-input-wrap">
@@ -258,7 +259,7 @@ export default function EmployeeForm({ onBack, onSuccess }) {
                                             <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required className="empf-input" />
                                         </div>
                                     </div>
-                                    {formData.offerType === 'internship' && (
+                                    {(formData.offerType === 'internship' || formData.offerType === 'collaboration') && (
                                         <div className="empf-field">
                                             <label className="empf-label">End Date</label>
                                             <div className="empf-input-wrap">
@@ -291,12 +292,12 @@ export default function EmployeeForm({ onBack, onSuccess }) {
                         <div className="empf-section animate-in">
                             <div className="empf-section-header">
                                 <h3>Compensation</h3>
-                                <p>Set the {formData.offerType === 'internship' ? 'stipend' : 'salary'} and payment details.</p>
+                                <p>Set the {formData.offerType === 'internship' ? 'stipend' : formData.offerType === 'collaboration' ? 'collaboration fee' : 'salary'} and payment details.</p>
                             </div>
                             <div className="empf-fields">
                                 <div className="empf-row-2">
                                     <div className="empf-field">
-                                        <label className="empf-label">{formData.offerType === 'internship' ? 'Monthly Stipend' : 'Annual Salary (CTC)'}</label>
+                                        <label className="empf-label">{formData.offerType === 'internship' ? 'Monthly Stipend' : formData.offerType === 'collaboration' ? 'Collaboration Fee' : 'Annual Salary (CTC)'}</label>
                                         <div className="empf-input-wrap">
                                             <DollarSign size={16} className="empf-input-icon" />
                                             <input type="number" name="stipend" value={formData.stipend} onChange={handleChange} required placeholder="0.00" className="empf-input" />
@@ -349,10 +350,10 @@ export default function EmployeeForm({ onBack, onSuccess }) {
                                         </div>
                                         <div className="empf-preview-item">
                                             <span className="empf-preview-label">Type</span>
-                                            <span className="empf-preview-value">{formData.offerType === 'fulltime' ? 'Full-Time' : 'Intern'}</span>
+                                            <span className="empf-preview-value">{formData.offerType === 'fulltime' ? 'Full-Time' : formData.offerType === 'collaboration' ? 'Collaborator' : 'Intern'}</span>
                                         </div>
                                         <div className="empf-preview-item">
-                                            <span className="empf-preview-label">{formData.offerType === 'internship' ? 'Stipend' : 'CTC'}</span>
+                                            <span className="empf-preview-label">{formData.offerType === 'internship' ? 'Stipend' : formData.offerType === 'collaboration' ? 'Collab Fee' : 'CTC'}</span>
                                             <span className="empf-preview-value">{formData.currency} {Number(formData.stipend || 0).toLocaleString()}</span>
                                         </div>
                                         <div className="empf-preview-item">

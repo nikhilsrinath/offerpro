@@ -577,14 +577,15 @@ export default function RecipientPortal({ documentId }) {
                   {/* ── Offer Letter ── */}
                   {docData.type === 'offer_letter' && (() => {
                     const isFT = docData.offer_type === 'fulltime';
+                    const isCollab = docData.offer_type === 'collaboration';
                     const currSym = { INR: '₹', USD: '$', EUR: '€', GBP: '£' }[docData.currency] || (docData.currency || '₹');
                     const detailRows = [
                       ['Position', docData.role],
-                      ['Type', isFT ? 'Full-Time Employment' : 'Internship'],
+                      ['Type', isFT ? 'Full-Time Employment' : isCollab ? 'Collaboration Agreement' : 'Internship'],
                       docData.department && ['Department', docData.department],
                       docData.supervisor && ['Reporting To', docData.supervisor],
                       docData.start_date && ['Start Date', fmtOfferDate(docData.start_date)],
-                      !isFT && docData.end_date && ['End Date', fmtOfferDate(docData.end_date)],
+                      (!isFT || isCollab) && docData.end_date && ['End Date', fmtOfferDate(docData.end_date)],
                       docData.is_paid && docData.salary && ['Compensation', `${currSym} ${Number(docData.salary).toLocaleString('en-IN')} / ${(docData.payment_frequency || 'Monthly').toLowerCase()}`],
                       docData.valid_until && ['Respond By', fmtOfferDate(docData.valid_until)],
                     ].filter(Boolean);
@@ -592,9 +593,9 @@ export default function RecipientPortal({ documentId }) {
                     return (
                       <div className="rp-doc-body">
                         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1em', gap: '0.5em' }}>
-                          <h3 className="rp-doc-title" style={{ margin: 0 }}>{isFT ? 'OFFER OF EMPLOYMENT' : 'INTERNSHIP OFFER LETTER'}</h3>
-                          <span style={{ flexShrink: 0, display: 'inline-block', background: isFT ? '#059669' : '#2563eb', color: '#fff', fontSize: '8pt', fontWeight: 700, padding: '3px 12px', borderRadius: '20px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                            {isFT ? 'Full-Time' : 'Internship'}
+                          <h3 className="rp-doc-title" style={{ margin: 0 }}>{isCollab ? 'COLLABORATION AGREEMENT' : isFT ? 'OFFER OF EMPLOYMENT' : 'INTERNSHIP OFFER LETTER'}</h3>
+                          <span style={{ flexShrink: 0, display: 'inline-block', background: isCollab ? '#0d9488' : isFT ? '#059669' : '#2563eb', color: '#fff', fontSize: '8pt', fontWeight: 700, padding: '3px 12px', borderRadius: '20px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                            {isCollab ? 'Collaboration' : isFT ? 'Full-Time' : 'Internship'}
                           </span>
                         </div>
                         <p className="rp-doc-date">Date: {fmtOfferDate(docData.issue_date)}</p>
@@ -602,7 +603,10 @@ export default function RecipientPortal({ documentId }) {
                         <p><strong>{docData.issued_to}</strong></p>
                         <p className="rp-doc-para">Dear <strong>{docData.issued_to}</strong>,</p>
                         <p className="rp-doc-para">
-                          We are delighted to extend this {isFT ? 'offer of full-time employment' : 'internship offer'} to you for the role of <strong>{docData.role}</strong> at <strong>{company.company_name || docData.issued_by}</strong>. After careful consideration, we believe your skills and experience make you an excellent fit for our team.
+                          {isCollab
+                            ? <>We are pleased to invite you as a Collaborator for the role of <strong>{docData.role}</strong> at <strong>{company.company_name || docData.issued_by}</strong>. This collaboration does not constitute an employer-employee relationship.</>
+                            : <>We are delighted to extend this {isFT ? 'offer of full-time employment' : 'internship offer'} to you for the role of <strong>{docData.role}</strong> at <strong>{company.company_name || docData.issued_by}</strong>. After careful consideration, we believe your skills and experience make you an excellent fit for our team.</>
+                          }
                         </p>
 
                         <table className="rp-doc-table" style={{ marginBottom: '1.5em' }}>

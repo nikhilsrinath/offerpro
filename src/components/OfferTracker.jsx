@@ -435,8 +435,8 @@ export default function OfferTracker() {
 
   // ── Offer: Mobile Card (existing) ──────────────────────────────────────────
   const renderOfferCard = (offer) => {
-    const typeLabel = offer.offer_type === 'fulltime' ? 'Full-Time' : 'Internship';
-    const typeColor = offer.offer_type === 'fulltime' ? '#3b82f6' : '#8b5cf6';
+    const typeLabel = offer.offer_type === 'fulltime' ? 'Full-Time' : offer.offer_type === 'collaboration' ? 'Collaboration' : 'Internship';
+    const typeColor = offer.offer_type === 'fulltime' ? '#3b82f6' : offer.offer_type === 'collaboration' ? '#0d9488' : '#8b5cf6';
     return (
       <div
         key={offer.id}
@@ -867,7 +867,7 @@ export default function OfferTracker() {
                         {offer.role || '—'}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
-                        {[offer.department, offer.offer_type === 'fulltime' ? 'Full-Time' : 'Internship'].filter(Boolean).join(' · ')}
+                        {[offer.department, offer.offer_type === 'fulltime' ? 'Full-Time' : offer.offer_type === 'collaboration' ? 'Collaboration' : 'Internship'].filter(Boolean).join(' · ')}
                       </div>
                     </td>
 
@@ -1030,7 +1030,7 @@ function CreateOfferModal({ activeOrg, onClose }) {
         department: form.department.trim(),
         offer_type: form.offerType,
         start_date: form.startDate,
-        end_date: form.offerType === 'internship' ? form.endDate : '',
+        end_date: (form.offerType === 'internship' || form.offerType === 'collaboration') ? form.endDate : '',
         salary: form.isPaid ? form.stipend : null,
         currency: form.currency,
         payment_frequency: form.paymentFrequency,
@@ -1133,13 +1133,13 @@ function CreateOfferModal({ activeOrg, onClose }) {
 
             {/* Offer type toggle */}
             <div className="easy-toggle-bar" style={{ margin: 0 }}>
-              {['internship', 'fulltime'].map((type) => (
+              {['internship', 'fulltime', 'collaboration'].map((type) => (
                 <button
                   key={type} type="button"
                   onClick={() => setForm((p) => ({ ...p, offerType: type }))}
                   className={`easy-toggle-btn ${form.offerType === type ? 'active' : ''}`}
                 >
-                  {type === 'internship' ? 'Internship' : 'Full-Time'}
+                  {type === 'internship' ? 'Internship' : type === 'fulltime' ? 'Full-Time' : 'Collaboration'}
                 </button>
               ))}
             </div>
@@ -1184,7 +1184,7 @@ function CreateOfferModal({ activeOrg, onClose }) {
                     <label style={labelStyle}>Start date</label>
                     <input type="date" name="startDate" value={form.startDate} onChange={onChg} style={inputStyle} />
                   </div>
-                  {form.offerType === 'internship' ? (
+                  {(form.offerType === 'internship' || form.offerType === 'collaboration') ? (
                     <div>
                       <label style={labelStyle}>End date</label>
                       <input type="date" name="endDate" value={form.endDate} onChange={onChg} style={inputStyle} />
@@ -1211,7 +1211,7 @@ function CreateOfferModal({ activeOrg, onClose }) {
                 style={{ marginBottom: form.isPaid ? '0.75rem' : 0 }}
               >
                 <span className="easy-switch-label">
-                  {form.offerType === 'internship' ? 'Paid internship' : 'Paid position'}
+                  {form.offerType === 'internship' ? 'Paid internship' : form.offerType === 'collaboration' ? 'Paid collaboration' : 'Paid position'}
                 </span>
                 <div className="easy-switch-dot" />
               </div>
@@ -1231,8 +1231,16 @@ function CreateOfferModal({ activeOrg, onClose }) {
                       </select>
                       <select name="paymentFrequency" value={form.paymentFrequency} onChange={onChg} style={{ ...inputStyle, flex: 1.5 }}>
                         <option value="Monthly">Monthly</option>
-                        <option value="Once">One-time</option>
-                        {form.offerType === 'fulltime' && <option value="Annual">Annual (CTC)</option>}
+                        {form.offerType === 'fulltime' ? (
+                          <option value="Annual">Annual (CTC)</option>
+                        ) : form.offerType === 'collaboration' ? (
+                          <>
+                            <option value="Once">One-time</option>
+                            <option value="Milestone">Milestone</option>
+                          </>
+                        ) : (
+                          <option value="Once">One-time</option>
+                        )}
                       </select>
                     </div>
                   </div>

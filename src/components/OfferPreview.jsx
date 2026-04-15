@@ -17,6 +17,7 @@ export default function OfferPreview({ formData }) {
   };
 
   const isFT = formData.offerType === 'fulltime';
+  const isCollab = formData.offerType === 'collaboration';
   const today = new Date().toISOString().split('T')[0];
 
   return (
@@ -34,7 +35,7 @@ export default function OfferPreview({ formData }) {
 
       {/* Subject */}
       <p className="offer-subject">
-        {isFT ? 'Subject: Offer of Full-Time Employment' : 'Subject: Internship Offer Letter'}
+        {isFT ? 'Subject: Offer of Full-Time Employment' : isCollab ? 'Subject: Collaboration Agreement' : 'Subject: Internship Offer Letter'}
       </p>
 
       {/* Salutation */}
@@ -60,6 +61,30 @@ export default function OfferPreview({ formData }) {
           </p>
           <p className="offer-para">
             We look forward to your association and contributions to {formData.companyName || '___________'}.
+          </p>
+        </>
+      ) : isCollab ? (
+        <>
+          <p className="offer-para">
+            We are pleased to invite you as a Collaborator for the role of <strong>{formData.role || '___________'}</strong> at <strong>{formData.companyName || '___________'}</strong>, for a defined period from <strong>{formatDate(formData.startDate)}</strong> to <strong>{formatDate(formData.endDate)}</strong>. You will work within the <strong>{formData.department || '___________'}</strong> and coordinate with <strong>{formData.supervisorName || '___________'}</strong>.
+          </p>
+          <p className="offer-para">
+            The scope of this collaboration encompasses {formData.responsibilities || '___________'}. You are engaged as an independent professional collaborator, and this collaboration does not constitute an employer-employee relationship of any kind.
+          </p>
+          <p className="offer-para">
+            {formData.isPaid
+              ? `As compensation for your services, you will receive a collaboration fee of ${formData.stipend || '___'} ${formData.currency}, payable on a ${formData.paymentFrequency} basis, as mutually agreed.`
+              : 'This is a pro-bono/voluntary collaboration. No financial remuneration will be provided by the organization for services rendered under this agreement.'
+            }
+          </p>
+          <p className="offer-para">
+            Both parties agree to maintain strict confidentiality regarding proprietary information shared during this engagement. You are expected to uphold the highest standards of professional conduct throughout the collaboration period.
+          </p>
+          <p className="offer-para">
+            To confirm your acceptance of this collaboration agreement, please reply with your confirmation by <strong>{formatDate(formData.acceptanceDeadline)}</strong>.
+          </p>
+          <p className="offer-para">
+            We look forward to a productive and mutually beneficial partnership with you.
           </p>
         </>
       ) : (

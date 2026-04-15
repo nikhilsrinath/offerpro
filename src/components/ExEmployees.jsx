@@ -76,7 +76,7 @@ function ExEmpCard({ emp }) {
                                 fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.5rem',
                                 borderRadius: '20px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)',
                             }}>
-                                {emp.offerType === 'fulltime' ? 'Full-Time' : 'Intern'}
+                                {emp.offerType === 'fulltime' ? 'Full-Time' : emp.offerType === 'collaboration' ? 'Collaborator' : 'Intern'}
                             </span>
                         )}
                     </div>
@@ -153,7 +153,7 @@ function ExEmpRowCells({ emp }) {
                 {emp.department && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{emp.department}</div>}
             </td>
             <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                {emp.offerType === 'fulltime' ? 'Full-Time' : emp.offerType === 'internship' ? 'Intern' : '—'}
+                {emp.offerType === 'fulltime' ? 'Full-Time' : emp.offerType === 'collaboration' ? 'Collaborator' : emp.offerType === 'internship' ? 'Intern' : '—'}
             </td>
             <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                 {fmtDate(emp.startDate)}
