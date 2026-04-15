@@ -134,13 +134,13 @@ export default function RecipientPortal({ documentId }) {
           doc.advance_amount = Math.round(total * (pct / 100));
           doc.balance_due = total - doc.advance_amount;
         }
-        // Load company profile from Firebase if not embedded in document
-        if (!doc.company_profile && orgId) {
+        // Always fetch live org profile so logo/name changes reflect immediately
+        if (orgId) {
           try {
             const orgSnap = await get(ref(db, `organizations/${orgId}`));
             if (orgSnap.exists()) {
               const org = orgSnap.val();
-              doc.company_profile = {
+              const liveProfile = {
                 company_name: org.company_name || '',
                 address: org.company_address || org.address || '',
                 email: org.company_email || org.email || '',
@@ -155,7 +155,11 @@ export default function RecipientPortal({ documentId }) {
                 bank_account_type: org.bank_account_type || '',
                 company_tagline: org.company_tagline || '',
                 company_website: org.company_website || '',
+                authorized_person: org.owner_full_name || '',
+                authorized_designation: org.document_designation || '',
               };
+              // Merge: live org data takes priority, snapshot fills any gaps
+              doc.company_profile = { ...(doc.company_profile || {}), ...liveProfile };
             }
           } catch (err) {
             console.error('[RecipientPortal] Failed to load org profile:', err.message);
