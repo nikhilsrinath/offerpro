@@ -295,50 +295,50 @@ export const pdfService = {
     addText(data.studentAddress, { size: 10, gap: 5 });
 
     // 5. Template Logic (Strict Separation)
-    const isFT = data.offerType === ‘fulltime’;
-    const isCollab = data.offerType === ‘collaboration’;
+    const isFT = data.offerType === 'fulltime';
+    const isCollab = data.offerType === 'collaboration';
 
     if (isFT) {
       // --- FULL-TIME TEMPLATE ---
-      addText(‘Subject: Offer of Full-Time Employment’, { style: ‘bold’, alignment: ‘center’, gap: 6 });
-      addText(`Dear ${data.studentName},`, { style: ‘bold’, gap: 4 });
+      addText('Subject: Offer of Full-Time Employment', { style: 'bold', alignment: 'center', gap: 6 });
+      addText(`Dear ${data.studentName},`, { style: 'bold', gap: 4 });
 
       renderJustifiedParagraph([
-        { text: ‘We are pleased to offer you the position of ‘ },
+        { text: 'We are pleased to offer you the position of ' },
         { text: data.role, bold: true },
-        { text: ‘ at ‘ },
+        { text: ' at ' },
         { text: data.companyName, bold: true },
         { text: `, effective ` },
         { text: formatDateToWording(data.startDate), bold: true },
-        { text: ‘. You will be associated with the ‘ },
+        { text: '. You will be associated with the ' },
         { text: data.department, bold: true },
-        { text: ‘ and will report to ‘ },
+        { text: ' and will report to ' },
         { text: data.supervisorName, bold: true },
-        { text: ‘.’ }
+        { text: '.' }
       ]);
 
       renderJustifiedParagraph([
-        { text: ‘In this role, you will be responsible for ‘ },
+        { text: 'In this role, you will be responsible for ' },
         { text: data.responsibilities, bold: false },
-        { text: ‘, contributing to the company\u2019s strategic, operational, and financial objectives.’ }
+        { text: ', contributing to the company\u2019s strategic, operational, and financial objectives.' }
       ]);
 
-      const payTerm = data.paymentFrequency === ‘Annual’ ? ‘an annual compensation’ : ‘a compensation’;
+      const payTerm = data.paymentFrequency === 'Annual' ? 'an annual compensation' : 'a compensation';
       renderJustifiedParagraph([
-        { text: ‘This is a full-time employment position. You will receive ‘ },
+        { text: 'This is a full-time employment position. You will receive ' },
         { text: `${payTerm} of `, bold: false },
         { text: `${data.stipend} ${data.currency}`, bold: true },
         { text: `, payable as per company policy, along with applicable benefits.` }
       ]);
 
       renderJustifiedParagraph([
-        { text: ‘You are required to maintain the highest standards of professional conduct and confidentiality during and after your employment with the company. Your employment will be governed by company policies and applicable laws.’ }
+        { text: 'You are required to maintain the highest standards of professional conduct and confidentiality during and after your employment with the company. Your employment will be governed by company policies and applicable laws.' }
       ]);
 
       renderJustifiedParagraph([
-        { text: ‘To confirm your acceptance of this offer, please reply to this email with your confirmation by ‘ },
+        { text: 'To confirm your acceptance of this offer, please reply to this email with your confirmation by ' },
         { text: formatDateToWording(data.acceptanceDeadline), bold: true },
-        { text: ‘.’ }
+        { text: '.' }
       ]);
 
       renderJustifiedParagraph([
@@ -347,29 +347,29 @@ export const pdfService = {
 
     } else if (isCollab) {
       // --- COLLABORATION TEMPLATE ---
-      addText(‘Subject: Collaboration Agreement’, { style: ‘bold’, alignment: ‘center’, gap: 6 });
-      addText(`Dear ${data.studentName},`, { style: ‘bold’, gap: 4 });
+      addText('Subject: Collaboration Agreement', { style: 'bold', alignment: 'center', gap: 6 });
+      addText(`Dear ${data.studentName},`, { style: 'bold', gap: 4 });
 
       renderJustifiedParagraph([
-        { text: ‘We are pleased to invite you as a Collaborator for the role of ‘ },
+        { text: 'We are pleased to invite you as a Collaborator for the role of ' },
         { text: data.role, bold: true },
-        { text: ‘ at ‘ },
+        { text: ' at ' },
         { text: data.companyName, bold: true },
-        { text: ‘, for a defined period from ‘ },
+        { text: ', for a defined period from ' },
         { text: formatDateToWording(data.startDate), bold: true },
-        { text: ‘ to ‘ },
+        { text: ' to ' },
         { text: formatDateToWording(data.endDate), bold: true },
-        { text: ‘. You will work within the ‘ },
+        { text: '. You will work within the ' },
         { text: data.department, bold: true },
-        { text: ‘ and coordinate with ‘ },
+        { text: ' and coordinate with ' },
         { text: data.supervisorName, bold: true },
-        { text: ‘.’ }
+        { text: '.' }
       ]);
 
       renderJustifiedParagraph([
-        { text: ‘The scope of this collaboration encompasses ‘ },
+        { text: 'The scope of this collaboration encompasses ' },
         { text: data.responsibilities, bold: false },
-        { text: ‘. You are engaged as an independent professional collaborator, and this collaboration does not constitute an employer-employee relationship of any kind.’ }
+        { text: '. You are engaged as an independent professional collaborator, and this collaboration does not constitute an employer-employee relationship of any kind.' }
       ]);
 
       const collabPayText = data.isPaid
@@ -379,13 +379,13 @@ export const pdfService = {
       renderJustifiedParagraph([{ text: collabPayText }]);
 
       renderJustifiedParagraph([
-        { text: ‘Both parties agree to maintain strict confidentiality regarding proprietary information shared during this engagement. You are expected to uphold the highest standards of professional conduct throughout the collaboration period.’ }
+        { text: 'Both parties agree to maintain strict confidentiality regarding proprietary information shared during this engagement. You are expected to uphold the highest standards of professional conduct throughout the collaboration period.' }
       ]);
 
       renderJustifiedParagraph([
-        { text: ‘To confirm your acceptance of this collaboration agreement, please reply with your confirmation by ‘ },
+        { text: 'To confirm your acceptance of this collaboration agreement, please reply with your confirmation by ' },
         { text: formatDateToWording(data.acceptanceDeadline), bold: true },
-        { text: ‘.’ }
+        { text: '.' }
       ]);
 
       renderJustifiedParagraph([
@@ -394,23 +394,23 @@ export const pdfService = {
 
     } else {
       // --- INTERNSHIP TEMPLATE ---
-      addText(‘Subject: Internship Offer Letter’, { style: ‘bold’, alignment: ‘center’, gap: 6 });
-      addText(`Dear ${data.studentName},`, { style: ‘bold’, gap: 4 });
+      addText('Subject: Internship Offer Letter', { style: 'bold', alignment: 'center', gap: 6 });
+      addText(`Dear ${data.studentName},`, { style: 'bold', gap: 4 });
 
       renderJustifiedParagraph([
-        { text: ‘We are pleased to offer you the position of ‘ },
+        { text: 'We are pleased to offer you the position of ' },
         { text: data.role, bold: true },
-        { text: ‘ at ‘ },
+        { text: ' at ' },
         { text: data.companyName, bold: true },
-        { text: ‘. This internship will commence on ‘ },
+        { text: '. This internship will commence on ' },
         { text: formatDateToWording(data.startDate), bold: true },
-        { text: ‘ and conclude on ‘ },
+        { text: ' and conclude on ' },
         { text: formatDateToWording(data.endDate), bold: true },
-        { text: ‘. You will be associated with the ‘ },
+        { text: '. You will be associated with the ' },
         { text: data.department, bold: true },
-        { text: ‘ and report to ‘ },
+        { text: ' and report to ' },
         { text: data.supervisorName, bold: true },
-        { text: ‘.’ }
+        { text: '.' }
       ]);
 
       const payText = data.isPaid
@@ -418,19 +418,19 @@ export const pdfService = {
         : `This is an unpaid internship. No financial remuneration or benefits will be provided by the organization.`;
 
       renderJustifiedParagraph([
-        { text: ‘Your responsibilities will include ‘ },
+        { text: 'Your responsibilities will include ' },
         { text: data.responsibilities, bold: false },
         { text: `. ${payText} This offer does not guarantee permanent employment.` }
       ]);
 
       renderJustifiedParagraph([
-        { text: ‘You are required to maintain professional conduct and confidentiality during and after your tenure. To accept this offer, please confirm your acceptance by replying to this email by ‘ },
+        { text: 'You are required to maintain professional conduct and confidentiality during and after your tenure. To accept this offer, please confirm your acceptance by replying to this email by ' },
         { text: formatDateToWording(data.acceptanceDeadline), bold: true },
-        { text: ‘.’ }
+        { text: '.' }
       ]);
 
       renderJustifiedParagraph([
-        { text: ‘We wish you a productive learning experience with us.’ }
+        { text: 'We wish you a productive learning experience with us.' }
       ]);
     }
 
