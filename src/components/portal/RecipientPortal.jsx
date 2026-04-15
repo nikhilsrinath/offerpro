@@ -340,22 +340,54 @@ export default function RecipientPortal({ documentId }) {
       if (totalH <= pdfH) {
         pdf.addImage(imgData, 'PNG', 0, 0, pdfW, totalH);
       } else {
-        // Multi-page: slice the canvas into page-sized chunks
+        // Multi-page: slice at natural break points (blank rows) to avoid cutting content
         const pageCanvasH = Math.floor(canvas.width * (pdfH / pdfW));
-        let yOffset = 0;
-        let page = 0;
-        while (yOffset < canvas.height) {
-          const sliceH = Math.min(pageCanvasH, canvas.height - yOffset);
+        const ctx0 = canvas.getContext('2d', { willReadFrequently: true });
+
+        // Find the best blank row near a target Y to avoid cutting through text/tables
+        const findBreakPoint = (targetY) => {
+          const scanRange = Math.floor(pageCanvasH * 0.08); // scan ±8% of page height
+          const lo = Math.max(0, targetY - scanRange);
+          const hi = Math.min(canvas.height, targetY + scanRange);
+          let bestY = targetY;
+          let bestScore = -1;
+          for (let row = lo; row < hi; row++) {
+            const rowData = ctx0.getImageData(0, row, canvas.width, 1).data;
+            let whitePixels = 0;
+            for (let i = 0; i < rowData.length; i += 4) {
+              if (rowData[i] > 240 && rowData[i + 1] > 240 && rowData[i + 2] > 240) whitePixels++;
+            }
+            const score = whitePixels / (canvas.width);
+            if (score > bestScore) { bestScore = score; bestY = row; }
+            if (score >= 0.99) break; // fully blank row — perfect break
+          }
+          return bestY;
+        };
+
+        // Build list of break points
+        const breaks = [0];
+        let cursor = 0;
+        while (cursor + pageCanvasH < canvas.height) {
+          const raw = cursor + pageCanvasH;
+          const bp = findBreakPoint(raw);
+          breaks.push(bp);
+          cursor = bp;
+        }
+        breaks.push(canvas.height);
+
+        for (let p = 0; p < breaks.length - 1; p++) {
+          const sliceTop = breaks[p];
+          const sliceH = breaks[p + 1] - sliceTop;
           const pageCanvas = document.createElement('canvas');
           pageCanvas.width = canvas.width;
           pageCanvas.height = sliceH;
           const ctx = pageCanvas.getContext('2d');
-          ctx.drawImage(canvas, 0, -yOffset);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, sliceH);
+          ctx.drawImage(canvas, 0, -sliceTop);
           const pageImg = pageCanvas.toDataURL('image/png');
-          if (page > 0) pdf.addPage();
+          if (p > 0) pdf.addPage();
           pdf.addImage(pageImg, 'PNG', 0, 0, pdfW, (sliceH / canvas.width) * pdfW);
-          yOffset += pageCanvasH;
-          page++;
         }
       }
       const clientName = (docData.issued_to || docData.client?.name || 'Client').replace(/\s+/g, '_');
@@ -561,7 +593,13 @@ export default function RecipientPortal({ documentId }) {
                 <div className="rp-doc-content">
                   {/* Letterhead */}
                   <div className="rp-letterhead">
-                    {company.logo_url && <img src={company.logo_url} alt="" className="rp-letterhead-logo" />}
+                    {company.logo_url && <img src={company.logo_url} alt="" className="rp-letterhead-logo" crossOrigin="anonymous" onLoad={(e) => {
+                      const img = e.target;
+                      const nat = img.naturalWidth / img.naturalHeight;
+                      const h = 56;
+                      img.style.height = h + 'px';
+                      img.style.width = Math.round(h * nat) + 'px';
+                    }} />}
                     <div className="rp-letterhead-text">
                       <h2>{company.company_name || docData.issued_by}</h2>
                       {(company.company_address || company.address) && <p>{company.company_address || company.address}</p>}

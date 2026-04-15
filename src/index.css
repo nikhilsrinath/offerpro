@@ -10716,6 +10716,7 @@ label {
   max-width: 140px;
   object-fit: contain;
   border-radius: 6px;
+  flex-shrink: 0;
 }
 
 .rp-letterhead-text h2 {
