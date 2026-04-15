@@ -339,7 +339,7 @@ export default function RecipientPortal({ documentId }) {
 
     // Collect Y positions of keep-together sections (relative to element top, in CSS px)
     const keepTogetherSections = [];
-    element.querySelectorAll('.rp-doc-sig-section').forEach((sec) => {
+    element.querySelectorAll('.rp-doc-signoff-block, .rp-doc-sig-section').forEach((sec) => {
       const elRect = element.getBoundingClientRect();
       const secRect = sec.getBoundingClientRect();
       keepTogetherSections.push({
@@ -723,40 +723,42 @@ export default function RecipientPortal({ documentId }) {
                           </p>
                         )}
 
-                        <p className="rp-doc-sign-line">Sincerely,</p>
-                        <p><strong>{company.authorized_person || company.company_name || docData.issued_by}</strong></p>
-                        {company.authorized_designation && <p style={{ fontSize: '9pt', color: '#6b7280' }}>{company.authorized_designation}</p>}
+                        <div className="rp-doc-signoff-block">
+                          <p className="rp-doc-sign-line">Sincerely,</p>
+                          <p><strong>{company.authorized_person || company.company_name || docData.issued_by}</strong></p>
+                          {company.authorized_designation && <p style={{ fontSize: '9pt', color: '#6b7280' }}>{company.authorized_designation}</p>}
 
-                        <div className="rp-doc-sig-section">
-                          <h4>ACCEPTANCE & SIGNATURE</h4>
-                          <div className="rp-doc-sig-rule" />
-                          <p>I, <strong>{docData.issued_to}</strong>, hereby accept the terms and conditions of this offer letter.</p>
-                          <div className="rp-doc-sig-grid">
-                            <div className="rp-doc-sig-col">
-                              <p className="rp-doc-sig-heading">Authorized Signatory</p>
-                              <p>{company.company_name || docData.issued_by}</p>
-                              <p>Date: {fmtOfferDate(docData.issue_date)}</p>
-                              {company.signature_url && <img src={company.signature_url} alt="Signature" className="rp-doc-sig-img" />}
-                              <div className="rp-doc-sig-line" />
-                              <p className="rp-doc-sig-caption">Signature</p>
-                            </div>
-                            <div className="rp-doc-sig-col">
-                              <p className="rp-doc-sig-heading">Candidate Signature</p>
-                              {status === 'signed' && signature ? (
-                                <>
-                                  <img src={signature} alt="Candidate Signature" className="rp-doc-sig-img" />
-                                  <p>Name: {candidateName || docData.issued_to}</p>
-                                  <p>Date: {new Date().toLocaleDateString()}</p>
-                                </>
-                              ) : (
-                                <>
-                                  <p>Name: _______________________</p>
-                                  <p>Date: _______________________</p>
-                                  <p>Place: _______________________</p>
-                                  <div className="rp-doc-sig-line" />
-                                  <p className="rp-doc-sig-caption">Signature</p>
-                                </>
-                              )}
+                          <div className="rp-doc-sig-section">
+                            <h4>ACCEPTANCE & SIGNATURE</h4>
+                            <div className="rp-doc-sig-rule" />
+                            <p>I, <strong>{docData.issued_to}</strong>, hereby accept the terms and conditions of this offer letter.</p>
+                            <div className="rp-doc-sig-grid">
+                              <div className="rp-doc-sig-col">
+                                <p className="rp-doc-sig-heading">Authorized Signatory</p>
+                                <p>{company.company_name || docData.issued_by}</p>
+                                <p>Date: {fmtOfferDate(docData.issue_date)}</p>
+                                {company.signature_url && <img src={company.signature_url} alt="Signature" className="rp-doc-sig-img" />}
+                                <div className="rp-doc-sig-line" />
+                                <p className="rp-doc-sig-caption">Signature</p>
+                              </div>
+                              <div className="rp-doc-sig-col">
+                                <p className="rp-doc-sig-heading">Candidate Signature</p>
+                                {status === 'signed' && signature ? (
+                                  <>
+                                    <img src={signature} alt="Candidate Signature" className="rp-doc-sig-img" />
+                                    <p>Name: {candidateName || docData.issued_to}</p>
+                                    <p>Date: {new Date().toLocaleDateString()}</p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p>Name: _______________________</p>
+                                    <p>Date: _______________________</p>
+                                    <p>Place: _______________________</p>
+                                    <div className="rp-doc-sig-line" />
+                                    <p className="rp-doc-sig-caption">Signature</p>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -799,29 +801,31 @@ export default function RecipientPortal({ documentId }) {
                         </div>
                       )}
                       <p className="rp-doc-para">We look forward to your continued contributions in this new capacity. Should you have any questions, please reach out to the HR department.</p>
-                      <p className="rp-doc-sign-line">Sincerely,</p>
-                      <p><strong>{company.authorized_person || company.company_name || 'HR Department'}</strong></p>
-                      {company.authorized_designation && <p style={{ fontSize: '9pt', color: '#6b7280' }}>{company.authorized_designation}</p>}
-                      {company.signature_url && <img src={company.signature_url} alt="Authorized Signature" className="rp-doc-sig-img" />}
-                      <div className="rp-doc-sig-section">
-                        <h4>ACKNOWLEDGEMENT</h4>
-                        <div className="rp-doc-sig-rule" />
-                        <p>I, <strong>{docData.issued_to}</strong>, hereby acknowledge receipt and understanding of this role change notice.</p>
-                        <div className="rp-doc-sig-grid">
-                          <div className="rp-doc-sig-col">
-                            <p className="rp-doc-sig-heading">Authorized Signatory</p>
-                            <p>{company.company_name || 'HR Department'}</p>
-                            <p>Date: {fmtOfferDate(docData.issue_date)}</p>
-                            {company.signature_url && <img src={company.signature_url} alt="Signature" className="rp-doc-sig-img" style={{ opacity: 0.6 }} />}
-                            <div className="rp-doc-sig-line" /><p className="rp-doc-sig-caption">Signature</p>
-                          </div>
-                          <div className="rp-doc-sig-col">
-                            <p className="rp-doc-sig-heading">Employee Acknowledgement</p>
-                            {status === 'acknowledged' && signature ? (
-                              <><img src={signature} alt="Employee Signature" className="rp-doc-sig-img" /><p>Name: {candidateName || docData.issued_to}</p><p>Date: {new Date().toLocaleDateString()}</p></>
-                            ) : (
-                              <><p>Name: _______________________</p><p>Date: _______________________</p><div className="rp-doc-sig-line" /><p className="rp-doc-sig-caption">Signature</p></>
-                            )}
+                      <div className="rp-doc-signoff-block">
+                        <p className="rp-doc-sign-line">Sincerely,</p>
+                        <p><strong>{company.authorized_person || company.company_name || 'HR Department'}</strong></p>
+                        {company.authorized_designation && <p style={{ fontSize: '9pt', color: '#6b7280' }}>{company.authorized_designation}</p>}
+                        {company.signature_url && <img src={company.signature_url} alt="Authorized Signature" className="rp-doc-sig-img" />}
+                        <div className="rp-doc-sig-section">
+                          <h4>ACKNOWLEDGEMENT</h4>
+                          <div className="rp-doc-sig-rule" />
+                          <p>I, <strong>{docData.issued_to}</strong>, hereby acknowledge receipt and understanding of this role change notice.</p>
+                          <div className="rp-doc-sig-grid">
+                            <div className="rp-doc-sig-col">
+                              <p className="rp-doc-sig-heading">Authorized Signatory</p>
+                              <p>{company.company_name || 'HR Department'}</p>
+                              <p>Date: {fmtOfferDate(docData.issue_date)}</p>
+                              {company.signature_url && <img src={company.signature_url} alt="Signature" className="rp-doc-sig-img" style={{ opacity: 0.6 }} />}
+                              <div className="rp-doc-sig-line" /><p className="rp-doc-sig-caption">Signature</p>
+                            </div>
+                            <div className="rp-doc-sig-col">
+                              <p className="rp-doc-sig-heading">Employee Acknowledgement</p>
+                              {status === 'acknowledged' && signature ? (
+                                <><img src={signature} alt="Employee Signature" className="rp-doc-sig-img" /><p>Name: {candidateName || docData.issued_to}</p><p>Date: {new Date().toLocaleDateString()}</p></>
+                              ) : (
+                                <><p>Name: _______________________</p><p>Date: _______________________</p><div className="rp-doc-sig-line" /><p className="rp-doc-sig-caption">Signature</p></>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -863,29 +867,31 @@ export default function RecipientPortal({ documentId }) {
                       <p className="rp-doc-para">
                         Please ensure all company property and documents are returned and knowledge transfer is completed by your last working day. Your final settlement will be processed in accordance with company policy.
                       </p>
-                      <p className="rp-doc-sign-line">Sincerely,</p>
-                      <p><strong>{company.authorized_person || company.company_name || 'HR Department'}</strong></p>
-                      {company.authorized_designation && <p style={{ fontSize: '9pt', color: '#6b7280' }}>{company.authorized_designation}</p>}
-                      {company.signature_url && <img src={company.signature_url} alt="Authorized Signature" className="rp-doc-sig-img" />}
-                      <div className="rp-doc-sig-section">
-                        <h4>ACKNOWLEDGEMENT</h4>
-                        <div className="rp-doc-sig-rule" />
-                        <p>I, <strong>{docData.issued_to}</strong>, hereby acknowledge receipt of this termination notice.</p>
-                        <div className="rp-doc-sig-grid">
-                          <div className="rp-doc-sig-col">
-                            <p className="rp-doc-sig-heading">Authorized Signatory</p>
-                            <p>{company.company_name || 'HR Department'}</p>
-                            <p>Date: {fmtOfferDate(docData.issue_date)}</p>
-                            {company.signature_url && <img src={company.signature_url} alt="Signature" className="rp-doc-sig-img" style={{ opacity: 0.6 }} />}
-                            <div className="rp-doc-sig-line" /><p className="rp-doc-sig-caption">Signature</p>
-                          </div>
-                          <div className="rp-doc-sig-col">
-                            <p className="rp-doc-sig-heading">Employee Acknowledgement</p>
-                            {status === 'acknowledged' && signature ? (
-                              <><img src={signature} alt="Employee Signature" className="rp-doc-sig-img" /><p>Name: {candidateName || docData.issued_to}</p><p>Date: {new Date().toLocaleDateString()}</p></>
-                            ) : (
-                              <><p>Name: _______________________</p><p>Date: _______________________</p><div className="rp-doc-sig-line" /><p className="rp-doc-sig-caption">Signature</p></>
-                            )}
+                      <div className="rp-doc-signoff-block">
+                        <p className="rp-doc-sign-line">Sincerely,</p>
+                        <p><strong>{company.authorized_person || company.company_name || 'HR Department'}</strong></p>
+                        {company.authorized_designation && <p style={{ fontSize: '9pt', color: '#6b7280' }}>{company.authorized_designation}</p>}
+                        {company.signature_url && <img src={company.signature_url} alt="Authorized Signature" className="rp-doc-sig-img" />}
+                        <div className="rp-doc-sig-section">
+                          <h4>ACKNOWLEDGEMENT</h4>
+                          <div className="rp-doc-sig-rule" />
+                          <p>I, <strong>{docData.issued_to}</strong>, hereby acknowledge receipt of this termination notice.</p>
+                          <div className="rp-doc-sig-grid">
+                            <div className="rp-doc-sig-col">
+                              <p className="rp-doc-sig-heading">Authorized Signatory</p>
+                              <p>{company.company_name || 'HR Department'}</p>
+                              <p>Date: {fmtOfferDate(docData.issue_date)}</p>
+                              {company.signature_url && <img src={company.signature_url} alt="Signature" className="rp-doc-sig-img" style={{ opacity: 0.6 }} />}
+                              <div className="rp-doc-sig-line" /><p className="rp-doc-sig-caption">Signature</p>
+                            </div>
+                            <div className="rp-doc-sig-col">
+                              <p className="rp-doc-sig-heading">Employee Acknowledgement</p>
+                              {status === 'acknowledged' && signature ? (
+                                <><img src={signature} alt="Employee Signature" className="rp-doc-sig-img" /><p>Name: {candidateName || docData.issued_to}</p><p>Date: {new Date().toLocaleDateString()}</p></>
+                              ) : (
+                                <><p>Name: _______________________</p><p>Date: _______________________</p><div className="rp-doc-sig-line" /><p className="rp-doc-sig-caption">Signature</p></>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
