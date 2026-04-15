@@ -4,7 +4,10 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
-  signOut
+  signOut,
+  updatePassword as firebaseUpdatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider
 } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
 import { auth, db, googleProvider } from '../lib/firebase';
@@ -75,6 +78,17 @@ export const AuthProvider = ({ children }) => {
     await signOut(auth);
   };
 
+  const updatePassword = async (newPassword) => {
+    if (!user) throw new Error('No user logged in');
+    await firebaseUpdatePassword(user, newPassword);
+  };
+
+  const reauthenticate = async (currentPassword) => {
+    if (!user || !user.email) throw new Error('No user logged in');
+    const credential = EmailAuthProvider.credential(user.email, currentPassword);
+    await reauthenticateWithCredential(user, credential);
+  };
+
   const completeOnboarding = () => {
     setNeedsOnboarding(false);
   };
@@ -88,7 +102,9 @@ export const AuthProvider = ({ children }) => {
       signup,
       loginWithGoogle,
       logout,
-      completeOnboarding
+      completeOnboarding,
+      updatePassword,
+      reauthenticate
     }}>
       {children}
     </AuthContext.Provider>

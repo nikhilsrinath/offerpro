@@ -50,7 +50,7 @@
     <div id="app">
         <!-- Auth Section -->
         <div id="loginSection"
-            class="hidden max-w-md mx-auto mt-32 bg-white p-10 rounded-2xl shadow-xl border border-gray-100">
+            class="max-w-md mx-auto mt-32 bg-white p-10 rounded-2xl shadow-xl border border-gray-100">
             <div class="text-center mb-8">
                 <div
                     class="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6 text-blue-600">
@@ -109,11 +109,21 @@
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
                                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                 stroke-linejoin="round">
-                                <path d="M3 12a9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
                                 <path d="M21 3v5h-5" />
                                 <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
                                 <path d="M3 21v-5h5" />
                             </svg>
+                        </button>
+                        <button id="changePasswordBtn"
+                            class="flex items-center gap-2 text-gray-500 hover:text-blue-600 font-semibold text-sm transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                            <span>Change Password</span>
                         </button>
                         <div class="h-6 w-px bg-gray-200"></div>
                         <button id="logoutBtn"
@@ -340,10 +350,9 @@
     <!-- Scripts -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getDatabase, ref, get, update, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Config from current implementation
         const firebaseConfig = {
             apiKey: "AIzaSyCqe28dSIfjzI9Ra7lgVlZpiHVnWTD1wk8",
             authDomain: "offerpro-892b9.firebaseapp.com",
@@ -359,172 +368,14 @@
         const auth = getAuth(app);
         const db = getDatabase(app);
 
-        // Global State
-        let organizations = {};
-        let selectedOrgId = null;
-        let revenueChart = null;
-        let distributionChart = null;
+        signInAnonymously(auth).catch(console.error);
 
-        // UI Handlers
-        window.showListView = () => {
-            document.getElementById('listView').classList.remove('hidden');
-            document.getElementById('detailView').classList.add('hidden');
-            document.getElementById('listStats').classList.remove('hidden');
-            selectedOrgId = null;
-        };
-
-        window.showDetailView = async (orgId) => {
-            selectedOrgId = orgId;
-            const org = organizations[orgId];
-            if (!org) return;
-
-            // Switch UI
-            document.getElementById('listView').classList.add('hidden');
-            document.getElementById('detailView').classList.remove('hidden');
-            document.getElementById('listStats').classList.add('hidden');
-
-            // Set Basic Info
-            document.getElementById('detailOrgName').textContent = org.company_name || 'N/A';
-            document.getElementById('detailOrgEmail').textContent = org.company_email || 'N/A';
-            document.getElementById('orgLogoPlaceholder').textContent = (org.company_name || 'N')[0];
-            document.getElementById('detailCreatedAt').textContent = org.created_at ? new Date(org.created_at).toLocaleDateString() : 'N/A';
-
-            const badge = document.getElementById('detailPremiumBadge');
-            badge.textContent = org.is_premium ? 'PREMIUM' : 'TRIAL';
-            badge.className = `px-2 py-1 rounded text-[10px] font-bold ${org.is_premium ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`;
-
-            // Prepare Contact Links
-            document.getElementById('emailContactBtn').href = `mailto:${org.company_email}?subject=Important Notice: OfferPro Account Update&body=Hello ${org.company_name},\n\nThis is a notice regarding your OfferPro account...`;
-            document.getElementById('whatsappContactBtn').href = `https://wa.me/${org.phone || ''}?text=Hello ${org.company_name || ''}, this is from OfferPro Admin.`;
-
-            // Reset Stats
-            ['detailTotalDocs', 'detailRevenue', 'detailProfit', 'detailMouCount'].forEach(id => {
-                document.getElementById(id).textContent = '0';
-            });
-            document.getElementById('orgRecordsList').innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-400">Loading records...</td></tr>';
-
-            // Fetch Records for this Org
-            await fetchOrgRecords(orgId);
-        };
-
-        async function fetchOrgRecords(orgId) {
-            const recordsRef = ref(db, `records/${orgId}`);
-            try {
-                const snapshot = await get(recordsRef);
-                const list = document.getElementById('orgRecordsList');
-                list.innerHTML = '';
-
-                let counts = { total: 0, mou: 0, offer: 0, invoice: 0, revenue: 0, profit: 0 };
-                let monthlyData = {}; // Format: { "Jan 2024": { rev: 0, prof: 0 } }
-                let typesData = { offer: 0, mou: 0, invoice: 0, certificate: 0 };
-
-                if (snapshot.exists()) {
-                    const records = snapshot.val();
-                    const sortedRecords = Object.values(records).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-                    sortedRecords.forEach(r => {
-                        counts.total++;
-                        const date = new Date(r.created_at);
-                        const monthKey = date.toLocaleString('default', { month: 'short', year: 'numeric' });
-
-                        if (!monthlyData[monthKey]) monthlyData[monthKey] = { rev: 0, prof: 0, docs: 0 };
-                        monthlyData[monthKey].docs++;
-
-                        if (r.type === 'mou' || r.type === 'nda') { counts.mou++; typesData.mou++; }
-                        if (r.type === 'offer') { counts.offer++; typesData.offer++; }
-                        if (r.type === 'certificate') typesData.certificate++;
-
-                        if (r.type === 'invoice') {
-                            counts.invoice++;
-                            typesData.invoice++;
-                            const rev = Number(r.totals?.grandTotal) || 0;
-                            const cost = Number(r.makingCharges) || 0;
-                            const prof = rev - cost;
-
-                            counts.revenue += rev;
-                            counts.profit += prof;
-                            monthlyData[monthKey].rev += rev;
-                            monthlyData[monthKey].prof += prof;
-                        }
-
-                        const tr = document.createElement('tr');
-                        tr.className = 'hover:bg-gray-50/50 transition-colors';
-                        tr.innerHTML = `
-                            <td class="py-4 px-6 font-bold text-gray-800 text-sm">${r.title || 'N/A'}</td>
-                            <td class="py-4 px-6">
-                                <span class="px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-tight bg-gray-100 text-gray-600">${r.type}</span>
-                            </td>
-                            <td class="py-4 px-6 text-xs text-gray-400 font-medium">${date.toLocaleDateString()}</td>
-                        `;
-                        list.appendChild(tr);
-                    });
-
-                    updateCharts(monthlyData, typesData);
-                } else {
-                    list.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-400 font-medium">No documents issued yet.</td></tr>';
-                    updateCharts({}, {});
-                }
-
-                // Update Detailed Stats
-                document.getElementById('detailTotalDocs').textContent = counts.total;
-                document.getElementById('detailRevenue').textContent = '₹' + Math.round(counts.revenue).toLocaleString('en-IN');
-                document.getElementById('detailProfit').textContent = '₹' + Math.round(counts.profit).toLocaleString('en-IN');
-                document.getElementById('detailMouCount').textContent = counts.mou;
-
-            } catch (err) {
-                console.error("Error fetching org records:", err);
-            }
-        }
-
-        function updateCharts(monthlyData, typesData) {
-            // Destroy existing charts if they exist
-            if (revenueChart) revenueChart.destroy();
-            if (distributionChart) distributionChart.destroy();
-
-            const months = Object.keys(monthlyData).reverse();
-            const revenues = months.map(m => monthlyData[m].rev);
-            const profits = months.map(m => monthlyData[m].prof);
-
-            const revCtx = document.getElementById('revenueChart').getContext('2d');
-            revenueChart = new Chart(revCtx, {
-                type: 'line',
-                data: {
-                    labels: months,
-                    datasets: [
-                        { label: 'Revenue', data: revenues, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.4 },
-                        { label: 'Profit', data: profits, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.4 }
-                    ]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } } }
-            });
-
-            const distCtx = document.getElementById('distributionChart').getContext('2d');
-            distributionChart = new Chart(distCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Offers', 'MoUs', 'Invoices', 'Certificates'],
-                    datasets: [{
-                        data: [typesData.offer || 0, typesData.mou || 0, typesData.invoice || 0, typesData.certificate || 0],
-                        backgroundColor: ['#60a5fa', '#f59e0b', '#10b981', '#8b5cf6'],
-                        borderWidth: 0
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10, weight: 'bold' } } } }, cutout: '70%' }
-            });
-        }
-
-        // Firebase Listeners & Auth
         onAuthStateChanged(auth, (user) => {
-            const loginSection = document.getElementById('loginSection');
-            const adminSection = document.getElementById('adminSection');
-            if (user) {
-                loginSection.classList.add('hidden');
-                adminSection.classList.remove('hidden');
-                document.getElementById('userDisplay').textContent = user.email;
+            if (localStorage.getItem('admin_session') === 'true') {
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('adminSection').classList.remove('hidden');
+                document.getElementById('userDisplay').textContent = 'admin@edgeos.com';
                 fetchDashboardData();
-            } else {
-                loginSection.classList.remove('hidden');
-                adminSection.classList.add('hidden');
             }
         });
 
@@ -631,18 +482,27 @@
             const loginEmail = document.getElementById('username').value;
             const loginPass = document.getElementById('password').value;
             const errorEl = document.getElementById('loginError');
+            const storedPass = localStorage.getItem('admin_password') || 'admin123';
 
-            try {
-                const finalEmail = loginEmail.includes('@') ? loginEmail : `${loginEmail}@offerpro.com`;
-                await signInWithEmailAndPassword(auth, finalEmail, loginPass);
+            if (loginEmail === 'admin@edgeos.com' && loginPass === storedPass) {
+                localStorage.setItem('admin_session', 'true');
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('adminSection').classList.remove('hidden');
+                document.getElementById('userDisplay').textContent = 'admin@edgeos.com';
+                fetchDashboardData();
                 errorEl.classList.add('hidden');
-            } catch (err) {
-                errorEl.textContent = "Access Denied: Invalid Administrative Credentials.";
-                errorEl.classList.remove('hidden');
+                return;
             }
+
+            errorEl.textContent = "Access Denied: Invalid Administrative Credentials.";
+            errorEl.classList.remove('hidden');
         });
 
-        document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('admin_session');
+            document.getElementById('loginSection').classList.remove('hidden');
+            document.getElementById('adminSection').classList.add('hidden');
+        });
         document.getElementById('refreshBtn').addEventListener('click', () => fetchDashboardData());
 
         document.getElementById('deleteOrgBtn').addEventListener('click', async () => {
@@ -662,15 +522,111 @@
             }
         });
 
+        // Change Password Modal
+        const passwordModal = `
+            <div id="passwordModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+                <div class="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold text-gray-900">Change Password</h3>
+                        <button id="closePasswordModal" class="text-gray-400 hover:text-gray-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                        </button>
+                    </div>
+                    <form id="passwordForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Current Password</label>
+                            <input type="password" id="currentPassword" required
+                                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
+                            <input type="password" id="newPassword" required minlength="6"
+                                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Confirm New Password</label>
+                            <input type="password" id="confirmPassword" required minlength="6"
+                                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div id="passwordError" class="text-red-500 text-sm hidden bg-red-50 p-3 rounded-lg"></div>
+                        <div id="passwordSuccess" class="text-green-500 text-sm hidden bg-green-50 p-3 rounded-lg"></div>
+                        <button type="submit"
+                            class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-all">
+                            Update Password
+                        </button>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.getElementById('app').insertAdjacentHTML('beforeend', passwordModal);
+
+        document.getElementById('changePasswordBtn').addEventListener('click', () => {
+            document.getElementById('passwordModal').classList.remove('hidden');
+        });
+
+        document.getElementById('closePasswordModal').addEventListener('click', () => {
+            document.getElementById('passwordModal').classList.add('hidden');
+            document.getElementById('passwordForm').reset();
+            document.getElementById('passwordError').classList.add('hidden');
+            document.getElementById('passwordSuccess').classList.add('hidden');
+        });
+
+        document.getElementById('passwordModal').addEventListener('click', (e) => {
+            if (e.target.id === 'passwordModal') {
+                document.getElementById('passwordModal').classList.add('hidden');
+                document.getElementById('passwordForm').reset();
+            }
+        });
+
+        document.getElementById('passwordForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const currentPass = document.getElementById('currentPassword').value;
+            const newPass = document.getElementById('newPassword').value;
+            const confirmPass = document.getElementById('confirmPassword').value;
+            const errorEl = document.getElementById('passwordError');
+            const successEl = document.getElementById('passwordSuccess');
+
+            const storedPass = localStorage.getItem('admin_password') || 'admin123';
+            
+            if (currentPass !== storedPass) {
+                errorEl.textContent = 'Current password is incorrect';
+                errorEl.classList.remove('hidden');
+                successEl.classList.add('hidden');
+                return;
+            }
+
+            if (newPass.length < 6) {
+                errorEl.textContent = 'New password must be at least 6 characters';
+                errorEl.classList.remove('hidden');
+                successEl.classList.add('hidden');
+                return;
+            }
+
+            if (newPass !== confirmPass) {
+                errorEl.textContent = 'New passwords do not match';
+                errorEl.classList.remove('hidden');
+                successEl.classList.add('hidden');
+                return;
+            }
+
+            localStorage.setItem('admin_password', newPass);
+            errorEl.classList.add('hidden');
+            successEl.textContent = 'Password updated successfully!';
+            successEl.classList.remove('hidden');
+
+            setTimeout(() => {
+                document.getElementById('passwordModal').classList.add('hidden');
+                document.getElementById('passwordForm').reset();
+            }, 1500);
+        });
+
         // Search Implementation
         document.getElementById('searchOrgs').addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
-            const filtered = Object.entries(organizations).filter(([id, org]) =>
-                (org.company_name || '').toLowerCase().includes(term) ||
-                (org.company_email || '').toLowerCase().includes(term)
-            );
-            // This would need a global records list to pass, or just re-render list
-            // For now, simpler filter:
             const rows = document.querySelectorAll('#orgList tr');
             rows.forEach(row => {
                 const name = row.cells[0].textContent.toLowerCase();

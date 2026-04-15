@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Upload, CheckCircle, Save, Loader, AlertCircle, Pencil, Sun, Moon, Mail, Zap, XCircle } from 'lucide-react';
+import { Upload, CheckCircle, Save, Loader, AlertCircle, Pencil, Sun, Moon, Mail, Zap, XCircle, Key } from 'lucide-react';
 import { useOrg } from '../context/OrgContext';
+import { useAuth } from '../context/AuthContext';
 import { emailService } from '../services/emailService';
 
 import StampPreview from './StampPreview';
@@ -8,7 +9,15 @@ import ImageEditor from './ImageEditor';
 
 export default function CompanyProfile({ theme, onToggleTheme }) {
   const { activeOrg, updateOrganization } = useOrg();
+  const { user, updatePassword, reauthenticate } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -146,6 +155,44 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
     setTestResult(result);
     setTestingEmail(false);
     setTimeout(() => setTestResult(null), 8000);
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await reauthenticate(currentPassword);
+      await updatePassword(newPassword);
+      setPasswordSuccess('Password updated successfully!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => {
+        setShowPasswordChange(false);
+        setPasswordSuccess('');
+      }, 2000);
+    } catch (err) {
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setPasswordError('Current password is incorrect');
+      } else {
+        setPasswordError(err.message || 'Failed to update password');
+      }
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   if (!activeOrg) return null;
@@ -536,6 +583,127 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
             <strong style={{ color: '#3b82f6' }}>Free tier:</strong> 200 emails/month, 2 templates. More than enough for most teams.
           </div>
         </div>
+      </div>
+
+      {/* 6. Account Settings */}
+      <div className="easy-section">
+        <div className="easy-section-head">
+          <div className="easy-num">6</div>
+          <span className="easy-section-title">Account Settings</span>
+        </div>
+        {!showPasswordChange ? (
+          <button
+            type="button"
+            onClick={() => setShowPasswordChange(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.75rem 1rem',
+              background: 'var(--bg-raised)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '10px',
+              color: 'var(--text-secondary)',
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            <Key size={16} />
+            Change Password
+          </button>
+        ) : (
+          <form onSubmit={handleChangePassword} style={{
+            background: 'var(--bg-raised)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '10px',
+            padding: '1.25rem'
+          }}>
+            {passwordError && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                padding: '0.75rem 1rem', background: 'rgba(239,68,68,0.08)',
+                border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px',
+                marginBottom: '1rem', fontSize: '0.8125rem', color: '#f87171'
+              }}>
+                <AlertCircle size={14} /> {passwordError}
+              </div>
+            )}
+            {passwordSuccess && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                padding: '0.75rem 1rem', background: 'rgba(34,197,94,0.08)',
+                border: '1px solid rgba(34,197,94,0.2)', borderRadius: '8px',
+                marginBottom: '1rem', fontSize: '0.8125rem', color: '#22c55e'
+              }}>
+                <CheckCircle size={14} /> {passwordSuccess}
+              </div>
+            )}
+            <div className="easy-row">
+              <div className="easy-field">
+                <label className="easy-lbl">Current Password</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                  placeholder="Enter current password"
+                  className="easy-inp"
+                />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">New Password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  placeholder="Enter new password"
+                  className="easy-inp"
+                />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  placeholder="Confirm new password"
+                  className="easy-inp"
+                />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+              <button type="submit" className="easy-submit" disabled={changingPassword}>
+                {changingPassword ? <><Loader size={14} className="spin-icon" /> Updating...</> : 'Update Password'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPasswordChange(false);
+                  setCurrentPassword('');
+                  setNewPassword('');
+                  setConfirmPassword('');
+                  setPasswordError('');
+                }}
+                style={{
+                  padding: '0.625rem 1.25rem',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '10px',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.875rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
       {/* Save */}
