@@ -679,89 +679,84 @@ export default function RecipientPortal({ documentId }) {
 
                     return (
                       <div className="rp-doc-body">
-                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1em', gap: '0.5em' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.75em', gap: '0.5em' }}>
                           <h3 className="rp-doc-title" style={{ margin: 0 }}>{isCollab ? 'COLLABORATION AGREEMENT' : isFT ? 'OFFER OF EMPLOYMENT' : 'INTERNSHIP OFFER LETTER'}</h3>
                           <span style={{ flexShrink: 0, display: 'inline-block', background: isCollab ? '#0d9488' : isFT ? '#059669' : '#2563eb', color: '#fff', fontSize: '8pt', fontWeight: 700, padding: '3px 12px', borderRadius: '20px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                             {isCollab ? 'Collaboration' : isFT ? 'Full-Time' : 'Internship'}
                           </span>
                         </div>
-                        <p className="rp-doc-date">Date: {fmtOfferDate(docData.issue_date)}</p>
-                        <p><strong>To,</strong></p>
-                        <p><strong>{docData.issued_to}</strong></p>
-                        <p className="rp-doc-para">Dear <strong>{docData.issued_to}</strong>,</p>
-                        <p className="rp-doc-para">
+                        <p style={{ fontSize: '9pt', color: '#6b7280', margin: '0 0 0.5em' }}>Date: {fmtOfferDate(docData.issue_date)}</p>
+                        <p style={{ margin: '0 0 0.1em', fontSize: '10pt' }}><strong>To, {docData.issued_to}</strong></p>
+                        <p style={{ fontSize: '10pt', lineHeight: 1.6, color: '#374151', margin: '0.6em 0 0.5em' }}>
+                          Dear <strong>{docData.issued_to}</strong>,{' '}
                           {isCollab
                             ? <>We are pleased to invite you as a Collaborator for the role of <strong>{docData.role}</strong> at <strong>{company.company_name || docData.issued_by}</strong>. This collaboration does not constitute an employer-employee relationship.</>
-                            : <>We are delighted to extend this {isFT ? 'offer of full-time employment' : 'internship offer'} to you for the role of <strong>{docData.role}</strong> at <strong>{company.company_name || docData.issued_by}</strong>. After careful consideration, we believe your skills and experience make you an excellent fit for our team.</>
+                            : <>We are delighted to extend this {isFT ? 'offer of full-time employment' : 'internship offer'} for the role of <strong>{docData.role}</strong> at <strong>{company.company_name || docData.issued_by}</strong>.</>
                           }
                         </p>
 
-                        <table className="rp-doc-table" style={{ marginBottom: '1.5em' }}>
+                        <table className="rp-doc-table" style={{ marginBottom: '0.75em' }}>
                           <thead>
-                            <tr><th colSpan={2} style={{ textAlign: 'left' }}>Offer Details</th></tr>
+                            <tr><th colSpan={2} style={{ textAlign: 'left', padding: '0.4em 0.75em' }}>Offer Details</th></tr>
                           </thead>
                           <tbody>
                             {detailRows.map(([label, value]) => (
                               <tr key={label}>
-                                <td style={{ width: '38%', color: '#6b7280', fontWeight: 500 }}>{label}</td>
-                                <td style={{ fontWeight: 600 }}>{value}</td>
+                                <td style={{ width: '38%', color: '#6b7280', fontWeight: 500, padding: '0.3em 0.75em' }}>{label}</td>
+                                <td style={{ fontWeight: 600, padding: '0.3em 0.75em' }}>{value}</td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
 
                         {docData.responsibilities && (
-                          <div style={{ marginBottom: '1.5em' }}>
-                            <p style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '8pt', letterSpacing: '0.06em', color: '#374151', marginBottom: '0.5em' }}>Key Responsibilities</p>
-                            <p style={{ fontSize: '10pt', lineHeight: 1.7, whiteSpace: 'pre-line', color: '#374151' }}>{docData.responsibilities}</p>
+                          <div style={{ marginBottom: '0.5em' }}>
+                            <p style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '7.5pt', letterSpacing: '0.06em', color: '#374151', marginBottom: '0.25em' }}>Key Responsibilities</p>
+                            <p style={{ fontSize: '9pt', lineHeight: 1.5, whiteSpace: 'pre-line', color: '#374151', margin: 0 }}>{docData.responsibilities}</p>
                           </div>
                         )}
 
                         {docData.valid_until && (
-                          <p className="rp-doc-para">
-                            Please confirm your acceptance by responding on or before <strong>{fmtOfferDate(docData.valid_until)}</strong>. If you have any questions, feel free to reach out before the deadline.
+                          <p style={{ fontSize: '9pt', lineHeight: 1.5, color: '#374151', margin: '0.5em 0' }}>
+                            Please confirm your acceptance by <strong>{fmtOfferDate(docData.valid_until)}</strong>.
                           </p>
                         )}
 
-                        <div className="rp-doc-signoff-block">
-                          <p className="rp-doc-sign-line">Sincerely,</p>
-                          <p><strong>{company.authorized_person || company.company_name || docData.issued_by}</strong></p>
-                          {company.authorized_designation && <p style={{ fontSize: '9pt', color: '#6b7280' }}>{company.authorized_designation}</p>}
-
-                          <div className="rp-doc-sig-section">
-                            <h4>ACCEPTANCE & SIGNATURE</h4>
-                            <div className="rp-doc-sig-rule" />
-                            <p>I, <strong>{docData.issued_to}</strong>, hereby accept the terms and conditions of this offer letter.</p>
-                            <div className="rp-doc-sig-grid">
-                              <div className="rp-doc-sig-col">
-                                <p className="rp-doc-sig-heading">Authorized Signatory</p>
-                                <p>{company.company_name || docData.issued_by}</p>
-                                <p>Date: {fmtOfferDate(docData.issue_date)}</p>
-                                {company.signature_url && <img src={company.signature_url} alt="Signature" className="rp-doc-sig-img" />}
-                                <div className="rp-doc-sig-line" />
-                                <p className="rp-doc-sig-caption">Signature</p>
-                              </div>
-                              <div className="rp-doc-sig-col">
-                                <p className="rp-doc-sig-heading">Candidate Signature</p>
-                                {status === 'signed' && signature ? (
-                                  <>
-                                    <img src={signature} alt="Candidate Signature" className="rp-doc-sig-img" />
-                                    <p>Name: {candidateName || docData.issued_to}</p>
-                                    <p>Date: {new Date().toLocaleDateString()}</p>
-                                  </>
-                                ) : (
-                                  <>
-                                    <p>Name: _______________________</p>
-                                    <p>Date: _______________________</p>
-                                    <p>Place: _______________________</p>
-                                    <div className="rp-doc-sig-line" />
-                                    <p className="rp-doc-sig-caption">Signature</p>
-                                  </>
-                                )}
-                              </div>
+                        {/* Compact sign-off with inline signature grid */}
+                        <div style={{ borderTop: '1px solid #e4e4e7', marginTop: '1em', paddingTop: '0.75em' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1.5em' }}>
+                            {/* Authorized signatory */}
+                            <div style={{ flex: 1 }}>
+                              <p style={{ fontSize: '9pt', color: '#374151', margin: '0 0 0.15em' }}>Sincerely,</p>
+                              {company.signature_url && <img src={company.signature_url} alt="Signature" className="rp-doc-sig-img" style={{ maxHeight: '36px', margin: '0.25em 0' }} />}
+                              <p style={{ fontSize: '9pt', fontWeight: 700, color: '#1a1a2e', margin: '0.15em 0 0' }}>{company.authorized_person || company.company_name || docData.issued_by}</p>
+                              {company.authorized_designation && <p style={{ fontSize: '8pt', color: '#6b7280', margin: 0 }}>{company.authorized_designation}</p>}
+                              <p style={{ fontSize: '8pt', color: '#6b7280', margin: 0 }}>{company.company_name || docData.issued_by}</p>
+                            </div>
+                            {/* Candidate acceptance */}
+                            <div style={{ flex: 1, borderLeft: '1px solid #e4e4e7', paddingLeft: '1.5em' }}>
+                              <p style={{ fontSize: '8pt', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#374151', margin: '0 0 0.3em' }}>Acceptance</p>
+                              {status === 'signed' && signature ? (
+                                <>
+                                  <img src={signature} alt="Candidate Signature" className="rp-doc-sig-img" style={{ maxHeight: '36px', margin: '0.25em 0' }} />
+                                  <p style={{ fontSize: '8pt', color: '#374151', margin: '0.1em 0' }}>{candidateName || docData.issued_to}</p>
+                                  <p style={{ fontSize: '8pt', color: '#6b7280', margin: 0 }}>{new Date().toLocaleDateString()}</p>
+                                </>
+                              ) : (
+                                <>
+                                  <p style={{ fontSize: '8pt', color: '#6b7280', margin: '0.2em 0' }}>Name: ____________________</p>
+                                  <p style={{ fontSize: '8pt', color: '#6b7280', margin: '0.2em 0' }}>Date: ____________________</p>
+                                  <div style={{ borderBottom: '1px solid #d1d5db', width: '140px', marginTop: '0.75em', paddingTop: '1em' }} />
+                                  <p style={{ fontSize: '7pt', color: '#9ca3af', margin: '0.15em 0 0' }}>Signature</p>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
+
+                        <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: '6.5pt', marginTop: '0.75em', marginBottom: 0 }}>
+                          I, {docData.issued_to}, hereby accept the terms and conditions of this {isCollab ? 'collaboration agreement' : isFT ? 'offer of employment' : 'internship offer'}.
+                        </p>
                       </div>
                     );
                   })()}
