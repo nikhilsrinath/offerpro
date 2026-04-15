@@ -318,6 +318,32 @@ export default function RecipientPortal({ documentId }) {
     element.style.position = 'absolute';
     element.style.left = '-9999px';
 
+    // Fix logo dimensions explicitly before capture so html2canvas gets correct aspect ratio
+    const logoImg = element.querySelector('.rp-letterhead-logo');
+    const origLogoStyle = logoImg ? { w: logoImg.style.width, h: logoImg.style.height, of: logoImg.style.objectFit } : null;
+    if (logoImg && logoImg.naturalWidth && logoImg.naturalHeight) {
+      const ratio = logoImg.naturalWidth / logoImg.naturalHeight;
+      const maxH = 56;
+      const maxW = 140;
+      let w = maxH * ratio;
+      let h = maxH;
+      if (w > maxW) { w = maxW; h = maxW / ratio; }
+      logoImg.style.width = Math.round(w) + 'px';
+      logoImg.style.height = Math.round(h) + 'px';
+      logoImg.style.objectFit = 'none';
+    }
+
+    // Collect Y positions of keep-together sections (relative to element top, in CSS px)
+    const keepTogetherSections = [];
+    element.querySelectorAll('.rp-doc-sig-section').forEach((sec) => {
+      const elRect = element.getBoundingClientRect();
+      const secRect = sec.getBoundingClientRect();
+      keepTogetherSections.push({
+        top: secRect.top - elRect.top,
+        bottom: secRect.bottom - elRect.top,
+      });
+    });
+
     // Let browser reflow
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
@@ -330,25 +356,42 @@ export default function RecipientPortal({ documentId }) {
         width: captureWidth,
         windowWidth: captureWidth,
       });
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
       const imgAspect = canvas.height / canvas.width;
       const totalH = pdfW * imgAspect;
+      const scaleFactor = canvas.width / captureWidth; // css-px to canvas-px
 
       if (totalH <= pdfH) {
+        const imgData = canvas.toDataURL('image/png');
         pdf.addImage(imgData, 'PNG', 0, 0, pdfW, totalH);
       } else {
-        // Multi-page: slice at natural break points (blank rows) to avoid cutting content
         const pageCanvasH = Math.floor(canvas.width * (pdfH / pdfW));
-        const ctx0 = canvas.getContext('2d', { willReadFrequently: true });
 
-        // Find the best blank row near a target Y to avoid cutting through text/tables
-        const findBreakPoint = (targetY) => {
-          const scanRange = Math.floor(pageCanvasH * 0.08); // scan ±8% of page height
+        // Convert keep-together sections from CSS px to canvas px
+        const protectedRanges = keepTogetherSections.map((s) => ({
+          top: Math.floor(s.top * scaleFactor),
+          bottom: Math.ceil(s.bottom * scaleFactor),
+        }));
+
+        // Check if a break point falls inside a protected section
+        const getAdjustedBreak = (targetY) => {
+          for (const range of protectedRanges) {
+            if (targetY > range.top && targetY < range.bottom) {
+              // Break would split this section — move break to just before it
+              return Math.max(0, range.top - Math.floor(4 * scaleFactor));
+            }
+          }
+          return targetY;
+        };
+
+        // Find the best blank row near a target Y
+        const ctx0 = canvas.getContext('2d', { willReadFrequently: true });
+        const findBlankRow = (targetY) => {
+          const scanRange = Math.floor(pageCanvasH * 0.06);
           const lo = Math.max(0, targetY - scanRange);
-          const hi = Math.min(canvas.height, targetY + scanRange);
+          const hi = Math.min(canvas.height, targetY + Math.floor(scanRange * 0.3));
           let bestY = targetY;
           let bestScore = -1;
           for (let row = lo; row < hi; row++) {
@@ -357,19 +400,21 @@ export default function RecipientPortal({ documentId }) {
             for (let i = 0; i < rowData.length; i += 4) {
               if (rowData[i] > 240 && rowData[i + 1] > 240 && rowData[i + 2] > 240) whitePixels++;
             }
-            const score = whitePixels / (canvas.width);
+            const score = whitePixels / canvas.width;
             if (score > bestScore) { bestScore = score; bestY = row; }
-            if (score >= 0.99) break; // fully blank row — perfect break
+            if (score >= 0.99) break;
           }
           return bestY;
         };
 
-        // Build list of break points
+        // Build break points: first check protected sections, then find blank rows
         const breaks = [0];
         let cursor = 0;
         while (cursor + pageCanvasH < canvas.height) {
-          const raw = cursor + pageCanvasH;
-          const bp = findBreakPoint(raw);
+          let raw = cursor + pageCanvasH;
+          raw = getAdjustedBreak(raw); // avoid splitting keep-together sections
+          const bp = findBlankRow(raw);
+          if (bp <= cursor) break; // safety
           breaks.push(bp);
           cursor = bp;
         }
@@ -395,6 +440,12 @@ export default function RecipientPortal({ documentId }) {
     } catch (err) {
       console.error('PDF generation failed:', err);
     } finally {
+      // Restore logo styles
+      if (logoImg && origLogoStyle) {
+        logoImg.style.width = origLogoStyle.w;
+        logoImg.style.height = origLogoStyle.h;
+        logoImg.style.objectFit = origLogoStyle.of;
+      }
       // Restore all original styles
       element.style.transform = origTransform;
       element.style.width = origWidth;
@@ -593,13 +644,7 @@ export default function RecipientPortal({ documentId }) {
                 <div className="rp-doc-content">
                   {/* Letterhead */}
                   <div className="rp-letterhead">
-                    {company.logo_url && <img src={company.logo_url} alt="" className="rp-letterhead-logo" crossOrigin="anonymous" onLoad={(e) => {
-                      const img = e.target;
-                      const nat = img.naturalWidth / img.naturalHeight;
-                      const h = 56;
-                      img.style.height = h + 'px';
-                      img.style.width = Math.round(h * nat) + 'px';
-                    }} />}
+                    {company.logo_url && <img src={company.logo_url} alt="" className="rp-letterhead-logo" crossOrigin="anonymous" />}
                     <div className="rp-letterhead-text">
                       <h2>{company.company_name || docData.issued_by}</h2>
                       {(company.company_address || company.address) && <p>{company.company_address || company.address}</p>}
