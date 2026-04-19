@@ -789,13 +789,13 @@ export default function TeamHierarchy() {
           const name = getDisplayName(emp);
           const color = resolveColor({ ...emp, name }, deptMap);
           return (
-            <div key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', background: 'rgba(255,255,255,0.04)', borderRadius: '99px', padding: '0.35rem 0.7rem 0.35rem 0.35rem' }}>
+            <div key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', background: 'var(--surface-elevated)', border: '1px solid var(--border-default)', borderRadius: '99px', padding: '0.35rem 0.7rem 0.35rem 0.35rem' }}>
               <div style={{ width: 22, height: 22, borderRadius: '50%', background: `${color}22`, border: `1.5px solid ${color}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.58rem', fontWeight: 800, color }}>{initials(name)}</div>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>{name}</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{name}</span>
             </div>
           );
         })}
-        {employees.length > 7 && <div style={{ display: 'flex', alignItems: 'center', padding: '0.35rem 0.7rem', color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem' }}>+{employees.length - 7} more</div>}
+        {employees.length > 7 && <div style={{ display: 'flex', alignItems: 'center', padding: '0.35rem 0.7rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>+{employees.length - 7} more</div>}
       </div>
     </div>
   );

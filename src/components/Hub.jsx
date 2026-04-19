@@ -354,8 +354,9 @@ export default function Hub({ onSelectModule, user, theme }) {
                                     <XAxis dataKey="month" tick={{ fill: axisText, fontSize: isMobile ? 10 : 11 }} axisLine={false} tickLine={false} dy={8} />
                                     <YAxis tick={{ fill: axisText, fontSize: isMobile ? 10 : 11 }} axisLine={false} tickLine={false} />
                                     <Tooltip
-                                        contentStyle={{ background: tooltipBg, border: `1px solid ${cardBorder}`, borderRadius: 10, fontSize: 12, color: tooltipText }}
+                                        contentStyle={{ background: tooltipBg, border: `1px solid ${cardBorder}`, borderRadius: 10, fontSize: 12 }}
                                         formatter={(v) => [`₹${v.toLocaleString()}`, 'Revenue']}
+                                        itemStyle={{ color: tooltipText }}
                                         labelStyle={{ color: isDark ? 'rgba(255,255,255,0.5)' : '#71717a' }}
                                     />
                                     <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} fill="url(#hubRevGrad)" />
@@ -411,7 +412,9 @@ export default function Hub({ onSelectModule, user, theme }) {
                                             ))}
                                         </Pie>
                                         <Tooltip
-                                            contentStyle={{ background: tooltipBg, border: `1px solid ${cardBorder}`, borderRadius: 10, fontSize: 12, color: tooltipText }}
+                                            contentStyle={{ background: tooltipBg, border: `1px solid ${cardBorder}`, borderRadius: 10, fontSize: 12 }}
+                                            itemStyle={{ color: tooltipText }}
+                                            labelStyle={{ color: tooltipText }}
                                         />
                                     </RechartsPie>
                                 </ResponsiveContainer>
@@ -432,137 +435,6 @@ export default function Hub({ onSelectModule, user, theme }) {
                         </div>
                         )}
                     </div>
-                </div>
-
-                {/* ── WORKSPACES HEADER ─────────────────────────────────────── */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: isMobile ? '0.75rem' : '1rem' }}>
-                    <span style={{
-                        fontSize: '0.6rem', fontWeight: 700,
-                        color: isDark ? 'rgba(255,255,255,0.3)' : '#a1a1aa',
-                        textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap',
-                    }}>
-                        Workspaces
-                    </span>
-                    <div style={{ flex: 1, height: '1px', background: cardBorder }} />
-                    <span style={{
-                        fontSize: '0.6rem', fontWeight: 700,
-                        color: isDark ? 'rgba(255,255,255,0.25)' : '#a1a1aa',
-                        letterSpacing: '0.06em', whiteSpace: 'nowrap',
-                    }}>
-                        6 modules
-                    </span>
-                </div>
-
-                {/* ── MODULES GRID ──────────────────────────────────────────── */}
-                <div style={{ display: 'grid', gridTemplateColumns: modulesGrid, gap: isMobile ? '0.75rem' : '1rem' }}>
-                    {MODULES.map((mod) => {
-                        const Icon = mod.icon;
-                        const isHov = hoveredMod === mod.id;
-                        return (
-                            <div
-                                key={mod.id}
-                                onClick={() => onSelectModule(mod.id, mod.defaultPage)}
-                                onMouseEnter={() => setHoveredMod(mod.id)}
-                                onMouseLeave={() => setHoveredMod(null)}
-                                style={{
-                                    background: isHov ? (isDark ? '#111116' : '#fafafa') : cardBg,
-                                    border: `1px solid ${isHov ? cardBorderHov : cardBorder}`,
-                                    borderRadius: isMobile ? '12px' : '14px',
-                                    padding: modPad,
-                                    cursor: 'pointer',
-                                    transition: 'all 0.22s cubic-bezier(0.22,1,0.36,1)',
-                                    transform: isHov && !isMobile ? 'translateY(-3px)' : 'none',
-                                    boxShadow: isHov && !isMobile
-                                        ? `0 16px 40px rgba(0,0,0,${isDark ? 0.55 : 0.1}), 0 0 0 1px ${cardBorderHov}`
-                                        : 'none',
-                                    position: 'relative', overflow: 'hidden',
-                                    display: 'flex', flexDirection: 'column',
-                                    // Tap highlight on mobile
-                                    WebkitTapHighlightColor: 'transparent',
-                                }}
-                            >
-                                {/* Top gradient accent */}
-                                <div style={{
-                                    position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
-                                    background: `linear-gradient(90deg, ${mod.color} 0%, ${mod.color}40 60%, transparent 100%)`,
-                                    opacity: isHov ? 1 : 0.5,
-                                    transition: 'opacity 0.22s ease',
-                                }} />
-
-                                {/* Corner glow */}
-                                <div style={{
-                                    position: 'absolute', top: -50, left: -50,
-                                    width: 150, height: 150,
-                                    background: `radial-gradient(circle, ${mod.color}12, transparent 65%)`,
-                                    opacity: isHov ? 1 : 0,
-                                    transition: 'opacity 0.3s ease',
-                                    pointerEvents: 'none',
-                                }} />
-
-                                {/* Icon + Title */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.625rem' : '0.875rem', marginBottom: isMobile ? '0.625rem' : '0.875rem' }}>
-                                    <div style={{
-                                        width: isMobile ? 32 : 38, height: isMobile ? 32 : 38,
-                                        borderRadius: '10px',
-                                        background: isHov ? `${mod.color}22` : `${mod.color}14`,
-                                        border: `1px solid ${isHov ? mod.color + '45' : mod.color + '22'}`,
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        color: mod.color, flexShrink: 0,
-                                        transition: 'all 0.22s ease',
-                                    }}>
-                                        <Icon size={isMobile ? 15 : 17} strokeWidth={2.2} />
-                                    </div>
-                                    <h3 style={{
-                                        fontSize: isMobile ? '0.8125rem' : '0.9375rem',
-                                        fontWeight: 700,
-                                        color: isDark ? '#fafafa' : '#18181b',
-                                        margin: 0, letterSpacing: '-0.02em',
-                                        // Prevent overflow on tiny screens
-                                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                    }}>
-                                        {mod.label}
-                                    </h3>
-                                </div>
-
-                                {/* Description — hidden on very narrow screens */}
-                                {!isMobile && (
-                                    <p style={{
-                                        fontSize: '0.8125rem',
-                                        color: isDark ? 'rgba(255,255,255,0.38)' : '#71717a',
-                                        lineHeight: 1.65, margin: '0 0 1.25rem', flex: 1,
-                                    }}>
-                                        {mod.desc}
-                                    </p>
-                                )}
-
-                                {/* Footer */}
-                                <div style={{
-                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                    paddingTop: isMobile ? '0.625rem' : '1rem',
-                                    marginTop: isMobile ? '0.625rem' : 0,
-                                    borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
-                                }}>
-                                    <span style={{
-                                        fontSize: '0.6rem', fontWeight: 700,
-                                        letterSpacing: '0.08em', textTransform: 'uppercase',
-                                        color: isHov ? mod.color : (isDark ? 'rgba(255,255,255,0.25)' : '#a1a1aa'),
-                                        transition: 'color 0.22s ease',
-                                    }}>
-                                        Open
-                                    </span>
-                                    <div style={{
-                                        width: 22, height: 22, borderRadius: '7px',
-                                        background: isHov ? `${mod.color}20` : (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'),
-                                        border: `1px solid ${isHov ? mod.color + '35' : cardBorder}`,
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        transition: 'all 0.22s ease',
-                                    }}>
-                                        <ChevronRight size={11} color={isHov ? mod.color : (isDark ? 'rgba(255,255,255,0.3)' : '#a1a1aa')} strokeWidth={2.5} />
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
                 </div>
 
                 {/* ── FOOTER ────────────────────────────────────────────────── */}

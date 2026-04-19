@@ -5,7 +5,8 @@ import {
   Zap, UserCircle, ChevronRight, ChevronDown, Clock, Mail, AlertTriangle, Users,
   UploadCloud, FileCheck, FileSignature, History,
   FileSpreadsheet, Activity, Receipt, FilePlus, RotateCcw, ArrowLeft,
-  Sun, Moon, GitBranch, UserX, Kanban
+  Sun, Moon, GitBranch, UserX, Kanban,
+  FileText, BarChart3, File, PieChart as PieChartIcon
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
 import subPages from './components/landing/subPageData';
@@ -222,14 +223,146 @@ function AppContent() {
     ? { title: 'Edit Quotation', subtitle: `Revising ${editingDocId}` }
     : (PAGE_META[activePage] || PAGE_META.dashboard);
 
+  // Hub-specific modules for sidebar
+  const HUB_MODULES = [
+    { id: 'team', label: 'Team', icon: Users, defaultPage: 'team-hierarchy', color: '#8b5cf6' },
+    { id: 'documents', label: 'Documents', icon: FileText, defaultPage: 'offers', color: '#10b981' },
+    { id: 'finance', label: 'Finance', icon: Receipt, defaultPage: 'finance-status', color: '#f59e0b' },
+    { id: 'business', label: 'Business', icon: BarChart3, defaultPage: 'crm', color: '#d946ef' },
+    { id: 'data', label: 'Records', icon: File, defaultPage: 'records', color: '#ef4444' },
+    { id: 'overall', label: 'Overview', icon: PieChartIcon, defaultPage: 'dashboard', color: '#64748b' },
+  ];
+
   return (
-    <div className={`app-layout ${!activeModule || activePage === 'hub' ? 'no-sidebar' : ''}`}>
+    <div className={`app-layout ${!activeModule && activePage !== 'hub' ? 'no-sidebar' : ''}`}>
       {/* Sidebar Overlay (mobile) */}
       {sidebarOpen && (
         <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
+      {/* Hub Sidebar - Icon Rail (58px collapsed, 260px on hover) */}
+      {activePage === 'hub' && (
+        <aside className={`sidebar hub-sidebar ${sidebarOpen ? 'open' : ''}`}>
+          {/* Brand */}
+          <div className="sidebar-brand">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <img src="/app-icon.png" alt="" className="app-con" />
+              <span className="sidebar-brand-text">EdgeOS</span>
+            </div>
+            <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)}>
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Navigation - Hub Modules */}
+          <nav className="sidebar-nav">
+            {HUB_MODULES.map((mod) => {
+              const Icon = mod.icon;
+              return (
+                <button
+                  key={mod.id}
+                  className="sidebar-item"
+                  onClick={() => handleSelectModule(mod.id, mod.defaultPage)}
+                  title={mod.label}
+                >
+                  <Icon size={20} style={{ flexShrink: 0 }} />
+                  <span>{mod.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Footer */}
+          <div className="sidebar-footer">
+            {/* Status pill - single line, centered */}
+            <div className="sidebar-status" style={{
+              display: 'flex', alignItems: 'center', gap: '0.35rem',
+              padding: '0.4rem 0.75rem',
+              background: theme === 'dark' ? 'rgba(16,185,129,0.07)' : 'rgba(16,185,129,0.06)',
+              border: `1px solid rgba(16,185,129,0.22)`,
+              borderRadius: '999px',
+              fontSize: '0.6875rem', fontWeight: 600, color: '#10b981',
+              marginBottom: '0.75rem',
+              userSelect: 'none',
+              justifyContent: 'center',
+              whiteSpace: 'nowrap',
+            }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 7px #10b981', display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>All systems active</span>
+            </div>
+
+            {/* Action buttons row with labels */}
+            <div className="sidebar-actions-row" style={{
+              display: 'flex', flexDirection: 'column',
+              marginBottom: '0.75rem',
+              gap: '0.25rem',
+            }}>
+              {/* Theme toggle */}
+              <button
+                onClick={toggleTheme}
+                className="sidebar-item sidebar-action-item"
+              >
+                {theme === 'dark' ? <Sun size={18} strokeWidth={2} /> : <Moon size={18} strokeWidth={2} />}
+                <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+              </button>
+
+              {/* Notifications */}
+              <button
+                onClick={() => setShowNotifPanel(p => !p)}
+                className="sidebar-item sidebar-action-item"
+                style={{ position: 'relative' }}
+              >
+                <div style={{ position: 'relative' }}>
+                  <Bell size={18} strokeWidth={2} />
+                  {unreadCount > 0 && (
+                    <span style={{
+                      position: 'absolute', top: -4, right: -4,
+                      minWidth: 16, height: 16, borderRadius: '999px',
+                      background: '#ef4444',
+                      fontSize: '0.5rem', fontWeight: 800, color: '#fff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      padding: '0 3px',
+                      border: `2px solid ${theme === 'dark' ? '#09090b' : '#f8f9fb'}`,
+                      lineHeight: 1,
+                    }}>
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </div>
+                <span>Notifications</span>
+              </button>
+
+              {/* Logout */}
+              <button
+                onClick={logout}
+                className="sidebar-item sidebar-action-item"
+              >
+                <LogOut size={18} strokeWidth={2} />
+                <span>Log Out</span>
+              </button>
+            </div>
+
+            {activeOrg && (
+              <div className="sidebar-org-info sidebar-org-clickable" onClick={() => navigate('profile')}>
+                {activeOrg.logo_url ? (
+                  <img src={activeOrg.logo_url} alt="" className="sidebar-org-avatar" />
+                ) : (
+                  <div className="sidebar-org-avatar-placeholder">
+                    {(activeOrg.company_name || 'O')[0].toUpperCase()}
+                  </div>
+                )}
+                <div className="sidebar-org-text" style={{ flex: 1, minWidth: 0 }}>
+                  <span className="sidebar-org-name">{activeOrg.company_name || activeOrg.name}</span>
+                  <span className="sidebar-org-email">{user.email}</span>
+                </div>
+                <ChevronRight size={14} className="sidebar-chevron" style={{ flexShrink: 0 }} />
+              </div>
+            )}
+          </div>
+        </aside>
+      )}
+
+      {/* Regular Sidebar (for other pages) */}
       {activeModule && activePage !== 'hub' && (
         <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
           {/* Brand */}
@@ -379,222 +512,8 @@ function AppContent() {
           </div>
         )}
 
-        {/* Page Header (skip for dashboard - it has its own) */}
-        {activePage === 'hub' ? (
-          <>
-            <style>{`.hub-topnav{display:flex!important}@media(max-width:768px){.hub-topnav{display:none!important}}`}</style>
-            <nav className="hub-topnav" style={{
-              position: 'sticky',
-              top: 0,
-              zIndex: 100,
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0 4rem',
-              height: '56px',
-              background: theme === 'dark' ? 'rgba(9,9,11,0.88)' : 'rgba(248,249,251,0.92)',
-              backdropFilter: 'blur(24px)',
-              WebkitBackdropFilter: 'blur(24px)',
-              borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}`,
-              fontFamily: "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
-              WebkitFontSmoothing: 'antialiased',
-              gap: '1rem',
-            }}>
-
-              {/* LEFT — Brand */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexShrink: 0 }}>
-                <img src="/app-icon.png" alt="" style={{ height: 24, width: 24, objectFit: 'contain' }} />
-                <span style={{
-                  fontSize: '0.9375rem', fontWeight: 800, letterSpacing: '-0.035em',
-                  color: theme === 'dark' ? '#fafafa' : '#18181b',
-                }}>EdgeOS</span>
-                <div style={{ width: 1, height: 14, background: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', margin: '0 0.125rem' }} />
-                <span style={{
-                  fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-                  color: theme === 'dark' ? 'rgba(255,255,255,0.3)' : '#a1a1aa',
-                  padding: '0.175rem 0.5rem',
-                  background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-                  border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'}`,
-                  borderRadius: '999px',
-                }}>Hub</span>
-              </div>
-
-              {/* CENTER — Module quick-links */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', flex: 1, justifyContent: 'center' }}>
-                {[
-                  { id: 'team',      label: 'Team',      defaultPage: 'team-hierarchy' },
-                  { id: 'documents', label: 'Documents',  defaultPage: 'offers' },
-                  { id: 'finance',   label: 'Finance',    defaultPage: 'finance-status' },
-                  { id: 'business',  label: 'Business',   defaultPage: 'crm' },
-                  { id: 'data',      label: 'Records',    defaultPage: 'records' },
-                  { id: 'overall',   label: 'Overview',   defaultPage: 'dashboard' },
-                ].map(link => (
-                  <button
-                    key={link.id}
-                    onClick={() => handleSelectModule(link.id, link.defaultPage)}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)';
-                      e.currentTarget.style.color = theme === 'dark' ? '#fafafa' : '#18181b';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background = 'none';
-                      e.currentTarget.style.color = theme === 'dark' ? 'rgba(255,255,255,0.42)' : '#71717a';
-                    }}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      padding: '0.35rem 0.75rem',
-                      borderRadius: '8px',
-                      fontSize: '0.8125rem', fontWeight: 500,
-                      color: theme === 'dark' ? 'rgba(255,255,255,0.42)' : '#71717a',
-                      fontFamily: 'inherit',
-                      transition: 'background 0.15s ease, color 0.15s ease',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {link.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* RIGHT — Actions */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexShrink: 0 }}>
-
-                {/* Status pill */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: '0.35rem',
-                  padding: '0.275rem 0.75rem',
-                  background: theme === 'dark' ? 'rgba(16,185,129,0.07)' : 'rgba(16,185,129,0.06)',
-                  border: `1px solid rgba(16,185,129,0.22)`,
-                  borderRadius: '999px',
-                  fontSize: '0.6875rem', fontWeight: 600, color: '#10b981',
-                  marginRight: '0.25rem',
-                  userSelect: 'none',
-                }}>
-                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 7px #10b981', display: 'inline-block', flexShrink: 0 }} />
-                  All systems active
-                </div>
-
-                {/* Theme toggle */}
-                <button
-                  onClick={toggleTheme}
-                  title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                  onMouseEnter={e => { e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'; e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'; }}
-                  style={{
-                    width: 32, height: 32, borderRadius: '9px',
-                    background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-                    border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', color: theme === 'dark' ? 'rgba(255,255,255,0.5)' : '#71717a',
-                    transition: 'background 0.15s ease, border-color 0.15s ease',
-                  }}
-                >
-                  {theme === 'dark' ? <Sun size={14} strokeWidth={2} /> : <Moon size={14} strokeWidth={2} />}
-                </button>
-
-                {/* Notifications */}
-                <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => setShowNotifPanel(p => !p)}
-                    title="Notifications"
-                    onMouseEnter={e => { e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'; e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'; }}
-                    style={{
-                      width: 32, height: 32, borderRadius: '9px',
-                      background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-                      border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', color: theme === 'dark' ? 'rgba(255,255,255,0.5)' : '#71717a',
-                      transition: 'background 0.15s ease, border-color 0.15s ease',
-                    }}
-                  >
-                    <Bell size={14} strokeWidth={2} />
-                  </button>
-                  {unreadCount > 0 && (
-                    <span style={{
-                      position: 'absolute', top: -4, right: -4,
-                      minWidth: 16, height: 16, borderRadius: '999px',
-                      background: '#ef4444',
-                      fontSize: '0.5rem', fontWeight: 800, color: '#fff',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      padding: '0 3px',
-                      border: `2px solid ${theme === 'dark' ? '#09090b' : '#f8f9fb'}`,
-                      lineHeight: 1,
-                    }}>
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
-                </div>
-
-                {/* Logout */}
-                <button
-                  onClick={logout}
-                  title="Log out"
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.2)'; e.currentTarget.style.color = '#ef4444'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'; e.currentTarget.style.color = theme === 'dark' ? 'rgba(255,255,255,0.5)' : '#71717a'; }}
-                  style={{
-                    width: 32, height: 32, borderRadius: '9px',
-                    background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-                    border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', color: theme === 'dark' ? 'rgba(255,255,255,0.5)' : '#71717a',
-                    transition: 'background 0.15s ease, border-color 0.15s ease, color 0.15s ease',
-                  }}
-                >
-                  <LogOut size={14} strokeWidth={2} />
-                </button>
-
-                {/* Vertical divider */}
-                <div style={{ width: 1, height: 22, background: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)', margin: '0 0.125rem' }} />
-
-                {/* Org / Profile button */}
-                {activeOrg && (
-                  <button
-                    onClick={() => navigate('profile')}
-                    onMouseEnter={e => { e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'; e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'; }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '0.5rem',
-                      padding: '0.3rem 0.5rem 0.3rem 0.3rem',
-                      background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-                      border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                      transition: 'background 0.15s ease, border-color 0.15s ease',
-                    }}
-                  >
-                    {activeOrg.logo_url ? (
-                      <img src={activeOrg.logo_url} alt="" style={{ width: 22, height: 22, borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
-                    ) : (
-                      <div style={{
-                        width: 22, height: 22, borderRadius: '6px', flexShrink: 0,
-                        background: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '0.5625rem', fontWeight: 800,
-                        color: theme === 'dark' ? 'rgba(255,255,255,0.7)' : '#3f3f46',
-                      }}>
-                        {(activeOrg.company_name || 'O')[0].toUpperCase()}
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.05rem', minWidth: 0, maxWidth: 130 }}>
-                      <span style={{
-                        fontSize: '0.75rem', fontWeight: 700, lineHeight: 1.2,
-                        color: theme === 'dark' ? 'rgba(255,255,255,0.8)' : '#18181b',
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%',
-                      }}>
-                        {activeOrg.company_name || activeOrg.name}
-                      </span>
-                      <span style={{ fontSize: '0.5625rem', fontWeight: 500, color: theme === 'dark' ? 'rgba(255,255,255,0.28)' : '#a1a1aa', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                        {user?.email?.split('@')[0]}
-                      </span>
-                    </div>
-                    <ChevronDown size={11} style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.28)' : '#a1a1aa', flexShrink: 0 }} />
-                  </button>
-                )}
-              </div>
-            </nav>
-          </>
-        ) : activePage !== 'dashboard' && (
+        {/* Page Header (skip for hub and dashboard - they have their own) */}
+        {activePage !== 'hub' && activePage !== 'dashboard' && (
           <div className="page-header" style={{ display: 'flex', alignItems: 'center' }}>
             {(!activeModule || activePage === 'profile') && (
               <button
