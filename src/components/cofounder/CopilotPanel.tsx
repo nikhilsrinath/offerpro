@@ -110,6 +110,7 @@ export default function CopilotPanel({
   const [isMobile, setIsMobile] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [companyMemory, setCompanyMemory] = useState<CompanyMemory | null>(null);
+  const [isOnboardingMode, setIsOnboardingMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -165,14 +166,13 @@ export default function CopilotPanel({
     const trimmedText = text.trim();
     setError(null);
 
-    // ONBOARDING: Check if we need to collect onboarding info
-    let onboardingComplete = isOnboardingComplete(companyMemory);
-    let currentQuestion = getCurrentOnboardingQuestion(companyMemory);
-    let isOnboarding = !onboardingComplete && currentQuestion !== null;
+    // ONBOARDING: Check manual onboarding mode
+    const currentQuestion = getCurrentOnboardingQuestion(companyMemory);
+    const isOnboarding = isOnboardingMode && currentQuestion !== null;
 
-    console.log('[CopilotPanel] Onboarding complete:', onboardingComplete);
+    console.log('[CopilotPanel] Manual onboarding mode:', isOnboardingMode);
     console.log('[CopilotPanel] Current question:', currentQuestion?.text);
-    console.log('[CopilotPanel] Is onboarding mode:', isOnboarding);
+    console.log('[CopilotPanel] Is answering onboarding:', isOnboarding);
 
     // ONBOARDING: If user is answering a question, save the answer first
     let updatedMemory = companyMemory;
@@ -190,10 +190,14 @@ export default function CopilotPanel({
 
           // Get the NEXT question to ask
           nextQuestion = getCurrentOnboardingQuestion(saved);
-          onboardingComplete = isOnboardingComplete(saved);
-          isOnboarding = !onboardingComplete && nextQuestion !== null;
+          const onboardingComplete = isOnboardingComplete(saved);
+
+          // If onboarding is complete, exit onboarding mode
+          if (onboardingComplete) {
+            setIsOnboardingMode(false);
+            console.log('[CopilotPanel] Onboarding complete!');
+          }
           console.log('[CopilotPanel] Next question:', nextQuestion?.text);
-          console.log('[CopilotPanel] Onboarding continuing:', isOnboarding);
         }
       }
     }
@@ -205,24 +209,22 @@ export default function CopilotPanel({
     }
     console.log('[CopilotPanel] Detected intent:', intent);
 
-    // STEP 2: Get appropriate context based on intent
+    // STEP 2: ALWAYS fetch fresh org data from Firebase for EVERY query
     let rawData = '';
     let memoryInsights = { insights: [] as string[], opportunities: [] as string[], risks: [] as string[] };
 
-    if (orgId && !isOnboarding) {
+    if (orgId) {
       try {
+        console.log('[CopilotPanel] Fetching FRESH org data from /organizations/' + orgId);
         const context = await getContextForQuery(orgId, trimmedText, updatedMemory);
         rawData = context.rawData;
         memoryInsights = context.memoryInsights;
-        console.log('[CopilotPanel] Context loaded - Raw data:', rawData.length, 'bytes');
+        console.log('[CopilotPanel] Fresh context loaded - Raw data:', rawData.length, 'bytes');
       } catch (err) {
-        console.error('[CopilotPanel] Failed to load context, proceeding without raw data:', err);
-        // Continue without raw data - AI will use memory or basic context
+        console.error('[CopilotPanel] Failed to load context:', err);
       }
-    } else if (isOnboarding) {
-      console.log('[CopilotPanel] Skipping context fetch - in onboarding mode');
     } else {
-      console.log('[CopilotPanel] No orgId available, using basic context');
+      console.log('[CopilotPanel] No orgId available');
     }
 
     const userMsg: Message = {
@@ -319,7 +321,7 @@ export default function CopilotPanel({
       setIsStreaming(false);
       setIsLoading(false);
     }
-  }, [inputValue, isStreaming, messages, edgeContext, companyMemory, orgId]);
+  }, [inputValue, isStreaming, messages, edgeContext, companyMemory, orgId, isOnboardingMode]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -330,7 +332,11 @@ export default function CopilotPanel({
 
   // ── SHARED MOBILE COMPONENTS ────────────────────────────────
 
-  const MobileEmptyState = () => (
+  const MobileEmptyState = () => {
+    const onboardingComplete = isOnboardingComplete(companyMemory);
+    const showOnboardingButton = !onboardingComplete && !isOnboardingMode;
+
+    return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       padding: '2rem 1.5rem', textAlign: 'center', height: '100%',
@@ -343,11 +349,33 @@ export default function CopilotPanel({
         <Sparkles size={20} style={{ color: '#ffffff' }} />
       </div>
       <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: '0 0 0.5rem' }}>
-        Start thinking with your Co-founder
+        {showOnboardingButton ? 'Welcome to EdgeOS!' : 'Start thinking with your Co-founder'}
       </h3>
       <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: '0 0 1.5rem', lineHeight: 1.6 }}>
-        Strategic decisions, performance analysis, and growth execution.
+        {showOnboardingButton
+          ? 'Help me get to know you better so I can assist you more personally.'
+          : 'Strategic decisions, performance analysis, and growth execution.'}
       </p>
+
+      {/* Complete Profile Button */}
+      {showOnboardingButton && (
+        <button
+          onClick={() => {
+            setIsOnboardingMode(true);
+            handleSend("Start onboarding");
+          }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.5rem',
+            padding: '0.75rem 1.5rem', background: '#6366f1', color: '#ffffff',
+            border: 'none', borderRadius: 8, fontSize: '0.875rem', fontWeight: 500,
+            cursor: 'pointer', marginBottom: '1.5rem',
+          }}
+        >
+          <Sparkles size={16} />
+          Complete Profile
+        </button>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%', maxWidth: 280 }}>
         {getDynamicPrompts(edgeContext).map((prompt: SuggestedPrompt) => (
           <button
@@ -367,7 +395,8 @@ export default function CopilotPanel({
         ))}
       </div>
     </div>
-  );
+    );
+  };
 
   const MobileMessageBubble = ({ message }: { message: Message }) => {
     const isUser = message.role === 'user';
@@ -495,7 +524,11 @@ export default function CopilotPanel({
   // ── DESKTOP PORTION (Original) ─────────────────────────────
 
   // Empty state component
-  const EmptyState = () => (
+  const EmptyState = () => {
+    const onboardingComplete = isOnboardingComplete(companyMemory);
+    const showOnboardingButton = !onboardingComplete && !isOnboardingMode;
+
+    return (
     <div style={{
       display: 'flex',
       flexDirection: 'column',
@@ -518,7 +551,7 @@ export default function CopilotPanel({
       }}>
         <Sparkles size={24} style={{ color: '#6366f1' }} />
       </div>
-      
+
       <h3 style={{
         fontSize: '1.125rem',
         fontWeight: 600,
@@ -526,9 +559,9 @@ export default function CopilotPanel({
         margin: '0 0 0.5rem',
         letterSpacing: '-0.02em',
       }}>
-        Start thinking with your Co-founder
+        {showOnboardingButton ? 'Welcome to EdgeOS Co-founder!' : 'Start thinking with your Co-founder'}
       </h3>
-      
+
       <p style={{
         fontSize: '0.875rem',
         color: '#64748b',
@@ -536,8 +569,47 @@ export default function CopilotPanel({
         lineHeight: 1.6,
         maxWidth: 280,
       }}>
-        Ask anything about decisions, tasks, growth, or operations.
+        {showOnboardingButton
+          ? 'Help me get to know you and your company better so I can assist you more personally.'
+          : 'Ask anything about decisions, tasks, growth, or operations.'}
       </p>
+
+      {/* Complete Profile Button */}
+      {showOnboardingButton && (
+        <button
+          onClick={() => {
+            setIsOnboardingMode(true);
+            // Trigger AI to ask first onboarding question
+            handleSend("Start onboarding");
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.75rem 1.5rem',
+            background: '#6366f1',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: 8,
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            cursor: 'pointer',
+            marginBottom: '1.5rem',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#4f46e5';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = '#6366f1';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          <Sparkles size={16} />
+          Complete Profile
+        </button>
+      )}
 
       {/* Suggested Prompts */}
       <div style={{
@@ -594,7 +666,8 @@ export default function CopilotPanel({
         ))}
       </div>
     </div>
-  );
+    );
+  };
 
   // Message bubble component
   const MessageBubble = ({ message }: { message: Message }) => {

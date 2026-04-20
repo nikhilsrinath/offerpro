@@ -134,12 +134,15 @@ export function buildEdgeContext(edgeData: {
 /**
  * Build system prompt with EdgeOS context
  */
-function buildSystemPrompt(context: EdgeContext, memory?: CompanyMemory | null): string {
-  // Get user info from onboarding
+function buildSystemPrompt(context: EdgeContext, memory?: CompanyMemory | null, rawData?: string): string {
+  // Extract user info from rawData first (fresh from Firebase)
+  const ownerFromData = rawData ? extractOwnerFromRawData(rawData) : { name: '', role: '' };
+
+  // Fallback to memory if raw data doesn't have it
   const firstName = memory?.onboarding?.firstName || '';
   const lastName = memory?.onboarding?.lastName || '';
-  const userName = firstName ? `${firstName} ${lastName}`.trim() : 'Founder';
-  const userRole = memory?.onboarding?.role || 'Founder';
+  const userName = ownerFromData.name || (firstName ? `${firstName} ${lastName}`.trim() : 'Founder');
+  const userRole = ownerFromData.role || memory?.onboarding?.role || 'Founder';
 
   return `You are the AI Co-founder for ${context.company}.
 
@@ -180,15 +183,19 @@ NEXT ACTION: [immediate next step]
  */
 function buildSystemPromptWithMemory(
   context: EdgeContext,
-  memory: CompanyMemory | null
+  memory: CompanyMemory | null,
+  rawData?: string
 ): string {
   const relevant = getRelevantMemory(memory);
 
-  // Get user info from onboarding
+  // Extract user info from rawData first (fresh from Firebase)
+  const ownerFromData = rawData ? extractOwnerFromRawData(rawData) : { name: '', role: '' };
+
+  // Fallback to memory if raw data doesn't have it
   const firstName = memory?.onboarding?.firstName || '';
   const lastName = memory?.onboarding?.lastName || '';
-  const userName = firstName ? `${firstName} ${lastName}`.trim() : 'Founder';
-  const userRole = memory?.onboarding?.role || 'Founder';
+  const userName = ownerFromData.name || (firstName ? `${firstName} ${lastName}`.trim() : 'Founder');
+  const userRole = ownerFromData.role || memory?.onboarding?.role || 'Founder';
 
   const factsSection = relevant.facts
     ? `Facts:
@@ -240,6 +247,23 @@ Guidelines:
 }
 
 /**
+ * Extract owner name from raw org data string
+ */
+function extractOwnerFromRawData(rawData: string): { name: string; role: string } {
+  // Look for "Owner/Founder: Name" in the raw data
+  const match = rawData.match(/Owner\/Founder:\s*(.+)/i);
+  if (match) {
+    const fullName = match[1].trim();
+    // Split into first and last name
+    const parts = fullName.split(' ');
+    const firstName = parts[0];
+    const lastName = parts.slice(1).join(' ');
+    return { name: fullName, role: 'Founder' };
+  }
+  return { name: '', role: '' };
+}
+
+/**
  * Build system prompt with Raw Data (for factual queries)
  */
 function buildSystemPromptWithRawData(
@@ -248,11 +272,14 @@ function buildSystemPromptWithRawData(
   memoryInsights?: { insights: string[]; opportunities: string[]; risks: string[] },
   memory?: CompanyMemory | null
 ): string {
-  // Get user info from onboarding
-  const firstName = memory?.onboarding?.firstName || '';
+  // Extract user info from rawData (fresh from Firebase) first
+  const ownerFromData = extractOwnerFromRawData(rawData);
+
+  // Fallback to memory if raw data doesn't have it
+  const firstName = ownerFromData.name || memory?.onboarding?.firstName || '';
   const lastName = memory?.onboarding?.lastName || '';
-  const userName = firstName ? `${firstName} ${lastName}`.trim() : 'Founder';
-  const userRole = memory?.onboarding?.role || 'Founder';
+  const userName = ownerFromData.name || (firstName ? `${firstName} ${lastName}`.trim() : 'Founder');
+  const userRole = ownerFromData.role || memory?.onboarding?.role || 'Founder';
 
   const dataSection = rawData
     ? `COMPANY DATA:\n${rawData}`
@@ -358,9 +385,9 @@ export async function callCofounderAI(
       systemPrompt = buildSystemPromptWithMemory(context, memory);
       console.log('[callCofounderAI] Using MEMORY prompt');
     } else {
-      // Fallback to basic context
-      systemPrompt = buildSystemPrompt(context, memory);
-      console.log('[callCofounderAI] Using BASIC context prompt');
+      // Fallback to basic context - also pass rawData for owner name
+      systemPrompt = buildSystemPrompt(context, memory, rawData);
+      console.log('[callCofounderAI] Using BASIC context prompt with rawData');
     }
 
     const formattedConversation = formatConversation(conversation);

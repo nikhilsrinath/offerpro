@@ -721,6 +721,7 @@ function formatCompanyInfo(orgData: any): string {
 
   const lines = [
     `Company: ${profile.company_name || 'Unknown'}`,
+    `Owner/Founder: ${profile.owner_name || profile.first_name || 'Unknown'}`,
     `Industry: ${profile.industry || 'Unknown'}`,
     `Size: ${profile.company_size || 'Unknown'}`,
     `Location: ${profile.city || 'Unknown'}, ${profile.country || 'Unknown'}`,
@@ -797,6 +798,7 @@ export function formatRawDataForPrompt(
 
 /**
  * Get the appropriate data based on intent
+ * ALWAYS fetches fresh org data from /organizations/{orgId} for every query
  */
 export async function getContextForQuery(
   orgId: string,
@@ -813,12 +815,15 @@ export async function getContextForQuery(
   let rawData = '';
   let memoryInsights = { insights: [] as string[], opportunities: [] as string[], risks: [] as string[] };
 
-  // Fetch raw data for factual or combined queries
-  if (intent === 'factual' || intent === 'combined') {
-    const orgData = await fetchRawOrgData(orgId);
-    if (orgData) {
-      rawData = formatRawDataForPrompt(orgData, intent, message);
-    }
+  // ALWAYS fetch raw data from /organizations/{orgId} for EVERY query
+  // This ensures AI knows owner name, company info, employees, etc.
+  console.log('[Context] Fetching fresh org data from /organizations/' + orgId);
+  const orgData = await fetchRawOrgData(orgId);
+  if (orgData) {
+    rawData = formatRawDataForPrompt(orgData, intent, message);
+    console.log('[Context] Fresh org data loaded - Owner:', orgData._profile?.owner_name || orgData.company_name);
+  } else {
+    console.log('[Context] WARNING: Could not fetch org data from Firebase');
   }
 
   // Get memory insights for reasoning or combined queries
