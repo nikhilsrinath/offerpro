@@ -149,28 +149,48 @@ export default function Hub({ onSelectModule, user, theme }) {
 
     // Conditional layout styles based on Copilot state
     const hubContainerStyles = copilotOpen && !copilotFullscreen
-        ? { flex: 1, minWidth: 0, overflowX: 'auto' }  // Fluid layout when Copilot open
-        : { maxWidth: 1400, margin: '0 auto' };  // Wider centered layout when Copilot closed (1400px)
+        ? { 
+            width: isMobile ? '100%' : 'calc(100% - 360px)', 
+            height: '100vh',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            marginLeft: 0,
+            marginRight: 'auto',
+            scrollbarWidth: 'none', // Firefox
+            msOverflowStyle: 'none', // IE/Edge
+          }  // Fluid layout for Desktop, static 100% for Mobile
+        : { 
+            width: isMobile ? '100%' : '75%', 
+            margin: '0 auto',
+            height: '100vh',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            scrollbarWidth: 'none', // Firefox
+            msOverflowStyle: 'none', // IE/Edge
+          };  // 75% centered layout
 
     return (
         <div style={{
             display: 'flex',
             width: '100%',
-            minHeight: '100vh',
+            height: '100vh',
             fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             WebkitFontSmoothing: 'antialiased',
             background: isDark ? '#09090b' : '#f8f9fb',
+            overflow: 'hidden', // Root should not scroll
         }}>
             {/* ── HUB CONTENT AREA ─────────────────────────────────────────── */}
-            <div style={{
-                position: 'relative',
-                display: copilotFullscreen ? 'none' : 'block',
-                transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                ...hubContainerStyles,
-            }}>
-                {/* Grid background */}
+            <div 
+                className="hub-content-container"
+                style={{
+                    position: 'relative',
+                    display: copilotFullscreen ? 'none' : 'block',
+                    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                    ...hubContainerStyles,
+                }}>
+                {/* Grid background - use absolute to stay within Hub area */}
                 <div style={{
-                    position: 'fixed', inset: 0,
+                    position: 'absolute', inset: 0,
                     backgroundImage: `linear-gradient(${gridLine} 1px, transparent 1px), linear-gradient(90deg, ${gridLine} 1px, transparent 1px)`,
                     backgroundSize: '60px 60px',
                     maskImage: 'radial-gradient(ellipse 90% 60% at 50% 0%, black 10%, transparent 75%)',
@@ -178,12 +198,12 @@ export default function Hub({ onSelectModule, user, theme }) {
                     pointerEvents: 'none', zIndex: 0,
                 }} />
 
-                {/* Top radial glow (dark only) */}
+                {/* Top radial glow (dark only) - use absolute */}
                 {isDark && (
                     <div style={{
-                        position: 'fixed', top: -300, left: '50%',
+                        position: 'absolute', top: -300, left: '50%',
                         transform: 'translateX(-50%)',
-                        width: 900, height: 600,
+                        width: '150%', height: 600,
                         background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.035) 0%, transparent 65%)',
                         pointerEvents: 'none', zIndex: 0,
                     }} />
@@ -477,7 +497,13 @@ export default function Hub({ onSelectModule, user, theme }) {
                 onToggle={() => setCopilotOpen(!copilotOpen)}
                 isFullscreen={copilotFullscreen}
                 onFullscreenToggle={() => setCopilotFullscreen(!copilotFullscreen)}
+                theme={theme}
             />
+            <style>{`
+                .hub-content-container::-webkit-scrollbar {
+                    display: none;
+                }
+            `}</style>
         </div>
     );
 }

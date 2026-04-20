@@ -39,6 +39,9 @@
   --overlay-bg: rgba(0, 0, 0, 0.4);
   --toggle-active-dot: #ffffff;
   --num-badge-bg: rgba(0, 0, 0, 0.05);
+
+  /* Scrollbar defaults */
+  --scrollbar-track: transparent;
 }
 
 /* ── LIGHT THEME (default) ── */
@@ -97,6 +100,9 @@
 
   --success: #10b981;
   --success-muted: rgba(16, 185, 129, 0.08);
+
+  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
   --error: #dc2626;
   --error-muted: rgba(220, 38, 38, 0.05);
 }
@@ -162,6 +168,9 @@
   --success-muted: rgba(16, 185, 129, 0.12);
   --error: #f87171;
   --error-muted: rgba(248, 113, 113, 0.08);
+
+  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
 }
 
 * {
@@ -190,6 +199,30 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Firefox Scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Global Webkit Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }
 
 @media (max-width: 768px) {
@@ -4138,6 +4171,7 @@ label {
 .sidebar:hover {
   width: 260px !important;
   box-shadow: 4px 0 32px rgba(0,0,0,0.18);
+  z-index: 300; /* Above Copilot panel (z-index: 200) */
 }
 
 /* Paddings: compact when collapsed, full when expanded */

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Send, 
   ChevronLeft, 
@@ -6,7 +6,11 @@ import {
   Sparkles,
   X,
   Bot,
-  User
+  User,
+  Trash2,
+  Maximize2,
+  Minimize2,
+  ArrowLeft
 } from 'lucide-react';
 
 // Types
@@ -25,76 +29,22 @@ interface SuggestedPrompt {
 
 // Suggested prompts data
 const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
-  { id: '1', text: 'What should I focus on today?' },
-  { id: '2', text: 'Analyze my business performance' },
-  { id: '3', text: 'Should I hire right now?' },
-  { id: '4', text: 'What are my biggest bottlenecks?' },
+  { id: '1', text: 'Analyze business performance' },
+  { id: '2', text: 'Should I hire right now?' },
+  { id: '3', text: 'Identify growth bottlenecks' },
+  { id: '4', text: 'Review team operations' },
 ];
 
-// Mock AI responses for demo
-const MOCK_RESPONSES: Record<string, string> = {
-  'What should I focus on today?': `Based on your current data, here's what needs attention:
-
-**DECISION: Review Pending Invoices**
-You have unpaid invoices that should be followed up.
-
-**WHY:** Cash flow is critical for operations.
-
-**ACTION:** Send reminder emails to overdue clients.`,
-  
-  'Analyze my business performance': `**Performance Summary**
-
-📈 **Revenue Trend:** Up 12% from last month
-📋 **Documents:** 47 total processed
-👥 **Team:** 2 employees active
-
-**Key Insight:** Your document-to-revenue ratio is healthy. Consider scaling operations.`,
-  
-  'Should I hire right now?': `**Hiring Recommendation: WAIT**
-
-**Current Capacity:** 2 employees handling workflow efficiently
-**Utilization:** 68% - Room for growth with current team
-
-**RECOMMENDATION:** 
-Optimize existing workflows first. Hire when utilization hits 85%+ consistently.`,
-  
-  'What are my biggest bottlenecks?': `**Identified Bottlenecks:**
-
-1. **Document Processing** - Manual data entry
-2. **Invoice Follow-ups** - No automation
-3. **Team Coordination** - Missing hierarchy
-
-**Priority Fix:** Set up automated invoice reminders first.`,
-};
-
-// Generate AI response
+// Mock generator (same as before)
 const generateResponse = (input: string): string => {
-  const normalizedInput = input.toLowerCase().trim();
+  const responses: Record<string, string> = {
+    'analyze': `**Performance Summary**\n\n📊 **Revenue:** Up 12%\n📋 **Efficiency:** Highly Optimized\n\n**Action:** Consider scaling your document processing workflow.`,
+    'hire': `**Hiring Recommendation: WAIT**\n\nYour team utilization is currently at 68%. Room for growth remains.`,
+    'bottlenecks': `**Bottlenecks Detected:**\n\n1. Manual data entry\n2. Invoice follow-ups\n\n**Priority:** Automate invoice reminders.`,
+  };
   
-  // Check for exact matches first
-  for (const [prompt, response] of Object.entries(MOCK_RESPONSES)) {
-    if (normalizedInput === prompt.toLowerCase()) {
-      return response;
-    }
-  }
-  
-  // Check for partial matches
-  for (const [prompt, response] of Object.entries(MOCK_RESPONSES)) {
-    if (normalizedInput.includes(prompt.toLowerCase().split(' ').slice(0, 3).join(' '))) {
-      return response;
-    }
-  }
-  
-  // Default response
-  return `I understand you're asking about "${input}". 
-
-As your AI Co-founder, I can help you with:
-• Business strategy and decisions
-• Performance analysis
-• Hiring recommendations  
-• Identifying bottlenecks
-
-What specific aspect would you like to explore?`;
+  const key = Object.keys(responses).find(k => input.toLowerCase().includes(k)) || 'default';
+  return responses[key as keyof typeof responses] || `As your Co-founder, I'm analyzing your request. Let's focus on execution strategy and data-driven decisions.`;
 };
 
 interface CopilotPanelProps {
@@ -102,59 +52,65 @@ interface CopilotPanelProps {
   onToggle: () => void;
   isFullscreen: boolean;
   onFullscreenToggle: () => void;
+  theme?: 'light' | 'dark';
 }
 
 export default function CopilotPanel({ 
   isOpen, 
   onToggle, 
   isFullscreen, 
-  onFullscreenToggle 
+  onFullscreenToggle,
+  theme = 'light'
 }: CopilotPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const isDark = theme === 'dark';
+
+  // Check for mobile
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Auto-scroll to bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // Auto-resize textarea
-  useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.style.height = 'auto';
-      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`;
+    if (messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [inputValue]);
+  }, [messages, isLoading]);
 
+  // Handle Send
   const handleSend = async (text: string = inputValue) => {
     if (!text.trim()) return;
 
-    // Add user message
-    const userMessage: Message = {
+    const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: text,
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMsg]);
     setInputValue('');
     setIsLoading(true);
 
-    // Simulate AI thinking delay
     setTimeout(() => {
-      const aiMessage: Message = {
+      const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: generateResponse(text),
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, aiMessage]);
+      setMessages(prev => [...prev, aiMsg]);
       setIsLoading(false);
-    }, 800 + Math.random() * 600);
+    }, 1000);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -164,9 +120,166 @@ export default function CopilotPanel({
     }
   };
 
-  const handlePromptClick = (promptText: string) => {
-    handleSend(promptText);
+  // ── SHARED MOBILE COMPONENTS ────────────────────────────────
+
+  const MobileEmptyState = () => (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      padding: '2rem 1.5rem', textAlign: 'center', height: '100%',
+    }}>
+      <div style={{
+        width: 48, height: 48, borderRadius: 14, background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem',
+        boxShadow: '0 8px 16px rgba(99,102,241,0.2)',
+      }}>
+        <Sparkles size={20} style={{ color: '#ffffff' }} />
+      </div>
+      <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: '0 0 0.5rem' }}>
+        Start thinking with your Co-founder
+      </h3>
+      <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: '0 0 1.5rem', lineHeight: 1.6 }}>
+        Strategic decisions, performance analysis, and growth execution.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%', maxWidth: 280 }}>
+        {SUGGESTED_PROMPTS.map((prompt) => (
+          <button
+            key={prompt.id}
+            onClick={() => handleSend(prompt.text)}
+            style={{
+              padding: '0.75rem 1rem', background: '#ffffff', border: `1px solid #f1f5f9`,
+              borderRadius: 10, cursor: 'pointer', textAlign: 'left', fontSize: '0.75rem',
+              fontWeight: 500, color: '#64748b', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: '0.75rem'
+            }}
+          >
+            <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#6366f1' }} />
+            {prompt.text}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const MobileMessageBubble = ({ message }: { message: Message }) => {
+    const isUser = message.role === 'user';
+    return (
+      <div style={{
+        display: 'flex', flexDirection: isUser ? 'row-reverse' : 'row', gap: '0.75rem',
+        marginBottom: '1.25rem', alignItems: 'flex-start',
+      }}>
+        <div style={{
+          width: 28, height: 28, borderRadius: 8, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: isUser ? '#6366f1' : '#f1f5f9', border: isUser ? 'none' : `1px solid #f1f5f9`,
+        }}>
+          {isUser ? <User size={14} style={{ color: '#ffffff' }} /> : <Bot size={14} style={{ color: '#6366f1' }} />}
+        </div>
+        <div style={{
+          maxWidth: '85%', padding: '0.875rem 1rem', borderRadius: 14,
+          borderTopRightRadius: isUser ? 4 : 14, borderTopLeftRadius: isUser ? 14 : 4,
+          background: isUser ? '#6366f1' : '#f8fafc',
+          border: isUser ? 'none' : `1px solid #e2e8f0`,
+          color: isUser ? '#ffffff' : '#64748b', fontSize: '0.875rem', lineHeight: 1.6,
+        }}>
+          {message.content}
+        </div>
+      </div>
+    );
   };
+
+  // ── MOBILE FULLSCREEN VERSION ───────────────────────────────
+
+  if (isMobile) {
+    if (!isOpen) {
+      return (
+        <button
+          onClick={onToggle}
+          style={{
+            position: 'fixed', bottom: '1.5rem', right: '1.5rem',
+            width: 56, height: 56, borderRadius: 28, background: '#6366f1',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 12px 24px rgba(99,102,241,0.3)', border: 'none',
+            zIndex: 1000, cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        >
+          <Sparkles size={24} style={{ color: '#ffffff' }} />
+        </button>
+      );
+    }
+
+    return (
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        background: isDark ? '#0f172a' : '#ffffff', zIndex: 2000, display: 'flex', flexDirection: 'column',
+        animation: 'copilot-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '1rem 1.25rem', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'}`,
+          display: 'flex', alignItems: 'center', gap: '1rem', background: isDark ? '#1e293b' : '#ffffff',
+        }}>
+          <button onClick={onToggle} style={{ background: 'none', border: 'none', padding: 0 }}>
+            <ArrowLeft size={24} style={{ color: isDark ? '#ffffff' : '#0f172a' }} />
+          </button>
+          <div>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', margin: 0 }}>Co-founder</h2>
+            <p style={{ fontSize: '0.75rem', color: isDark ? '#94a3b8' : '#64748b', margin: 0 }}>Your AI execution partner</p>
+          </div>
+          <div style={{ flex: 1 }} />
+          <button onClick={() => setMessages([])} style={{ background: 'none', border: 'none' }}>
+            <Trash2 size={18} style={{ color: isDark ? '#94a3b8' : '#64748b' }} />
+          </button>
+        </div>
+
+        {/* Chat Content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', background: isDark ? '#0f172a' : '#fafafa' }}>
+          {messages.length === 0 ? <MobileEmptyState /> : (
+            <div>
+              {messages.map(m => <MobileMessageBubble key={m.id} message={m} />)}
+              {isLoading && <div style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: '0.75rem' }}>Thinking...</div>}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
+
+        {/* Input area */}
+        <div style={{
+          padding: '1rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom))',
+          background: isDark ? '#1e293b' : '#ffffff', borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'}`,
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', background: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc',
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'}`, borderRadius: 12, padding: '0.5rem 0.5rem 0.5rem 1rem',
+          }}>
+            <textarea
+              ref={inputRef} value={inputValue} onChange={e => setInputValue(e.target.value)}
+              placeholder="Ask anything..." rows={1}
+              style={{
+                flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                color: isDark ? '#ffffff' : '#0f172a', fontSize: '1rem', resize: 'none', maxHeight: 100,
+              }}
+            />
+            <button
+              onClick={() => handleSend()}
+              style={{
+                width: 40, height: 40, borderRadius: 10, background: '#6366f1',
+                border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Send size={18} style={{ color: '#ffffff' }} />
+            </button>
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes copilot-slide-up {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // ── DESKTOP PORTION (Original) ─────────────────────────────
 
   // Empty state component
   const EmptyState = () => (
@@ -224,7 +337,7 @@ export default function CopilotPanel({
         {SUGGESTED_PROMPTS.map((prompt) => (
           <button
             key={prompt.id}
-            onClick={() => handlePromptClick(prompt.text)}
+            onClick={() => handleSend(prompt.text)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -316,38 +429,7 @@ export default function CopilotPanel({
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
           }}>
-            {message.content.split('\n\n').map((paragraph, idx) => (
-              <p key={idx} style={{ margin: idx === 0 ? 0 : '0.75rem 0 0' }}>
-                {paragraph.split('\n').map((line, lineIdx) => {
-                  // Check for bold text (**text**)
-                  if (line.startsWith('**') && line.endsWith('**')) {
-                    return (
-                      <span key={lineIdx} style={{ 
-                        fontWeight: 700, 
-                        color: isUser ? '#ffffff' : '#0f172a',
-                        display: 'block',
-                        marginBottom: lineIdx === 0 ? '0.25rem' : '0.5rem',
-                      }}>
-                        {line.replace(/\*\*/g, '')}
-                      </span>
-                    );
-                  }
-                  // Check for bullet points
-                  if (line.startsWith('•') || line.match(/^\d+\./)) {
-                    return (
-                      <span key={lineIdx} style={{ 
-                        display: 'block', 
-                        marginLeft: '0.75rem',
-                        marginTop: '0.25rem',
-                      }}>
-                        {line}
-                      </span>
-                    );
-                  }
-                  return <span key={lineIdx}>{line}<br /></span>;
-                })}
-              </p>
-            ))}
+            {message.content}
           </div>
         </div>
       </div>
@@ -395,11 +477,12 @@ export default function CopilotPanel({
     <div 
       className={`copilot-panel ${isFullscreen ? 'fullscreen' : ''}`}
       style={{
-        position: isFullscreen ? 'fixed' : 'fixed',
-        right: 0,
+        position: 'fixed',
+        right: isFullscreen ? undefined : 0,
+        left: isFullscreen ? 58 : undefined,
         top: 0,
         bottom: 0,
-        width: isFullscreen ? '100%' : 360,
+        width: isFullscreen ? 'calc(100% - 58px)' : 360,
         background: '#ffffff',
         borderLeft: '1px solid #e2e8f0',
         boxShadow: isFullscreen 
