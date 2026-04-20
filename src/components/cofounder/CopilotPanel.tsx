@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { 
   Send, 
   ChevronLeft, 
@@ -12,6 +12,7 @@ import {
   Minimize2,
   ArrowLeft
 } from 'lucide-react';
+import { callCofounderAI, getSuggestedPrompts } from '../../services/cofounderAI';
 
 // Types
 interface Message {
@@ -19,6 +20,36 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  isStreaming?: boolean;
+}
+
+interface EdgeContext {
+  company: string;
+  financials: {
+    totalRevenue: number;
+    pendingRevenue: number;
+    avgMonthlyRevenue: number;
+    lastMonthRevenue: number;
+    growthRate: string;
+    invoicesIssued: number;
+    invoicesPaid: number;
+    invoicesPending: number;
+  };
+  documents: {
+    total: number;
+    offerLetters: number;
+    invoices: number;
+    quotations: number;
+    proformas: number;
+  };
+  trends: {
+    monthlyRevenue: Array<{ month: string; revenue: number }>;
+    documentGrowth: string;
+  };
+  team: {
+    user: string;
+    role: string;
+  };
 }
 
 interface SuggestedPrompt {
@@ -27,24 +58,17 @@ interface SuggestedPrompt {
   icon?: React.ReactNode;
 }
 
-// Suggested prompts data
-const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
-  { id: '1', text: 'Analyze business performance' },
-  { id: '2', text: 'Should I hire right now?' },
-  { id: '3', text: 'Identify growth bottlenecks' },
-  { id: '4', text: 'Review team operations' },
-];
-
-// Mock generator (same as before)
-const generateResponse = (input: string): string => {
-  const responses: Record<string, string> = {
-    'analyze': `**Performance Summary**\n\n📊 **Revenue:** Up 12%\n📋 **Efficiency:** Highly Optimized\n\n**Action:** Consider scaling your document processing workflow.`,
-    'hire': `**Hiring Recommendation: WAIT**\n\nYour team utilization is currently at 68%. Room for growth remains.`,
-    'bottlenecks': `**Bottlenecks Detected:**\n\n1. Manual data entry\n2. Invoice follow-ups\n\n**Priority:** Automate invoice reminders.`,
-  };
-  
-  const key = Object.keys(responses).find(k => input.toLowerCase().includes(k)) || 'default';
-  return responses[key as keyof typeof responses] || `As your Co-founder, I'm analyzing your request. Let's focus on execution strategy and data-driven decisions.`;
+// Suggested prompts - dynamic based on context
+const getDynamicPrompts = (context?: EdgeContext): SuggestedPrompt[] => {
+  if (!context) {
+    return [
+      { id: '1', text: 'Analyze business performance' },
+      { id: '2', text: 'Should I hire right now?' },
+      { id: '3', text: 'Identify growth bottlenecks' },
+      { id: '4', text: 'Review team operations' },
+    ];
+  }
+  return getSuggestedPrompts(context);
 };
 
 interface CopilotPanelProps {
@@ -53,6 +77,7 @@ interface CopilotPanelProps {
   isFullscreen: boolean;
   onFullscreenToggle: () => void;
   theme?: 'light' | 'dark';
+  edgeContext?: EdgeContext;
 }
 
 export default function CopilotPanel({ 
@@ -60,14 +85,19 @@ export default function CopilotPanel({
   onToggle, 
   isFullscreen, 
   onFullscreenToggle,
-  theme = 'light'
+  theme = 'light',
+  edgeContext
 }: CopilotPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const isDark = theme === 'dark';
 
@@ -79,39 +109,107 @@ export default function CopilotPanel({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom (including streaming)
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 || isStreaming) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isLoading]);
+  }, [messages, isLoading, isStreaming, streamingContent]);
 
-  // Handle Send
-  const handleSend = async (text: string = inputValue) => {
-    if (!text.trim()) return;
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
+  // Handle Send with NVIDIA AI Streaming
+  const handleSend = useCallback(async (text: string = inputValue) => {
+    if (!text.trim() || isStreaming) return;
+
+    const trimmedText = text.trim();
+    setError(null);
+    
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: text,
+      content: trimmedText,
       timestamp: new Date(),
     };
 
     setMessages(prev => [...prev, userMsg]);
     setInputValue('');
     setIsLoading(true);
+    setIsStreaming(true);
+    setStreamingContent('');
 
-    setTimeout(() => {
-      const aiMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: generateResponse(text),
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, aiMsg]);
+    const aiMsgId = (Date.now() + 1).toString();
+    
+    // Add placeholder message that will stream
+    setMessages(prev => [...prev, {
+      id: aiMsgId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      isStreaming: true,
+    }]);
+
+    try {
+      await callCofounderAI(
+        trimmedText,
+        messages,
+        edgeContext || {},
+        {
+          onToken: (_token: string, fullContent: string) => {
+            setStreamingContent(fullContent);
+            setMessages(prev => 
+              prev.map(m => 
+                m.id === aiMsgId 
+                  ? { ...m, content: fullContent }
+                  : m
+              )
+            );
+          },
+          onComplete: (fullContent: string) => {
+            setMessages(prev => 
+              prev.map(m => 
+                m.id === aiMsgId 
+                  ? { ...m, content: fullContent, isStreaming: false }
+                  : m
+              )
+            );
+            setIsStreaming(false);
+            setIsLoading(false);
+            setStreamingContent('');
+          },
+          onError: (errorMsg: string) => {
+            setError(errorMsg);
+            setMessages(prev => 
+              prev.map(m => 
+                m.id === aiMsgId 
+                  ? { ...m, content: errorMsg || 'Something went wrong. Please try again.', isStreaming: false }
+                  : m
+              )
+            );
+            setIsStreaming(false);
+            setIsLoading(false);
+          },
+        }
+      );
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      setError(errorMsg);
+      setMessages(prev => 
+        prev.map(m => 
+          m.id === aiMsgId 
+            ? { ...m, content: errorMsg, isStreaming: false }
+            : m
+        )
+      );
+      setIsStreaming(false);
       setIsLoading(false);
-    }, 1000);
-  };
+    }
+  }, [inputValue, isStreaming, messages, edgeContext]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -141,14 +239,16 @@ export default function CopilotPanel({
         Strategic decisions, performance analysis, and growth execution.
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%', maxWidth: 280 }}>
-        {SUGGESTED_PROMPTS.map((prompt) => (
+        {getDynamicPrompts(edgeContext).map((prompt: SuggestedPrompt) => (
           <button
             key={prompt.id}
             onClick={() => handleSend(prompt.text)}
+            disabled={isStreaming}
             style={{
               padding: '0.75rem 1rem', background: '#ffffff', border: `1px solid #f1f5f9`,
-              borderRadius: 10, cursor: 'pointer', textAlign: 'left', fontSize: '0.75rem',
-              fontWeight: 500, color: '#64748b', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: '0.75rem'
+              borderRadius: 10, cursor: isStreaming ? 'not-allowed' : 'pointer', textAlign: 'left', fontSize: '0.75rem',
+              fontWeight: 500, color: '#64748b', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: '0.75rem',
+              opacity: isStreaming ? 0.6 : 1,
             }}
           >
             <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#6366f1' }} />
@@ -334,10 +434,11 @@ export default function CopilotPanel({
         width: '100%',
         maxWidth: 320,
       }}>
-        {SUGGESTED_PROMPTS.map((prompt) => (
+        {getDynamicPrompts(edgeContext).map((prompt: SuggestedPrompt) => (
           <button
             key={prompt.id}
             onClick={() => handleSend(prompt.text)}
+            disabled={isStreaming}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -346,13 +447,14 @@ export default function CopilotPanel({
               background: '#ffffff',
               border: '1px solid #e2e8f0',
               borderRadius: 10,
-              cursor: 'pointer',
+              cursor: isStreaming ? 'not-allowed' : 'pointer',
               textAlign: 'left',
               fontSize: '0.8125rem',
               fontWeight: 500,
               color: '#334155',
               transition: 'all 0.2s ease',
               boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+              opacity: isStreaming ? 0.6 : 1,
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = '#f8fafc';

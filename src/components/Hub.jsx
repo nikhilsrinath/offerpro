@@ -12,6 +12,7 @@ import { useOrg } from '../context/OrgContext';
 import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
 import CopilotPanel from './cofounder/CopilotPanel';
+import { buildEdgeContext } from '../services/cofounderAI';
 
 const MODULES = [
     { id: 'team',      label: 'Team',          desc: 'Employee registry, offer tracker & bulk imports.',       icon: Users,        defaultPage: 'team-hierarchy', color: '#8b5cf6' },
@@ -498,6 +499,7 @@ export default function Hub({ onSelectModule, user, theme }) {
                 isFullscreen={copilotFullscreen}
                 onFullscreenToggle={() => setCopilotFullscreen(!copilotFullscreen)}
                 theme={theme}
+                edgeContext={buildEdgeContext({ records, finDocs, user, activeOrg })}
             />
             <style>{`
                 .hub-content-container::-webkit-scrollbar {
