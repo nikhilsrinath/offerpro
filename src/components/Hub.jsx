@@ -149,8 +149,8 @@ export default function Hub({ onSelectModule, user, theme }) {
 
     // Conditional layout styles based on Copilot state
     const hubContainerStyles = copilotOpen && !copilotFullscreen
-        ? { flex: 1, minWidth: 0 }  // Fluid layout when Copilot open
-        : { maxWidth: 1280, margin: '0 auto' };  // Centered layout when Copilot closed
+        ? { flex: 1, minWidth: 0, overflowX: 'auto' }  // Fluid layout when Copilot open
+        : { maxWidth: 1400, margin: '0 auto' };  // Wider centered layout when Copilot closed (1400px)
 
     return (
         <div style={{
