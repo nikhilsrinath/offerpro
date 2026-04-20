@@ -147,6 +147,11 @@ export default function Hub({ onSelectModule, user, theme }) {
     const modPad      = isMobile ? '1rem' : '1.5rem';
     const h1Size      = isMobile ? '1.6rem' : 'clamp(1.75rem, 3vw, 2.25rem)';
 
+    // Conditional layout styles based on Copilot state
+    const hubContainerStyles = copilotOpen && !copilotFullscreen
+        ? { flex: 1, minWidth: 0 }  // Fluid layout when Copilot open
+        : { maxWidth: 1280, margin: '0 auto' };  // Centered layout when Copilot closed
+
     return (
         <div style={{
             display: 'flex',
@@ -158,11 +163,10 @@ export default function Hub({ onSelectModule, user, theme }) {
         }}>
             {/* ── HUB CONTENT AREA ─────────────────────────────────────────── */}
             <div style={{
-                flex: 1,
-                minWidth: 0,
                 position: 'relative',
                 display: copilotFullscreen ? 'none' : 'block',
-                transition: 'flex 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                ...hubContainerStyles,
             }}>
                 {/* Grid background */}
                 <div style={{
