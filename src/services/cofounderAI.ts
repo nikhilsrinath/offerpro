@@ -220,6 +220,47 @@ Guidelines:
 }
 
 /**
+ * Build system prompt with Raw Data (for factual queries)
+ */
+function buildSystemPromptWithRawData(
+  context: EdgeContext,
+  rawData: string,
+  memoryInsights?: { insights: string[]; opportunities: string[]; risks: string[] }
+): string {
+  const dataSection = rawData
+    ? `COMPANY DATA:\n${rawData}`
+    : 'No specific company data available.';
+
+  const insightsSection = memoryInsights && memoryInsights.insights.length > 0
+    ? `\n\nINTELLIGENCE:\n${memoryInsights.insights.map(i => `• ${i}`).join('\n')}`
+    : '';
+
+  const opportunitiesSection = memoryInsights && memoryInsights.opportunities.length > 0
+    ? `\n\nOPPORTUNITIES:\n${memoryInsights.opportunities.map(o => `• ${o}`).join('\n')}`
+    : '';
+
+  const risksSection = memoryInsights && memoryInsights.risks.length > 0
+    ? `\n\nRISKS:\n${memoryInsights.risks.map(r => `• ${r}`).join('\n')}`
+    : '';
+
+  return `You are an AI assistant for ${context.company || 'this company'}.
+
+CRITICAL INSTRUCTION:
+You have been provided with ACTUAL COMPANY DATA from the database.
+You MUST use this data directly to answer questions.
+NEVER say "I don't have access" or "data not available" if the data is provided below.
+
+${dataSection}${insightsSection}${opportunitiesSection}${risksSection}
+
+ANSWER RULES:
+- Answer using ONLY the data provided above
+- For "who", "list", "names" queries → give exact names from the data
+- For counts → give exact numbers from the data
+- Be specific and factual
+- If data is missing for a specific question, say exactly what's missing`;
+}
+
+/**
  * Format conversation history for API
  */
 function formatConversation(messages: Array<{ role: string; content: string; id?: string }>): Array<{ role: string; content: string }> {
@@ -238,7 +279,9 @@ export async function callCofounderAI(
   conversation: Array<{ role: string; content: string }>,
   edgeContext: EdgeContext | Record<string, never>,
   callbacks: StreamCallbacks,
-  memory?: CompanyMemory | null
+  memory?: CompanyMemory | null,
+  rawData?: string,
+  intent?: 'factual' | 'reasoning' | 'combined'
 ): Promise<void> {
   const { onToken, onComplete, onError } = callbacks;
 
@@ -247,12 +290,40 @@ export async function callCofounderAI(
     return;
   }
 
+  // Debug logging
+  console.log('[callCofounderAI] Intent:', intent);
+  console.log('[callCofounderAI] Raw data length:', rawData?.length || 0);
+  console.log('[callCofounderAI] Memory available:', !!memory);
+
   try {
     const context = edgeContext as EdgeContext;
-    // Use memory-based prompt if available, fallback to context-based
-    const systemPrompt = memory
-      ? buildSystemPromptWithMemory(context, memory)
-      : buildSystemPrompt(context);
+
+    // Build prompt based on intent and available data
+    let systemPrompt: string;
+
+    if (intent === 'factual' && rawData) {
+      // Factual query with raw data
+      systemPrompt = buildSystemPromptWithRawData(context, rawData);
+      console.log('[callCofounderAI] Using RAW DATA prompt');
+    } else if (intent === 'combined' && rawData && memory) {
+      // Combined query with both raw data and memory insights
+      const memoryInsights = {
+        insights: memory.insights.slice(0, 3),
+        opportunities: memory.opportunities.slice(0, 3),
+        risks: memory.risks.slice(0, 3),
+      };
+      systemPrompt = buildSystemPromptWithRawData(context, rawData, memoryInsights);
+      console.log('[callCofounderAI] Using COMBINED prompt (raw + memory)');
+    } else if (memory) {
+      // Reasoning query with memory
+      systemPrompt = buildSystemPromptWithMemory(context, memory);
+      console.log('[callCofounderAI] Using MEMORY prompt');
+    } else {
+      // Fallback to basic context
+      systemPrompt = buildSystemPrompt(context);
+      console.log('[callCofounderAI] Using BASIC context prompt');
+    }
+
     const formattedConversation = formatConversation(conversation);
 
     const messages = [

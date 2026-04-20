@@ -13,7 +13,14 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { callCofounderAI, getSuggestedPrompts } from '../../services/cofounderAI';
-import { loadCompanyMemory, refreshMemory, CompanyMemory } from '../../services/companyMemory';
+import {
+  loadCompanyMemory,
+  refreshMemory,
+  CompanyMemory,
+  getContextForQuery,
+  QueryIntent,
+  detectQueryIntent
+} from '../../services/companyMemory';
 
 // Types
 interface Message {
@@ -147,7 +154,22 @@ export default function CopilotPanel({
 
     const trimmedText = text.trim();
     setError(null);
-    
+
+    // STEP 1: Detect intent
+    const intent = detectQueryIntent(trimmedText);
+    console.log('[CopilotPanel] Detected intent:', intent);
+
+    // STEP 2: Get appropriate context based on intent
+    let rawData = '';
+    let memoryInsights = { insights: [] as string[], opportunities: [] as string[], risks: [] as string[] };
+
+    if (orgId) {
+      const context = await getContextForQuery(orgId, trimmedText, companyMemory);
+      rawData = context.rawData;
+      memoryInsights = context.memoryInsights;
+      console.log('[CopilotPanel] Context loaded - Raw data:', rawData.length, 'bytes');
+    }
+
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -162,7 +184,7 @@ export default function CopilotPanel({
     setStreamingContent('');
 
     const aiMsgId = (Date.now() + 1).toString();
-    
+
     // Add placeholder message that will stream
     setMessages(prev => [...prev, {
       id: aiMsgId,
@@ -180,18 +202,18 @@ export default function CopilotPanel({
         {
           onToken: (_token: string, fullContent: string) => {
             setStreamingContent(fullContent);
-            setMessages(prev => 
-              prev.map(m => 
-                m.id === aiMsgId 
+            setMessages(prev =>
+              prev.map(m =>
+                m.id === aiMsgId
                   ? { ...m, content: fullContent }
                   : m
               )
             );
           },
           onComplete: (fullContent: string) => {
-            setMessages(prev => 
-              prev.map(m => 
-                m.id === aiMsgId 
+            setMessages(prev =>
+              prev.map(m =>
+                m.id === aiMsgId
                   ? { ...m, content: fullContent, isStreaming: false }
                   : m
               )
@@ -199,7 +221,7 @@ export default function CopilotPanel({
             setIsStreaming(false);
             setIsLoading(false);
             setStreamingContent('');
-            
+
             // Continuous learning: refresh memory after each successful chat
             if (orgId) {
               refreshMemory(orgId).then(updatedMemory => {
@@ -212,9 +234,9 @@ export default function CopilotPanel({
           },
           onError: (errorMsg: string) => {
             setError(errorMsg);
-            setMessages(prev => 
-              prev.map(m => 
-                m.id === aiMsgId 
+            setMessages(prev =>
+              prev.map(m =>
+                m.id === aiMsgId
                   ? { ...m, content: errorMsg || 'Something went wrong. Please try again.', isStreaming: false }
                   : m
               )
@@ -223,7 +245,9 @@ export default function CopilotPanel({
             setIsLoading(false);
           },
         },
-        companyMemory
+        companyMemory,
+        rawData,
+        intent
       );
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
@@ -238,7 +262,7 @@ export default function CopilotPanel({
       setIsStreaming(false);
       setIsLoading(false);
     }
-  }, [inputValue, isStreaming, messages, edgeContext, companyMemory]);
+  }, [inputValue, isStreaming, messages, edgeContext, companyMemory, orgId]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

@@ -372,3 +372,279 @@ export default {
   getRelevantMemory,
   refreshMemory,
 };
+
+// ============================================================================
+// INTENT DETECTION & RAW DATA SYSTEM
+// ============================================================================
+
+export type QueryIntent = 'factual' | 'reasoning' | 'combined';
+
+const FACTUAL_KEYWORDS = [
+  'who', 'list', 'show', 'names', 'details', 'what are', 'how many',
+  'employees', 'team members', 'staff', 'people', 'roles',
+  'customers', 'leads', 'contacts', 'clients',
+  'tasks', 'projects', 'invoices', 'documents',
+  'tell me about', 'give me', 'find', 'search',
+  'email', 'phone', 'contact', 'address'
+];
+
+const REASONING_KEYWORDS = [
+  'should', 'recommend', 'advice', 'suggest', 'strategy',
+  'risk', 'opportunity', 'growth', 'plan', 'decision',
+  'analyze', 'evaluate', 'assess', 'think', 'consider',
+  'why', 'how to', 'best way', 'improve', 'optimize'
+];
+
+/**
+ * Detect query intent: factual, reasoning, or combined
+ */
+export function detectQueryIntent(message: string): QueryIntent {
+  const lowerMsg = message.toLowerCase();
+
+  const hasFactual = FACTUAL_KEYWORDS.some(kw => lowerMsg.includes(kw));
+  const hasReasoning = REASONING_KEYWORDS.some(kw => lowerMsg.includes(kw));
+
+  console.log('[Intent Detection] Message:', message);
+  console.log('[Intent Detection] Factual keywords found:', hasFactual);
+  console.log('[Intent Detection] Reasoning keywords found:', hasReasoning);
+
+  if (hasFactual && hasReasoning) return 'combined';
+  if (hasFactual) return 'factual';
+  if (hasReasoning) return 'reasoning';
+
+  // Default to reasoning for ambiguous queries
+  return 'reasoning';
+}
+
+/**
+ * Fetch raw organization data from Firebase
+ */
+export async function fetchRawOrgData(orgId: string): Promise<any | null> {
+  if (!orgId) return null;
+
+  try {
+    console.log('[Raw Data] Fetching org data for:', orgId);
+    const orgRef = ref(db, `organizations/${orgId}`);
+    const snap = await get(orgRef);
+
+    if (!snap.exists()) {
+      console.log('[Raw Data] No org data found');
+      return null;
+    }
+
+    const data = snap.val();
+    console.log('[Raw Data] Org data fetched successfully');
+    return data;
+  } catch (error) {
+    console.error('[Raw Data] Failed to fetch:', error);
+    return null;
+  }
+}
+
+/**
+ * Format raw employees data for AI prompt
+ */
+function formatEmployees(employees: any): string {
+  if (!employees || typeof employees !== 'object') return 'No employee data available.';
+
+  const empList = Object.values(employees) as any[];
+  if (empList.length === 0) return 'No employees found.';
+
+  const formatted = empList.map((e, idx) => {
+    const name = e.studentName || e.name || e.fullName || 'Unknown';
+    const role = e.designation || e.role || e.position || 'No role';
+    const dept = e.department || e.dept || '';
+    const email = e.email || '';
+
+    let line = `${idx + 1}. ${name} → ${role}`;
+    if (dept) line += ` (${dept})`;
+    if (email) line += ` [${email}]`;
+    return line;
+  });
+
+  return `Employees (${empList.length} total):\n${formatted.join('\n')}`;
+}
+
+/**
+ * Format raw CRM data for AI prompt
+ */
+function formatCRM(crm: any): string {
+  if (!crm || typeof crm !== 'object') return 'No CRM data available.';
+
+  const items = Object.values(crm) as any[];
+  if (items.length === 0) return 'No CRM entries found.';
+
+  const leads = items.filter(i => i.status === 'lead' || i.stage === 'lead' || !i.status);
+  const customers = items.filter(i => i.status === 'customer' || i.stage === 'customer' || i.status === 'won');
+
+  const formatItem = (item: any, idx: number) => {
+    const name = item.name || item.company || item.contact || 'Unknown';
+    const status = item.status || item.stage || 'unknown';
+    const value = item.value || item.deal_value || item.amount;
+    const notes = item.notes || item.description;
+
+    let line = `${idx + 1}. ${name} [${status}]`;
+    if (value) line += ` (Value: ₹${value.toLocaleString()})`;
+    if (notes) line += ` - ${notes.substring(0, 50)}${notes.length > 50 ? '...' : ''}`;
+    return line;
+  };
+
+  let result = '';
+  if (leads.length > 0) {
+    result += `Leads (${leads.length}):\n${leads.map(formatItem).join('\n')}\n\n`;
+  }
+  if (customers.length > 0) {
+    result += `Customers (${customers.length}):\n${customers.map(formatItem).join('\n')}`;
+  }
+
+  return result || 'No categorized CRM data found.';
+}
+
+/**
+ * Format raw tasks data for AI prompt
+ */
+function formatTasks(tasks: any): string {
+  if (!tasks || typeof tasks !== 'object') return 'No task data available.';
+
+  const taskList = Object.values(tasks) as any[];
+  if (taskList.length === 0) return 'No tasks found.';
+
+  const formatted = taskList.map((t, idx) => {
+    const title = t.title || t.name || t.task || 'Untitled';
+    const status = t.status || 'pending';
+    const assignee = t.assignee || t.assigned_to || t.assignedTo || 'Unassigned';
+    const due = t.due_date || t.dueDate || '';
+
+    let line = `${idx + 1}. ${title} [${status}]`;
+    if (assignee && assignee !== 'Unassigned') line += ` → ${assignee}`;
+    if (due) line += ` (Due: ${due})`;
+    return line;
+  });
+
+  return `Tasks (${taskList.length} total):\n${formatted.join('\n')}`;
+}
+
+/**
+ * Format raw company info for AI prompt
+ */
+function formatCompanyInfo(orgData: any): string {
+  const profile = orgData._profile || orgData;
+
+  const lines = [
+    `Company: ${profile.company_name || 'Unknown'}`,
+    `Industry: ${profile.industry || 'Unknown'}`,
+    `Size: ${profile.company_size || 'Unknown'}`,
+    `Location: ${profile.city || 'Unknown'}, ${profile.country || 'Unknown'}`,
+  ];
+
+  if (profile.company_website) lines.push(`Website: ${profile.company_website}`);
+  if (profile.company_description) lines.push(`Description: ${profile.company_description}`);
+
+  return `Company Information:\n${lines.join('\n')}`;
+}
+
+/**
+ * Format raw data based on query intent and specific sections needed
+ */
+export function formatRawDataForPrompt(
+  orgData: any,
+  intent: QueryIntent,
+  message: string
+): string {
+  if (!orgData) return 'No company data available.';
+
+  const lowerMsg = message.toLowerCase();
+  const sections: string[] = [];
+
+  // Determine which sections to include based on query
+  const needsEmployees = lowerMsg.includes('employee') || lowerMsg.includes('team') ||
+                        lowerMsg.includes('staff') || lowerMsg.includes('who') ||
+                        lowerMsg.includes('people') || lowerMsg.includes('role');
+
+  const needsCRM = lowerMsg.includes('customer') || lowerMsg.includes('lead') ||
+                   lowerMsg.includes('client') || lowerMsg.includes('crm') ||
+                   lowerMsg.includes('deal') || lowerMsg.includes('contact');
+
+  const needsTasks = lowerMsg.includes('task') || lowerMsg.includes('project') ||
+                     lowerMsg.includes('work') || lowerMsg.includes('assignment');
+
+  const needsCompany = lowerMsg.includes('company') || lowerMsg.includes('business') ||
+                       lowerMsg.includes('about us') || lowerMsg.includes('info');
+
+  console.log('[Raw Data Formatter] Sections needed:', {
+    employees: needsEmployees,
+    crm: needsCRM,
+    tasks: needsTasks,
+    company: needsCompany
+  });
+
+  // For factual queries, include all relevant raw data
+  if (intent === 'factual' || intent === 'combined') {
+    if (needsEmployees || intent === 'factual') {
+      sections.push(formatEmployees(orgData.employees));
+    }
+    if (needsCRM || intent === 'factual') {
+      sections.push(formatCRM(orgData.crm || orgData.leads));
+    }
+    if (needsTasks || intent === 'factual') {
+      sections.push(formatTasks(orgData.tasks));
+    }
+    if (needsCompany || intent === 'factual') {
+      sections.push(formatCompanyInfo(orgData));
+    }
+  }
+
+  // If no specific sections matched but it's a factual query, include everything
+  if (intent === 'factual' && sections.length === 0) {
+    sections.push(formatCompanyInfo(orgData));
+    sections.push(formatEmployees(orgData.employees));
+    sections.push(formatCRM(orgData.crm || orgData.leads));
+  }
+
+  const result = sections.join('\n\n');
+  console.log('[Raw Data Formatter] Formatted length:', result.length);
+  return result || 'No specific data available for this query.';
+}
+
+/**
+ * Get the appropriate data based on intent
+ */
+export async function getContextForQuery(
+  orgId: string,
+  message: string,
+  memory: CompanyMemory | null
+): Promise<{
+  intent: QueryIntent;
+  rawData: string;
+  memoryInsights: { insights: string[]; opportunities: string[]; risks: string[] };
+}> {
+  const intent = detectQueryIntent(message);
+  console.log('[Context] Detected intent:', intent);
+
+  let rawData = '';
+  let memoryInsights = { insights: [] as string[], opportunities: [] as string[], risks: [] as string[] };
+
+  // Fetch raw data for factual or combined queries
+  if (intent === 'factual' || intent === 'combined') {
+    const orgData = await fetchRawOrgData(orgId);
+    if (orgData) {
+      rawData = formatRawDataForPrompt(orgData, intent, message);
+    }
+  }
+
+  // Get memory insights for reasoning or combined queries
+  if (intent === 'reasoning' || intent === 'combined') {
+    if (memory) {
+      memoryInsights = {
+        insights: memory.insights.slice(0, 3),
+        opportunities: memory.opportunities.slice(0, 3),
+        risks: memory.risks.slice(0, 3),
+      };
+    }
+  }
+
+  console.log('[Context] Raw data length:', rawData.length);
+  console.log('[Context] Memory insights count:', memoryInsights.insights.length);
+
+  return { intent, rawData, memoryInsights };
+}
