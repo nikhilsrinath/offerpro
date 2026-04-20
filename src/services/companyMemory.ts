@@ -154,9 +154,9 @@ export function getRelevantMemory(memory: CompanyMemory | null): {
 
   return {
     facts: memory.facts,
-    topInsights: memory.insights.slice(0, 3),
-    topOpportunities: memory.opportunities.slice(0, 3),
-    topRisks: memory.risks.slice(0, 3),
+    topInsights: (memory.insights || []).slice(0, 3),
+    topOpportunities: (memory.opportunities || []).slice(0, 3),
+    topRisks: (memory.risks || []).slice(0, 3),
   };
 }
 
@@ -636,9 +636,9 @@ export async function getContextForQuery(
   if (intent === 'reasoning' || intent === 'combined') {
     if (memory) {
       memoryInsights = {
-        insights: memory.insights.slice(0, 3),
-        opportunities: memory.opportunities.slice(0, 3),
-        risks: memory.risks.slice(0, 3),
+        insights: (memory.insights || []).slice(0, 3),
+        opportunities: (memory.opportunities || []).slice(0, 3),
+        risks: (memory.risks || []).slice(0, 3),
       };
     }
   }

@@ -308,9 +308,9 @@ export async function callCofounderAI(
     } else if (intent === 'combined' && rawData && memory) {
       // Combined query with both raw data and memory insights
       const memoryInsights = {
-        insights: memory.insights.slice(0, 3),
-        opportunities: memory.opportunities.slice(0, 3),
-        risks: memory.risks.slice(0, 3),
+        insights: (memory.insights || []).slice(0, 3),
+        opportunities: (memory.opportunities || []).slice(0, 3),
+        risks: (memory.risks || []).slice(0, 3),
       };
       systemPrompt = buildSystemPromptWithRawData(context, rawData, memoryInsights);
       console.log('[callCofounderAI] Using COMBINED prompt (raw + memory)');

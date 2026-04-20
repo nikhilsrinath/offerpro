@@ -150,7 +150,12 @@ export default function CopilotPanel({
 
   // Handle Send with NVIDIA AI Streaming
   const handleSend = useCallback(async (text: string = inputValue) => {
-    if (!text.trim() || isStreaming) return;
+    console.log('[handleSend] Called with text:', text, 'isStreaming:', isStreaming);
+
+    if (!text.trim() || isStreaming) {
+      console.log('[handleSend] Blocked - text empty or already streaming');
+      return;
+    }
 
     const trimmedText = text.trim();
     setError(null);
@@ -164,10 +169,17 @@ export default function CopilotPanel({
     let memoryInsights = { insights: [] as string[], opportunities: [] as string[], risks: [] as string[] };
 
     if (orgId) {
-      const context = await getContextForQuery(orgId, trimmedText, companyMemory);
-      rawData = context.rawData;
-      memoryInsights = context.memoryInsights;
-      console.log('[CopilotPanel] Context loaded - Raw data:', rawData.length, 'bytes');
+      try {
+        const context = await getContextForQuery(orgId, trimmedText, companyMemory);
+        rawData = context.rawData;
+        memoryInsights = context.memoryInsights;
+        console.log('[CopilotPanel] Context loaded - Raw data:', rawData.length, 'bytes');
+      } catch (err) {
+        console.error('[CopilotPanel] Failed to load context, proceeding without raw data:', err);
+        // Continue without raw data - AI will use memory or basic context
+      }
+    } else {
+      console.log('[CopilotPanel] No orgId available, using basic context');
     }
 
     const userMsg: Message = {
@@ -412,9 +424,12 @@ export default function CopilotPanel({
             />
             <button
               onClick={() => handleSend()}
+              disabled={isStreaming || !inputValue.trim()}
               style={{
-                width: 40, height: 40, borderRadius: 10, background: '#6366f1',
+                width: 40, height: 40, borderRadius: 10,
+                background: isStreaming || !inputValue.trim() ? '#a5b4fc' : '#6366f1',
                 border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: isStreaming || !inputValue.trim() ? 'not-allowed' : 'pointer',
               }}
             >
               <Send size={18} style={{ color: '#ffffff' }} />
