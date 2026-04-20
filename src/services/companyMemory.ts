@@ -6,6 +6,30 @@
 import { ref, get, set, update } from 'firebase/database';
 import { db } from '../lib/firebase';
 
+// ── LOCAL CACHE FOR FAST ACCESS ─────────────────────────────
+// Caches org data to avoid Firebase fetches on every query
+const CACHE_TTL_MS = 30000; // 30 seconds
+const orgDataCache: Map<string, { data: any; timestamp: number }> = new Map();
+
+function getCachedOrgData(orgId: string): any | null {
+  const cached = orgDataCache.get(orgId);
+  if (!cached) return null;
+
+  const age = Date.now() - cached.timestamp;
+  if (age > CACHE_TTL_MS) {
+    orgDataCache.delete(orgId);
+    return null;
+  }
+
+  console.log('[Cache] Hit for org', orgId, '- age:', age, 'ms');
+  return cached.data;
+}
+
+function setCachedOrgData(orgId: string, data: any): void {
+  orgDataCache.set(orgId, { data, timestamp: Date.now() });
+  console.log('[Cache] Stored org data for', orgId);
+}
+
 export interface CompanyFacts {
   company_name: string;
   industry: string;
@@ -606,13 +630,20 @@ export function detectQueryIntent(message: string): QueryIntent {
 }
 
 /**
- * Fetch raw organization data from Firebase
+ * Fetch raw organization data from Firebase (with local cache)
  */
 export async function fetchRawOrgData(orgId: string): Promise<any | null> {
   if (!orgId) return null;
 
+  // Check cache first
+  const cached = getCachedOrgData(orgId);
+  if (cached) {
+    console.log('[Raw Data] Using cached org data for:', orgId);
+    return cached;
+  }
+
   try {
-    console.log('[Raw Data] Fetching org data for:', orgId);
+    console.log('[Raw Data] Fetching org data from Firebase for:', orgId);
     const orgRef = ref(db, `organizations/${orgId}`);
     const snap = await get(orgRef);
 
@@ -622,7 +653,11 @@ export async function fetchRawOrgData(orgId: string): Promise<any | null> {
     }
 
     const data = snap.val();
-    console.log('[Raw Data] Org data fetched successfully');
+    console.log('[Raw Data] Org data fetched from Firebase successfully');
+
+    // Store in cache for fast access
+    setCachedOrgData(orgId, data);
+
     return data;
   } catch (error) {
     console.error('[Raw Data] Failed to fetch:', error);
