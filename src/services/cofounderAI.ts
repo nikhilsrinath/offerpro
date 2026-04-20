@@ -1,15 +1,18 @@
 /**
  * EdgeOS Co-founder AI Service
- * Powered by NVIDIA API - google/gemma-4-31b-it
- * Streaming enabled for real-time responses
+ * Powered by NVIDIA API - meta/llama-3.1-8b-instruct
+ * Optimized for sub-7-second responses
  */
+
+import type { CompanyMemory, CompanyFacts } from './companyMemory';
+import { getRelevantMemory } from './companyMemory';
 
 // Use proxy during development to avoid CORS, direct URL for production
 // @ts-ignore - Vite handles import.meta.env
 const NVIDIA_API_URL = (import.meta.env as any)?.DEV 
   ? '/api/nvidia/v1/chat/completions' 
   : 'https://integrate.api.nvidia.com/v1/chat/completions';
-const MODEL = 'google/gemma-4-31b-it';
+const MODEL = 'meta/llama-3.1-8b-instruct';
 
 // API Key - In production, use environment variables or backend proxy
 // @ts-ignore - Vite handles import.meta.env
@@ -42,6 +45,7 @@ export interface EdgeContext {
     user: string;
     role: string;
   };
+  orgId: string | null;
 }
 
 export interface SuggestedPrompt {
@@ -123,6 +127,7 @@ export function buildEdgeContext(edgeData: {
       user: user?.email || 'Unknown',
       role: user?.role || 'Admin',
     },
+    orgId: activeOrg?.id || null,
   };
 }
 
@@ -161,6 +166,60 @@ NEXT ACTION: [immediate next step]
 }
 
 /**
+ * Build system prompt with Company Memory
+ */
+function buildSystemPromptWithMemory(
+  context: EdgeContext,
+  memory: CompanyMemory | null
+): string {
+  const relevant = getRelevantMemory(memory);
+
+  const factsSection = relevant.facts
+    ? `Facts:
+• Company: ${relevant.facts.company_name}
+• Industry: ${relevant.facts.industry}
+• Team Size: ${relevant.facts.team_size} people
+• Location: ${relevant.facts.city}, ${relevant.facts.country}
+${relevant.facts.key_metrics?.total_revenue ? `• Total Revenue: ₹${relevant.facts.key_metrics.total_revenue.toLocaleString()}` : ''}
+${relevant.facts.key_metrics?.pending_revenue ? `• Pending Revenue: ₹${relevant.facts.key_metrics.pending_revenue.toLocaleString()}` : ''}
+${relevant.facts.key_metrics?.employee_count ? `• Employees: ${relevant.facts.key_metrics.employee_count}` : ''}
+${relevant.facts.key_metrics?.lead_count ? `• Active Leads: ${relevant.facts.key_metrics.lead_count}` : ''}
+${relevant.facts.key_metrics?.customer_count ? `• Customers: ${relevant.facts.key_metrics.customer_count}` : ''}`
+    : '';
+
+  const insightsSection = relevant.topInsights.length > 0
+    ? `Insights:\n${relevant.topInsights.map(i => `• ${i}`).join('\n')}`
+    : '';
+
+  const opportunitiesSection = relevant.topOpportunities.length > 0
+    ? `Opportunities:\n${relevant.topOpportunities.map(o => `• ${o}`).join('\n')}`
+    : '';
+
+  const risksSection = relevant.topRisks.length > 0
+    ? `Risks:\n${relevant.topRisks.map(r => `• ${r}`).join('\n')}`
+    : '';
+
+  return `You are an AI business assistant for ${context.company || 'this company'}.
+
+Your mission: Provide direct, practical, context-aware advice using the company intelligence below.
+
+${factsSection}
+
+${insightsSection}
+
+${opportunitiesSection}
+
+${risksSection}
+
+Guidelines:
+- Be concise and actionable (max 100 words)
+- Use the provided context to personalize answers
+- If asked about decisions, consider opportunities AND risks
+- Never make up data not in the context
+- Focus on practical next steps`;
+}
+
+/**
  * Format conversation history for API
  */
 function formatConversation(messages: Array<{ role: string; content: string; id?: string }>): Array<{ role: string; content: string }> {
@@ -178,7 +237,8 @@ export async function callCofounderAI(
   message: string,
   conversation: Array<{ role: string; content: string }>,
   edgeContext: EdgeContext | Record<string, never>,
-  callbacks: StreamCallbacks
+  callbacks: StreamCallbacks,
+  memory?: CompanyMemory | null
 ): Promise<void> {
   const { onToken, onComplete, onError } = callbacks;
 
@@ -189,7 +249,10 @@ export async function callCofounderAI(
 
   try {
     const context = edgeContext as EdgeContext;
-    const systemPrompt = buildSystemPrompt(context);
+    // Use memory-based prompt if available, fallback to context-based
+    const systemPrompt = memory
+      ? buildSystemPromptWithMemory(context, memory)
+      : buildSystemPrompt(context);
     const formattedConversation = formatConversation(conversation);
 
     const messages = [
@@ -197,6 +260,7 @@ export async function callCofounderAI(
       ...formattedConversation,
       { role: 'user', content: message },
     ];
+
 
     const response = await fetch(NVIDIA_API_URL, {
       method: 'POST',
@@ -208,17 +272,24 @@ export async function callCofounderAI(
       body: JSON.stringify({
         model: MODEL,
         messages,
-        max_tokens: 2048,
-        temperature: 0.7,
-        top_p: 0.95,
+        max_tokens: 256,
+        temperature: 0.2,
+        top_p: 0.8,
         stream: true,
-        chat_template_kwargs: { enable_thinking: true },
       }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error?.message || `HTTP ${response.status}: Failed to get AI response`);
+      const errorText = await response.text().catch(() => '');
+      console.error('NVIDIA API Error Response:', errorText);
+      let errorMessage = `HTTP ${response.status}: Failed to get AI response`;
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.error?.message || errorData.message || errorMessage;
+      } catch {
+        if (errorText) errorMessage += ` - ${errorText.substring(0, 200)}`;
+      }
+      throw new Error(errorMessage);
     }
 
     const reader = response.body?.getReader();
@@ -271,7 +342,7 @@ export async function callCofounderAI(
     if ((error as Error).message?.includes('429') || (error as Error).message?.includes('timeout')) {
       onError?.('Service is busy. Retrying...');
       setTimeout(() => {
-        callCofounderAI(message, conversation, edgeContext, callbacks);
+        callCofounderAI(message, conversation, edgeContext, callbacks, memory);
       }, 2000);
       return;
     }
@@ -286,7 +357,8 @@ export async function callCofounderAI(
 export async function callCofounderAISimple(
   message: string,
   conversation: Array<{ role: string; content: string }>,
-  edgeContext: EdgeContext
+  edgeContext: EdgeContext,
+  memory?: CompanyMemory | null
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     let fullResponse = '';
@@ -301,7 +373,7 @@ export async function callCofounderAISimple(
       onError: (error: string) => {
         reject(new Error(error));
       },
-    });
+    }, memory);
   });
 }
 

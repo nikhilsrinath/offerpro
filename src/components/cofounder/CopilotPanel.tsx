@@ -13,6 +13,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { callCofounderAI, getSuggestedPrompts } from '../../services/cofounderAI';
+import { loadCompanyMemory, refreshMemory, CompanyMemory } from '../../services/companyMemory';
 
 // Types
 interface Message {
@@ -50,6 +51,7 @@ interface EdgeContext {
     user: string;
     role: string;
   };
+  orgId: string | null;
 }
 
 interface SuggestedPrompt {
@@ -95,9 +97,15 @@ export default function CopilotPanel({
   const [streamingContent, setStreamingContent] = useState('');
   const [isMobile, setIsMobile] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [companyMemory, setCompanyMemory] = useState<CompanyMemory | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Extract orgId from edgeContext
+  const orgId = useMemo(() => {
+    return (edgeContext as any)?.orgId || null;
+  }, [edgeContext]);
 
   const isDark = theme === 'dark';
 
@@ -122,6 +130,16 @@ export default function CopilotPanel({
       abortControllerRef.current?.abort();
     };
   }, []);
+
+  // Load company memory when panel opens or orgId changes
+  useEffect(() => {
+    if (isOpen && orgId) {
+      loadCompanyMemory(orgId).then(memory => {
+        setCompanyMemory(memory);
+        console.log('[CopilotPanel] Company memory loaded:', memory);
+      });
+    }
+  }, [isOpen, orgId]);
 
   // Handle Send with NVIDIA AI Streaming
   const handleSend = useCallback(async (text: string = inputValue) => {
@@ -181,6 +199,16 @@ export default function CopilotPanel({
             setIsStreaming(false);
             setIsLoading(false);
             setStreamingContent('');
+            
+            // Continuous learning: refresh memory after each successful chat
+            if (orgId) {
+              refreshMemory(orgId).then(updatedMemory => {
+                if (updatedMemory) {
+                  setCompanyMemory(updatedMemory);
+                  console.log('[CopilotPanel] Memory refreshed with new insights');
+                }
+              });
+            }
           },
           onError: (errorMsg: string) => {
             setError(errorMsg);
@@ -194,7 +222,8 @@ export default function CopilotPanel({
             setIsStreaming(false);
             setIsLoading(false);
           },
-        }
+        },
+        companyMemory
       );
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
@@ -209,7 +238,7 @@ export default function CopilotPanel({
       setIsStreaming(false);
       setIsLoading(false);
     }
-  }, [inputValue, isStreaming, messages, edgeContext]);
+  }, [inputValue, isStreaming, messages, edgeContext, companyMemory]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

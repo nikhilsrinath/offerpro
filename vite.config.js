@@ -25,6 +25,28 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/nvidia/, ''),
         secure: true,
+        headers: {
+          // Ensure headers are forwarded
+        },
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, _res) => {
+            console.log('proxy error', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            // Explicitly copy the Authorization header
+            const authHeader = req.headers['authorization'];
+            if (authHeader) {
+              proxyReq.setHeader('Authorization', authHeader);
+              console.log('Forwarding Authorization header');
+            } else {
+              console.log('WARNING: No Authorization header found');
+            }
+            console.log('Proxying request to:', req.url);
+          });
+          proxy.on('proxyRes', (proxyRes, req, _res) => {
+            console.log('Received Response:', proxyRes.statusCode, req.url);
+          });
+        },
       }
     }
   },
