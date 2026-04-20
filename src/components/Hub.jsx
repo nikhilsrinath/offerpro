@@ -149,42 +149,48 @@ export default function Hub({ onSelectModule, user, theme }) {
 
     return (
         <div style={{
+            display: 'flex',
+            width: '100%',
             minHeight: '100vh',
             fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             WebkitFontSmoothing: 'antialiased',
-            position: 'relative',
             background: isDark ? '#09090b' : '#f8f9fb',
         }}>
-            {/* Grid background */}
+            {/* ── HUB CONTENT AREA ─────────────────────────────────────────── */}
             <div style={{
-                position: 'fixed', inset: 0,
-                backgroundImage: `linear-gradient(${gridLine} 1px, transparent 1px), linear-gradient(90deg, ${gridLine} 1px, transparent 1px)`,
-                backgroundSize: '60px 60px',
-                maskImage: 'radial-gradient(ellipse 90% 60% at 50% 0%, black 10%, transparent 75%)',
-                WebkitMaskImage: 'radial-gradient(ellipse 90% 60% at 50% 0%, black 10%, transparent 75%)',
-                pointerEvents: 'none', zIndex: 0,
-            }} />
-
-            {/* Top radial glow (dark only) */}
-            {isDark && (
+                flex: 1,
+                minWidth: 0,
+                position: 'relative',
+                display: copilotFullscreen ? 'none' : 'block',
+                transition: 'flex 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}>
+                {/* Grid background */}
                 <div style={{
-                    position: 'fixed', top: -300, left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: 900, height: 600,
-                    background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.035) 0%, transparent 65%)',
+                    position: 'fixed', inset: 0,
+                    backgroundImage: `linear-gradient(${gridLine} 1px, transparent 1px), linear-gradient(90deg, ${gridLine} 1px, transparent 1px)`,
+                    backgroundSize: '60px 60px',
+                    maskImage: 'radial-gradient(ellipse 90% 60% at 50% 0%, black 10%, transparent 75%)',
+                    WebkitMaskImage: 'radial-gradient(ellipse 90% 60% at 50% 0%, black 10%, transparent 75%)',
                     pointerEvents: 'none', zIndex: 0,
                 }} />
-            )}
 
-            {/* ── Page content ──────────────────────────────────────────────── */}
-            <div style={{
-                position: 'relative', zIndex: 1,
-                maxWidth: copilotOpen && !copilotFullscreen ? 1100 : 1300,
-                margin: '0 auto',
-                padding: outerPad,
-                paddingRight: copilotOpen && !isMobile ? (isTablet ? '400px' : '380px') : undefined,
-                transition: 'max-width 0.3s ease, padding-right 0.3s ease',
-            }}>
+                {/* Top radial glow (dark only) */}
+                {isDark && (
+                    <div style={{
+                        position: 'fixed', top: -300, left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: 900, height: 600,
+                        background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.035) 0%, transparent 65%)',
+                        pointerEvents: 'none', zIndex: 0,
+                    }} />
+                )}
+
+                {/* ── Page content ──────────────────────────────────────────────── */}
+                <div style={{
+                    position: 'relative', zIndex: 1,
+                    width: '100%',
+                    padding: outerPad,
+                }}>
 
                 {/* ── HEADER ─────────────────────────────────────────────────── */}
                 <div style={{
@@ -458,7 +464,8 @@ export default function Hub({ onSelectModule, user, theme }) {
                     </span>
                 </div>
 
-            </div>
+                </div>{/* Close page content */}
+            </div>{/* Close Hub content area */}
 
             {/* Co-founder AI Copilot Panel */}
             <CopilotPanel
