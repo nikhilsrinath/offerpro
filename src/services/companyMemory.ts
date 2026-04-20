@@ -188,17 +188,28 @@ export function extractOnboardingAnswer(
 /**
  * Build onboarding prompt for AI
  */
-export function buildOnboardingPrompt(question: OnboardingQuestion): string {
-  let prompt = `You are the EdgeOS Co-founder AI. The user has not completed their profile yet.
+export function buildOnboardingPrompt(question: OnboardingQuestion, memory?: CompanyMemory | null): string {
+  // Get user's name if available
+  const firstName = memory?.onboarding?.firstName || '';
+  const lastName = memory?.onboarding?.lastName || '';
+  const userName = firstName ? `${firstName} ${lastName}`.trim() : '';
+
+  let greeting = 'Welcome to EdgeOS Co-founder!';
+  if (userName) {
+    greeting = `Hi ${firstName}! Great to meet you.`;
+  }
+
+  let prompt = `You are the AI Co-founder for this company. ${greeting} You need to learn about the company to provide better assistance.
 
 CURRENT QUESTION TO ASK:
 "${question.text}"
 
 INSTRUCTIONS:
-- Ask this EXACT question to the user
-- Wait for their answer
-- Do not ask multiple questions at once
-- Be friendly and welcoming
+- Greet the user warmly by name if you know it
+- Ask this EXACT question
+- Wait for their answer (do not ask multiple questions)
+- Be friendly, personal, and welcoming
+- Speak as an AI co-founder who will work alongside them
 - If it's a select question, list the options clearly`;
 
   if (question.type === 'select' && question.options) {

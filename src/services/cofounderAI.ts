@@ -134,10 +134,18 @@ export function buildEdgeContext(edgeData: {
 /**
  * Build system prompt with EdgeOS context
  */
-function buildSystemPrompt(context: EdgeContext): string {
-  return `You are an elite AI Co-founder for ${context.company}.
+function buildSystemPrompt(context: EdgeContext, memory?: CompanyMemory | null): string {
+  // Get user info from onboarding
+  const firstName = memory?.onboarding?.firstName || '';
+  const lastName = memory?.onboarding?.lastName || '';
+  const userName = firstName ? `${firstName} ${lastName}`.trim() : 'Founder';
+  const userRole = memory?.onboarding?.role || 'Founder';
 
-Your mission: Help the founder make sharp decisions, execute fast, and grow the business.
+  return `You are the AI Co-founder for ${context.company}.
+
+You are talking directly to ${userName}, the ${userRole}. Address them by name and speak as an insider who knows the business intimately.
+
+Your mission: Help ${firstName || 'the founder'} make sharp decisions, execute fast, and grow the business.
 
 Current Business Context:
 • Revenue: ₹${context.financials.totalRevenue.toLocaleString()} total | ₹${context.financials.lastMonthRevenue.toLocaleString()} last month
@@ -149,6 +157,8 @@ Current Business Context:
 6-Month Revenue Trend: ${context.trends.monthlyRevenue.map(m => `${m.month}: ₹${m.revenue.toLocaleString()}`).join(' | ')}
 
 Personality & Rules:
+- Address ${userName} by name when appropriate
+- Speak as an insider: "we", "our company", "our team" - never as an outsider
 - Be direct, concise, and actionable. No fluff.
 - Always think like a co-founder (risk-aware, execution-focused).
 - Use business terminology appropriately.
@@ -173,6 +183,12 @@ function buildSystemPromptWithMemory(
   memory: CompanyMemory | null
 ): string {
   const relevant = getRelevantMemory(memory);
+
+  // Get user info from onboarding
+  const firstName = memory?.onboarding?.firstName || '';
+  const lastName = memory?.onboarding?.lastName || '';
+  const userName = firstName ? `${firstName} ${lastName}`.trim() : 'Founder';
+  const userRole = memory?.onboarding?.role || 'Founder';
 
   const factsSection = relevant.facts
     ? `Facts:
@@ -199,7 +215,9 @@ ${relevant.facts.key_metrics?.customer_count ? `• Customers: ${relevant.facts.
     ? `Risks:\n${relevant.topRisks.map(r => `• ${r}`).join('\n')}`
     : '';
 
-  return `You are an AI business assistant for ${context.company || 'this company'}.
+  return `You are the AI Co-founder for ${context.company || 'this company'}.
+
+You are talking directly to ${userName}, the ${userRole} of the company. Address them by name and speak as an insider who knows the business intimately.
 
 Your mission: Provide direct, practical, context-aware advice using the company intelligence below.
 
@@ -212,6 +230,8 @@ ${opportunitiesSection}
 ${risksSection}
 
 Guidelines:
+- Address the user by name (${userName}) when appropriate
+- Speak as an insider: "we", "our company", "our team" - never as an outsider
 - Be concise and actionable (max 100 words)
 - Use the provided context to personalize answers
 - If asked about decisions, consider opportunities AND risks
@@ -225,8 +245,15 @@ Guidelines:
 function buildSystemPromptWithRawData(
   context: EdgeContext,
   rawData: string,
-  memoryInsights?: { insights: string[]; opportunities: string[]; risks: string[] }
+  memoryInsights?: { insights: string[]; opportunities: string[]; risks: string[] },
+  memory?: CompanyMemory | null
 ): string {
+  // Get user info from onboarding
+  const firstName = memory?.onboarding?.firstName || '';
+  const lastName = memory?.onboarding?.lastName || '';
+  const userName = firstName ? `${firstName} ${lastName}`.trim() : 'Founder';
+  const userRole = memory?.onboarding?.role || 'Founder';
+
   const dataSection = rawData
     ? `COMPANY DATA:\n${rawData}`
     : 'No specific company data available.';
@@ -243,7 +270,9 @@ function buildSystemPromptWithRawData(
     ? `\n\nRISKS:\n${memoryInsights.risks.map(r => `• ${r}`).join('\n')}`
     : '';
 
-  return `You are an AI assistant for ${context.company || 'this company'}.
+  return `You are the AI Co-founder for ${context.company || 'this company'}.
+
+You are talking directly to ${userName}, the ${userRole} of the company. Address them by name and speak as an insider who knows the business intimately.
 
 CRITICAL INSTRUCTION:
 You have been provided with ACTUAL COMPANY DATA from the database.
@@ -253,6 +282,8 @@ NEVER say "I don't have access" or "data not available" if the data is provided 
 ${dataSection}${insightsSection}${opportunitiesSection}${risksSection}
 
 ANSWER RULES:
+- Address the user by name (${userName}) when appropriate
+- Speak as an insider: "we", "our company", "our team" - never as an outsider
 - Answer using ONLY the data provided above
 - For "who", "list", "names" queries → give exact names from the data
 - For counts → give exact numbers from the data
@@ -307,11 +338,11 @@ export async function callCofounderAI(
 
     // ONBOARDING MODE: If there's a current onboarding question, use onboarding prompt
     if (isOnboarding && currentQuestion) {
-      systemPrompt = buildOnboardingPrompt(currentQuestion);
+      systemPrompt = buildOnboardingPrompt(currentQuestion, memory);
       console.log('[callCofounderAI] Using ONBOARDING prompt');
     } else if (intent === 'factual' && rawData) {
       // Factual query with raw data
-      systemPrompt = buildSystemPromptWithRawData(context, rawData);
+      systemPrompt = buildSystemPromptWithRawData(context, rawData, undefined, memory);
       console.log('[callCofounderAI] Using RAW DATA prompt');
     } else if (intent === 'combined' && rawData && memory) {
       // Combined query with both raw data and memory insights
@@ -320,7 +351,7 @@ export async function callCofounderAI(
         opportunities: (memory.opportunities || []).slice(0, 3),
         risks: (memory.risks || []).slice(0, 3),
       };
-      systemPrompt = buildSystemPromptWithRawData(context, rawData, memoryInsights);
+      systemPrompt = buildSystemPromptWithRawData(context, rawData, memoryInsights, memory);
       console.log('[callCofounderAI] Using COMBINED prompt (raw + memory)');
     } else if (memory) {
       // Reasoning query with memory
@@ -328,7 +359,7 @@ export async function callCofounderAI(
       console.log('[callCofounderAI] Using MEMORY prompt');
     } else {
       // Fallback to basic context
-      systemPrompt = buildSystemPrompt(context);
+      systemPrompt = buildSystemPrompt(context, memory);
       console.log('[callCofounderAI] Using BASIC context prompt');
     }
 
