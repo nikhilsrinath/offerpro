@@ -4,8 +4,8 @@
  * Optimized for sub-7-second responses
  */
 
-import type { CompanyMemory, CompanyFacts } from './companyMemory';
-import { getRelevantMemory } from './companyMemory';
+import type { CompanyMemory, CompanyFacts, OnboardingQuestion } from './companyMemory';
+import { getRelevantMemory, buildOnboardingPrompt, isOnboardingComplete, getCurrentOnboardingQuestion } from './companyMemory';
 
 // Use proxy during development to avoid CORS, direct URL for production
 // @ts-ignore - Vite handles import.meta.env
@@ -281,7 +281,9 @@ export async function callCofounderAI(
   callbacks: StreamCallbacks,
   memory?: CompanyMemory | null,
   rawData?: string,
-  intent?: 'factual' | 'reasoning' | 'combined'
+  intent?: 'factual' | 'reasoning' | 'combined',
+  currentQuestion?: OnboardingQuestion | null,
+  isOnboarding?: boolean
 ): Promise<void> {
   const { onToken, onComplete, onError } = callbacks;
 
@@ -294,6 +296,8 @@ export async function callCofounderAI(
   console.log('[callCofounderAI] Intent:', intent);
   console.log('[callCofounderAI] Raw data length:', rawData?.length || 0);
   console.log('[callCofounderAI] Memory available:', !!memory);
+  console.log('[callCofounderAI] Is onboarding:', isOnboarding);
+  console.log('[callCofounderAI] Current question:', currentQuestion?.text);
 
   try {
     const context = edgeContext as EdgeContext;
@@ -301,7 +305,11 @@ export async function callCofounderAI(
     // Build prompt based on intent and available data
     let systemPrompt: string;
 
-    if (intent === 'factual' && rawData) {
+    // ONBOARDING MODE: If there's a current onboarding question, use onboarding prompt
+    if (isOnboarding && currentQuestion) {
+      systemPrompt = buildOnboardingPrompt(currentQuestion);
+      console.log('[callCofounderAI] Using ONBOARDING prompt');
+    } else if (intent === 'factual' && rawData) {
       // Factual query with raw data
       systemPrompt = buildSystemPromptWithRawData(context, rawData);
       console.log('[callCofounderAI] Using RAW DATA prompt');

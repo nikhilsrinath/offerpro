@@ -30,9 +30,187 @@ export interface CompanyMemory {
   opportunities: string[];
   risks: string[];
   updated_at: string;
+  onboarding?: OnboardingData;
+}
+
+export interface OnboardingData {
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+  companyName?: string;
+  companyStage?: string;
+  description?: string;
+  targetCustomer?: string;
+  painPoints?: string;
+  completed: boolean;
+  currentQuestionIndex: number;
+  updated_at: string;
+}
+
+export interface OnboardingQuestion {
+  id: string;
+  text: string;
+  type: 'text' | 'select' | 'textarea';
+  field: keyof OnboardingData;
+  placeholder?: string;
+  options?: string[];
 }
 
 const MAX_ITEMS_PER_CATEGORY = 20;
+
+// ============================================================================
+// ONBOARDING QUESTIONS
+// ============================================================================
+
+export const ONBOARDING_QUESTIONS: OnboardingQuestion[] = [
+  { id: "1", text: "Welcome to EdgeOS Co-founder! Let's get started. What's your first name?", type: "text", field: "firstName", placeholder: "e.g. Nikhil" },
+  { id: "2", text: "Nice to meet you. And your last name?", type: "text", field: "lastName" },
+  { id: "3", text: "What's your role at the company?", type: "select", field: "role", options: ["Founder", "Co-founder", "CEO", "CTO", "Operator", "Other"] },
+  { id: "4", text: "What is your company's name?", type: "text", field: "companyName", placeholder: "e.g. Acme Inc" },
+  { id: "5", text: "At what stage is your company currently?", type: "select", field: "companyStage", options: ["Idea", "MVP", "Early Revenue", "Scaling", "Established"] },
+  { id: "6", text: "Tell me more about what your company does? (Up to 1400 characters)", type: "textarea", field: "description", placeholder: "Describe your mission and product..." },
+  { id: "7", text: "Who is your target customer or user?", type: "text", field: "targetCustomer", placeholder: "e.g. Solo-founders, Indie Hackers, CEOs" },
+  { id: "8", text: "What are the main pain points your product solves?", type: "textarea", field: "painPoints", placeholder: "e.g. Slow speed to market, decision fatigue..." },
+];
+
+/**
+ * Get the current onboarding question to ask
+ */
+export function getCurrentOnboardingQuestion(memory: CompanyMemory | null): OnboardingQuestion | null {
+  if (!memory?.onboarding) {
+    // First question if no onboarding data exists
+    return ONBOARDING_QUESTIONS[0];
+  }
+
+  const onboarding = memory.onboarding;
+
+  // If completed, no more questions
+  if (onboarding.completed) {
+    return null;
+  }
+
+  // Get next question based on current index
+  const nextIndex = onboarding.currentQuestionIndex || 0;
+  if (nextIndex < ONBOARDING_QUESTIONS.length) {
+    return ONBOARDING_QUESTIONS[nextIndex];
+  }
+
+  return null;
+}
+
+/**
+ * Check if onboarding is complete
+ */
+export function isOnboardingComplete(memory: CompanyMemory | null): boolean {
+  return memory?.onboarding?.completed === true;
+}
+
+/**
+ * Save an onboarding answer and advance to next question
+ */
+export async function saveOnboardingAnswer(
+  orgId: string,
+  memory: CompanyMemory | null,
+  field: keyof OnboardingData,
+  value: string
+): Promise<CompanyMemory | null> {
+  if (!orgId) return null;
+
+  try {
+    const currentIndex = memory?.onboarding?.currentQuestionIndex || 0;
+    const isLastQuestion = currentIndex >= ONBOARDING_QUESTIONS.length - 1;
+
+    const updatedOnboarding: OnboardingData = {
+      ...memory?.onboarding,
+      [field]: value,
+      currentQuestionIndex: currentIndex + 1,
+      completed: isLastQuestion,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Merge with existing memory
+    const updatedMemory: CompanyMemory = {
+      ...(memory || {
+        facts: {} as CompanyFacts,
+        insights: [],
+        opportunities: [],
+        risks: [],
+        updated_at: new Date().toISOString(),
+      }),
+      onboarding: updatedOnboarding,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Save to Firebase
+    const memoryRef = ref(db, `memory/${orgId}`);
+    await set(memoryRef, updatedMemory);
+
+    console.log('[Onboarding] Saved answer for field:', field);
+    console.log('[Onboarding] Next question index:', updatedOnboarding.currentQuestionIndex);
+    console.log('[Onboarding] Completed:', updatedOnboarding.completed);
+
+    return updatedMemory;
+  } catch (error) {
+    console.error('[Onboarding] Failed to save answer:', error);
+    return null;
+  }
+}
+
+/**
+ * Try to extract onboarding answer from user message
+ * Returns the detected field and value, or null if not an onboarding answer
+ */
+export function extractOnboardingAnswer(
+  message: string,
+  currentQuestion: OnboardingQuestion | null
+): { field: keyof OnboardingData; value: string } | null {
+  if (!currentQuestion) return null;
+
+  const trimmed = message.trim();
+  if (!trimmed) return null;
+
+  // For select type, check if answer matches one of the options
+  if (currentQuestion.type === 'select' && currentQuestion.options) {
+    const lowerMsg = trimmed.toLowerCase();
+    const match = currentQuestion.options.find(opt =>
+      opt.toLowerCase() === lowerMsg ||
+      lowerMsg.includes(opt.toLowerCase())
+    );
+    if (match) {
+      return { field: currentQuestion.field, value: match };
+    }
+  }
+
+  // For text/textarea, accept any non-empty answer
+  return { field: currentQuestion.field, value: trimmed };
+}
+
+/**
+ * Build onboarding prompt for AI
+ */
+export function buildOnboardingPrompt(question: OnboardingQuestion): string {
+  let prompt = `You are the EdgeOS Co-founder AI. The user has not completed their profile yet.
+
+CURRENT QUESTION TO ASK:
+"${question.text}"
+
+INSTRUCTIONS:
+- Ask this EXACT question to the user
+- Wait for their answer
+- Do not ask multiple questions at once
+- Be friendly and welcoming
+- If it's a select question, list the options clearly`;
+
+  if (question.type === 'select' && question.options) {
+    prompt += `\n\nOPTIONS (user must pick one):\n${question.options.map((o, i) => `${i + 1}. ${o}`).join('\n')}`;
+  }
+
+  if (question.placeholder) {
+    prompt += `\n\nEXAMPLE: "${question.placeholder}"`;
+  }
+
+  return prompt;
+}
 
 /**
  * Extract company intelligence from raw org data

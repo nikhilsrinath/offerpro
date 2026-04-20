@@ -19,7 +19,12 @@ import {
   CompanyMemory,
   getContextForQuery,
   QueryIntent,
-  detectQueryIntent
+  detectQueryIntent,
+  getCurrentOnboardingQuestion,
+  isOnboardingComplete,
+  saveOnboardingAnswer,
+  extractOnboardingAnswer,
+  OnboardingQuestion
 } from '../../services/companyMemory';
 
 // Types
@@ -160,17 +165,53 @@ export default function CopilotPanel({
     const trimmedText = text.trim();
     setError(null);
 
-    // STEP 1: Detect intent
-    const intent = detectQueryIntent(trimmedText);
+    // ONBOARDING: Check if we need to collect onboarding info
+    let onboardingComplete = isOnboardingComplete(companyMemory);
+    let currentQuestion = getCurrentOnboardingQuestion(companyMemory);
+    let isOnboarding = !onboardingComplete && currentQuestion !== null;
+
+    console.log('[CopilotPanel] Onboarding complete:', onboardingComplete);
+    console.log('[CopilotPanel] Current question:', currentQuestion?.text);
+    console.log('[CopilotPanel] Is onboarding mode:', isOnboarding);
+
+    // ONBOARDING: If user is answering a question, save the answer first
+    let updatedMemory = companyMemory;
+    let nextQuestion = currentQuestion;
+
+    if (isOnboarding && currentQuestion && orgId) {
+      const answer = extractOnboardingAnswer(trimmedText, currentQuestion);
+      if (answer) {
+        console.log('[CopilotPanel] Saving onboarding answer:', answer.field, '=', answer.value);
+        const saved = await saveOnboardingAnswer(orgId, companyMemory, answer.field, answer.value);
+        if (saved) {
+          updatedMemory = saved;
+          setCompanyMemory(saved);
+          console.log('[CopilotPanel] Onboarding answer saved successfully');
+
+          // Get the NEXT question to ask
+          nextQuestion = getCurrentOnboardingQuestion(saved);
+          onboardingComplete = isOnboardingComplete(saved);
+          isOnboarding = !onboardingComplete && nextQuestion !== null;
+          console.log('[CopilotPanel] Next question:', nextQuestion?.text);
+          console.log('[CopilotPanel] Onboarding continuing:', isOnboarding);
+        }
+      }
+    }
+
+    // STEP 1: Detect intent (only if not in onboarding mode)
+    let intent: QueryIntent = 'reasoning';
+    if (!isOnboarding) {
+      intent = detectQueryIntent(trimmedText);
+    }
     console.log('[CopilotPanel] Detected intent:', intent);
 
     // STEP 2: Get appropriate context based on intent
     let rawData = '';
     let memoryInsights = { insights: [] as string[], opportunities: [] as string[], risks: [] as string[] };
 
-    if (orgId) {
+    if (orgId && !isOnboarding) {
       try {
-        const context = await getContextForQuery(orgId, trimmedText, companyMemory);
+        const context = await getContextForQuery(orgId, trimmedText, updatedMemory);
         rawData = context.rawData;
         memoryInsights = context.memoryInsights;
         console.log('[CopilotPanel] Context loaded - Raw data:', rawData.length, 'bytes');
@@ -178,6 +219,8 @@ export default function CopilotPanel({
         console.error('[CopilotPanel] Failed to load context, proceeding without raw data:', err);
         // Continue without raw data - AI will use memory or basic context
       }
+    } else if (isOnboarding) {
+      console.log('[CopilotPanel] Skipping context fetch - in onboarding mode');
     } else {
       console.log('[CopilotPanel] No orgId available, using basic context');
     }
@@ -257,9 +300,11 @@ export default function CopilotPanel({
             setIsLoading(false);
           },
         },
-        companyMemory,
+        updatedMemory,
         rawData,
-        intent
+        intent,
+        nextQuestion,
+        isOnboarding
       );
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
