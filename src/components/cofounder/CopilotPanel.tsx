@@ -771,10 +771,12 @@ export default function CopilotPanel({
           </div>
         </div>
 
-        {/* Close button (when not fullscreen) */}
-        {!isFullscreen && (
+        {/* Action buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {/* Clear chat button */}
           <button
-            onClick={onToggle}
+            onClick={() => setMessages([])}
+            title="Clear chat"
             style={{
               width: 28,
               height: 28,
@@ -796,9 +798,39 @@ export default function CopilotPanel({
               e.currentTarget.style.borderColor = '#e2e8f0';
             }}
           >
-            <X size={14} style={{ color: '#64748b' }} />
+            <Trash2 size={14} style={{ color: '#64748b' }} />
           </button>
-        )}
+
+          {/* Close button (when not fullscreen) */}
+          {!isFullscreen && (
+            <button
+              onClick={onToggle}
+              title="Close"
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#f1f5f9';
+                e.currentTarget.style.borderColor = '#cbd5e1';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#f8fafc';
+                e.currentTarget.style.borderColor = '#e2e8f0';
+              }}
+            >
+              <X size={14} style={{ color: '#64748b' }} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Messages Area */}
