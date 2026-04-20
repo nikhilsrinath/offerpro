@@ -4,7 +4,11 @@
  * Streaming enabled for real-time responses
  */
 
-const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
+// Use proxy during development to avoid CORS, direct URL for production
+// @ts-ignore - Vite handles import.meta.env
+const NVIDIA_API_URL = (import.meta.env as any)?.DEV 
+  ? '/api/nvidia/v1/chat/completions' 
+  : 'https://integrate.api.nvidia.com/v1/chat/completions';
 const MODEL = 'google/gemma-4-31b-it';
 
 // API Key - In production, use environment variables or backend proxy
