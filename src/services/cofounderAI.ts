@@ -409,7 +409,7 @@ export async function callCofounderAI(
       body: JSON.stringify({
         model: MODEL,
         messages,
-        max_tokens: 256,
+        max_tokens: 150, // Reduced for faster responses
         temperature: 0.2,
         top_p: 0.8,
         stream: true,

@@ -30,6 +30,19 @@ function setCachedOrgData(orgId: string, data: any): void {
   console.log('[Cache] Stored org data for', orgId);
 }
 
+/**
+ * Clear cached org data to force fresh fetch
+ */
+export function clearOrgDataCache(orgId?: string): void {
+  if (orgId) {
+    orgDataCache.delete(orgId);
+    console.log('[Cache] Cleared cache for org', orgId);
+  } else {
+    orgDataCache.clear();
+    console.log('[Cache] Cleared all org caches');
+  }
+}
+
 export interface CompanyFacts {
   company_name: string;
   industry: string;
