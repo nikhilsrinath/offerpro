@@ -11,6 +11,7 @@ import {
 import { useOrg } from '../context/OrgContext';
 import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
+import CopilotPanel from './cofounder/CopilotPanel';
 
 const MODULES = [
     { id: 'team',      label: 'Team',          desc: 'Employee registry, offer tracker & bulk imports.',       icon: Users,        defaultPage: 'team-hierarchy', color: '#8b5cf6' },
@@ -45,6 +46,8 @@ export default function Hub({ onSelectModule, user, theme }) {
     const [finDocs, setFinDocs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [hoveredMod, setHoveredMod] = useState(null);
+    const [copilotOpen, setCopilotOpen] = useState(false);
+    const [copilotFullscreen, setCopilotFullscreen] = useState(false);
     const winW = useWindowWidth();
 
     const isMobile = winW < 768;
@@ -176,8 +179,11 @@ export default function Hub({ onSelectModule, user, theme }) {
             {/* ── Page content ──────────────────────────────────────────────── */}
             <div style={{
                 position: 'relative', zIndex: 1,
-                maxWidth: 1300, margin: '0 auto',
+                maxWidth: copilotOpen && !copilotFullscreen ? 1100 : 1300,
+                margin: '0 auto',
                 padding: outerPad,
+                paddingRight: copilotOpen && !isMobile ? (isTablet ? '400px' : '380px') : undefined,
+                transition: 'max-width 0.3s ease, padding-right 0.3s ease',
             }}>
 
                 {/* ── HEADER ─────────────────────────────────────────────────── */}
@@ -453,6 +459,14 @@ export default function Hub({ onSelectModule, user, theme }) {
                 </div>
 
             </div>
+
+            {/* Co-founder AI Copilot Panel */}
+            <CopilotPanel
+                isOpen={copilotOpen}
+                onToggle={() => setCopilotOpen(!copilotOpen)}
+                isFullscreen={copilotFullscreen}
+                onFullscreenToggle={() => setCopilotFullscreen(!copilotFullscreen)}
+            />
         </div>
     );
 }
