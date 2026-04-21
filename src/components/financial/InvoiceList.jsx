@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, Edit3, Copy, CheckCircle, Bell, Search, Filter, Plus, ChevronDown, ChevronUp, X, Download, MessageSquare, RotateCcw, XCircle } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -9,7 +10,8 @@ import DocumentStatusBadge from '../shared/DocumentStatusBadge';
 import PortalLinkGenerator from '../shared/PortalLinkGenerator';
 import { useToast } from '../shared/Toast';
 
-export default function InvoiceList({ onNavigateToNew, onEdit, type = 'invoice' }) {
+export default function InvoiceList({ type = 'invoice' }) {
+  const navigate = useNavigate();
   const toast = useToast();
   const { activeOrg } = useOrg();
   const [documents, setDocuments] = useState([]);
@@ -304,8 +306,8 @@ export default function InvoiceList({ onNavigateToNew, onEdit, type = 'invoice' 
     documentStore.updateStatus(id, 'draft', { revision_notes: null });
     toast('Quotation moved to draft for revision', 'success');
     setExpandedRevision(null);
-    if (onEdit) {
-      onEdit(id);
+    if (type === 'quotation') {
+      navigate(`/new-quotation/${id}`);
     } else {
       loadDocuments();
     }
@@ -315,8 +317,8 @@ export default function InvoiceList({ onNavigateToNew, onEdit, type = 'invoice' 
     documentStore.updateStatus(id, 'draft', { decline_reason: null });
     toast('Declined quotation moved to draft', 'success');
     setExpandedDecline(null);
-    if (onEdit) {
-      onEdit(id);
+    if (type === 'quotation') {
+      navigate(`/new-quotation/${id}`);
     } else {
       loadDocuments();
     }
@@ -407,11 +409,9 @@ export default function InvoiceList({ onNavigateToNew, onEdit, type = 'invoice' 
             </button>
           ))}
         </div>
-        {onNavigateToNew && (
-          <button className="fin-list-new-btn" onClick={onNavigateToNew}>
-            <Plus size={16} /> New {typeLabel}
-          </button>
-        )}
+        <button className="fin-list-new-btn" onClick={() => navigate(`/new-${type}`)}>
+          <Plus size={16} /> New {typeLabel}
+        </button>
       </div>
 
       {/* Table */}
@@ -474,7 +474,7 @@ export default function InvoiceList({ onNavigateToNew, onEdit, type = 'invoice' 
                           </button>
                         </>
                       )}
-                      {type === 'quotation' && (doc.status === 'draft' || doc.status === 'sent' || doc.status === 'viewed') && onEdit && (
+                      {type === 'quotation' && (doc.status === 'draft' || doc.status === 'sent' || doc.status === 'viewed') && (
                         <button
                           className="fin-list-action-btn"
                           title={doc.status === 'draft' ? 'Edit Quotation' : 'Pull Back & Edit'}
@@ -483,7 +483,7 @@ export default function InvoiceList({ onNavigateToNew, onEdit, type = 'invoice' 
                               documentStore.updateStatus(doc.id, 'draft');
                               toast('Quotation pulled back to draft', 'success');
                             }
-                            onEdit(doc.id);
+                            navigate(`/new-quotation/${doc.id}`);
                           }}
                         >
                           <Edit3 size={14} />

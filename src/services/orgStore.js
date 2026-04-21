@@ -1,22 +1,28 @@
-// orgStore.js — Unified org data layer
-// All org data lives under organizations/{orgId} in Firebase.
-// On login: fetch entire org object → cache in memory + localStorage.
-// All reads from cache. Writes update cache + localStorage + Firebase.
+// orgStore.js — Unified org data layer with Firestore-Primary Reads & Dual-Writes
 import { ref, get, set, push, remove, update, onValue } from 'firebase/database';
-import { db } from '../lib/firebase';
+import { 
+  doc, setDoc, updateDoc, deleteDoc, collection, 
+  getDoc, getDocs, query, where, onSnapshot 
+} from 'firebase/firestore';
+import { db, firestore } from '../lib/firebase';
 
 let _orgId = null;
-let _cache = {};       // in-memory mirror of organizations/{orgId}
+let _cache = {};       // in-memory mirror reconstructed from Firestore
 let _loaded = false;
-let _listeners = [];   // active onValue unsubscribers
+let _listeners = [];   // active Firestore unsubscribers
 
-// Sections that hold keyed objects (push-ID children)
+// Sections that hold keyed objects (push-ID children) - Mapping to Firestore Collections
 const KEYED_SECTIONS = new Set([
   'employees', 'ex_employees', 'departments', 'customers',
   'expenses', 'records', 'fin_docs', 'products', 'crm_leads',
 ]);
 
-// Profile fields stored at org root level (not sections)
+// Sections that map to fields in the org_metadata/{orgId} document in Firestore
+const METADATA_SECTIONS = new Set([
+  'fin_notifs', 'fin_recurring', 'hierarchy',
+]);
+
+// Profile fields stored at organizations/{orgId} in Firestore
 const PROFILE_FIELDS = new Set([
   'id', 'company_name', 'company_tagline', 'company_email', 'company_phone',
   'company_website', 'company_address', 'company_description',
@@ -66,74 +72,140 @@ function readFromLS() {
   } catch { return null; }
 }
 
-/** Parse raw Firebase snapshot into { _profile, employees, fin_docs, ... } */
-function parseOrgData(raw) {
-  if (!raw || typeof raw !== 'object') return { _profile: {} };
-  const profile = {};
-  const result = { _profile: profile };
-  for (const [key, val] of Object.entries(raw)) {
-    if (PROFILE_FIELDS.has(key)) {
-      profile[key] = val;
-    } else {
-      result[key] = val;
+/** Firestore Dual-Write Helper */
+async function syncToFirestore(section, id, data, type = 'set') {
+  if (!_orgId) return;
+  try {
+    const clean = sanitize(data);
+    if (KEYED_SECTIONS.has(section)) {
+      const docRef = doc(firestore, section, id);
+      const payload = { ...clean, orgId: _orgId, id };
+      if (section === 'employees' && payload.studentName) {
+        payload.name = payload.studentName;
+      }
+      if (type === 'delete') {
+        await deleteDoc(docRef);
+      } else if (type === 'update') {
+        await updateDoc(docRef, payload);
+      } else {
+        await setDoc(docRef, payload, { merge: true });
+      }
+    } else if (METADATA_SECTIONS.has(section)) {
+      const docRef = doc(firestore, 'org_metadata', _orgId);
+      await setDoc(docRef, { [section]: clean }, { merge: true });
+    } else if (section === '_profile') {
+      const docRef = doc(firestore, 'organizations', _orgId);
+      await setDoc(docRef, clean, { merge: true });
     }
+  } catch (err) {
+    console.error(`[orgStore] Dual-sync error to Firestore for ${section}/${id}:`, err.message);
   }
-  return result;
-}
-
-/** One-time cleanup of all old localStorage keys from previous architecture */
-function purgeLegacyKeys() {
-  if (localStorage.getItem('edgeos_ls_purged_v3')) return;
-  const toRemove = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && (
-      key.startsWith('offerpro_documents') ||
-      key.startsWith('offerpro_notifications') ||
-      key.startsWith('offerpro_recurring') ||
-      key.startsWith('offerpro_company_profile') ||
-      key.startsWith('offerpro_legacy') ||
-      key === 'offerpro_ls_purged_v2'
-    )) {
-      toRemove.push(key);
-    }
-  }
-  toRemove.forEach(k => localStorage.removeItem(k));
-  localStorage.setItem('edgeos_ls_purged_v3', '1');
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export const orgStore = {
 
-  // ── Lifecycle ────────────────────────────────────────────────────────────────
-
-  /** Load entire org from Firebase, cache in memory + localStorage. */
+  /** 
+   * Load entire org from FIRESTORE (Primary). 
+   * Reconstructs the tree object from multiple collections.
+   */
   async load(orgId) {
     if (orgId) _orgId = orgId;
     if (!_orgId) return;
 
-    purgeLegacyKeys();
-
-    // 1. Instant load from localStorage (show data before Firebase responds)
+    // 1. Instant load from localStorage
     const lsData = readFromLS();
     if (lsData && Object.keys(lsData).length > 0) {
       _cache = lsData;
       _loaded = true;
     }
 
-    // 2. Fetch from Firebase (source of truth)
     try {
-      const snap = await get(ref(db, fbPath()));
-      if (snap.exists()) {
-        _cache = parseOrgData(snap.val());
-      } else {
-        _cache = { _profile: {} };
+      // 2. Fetch all collections in parallel from Firestore
+      const profilePromise = getDoc(doc(firestore, 'organizations', _orgId));
+      const metadataPromise = getDoc(doc(firestore, 'org_metadata', _orgId));
+      
+      const keyedPromises = Array.from(KEYED_SECTIONS).map(section => 
+        getDocs(query(collection(firestore, section), where('orgId', '==', _orgId)))
+      );
+
+      const [profileSnap, metadataSnap, ...keyedSnaps] = await Promise.all([
+        profilePromise, metadataPromise, ...keyedPromises
+      ]);
+
+      const reconstructed = { _profile: {} };
+
+      // Profile
+      if (profileSnap.exists()) {
+        reconstructed._profile = profileSnap.data();
       }
+
+      // Metadata (fin_notifs, etc.)
+      if (metadataSnap.exists()) {
+        const mData = metadataSnap.data();
+        Object.keys(mData).forEach(key => {
+          reconstructed[key] = mData[key];
+        });
+      }
+
+      // Keyed Sections (employees, records, etc.)
+      Array.from(KEYED_SECTIONS).forEach((section, idx) => {
+        const snap = keyedSnaps[idx];
+        const sectionData = {};
+        snap.forEach(docSnap => {
+          sectionData[docSnap.id] = docSnap.data();
+        });
+        reconstructed[section] = sectionData;
+      });
+
+
+      // HYBRID HEAL: Check every section individually. If empty in Firestore, try RTDB fallback.
+      // 1. Profile healing
+      if (Object.keys(reconstructed._profile || {}).length <= 1) { // {id} or {}
+        const rtdbProfile = await get(ref(db, `organizations/${_orgId}/_profile`));
+        if (rtdbProfile.exists()) {
+          console.log('[orgStore] Healing _profile from RTDB');
+          reconstructed._profile = { ...rtdbProfile.val(), ...reconstructed._profile };
+          syncToFirestore('_profile', null, reconstructed._profile);
+        }
+      }
+
+      // 2. Keyed Sections healing
+      for (const section of KEYED_SECTIONS) {
+        const hasData = Object.keys(reconstructed[section] || {}).length > 0;
+        if (!hasData) {
+          const rtdbSection = await get(ref(db, `organizations/${_orgId}/${section}`));
+          if (rtdbSection.exists()) {
+            console.log(`[orgStore] Healing ${section} from RTDB`);
+            reconstructed[section] = rtdbSection.val();
+            // Trigger background sync for items
+            Object.entries(reconstructed[section]).forEach(([itemId, itemData]) => {
+              syncToFirestore(section, itemId, itemData);
+            });
+          }
+        }
+      }
+
+      // 3. Metadata/Hierarchy healing
+      for (const section of METADATA_SECTIONS) {
+        const hasData = (reconstructed[section] && (Array.isArray(reconstructed[section]) ? reconstructed[section].length > 0 : Object.keys(reconstructed[section]).length > 0));
+        if (!hasData) {
+          const rtdbSection = await get(ref(db, `organizations/${_orgId}/${section}`));
+          if (rtdbSection.exists()) {
+            console.log(`[orgStore] Healing ${section} from RTDB`);
+            reconstructed[section] = rtdbSection.val();
+            syncToFirestore(section, null, reconstructed[section]);
+          }
+        }
+      }
+
+      _cache = reconstructed;
       _loaded = true;
       persistToLS();
+      console.log('[orgStore] Load complete. Per-section hybrid state synchronized.');
     } catch (err) {
-      console.error('[orgStore] Firebase load failed:', err.message);
+      console.error('[orgStore] Firestore load failed:', err.message);
       if (!_loaded) { _cache = { _profile: {} }; _loaded = true; }
     }
 
@@ -142,12 +214,7 @@ export const orgStore = {
 
   getOrgId() { return _orgId; },
   isLoaded() { return _loaded; },
-
-  // ── Profile ──────────────────────────────────────────────────────────────────
-
-  getProfile() {
-    return _cache._profile || {};
-  },
+  getProfile() { return _cache._profile || {}; },
 
   async updateProfile(updates) {
     const path = fbPath();
@@ -155,19 +222,19 @@ export const orgStore = {
     if (!_cache._profile) _cache._profile = {};
     Object.assign(_cache._profile, updates);
     persistToLS();
-    await update(ref(db, path), sanitize(updates));
+
+    // Dual-Write
+    const rtdbPromise = update(ref(db, path), sanitize(updates)).catch(() => {});
+    const fsPromise = syncToFirestore('_profile', _orgId, updates);
+    await Promise.all([rtdbPromise, fsPromise]);
   },
 
-  // ── Section Reads ────────────────────────────────────────────────────────────
-
-  /** Get raw section data (object for keyed sections, array/object for value sections). */
   getSection(section) {
     const data = _cache[section];
     if (data !== undefined && data !== null) return data;
     return KEYED_SECTIONS.has(section) ? {} : [];
   },
 
-  /** Get keyed section as sorted array of values (with `id` field added). */
   getSectionAsList(section) {
     const data = _cache[section];
     if (!data || typeof data !== 'object') return [];
@@ -177,14 +244,10 @@ export const orgStore = {
     }));
   },
 
-  /** Get a single item from a keyed section. */
   getItem(section, id) {
     return (_cache[section] || {})[id] || null;
   },
 
-  // ── Keyed Section Writes ─────────────────────────────────────────────────────
-
-  /** Add new item with auto-generated push ID. Returns the item with `id` set. */
   async addItem(section, data) {
     const path = fbPath(section);
     if (!path) throw new Error('[orgStore] No orgId set');
@@ -192,43 +255,42 @@ export const orgStore = {
     const item = { id: itemRef.key, ...data };
     if (!item.created_at) item.created_at = new Date().toISOString();
     const clean = sanitize(item);
-    // Update cache
+    
     if (!_cache[section]) _cache[section] = {};
     _cache[section][itemRef.key] = clean;
     persistToLS();
-    // Write to Firebase (must await for push ID)
-    await set(itemRef, clean);
+
+    const rtdbPromise = set(itemRef, clean).catch(() => {});
+    const fsPromise = syncToFirestore(section, itemRef.key, clean);
+    await Promise.all([rtdbPromise, fsPromise]);
     return item;
   },
 
-  /** Set/overwrite an item at a known ID. Fire-and-forget. */
-  setItem(section, id, data) {
+  async setItem(section, id, data) {
     const path = fbPath(`${section}/${id}`);
     if (!path) return;
     const clean = sanitize(data);
     if (!_cache[section]) _cache[section] = {};
     _cache[section][id] = clean;
     persistToLS();
-    set(ref(db, path), clean).catch(e =>
-      console.error(`[orgStore] setItem ${section}/${id} FAILED:`, e.message));
+
+    const rtdbPromise = set(ref(db, path), clean).catch(() => {});
+    const fsPromise = syncToFirestore(section, id, clean);
+    await Promise.all([rtdbPromise, fsPromise]);
   },
 
-  /** Partial-update an item. Fire-and-forget. */
-  updateItem(section, id, updates) {
+  async updateItem(section, id, updates) {
     const path = fbPath(`${section}/${id}`);
     if (!path) return;
     if (!_cache[section]) _cache[section] = {};
-    if (_cache[section][id]) {
-      _cache[section][id] = { ..._cache[section][id], ...updates };
-    } else {
-      _cache[section][id] = { id, ...updates };
-    }
+    _cache[section][id] = { ...(_cache[section][id] || {}), ...updates };
     persistToLS();
-    update(ref(db, path), sanitize(updates)).catch(e =>
-      console.error(`[orgStore] updateItem ${section}/${id} FAILED:`, e.message));
+
+    const rtdbPromise = update(ref(db, path), sanitize(updates)).catch(() => {});
+    const fsPromise = syncToFirestore(section, id, updates, 'update');
+    await Promise.all([rtdbPromise, fsPromise]);
   },
 
-  /** Remove an item. Fire-and-forget. */
   removeItem(section, id) {
     const path = fbPath(`${section}/${id}`);
     if (!path) return;
@@ -236,43 +298,66 @@ export const orgStore = {
       delete _cache[section][id];
       persistToLS();
     }
-    remove(ref(db, path)).catch(e =>
-      console.error(`[orgStore] removeItem ${section}/${id} FAILED:`, e.message));
+    remove(ref(db, path)).catch(() => {});
+    syncToFirestore(section, id, null, 'delete');
   },
 
-  // ── Value Section Writes (arrays, plain objects) ─────────────────────────────
-
-  /** Overwrite an entire section (used for arrays like fin_notifs, fin_recurring). */
   setSection(section, value) {
     _cache[section] = sanitize(value);
     persistToLS();
     const path = fbPath(section);
-    if (path) set(ref(db, path), sanitize(value)).catch(e =>
-      console.error(`[orgStore] setSection ${section} FAILED:`, e.message));
+    if (path) {
+      set(ref(db, path), sanitize(value)).catch(() => {});
+      syncToFirestore(section, null, value);
+    }
   },
 
-  // ── Real-Time Listeners ──────────────────────────────────────────────────────
-
-  /** Listen to a section for real-time updates. Returns unsubscribe function. */
+  /** 
+   * Listen to a section for real-time updates from FIRESTORE. 
+   */
   listenSection(section, callback) {
-    const path = fbPath(section);
-    if (!path) return () => {};
-    const unsubscribe = onValue(ref(db, path), (snap) => {
-      const val = snap.exists() ? snap.val() : (KEYED_SECTIONS.has(section) ? {} : []);
-      _cache[section] = val;
-      persistToLS();
-      callback(val);
-    }, (err) => {
-      console.error(`[orgStore] listener ${section} error:`, err.message);
-      callback(_cache[section] || (KEYED_SECTIONS.has(section) ? {} : []));
-    });
+    if (!_orgId) return () => {};
+
+    let unsubscribe;
+    if (KEYED_SECTIONS.has(section)) {
+      const q = query(collection(firestore, section), where('orgId', '==', _orgId));
+      unsubscribe = onSnapshot(q, (snap) => {
+        const sectionData = {};
+        snap.forEach(docSnap => {
+          sectionData[docSnap.id] = docSnap.data();
+        });
+
+        // SAFEGUARD: If local cache has data (repaired from RTDB) but Firestore has zero, 
+        // don't wipe it out immediately. Wait for migration to catch up.
+        const currentCount = _cache[section] ? Object.keys(_cache[section]).length : 0;
+        const newCount = Object.keys(sectionData).length;
+
+        if (newCount === 0 && currentCount > 0) {
+          console.log(`[orgStore] Safeguard: Ignoring empty Firestore snapshot for ${section} to preserve repaired RTDB data.`);
+          return;
+        }
+
+        _cache[section] = sectionData;
+        persistToLS();
+        callback(sectionData);
+      });
+    } else if (METADATA_SECTIONS.has(section)) {
+      unsubscribe = onSnapshot(doc(firestore, 'org_metadata', _orgId), (snap) => {
+        if (snap.exists()) {
+          const val = snap.data()[section] || (Array.isArray(_cache[section]) ? [] : {});
+          _cache[section] = val;
+          persistToLS();
+          callback(val);
+        }
+      });
+    } else {
+      return () => {};
+    }
+
     _listeners.push(unsubscribe);
     return unsubscribe;
   },
 
-  // ── Cleanup ──────────────────────────────────────────────────────────────────
-
-  /** Clear cache and detach all listeners (call on logout). */
   clear() {
     _listeners.forEach(unsub => { try { unsub(); } catch {} });
     _listeners = [];

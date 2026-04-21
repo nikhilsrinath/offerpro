@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, ArrowRight, ChevronRight, UserCircle, Briefcase,
     Mail, Phone, Calendar, MapPin, DollarSign, FileText, Users,
@@ -16,6 +17,7 @@ const STEPS = [
 ];
 
 export default function EmployeeForm({ onBack, onSuccess }) {
+    const navigate = useNavigate();
     const { user } = useAuth();
     const { activeOrg } = useOrg();
     const org = activeOrg || {};
@@ -88,7 +90,7 @@ export default function EmployeeForm({ onBack, onSuccess }) {
             setShowSuccess(true);
             setTimeout(() => {
                 setIsSubmitting(false);
-                if (onSuccess) onSuccess();
+                navigate('/employees');
             }, 1500);
         } catch (err) {
             console.error(err);
@@ -112,7 +114,7 @@ export default function EmployeeForm({ onBack, onSuccess }) {
     return (
         <div className="animate-in" style={{ maxWidth: '720px', margin: '0 auto' }}>
             {/* Back button */}
-            <button onClick={onBack} className="empf-back-btn">
+            <button onClick={() => navigate('/employees')} className="empf-back-btn">
                 <ArrowLeft size={16} /> Back to Registry
             </button>
 

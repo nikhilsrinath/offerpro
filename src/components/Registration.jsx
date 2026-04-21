@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowRight, ArrowLeft, Check, ChevronRight } from 'lucide-react';
-import { ref, set, push } from 'firebase/database';
-import { db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
+import { saveOrganizationData } from '../services/dualWriteService';
 
 const QUESTIONS = [
     { id: 'welcome', type: 'welcome' },
@@ -138,73 +137,6 @@ export default function Registration({ onBack, isGoogleUser }) {
         setStep(prevStep);
     };
 
-    const storeOrgData = async (userId) => {
-        // Create organization in Firebase Realtime Database
-        const orgRef = push(ref(db, 'organizations'));
-        const orgId = orgRef.key;
-
-        const orgData = {
-            id: orgId,
-            company_email: isGoogleUser ? user.email : formData.company_email,
-            company_name: formData.company_name,
-            company_website: formData.company_website || null,
-            industry: formData.industry,
-            company_description: formData.company_description,
-            country: formData.country,
-            city: formData.city,
-            company_size: formData.company_size,
-            owner_full_name: formData.owner_full_name,
-            owner_role: formData.owner_role,
-            primary_contact_name: formData.primary_contact_name || null,
-            document_designation: formData.document_designation,
-            use_cases: formData.use_cases,
-            include_logo: formData.include_logo === 'Yes',
-            logo_url: formData.logo_url || null,
-            account_usage: formData.account_usage,
-            referral_source: formData.referral_source || null,
-            created_at: new Date().toISOString(),
-            trial_start_date: new Date().toISOString(),
-            owner_uid: userId
-        };
-
-        // Store the organization data
-        await set(orgRef, orgData);
-
-        // Add org owner as first employee under Founder's Office
-        const empRef = push(ref(db, `organizations/${orgId}/employees`));
-        await set(empRef, {
-            id: empRef.key,
-            studentName: formData.owner_full_name,
-            email: isGoogleUser ? user.email : formData.company_email,
-            role: formData.owner_role || 'Founder',
-            department: "Founder's Office",
-            offerType: 'fulltime',
-            is_owner: true,
-            created_at: new Date().toISOString(),
-        });
-
-        // Create the Founder's Office department
-        const deptRef = push(ref(db, `organizations/${orgId}/departments`));
-        await set(deptRef, {
-            id: deptRef.key,
-            name: "Founder's Office",
-            created_at: new Date().toISOString(),
-        });
-
-        // Create membership: link user to org
-        const membershipRef = push(ref(db, 'memberships'));
-        await set(membershipRef, {
-            organization_id: orgId,
-            user_id: userId,
-            role: 'owner',
-            created_at: new Date().toISOString()
-        });
-
-        // Store user → org mapping for quick lookup
-        await set(ref(db, `users/${userId}/organizations/${orgId}`), true);
-
-        return orgId;
-    };
 
     const submitRegistration = async () => {
         setLoading(true);
@@ -212,8 +144,8 @@ export default function Registration({ onBack, isGoogleUser }) {
 
         try {
             if (isGoogleUser && user) {
-                // User is already authenticated via Google, just store org data
-                await storeOrgData(user.uid);
+                // User is already authenticated via Google, execute dual-write
+                await saveOrganizationData({ userId: user.uid, email: user.email, isGoogleUser, formData });
 
                 localStorage.removeItem('offerpro_reg_data');
                 localStorage.removeItem('offerpro_reg_step');
@@ -224,7 +156,7 @@ export default function Registration({ onBack, isGoogleUser }) {
                 // Email/Password signup flow
                 // Use the callback pattern to store org data BEFORE React re-renders
                 await signup(formData.company_email, formData.password, async (uid) => {
-                    await storeOrgData(uid);
+                    await saveOrganizationData({ userId: uid, email: formData.company_email, isGoogleUser: false, formData });
                 });
 
                 localStorage.removeItem('offerpro_reg_data');

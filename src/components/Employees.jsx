@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Search, UserPlus, Trash2, Mail, Phone, Calendar,
     Briefcase, LayoutGrid, List, Users, Building,
@@ -519,6 +520,7 @@ function PortalLinkBox({ link, copied, onCopy, accent }) {
 
 // ── Main Employees Component ─────────────────────────────────────────────────
 export default function Employees() {
+    const navigate = useNavigate();
     const { activeOrg } = useOrg();
     const [employees, setEmployees] = useState([]);
     const [departments, setDepartments] = useState([]);
@@ -527,7 +529,6 @@ export default function Employees() {
     const [viewMode, setViewMode] = useState('list');
     const [filter, setFilter] = useState('all');
     const [loading, setLoading] = useState(true);
-    const [showAddForm, setShowAddForm] = useState(false);
     const [showDeptManager, setShowDeptManager] = useState(false);
     const [newDeptName, setNewDeptName] = useState('');
     const [newDeptColor, setNewDeptColor] = useState(DEPT_PALETTE[0]);
@@ -540,20 +541,42 @@ export default function Employees() {
     }, [activeOrg]);
 
     const ownerEmail = (activeOrg?.company_email || '').toLowerCase();
-    const ownerIsEmployee = ownerEmail && employees.some(e => (e.email || '').toLowerCase() === ownerEmail);
+    const ownerEmployee = employees.find(e => (e.email || '').toLowerCase() === ownerEmail);
+    const ownerIsEmployee = !!ownerEmployee;
+    const ownerHasName = ownerIsEmployee && getDisplayName(ownerEmployee);
 
     const handleAddSelf = async () => {
-        if (!activeOrg || ownerIsEmployee) return;
+        if (!activeOrg || (ownerIsEmployee && ownerHasName)) return;
         setAddingSelf(true);
         try {
-            await storageService.saveEmployee({
-                studentName: activeOrg.owner_full_name || 'Owner',
-                email: activeOrg.company_email || '',
-                role: activeOrg.owner_role || 'Founder',
-                department: "Founder's Office",
-                offerType: 'fulltime',
-                is_owner: true,
-            }, activeOrg.id);
+            // If owner exists but has no name, update the existing record
+            if (ownerEmployee && !ownerHasName) {
+                const ownerName = activeOrg.owner_full_name || activeOrg.owner_name || 'Owner';
+                await storageService.saveEmployee({
+                    ...ownerEmployee,
+                    studentName: ownerName,
+                    first_name: ownerName.split(' ')[0] || '',
+                    last_name: ownerName.split(' ').slice(1).join(' ') || '',
+                    email: activeOrg.company_email || '',
+                    role: activeOrg.owner_role || 'Founder',
+                    department: "Founder's Office",
+                    offerType: 'fulltime',
+                    is_owner: true,
+                }, activeOrg.id);
+            } else {
+                // Create new owner employee
+                const ownerName = activeOrg.owner_full_name || activeOrg.owner_name || 'Owner';
+                await storageService.saveEmployee({
+                    studentName: ownerName,
+                    first_name: ownerName.split(' ')[0] || '',
+                    last_name: ownerName.split(' ').slice(1).join(' ') || '',
+                    email: activeOrg.company_email || '',
+                    role: activeOrg.owner_role || 'Founder',
+                    department: "Founder's Office",
+                    offerType: 'fulltime',
+                    is_owner: true,
+                }, activeOrg.id);
+            }
             // Ensure Founder's Office department exists
             const depts = await storageService.getDepartments(activeOrg.id);
             if (!depts.some(d => d.name === "Founder's Office")) {
@@ -754,12 +777,7 @@ export default function Employees() {
         );
     }
 
-    if (showAddForm) {
-        return <EmployeeForm onBack={() => setShowAddForm(false)} onSuccess={() => {
-            setShowAddForm(false);
-            loadEmployees();
-        }} />;
-    }
+
 
     return (
         <div className="emp-page">
@@ -853,6 +871,17 @@ export default function Employees() {
                             <List size={18} />
                         </button>
                     </div>
+                    {(ownerIsEmployee && !ownerHasName) && (
+                        <button
+                            className="btn-cinematic"
+                            onClick={handleAddSelf}
+                            disabled={addingSelf}
+                            style={{ background: 'var(--orange)', color: '#fff' }}
+                        >
+                            <Shield size={16} />
+                            <span>{addingSelf ? 'Saving...' : 'Complete My Profile'}</span>
+                        </button>
+                    )}
                     {!ownerIsEmployee && (
                         <button
                             className="btn-cinematic"
@@ -861,10 +890,10 @@ export default function Employees() {
                             style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                         >
                             <Shield size={16} />
-                            <span>{addingSelf ? 'Adding...' : 'Add Yourself'}</span>
+                            <span>{addingSelf ? 'Adding...' : 'Add Myself'}</span>
                         </button>
                     )}
-                    <button className="btn-cinematic" onClick={() => setShowAddForm(true)}>
+                    <button className="btn-cinematic" onClick={() => navigate('/employees/new')}>
                         <UserPlus size={16} />
                         <span>Add Employee</span>
                     </button>
@@ -943,7 +972,7 @@ export default function Employees() {
                     </div>
                     <h3>Build Your Team</h3>
                     <p>Add your first employee to get started. Each onboarding automatically generates a professional offer letter.</p>
-                    <button className="btn-cinematic" onClick={() => setShowAddForm(true)} style={{ marginTop: '0.5rem' }}>
+                    <button className="btn-cinematic" onClick={() => navigate('/employees/new')} style={{ marginTop: '0.5rem' }}>
                         <UserPlus size={16} /> Add First Employee
                     </button>
                 </div>

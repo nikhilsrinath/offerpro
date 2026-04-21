@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
+import { documentStore } from '../services/documentStore';
 import { useOrg } from '../context/OrgContext';
 
 const TRIAL_DURATION_DAYS = 7;
@@ -48,14 +49,26 @@ export function useTrialStatus() {
 
             setLoading(true);
             try {
+                // Get HR records (offer, nda, mou)
                 const allRecords = await storageService.getAll(activeOrg.id);
 
+                // Get financial docs (invoices, quotations) from fin_docs
+                documentStore.setContext(activeOrg.id);
+                await documentStore.init();
+                const finDocs = documentStore.getAll();
+
                 const counts = { offer: 0, nda: 0, mou: 0, invoice: 0 };
+
+                // Count HR records
                 allRecords.forEach(record => {
                     if (record.type === 'offer') counts.offer++;
                     else if (record.type === 'nda') counts.nda++;
                     else if (record.type === 'mou') counts.mou++;
-                    else if (record.type === 'invoice') counts.invoice++;
+                });
+
+                // Count invoices from fin_docs (where they are actually stored)
+                finDocs.forEach(doc => {
+                    if (doc.type === 'invoice') counts.invoice++;
                 });
 
                 if (!cancelled) {
@@ -84,14 +97,28 @@ export function useTrialStatus() {
     const refreshUsage = async () => {
         if (!activeOrg?.id) return;
         try {
+            // Get HR records
             const allRecords = await storageService.getAll(activeOrg.id);
+
+            // Get financial docs from fin_docs
+            documentStore.setContext(activeOrg.id);
+            await documentStore.init();
+            const finDocs = documentStore.getAll();
+
             const counts = { offer: 0, nda: 0, mou: 0, invoice: 0 };
+
+            // Count HR records
             allRecords.forEach(record => {
                 if (record.type === 'offer') counts.offer++;
                 else if (record.type === 'nda') counts.nda++;
                 else if (record.type === 'mou') counts.mou++;
-                else if (record.type === 'invoice') counts.invoice++;
             });
+
+            // Count invoices from fin_docs
+            finDocs.forEach(doc => {
+                if (doc.type === 'invoice') counts.invoice++;
+            });
+
             setUsage(counts);
         } catch (err) {
             console.warn('Error refreshing usage:', err);

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Routes, Route, useNavigate, useLocation, Navigate, useParams, NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Briefcase, Award, Scale, ShieldCheck,
   DollarSign, Layers, Archive, LogOut, Menu, X, Bell,
@@ -30,6 +31,7 @@ import { OrgProvider, useOrg } from './context/OrgContext';
 import Auth from './components/Auth';
 import CRM from './components/CRM';
 import Employees from './components/Employees';
+import EmployeeForm from './components/EmployeeForm';
 import ExEmployees from './components/ExEmployees';
 import TeamHierarchy from './components/TeamHierarchy';
 import { useTrialStatus } from './hooks/useTrialStatus';
@@ -48,14 +50,14 @@ import QuotationForm from './components/financial/QuotationForm';
 import ProformaInvoiceForm from './components/financial/ProformaInvoiceForm';
 import FinanceStatus from './components/financial/FinanceStatus';
 import InvoiceList from './components/financial/InvoiceList';
-import RecurringInvoiceForm from './components/financial/RecurringInvoiceForm';
+import { RecurringInvoiceForm, RecurringInvoiceList } from './components/financial/RecurringInvoiceForm';
 import { documentStore } from './services/documentStore';
 
 
 const MODULE_FILTER = {
   overall: ['dashboard'],
   team: ['team-hierarchy', 'employees', 'offer-tracker', 'ex-employees', 'bulk-team'],
-  documents: ['offers', 'certificates', 'ndas', 'mous', 'bulk-offers', 'bulk-certificates'],
+  documents: ['offers', 'new-certificates', 'certificates', 'ndas', 'mous', 'bulk-offers', 'bulk-certificates'],
   finance: ['finance-status', 'invoices', 'quotations', 'proforma', 'recurring'],
   business: ['crm', 'customers', 'revenue', 'planner'],
   data: ['records', 'bulk-history']
@@ -70,7 +72,7 @@ const NAV_ITEMS = [
   { id: 'ex-employees', label: 'Ex-Employees', icon: UserX },
   { section: 'DOCUMENTS' },
   { id: 'offers', label: 'Offer Letters', icon: Briefcase },
-  { id: 'certificates', label: 'Certificates', icon: Award },
+  { id: 'new-certificates', label: 'Certificates', icon: Award },
   { id: 'ndas', label: 'NDA', icon: ShieldCheck },
   { id: 'mous', label: 'MoU', icon: Scale },
   { section: 'FINANCE' },
@@ -97,6 +99,7 @@ const PAGE_META = {
   dashboard: { title: 'Dashboard', subtitle: 'Organization overview and analytics' },
   profile: { title: 'Company Profile', subtitle: 'Manage your company details, logo, and signature' },
   offers: { title: 'Offer Letters', subtitle: 'Generate employment and internship offers' },
+  'new-certificates': { title: 'Certificates', subtitle: 'Issue professional attainment certificates' },
   certificates: { title: 'Certificates', subtitle: 'Issue professional attainment certificates' },
   ndas: { title: 'Non-Disclosure Agreements', subtitle: 'Draft legal-grade confidentiality agreements' },
   mous: { title: 'Memorandum of Understanding', subtitle: 'Establish collaboration frameworks and partnerships' },
@@ -124,11 +127,31 @@ const PAGE_META = {
 };
 
 function AppContent() {
-  const [activeModule, setActiveModule] = useState(() => sessionStorage.getItem('activeModule') || null);
-  const [activePage, setActivePage] = useState(() => sessionStorage.getItem('initialPage') || 'hub');
+  const location = useLocation();
+  const routerNavigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showLanding, setShowLanding] = useState(true);
-  const [editingDocId, setEditingDocId] = useState(null);
+
+  let activePage = location.pathname.substring(1);
+  if (activePage === '') activePage = 'hub';
+  let editingDocId = null;
+  if (activePage.startsWith('new-quotation/')) {
+    editingDocId = activePage.split('/')[1];
+    activePage = 'new-quotation';
+  } else if (activePage === 'bulk-offers') activePage = 'bulk-offers';
+  else if (activePage === 'bulk-certificates') activePage = 'bulk-certificates';
+  else if (activePage === 'bulk-team') activePage = 'bulk-team';
+  else if (activePage === 'bulk-history') activePage = 'bulk-history';
+  else if (activePage.includes('/')) activePage = activePage.split('/')[0];
+
+  let activeModule = null;
+  for (const [mod, pages] of Object.entries(MODULE_FILTER)) {
+    if (pages.includes(activePage)) {
+      activeModule = mod;
+      break;
+    }
+  }
+
   const { user, loading, logout, needsOnboarding } = useAuth();
   const { activeOrg } = useOrg();
   const { trialDaysLeft, isTrialExpired, isPremium } = useTrialStatus();
@@ -142,32 +165,29 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    refreshNotifications();
-    const interval = setInterval(refreshNotifications, 3000);
+    setNotifications(documentStore.getNotifications());
+    const interval = setInterval(() => {
+      setNotifications(documentStore.getNotifications());
+    }, 3000);
     return () => clearInterval(interval);
-  }, [refreshNotifications]);
+  }, []);
 
-  const handleMarkRead = (id) => {
-    documentStore.markNotificationRead(id);
-    refreshNotifications();
-  };
 
   const handleNotifClick = (notif) => {
-    // Remove the notification on click
     documentStore.deleteNotification(notif.id);
     refreshNotifications();
     if (notif.type === 'offer_signed' || notif.type === 'document_declined' && notif.document_id?.startsWith('OL')) {
-      handleSelectModule('team', 'offer-tracker');
+      routerNavigate('/offer-tracker');
     } else if (notif.type === 'role_change_acknowledged') {
-      handleSelectModule('team', 'offer-tracker');
+      routerNavigate('/offer-tracker');
     } else if (notif.type === 'termination_acknowledged') {
-      handleSelectModule('team', 'offer-tracker');
+      routerNavigate('/offer-tracker');
     } else if (notif.type === 'quotation_accepted' || notif.type === 'quotation_sent') {
-      navigate('quotations');
+      routerNavigate('/new-quotation');
     } else if (notif.type === 'revision_requested') {
-      navigate('quotations');
+      routerNavigate('/new-quotation');
     } else if (notif.type === 'payment_submitted') {
-      navigate('invoices');
+      routerNavigate('/invoices');
     }
     setShowNotifPanel(false);
   };
@@ -200,33 +220,13 @@ function AppContent() {
     return <Registration isGoogleUser={true} onBack={() => logout()} />;
   }
 
-  const navigate = (page, docId = null) => {
-    setActivePage(page);
-    sessionStorage.setItem('initialPage', page);
-    setSidebarOpen(false);
-    setEditingDocId(page === 'new-quotation' ? docId : null);
-  };
-
-  const handleSelectModule = (modId, defaultPage) => {
-    setActiveModule(modId);
-    sessionStorage.setItem('activeModule', modId);
-    navigate(defaultPage);
-  };
-
-  const handleBackToHub = () => {
-    setActiveModule(null);
-    sessionStorage.removeItem('activeModule');
-    navigate('hub');
-  };
-
   const meta = activePage === 'new-quotation' && editingDocId
     ? { title: 'Edit Quotation', subtitle: `Revising ${editingDocId}` }
     : (PAGE_META[activePage] || PAGE_META.dashboard);
 
-  // Hub-specific modules for sidebar
   const HUB_MODULES = [
     { id: 'team', label: 'Team', icon: Users, defaultPage: 'team-hierarchy', color: '#8b5cf6' },
-    { id: 'documents', label: 'Documents', icon: FileText, defaultPage: 'offers', color: '#10b981' },
+    { id: 'documents', label: 'Documents', icon: FileText, defaultPage: 'new-certificates', color: '#10b981' },
     { id: 'finance', label: 'Finance', icon: Receipt, defaultPage: 'finance-status', color: '#f59e0b' },
     { id: 'business', label: 'Business', icon: BarChart3, defaultPage: 'crm', color: '#d946ef' },
     { id: 'data', label: 'Records', icon: File, defaultPage: 'records', color: '#ef4444' },
@@ -235,15 +235,12 @@ function AppContent() {
 
   return (
     <div className={`app-layout ${!activeModule && activePage !== 'hub' ? 'no-sidebar' : ''}`}>
-      {/* Sidebar Overlay (mobile) */}
       {sidebarOpen && (
         <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Hub Sidebar - Icon Rail (58px collapsed, 260px on hover) */}
       {activePage === 'hub' && (
         <aside className={`sidebar hub-sidebar ${sidebarOpen ? 'open' : ''}`}>
-          {/* Brand */}
           <div className="sidebar-brand">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <img src="/app-icon.png" alt="" className="app-con" />
@@ -254,27 +251,26 @@ function AppContent() {
             </button>
           </div>
 
-          {/* Navigation - Hub Modules */}
           <nav className="sidebar-nav">
             {HUB_MODULES.map((mod) => {
               const Icon = mod.icon;
+              const targetPath = mod.id === 'overall' ? '/dashboard' : `/${mod.defaultPage}`;
               return (
-                <button
+                <NavLink
                   key={mod.id}
-                  className="sidebar-item"
-                  onClick={() => handleSelectModule(mod.id, mod.defaultPage)}
+                  to={targetPath}
+                  className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
+                  onClick={() => setSidebarOpen(false)}
                   title={mod.label}
                 >
                   <Icon size={20} style={{ flexShrink: 0 }} />
                   <span>{mod.label}</span>
-                </button>
+                </NavLink>
               );
             })}
           </nav>
 
-          {/* Footer */}
           <div className="sidebar-footer">
-            {/* Status pill - single line, centered */}
             <div className="sidebar-status" style={{
               display: 'flex', alignItems: 'center', gap: '0.35rem',
               padding: '0.4rem 0.75rem',
@@ -291,13 +287,11 @@ function AppContent() {
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>All systems active</span>
             </div>
 
-            {/* Action buttons row with labels */}
             <div className="sidebar-actions-row" style={{
               display: 'flex', flexDirection: 'column',
               marginBottom: '0.75rem',
               gap: '0.25rem',
             }}>
-              {/* Theme toggle */}
               <button
                 onClick={toggleTheme}
                 className="sidebar-item sidebar-action-item"
@@ -306,7 +300,6 @@ function AppContent() {
                 <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
               </button>
 
-              {/* Notifications */}
               <button
                 onClick={() => setShowNotifPanel(p => !p)}
                 className="sidebar-item sidebar-action-item"
@@ -332,7 +325,6 @@ function AppContent() {
                 <span>Notifications</span>
               </button>
 
-              {/* Logout */}
               <button
                 onClick={logout}
                 className="sidebar-item sidebar-action-item"
@@ -343,7 +335,7 @@ function AppContent() {
             </div>
 
             {activeOrg && (
-              <div className="sidebar-org-info sidebar-org-clickable" onClick={() => navigate('profile')}>
+              <div className="sidebar-org-info sidebar-org-clickable" onClick={() => { setSidebarOpen(false); routerNavigate('/profile'); }}>
                 {activeOrg.logo_url ? (
                   <img src={activeOrg.logo_url} alt="" className="sidebar-org-avatar" />
                 ) : (
@@ -362,10 +354,8 @@ function AppContent() {
         </aside>
       )}
 
-      {/* Regular Sidebar (for other pages) */}
       {activeModule && activePage !== 'hub' && (
         <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-          {/* Brand */}
           <div className="sidebar-brand">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <img src="/app-icon.png" alt="" className="app-con" />
@@ -376,12 +366,11 @@ function AppContent() {
             </button>
           </div>
 
-          {/* Navigation */}
           <nav className="sidebar-nav">
-            <button onClick={handleBackToHub} className="sidebar-item sidebar-back-btn">
+            <NavLink to="/hub" className="sidebar-item sidebar-back-btn" onClick={() => setSidebarOpen(false)}>
               <ArrowLeft size={20} />
               <span>Back to Hub</span>
-            </button>
+            </NavLink>
             {NAV_ITEMS.map((item, i) => {
               if (activeModule && item.id && !MODULE_FILTER[activeModule]?.includes(item.id)) return null;
               if (item.section) {
@@ -389,22 +378,22 @@ function AppContent() {
               }
               const Icon = item.icon;
               return (
-                <button
+                <NavLink
                   key={item.id}
-                  className={`sidebar-item ${activePage === item.id ? 'active' : ''}`}
-                  onClick={() => navigate(item.id)}
+                  to={`/${item.id}`}
+                  className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
+                  onClick={() => setSidebarOpen(false)}
                 >
                   <Icon size={20} />
                   <span>{item.label}</span>
-                </button>
+                </NavLink>
               );
             })}
           </nav>
 
-          {/* Footer */}
           <div className="sidebar-footer">
             {activeOrg && (
-              <div className="sidebar-org-info sidebar-org-clickable" onClick={() => navigate('profile')}>
+              <div className="sidebar-org-info sidebar-org-clickable" onClick={() => { setSidebarOpen(false); routerNavigate('/profile'); }}>
                 {activeOrg.logo_url ? (
                   <img src={activeOrg.logo_url} alt="" className="sidebar-org-avatar" />
                 ) : (
@@ -427,9 +416,7 @@ function AppContent() {
         </aside>
       )}
 
-      {/* Main Content */}
       <div className="main-content">
-        {/* Mobile Top Bar */}
         <div className="mobile-topbar">
           <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)}>
             <Menu size={22} />
@@ -443,11 +430,10 @@ function AppContent() {
               <Bell size={20} style={{ opacity: 0.6, cursor: 'pointer' }} onClick={() => setShowNotifPanel((p) => !p)} />
               {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
             </div>
-            <UserCircle size={22} style={{ opacity: 0.5, cursor: 'pointer' }} onClick={() => navigate('profile')} />
+            <UserCircle size={22} style={{ opacity: 0.5, cursor: 'pointer' }} onClick={() => routerNavigate('/profile')} />
           </div>
         </div>
 
-        {/* Trial Status Banner */}
         {user && !needsOnboarding && !isPremium && (
           <div className="trial-banner">
             <Clock size={14} />
@@ -467,7 +453,6 @@ function AppContent() {
           </div>
         )}
 
-        {/* Notification Panel */}
         {showNotifPanel && (
           <div className="notif-panel-overlay" onClick={() => setShowNotifPanel(false)}>
             <div className="notif-panel" onClick={(e) => e.stopPropagation()}>
@@ -512,12 +497,11 @@ function AppContent() {
           </div>
         )}
 
-        {/* Page Header (skip for hub and dashboard - they have their own) */}
         {activePage !== 'hub' && activePage !== 'dashboard' && (
           <div className="page-header" style={{ display: 'flex', alignItems: 'center' }}>
             {(!activeModule || activePage === 'profile') && (
               <button
-                onClick={() => navigate('hub')}
+                onClick={() => routerNavigate('/hub')}
                 className="btn-cinematic btn-secondary"
                 style={{ marginRight: '1.5rem', padding: '0.5rem 0.85rem', height: 'fit-content', gap: '8px' }}
               >
@@ -531,36 +515,44 @@ function AppContent() {
           </div>
         )}
 
-        {/* Page Content */}
         <div className={`page-content${activePage === 'team-hierarchy' ? ' page-content-canvas' : ''}`}>
-          {activePage === 'hub' && <Hub onSelectModule={handleSelectModule} user={user} activeOrg={activeOrg} theme={theme} />}
-          {activePage === 'dashboard' && <Dashboard onNavigate={navigate} />}
-          {activePage === 'profile' && <CompanyProfile theme={theme} onToggleTheme={toggleTheme} />}
-          {activePage === 'offers' && <OfferForm onSuccess={() => navigate('records')} />}
-          {activePage === 'certificates' && <CertificateForm onSuccess={() => navigate('records')} />}
-          {activePage === 'ndas' && <NdaForm onSuccess={() => navigate('records')} />}
-          {activePage === 'mous' && <MoUForm onSuccess={() => navigate('records')} />}
-          {activePage === 'finance-status' && <FinanceStatus />}
-          {activePage === 'invoices' && <InvoiceList type="invoice" onNavigateToNew={() => navigate('new-invoice')} />}
-          {activePage === 'quotations' && <InvoiceList type="quotation" onNavigateToNew={() => navigate('new-quotation')} onEdit={(id) => navigate('new-quotation', id)} />}
-          {activePage === 'proforma' && <InvoiceList type="proforma" onNavigateToNew={() => navigate('new-proforma')} />}
-          {activePage === 'recurring' && <RecurringInvoiceForm />}
-          {activePage === 'new-invoice' && <InvoiceForm onSuccess={() => navigate('invoices')} />}
-          {activePage === 'new-quotation' && <QuotationForm editDocId={editingDocId} />}
-          {activePage === 'new-proforma' && <ProformaInvoiceForm />}
-          {activePage === 'crm' && <CRM />}
-          {activePage === 'customers' && <Customers />}
-          {activePage === 'revenue' && <BillingRevenue />}
-          {activePage === 'planner' && <ProductPlanner />}
-          {activePage === 'records' && <InternRecords />}
-          {activePage === 'employees' && <Employees />}
-          {activePage === 'ex-employees' && <ExEmployees />}
-          {activePage === 'team-hierarchy' && <TeamHierarchy />}
-          {activePage === 'offer-tracker' && <OfferTracker />}
-          {activePage === 'bulk-offers' && <BulkOfferLetters />}
-          {activePage === 'bulk-certificates' && <BulkCertificates />}
-          {activePage === 'bulk-team' && <BulkTeamMembers />}
-          {activePage === 'bulk-history' && <BulkHistory />}
+          <Routes>
+            <Route index element={<Navigate to="hub" replace />} />
+            <Route path="hub" element={<Hub user={user} activeOrg={activeOrg} theme={theme} />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="profile" element={<CompanyProfile theme={theme} onToggleTheme={toggleTheme} />} />
+            <Route path="offers" element={<OfferForm />} />
+            <Route path="new-certificates" element={<CertificateForm />} />
+            <Route path="certificates" element={<CertificateForm />} />
+            <Route path="ndas" element={<NdaForm />} />
+            <Route path="mous" element={<MoUForm />} />
+            <Route path="finance-status" element={<FinanceStatus />} />
+            <Route path="invoices" element={<InvoiceList type="invoice" />} />
+            <Route path="quotations" element={<InvoiceList type="quotation" />} />
+            <Route path="proforma" element={<InvoiceList type="proforma" />} />
+            <Route path="recurring" element={<RecurringInvoiceList />} />
+            <Route path="recurring/new" element={<RecurringInvoiceForm />} />
+            <Route path="recurring/edit/:id" element={<RecurringInvoiceFormWrapper />} />
+            <Route path="new-invoice" element={<InvoiceForm />} />
+            <Route path="new-quotation" element={<QuotationForm editDocId={null} />} />
+            <Route path="new-quotation/:docId" element={<QuotationFormWrapper />} />
+            <Route path="new-proforma" element={<ProformaInvoiceForm />} />
+            <Route path="crm" element={<CRM />} />
+            <Route path="customers" element={<Customers />} />
+            <Route path="revenue" element={<BillingRevenue />} />
+            <Route path="planner" element={<ProductPlanner />} />
+            <Route path="records" element={<InternRecords />} />
+            <Route path="employees" element={<Employees />} />
+            <Route path="employees/new" element={<EmployeeForm />} />
+            <Route path="ex-employees" element={<ExEmployees />} />
+            <Route path="team-hierarchy" element={<TeamHierarchy />} />
+            <Route path="offer-tracker" element={<OfferTracker onNavigate={routerNavigate} />} />
+            <Route path="bulk-offers" element={<BulkOfferLetters />} />
+            <Route path="bulk-certificates" element={<BulkCertificates />} />
+            <Route path="bulk-team" element={<BulkTeamMembers />} />
+            <Route path="bulk-history" element={<BulkHistory />} />
+            <Route path="*" element={<Navigate to="hub" replace />} />
+          </Routes>
         </div>
       </div>
 
@@ -588,47 +580,53 @@ function AppContent() {
   );
 }
 
+
+function QuotationFormWrapper() {
+  const { docId } = useParams();
+  return <QuotationForm editDocId={docId} />;
+}
+
+function RecurringInvoiceFormWrapper() {
+  const { id } = useParams();
+  const [item, setItem] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const items = documentStore.getRecurring();
+    const found = items.find(i => i.id === id);
+    setItem(found);
+    setLoading(false);
+  }, [id]);
+
+  if (loading) return <div>Loading...</div>;
+  if (!item) return <div>Recurring invoice not found.</div>;
+  return <RecurringInvoiceForm editItem={item} />;
+}
+
+function PortalRouteWrapper() {
+  const { documentId } = useParams();
+  return (
+    <ToastProvider>
+      <RecipientPortal documentId={documentId} />
+    </ToastProvider>
+  );
+}
+
 function App() {
-  const path = window.location.pathname;
-  if (path.startsWith('/portal/')) {
-    const documentId = path.split('/')[2];
-    return (
-      <ToastProvider>
-        <RecipientPortal documentId={documentId} />
-      </ToastProvider>
-    );
-  }
-
-  // Landing sub-pages (platform, resources, legal)
-  const SubPageComponent = subPages[path];
-  if (SubPageComponent) {
-    return (
-      <SubPage>
-        <SubPageComponent />
-      </SubPage>
-    );
-  }
-
-  // Handle URL-based basic routing for the app
-  if (path.startsWith('/bulk/offer-letters')) {
-    window.history.pushState({}, '', '/');
-    sessionStorage.setItem('initialPage', 'bulk-offers');
-  } else if (path.startsWith('/bulk/certificates')) {
-    window.history.pushState({}, '', '/');
-    sessionStorage.setItem('initialPage', 'bulk-certificates');
-  } else if (path.startsWith('/bulk/team-members')) {
-    window.history.pushState({}, '', '/');
-    sessionStorage.setItem('initialPage', 'bulk-team');
-  } else if (path.startsWith('/bulk/history')) {
-    window.history.pushState({}, '', '/');
-    sessionStorage.setItem('initialPage', 'bulk-history');
-  }
-
   return (
     <AuthProvider>
       <OrgProvider>
         <ToastProvider>
-          <AppContent />
+          <Routes>
+            <Route path="/portal/:documentId" element={<PortalRouteWrapper />} />
+            {Object.keys(subPages).map(path => {
+              const SubPageComponent = subPages[path];
+              return (
+                <Route key={path} path={path} element={<SubPage><SubPageComponent /></SubPage>} />
+              );
+            })}
+            <Route path="/*" element={<AppContent />} />
+          </Routes>
         </ToastProvider>
       </OrgProvider>
     </AuthProvider>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Upload, CheckCircle, ChevronRight, Eye } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
@@ -8,7 +9,8 @@ import { resolveFormImages } from '../utils/imageUtils';
 import { CERTIFICATE_TEMPLATES } from '../services/certificateTemplates';
 import CertificatePreview from './CertificatePreview';
 
-export default function CertificateForm({ onSuccess }) {
+export default function CertificateForm() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { activeOrg } = useOrg();
   const org = activeOrg || {};
@@ -51,7 +53,7 @@ export default function CertificateForm({ onSuccess }) {
       pdfService.generateCertificate(resolved);
       setTimeout(() => {
         setIsSubmitting(false);
-        if (onSuccess) onSuccess();
+        navigate('/records');
       }, 800);
     } catch (err) {
       console.error(err);

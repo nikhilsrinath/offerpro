@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { ref, get, push, set, update } from 'firebase/database';
-import { db } from '../lib/firebase';
+import { doc, getDoc, getDocs, collection, query, where, setDoc, writeBatch } from 'firebase/firestore';
+import { db, firestore } from '../lib/firebase';
 import { useAuth } from './AuthContext';
 import { orgStore } from '../services/orgStore';
 
@@ -26,23 +27,28 @@ export const OrgProvider = ({ children }) => {
   const fetchOrganizations = async () => {
     setLoading(true);
     try {
-      const userOrgsRef = ref(db, `users/${user.uid}/organizations`);
-      const snapshot = await get(userOrgsRef);
+      // Fetch memberships from Firestore where user_id matches
+      const membershipsQuery = query(collection(firestore, 'memberships'), where('user_id', '==', user.uid));
+      const membershipsSnap = await getDocs(membershipsQuery);
 
-      if (!snapshot.exists()) {
+      if (membershipsSnap.empty) {
         setOrganizations([]);
         setActiveOrg(null);
         setLoading(false);
         return;
       }
 
-      const orgIds = Object.keys(snapshot.val());
       const orgs = [];
+      const membershipData = membershipsSnap.docs.map(doc => doc.data());
 
-      for (const orgId of orgIds) {
-        // Load entire org data via orgStore (fetches from Firebase, caches in localStorage)
+      for (const mem of membershipData) {
+        const orgId = mem.organization_id;
+        if (!orgId) continue;
+
+        // Load entire org data via orgStore (which we'll refactor next to hit Firestore)
         const orgData = await orgStore.load(orgId);
         const profile = orgStore.getProfile();
+        
         if (profile.company_name || profile.owner_uid) {
           orgs.push({
             id: orgId,
@@ -69,25 +75,43 @@ export const OrgProvider = ({ children }) => {
     const orgRef = push(ref(db, 'organizations'));
     const orgId = orgRef.key;
 
+    const timestamp = new Date().toISOString();
     const orgData = {
       id: orgId,
       company_name: name,
       company_email: user.email,
       owner_uid: user.uid,
-      created_at: new Date().toISOString()
+      created_at: timestamp
     };
 
-    await set(orgRef, orgData);
-
     const membershipRef = push(ref(db, 'memberships'));
-    await set(membershipRef, {
+    const membershipId = membershipRef.key;
+    const membershipData = {
       organization_id: orgId,
       user_id: user.uid,
       role: 'owner',
-      created_at: new Date().toISOString()
-    });
+      created_at: timestamp
+    };
 
-    await set(ref(db, `users/${user.uid}/organizations/${orgId}`), true);
+    // Dual-Write (RTDB)
+    const rtdbUpdates = {
+      [`organizations/${orgId}`]: orgData,
+      [`memberships/${membershipId}`]: membershipData,
+      [`users/${user.uid}/organizations/${orgId}`]: true
+    };
+    await update(ref(db), rtdbUpdates);
+
+    // Dual-Write (Firestore)
+    try {
+      const batch = writeBatch(firestore);
+      batch.set(doc(firestore, 'organizations', orgId), orgData);
+      batch.set(doc(firestore, 'memberships', membershipId), membershipData);
+      batch.set(doc(firestore, 'users', user.uid), { organizations: { [orgId]: true } }, { merge: true });
+      await batch.commit();
+    } catch (err) {
+      console.error("[OrgContext] Firestore dual-write failed:", err);
+    }
+
     await fetchOrganizations();
     return orgData;
   };

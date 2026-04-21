@@ -180,6 +180,22 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Remove underlines from navigation links */
+a, .sidebar-item, .sidebar-back-btn, NavLink {
+  text-decoration: none !important;
+}
+
+/* Remove default anchor styling */
+a:hover, a:active, a:visited, a:focus {
+  text-decoration: none !important;
+  color: inherit;
+}
+
+/* Remove underlines from all links in navigation contexts */
+nav a, nav button, .sidebar-nav a, .sidebar-nav button {
+  text-decoration: none !important;
+}
+
 .hero-section {
   padding: 10rem 0 8rem;
 }

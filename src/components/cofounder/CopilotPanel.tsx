@@ -342,16 +342,15 @@ export default function CopilotPanel({
       padding: '2rem 1.5rem', textAlign: 'center', height: '100%',
     }}>
       <div style={{
-        width: 48, height: 48, borderRadius: 14, background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+        width: 48, height: 48, borderRadius: 14, background: 'var(--bg-sunken)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem',
-        boxShadow: '0 8px 16px rgba(99,102,241,0.2)',
       }}>
-        <Sparkles size={20} style={{ color: '#ffffff' }} />
+        <Sparkles size={20} style={{ color: 'var(--text-muted)' }} />
       </div>
-      <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: '0 0 0.5rem' }}>
+      <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
         {showOnboardingButton ? 'Welcome to EdgeOS!' : 'Start thinking with your Co-founder'}
       </h3>
-      <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: '0 0 1.5rem', lineHeight: 1.6 }}>
+      <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: '0 0 1.5rem', lineHeight: 1.6 }}>
         {showOnboardingButton
           ? 'Help me get to know you better so I can assist you more personally.'
           : 'Strategic decisions, performance analysis, and growth execution.'}
@@ -366,7 +365,7 @@ export default function CopilotPanel({
           }}
           style={{
             display: 'flex', alignItems: 'center', gap: '0.5rem',
-            padding: '0.75rem 1.5rem', background: '#6366f1', color: '#ffffff',
+            padding: '0.75rem 1.5rem', background: 'var(--bg-sunken)', color: 'var(--text-primary)',
             border: 'none', borderRadius: 8, fontSize: '0.875rem', fontWeight: 500,
             cursor: 'pointer', marginBottom: '1.5rem',
           }}
@@ -383,13 +382,13 @@ export default function CopilotPanel({
             onClick={() => handleSend(prompt.text)}
             disabled={isStreaming}
             style={{
-              padding: '0.75rem 1rem', background: '#ffffff', border: `1px solid #f1f5f9`,
+              padding: '0.75rem 1rem', background: 'transparent', border: '1px solid var(--border-subtle)',
               borderRadius: 10, cursor: isStreaming ? 'not-allowed' : 'pointer', textAlign: 'left', fontSize: '0.75rem',
-              fontWeight: 500, color: '#64748b', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: '0.75rem',
+              fontWeight: 500, color: 'var(--text-secondary)', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: '0.75rem',
               opacity: isStreaming ? 0.6 : 1,
             }}
           >
-            <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#6366f1' }} />
+            <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--text-muted)' }} />
             {prompt.text}
           </button>
         ))}
@@ -407,16 +406,16 @@ export default function CopilotPanel({
       }}>
         <div style={{
           width: 28, height: 28, borderRadius: 8, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: isUser ? '#6366f1' : '#f1f5f9', border: isUser ? 'none' : `1px solid #f1f5f9`,
+          background: 'var(--bg-sunken)', border: '1px solid var(--border-subtle)',
         }}>
-          {isUser ? <User size={14} style={{ color: '#ffffff' }} /> : <Bot size={14} style={{ color: '#6366f1' }} />}
+          {isUser ? <User size={14} style={{ color: 'var(--text-muted)' }} /> : <Bot size={14} style={{ color: 'var(--text-muted)' }} />}
         </div>
         <div style={{
           maxWidth: '85%', padding: '0.875rem 1rem', borderRadius: 14,
           borderTopRightRadius: isUser ? 4 : 14, borderTopLeftRadius: isUser ? 14 : 4,
-          background: isUser ? '#6366f1' : '#f8fafc',
-          border: isUser ? 'none' : `1px solid #e2e8f0`,
-          color: isUser ? '#ffffff' : '#64748b', fontSize: '0.875rem', lineHeight: 1.6,
+          background: isDark ? 'var(--bg-elevated)' : 'var(--bg-raised)',
+          border: '1px solid var(--border-subtle)',
+          color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6,
         }}>
           {message.content}
         </div>
@@ -433,13 +432,13 @@ export default function CopilotPanel({
           onClick={onToggle}
           style={{
             position: 'fixed', bottom: '1.5rem', right: '1.5rem',
-            width: 56, height: 56, borderRadius: 28, background: '#6366f1',
+            width: 56, height: 56, borderRadius: 28, background: 'var(--accent)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 12px 24px rgba(99,102,241,0.3)', border: 'none',
+            boxShadow: 'var(--btn-accent-shadow)', border: 'none',
             zIndex: 1000, cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
-          <Sparkles size={24} style={{ color: '#ffffff' }} />
+          <Sparkles size={24} style={{ color: 'var(--btn-accent-text)' }} />
         </button>
       );
     }
@@ -447,33 +446,33 @@ export default function CopilotPanel({
     return (
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        background: isDark ? '#0f172a' : '#ffffff', zIndex: 2000, display: 'flex', flexDirection: 'column',
+        background: 'var(--surface)', zIndex: 2000, display: 'flex', flexDirection: 'column',
         animation: 'copilot-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
       }}>
         {/* Header */}
         <div style={{
-          padding: '1rem 1.25rem', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'}`,
-          display: 'flex', alignItems: 'center', gap: '1rem', background: isDark ? '#1e293b' : '#ffffff',
+          padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--bg-raised)',
         }}>
           <button onClick={onToggle} style={{ background: 'none', border: 'none', padding: 0 }}>
-            <ArrowLeft size={24} style={{ color: isDark ? '#ffffff' : '#0f172a' }} />
+            <ArrowLeft size={24} style={{ color: 'var(--text-primary)' }} />
           </button>
           <div>
-            <h2 style={{ fontSize: '1rem', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', margin: 0 }}>Co-founder</h2>
-            <p style={{ fontSize: '0.75rem', color: isDark ? '#94a3b8' : '#64748b', margin: 0 }}>Your AI execution partner</p>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Co-founder</h2>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>Your AI execution partner</p>
           </div>
           <div style={{ flex: 1 }} />
           <button onClick={() => setMessages([])} style={{ background: 'none', border: 'none' }}>
-            <Trash2 size={18} style={{ color: isDark ? '#94a3b8' : '#64748b' }} />
+            <Trash2 size={18} style={{ color: 'var(--text-muted)' }} />
           </button>
         </div>
 
         {/* Chat Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', background: isDark ? '#0f172a' : '#fafafa' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', background: 'var(--surface)' }}>
           {messages.length === 0 ? <MobileEmptyState /> : (
             <div>
               {messages.map(m => <MobileMessageBubble key={m.id} message={m} />)}
-              {isLoading && <div style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: '0.75rem' }}>Thinking...</div>}
+              {isLoading && <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Thinking...</div>}
               <div ref={messagesEndRef} />
             </div>
           )}
@@ -482,18 +481,18 @@ export default function CopilotPanel({
         {/* Input area */}
         <div style={{
           padding: '1rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom))',
-          background: isDark ? '#1e293b' : '#ffffff', borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'}`,
+          background: 'var(--bg-raised)', borderTop: '1px solid var(--border)',
         }}>
           <div style={{
-            display: 'flex', alignItems: 'center', background: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc',
-            border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'}`, borderRadius: 12, padding: '0.5rem 0.5rem 0.5rem 1rem',
+            display: 'flex', alignItems: 'center', background: 'var(--bg-sunken)',
+            border: '1px solid var(--border)', borderRadius: 12, padding: '0.5rem 0.5rem 0.5rem 1rem',
           }}>
             <textarea
               ref={inputRef} value={inputValue} onChange={e => setInputValue(e.target.value)}
               placeholder="Ask anything..." rows={1}
               style={{
                 flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                color: isDark ? '#ffffff' : '#0f172a', fontSize: '1rem', resize: 'none', maxHeight: 100,
+                color: 'var(--text-primary)', fontSize: '1rem', resize: 'none', maxHeight: 100,
               }}
             />
             <button
@@ -501,12 +500,12 @@ export default function CopilotPanel({
               disabled={isStreaming || !inputValue.trim()}
               style={{
                 width: 40, height: 40, borderRadius: 10,
-                background: isStreaming || !inputValue.trim() ? '#a5b4fc' : '#6366f1',
+                background: isStreaming || !inputValue.trim() ? 'var(--bg-sunken)' : 'var(--accent)',
                 border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: isStreaming || !inputValue.trim() ? 'not-allowed' : 'pointer',
               }}
             >
-              <Send size={18} style={{ color: '#ffffff' }} />
+              <Send size={18} style={{ color: isStreaming || !inputValue.trim() ? 'var(--text-muted)' : 'var(--btn-accent-text)' }} />
             </button>
           </div>
         </div>
@@ -529,202 +528,218 @@ export default function CopilotPanel({
     const showOnboardingButton = !onboardingComplete && !isOnboardingMode;
 
     return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '2rem 1.5rem',
-      textAlign: 'center',
-      height: '100%',
-    }}>
-      <div style={{
-        width: 56,
-        height: 56,
-        borderRadius: 16,
-        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-        border: '1px solid #e2e8f0',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: '1.25rem',
-      }}>
-        <Sparkles size={24} style={{ color: '#6366f1' }} />
-      </div>
-
-      <h3 style={{
-        fontSize: '1.125rem',
-        fontWeight: 600,
-        color: '#0f172a',
-        margin: '0 0 0.5rem',
-        letterSpacing: '-0.02em',
-      }}>
-        {showOnboardingButton ? 'Welcome to EdgeOS Co-founder!' : 'Start thinking with your Co-founder'}
-      </h3>
-
-      <p style={{
-        fontSize: '0.875rem',
-        color: '#64748b',
-        margin: '0 0 1.75rem',
-        lineHeight: 1.6,
-        maxWidth: 280,
-      }}>
-        {showOnboardingButton
-          ? 'Help me get to know you and your company better so I can assist you more personally.'
-          : 'Ask anything about decisions, tasks, growth, or operations.'}
-      </p>
-
-      {/* Complete Profile Button */}
-      {showOnboardingButton && (
-        <button
-          onClick={() => {
-            setIsOnboardingMode(true);
-            // Trigger AI to ask first onboarding question
-            handleSend("Start onboarding");
-          }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.75rem 1.5rem',
-            background: '#6366f1',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: 8,
-            fontSize: '0.875rem',
-            fontWeight: 500,
-            cursor: 'pointer',
-            marginBottom: '1.5rem',
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#4f46e5';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#6366f1';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          <Sparkles size={16} />
-          Complete Profile
-        </button>
-      )}
-
-      {/* Suggested Prompts */}
       <div style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: '0.5rem',
-        width: '100%',
-        maxWidth: 320,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2.5rem 1.5rem',
+        textAlign: 'center',
+        height: '100%',
+        background: 'var(--surface)',
       }}>
-        {getDynamicPrompts(edgeContext).map((prompt: SuggestedPrompt) => (
+        <div style={{
+          width: 56,
+          height: 56,
+          borderRadius: 14,
+          background: 'var(--bg-sunken)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '1.25rem',
+        }}>
+          <Sparkles size={24} style={{ color: 'var(--text-muted)' }} />
+        </div>
+
+        <h3 style={{
+          fontSize: '1rem',
+          fontWeight: 600,
+          color: 'var(--text-primary)',
+          margin: '0 0 0.375rem',
+          letterSpacing: '-0.01em',
+        }}>
+          {showOnboardingButton ? 'Welcome to EdgeOS' : 'Your AI Co-founder'}
+        </h3>
+
+        <p style={{
+          fontSize: '0.8125rem',
+          color: 'var(--text-secondary)',
+          margin: '0 0 1.5rem',
+          lineHeight: 1.5,
+          maxWidth: 280,
+        }}>
+          {showOnboardingButton
+            ? 'Let me learn about your business to provide personalized guidance.'
+            : 'Strategic insights and execution support for your business.'}
+        </p>
+
+        {/* Complete Profile Button */}
+        {showOnboardingButton && (
           <button
-            key={prompt.id}
-            onClick={() => handleSend(prompt.text)}
-            disabled={isStreaming}
+            onClick={() => {
+              setIsOnboardingMode(true);
+              handleSend("Start onboarding");
+            }}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.75rem',
-              padding: '0.75rem 1rem',
-              background: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: 10,
-              cursor: isStreaming ? 'not-allowed' : 'pointer',
-              textAlign: 'left',
-              fontSize: '0.8125rem',
+              gap: '0.5rem',
+              padding: '0.625rem 1.25rem',
+              background: 'var(--bg-sunken)',
+              color: 'var(--text-primary)',
+              border: 'none',
+              borderRadius: 8,
+              fontSize: '0.875rem',
               fontWeight: 500,
-              color: '#334155',
+              cursor: 'pointer',
+              marginBottom: '1.5rem',
               transition: 'all 0.2s ease',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
-              opacity: isStreaming ? 0.6 : 1,
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#f8fafc';
-              e.currentTarget.style.borderColor = '#cbd5e1';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+              e.currentTarget.style.background = 'var(--surface-hover)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#ffffff';
-              e.currentTarget.style.borderColor = '#e2e8f0';
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.02)';
+              e.currentTarget.style.background = 'var(--bg-sunken)';
             }}
           >
-            <span style={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: '#6366f1',
-              flexShrink: 0,
-            }} />
-            {prompt.text}
+            <Sparkles size={16} />
+            Complete Profile
           </button>
-        ))}
+        )}
+
+        {/* Suggested Prompts */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.375rem',
+          width: '100%',
+          maxWidth: 300,
+        }}>
+          <p style={{
+            fontSize: '0.6875rem',
+            fontWeight: 500,
+            color: 'var(--text-muted)',
+            letterSpacing: '0.05em',
+            margin: '0 0 0.375rem',
+          }}>
+            Quick Actions
+          </p>
+          {getDynamicPrompts(edgeContext).map((prompt: SuggestedPrompt, index: number) => (
+            <button
+              key={prompt.id}
+              onClick={() => handleSend(prompt.text)}
+              disabled={isStreaming}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.625rem',
+                padding: '0.625rem 0.875rem',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: 6,
+                cursor: isStreaming ? 'not-allowed' : 'pointer',
+                textAlign: 'left',
+                fontSize: '0.8125rem',
+                fontWeight: 400,
+                color: 'var(--text-secondary)',
+                transition: 'all 0.15s ease',
+                opacity: isStreaming ? 0.5 : 1,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--bg-sunken)';
+                e.currentTarget.style.color = 'var(--text-primary)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--text-secondary)';
+              }}
+            >
+              <span style={{
+                width: 20,
+                height: 20,
+                borderRadius: 4,
+                background: 'var(--bg-sunken)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                fontSize: '0.625rem',
+                fontWeight: 600,
+                color: 'var(--text-muted)',
+              }}>
+                {index + 1}
+              </span>
+              {prompt.text}
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
     );
   };
 
-  // Message bubble component
+  // Message Bubble
   const MessageBubble = ({ message }: { message: Message }) => {
     const isUser = message.role === 'user';
-    
+
     return (
       <div style={{
         display: 'flex',
         flexDirection: isUser ? 'row-reverse' : 'row',
-        gap: '0.75rem',
-        marginBottom: '1rem',
+        gap: '0.625rem',
+        marginBottom: '0.75rem',
         alignItems: 'flex-start',
       }}>
         {/* Avatar */}
         <div style={{
-          width: 28,
-          height: 28,
-          borderRadius: 8,
-          background: isUser ? '#6366f1' : '#f1f5f9',
-          border: isUser ? 'none' : '1px solid #e2e8f0',
+          width: 24,
+          height: 24,
+          borderRadius: 6,
+          background: 'var(--bg-sunken)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
         }}>
           {isUser ? (
-            <User size={14} style={{ color: '#ffffff' }} />
+            <User size={12} style={{ color: 'var(--text-muted)' }} />
           ) : (
-            <Bot size={14} style={{ color: '#6366f1' }} />
+            <Bot size={12} style={{ color: 'var(--text-muted)' }} />
           )}
         </div>
 
-        {/* Message content */}
+        {/* Message Content */}
         <div style={{
           maxWidth: isFullscreen ? '70%' : '85%',
-          background: isUser ? '#6366f1' : '#f8fafc',
-          border: isUser ? 'none' : '1px solid #e2e8f0',
+          background: isDark ? 'var(--bg-elevated)' : 'var(--bg-raised)',
           borderRadius: 12,
           borderTopRightRadius: isUser ? 4 : 12,
           borderTopLeftRadius: isUser ? 12 : 4,
-          padding: '0.875rem 1rem',
+          padding: '0.75rem 1rem',
+          border: '1px solid var(--border-subtle)',
         }}>
           <div style={{
-            fontSize: '0.875rem',
-            lineHeight: 1.6,
-            color: isUser ? '#ffffff' : '#334155',
+            fontSize: '0.8125rem',
+            lineHeight: 1.5,
+            color: 'var(--text-secondary)',
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
           }}>
             {message.content}
+          </div>
+          <div style={{
+            fontSize: '0.625rem',
+            color: 'var(--text-tertiary)',
+            marginTop: '0.375rem',
+            fontWeight: 400,
+          }}>
+            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
       </div>
     );
   };
 
-  // If panel is closed, show minimal toggle button
+  // Toggle Button (Closed State)
   if (!isOpen) {
     return (
       <button
@@ -736,33 +751,37 @@ export default function CopilotPanel({
           transform: 'translateY(-50%)',
           width: 40,
           height: 80,
-          background: '#ffffff',
-          border: '1px solid #e2e8f0',
+          background: 'var(--surface)',
+          border: '1px solid var(--border-subtle)',
           borderRight: 'none',
           borderRadius: '8px 0 0 8px',
           cursor: 'pointer',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '-2px 0 8px rgba(0,0,0,0.04)',
+          gap: '0.5rem',
+          boxShadow: 'var(--shadow-md)',
           zIndex: 100,
+          transition: 'all 0.2s ease',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = '#f8fafc';
           e.currentTarget.style.width = '44px';
+          e.currentTarget.style.background = 'var(--surface-hover)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = '#ffffff';
           e.currentTarget.style.width = '40px';
+          e.currentTarget.style.background = 'var(--surface)';
         }}
       >
-        <ChevronLeft size={18} style={{ color: '#64748b' }} />
+        <Sparkles size={16} style={{ color: 'var(--text-muted)' }} />
+        <ChevronLeft size={14} style={{ color: 'var(--text-tertiary)' }} />
       </button>
     );
   }
 
   return (
-    <div 
+    <div
       className={`copilot-panel ${isFullscreen ? 'fullscreen' : ''}`}
       style={{
         position: 'fixed',
@@ -770,16 +789,16 @@ export default function CopilotPanel({
         left: isFullscreen ? 58 : undefined,
         top: 0,
         bottom: 0,
-        width: isFullscreen ? 'calc(100% - 58px)' : 360,
-        background: '#ffffff',
-        borderLeft: '1px solid #e2e8f0',
-        boxShadow: isFullscreen 
-          ? 'none' 
-          : '-4px 0 24px rgba(0,0,0,0.06)',
+        width: isFullscreen ? 'calc(100% - 58px)' : 420,
+        background: 'var(--surface)',
+        borderLeft: '1px solid var(--border)',
+        boxShadow: isFullscreen
+          ? 'none'
+          : 'var(--shadow-lg)',
         display: 'flex',
         flexDirection: 'column',
         zIndex: 200,
-        transition: 'width 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
       {/* Header */}
@@ -787,11 +806,11 @@ export default function CopilotPanel({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '1rem 1.25rem',
-        borderBottom: '1px solid #f1f5f9',
-        background: '#ffffff',
+        padding: '0.875rem 1.25rem',
+        borderBottom: '1px solid var(--border)',
+        background: 'var(--bg-raised)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
           {/* Toggle button */}
           <button
             onClick={onFullscreenToggle}
@@ -799,79 +818,68 @@ export default function CopilotPanel({
               width: 28,
               height: 28,
               borderRadius: 6,
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
+              background: 'transparent',
+              border: 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              transition: 'all 0.15s ease',
+              transition: 'all 0.2s ease',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#f1f5f9';
-              e.currentTarget.style.borderColor = '#cbd5e1';
+              e.currentTarget.style.background = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#f8fafc';
-              e.currentTarget.style.borderColor = '#e2e8f0';
+              e.currentTarget.style.background = 'transparent';
             }}
-            title={isFullscreen ? 'Collapse' : 'Expand to fullscreen'}
+            title={isFullscreen ? 'Collapse' : 'Expand'}
           >
             {isFullscreen ? (
-              <ChevronRight size={14} style={{ color: '#64748b' }} />
+              <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
             ) : (
-              <ChevronLeft size={14} style={{ color: '#64748b' }} />
+              <ChevronLeft size={14} style={{ color: 'var(--text-muted)' }} />
             )}
           </button>
 
           <div>
             <h2 style={{
-              fontSize: '0.9375rem',
-              fontWeight: 700,
-              color: '#0f172a',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
               margin: 0,
               letterSpacing: '-0.01em',
             }}>
-              Co-founder
+              Co-founder AI
             </h2>
-            <p style={{
-              fontSize: '0.75rem',
-              color: '#64748b',
-              margin: 0,
-            }}>
-              Your AI execution partner
-            </p>
           </div>
         </div>
 
         {/* Action buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
           {/* Clear chat button */}
           <button
             onClick={() => setMessages([])}
-            title="Clear chat"
+            title="Clear conversation"
             style={{
               width: 28,
               height: 28,
               borderRadius: 6,
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
+              background: 'transparent',
+              border: 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              transition: 'all 0.15s ease',
+              transition: 'all 0.2s ease',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#f1f5f9';
-              e.currentTarget.style.borderColor = '#cbd5e1';
+              e.currentTarget.style.background = 'var(--error-muted)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#f8fafc';
-              e.currentTarget.style.borderColor = '#e2e8f0';
+              e.currentTarget.style.background = 'transparent';
             }}
           >
-            <Trash2 size={14} style={{ color: '#64748b' }} />
+            <Trash2 size={14} style={{ color: 'var(--text-muted)' }} />
           </button>
 
           {/* Close button (when not fullscreen) */}
@@ -883,24 +891,22 @@ export default function CopilotPanel({
                 width: 28,
                 height: 28,
                 borderRadius: 6,
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
+                background: 'transparent',
+                border: 'none',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                transition: 'all 0.15s ease',
+                transition: 'all 0.2s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#f1f5f9';
-                e.currentTarget.style.borderColor = '#cbd5e1';
+                e.currentTarget.style.background = 'var(--accent-glow)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#f8fafc';
-                e.currentTarget.style.borderColor = '#e2e8f0';
+                e.currentTarget.style.background = 'transparent';
               }}
             >
-              <X size={14} style={{ color: '#64748b' }} />
+              <X size={14} style={{ color: 'var(--text-muted)' }} />
             </button>
           )}
         </div>
@@ -910,17 +916,22 @@ export default function CopilotPanel({
       <div style={{
         flex: 1,
         overflowY: 'auto',
-        padding: '1.25rem',
-        background: '#fafafa',
+        padding: isFullscreen ? '1rem 1.25rem' : '1rem',
+        background: 'var(--surface)',
       }}>
+        <div style={{
+          maxWidth: isFullscreen ? '768px' : '100%',
+          margin: '0 auto',
+          width: '100%',
+        }}>
         {messages.length === 0 ? (
           <EmptyState />
         ) : (
-          <div>
+          <>
             {messages.map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))}
-            
+
             {/* Loading indicator */}
             {isLoading && (
               <div style={{
@@ -933,20 +944,20 @@ export default function CopilotPanel({
                   width: 28,
                   height: 28,
                   borderRadius: 8,
-                  background: '#f1f5f9',
-                  border: '1px solid #e2e8f0',
+                  background: 'var(--bg-sunken)',
+                  border: '1px solid var(--border)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                  <Bot size={14} style={{ color: '#6366f1' }} />
+                  <Bot size={14} style={{ color: 'var(--text-muted)' }} />
                 </div>
                 <div style={{
                   display: 'flex',
                   gap: '0.25rem',
                   padding: '0.75rem 1rem',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
+                  background: 'var(--bg-sunken)',
+                  border: '1px solid var(--border)',
                   borderRadius: 12,
                   borderTopLeftRadius: 4,
                 }}>
@@ -954,46 +965,49 @@ export default function CopilotPanel({
                     width: 6,
                     height: 6,
                     borderRadius: '50%',
-                    background: '#cbd5e1',
+                    background: 'var(--text-muted)',
                     animation: 'copilot-typing 1s ease-in-out infinite',
                   }} />
                   <span style={{
                     width: 6,
                     height: 6,
                     borderRadius: '50%',
-                    background: '#cbd5e1',
+                    background: 'var(--text-muted)',
                     animation: 'copilot-typing 1s ease-in-out 0.2s infinite',
                   }} />
                   <span style={{
                     width: 6,
                     height: 6,
                     borderRadius: '50%',
-                    background: '#cbd5e1',
+                    background: 'var(--text-muted)',
                     animation: 'copilot-typing 1s ease-in-out 0.4s infinite',
                   }} />
                 </div>
               </div>
             )}
-            
+
             <div ref={messagesEndRef} />
-          </div>
+          </>
         )}
+        </div>
       </div>
 
       {/* Input Area */}
       <div style={{
-        padding: '1rem 1.25rem 1.25rem',
-        background: '#ffffff',
-        borderTop: '1px solid #f1f5f9',
+        padding: isFullscreen ? '0.875rem 1.25rem 1rem' : '0.875rem 1rem 1rem',
+        background: 'var(--bg-raised)',
+        borderTop: '1px solid var(--border-subtle)',
       }}>
         <div style={{
+          maxWidth: isFullscreen ? '768px' : '100%',
+          margin: '0 auto',
           display: 'flex',
           alignItems: 'flex-end',
-          gap: '0.75rem',
-          background: '#f8fafc',
-          border: '1px solid #e2e8f0',
-          borderRadius: 12,
-          padding: '0.75rem 0.75rem 0.75rem 1rem',
+          gap: '0.625rem',
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 10,
+          padding: '0.625rem 0.625rem 0.625rem 0.875rem',
         }}>
           <textarea
             ref={inputRef}
@@ -1008,9 +1022,9 @@ export default function CopilotPanel({
               border: 'none',
               outline: 'none',
               resize: 'none',
-              fontSize: '0.875rem',
+              fontSize: '0.8125rem',
               lineHeight: 1.5,
-              color: '#334155',
+              color: 'var(--text-primary)',
               fontFamily: 'inherit',
               maxHeight: 120,
             }}
@@ -1019,11 +1033,11 @@ export default function CopilotPanel({
             onClick={() => handleSend()}
             disabled={!inputValue.trim() || isLoading}
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: inputValue.trim() ? '#6366f1' : '#e2e8f0',
-              border: 'none',
+              width: 28,
+              height: 28,
+              borderRadius: 6,
+              background: inputValue.trim() ? 'var(--bg-sunken)' : 'transparent',
+              border: inputValue.trim() ? 'none' : '1px solid var(--border)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -1032,15 +1046,16 @@ export default function CopilotPanel({
               flexShrink: 0,
             }}
           >
-            <Send size={15} style={{ color: inputValue.trim() ? '#ffffff' : '#94a3b8' }} />
+            <Send size={15} style={{ color: inputValue.trim() ? 'var(--text-primary)' : 'var(--text-muted)' }} />
           </button>
         </div>
-        
+
         <p style={{
           fontSize: '0.6875rem',
-          color: '#94a3b8',
+          color: 'var(--text-muted)',
           margin: '0.5rem 0 0',
           textAlign: 'center',
+          fontWeight: 500,
         }}>
           Press Enter to send, Shift + Enter for new line
         </p>

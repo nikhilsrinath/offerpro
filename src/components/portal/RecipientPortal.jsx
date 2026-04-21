@@ -9,8 +9,9 @@ import {
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { ref, get, update } from 'firebase/database';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
-import { db, auth } from '../../lib/firebase';
+import { db, auth, firestore } from '../../lib/firebase';
 import { documentStore } from '../../services/documentStore';
 import SignatureCapture from '../shared/SignatureCapture';
 import UPIQRGenerator from '../shared/UPIQRGenerator';
@@ -109,31 +110,45 @@ export default function RecipientPortal({ documentId }) {
         await documentStore.init();
       }
 
-      let doc = documentStore.getById(documentId);
+      let docData = documentStore.getById(documentId);
 
       // Fallback: direct Firebase fetch if localStorage cache missed (always the case
       // on a fresh device). This works once anonymous auth has been granted above.
-      if (!doc && orgId) {
+      if (!docData && orgId) {
         try {
-          const snap = await get(ref(db, `organizations/${orgId}/fin_docs/${documentId}`));
+          // 1. Try Firestore First
+          const docRef = doc(firestore, 'fin_docs', documentId);
+          const snap = await getDoc(docRef);
+          
           if (snap.exists()) {
-            doc = snap.val();
-            // Save into documentStore so updateStatus() can find it and sync back to Firebase
-            documentStore.save(doc);
+            docData = snap.data();
+          } else {
+            // 2. Fallback to RTDB (Legacy documents)
+            console.log('[RecipientPortal] doc not found in Firestore, checking RTDB fallback...');
+            const rtdbSnap = await get(ref(db, `organizations/${orgId}/fin_docs/${documentId}`));
+            if (rtdbSnap.exists()) {
+              docData = rtdbSnap.val();
+            }
           }
-        } catch (fbErr) {
-          console.error('[RecipientPortal] Firebase direct read failed:', fbErr.message);
+
+          if (docData) {
+            setDocData(docData);
+            setStatus(docData.status);
+            // Save into documentStore so it's available in cache
+            await documentStore.save(docData);
+          }
+        } catch (err) {
+          console.warn('[RecipientPortal] Multi-store fetch failed:', err.message);
         }
       }
 
-      if (doc) {
-        // Compute advance_amount & balance_due if missing
-        const total = doc.grand_total || doc.amount || 0;
-        const pct = doc.advance_percent || 50;
-        if (total && !doc.advance_amount) {
-          doc.advance_amount = Math.round(total * (pct / 100));
-          doc.balance_due = total - doc.advance_amount;
+      if (docData) {
+        // Compute advance_amount & balance_due if missing (for proforma/invoices)
+        if (docData.total && docData.advance_pct && !docData.advance_amount) {
+          docData.advance_amount = Math.round(docData.total * (docData.advance_pct / 100));
+          docData.balance_due = docData.total - docData.advance_amount;
         }
+
         // Always fetch live org profile so logo/name changes reflect immediately
         if (orgId) {
           try {
@@ -159,19 +174,21 @@ export default function RecipientPortal({ documentId }) {
                 authorized_designation: org.document_designation || '',
               };
               // Merge: live org data takes priority, snapshot fills any gaps
-              doc.company_profile = { ...(doc.company_profile || {}), ...liveProfile };
+              docData.company_profile = { ...(docData.company_profile || {}), ...liveProfile };
             }
           } catch (err) {
             console.error('[RecipientPortal] Failed to load org profile:', err.message);
           }
         }
-        setDocData(doc);
-        setStatus(doc.status);
-        if (doc.issued_to) setCandidateName(doc.issued_to);
+        setDocData(docData);
+        setStatus(docData.status);
+        if (docData.issued_to) setCandidateName(docData.issued_to);
+        
         // Auto-mark as viewed when client opens the portal link
-        if (doc.status === 'sent') {
-          documentStore.updateStatus(doc.id, 'viewed', {
-            first_viewed_at: doc.first_viewed_at || new Date().toISOString(),
+        if (docData.status === 'sent') {
+          // Use status update helper (handles dual writing)
+          await documentStore.updateStatus(docData.id, 'viewed', {
+            first_viewed_at: docData.first_viewed_at || new Date().toISOString(),
             last_viewed_at: new Date().toISOString(),
           });
           setStatus('viewed');
@@ -188,9 +205,9 @@ export default function RecipientPortal({ documentId }) {
   }, [documentId]);
 
   // ── Handlers ──
-  const handleAcceptOffer = () => {
+  const handleAcceptOffer = async () => {
     if (!signature || !agreed) return;
-    documentStore.updateStatus(docData.id, 'signed', {
+    await documentStore.updateStatus(docData.id, 'signed', {
       candidate_signature: signature,
       signature_method: signatureMethod,
       candidate_name: candidateName,
@@ -205,8 +222,8 @@ export default function RecipientPortal({ documentId }) {
     setStatus('signed');
   };
 
-  const handleDecline = () => {
-    documentStore.updateStatus(docData.id, 'declined', { decline_reason: declineReason });
+  const handleDecline = async () => {
+    await documentStore.updateStatus(docData.id, 'declined', { decline_reason: declineReason });
     documentStore.addNotification({
       type: 'document_declined',
       title: `Document declined`,
@@ -217,9 +234,9 @@ export default function RecipientPortal({ documentId }) {
     setStatus('declined');
   };
 
-  const handleMoUSign = () => {
+  const handleMoUSign = async () => {
     if (!partyBSignature || !partyBAgreed) return;
-    documentStore.updateStatus(docData.id, 'fully_signed', {
+    await documentStore.updateStatus(docData.id, 'fully_signed', {
       party_b: {
         ...docData.party_b,
         signature: partyBSignature,
@@ -237,8 +254,8 @@ export default function RecipientPortal({ documentId }) {
     setStatus('fully_signed');
   };
 
-  const handlePaymentConfirmation = (data) => {
-    documentStore.updateStatus(docData.id, 'payment_submitted', { payment_confirmation: data });
+  const handlePaymentConfirmation = async (data) => {
+    await documentStore.updateStatus(docData.id, 'payment_submitted', { payment_confirmation: data });
     documentStore.addNotification({
       type: 'payment_submitted',
       title: `Payment submitted for ${docData.id}`,
@@ -249,9 +266,9 @@ export default function RecipientPortal({ documentId }) {
     setStatus('payment_submitted');
   };
 
-  const handleAcceptQuotation = () => {
+  const handleAcceptQuotation = async () => {
     if (!signature || !agreed) return;
-    documentStore.updateStatus(docData.id, 'accepted', {
+    await documentStore.updateStatus(docData.id, 'accepted', {
       accepted_by: candidateName,
       accepted_signature: signature,
       accepted_at: new Date().toISOString(),
@@ -265,8 +282,8 @@ export default function RecipientPortal({ documentId }) {
     setStatus('accepted');
   };
 
-  const handleRevisionRequest = () => {
-    documentStore.updateStatus(docData.id, 'revision_requested', { revision_notes: revisionText });
+  const handleRevisionRequest = async () => {
+    await documentStore.updateStatus(docData.id, 'revision_requested', { revision_notes: revisionText });
     documentStore.addNotification({
       type: 'revision_requested',
       title: `Revision requested for ${docData.id}`,
@@ -277,13 +294,13 @@ export default function RecipientPortal({ documentId }) {
     setStatus('revision_requested');
   };
 
-  const handleConfirmOrder = () => {
-    documentStore.updateStatus(docData.id, 'order_confirmed');
+  const handleConfirmOrder = async () => {
+    await documentStore.updateStatus(docData.id, 'order_confirmed');
     setOrderConfirmed(true);
   };
 
-  const handleProformaPayment = (data) => {
-    documentStore.updateStatus(docData.id, 'advance_paid', { payment_confirmation: data });
+  const handleProformaPayment = async (data) => {
+    await documentStore.updateStatus(docData.id, 'advance_paid', { payment_confirmation: data });
     documentStore.addNotification({
       type: 'advance_paid',
       title: `Advance payment received for ${docData.id}`,
@@ -510,7 +527,7 @@ export default function RecipientPortal({ documentId }) {
     if (!signature || !agreed) return;
     const portalOrgId = new URLSearchParams(window.location.search).get('org');
 
-    documentStore.updateStatus(docData.id, 'acknowledged', {
+    await documentStore.updateStatus(docData.id, 'acknowledged', {
       acknowledged_at: new Date().toISOString(),
       acknowledged_by: candidateName || docData.issued_to,
       candidate_signature: signature,
@@ -524,12 +541,18 @@ export default function RecipientPortal({ documentId }) {
           const empUpdates = { role: docData.new_role };
           if (docData.new_department) empUpdates.department = docData.new_department;
           if (docData.new_salary) empUpdates.salary = Number(docData.new_salary);
+          
           await update(ref(db, `organizations/${portalOrgId}/employees/${docData.employee_id}`), empUpdates);
+          // Dual-sync to Firestore
+          await updateDoc(doc(firestore, 'employees', docData.employee_id), { ...empUpdates, name: docData.issued_to });
         } else if (docData.type === 'termination') {
-          await update(ref(db, `organizations/${portalOrgId}/employees/${docData.employee_id}`), {
+          const termUpdates = {
             status: 'terminated',
             termination_date: docData.last_day,
-          });
+          };
+          await update(ref(db, `organizations/${portalOrgId}/employees/${docData.employee_id}`), termUpdates);
+          // Dual-sync to Firestore
+          await updateDoc(doc(firestore, 'employees', docData.employee_id), termUpdates);
         }
       } catch (err) {
         console.warn('[RecipientPortal] Failed to update employee record:', err.message);

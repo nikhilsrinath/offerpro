@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Trash2, Eye, Send, Save, MessageCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Trash2, Eye, Send, Save, MessageCircle, ArrowLeft } from 'lucide-react';
 import { documentStore } from '../../services/documentStore';
 import { customerService } from '../../services/customerService';
 import { useOrg } from '../../context/OrgContext';
@@ -11,6 +12,7 @@ const ADVANCE_PRESETS = [25, 50, 75, 100];
 const UNIT_OPTIONS = ['Nos', 'Hrs', 'Days', 'Months', 'Units', 'Pcs', 'Lots', 'Kg', 'Ltr'];
 
 export default function ProformaInvoiceForm() {
+  const navigate = useNavigate();
   const toast = useToast();
   const { activeOrg } = useOrg();
   const savedClients = documentStore.getSavedClients();
@@ -245,6 +247,7 @@ export default function ProformaInvoiceForm() {
     documentStore.save(doc);
     syncCustomer();
     toast('Proforma invoice saved as draft', 'success');
+    navigate('/proforma');
   };
 
   const handleSendToClient = () => {
@@ -275,6 +278,7 @@ export default function ProformaInvoiceForm() {
     setSavedDocId(doc.id);
     setShowPortalLink(true);
     toast('Proforma sent — WhatsApp opened', 'success');
+    setTimeout(() => navigate('/proforma'), 2000);
   };
 
   return (
@@ -282,6 +286,21 @@ export default function ProformaInvoiceForm() {
       {/* LEFT: Form */}
       <div className="mou-form-pane">
         <form onSubmit={(e) => e.preventDefault()} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
+          {/* Header with Back button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+            <button
+              type="button"
+              onClick={() => navigate('/proforma')}
+              style={{
+                background: 'none', border: '1px solid var(--border-default)', borderRadius: '8px',
+                padding: '0.5rem 0.75rem', cursor: 'pointer', color: 'var(--text-secondary)',
+                fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem'
+              }}
+            >
+              <ArrowLeft size={16} /> Back
+            </button>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>New Proforma Invoice</h2>
+          </div>
 
           {/* 1. Client Details */}
           <div className="easy-section">

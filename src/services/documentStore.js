@@ -1,7 +1,8 @@
 // documentStore.js — Thin wrapper around orgStore for financial documents
 // Same exported API as before. Data now under organizations/{orgId}/fin_docs, fin_notifs, fin_recurring.
 import { ref, set, get } from 'firebase/database';
-import { db } from '../lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { db, firestore } from '../lib/firebase';
 import { orgStore } from './orgStore';
 
 let _portalOrgId = null; // for portal fallback (anonymous auth, no orgStore loaded)
@@ -43,7 +44,7 @@ export const documentStore = {
 
   getById: (id) => orgStore.getItem('fin_docs', id),
 
-  save: (doc) => {
+  save: async (doc) => {
     const data = {
       ...doc,
       updated_at: new Date().toISOString(),
@@ -51,27 +52,41 @@ export const documentStore = {
     };
 
     if (orgStore.isLoaded()) {
-      orgStore.setItem('fin_docs', doc.id, data);
+      await orgStore.setItem('fin_docs', doc.id, data);
     } else if (_portalOrgId) {
       // Portal fallback: direct Firebase write
       const path = `organizations/${_portalOrgId}/fin_docs/${doc.id}`;
-      set(ref(db, path), sanitize(data)).catch(e =>
+      const rtdbPromise = set(ref(db, path), sanitize(data)).catch(e =>
         console.error('[documentStore] portal write FAILED:', e.message));
+      
+      // Dual-Sync to Firestore
+      const fsDocRef = doc(firestore, 'fin_docs', doc.id);
+      const fsPromise = setDoc(fsDocRef, { ...sanitize(data), orgId: _portalOrgId }, { merge: true }).catch(e =>
+        console.error('[documentStore] portal firestore sync FAILED:', e.message));
+
+      await Promise.all([rtdbPromise, fsPromise]);
     }
     return data;
   },
 
-  updateStatus: (id, status, extra = {}) => {
+  updateStatus: async (id, status, extra = {}) => {
     const existing = orgStore.getItem('fin_docs', id);
     const updates = { status, ...extra, updated_at: new Date().toISOString() };
 
     if (orgStore.isLoaded()) {
-      orgStore.updateItem('fin_docs', id, updates);
+      await orgStore.updateItem('fin_docs', id, updates);
     } else if (_portalOrgId) {
       // Portal fallback
       const path = `organizations/${_portalOrgId}/fin_docs/${id}`;
-      set(ref(db, path), sanitize({ ...existing, ...updates })).catch(e =>
+      const rtdbPromise = set(ref(db, path), sanitize({ ...existing, ...updates })).catch(e =>
         console.error('[documentStore] portal status update FAILED:', e.message));
+
+      // Dual-Sync to Firestore
+      const fsDocRef = doc(firestore, 'fin_docs', id);
+      const fsPromise = setDoc(fsDocRef, { ...sanitize(updates), orgId: _portalOrgId }, { merge: true }).catch(e =>
+        console.error('[documentStore] portal firestore status sync FAILED:', e.message));
+
+      await Promise.all([rtdbPromise, fsPromise]);
     }
     return existing ? { ...existing, ...updates } : null;
   },

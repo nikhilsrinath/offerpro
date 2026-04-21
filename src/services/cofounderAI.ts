@@ -141,7 +141,7 @@ function buildSystemPrompt(context: EdgeContext, memory?: CompanyMemory | null, 
   // Fallback to memory if raw data doesn't have it
   const firstName = memory?.onboarding?.firstName || '';
   const lastName = memory?.onboarding?.lastName || '';
-  const userName = ownerFromData.name || (firstName ? `${firstName} ${lastName}`.trim() : 'Founder');
+  const userName = ownerFromData.name || (firstName ? (firstName + ' ' + lastName).trim() : 'Founder');
   const userRole = ownerFromData.role || memory?.onboarding?.role || 'Founder';
 
   return `You are the AI Co-founder for ${context.company}.
@@ -159,23 +159,25 @@ Current Business Context:
 
 6-Month Revenue Trend: ${context.trends.monthlyRevenue.map(m => `${m.month}: ₹${m.revenue.toLocaleString()}`).join(' | ')}
 
-Personality & Rules:
+STRICT RULES - NO HALLUCINATION:
 - Address ${userName} by name when appropriate
 - Speak as an insider: "we", "our company", "our team" - never as an outsider
 - Be direct, concise, and actionable. No fluff.
-- Always think like a co-founder (risk-aware, execution-focused).
-- Use business terminology appropriately.
+- Use ONLY the data shown above - NEVER invent employees, invoices, or scenarios
+- DO NOT say things like "customer support receiving queries" or "team working on website" unless that data is explicitly provided
+- If invoices count is 0, say "We have 0 invoices" - don't make up pending invoices
+- If employees count is 0, say "No employees listed" - don't invent team details
+- Answer ONLY based on the financial context provided above
 - If asked about decisions → use format:
 
 DECISION: [clear recommendation]
-WHY: [1-2 sentence rationale]
-RISKS: [key risks]
+WHY: [1-2 sentence rationale using only provided data]
+RISKS: [key risks from provided context only]
 NEXT ACTION: [immediate next step]
 
 - If unclear what user wants → ask 1-2 sharp clarifying questions.
-- Base answers on the provided business context when relevant.
-- Never make up data not in the context.
-- Keep responses under 150 words unless deep analysis requested.`;
+- Base answers ONLY on the provided business context - never make up data.
+- Keep responses under 100 words unless deep analysis requested.`;
 }
 
 /**
@@ -194,32 +196,37 @@ function buildSystemPromptWithMemory(
   // Fallback to memory if raw data doesn't have it
   const firstName = memory?.onboarding?.firstName || '';
   const lastName = memory?.onboarding?.lastName || '';
-  const userName = ownerFromData.name || (firstName ? `${firstName} ${lastName}`.trim() : 'Founder');
+  const userName = ownerFromData.name || (firstName ? (firstName + ' ' + lastName).trim() : 'Founder');
   const userRole = ownerFromData.role || memory?.onboarding?.role || 'Founder';
 
   const factsSection = relevant.facts
-    ? `Facts:
-• Company: ${relevant.facts.company_name}
-• Industry: ${relevant.facts.industry}
-• Team Size: ${relevant.facts.team_size} people
-• Location: ${relevant.facts.city}, ${relevant.facts.country}
-${relevant.facts.key_metrics?.total_revenue ? `• Total Revenue: ₹${relevant.facts.key_metrics.total_revenue.toLocaleString()}` : ''}
-${relevant.facts.key_metrics?.pending_revenue ? `• Pending Revenue: ₹${relevant.facts.key_metrics.pending_revenue.toLocaleString()}` : ''}
-${relevant.facts.key_metrics?.employee_count ? `• Employees: ${relevant.facts.key_metrics.employee_count}` : ''}
-${relevant.facts.key_metrics?.lead_count ? `• Active Leads: ${relevant.facts.key_metrics.lead_count}` : ''}
-${relevant.facts.key_metrics?.customer_count ? `• Customers: ${relevant.facts.key_metrics.customer_count}` : ''}`
+    ? 'Facts:\n' +
+      '• Company: ' + relevant.facts.company_name + '\n' +
+      '• Industry: ' + relevant.facts.industry + '\n' +
+      '• Team Size: ' + relevant.facts.team_size + ' people\n' +
+      '• Location: ' + relevant.facts.city + ', ' + relevant.facts.country + '\n' +
+      (relevant.facts.key_metrics?.total_revenue ? '• Total Revenue: ₹' + relevant.facts.key_metrics.total_revenue.toLocaleString() + '\n' : '') +
+      (relevant.facts.key_metrics?.pending_revenue ? '• Pending Revenue: ₹' + relevant.facts.key_metrics.pending_revenue.toLocaleString() + '\n' : '') +
+      (relevant.facts.key_metrics?.invoice_count ? '• Invoices: ' + relevant.facts.key_metrics.invoice_count + '\n' : '') +
+      (relevant.facts.key_metrics?.offer_count ? '• Offers: ' + relevant.facts.key_metrics.offer_count + '\n' : '') +
+      (relevant.facts.key_metrics?.nda_count ? '• NDAs: ' + relevant.facts.key_metrics.nda_count + '\n' : '') +
+      (relevant.facts.key_metrics?.mou_count ? '• MOUs: ' + relevant.facts.key_metrics.mou_count + '\n' : '') +
+      (relevant.facts.key_metrics?.total_documents ? '• Total Documents: ' + relevant.facts.key_metrics.total_documents + '\n' : '') +
+      (relevant.facts.key_metrics?.employee_count ? '• Employees: ' + relevant.facts.key_metrics.employee_count + '\n' : '') +
+      (relevant.facts.key_metrics?.lead_count ? '• Active Leads: ' + relevant.facts.key_metrics.lead_count + '\n' : '') +
+      (relevant.facts.key_metrics?.customer_count ? '• Customers: ' + relevant.facts.key_metrics.customer_count : '')
     : '';
 
   const insightsSection = relevant.topInsights.length > 0
-    ? `Insights:\n${relevant.topInsights.map(i => `• ${i}`).join('\n')}`
+    ? 'Insights:\n' + relevant.topInsights.map(i => '• ' + i).join('\n')
     : '';
 
   const opportunitiesSection = relevant.topOpportunities.length > 0
-    ? `Opportunities:\n${relevant.topOpportunities.map(o => `• ${o}`).join('\n')}`
+    ? 'Opportunities:\n' + relevant.topOpportunities.map(o => '• ' + o).join('\n')
     : '';
 
   const risksSection = relevant.topRisks.length > 0
-    ? `Risks:\n${relevant.topRisks.map(r => `• ${r}`).join('\n')}`
+    ? 'Risks:\n' + relevant.topRisks.map(r => '• ' + r).join('\n')
     : '';
 
   return `You are the AI Co-founder for ${context.company || 'this company'}.
@@ -236,14 +243,15 @@ ${opportunitiesSection}
 
 ${risksSection}
 
-Guidelines:
-- Address the user by name (${userName}) when appropriate
-- Speak as an insider: "we", "our company", "our team" - never as an outsider
-- Be concise and actionable (max 100 words)
-- Use the provided context to personalize answers
-- If asked about decisions, consider opportunities AND risks
-- Never make up data not in the context
-- Focus on practical next steps`;
+⚠️  EXTREMELY IMPORTANT - NO HALLUCINATION ALLOWED:
+1. You are ${userName}, the ${userRole}. Speak as an insider.
+2. Use ONLY the data above. NEVER make up company names, industries, or team details.
+3. DO NOT write creative descriptions about what the company does.
+4. DO NOT make up "NovaTech", "Renewable Energy", "AI startup" or any fictional details.
+5. If data shows "No employees", say exactly that - don't invent team members.
+6. If revenue is 0, say "₹0" - don't make up numbers.
+7. Answer in 1-2 sentences using ONLY the Facts above.
+8. NO FLUFF. NO MARKETING LANGUAGE. ONLY FACTS FROM DATABASE.`;
 }
 
 /**
@@ -278,44 +286,55 @@ function buildSystemPromptWithRawData(
   // Fallback to memory if raw data doesn't have it
   const firstName = ownerFromData.name || memory?.onboarding?.firstName || '';
   const lastName = memory?.onboarding?.lastName || '';
-  const userName = ownerFromData.name || (firstName ? `${firstName} ${lastName}`.trim() : 'Founder');
+  const userName = ownerFromData.name || (firstName ? (firstName + ' ' + lastName).trim() : 'Founder');
   const userRole = ownerFromData.role || memory?.onboarding?.role || 'Founder';
 
   const dataSection = rawData
-    ? `COMPANY DATA:\n${rawData}`
+    ? 'COMPANY DATA:\n' + rawData
     : 'No specific company data available.';
 
   const insightsSection = memoryInsights && memoryInsights.insights.length > 0
-    ? `\n\nINTELLIGENCE:\n${memoryInsights.insights.map(i => `• ${i}`).join('\n')}`
+    ? '\n\nINTELLIGENCE:\n' + memoryInsights.insights.map(i => '• ' + i).join('\n')
     : '';
 
   const opportunitiesSection = memoryInsights && memoryInsights.opportunities.length > 0
-    ? `\n\nOPPORTUNITIES:\n${memoryInsights.opportunities.map(o => `• ${o}`).join('\n')}`
+    ? '\n\nOPPORTUNITIES:\n' + memoryInsights.opportunities.map(o => '• ' + o).join('\n')
     : '';
 
   const risksSection = memoryInsights && memoryInsights.risks.length > 0
-    ? `\n\nRISKS:\n${memoryInsights.risks.map(r => `• ${r}`).join('\n')}`
+    ? '\n\nRISKS:\n' + memoryInsights.risks.map(r => '• ' + r).join('\n')
     : '';
 
   return `You are the AI Co-founder for ${context.company || 'this company'}.
 
 You are talking directly to ${userName}, the ${userRole} of the company. Address them by name and speak as an insider who knows the business intimately.
 
-CRITICAL INSTRUCTION:
-You have been provided with ACTUAL COMPANY DATA from the database.
-You MUST use this data directly to answer questions.
-NEVER say "I don't have access" or "data not available" if the data is provided below.
+YOU ARE AN AI CO-FOUNDER WITH ACCESS TO THE ACTUAL COMPANY DATABASE.
+YOU MUST ONLY USE THE DATA BELOW - NEVER MAKE UP INFORMATION.
 
 ${dataSection}${insightsSection}${opportunitiesSection}${risksSection}
 
-ANSWER RULES:
-- Address the user by name (${userName}) when appropriate
-- Speak as an insider: "we", "our company", "our team" - never as an outsider
-- Answer using ONLY the data provided above
-- For "who", "list", "names" queries → give exact names from the data
-- For counts → give exact numbers from the data
-- Be specific and factual
-- If data is missing for a specific question, say exactly what's missing`;
+⚠️  EXTREMELY IMPORTANT RULES - READ CAREFULLY:
+1. You are ${userName}, the ${userRole}. You know the business intimately.
+2. Use ONLY the data shown above. If company name is "Gomma Inc", say "Gomma Inc" - NOT "NovaTech" or any made-up name.
+3. If industry is "Technology", say "Technology" - NEVER make up "Renewable Energy" or other industries.
+4. If employee list is empty, say "No employees in database" - DO NOT make up team members.
+5. If revenue is ₹21,797.64, report exactly that number - NEVER round or change it.
+6. DO NOT write creative stories about what the company does. Only state facts from the data.
+7. DO NOT say "We're a cutting-edge AI-powered startup" unless that exact phrase is in the data.
+8. DO NOT describe products/services unless they are explicitly listed above.
+9. Answer in 1-2 short sentences maximum using ONLY the provided data.
+10. If you don't have specific data to answer, say: "I don't see that data in our records."
+
+EXAMPLE OF GOOD ANSWER:
+User: "What industry are we in?"
+AI: "We're in the [industry from data] industry."
+
+EXAMPLE OF BAD ANSWER (NEVER DO THIS):
+User: "What industry are we in?"
+AI: "We're NovaTech, a cutting-edge AI startup in Renewable Energy..." ← MAKING THINGS UP!
+
+YOU MUST ONLY USE THE DATA PROVIDED ABOVE. NO CREATIVE WRITING. NO HALLUCINATION.`;
 }
 
 /**

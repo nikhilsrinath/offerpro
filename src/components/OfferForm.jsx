@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Upload, CheckCircle, ChevronRight, Eye, AlertTriangle, Mail, Send, Loader, ExternalLink, Copy, X } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
@@ -17,7 +18,8 @@ function getDisplayName(emp) {
   return `${f} ${l}`.trim() || emp.email || '';
 }
 
-export default function OfferForm({ onSuccess }) {
+export default function OfferForm() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { activeOrg } = useOrg();
   const [employees, setEmployees] = useState([]);
@@ -122,7 +124,7 @@ export default function OfferForm({ onSuccess }) {
       await refreshUsage();
       setTimeout(() => {
         setIsSubmitting(false);
-        if (onSuccess) onSuccess();
+        navigate('/records');
       }, 800);
     } catch (err) {
       console.error(err);

@@ -10,7 +10,8 @@ import {
   EmailAuthProvider
 } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
-import { auth, db, googleProvider } from '../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db, firestore, googleProvider } from '../lib/firebase';
 
 const AuthContext = createContext({});
 
@@ -28,12 +29,17 @@ export const AuthProvider = ({ children }) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         try {
-          const userOrgsRef = ref(db, `users/${firebaseUser.uid}/organizations`);
-          const snapshot = await get(userOrgsRef);
-          setNeedsOnboarding(!snapshot.exists());
+          // Check onboarding status via Firestore users collection
+          const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+          const snapshot = await getDoc(userDocRef);
+          
+          const userData = snapshot.exists() ? snapshot.data() : null;
+          const userOrgs = userData?.organizations || {};
+          setNeedsOnboarding(Object.keys(userOrgs).length === 0);
         } catch (err) {
-          console.warn("Could not check onboarding status:", err.message);
-          // If DB read fails, assume needs onboarding
+          console.warn("Could not check onboarding status via Firestore:", err.message);
+          // Fallback check to RTDB for robustness during migration if needed, 
+          // but user requested Firestore primary.
           setNeedsOnboarding(true);
         }
       } else {

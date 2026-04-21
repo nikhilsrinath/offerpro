@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
     Users, FileText, PieChart as PieChartIcon, File,
     ChevronRight, Receipt, BarChart3, TrendingUp, Layers,
@@ -16,7 +17,7 @@ import { buildEdgeContext } from '../services/cofounderAI';
 
 const MODULES = [
     { id: 'team',      label: 'Team',          desc: 'Employee registry, offer tracker & bulk imports.',       icon: Users,        defaultPage: 'team-hierarchy', color: '#8b5cf6' },
-    { id: 'documents', label: 'Documents',      desc: 'Offer letters, NDAs, MoUs, and certificates.',          icon: FileText,     defaultPage: 'offers',         color: '#10b981' },
+    { id: 'documents', label: 'Documents',      desc: 'Offer letters, NDAs, MoUs, and certificates.',          icon: FileText,     defaultPage: 'new-certificates', color: '#10b981' },
     { id: 'finance',   label: 'Finance',        desc: 'Invoices, quotations, proformas & financial status.',   icon: Receipt,      defaultPage: 'finance-status', color: '#f59e0b' },
     { id: 'business',  label: 'Business',       desc: 'CRM pipeline, client database, and revenue analytics.', icon: BarChart3,    defaultPage: 'crm',            color: '#d946ef' },
     { id: 'data',      label: 'Records',        desc: 'Past documents and bulk operation history.',            icon: File,         defaultPage: 'records',        color: '#ef4444' },
@@ -40,7 +41,7 @@ function useWindowWidth() {
     return w;
 }
 
-export default function Hub({ onSelectModule, user, theme }) {
+export default function Hub({ user, theme }) {
     const isDark = theme === 'dark';
     const { activeOrg } = useOrg();
     const [records, setRecords] = useState([]);
@@ -402,7 +403,6 @@ export default function Hub({ onSelectModule, user, theme }) {
                         </div>
                     </div>
 
-                    {/* Document Distribution */}
                     <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: isMobile ? '12px' : '14px', padding: isMobile ? '1rem' : '1.5rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.875rem' : '1.125rem' }}>
                             <div>
@@ -474,6 +474,93 @@ export default function Hub({ onSelectModule, user, theme }) {
                     </div>
                 </div>
 
+                {/* ── MODULES GRID ─────────────────────────────────────────── */}
+                <h3 style={{ 
+                    fontSize: isMobile ? '0.875rem' : '1.125rem', 
+                    fontWeight: 800, 
+                    color: isDark ? '#fafafa' : '#18181b', 
+                    marginBottom: '1.25rem',
+                    letterSpacing: '-0.02em'
+                }}>
+                    Business Modules
+                </h3>
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: modulesGrid,
+                    gap: isMobile ? '0.875rem' : '1.25rem',
+                }}>
+                    {MODULES.map((mod) => {
+                        const Icon = mod.icon;
+                        const targetPath = mod.id === 'overall' ? '/dashboard' : `/${mod.defaultPage}`;
+                        return (
+                            <Link 
+                                key={mod.id} 
+                                to={targetPath}
+                                onMouseEnter={() => setHoveredMod(mod.id)}
+                                onMouseLeave={() => setHoveredMod(null)}
+                                style={{
+                                    textDecoration: 'none',
+                                    background: cardBg,
+                                    border: `1px solid ${hoveredMod === mod.id ? mod.color : cardBorder}`,
+                                    borderRadius: isMobile ? '14px' : '18px',
+                                    padding: '1.5rem',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '1rem',
+                                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                                    transform: hoveredMod === mod.id ? 'translateY(-4px)' : 'none',
+                                    boxShadow: hoveredMod === mod.id 
+                                        ? `0 12px 24px -8px ${mod.color}25` 
+                                        : 'none',
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                }}>
+                                {/* Hover Glow */}
+                                {hoveredMod === mod.id && (
+                                    <div style={{
+                                        position: 'absolute', top: 0, left: 0, right: 0, height: '4px',
+                                        background: mod.color,
+                                    }} />
+                                )}
+                                
+                                <div style={{
+                                    width: 44, height: 44,
+                                    borderRadius: '12px',
+                                    background: `${mod.color}15`,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    color: mod.color,
+                                }}>
+                                    <Icon size={22} strokeWidth={2.5} />
+                                </div>
+                                
+                                <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <h4 style={{ 
+                                            margin: 0, fontSize: '1rem', fontWeight: 700, 
+                                            color: hoveredMod === mod.id ? mod.color : (isDark ? '#fafafa' : '#18181b')
+                                        }}>
+                                            {mod.label}
+                                        </h4>
+                                        <ChevronRight size={16} style={{ 
+                                            opacity: hoveredMod === mod.id ? 1 : 0.3,
+                                            transform: hoveredMod === mod.id ? 'translateX(0)' : 'translateX(-4px)',
+                                            transition: 'all 0.2s',
+                                            color: mod.color
+                                        }} />
+                                    </div>
+                                    <p style={{ 
+                                        margin: '0.4rem 0 0', fontSize: '0.75rem', 
+                                        color: isDark ? 'rgba(255,255,255,0.4)' : '#71717a',
+                                        lineHeight: 1.5
+                                    }}>
+                                        {mod.desc}
+                                    </p>
+                                </div>
+                            </Link>
+                        );
+                    })}
+                </div>
+
                 {/* ── FOOTER ────────────────────────────────────────────────── */}
                 <div style={{
                     marginTop: isMobile ? '2rem' : '3rem',
@@ -489,10 +576,9 @@ export default function Hub({ onSelectModule, user, theme }) {
                     </span>
                 </div>
 
-                </div>{/* Close page content */}
-            </div>{/* Close Hub content area */}
+                </div>
+            </div>
 
-            {/* Co-founder AI Copilot Panel */}
             <CopilotPanel
                 isOpen={copilotOpen}
                 onToggle={() => setCopilotOpen(!copilotOpen)}

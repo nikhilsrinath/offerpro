@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, ChevronRight, Pause, Play, X as XIcon, Calendar, RotateCcw } from 'lucide-react';
 import { documentStore } from '../../services/documentStore';
 import { useOrg } from '../../context/OrgContext';
@@ -107,6 +108,7 @@ function generateRecurringId() {
    RecurringInvoiceForm
    ═══════════════════════════════════════ */
 function RecurringInvoiceForm({ onCancel, editItem }) {
+  const navigate = useNavigate();
   const toast = useToast();
   const { activeOrg } = useOrg();
   const savedClients = documentStore.getSavedClients();
@@ -305,7 +307,7 @@ function RecurringInvoiceForm({ onCancel, editItem }) {
 
       documentStore.saveRecurring(record);
       toast(editItem ? 'Recurring invoice updated successfully' : 'Recurring invoice created successfully', 'success');
-      if (onCancel) onCancel();
+      navigate('/recurring');
     } catch (err) {
       toast('Error saving recurring invoice: ' + err.message, 'error');
     } finally {
@@ -324,7 +326,7 @@ function RecurringInvoiceForm({ onCancel, editItem }) {
 
           {/* Back / Title */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-            <button type="button" onClick={onCancel}
+            <button type="button" onClick={() => navigate('/recurring')}
               style={{ background: 'none', border: '1px solid var(--border-default)', borderRadius: '8px', padding: '0.375rem 0.75rem', cursor: 'pointer', color: 'var(--text-secondary)', fontFamily: 'var(--font-main)', fontSize: '0.8125rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
               <XIcon size={14} /> Back
             </button>
@@ -859,6 +861,7 @@ function RecurringInvoicePreview({ formData, totals, dueDatePreview, company }) 
    RecurringInvoiceList
    ═══════════════════════════════════════ */
 function RecurringInvoiceList({ onCreateNew, onEdit }) {
+  const navigate = useNavigate();
   const toast = useToast();
   const [items, setItems] = useState([]);
 
@@ -912,7 +915,7 @@ function RecurringInvoiceList({ onCreateNew, onEdit }) {
             {items.length} recurring {items.length === 1 ? 'invoice' : 'invoices'} configured
           </p>
         </div>
-        <button type="button" onClick={onCreateNew}
+        <button type="button" onClick={() => navigate('/recurring/new')}
           style={{
             display: 'flex', alignItems: 'center', gap: '0.5rem',
             background: 'var(--btn-accent-bg)', color: 'var(--btn-accent-text)',
@@ -939,7 +942,7 @@ function RecurringInvoiceList({ onCreateNew, onEdit }) {
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', margin: '0 0 1.5rem', maxWidth: '400px', marginLeft: 'auto', marginRight: 'auto' }}>
             Set up automated invoice generation for your regular clients. Invoices will be created on schedule.
           </p>
-          <button type="button" onClick={onCreateNew}
+          <button type="button" onClick={() => navigate('/recurring/new')}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
               background: 'var(--btn-accent-bg)', color: 'var(--btn-accent-text)',
@@ -1042,7 +1045,7 @@ function RecurringInvoiceList({ onCreateNew, onEdit }) {
                       )}
                       {item.status !== 'cancelled' && (
                         <>
-                          <button type="button" onClick={() => onEdit(item)}
+                          <button type="button" onClick={() => navigate(`/recurring/edit/${item.id}`)}
                             title="Edit"
                             style={{
                               background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',
@@ -1075,55 +1078,6 @@ function RecurringInvoiceList({ onCreateNew, onEdit }) {
         </div>
       )}
     </div>
-  );
-}
-
-/* ═══════════════════════════════════════
-   RecurringInvoicePage (Root Container)
-   Toggles between list view and form view
-   ═══════════════════════════════════════ */
-export default function RecurringInvoicePage() {
-  const { activeOrg } = useOrg();
-  const [view, setView] = useState('list'); // 'list' | 'create' | 'edit'
-  const [editItem, setEditItem] = useState(null);
-
-  // Set Firebase context for cloud sync
-  useEffect(() => {
-    if (activeOrg?.id) {
-      documentStore.setContext(activeOrg.id);
-      documentStore.init().catch(() => { });
-    }
-  }, [activeOrg]);
-
-  const handleCreateNew = () => {
-    setEditItem(null);
-    setView('create');
-  };
-
-  const handleEdit = (item) => {
-    setEditItem(item);
-    setView('edit');
-  };
-
-  const handleBack = () => {
-    setEditItem(null);
-    setView('list');
-  };
-
-  if (view === 'create' || view === 'edit') {
-    return (
-      <RecurringInvoiceForm
-        onCancel={handleBack}
-        editItem={view === 'edit' ? editItem : null}
-      />
-    );
-  }
-
-  return (
-    <RecurringInvoiceList
-      onCreateNew={handleCreateNew}
-      onEdit={handleEdit}
-    />
   );
 }
 

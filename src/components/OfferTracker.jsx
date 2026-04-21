@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { documentStore } from '../services/documentStore';
 import { orgStore } from '../services/orgStore';
 import { emailService } from '../services/emailService';
+import { storageService } from '../services/storageService';
 import { useOrg } from '../context/OrgContext';
 import {
   Plus, Mail, MessageSquare, Copy, CheckCircle,
@@ -78,6 +80,7 @@ function ActionBtn({ children, onClick, disabled, title, highlight, highlightCol
 }
 
 export default function OfferTracker() {
+  const navigate = useNavigate();
   const { activeOrg } = useOrg();
   const winW = useWindowWidth();
   const isMobile = winW < 768;
@@ -537,7 +540,7 @@ export default function OfferTracker() {
           </p>
         </div>
         {activeTab === 'offers' && (
-          <button className="btn-cinematic" onClick={() => setShowCreate(true)} style={{ flexShrink: 0 }}>
+          <button className="btn-cinematic" onClick={() => navigate('/offers')} style={{ flexShrink: 0 }}>
             <Plus size={15} /> New Offer
           </button>
         )}
@@ -667,7 +670,7 @@ export default function OfferTracker() {
               : 'Create an offer and track its acceptance status in real-time.'}
           </p>
           {activeTab === 'offers' && (
-            <button className="btn-cinematic" onClick={() => setShowCreate(true)}>
+            <button className="btn-cinematic" onClick={() => navigate('/offers')}>
               <Plus size={15} /> Create First Offer
             </button>
           )}
@@ -1004,6 +1007,22 @@ function CreateOfferModal({ activeOrg, onClose }) {
   const [saving, setSaving] = useState(false);
   const [created, setCreated] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [deptOptions, setDeptOptions] = useState([]);
+  const [employees, setEmployees] = useState([]);
+
+  // Fetch departments and employees
+  useEffect(() => {
+    if (!activeOrg?.id) return;
+    Promise.all([
+      storageService.getEmployees(activeOrg.id),
+      storageService.getDepartments(activeOrg.id),
+    ]).then(([emps, fbDepts]) => {
+      setEmployees(emps);
+      const fromEmps = emps.map(e => e.department).filter(Boolean);
+      const fromFb = fbDepts.map(d => d.name);
+      setDeptOptions([...new Set([...fromEmps, ...fromFb])].sort());
+    });
+  }, [activeOrg?.id]);
 
   const onChg = (e) => {
     const { name, value, type, checked } = e.target;
@@ -1176,7 +1195,12 @@ function CreateOfferModal({ activeOrg, onClose }) {
                   </div>
                   <div>
                     <label style={labelStyle}>Department</label>
-                    <input name="department" value={form.department} onChange={onChg} placeholder="e.g. Engineering" style={inputStyle} />
+                    <select name="department" value={form.department} onChange={onChg} style={inputStyle}>
+                      <option value="">Select department...</option>
+                      {deptOptions.map((dept) => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div style={grid2}>
@@ -1201,6 +1225,18 @@ function CreateOfferModal({ activeOrg, onClose }) {
                   <input type="date" name="acceptanceDeadline" value={form.acceptanceDeadline} onChange={onChg} style={inputStyle} />
                 </div>
               </div>
+            </div>
+
+            {/* Role Description */}
+            <div>
+              <p style={sectionLabel}>Role Description</p>
+              <textarea
+                name="responsibilities"
+                value={form.responsibilities}
+                onChange={onChg}
+                placeholder="Describe the role, responsibilities, and expectations..."
+                style={{ ...inputStyle, minHeight: 100, resize: 'vertical' }}
+              />
             </div>
 
             {/* Compensation */}

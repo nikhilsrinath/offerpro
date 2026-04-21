@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FileText, Award, FileCode, Briefcase, Receipt,
   DollarSign, TrendingUp, ArrowRight, Activity,
@@ -22,7 +23,8 @@ const chartStyles = () => ({
   grid: css('--chart-grid'),
 });
 
-export default function Dashboard({ onNavigate }) {
+export default function Dashboard() {
+  const navigate = useNavigate();
   const { activeOrg } = useOrg();
   const { user } = useAuth();
   const [records, setRecords] = useState([]);
@@ -201,7 +203,7 @@ export default function Dashboard({ onNavigate }) {
         {STAT_CARDS.map((card, i) => {
           const Icon = card.icon;
           return (
-            <div key={i} className="pro-stat-card" onClick={() => onNavigate(card.nav)}>
+            <div key={i} className="pro-stat-card" onClick={() => navigate(card.nav)}>
               <div className="pro-stat-top">
                 <div className="pro-stat-icon" style={{ background: card.bg, color: card.color }}>
                   <Icon size={20} />
@@ -223,7 +225,7 @@ export default function Dashboard({ onNavigate }) {
               <BarChart3 size={18} style={{ color: '#10b981' }} />
               <h3>Revenue Trend</h3>
             </div>
-            <button className="pro-link-btn" onClick={() => onNavigate('revenue')}>
+            <button className="pro-link-btn" onClick={() => navigate('/revenue')}>
               View Details <ArrowRight size={14} />
             </button>
           </div>
@@ -337,7 +339,7 @@ export default function Dashboard({ onNavigate }) {
               <Clock size={18} style={{ color: '#8b5cf6' }} />
               <h3>Recent Activity</h3>
             </div>
-            <button className="pro-link-btn" onClick={() => onNavigate('records')}>
+            <button className="pro-link-btn" onClick={() => navigate('/records')}>
               All Records <ArrowRight size={14} />
             </button>
           </div>
@@ -378,7 +380,7 @@ export default function Dashboard({ onNavigate }) {
           {QUICK_ACTIONS.map(action => {
             const Icon = action.icon;
             return (
-              <button key={action.id} className="pro-action-card" onClick={() => onNavigate(action.id)}>
+              <button key={action.id} className="pro-action-card" onClick={() => navigate(`/${action.id}`)}>
                 <div className="pro-action-icon" style={{ background: `${action.color}12`, color: action.color }}>
                   <Icon size={20} />
                 </div>

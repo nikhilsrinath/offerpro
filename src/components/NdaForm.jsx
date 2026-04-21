@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Upload, CheckCircle, Eye, ChevronRight, AlertTriangle, Mail } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
@@ -8,7 +9,8 @@ import NdaPreview from './NdaPreview';
 import { useTrialStatus, TRIAL_LIMITS } from '../hooks/useTrialStatus';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 
-export default function NdaForm({ onSuccess }) {
+export default function NdaForm() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { activeOrg } = useOrg();
   const { usage, canCreate, isTrialExpired, isPremium, refreshUsage } = useTrialStatus();
@@ -80,7 +82,7 @@ export default function NdaForm({ onSuccess }) {
       await refreshUsage();
       setTimeout(() => {
         setIsSubmitting(false);
-        if (onSuccess) onSuccess();
+        navigate('/records');
       }, 800);
     } catch (err) {
       console.error(err);

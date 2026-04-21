@@ -22,7 +22,8 @@ const INDIAN_STATES = [
 
 const GST_RATES = [0, 5, 12, 18, 28];
 
-export default function InvoiceForm({ onSuccess }) {
+export default function InvoiceForm() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { activeOrg } = useOrg();
   const { usage, canCreate, isTrialExpired, isPremium, refreshUsage } = useTrialStatus();
@@ -256,7 +257,7 @@ export default function InvoiceForm({ onSuccess }) {
         });
       }
       await refreshUsage();
-      if (onSuccess) onSuccess();
+      navigate('/invoices');
     } catch (err) {
       alert("Error saving invoice: " + err.message);
     } finally {

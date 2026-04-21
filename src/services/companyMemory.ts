@@ -4,7 +4,8 @@
  */
 
 import { ref, get, set, update } from 'firebase/database';
-import { db } from '../lib/firebase';
+import { doc, setDoc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { db, firestore } from '../lib/firebase';
 
 // ── LOCAL CACHE FOR FAST ACCESS ─────────────────────────────
 // Caches org data to avoid Firebase fetches on every query
@@ -58,6 +59,10 @@ export interface CompanyFacts {
     employee_count?: number;
     lead_count?: number;
     customer_count?: number;
+    total_documents?: number;
+    offer_count?: number;
+    nda_count?: number;
+    mou_count?: number;
   };
 }
 
@@ -178,9 +183,14 @@ export async function saveOnboardingAnswer(
       updated_at: new Date().toISOString(),
     };
 
-    // Save to Firebase
+    // Save to Firebase (Dual-Write)
     const memoryRef = ref(db, `memory/${orgId}`);
-    await set(memoryRef, updatedMemory);
+    const rtdbPromise = set(memoryRef, updatedMemory);
+    
+    const fsDocRef = doc(firestore, 'memory', orgId);
+    const fsPromise = setDoc(fsDocRef, updatedMemory, { merge: true });
+
+    await Promise.all([rtdbPromise, fsPromise]);
 
     console.log('[Onboarding] Saved answer for field:', field);
     console.log('[Onboarding] Next question index:', updatedOnboarding.currentQuestionIndex);
@@ -311,24 +321,27 @@ export async function loadCompanyMemory(orgId: string): Promise<CompanyMemory | 
   if (!orgId) return null;
 
   try {
-    // First try to get cached memory
-    const memoryRef = ref(db, `memory/${orgId}`);
-    const memorySnap = await get(memoryRef);
+    // First try to get cached memory from Firestore
+    const fsDocRef = doc(firestore, 'memory', orgId);
+    const memorySnap = await getDoc(fsDocRef);
 
     if (memorySnap.exists()) {
       return memorySnap.val() as CompanyMemory;
     }
 
     // If no memory exists, fetch org data and extract
-    const orgRef = ref(db, `organizations/${orgId}`);
-    const orgSnap = await get(orgRef);
+    const orgDocRef = doc(firestore, 'organizations', orgId);
+    const orgSnap = await getDoc(orgDocRef);
 
     if (!orgSnap.exists()) return null;
 
-    const orgData = orgSnap.val();
+    const orgData = orgSnap.data();
     const memory = extractCompanyMemory(orgData) as CompanyMemory;
 
-    // Store extracted memory
+    // Store extracted memory (Dual-Write)
+    await setDoc(fsDocRef, memory, { merge: true });
+    
+    const memoryRef = ref(db, `memory/${orgId}`);
     await set(memoryRef, memory);
     return memory;
   } catch (error) {
@@ -359,7 +372,12 @@ export async function updateCompanyMemory(
       updated_at: new Date().toISOString(),
     };
 
-    await set(memoryRef, merged);
+    // Save to Firebase (Dual-Write)
+    const rtdbPromise = set(memoryRef, merged);
+    const fsDocRef = doc(firestore, 'memory', orgId);
+    const fsPromise = setDoc(fsDocRef, merged, { merge: true });
+
+    await Promise.all([rtdbPromise, fsPromise]);
   } catch (error) {
     console.error('[companyMemory] Failed to update memory:', error);
   }
@@ -393,12 +411,12 @@ export async function refreshMemory(orgId: string): Promise<CompanyMemory | null
   if (!orgId) return null;
 
   try {
-    const orgRef = ref(db, `organizations/${orgId}`);
-    const orgSnap = await get(orgRef);
+    const orgDocRef = doc(firestore, 'organizations', orgId);
+    const orgSnap = await getDoc(orgDocRef);
 
     if (!orgSnap.exists()) return null;
 
-    const orgData = orgSnap.val();
+    const orgData = orgSnap.data();
     const memory = extractCompanyMemory(orgData) as CompanyMemory;
 
     await updateCompanyMemory(orgId, memory);
@@ -454,6 +472,22 @@ function extractKeyMetrics(orgData: any): CompanyFacts['key_metrics'] {
     const pendingInvoices = Object.values(finDocs).filter((d: any) => d.type === 'invoice' && (d.status === 'pending' || d.status === 'sent'));
     metrics.pending_revenue = pendingInvoices.reduce((acc: number, d: any) => acc + (d.grand_total || d.amount || 0), 0);
   }
+
+  // Count HR records (offers, NDAs, MOUs)
+  const records = orgData.records;
+  if (records && typeof records === 'object') {
+    const allRecords = Object.values(records);
+    metrics.offer_count = allRecords.filter((r: any) => r.type === 'offer').length;
+    metrics.nda_count = allRecords.filter((r: any) => r.type === 'nda').length;
+    metrics.mou_count = allRecords.filter((r: any) => r.type === 'mou').length;
+  }
+
+  // Calculate total documents (invoices + offers + NDAs + MOUs)
+  metrics.total_documents = 
+    (metrics.invoice_count || 0) + 
+    (metrics.offer_count || 0) + 
+    (metrics.nda_count || 0) + 
+    (metrics.mou_count || 0);
 
   return metrics;
 }
@@ -609,9 +643,12 @@ const FACTUAL_KEYWORDS = [
   'who', 'list', 'show', 'names', 'details', 'what are', 'how many',
   'employees', 'team members', 'staff', 'people', 'roles',
   'customers', 'leads', 'contacts', 'clients',
-  'tasks', 'projects', 'invoices', 'documents',
+  'tasks', 'projects', 'invoices', 'documents', 'records',
+  'revenue', 'money', 'paid', 'pending', 'collected', 'earnings',
+  'financial', 'bill', 'quotation', 'proforma', 'expense', 'cost',
   'tell me about', 'give me', 'find', 'search',
-  'email', 'phone', 'contact', 'address'
+  'email', 'phone', 'contact', 'address', 'location',
+  'founder', 'boss', 'owner', 'ceo', 'you', 'me'
 ];
 
 const REASONING_KEYWORDS = [
@@ -656,26 +693,115 @@ export async function fetchRawOrgData(orgId: string): Promise<any | null> {
   }
 
   try {
-    console.log('[Raw Data] Fetching org data from Firebase for:', orgId);
-    const orgRef = ref(db, `organizations/${orgId}`);
-    const snap = await get(orgRef);
+    console.log('[Raw Data] Fetching org data from Firestore for:', orgId);
+    
+    // Fetch key documents in parallel
+    const keyedCollections = ['employees', 'crm_leads', 'fin_docs', 'expenses', 'products'];
+    const pProfile = getDoc(doc(firestore, 'organizations', orgId));
+    const pKeyed = keyedCollections.map(col => 
+      getDocs(query(collection(firestore, col), where('orgId', '==', orgId)))
+    );
 
-    if (!snap.exists()) {
-      console.log('[Raw Data] No org data found');
+    const [profileSnap, ...keyedSnaps] = await Promise.all([pProfile, ...pKeyed]);
+
+    if (!profileSnap.exists()) {
+      console.log('[Raw Data] No profile found in Firestore');
       return null;
     }
 
-    const data = snap.val();
-    console.log('[Raw Data] Org data fetched from Firebase successfully');
+    const orgData: any = {
+      _profile: profileSnap.data(),
+      company_name: profileSnap.data().company_name,
+    };
 
-    // Store in cache for fast access
-    setCachedOrgData(orgId, data);
+    // Reconstruct nested object expected by AI data formatters
+    keyedCollections.forEach((col, idx) => {
+      const snap = keyedSnaps[idx];
+      const data: any = {};
+      snap.forEach(d => { data[d.id] = d.data(); });
+      
+      // Mapping to legacy keys expected by extractCompanyMemory & formatters
+      if (col === 'crm_leads') orgData.crm = data;
+      else orgData[col] = data;
+    });
 
-    return data;
+    console.log('[Raw Data] Org data reconstructed from Firestore successfully');
+    setCachedOrgData(orgId, orgData);
+    return orgData;
   } catch (error) {
-    console.error('[Raw Data] Failed to fetch:', error);
+    console.error('[Raw Data] Firestore fetch failed:', error);
     return null;
   }
+}
+
+/**
+ * Format raw financial documents (invoices, quotes) for AI prompt
+ */
+function formatFinancials(finDocs: any, expenses: any): string {
+  if ((!finDocs || typeof finDocs !== 'object') && (!expenses || typeof expenses !== 'object')) {
+    return 'No financial records available.';
+  }
+
+  const docs = Object.values(finDocs || {}) as any[];
+  const expList = Object.values(expenses || {}) as any[];
+
+  // 1. Invoices & Revenue Summary
+  const invoices = docs.filter(d => d.type === 'invoice');
+  const paid = invoices.filter(d => d.status === 'paid');
+  const pending = invoices.filter(d => d.status === 'pending' || d.status === 'sent');
+  
+  const totalPaid = paid.reduce((acc, d) => acc + (d.grand_total || d.amount || 0), 0);
+  const totalPending = pending.reduce((acc, d) => acc + (d.grand_total || d.amount || 0), 0);
+
+  // 2. Formatting Line Items
+  const formatDoc = (d: any, idx: number) => {
+    const type = (d.type || 'document').toUpperCase();
+    const id = d.invoice_number || d.id;
+    const client = d.client_name || d.issued_to || d.customer_name || 'Client';
+    const amount = d.grand_total || d.amount || 0;
+    const status = d.status || 'draft';
+    const date = d.issue_date || d.created_at || '';
+    return `${idx + 1}. [${type} ${id}] ${client} - ₹${amount.toLocaleString()} (${status}) ${date ? `on ${date}` : ''}`;
+  };
+
+  const sections: string[] = [];
+  sections.push(`FINANCIAL SUMMARY:
+- Total Collected: ₹${totalPaid.toLocaleString()}
+- Total Pending: ₹${totalPending.toLocaleString()}
+- Total Invoices: ${invoices.length} (${paid.length} paid, ${pending.length} unpaid)`);
+
+  if (invoices.length > 0) {
+    sections.push(`INVOICES:\n${invoices.map(formatDoc).join('\n')}`);
+  }
+
+  const quotes = docs.filter(d => d.type === 'quotation' || d.type === 'proforma');
+  if (quotes.length > 0) {
+    sections.push(`QUOTATIONS & PROFORMAS:\n${quotes.map(formatDoc).join('\n')}`);
+  }
+
+  if (expList.length > 0) {
+    const totalExp = expList.reduce((acc, e) => acc + (e.amount || 0), 0);
+    const expStrings = expList.slice(0, 10).map((e, idx) => 
+      `${idx + 1}. ${e.category || 'General'}: ₹${(e.amount || 0).toLocaleString()} - ${e.description || 'No description'}`
+    );
+    sections.push(`EXPENSES (Total: ₹${totalExp.toLocaleString()}):\n${expStrings.join('\n')}`);
+  }
+
+  return sections.join('\n\n');
+}
+
+/**
+ * Format products data for AI prompt
+ */
+function formatProducts(products: any): string {
+  if (!products || typeof products !== 'object') return 'No product/service data available.';
+  const items = Object.values(products) as any[];
+  if (items.length === 0) return 'No products found.';
+
+  const formatted = items.map((p, idx) => 
+    `${idx + 1}. ${p.name || 'Unnamed'} - ₹${(p.price || p.rate || 0).toLocaleString()} (${p.category || 'General'})`
+  );
+  return `PRODUCTS & SERVICES:\n${formatted.join('\n')}`;
 }
 
 /**
@@ -767,9 +893,11 @@ function formatTasks(tasks: any): string {
 function formatCompanyInfo(orgData: any): string {
   const profile = orgData._profile || orgData;
 
+  const founderName = profile.owner_full_name || profile.founder_name || profile.owner_name || profile.first_name || profile.name || 'Unknown';
+
   const lines = [
     `Company: ${profile.company_name || 'Unknown'}`,
-    `Owner/Founder: ${profile.owner_name || profile.first_name || 'Unknown'}`,
+    `Founder/Boss: ${founderName}`,
     `Industry: ${profile.industry || 'Unknown'}`,
     `Size: ${profile.company_size || 'Unknown'}`,
     `Location: ${profile.city || 'Unknown'}, ${profile.country || 'Unknown'}`,
@@ -803,11 +931,25 @@ export function formatRawDataForPrompt(
                    lowerMsg.includes('client') || lowerMsg.includes('crm') ||
                    lowerMsg.includes('deal') || lowerMsg.includes('contact');
 
+  const needsFinancials = lowerMsg.includes('invoice') || lowerMsg.includes('revenue') ||
+                         lowerMsg.includes('money') || lowerMsg.includes('paid') ||
+                         lowerMsg.includes('earning') || lowerMsg.includes('bill') ||
+                         lowerMsg.includes('quotation') || lowerMsg.includes('proforma') ||
+                         lowerMsg.includes('expense') || lowerMsg.includes('cost') ||
+                         lowerMsg.includes('financial') || lowerMsg.includes('price');
+
   const needsTasks = lowerMsg.includes('task') || lowerMsg.includes('project') ||
                      lowerMsg.includes('work') || lowerMsg.includes('assignment');
 
   const needsCompany = lowerMsg.includes('company') || lowerMsg.includes('business') ||
-                       lowerMsg.includes('about us') || lowerMsg.includes('info');
+                       lowerMsg.includes('about us') || lowerMsg.includes('info') ||
+                       lowerMsg.includes('founder') || lowerMsg.includes('boss') ||
+                       lowerMsg.includes('owner') || lowerMsg.includes('who') ||
+                       lowerMsg.includes('you') || lowerMsg.includes('me');
+
+  // ALWAYS include basic company identity as the foundation of the context
+  sections.push(formatCompanyInfo(orgData));
+
 
   console.log('[Raw Data Formatter] Sections needed:', {
     employees: needsEmployees,
@@ -824,6 +966,10 @@ export function formatRawDataForPrompt(
     if (needsCRM || intent === 'factual') {
       sections.push(formatCRM(orgData.crm || orgData.leads));
     }
+    if (needsFinancials || intent === 'factual') {
+      sections.push(formatFinancials(orgData.fin_docs, orgData.expenses));
+      sections.push(formatProducts(orgData.products));
+    }
     if (needsTasks || intent === 'factual') {
       sections.push(formatTasks(orgData.tasks));
     }
@@ -835,6 +981,7 @@ export function formatRawDataForPrompt(
   // If no specific sections matched but it's a factual query, include everything
   if (intent === 'factual' && sections.length === 0) {
     sections.push(formatCompanyInfo(orgData));
+    sections.push(formatFinancials(orgData.fin_docs, orgData.expenses));
     sections.push(formatEmployees(orgData.employees));
     sections.push(formatCRM(orgData.crm || orgData.leads));
   }

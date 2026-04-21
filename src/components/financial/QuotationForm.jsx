@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Trash2, Eye, Send, Save, MessageCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Trash2, Eye, Send, Save, MessageCircle, ArrowLeft } from 'lucide-react';
 import { documentStore } from '../../services/documentStore';
 import { customerService } from '../../services/customerService';
 import { useOrg } from '../../context/OrgContext';
@@ -45,6 +46,7 @@ function formatDate(dateStr) {
 }
 
 export default function QuotationForm({ editDocId }) {
+  const navigate = useNavigate();
   const toast = useToast();
   const { activeOrg } = useOrg();
   const savedClients = documentStore.getSavedClients();
@@ -318,6 +320,7 @@ export default function QuotationForm({ editDocId }) {
     documentStore.save(doc);
     syncCustomer();
     toast('Quotation saved as draft', 'success');
+    navigate('/quotations');
   };
 
   const handleSendToClient = () => {
@@ -355,6 +358,8 @@ export default function QuotationForm({ editDocId }) {
 
     toast('Quotation sent — WhatsApp opened', 'success');
     setPortalDoc(doc);
+    // Give a short delay before redirecting so they see the toast and WhatsApp opens
+    setTimeout(() => navigate('/quotations'), 2000);
   };
 
   return (
@@ -366,6 +371,21 @@ export default function QuotationForm({ editDocId }) {
           style={{ maxWidth: '100%' }}
           onSubmit={(e) => e.preventDefault()}
         >
+          {/* Header with Back button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+            <button
+              type="button"
+              onClick={() => navigate('/quotations')}
+              style={{
+                background: 'none', border: '1px solid var(--border-default)', borderRadius: '8px',
+                padding: '0.5rem 0.75rem', cursor: 'pointer', color: 'var(--text-secondary)',
+                fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem'
+              }}
+            >
+              <ArrowLeft size={16} /> Back
+            </button>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>{isEditing ? 'Edit Quotation' : 'New Quotation'}</h2>
+          </div>
           {/* Portal Link Generator (shown after send) */}
           {portalDoc && (
             <div style={{ marginBottom: '1.5rem' }}>
