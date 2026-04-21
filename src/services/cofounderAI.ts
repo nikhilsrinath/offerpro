@@ -7,16 +7,9 @@
 import type { CompanyMemory, CompanyFacts, OnboardingQuestion } from './companyMemory';
 import { getRelevantMemory, buildOnboardingPrompt, isOnboardingComplete, getCurrentOnboardingQuestion } from './companyMemory';
 
-// Use proxy during development to avoid CORS, direct URL for production
-// @ts-ignore - Vite handles import.meta.env
-const NVIDIA_API_URL = (import.meta.env as any)?.DEV 
-  ? '/api/nvidia/v1/chat/completions' 
-  : 'https://integrate.api.nvidia.com/v1/chat/completions';
+// Backend proxy URL - all AI requests go through our backend
+const NVIDIA_API_URL = '/api/nvidia';
 const MODEL = 'meta/llama-3.1-8b-instruct';
-
-// API Key - In production, use environment variables or backend proxy
-// @ts-ignore - Vite handles import.meta.env
-const API_KEY: string = (import.meta.env as any)?.VITE_NVIDIA_API_KEY || '';
 
 export interface EdgeContext {
   company: string;
@@ -421,9 +414,7 @@ export async function callCofounderAI(
     const response = await fetch(NVIDIA_API_URL, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${API_KEY}`,
         'Content-Type': 'application/json',
-        'Accept': 'text/event-stream',
       },
       body: JSON.stringify({
         model: MODEL,
