@@ -284,7 +284,7 @@ export default function Registration({ onBack, isGoogleUser }) {
 
     if (step === 'success') {
         return (
-            <div className="reg-fullscreen-centered" data-theme="dark">
+            <div className="reg-fullscreen-centered" data-theme="light">
                 <div className="animate-in" style={{ textAlign: 'center', maxWidth: '500px' }}>
                     <div className="reg-success-icon">
                         <Check size={32} />
@@ -303,7 +303,7 @@ export default function Registration({ onBack, isGoogleUser }) {
 
     if (step === 'redirecting') {
         return (
-            <div className="reg-fullscreen-centered" data-theme="dark">
+            <div className="reg-fullscreen-centered" data-theme="light">
                 <div className="animate-in" style={{ textAlign: 'center' }}>
                     <div className="reg-spinner" />
                     <h2 className="reg-spinner-title">Initializing Workspace...</h2>
@@ -313,7 +313,7 @@ export default function Registration({ onBack, isGoogleUser }) {
     }
 
     return (
-        <div className="reg-fullscreen-v2" data-theme="dark">
+        <div className="reg-fullscreen-v2" data-theme="light">
             {/* Top Progress Bar */}
             {typeof step === 'number' && step > 0 && (
                 <div className="reg-progress-bar-v2">

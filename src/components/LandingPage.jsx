@@ -25,10 +25,10 @@ const LandingPage = ({ onEnter }) => {
   useCardGlow(landingRef);
   useScrollParallax();
 
-  // Force dark theme
+  // Force light theme
   useEffect(() => {
     const prev = document.documentElement.getAttribute('data-theme');
-    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.setAttribute('data-theme', 'light');
     return () => document.documentElement.setAttribute('data-theme', prev || 'light');
   }, []);
 

@@ -57,7 +57,7 @@ const Auth = () => {
   }
 
   return (
-    <div className="auth-split-wrapper" data-theme="dark">
+    <div className="auth-split-wrapper" data-theme="light">
       {/* Left Side: Premium Visual */}
       <div className="auth-visual-side">
         <div className="sparkle-container auth-sparkle-container">

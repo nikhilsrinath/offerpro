@@ -13,7 +13,7 @@ const SubPage = ({ children }) => {
 
   useEffect(() => {
     const prev = document.documentElement.getAttribute('data-theme');
-    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.setAttribute('data-theme', 'light');
     window.scrollTo(0, 0);
     return () => document.documentElement.setAttribute('data-theme', prev || 'light');
   }, []);
