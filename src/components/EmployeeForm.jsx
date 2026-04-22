@@ -16,47 +16,88 @@ const STEPS = [
     { id: 4, label: 'Compensation', icon: DollarSign },
 ];
 
-export default function EmployeeForm({ onBack, onSuccess }) {
+export default function EmployeeForm({ onBack, onSuccess, employee }) {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { activeOrg } = useOrg();
     const org = activeOrg || {};
+    const isEditMode = !!employee;
 
     const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
 
-    const [formData, setFormData] = useState({
-        offerType: 'fulltime',
-        studentName: '',
-        email: '',
-        phone: '',
-        studentAddress: '',
-        role: '',
-        department: '',
-        supervisorName: '',
-        responsibilities: '',
-        startDate: '',
-        endDate: '',
-        acceptanceDeadline: '',
-        isPaid: true,
-        stipend: '',
-        currency: 'INR',
-        paymentFrequency: 'Monthly',
-        companyName: org.company_name || '',
-        companyTagline: org.company_tagline || '',
-        companyAddress: org.company_address || '',
-        companyLogo: org.logo_url || null,
-        cin: org.cin || '',
-        companyWebsite: org.company_website || '',
-        authorizedPersonName: org.owner_full_name || '',
-        authorizedPersonDesignation: org.document_designation || '',
-        contactEmail: org.company_email || '',
-        contactPhone: org.company_phone || '',
-        signature: org.signature_url || null,
-        stampType: org.stamp_type || 'generated',
-        stampCity: org.stamp_city || '',
-        showStamp: true
+    const [formData, setFormData] = useState(() => {
+        // If editing, pre-fill with employee data
+        if (employee) {
+            return {
+                offerType: employee.offerType || 'fulltime',
+                studentName: employee.studentName || employee.first_name || '',
+                email: employee.email || '',
+                phone: employee.phone || '',
+                studentAddress: employee.studentAddress || '',
+                role: employee.role || '',
+                department: employee.department || '',
+                supervisorName: employee.supervisorName || '',
+                responsibilities: employee.responsibilities || '',
+                startDate: employee.startDate || '',
+                endDate: employee.endDate || '',
+                acceptanceDeadline: employee.acceptanceDeadline || '',
+                isPaid: employee.isPaid !== false,
+                stipend: employee.stipend || employee.salary || '',
+                currency: employee.currency || 'INR',
+                paymentFrequency: employee.paymentFrequency || 'Monthly',
+                companyName: org.company_name || '',
+                companyTagline: org.company_tagline || '',
+                companyAddress: org.company_address || '',
+                companyLogo: org.logo_url || null,
+                cin: org.cin || '',
+                companyWebsite: org.company_website || '',
+                authorizedPersonName: org.owner_full_name || '',
+                authorizedPersonDesignation: org.document_designation || '',
+                contactEmail: org.company_email || '',
+                contactPhone: org.company_phone || '',
+                signature: org.signature_url || null,
+                stampType: org.stamp_type || 'generated',
+                stampCity: org.stamp_city || '',
+                showStamp: true,
+                // Store original employee ID for updates
+                id: employee.id,
+            };
+        }
+        // Default for new employee
+        return {
+            offerType: 'fulltime',
+            studentName: '',
+            email: '',
+            phone: '',
+            studentAddress: '',
+            role: '',
+            department: '',
+            supervisorName: '',
+            responsibilities: '',
+            startDate: '',
+            endDate: '',
+            acceptanceDeadline: '',
+            isPaid: true,
+            stipend: '',
+            currency: 'INR',
+            paymentFrequency: 'Monthly',
+            companyName: org.company_name || '',
+            companyTagline: org.company_tagline || '',
+            companyAddress: org.company_address || '',
+            companyLogo: org.logo_url || null,
+            cin: org.cin || '',
+            companyWebsite: org.company_website || '',
+            authorizedPersonName: org.owner_full_name || '',
+            authorizedPersonDesignation: org.document_designation || '',
+            contactEmail: org.company_email || '',
+            contactPhone: org.company_phone || '',
+            signature: org.signature_url || null,
+            stampType: org.stamp_type || 'generated',
+            stampCity: org.stamp_city || '',
+            showStamp: true
+        };
     });
 
     const handleChange = (e) => {
@@ -85,16 +126,26 @@ export default function EmployeeForm({ onBack, onSuccess }) {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            await storageService.saveEmployee(formData, activeOrg?.id);
-            await storageService.save(formData, 'offer', activeOrg?.id, user?.uid);
+            if (isEditMode) {
+                // Update existing employee
+                await storageService.updateEmployee(formData.id, formData, activeOrg?.id);
+            } else {
+                // Create new employee
+                await storageService.saveEmployee(formData, activeOrg?.id);
+                await storageService.save(formData, 'offer', activeOrg?.id, user?.uid);
+            }
             setShowSuccess(true);
             setTimeout(() => {
                 setIsSubmitting(false);
-                navigate('/employees');
+                if (onSuccess) {
+                    onSuccess();
+                } else {
+                    navigate('/employees');
+                }
             }, 1500);
         } catch (err) {
             console.error(err);
-            alert("Error adding employee: " + err.message);
+            alert(isEditMode ? "Error updating employee: " + err.message : "Error adding employee: " + err.message);
             setIsSubmitting(false);
         }
     };
@@ -105,8 +156,8 @@ export default function EmployeeForm({ onBack, onSuccess }) {
                 <div className="empf-success-icon">
                     <CheckCircle size={48} />
                 </div>
-                <h2>Employee Onboarded</h2>
-                <p>Offer letter has been auto-generated and saved to records.</p>
+                <h2>{isEditMode ? 'Profile Updated' : 'Employee Onboarded'}</h2>
+                <p>{isEditMode ? 'Your employee profile has been successfully updated.' : 'Offer letter has been auto-generated and saved to records.'}</p>
             </div>
         );
     }
@@ -114,8 +165,8 @@ export default function EmployeeForm({ onBack, onSuccess }) {
     return (
         <div className="animate-in" style={{ maxWidth: '720px', margin: '0 auto' }}>
             {/* Back button */}
-            <button onClick={() => navigate('/employees')} className="empf-back-btn">
-                <ArrowLeft size={16} /> Back to Registry
+            <button onClick={() => isEditMode && onBack ? onBack() : navigate('/employees')} className="empf-back-btn">
+                <ArrowLeft size={16} /> {isEditMode ? 'Back to Profile' : 'Back to Registry'}
             </button>
 
             {/* Stepper */}
@@ -382,7 +433,9 @@ export default function EmployeeForm({ onBack, onSuccess }) {
                             </button>
                         ) : (
                             <button type="submit" className="empf-btn-submit" disabled={isSubmitting}>
-                                {isSubmitting ? 'Onboarding...' : 'Onboard & Generate Offer'}
+                                {isSubmitting 
+                                    ? (isEditMode ? 'Saving...' : 'Onboarding...') 
+                                    : (isEditMode ? 'Save Changes' : 'Onboard & Generate Offer')}
                                 {!isSubmitting && <ChevronRight size={18} />}
                             </button>
                         )}

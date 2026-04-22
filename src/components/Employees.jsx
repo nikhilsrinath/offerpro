@@ -11,6 +11,7 @@ import { documentStore } from '../services/documentStore';
 import { orgStore } from '../services/orgStore';
 import { DEPT_PALETTE } from './TeamHierarchy';
 import { useOrg } from '../context/OrgContext';
+import { useAuth } from '../context/AuthContext';
 import EmployeeForm from './EmployeeForm';
 
 const AVATAR_COLORS = [
@@ -34,13 +35,16 @@ function getDisplayName(emp) {
 }
 
 // ── Employee Detail Modal ────────────────────────────────────────────────────
-function EmployeeDetailModal({ emp, orgId, org, departments, onClose, onDelete }) {
+function EmployeeDetailModal({ emp, orgId, org, departments, onClose, onDelete, currentUserEmail, onEdit }) {
     const name = getDisplayName(emp);
     const [c1, c2] = getAvatarColor(name);
     const [view, setView] = useState('detail'); // 'detail' | 'role_change' | 'termination'
     const [portalLink, setPortalLink] = useState(null);
     const [creating, setCreating] = useState(false);
     const [copied, setCopied] = useState(false);
+
+    // Check if this employee is the current user (can edit own profile)
+    const isOwnProfile = currentUserEmail && (emp.email || '').toLowerCase() === currentUserEmail.toLowerCase();
 
     const [rcForm, setRcForm] = useState({
         newRole: emp.role || '',
@@ -249,6 +253,22 @@ function EmployeeDetailModal({ emp, orgId, org, departments, onClose, onDelete }
                             >
                                 <TrendingUp size={14} /> Role Change
                             </button>
+                            {isOwnProfile && (
+                                <button
+                                    onClick={onEdit}
+                                    style={{
+                                        flex: 1, padding: '0.6rem 0.75rem', borderRadius: '10px',
+                                        background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)',
+                                        color: '#10b981', fontSize: '0.78rem', fontWeight: 700,
+                                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                                        transition: 'all 0.15s',
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.18)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.1)'; }}
+                                >
+                                    Edit Profile
+                                </button>
+                            )}
                             <button
                                 onClick={() => { setView('termination'); setPortalLink(null); }}
                                 style={{
@@ -522,6 +542,7 @@ function PortalLinkBox({ link, copied, onCopy, accent }) {
 export default function Employees() {
     const navigate = useNavigate();
     const { activeOrg } = useOrg();
+    const { user } = useAuth();
     const [employees, setEmployees] = useState([]);
     const [departments, setDepartments] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -535,6 +556,7 @@ export default function Employees() {
     const [deptSaving, setDeptSaving] = useState(false);
     const [selectedEmp, setSelectedEmp] = useState(null);
     const [addingSelf, setAddingSelf] = useState(false);
+    const [editingEmployee, setEditingEmployee] = useState(null);
 
     useEffect(() => {
         if (activeOrg) { loadEmployees(); loadDepartments(); }
@@ -724,6 +746,16 @@ export default function Employees() {
                 alert("Error deleting employee: " + err.message);
             }
         }
+    };
+
+    const handleEdit = () => {
+        setEditingEmployee(selectedEmp);
+        setSelectedEmp(null);
+    };
+
+    const handleEditSuccess = () => {
+        setEditingEmployee(null);
+        loadEmployees();
     };
 
     const filteredEmployees = useMemo(() => {
@@ -1099,7 +1131,20 @@ export default function Employees() {
                     departments={displayDepts}
                     onClose={() => setSelectedEmp(null)}
                     onDelete={handleDelete}
+                    currentUserEmail={user?.email}
+                    onEdit={handleEdit}
                 />
+            )}
+
+            {/* Edit Employee Form */}
+            {editingEmployee && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'var(--bg-primary)', overflowY: 'auto' }}>
+                    <EmployeeForm
+                        employee={editingEmployee}
+                        onBack={() => setEditingEmployee(null)}
+                        onSuccess={handleEditSuccess}
+                    />
+                </div>
             )}
         </div>
     );
