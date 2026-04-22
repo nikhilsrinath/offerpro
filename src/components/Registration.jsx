@@ -244,7 +244,6 @@ export default function Registration({ onBack, isGoogleUser }) {
                                 onClick={() => {
                                     setFormData({ ...formData, [currentQ.id]: option });
                                     setError(null);
-                                    setTimeout(handleNext, 200);
                                 }}
                                 className={`reg-option-btn-v2 ${isSelected ? 'selected' : ''}`}
                             >
