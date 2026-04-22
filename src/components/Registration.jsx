@@ -4,25 +4,25 @@ import { useAuth } from '../context/AuthContext';
 import { saveOrganizationData } from '../services/dualWriteService';
 
 const QUESTIONS = [
-    { id: 'welcome', type: 'welcome' },
-    { id: 'company_email', type: 'email', label: "What is your official company email address?", subtitle: "This forms your core organizational identity." },
-    { id: 'password', type: 'password', label: "Create a secure administration password.", subtitle: "Required for workspace access. Minimum 6 characters." },
-    { id: 'company_name', type: 'text', label: "What is your Organization / Brand Name?" },
-    { id: 'company_website', type: 'text', label: "Company website or online presence?", subtitle: "Website / LinkedIn / Portfolio (Optional)", optional: true },
-    { id: 'industry', type: 'multiselect', label: "Which industry categorises you best?", options: ['Technology', 'Finance', 'Healthcare', 'Education', 'E-commerce', 'Agency/Consulting', 'Real Estate', 'Other'] },
-    { id: 'company_description', type: 'textarea', label: "Briefly describe your core business.", subtitle: "1-2 lines on what you do." },
-    { id: 'country', type: 'text', label: "Which country is your headquarters located in?" },
-    { id: 'city', type: 'text', label: "And which city do you operate from?" },
-    { id: 'company_size', type: 'select', label: "What is your organizational scale?", options: ['Solo', '2–10', '11–50', '50+'] },
-    { id: 'owner_full_name', type: 'text', label: "What is your full name?", subtitle: "As the primary account administrator." },
-    { id: 'owner_role', type: 'select', label: "What is your operational role?", options: ['Founder', 'HR', 'Admin', 'Manager', 'Other'] },
-    { id: 'primary_contact_name', type: 'text', label: "Primary Contact Person's Name", subtitle: "Name to appear on generated documents (if different from your name).", optional: true },
-    { id: 'document_designation', type: 'text', label: "Preferred designation on official documents?", subtitle: "(e.g., Founder, HR Manager, Authorized Signatory)" },
-    { id: 'use_cases', type: 'multiselect', label: "Primary platform usage intent?", options: ['Offer Letters', 'Certificates', 'MOUs', 'Reports', 'Team Management'] },
-    { id: 'include_logo', type: 'select_boolean', label: "Include company logo on generated documents?", options: ['Yes', 'No'] },
-    { id: 'logo_url', type: 'text', label: "Company Logo URL", subtitle: "Provide a link to your asset. You can configure this later in settings.", optional: true },
-    { id: 'account_usage', type: 'select', label: "Account Scope:", options: ['Just me', 'Small team', 'Entire organization'] },
-    { id: 'referral_source', type: 'text', label: "How did you discover EdgeOS?", optional: true }
+    { id: 'welcome', type: 'welcome', category: 'Welcome' },
+    { id: 'company_email', type: 'email', label: "What is your official company email address?", subtitle: "This forms your core organizational identity.", category: 'Company email' },
+    { id: 'password', type: 'password', label: "Create a secure administration password.", subtitle: "Required for workspace access. Minimum 6 characters.", category: 'Password' },
+    { id: 'company_name', type: 'text', label: "What is your Organization / Brand Name?", category: 'Company name' },
+    { id: 'company_website', type: 'text', label: "Company website or online presence?", subtitle: "Website / LinkedIn / Portfolio (Optional)", optional: true, category: 'Company website' },
+    { id: 'industry', type: 'multiselect', label: "Which industry categorises you best?", options: ['Technology', 'Finance', 'Healthcare', 'Education', 'E-commerce', 'Agency/Consulting', 'Real Estate', 'Other'], category: 'Industry' },
+    { id: 'company_description', type: 'textarea', label: "Briefly describe your core business.", subtitle: "1-2 lines on what you do.", category: 'Company description' },
+    { id: 'country', type: 'text', label: "Which country is your headquarters located in?", category: 'Country' },
+    { id: 'city', type: 'text', label: "And which city do you operate from?", category: 'City' },
+    { id: 'company_size', type: 'select', label: "What is your organizational scale?", options: ['Solo', '2–10', '11–50', '50+'], category: 'Company size' },
+    { id: 'owner_full_name', type: 'text', label: "What is your full name?", subtitle: "As the primary account administrator.", category: 'Full name' },
+    { id: 'owner_role', type: 'select', label: "What is your operational role?", options: ['Founder', 'HR', 'Admin', 'Manager', 'Other'], category: 'Role' },
+    { id: 'primary_contact_name', type: 'text', label: "Primary Contact Person's Name", subtitle: "Name to appear on generated documents (if different from your name).", optional: true, category: 'Contact name' },
+    { id: 'document_designation', type: 'text', label: "Preferred designation on official documents?", subtitle: "(e.g., Founder, HR Manager, Authorized Signatory)", category: 'Designation' },
+    { id: 'use_cases', type: 'multiselect', label: "Primary platform usage intent?", options: ['Offer Letters', 'Certificates', 'MOUs', 'Reports', 'Team Management'], category: 'Use cases' },
+    { id: 'include_logo', type: 'select_boolean', label: "Include company logo on generated documents?", options: ['Yes', 'No'], category: 'Logo preference' },
+    { id: 'logo_url', type: 'text', label: "Company Logo URL", subtitle: "Provide a link to your asset. You can configure this later in settings.", optional: true, category: 'Logo URL' },
+    { id: 'account_usage', type: 'select', label: "Account Scope:", options: ['Just me', 'Small team', 'Entire organization'], category: 'Account scope' },
+    { id: 'referral_source', type: 'text', label: "How did you discover EdgeOS?", optional: true, category: 'Referral source' }
 ];
 
 // Questions for Google-authenticated users (skip email/password)
@@ -201,10 +201,14 @@ export default function Registration({ onBack, isGoogleUser }) {
                     disabled={loading}
                     type={currentQ.type}
                     value={formData[currentQ.id]}
-                    onChange={(e) => setFormData({ ...formData, [currentQ.id]: e.target.value })}
+                    onChange={(e) => {
+                        setFormData({ ...formData, [currentQ.id]: e.target.value });
+                        setError(null);
+                    }}
                     onKeyDown={handleKeyDown}
                     placeholder="Type your answer here..."
-                    className="reg-text-input registration-input"
+                    className="reg-text-input-v2"
+                    autoFocus
                 />
             );
         }
@@ -213,35 +217,39 @@ export default function Registration({ onBack, isGoogleUser }) {
             return (
                 <textarea
                     ref={inputRef}
+                    disabled={loading}
                     value={formData[currentQ.id]}
-                    onChange={(e) => setFormData({ ...formData, [currentQ.id]: e.target.value })}
-                    rows={3}
-                    placeholder="Start typing..."
-                    className="reg-textarea"
+                    onChange={(e) => {
+                        setFormData({ ...formData, [currentQ.id]: e.target.value });
+                        setError(null);
+                    }}
+                    onKeyDown={handleKeyDown}
+                    rows={4}
+                    placeholder="Type your answer here..."
+                    className="reg-textarea-v2"
+                    autoFocus
                 />
             );
         }
 
         if (currentQ.type === 'select' || currentQ.type === 'select_boolean') {
             return (
-                <div className="reg-options-list">
+                <div className="reg-options-list-v2">
                     {currentQ.options.map((option, idx) => {
                         const isSelected = formData[currentQ.id] === option;
                         return (
                             <button
                                 key={option}
+                                disabled={loading}
                                 onClick={() => {
                                     setFormData({ ...formData, [currentQ.id]: option });
-                                    setTimeout(handleNext, 300);
+                                    setError(null);
+                                    setTimeout(handleNext, 200);
                                 }}
-                                className={`reg-option-btn ${isSelected ? 'selected' : ''}`}
+                                className={`reg-option-btn-v2 ${isSelected ? 'selected' : ''}`}
                             >
-                                <div className={`reg-option-key ${isSelected ? 'selected' : ''}`}>
-                                    <span className="reg-option-key-text">
-                                        {String.fromCharCode(65 + idx)}
-                                    </span>
-                                </div>
-                                {option}
+                                <span className="reg-option-letter">{String.fromCharCode(65 + idx)}</span>
+                                <span className="reg-option-text">{option}</span>
                             </button>
                         );
                     })}
@@ -251,19 +259,21 @@ export default function Registration({ onBack, isGoogleUser }) {
 
         if (currentQ.type === 'multiselect') {
             return (
-                <div className="reg-options-list">
+                <div className="reg-options-list-v2">
                     {currentQ.options.map((option) => {
                         const isSelected = formData[currentQ.id].includes(option);
                         return (
                             <button
                                 key={option}
-                                onClick={() => toggleMultiSelect(option)}
-                                className={`reg-option-btn ${isSelected ? 'selected' : ''}`}
+                                disabled={loading}
+                                onClick={() => {
+                                    toggleMultiSelect(option);
+                                    setError(null);
+                                }}
+                                className={`reg-option-btn-v2 ${isSelected ? 'selected' : ''}`}
                             >
-                                <div className={`reg-option-key ${isSelected ? 'selected' : ''}`}>
-                                    {isSelected && <Check size={16} style={{ color: 'var(--background)' }} />}
-                                </div>
-                                {option}
+                                <span className="reg-option-check">{isSelected && <Check size={18} />}</span>
+                                <span className="reg-option-text">{option}</span>
                             </button>
                         );
                     })}
@@ -303,33 +313,25 @@ export default function Registration({ onBack, isGoogleUser }) {
     }
 
     return (
-        <div className="reg-fullscreen" data-theme="dark">
+        <div className="reg-fullscreen-v2" data-theme="dark">
             {/* Top Progress Bar */}
             {typeof step === 'number' && step > 0 && (
-                <div className="reg-progress-bar">
-                    <div className="reg-progress-fill" style={{ width: `${progress}%` }} />
+                <div className="reg-progress-bar-v2">
+                    <div className="reg-progress-fill-v2" style={{ width: `${progress}%` }} />
                 </div>
             )}
 
-            {/* Main Content Vertical Center */}
-            <div className="reg-content">
-                <div className="reg-content-inner">
-                    <div key={`step-${step}`} className="animate-in" style={{ animationDuration: '0.5s' }}>
-
-                        {typeof step === 'number' && step > 0 && (
-                            <div className="reg-step-indicator">
-                                <span className="reg-step-number">{step}</span>
-                                <span><ArrowRight size={14} opacity={0.5} /></span>
-                                <span>{currentQ.id.replace('_', ' ').toUpperCase()}</span>
-                            </div>
-                        )}
+            {/* Main Content */}
+            <div className="reg-content-v2">
+                <div className="reg-content-inner-v2">
+                    <div key={`step-${step}`} className="animate-in-v2" style={{ animationDuration: '0.5s' }}>
 
                         {currentQ.type === 'welcome' ? (
-                            <div style={{ textAlign: 'center' }}>
-                                <h1 className="reg-welcome-title">
+                            <div className="reg-welcome-v2">
+                                <h1 className="reg-welcome-title-v2">
                                     {isGoogleUser ? 'Complete Your Profile' : 'Welcome to EdgeOS'}
                                 </h1>
-                                <p className="reg-welcome-subtitle">
+                                <p className="reg-welcome-subtitle-v2">
                                     {isGoogleUser
                                         ? "You're almost there. Let's set up your organization to get started."
                                         : "Let's initialize your corporate workspace. This multi-step process configures your organization's entire document footprint."
@@ -337,51 +339,51 @@ export default function Registration({ onBack, isGoogleUser }) {
                                 </p>
                                 <button
                                     onClick={handleNext}
-                                    className="btn-cinematic"
-                                    style={{ fontSize: '1.125rem', padding: '1rem 2.5rem', borderRadius: '99px' }}
+                                    disabled={loading}
+                                    className="reg-submit-btn-v2"
                                 >
                                     Begin Configuration <ArrowRight size={20} />
                                 </button>
                             </div>
                         ) : (
-                            <div>
-                                <h2 className="reg-question-title" style={{ marginBottom: currentQ.subtitle ? '0.5rem' : '2rem' }}>
+                            <div className="reg-question-container-v2">
+                                {/* Question Number and Category */}
+                                <div className="reg-category-label-v2">
+                                    <span>{step}. {currentQ.category}</span>
+                                </div>
+
+                                {/* Question Title */}
+                                <h2 className="reg-question-title-v2">
                                     {currentQ.label}
-                                    {currentQ.optional && <span className="reg-optional-tag">(Optional)</span>}
                                 </h2>
 
-                                {currentQ.subtitle && (
-                                    <p className="reg-question-subtitle">{currentQ.subtitle}</p>
-                                )}
-
+                                {/* Input Field */}
                                 {renderInput()}
 
+                                {/* Error Message */}
                                 {error && (
-                                    <div className="reg-error">
-                                        <div className="reg-error-dot" />
-                                        <div className="reg-error-text">
-                                            <strong>Error:</strong> {error}
-                                        </div>
+                                    <div className="reg-error-v2">
+                                        {error}
                                     </div>
                                 )}
 
-                                <div className="reg-actions">
+                                {/* Submit Button - Right aligned */}
+                                <div className="reg-submit-container-v2">
                                     <button
                                         onClick={handleNext}
                                         disabled={loading}
-                                        className="btn-cinematic"
-                                        style={{ padding: '0.75rem 2rem', fontSize: '1.125rem' }}
+                                        className="reg-submit-btn-v2"
                                     >
-                                        {loading ? 'Processing...' : (step === questions.length - 1 ? 'Complete Setup' : 'Next')}
-                                        {!loading && <ChevronRight size={20} />}
+                                        {loading ? 'Processing...' : (step === questions.length - 1 ? 'Complete Setup' : 'Submit >')}
                                     </button>
-
-                                    {currentQ.type === 'text' || currentQ.type === 'email' || currentQ.type === 'password' || currentQ.type === 'textarea' ? (
-                                        <span className="reg-enter-hint">
-                                            Press <strong>Enter ↵</strong>
-                                        </span>
-                                    ) : null}
                                 </div>
+
+                                {/* Enter key hint for text inputs */}
+                                {(currentQ.type === 'text' || currentQ.type === 'email' || currentQ.type === 'password' || currentQ.type === 'textarea') && (
+                                    <div className="reg-enter-hint-v2">
+                                        Press <strong>Enter ↵</strong>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -389,23 +391,15 @@ export default function Registration({ onBack, isGoogleUser }) {
 
             </div>
 
-            {/* Navigation Controls Footer */}
-            <div className="reg-footer">
-                <button
-                    onClick={handleBack}
-                    disabled={loading}
-                    className="reg-back-btn"
-                >
-                    <ArrowLeft size={16} />
-                    {step === 0 ? (isGoogleUser ? 'Sign Out' : 'Back to Sign In') : 'Go Back'}
-                </button>
-
-                {typeof step === 'number' && step > 0 && (
-                    <div className="reg-progress-text">
-                        {Math.round(progress)}% COMPLETED
-                    </div>
-                )}
-            </div>
+            {/* Back Button - Bottom Left */}
+            <button
+                onClick={handleBack}
+                disabled={loading}
+                className="reg-back-btn-v2"
+            >
+                <ArrowLeft size={16} />
+                {step === 0 ? (isGoogleUser ? 'Sign Out' : 'Back to Sign In') : 'Go Back'}
+            </button>
         </div>
     );
 }
