@@ -165,6 +165,13 @@ function AppContent() {
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [copilotFullscreen, setCopilotFullscreen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const refreshNotifications = useCallback(() => {
@@ -511,7 +518,7 @@ function AppContent() {
                 className="btn-cinematic btn-secondary"
                 style={{ marginRight: '1.5rem', padding: '0.5rem 0.85rem', height: 'fit-content', gap: '8px' }}
               >
-                <ArrowLeft size={16} /> Back to Hub
+                <ArrowLeft size={16} />{!isMobile && ' Back to Hub'}
               </button>
             )}
             <div>

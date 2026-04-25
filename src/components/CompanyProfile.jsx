@@ -27,6 +27,13 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
   const [editorField, setEditorField] = useState('');
   const [testingEmail, setTestingEmail] = useState(false);
   const [testResult, setTestResult] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   const [form, setForm] = useState({
     company_name: '',
@@ -485,7 +492,7 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
           Connect your Gmail to send offer letters, notifications, and follow-ups directly from EdgeOS. All email features in the app use this one connection.
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '1.25rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)', gap: '1.25rem' }}>
           {/* Left: form */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', minWidth: 0 }}>
             <div className="easy-field">
