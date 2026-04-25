@@ -164,11 +164,7 @@ export default function OfferTracker() {
         companyName: doc.company_profile?.company_name || activeOrg?.company_name || 'Company',
         portalUrl: portalUrl(doc.id),
         deadline: doc.valid_until || doc.effective_date,
-        emailConfig: {
-          serviceId: activeOrg?.emailjs_service_id,
-          templateId: activeOrg?.emailjs_template_id,
-          publicKey: activeOrg?.emailjs_public_key,
-        },
+        orgProfile: activeOrg,
       });
       setMailState((p) => ({ ...p, [doc.id]: result.success ? 'ok' : 'fail' }));
       setTimeout(

@@ -12,7 +12,7 @@ const DocumentationPage = () => (
       <div className="sp-hero-glow" />
       <div className="eos-container">
         <div className="sp-hero-badge"><BookOpen size={12} /> Documentation</div>
-        <h1 className="sp-hero-title">Learn EdgeOS<br />Inside and Out</h1>
+        <h1 className="sp-hero-title">Learn EdgeOS<br /><em>inside</em> and out.</h1>
         <p className="sp-hero-subtitle">
           Comprehensive guides and tutorials to help you get the most out of every feature in EdgeOS. From setting up your first account to generating thousands of documents at scale.
         </p>
@@ -32,7 +32,7 @@ const DocumentationPage = () => (
             {
               icon: Zap,
               title: '1. Create Your Account',
-              desc: 'Sign up with your email or Google account. No credit card is required — you get a full 7-day free trial with access to all features including invoicing, offer letters, and certificates.'
+              desc: 'Sign up with your email or Google account. No credit card is required — start on the Free plan with access to invoicing, offer letters, certificates, and 10 messages with the AI Co-founder. Upgrade to Pro, Max, or Enterprise anytime.'
             },
             {
               icon: Settings,

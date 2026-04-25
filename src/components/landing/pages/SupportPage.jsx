@@ -15,7 +15,7 @@ const faqs = [
   { q: 'What happens when my trial expires?', a: 'Your data is preserved for 30 days after trial expiry. Contact our sales team to upgrade and regain access to all features.' },
   { q: 'Is my data secure?', a: 'All data is stored in Firebase with end-to-end encryption, role-based access controls, and automatic backups. See our Security page for details.' },
   { q: 'Can I export my documents?', a: 'Yes. All documents can be exported as high-quality PDFs. You can also download bulk records from the Records section.' },
-  { q: 'Do you offer API access?', a: 'API access is available for Enterprise customers. Contact sales@edgeos.app for integration details and documentation.' },
+  { q: 'Do you offer API access?', a: 'API access is available for Enterprise customers. Contact edgeossuite@gmail.com for integration details and documentation.' },
 ];
 
 const SupportPage = () => (
@@ -24,7 +24,7 @@ const SupportPage = () => (
       <div className="sp-hero-glow" />
       <div className="eos-container">
         <div className="sp-hero-badge"><HeadphonesIcon size={12} /> Support</div>
-        <h1 className="sp-hero-title">We're Here<br />to Help</h1>
+        <h1 className="sp-hero-title">We're <em>here</em><br />to help.</h1>
         <p className="sp-hero-subtitle">
           Get answers to your questions, report issues, or reach out to our support team directly.
         </p>

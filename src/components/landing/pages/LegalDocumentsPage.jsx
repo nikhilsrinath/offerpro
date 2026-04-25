@@ -10,7 +10,7 @@ const LegalDocumentsPage = () => (
       <div className="sp-hero-glow" />
       <div className="eos-container">
         <div className="sp-hero-badge"><Scale size={12} /> Legal Documents</div>
-        <h1 className="sp-hero-title">Legal Documents<br />Without the Lawyers</h1>
+        <h1 className="sp-hero-title">Legal documents<br /><em>without</em> the lawyers.</h1>
         <p className="sp-hero-subtitle">
           Generate NDAs, MoUs, and other legal agreements from professional templates. Share, sign, and store — all in one platform.
         </p>
@@ -174,7 +174,7 @@ const LegalDocumentsPage = () => (
       <div className="eos-container">
         <div className="sp-cta-box eos-parallax">
           <h2 className="sp-cta-title">Protect your business with proper agreements</h2>
-          <p className="sp-cta-subtitle">Start your 7-day free trial. No credit card required.</p>
+          <p className="sp-cta-subtitle">Get started free. No credit card required.</p>
           <a href="/" className="eos-btn eos-btn-primary">Get Started Free <ArrowRight size={16} /></a>
         </div>
       </div>

@@ -16,7 +16,7 @@ const SecurityPage = () => (
       <div className="sp-hero-glow" />
       <div className="eos-container">
         <div className="sp-hero-badge"><Shield size={12} /> Security</div>
-        <h1 className="sp-hero-title">Enterprise-Grade<br />Security</h1>
+        <h1 className="sp-hero-title">Enterprise-grade<br /><em>security</em>.</h1>
         <p className="sp-hero-subtitle">
           Your data security is our top priority. EdgeOS is built on a foundation of encryption, access controls, and continuous monitoring.
         </p>

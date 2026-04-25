@@ -10,7 +10,7 @@ const OfferLettersPage = () => (
       <div className="sp-hero-glow" />
       <div className="eos-container">
         <div className="sp-hero-badge"><Briefcase size={12} /> Offer Letters</div>
-        <h1 className="sp-hero-title">Offer Letters That<br />Win Top Talent</h1>
+        <h1 className="sp-hero-title">Offer letters that<br /><em>win</em> top talent.</h1>
         <p className="sp-hero-subtitle">
           Generate polished, branded offer letters in seconds. Distribute to candidates via WhatsApp and track acceptance in real time.
         </p>
@@ -186,7 +186,7 @@ const OfferLettersPage = () => (
       <div className="eos-container">
         <div className="sp-cta-box eos-parallax">
           <h2 className="sp-cta-title">Streamline your hiring pipeline</h2>
-          <p className="sp-cta-subtitle">Start your 7-day free trial. No credit card required.</p>
+          <p className="sp-cta-subtitle">Get started free. No credit card required.</p>
           <a href="/" className="eos-btn eos-btn-primary">Get Started Free <ArrowRight size={16} /></a>
         </div>
       </div>

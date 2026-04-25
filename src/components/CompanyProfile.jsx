@@ -52,6 +52,8 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
     emailjs_service_id: '',
     emailjs_template_id: '',
     emailjs_public_key: '',
+    gmail_user: '',
+    gmail_app_password: '',
   });
 
   useEffect(() => {
@@ -80,6 +82,8 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         emailjs_service_id: activeOrg.emailjs_service_id || '',
         emailjs_template_id: activeOrg.emailjs_template_id || '',
         emailjs_public_key: activeOrg.emailjs_public_key || '',
+        gmail_user: activeOrg.gmail_user || '',
+        gmail_app_password: activeOrg.gmail_app_password || '',
       };
       setForm(formData);
       // orgStore handles caching — no localStorage write needed
@@ -148,9 +152,8 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
     setTestingEmail(true);
     setTestResult(null);
     const result = await emailService.testConnection({
-      serviceId: form.emailjs_service_id,
-      templateId: form.emailjs_template_id,
-      publicKey: form.emailjs_public_key,
+      gmailUser: form.gmail_user,
+      appPassword: form.gmail_app_password,
     });
     setTestResult(result);
     setTestingEmail(false);
@@ -472,115 +475,130 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         </div>
       </div>
 
-      {/* 7. Email Integration */}
+      {/* 7. Email Configuration (Gmail SMTP) */}
       <div className="easy-section">
         <div className="easy-section-head">
           <div className="easy-num">7</div>
-          <span className="easy-section-title">Email Integration</span>
+          <span className="easy-section-title">Email Configuration</span>
         </div>
         <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.6 }}>
-          Send offer letters directly to employees via email using <strong>EmailJS</strong> — a free service that works right from the browser. No backend or scripts needed.
+          Connect your Gmail to send offer letters, notifications, and follow-ups directly from EdgeOS. All email features in the app use this one connection.
         </p>
 
-        <div className="easy-row">
-          <div className="easy-field">
-            <label className="easy-lbl">Service ID</label>
-            <input
-              name="emailjs_service_id"
-              value={form.emailjs_service_id}
-              onChange={handleChange}
-              placeholder="e.g. service_abc123"
-              className="easy-inp"
-              style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}
-            />
-          </div>
-          <div className="easy-field">
-            <label className="easy-lbl">Template ID</label>
-            <input
-              name="emailjs_template_id"
-              value={form.emailjs_template_id}
-              onChange={handleChange}
-              placeholder="e.g. template_xyz789"
-              className="easy-inp"
-              style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}
-            />
-          </div>
-        </div>
-        <div className="easy-row">
-          <div className="easy-field full">
-            <label className="easy-lbl">Public Key</label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '1.25rem' }}>
+          {/* Left: form */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', minWidth: 0 }}>
+            <div className="easy-field">
+              <label className="easy-lbl">Gmail Address</label>
               <input
-                name="emailjs_public_key"
-                value={form.emailjs_public_key}
+                name="gmail_user"
+                type="email"
+                value={form.gmail_user}
                 onChange={handleChange}
-                placeholder="e.g. user_aBcDeFgHiJk"
+                placeholder="you@gmail.com"
                 className="easy-inp"
-                style={{ fontFamily: 'monospace', fontSize: '0.8125rem', flex: 1 }}
+                autoComplete="off"
               />
-              <button
-                type="button"
-                onClick={handleTestEmail}
-                disabled={!form.emailjs_service_id || !form.emailjs_template_id || !form.emailjs_public_key || testingEmail}
-                style={{
-                  padding: '0 1rem', borderRadius: '10px', border: '1px solid var(--border-default)',
-                  background: 'var(--bg-elevated)', color: 'var(--text-secondary)', fontWeight: 600,
-                  fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'var(--font-main)',
-                  display: 'flex', alignItems: 'center', gap: '0.375rem', whiteSpace: 'nowrap',
-                  opacity: (!form.emailjs_service_id || !form.emailjs_template_id || !form.emailjs_public_key) ? 0.4 : 1,
-                }}
-              >
-                {testingEmail ? <><Loader size={13} className="spin-icon" /> Testing</> : <><Zap size={13} /> Test</>}
-              </button>
             </div>
+
+            <div className="easy-field">
+              <label className="easy-lbl">
+                App Password
+                <span style={{ fontSize: '0.6875rem', fontWeight: 500, color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
+                  16 characters from Google
+                </span>
+              </label>
+              <input
+                name="gmail_app_password"
+                type="password"
+                value={form.gmail_app_password}
+                onChange={handleChange}
+                placeholder="xxxx xxxx xxxx xxxx"
+                className="easy-inp"
+                autoComplete="new-password"
+                style={{ fontFamily: 'monospace', letterSpacing: '0.05em' }}
+              />
+              <p style={{ margin: '0.375rem 0 0', fontSize: '0.6875rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                Stored securely in your organization profile. Never displayed after saving.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleTestEmail}
+              disabled={!form.gmail_user || !form.gmail_app_password || testingEmail}
+              style={{
+                padding: '0.625rem 1rem', borderRadius: '10px', border: '1px solid var(--border-default)',
+                background: 'var(--bg-elevated)', color: 'var(--text-primary)', fontWeight: 600,
+                fontSize: '0.8125rem', cursor: (!form.gmail_user || !form.gmail_app_password) ? 'not-allowed' : 'pointer',
+                fontFamily: 'var(--font-main)', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', gap: '0.5rem',
+                opacity: (!form.gmail_user || !form.gmail_app_password) ? 0.4 : 1,
+              }}
+            >
+              {testingEmail ? <><Loader size={14} className="spin-icon" /> Sending test email…</> : <><Zap size={14} /> Send Test Email</>}
+            </button>
+
+            {testResult && (
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                padding: '0.75rem 1rem',
+                background: testResult.success ? 'rgba(16,185,129,0.06)' : 'rgba(239,68,68,0.06)',
+                border: `1px solid ${testResult.success ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'}`,
+                borderRadius: '8px', fontSize: '0.8125rem',
+                color: testResult.success ? '#10b981' : '#ef4444', fontWeight: 600, lineHeight: 1.5,
+              }}>
+                {testResult.success
+                  ? <CheckCircle size={14} style={{ marginTop: '2px', flexShrink: 0 }} />
+                  : <XCircle    size={14} style={{ marginTop: '2px', flexShrink: 0 }} />}
+                <span>{testResult.message}</span>
+              </div>
+            )}
           </div>
-        </div>
 
-        {testResult && (
+          {/* Right: instructions */}
           <div style={{
-            display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
-            marginTop: '0.75rem', padding: '0.75rem 1rem',
-            background: testResult.success ? 'rgba(16,185,129,0.06)' : 'rgba(239,68,68,0.06)',
-            border: `1px solid ${testResult.success ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'}`,
-            borderRadius: '8px', fontSize: '0.8125rem',
-            color: testResult.success ? '#10b981' : '#ef4444', fontWeight: 600
+            background: 'var(--bg-raised)', border: '1px solid var(--border-subtle)',
+            borderRadius: '10px', padding: '1rem 1.25rem',
+            fontSize: '0.8125rem', lineHeight: 1.7, color: 'var(--text-secondary)', minWidth: 0,
           }}>
-            {testResult.success ? <CheckCircle size={14} style={{ marginTop: '1px', flexShrink: 0 }} /> : <XCircle size={14} style={{ marginTop: '1px', flexShrink: 0 }} />}
-            <span>{testResult.message}</span>
-          </div>
-        )}
+            <strong style={{
+              color: 'var(--text-primary)', display: 'flex', alignItems: 'center',
+              gap: '0.375rem', marginBottom: '0.625rem',
+            }}>
+              <Key size={14} /> How to get an App Password
+            </strong>
+            <ol style={{ margin: '0.5rem 0 0', paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <li>
+                Enable <strong>2-Step Verification</strong> on your Google account (required to generate App Passwords).{' '}
+                <a href="https://myaccount.google.com/signinoptions/two-step-verification" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
+                  Open 2-Step settings
+                </a>
+              </li>
+              <li>
+                Go to <strong>Google Account → Security → App Passwords</strong>.{' '}
+                <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
+                  Open App Passwords
+                </a>
+              </li>
+              <li>
+                Type any app name (e.g. "EdgeOS") and click <strong>Create</strong>.
+              </li>
+              <li>
+                Copy the <strong>16-character password</strong> Google gives you.
+              </li>
+              <li>
+                Paste it into the <strong>App Password</strong> field on the left and hit <strong>Send Test Email</strong>.
+              </li>
+            </ol>
 
-        <div style={{
-          background: 'var(--bg-raised)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: '10px',
-          padding: '1rem 1.25rem',
-          marginTop: '0.75rem',
-          fontSize: '0.8125rem',
-          lineHeight: 1.7,
-          color: 'var(--text-secondary)'
-        }}>
-          <strong style={{ color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.5rem' }}>
-            <Mail size={14} /> Setup Instructions (5 min)
-          </strong>
-          <ol style={{ margin: '0.5rem 0 0', paddingLeft: '1.25rem' }}>
-            <li>Go to <a href="https://www.emailjs.com" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>emailjs.com</a> and <strong>create a free account</strong></li>
-            <li>Click <strong>"Add New Service"</strong> → choose <strong>Gmail</strong> → connect your Gmail account → note the <strong>Service ID</strong></li>
-            <li>Go to <strong>"Email Templates"</strong> → click <strong>"Create New Template"</strong></li>
-            <li>Set <strong>Subject</strong> to: <code style={{ background: 'var(--bg-elevated)', padding: '1px 6px', borderRadius: '4px', fontSize: '0.75rem' }}>{'{{subject}}'}</code></li>
-            <li>Set <strong>Body</strong> (Content) to: <code style={{ background: 'var(--bg-elevated)', padding: '1px 6px', borderRadius: '4px', fontSize: '0.75rem' }}>{'{{{message}}}'}</code> <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>(triple braces for HTML)</span></li>
-            <li>In <strong>"To Email"</strong> field, put: <code style={{ background: 'var(--bg-elevated)', padding: '1px 6px', borderRadius: '4px', fontSize: '0.75rem' }}>{'{{to_email}}'}</code></li>
-            <li>Click <strong>Save</strong> → note the <strong>Template ID</strong></li>
-            <li>Go to <strong>Account → General</strong> → copy your <strong>Public Key</strong></li>
-            <li>Paste all three values above → click <strong>Test</strong></li>
-          </ol>
-
-          <div style={{
-            marginTop: '0.75rem', padding: '0.75rem 1rem',
-            background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.12)',
-            borderRadius: '8px', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.6
-          }}>
-            <strong style={{ color: '#3b82f6' }}>Free tier:</strong> 200 emails/month, 2 templates. More than enough for most teams.
+            <div style={{
+              marginTop: '0.875rem', padding: '0.625rem 0.875rem',
+              background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.12)',
+              borderRadius: '8px', fontSize: '0.75rem', lineHeight: 1.55,
+            }}>
+              <strong style={{ color: '#3b82f6' }}>Note:</strong> App Passwords are different from your Google login password. They can be revoked anytime from the same Google page.
+            </div>
           </div>
         </div>
       </div>

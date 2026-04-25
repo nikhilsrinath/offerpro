@@ -4,45 +4,9 @@
  */
 
 import { ref, get, set, update } from 'firebase/database';
-import { doc, setDoc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, firestore } from '../lib/firebase';
-
-// ── LOCAL CACHE FOR FAST ACCESS ─────────────────────────────
-// Caches org data to avoid Firebase fetches on every query
-const CACHE_TTL_MS = 30000; // 30 seconds
-const orgDataCache: Map<string, { data: any; timestamp: number }> = new Map();
-
-function getCachedOrgData(orgId: string): any | null {
-  const cached = orgDataCache.get(orgId);
-  if (!cached) return null;
-
-  const age = Date.now() - cached.timestamp;
-  if (age > CACHE_TTL_MS) {
-    orgDataCache.delete(orgId);
-    return null;
-  }
-
-  console.log('[Cache] Hit for org', orgId, '- age:', age, 'ms');
-  return cached.data;
-}
-
-function setCachedOrgData(orgId: string, data: any): void {
-  orgDataCache.set(orgId, { data, timestamp: Date.now() });
-  console.log('[Cache] Stored org data for', orgId);
-}
-
-/**
- * Clear cached org data to force fresh fetch
- */
-export function clearOrgDataCache(orgId?: string): void {
-  if (orgId) {
-    orgDataCache.delete(orgId);
-    console.log('[Cache] Cleared cache for org', orgId);
-  } else {
-    orgDataCache.clear();
-    console.log('[Cache] Cleared all org caches');
-  }
-}
+import { orgStore } from './orgStore';
 
 export interface CompanyFacts {
   company_name: string;
@@ -680,58 +644,31 @@ export function detectQueryIntent(message: string): QueryIntent {
 }
 
 /**
- * Fetch raw organization data from Firebase (with local cache)
+ * Read org data from the in-memory orgStore cache.
+ * Never hits Firebase — orgStore is loaded once on login and updated
+ * locally on every write, so newly added employees/invoices/etc. are
+ * visible to the AI immediately with zero reads.
+ *
+ * If the cache isn't populated yet (e.g. AI opened before OrgContext
+ * finished bootstrapping), this triggers a one-time orgStore.load().
  */
 export async function fetchRawOrgData(orgId: string): Promise<any | null> {
   if (!orgId) return null;
 
-  // Check cache first
-  const cached = getCachedOrgData(orgId);
-  if (cached) {
-    console.log('[Raw Data] Using cached org data for:', orgId);
-    return cached;
+  if (!orgStore.isLoaded() || orgStore.getOrgId() !== orgId) {
+    console.log('[Raw Data] orgStore not loaded — bootstrapping for', orgId);
+    await orgStore.load(orgId);
   }
 
-  try {
-    console.log('[Raw Data] Fetching org data from Firestore for:', orgId);
-    
-    // Fetch key documents in parallel
-    const keyedCollections = ['employees', 'crm_leads', 'fin_docs', 'expenses', 'products'];
-    const pProfile = getDoc(doc(firestore, 'organizations', orgId));
-    const pKeyed = keyedCollections.map(col => 
-      getDocs(query(collection(firestore, col), where('orgId', '==', orgId)))
-    );
-
-    const [profileSnap, ...keyedSnaps] = await Promise.all([pProfile, ...pKeyed]);
-
-    if (!profileSnap.exists()) {
-      console.log('[Raw Data] No profile found in Firestore');
-      return null;
-    }
-
-    const orgData: any = {
-      _profile: profileSnap.data(),
-      company_name: profileSnap.data().company_name,
-    };
-
-    // Reconstruct nested object expected by AI data formatters
-    keyedCollections.forEach((col, idx) => {
-      const snap = keyedSnaps[idx];
-      const data: any = {};
-      snap.forEach(d => { data[d.id] = d.data(); });
-      
-      // Mapping to legacy keys expected by extractCompanyMemory & formatters
-      if (col === 'crm_leads') orgData.crm = data;
-      else orgData[col] = data;
-    });
-
-    console.log('[Raw Data] Org data reconstructed from Firestore successfully');
-    setCachedOrgData(orgId, orgData);
-    return orgData;
-  } catch (error) {
-    console.error('[Raw Data] Firestore fetch failed:', error);
-    return null;
-  }
+  const cache = orgStore.getCache();
+  const profile = cache._profile || {};
+  const orgData: any = {
+    ...cache,
+    _profile: profile,
+    company_name: profile.company_name,
+  };
+  console.log('[Raw Data] Served from orgStore cache (no Firebase read)');
+  return orgData;
 }
 
 /**

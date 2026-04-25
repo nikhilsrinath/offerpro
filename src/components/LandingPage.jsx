@@ -4,13 +4,14 @@ import {
   FileText, Receipt, Scale, Award, Briefcase, BarChart3,
   ChevronRight, ChevronDown, Users, FileCheck, TrendingUp, Globe,
   Lock, CreditCard, Send, Layers, ArrowUpRight, Activity,
-  Menu, X
+  Menu, X, Sparkles, Brain, MessageSquare, Crown
 } from 'lucide-react';
 import './LandingPage.css';
 import { useScrollParallax } from '../hooks/useScrollParallax';
 import { useCardGlow } from '../hooks/useCardGlow';
 
 const FEATURE_ITEMS = [
+  { href: '/ai-cofounder', icon: Sparkles, label: 'AI Co-founder', desc: 'Decisions, follow-ups & live business intelligence' },
   { href: '/invoicing', icon: Receipt, label: 'Invoicing', desc: 'GST-compliant tax invoices & billing' },
   { href: '/quotations', icon: FileText, label: 'Quotations', desc: 'Dynamic quotes with revision tracking' },
   { href: '/offer-letters', icon: Briefcase, label: 'Offer Letters', desc: 'Professional employment offers' },
@@ -83,8 +84,11 @@ const LandingPage = ({ onEnter }) => {
                 </div>
               </div>
             </div>
+            <a href="/ai-cofounder" className="eos-nav-link eos-nav-link-cofounder">
+              <Sparkles size={13} /> AI Co-founder
+            </a>
             <a href="#how-it-works" className="eos-nav-link">How It Works</a>
-            <a href="#pricing" className="eos-nav-link">Pricing</a>
+            <a href="/pricing" className="eos-nav-link">Pricing</a>
             <a href="#testimonials" className="eos-nav-link">Testimonials</a>
           </div>
 
@@ -140,8 +144,11 @@ const LandingPage = ({ onEnter }) => {
                 })}
               </div>
 
+              <a href="/ai-cofounder" className="eos-mobile-nav-link eos-mobile-cofounder" onClick={() => setMobileMenuOpen(false)}>
+                <Sparkles size={15} /> AI Co-founder
+              </a>
               <a href="#how-it-works" className="eos-mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>How It Works</a>
-              <a href="#pricing" className="eos-mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
+              <a href="/pricing" className="eos-mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
               <a href="#testimonials" className="eos-mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>Testimonials</a>
             </div>
 
@@ -192,32 +199,38 @@ const LandingPage = ({ onEnter }) => {
 
         <div className="eos-container">
           <div className="eos-hero-content">
-            <div className="eos-hero-badge">
-              <Zap size={12} />
-              7-Day Free Trial — No Credit Card Required
-            </div>
+            <span className="eos-hero-eyebrow">EdgeOS · The Royal Business OS</span>
 
             <h1 className="eos-hero-title">
-              Edge-to-Edge<br />Business Operating System
+              The Business OS,<br />
+              <em>reimagined</em> for the<br />
+              AI <span className="eos-hero-title-amp">&amp;</span> founder era.
             </h1>
 
             <p className="eos-hero-subtitle">
-              Generate invoices, quotations, proformas, offer letters, MoUs, NDAs, and certificates — all from one powerful workspace.
+              Documents, finances, hiring, decisions — every operation distilled into one calm workspace, with an AI Co-founder that reads your live data and runs alongside you.
             </p>
 
             <div className="eos-hero-actions">
               <button onClick={onEnter} className="eos-btn eos-btn-primary">
-                Start Free Trial <ArrowRight size={16} />
+                Get Started Free <ArrowRight size={16} />
               </button>
-              <button onClick={onEnter} className="eos-btn eos-btn-secondary">
-                Explore Features
-              </button>
+              <a href="/ai-cofounder" className="eos-btn eos-btn-secondary">
+                Meet the AI Co-founder
+              </a>
+            </div>
+
+            <div className="eos-hero-meta">
+              <span className="eos-hero-meta-item"><Check size={14} /> No credit card</span>
+              <span className="eos-hero-meta-item"><Sparkles size={14} /> AI-native by default</span>
+              <span className="eos-hero-meta-item"><Lock size={14} /> Your data, never trained on</span>
             </div>
           </div>
         </div>
       </section>
 
       {/* ════════════════ TRUST / LOGOS ════════════════ */}
+      {/* TODO: Revive once we have real customer logos / data
       <section className="eos-trust">
         <div className="eos-container">
           <p className="eos-trust-label eos-parallax">Trusted by forward-thinking teams</p>
@@ -233,13 +246,14 @@ const LandingPage = ({ onEnter }) => {
           </div>
         </div>
       </section>
+      */}
 
       {/* ════════════════ DASHBOARD PREVIEW ════════════════ */}
       <section className="eos-dashboard-section">
         <div className="eos-container">
           <div className="eos-section-header eos-parallax">
             <div className="eos-section-badge"><Layers size={12} /> Live Preview</div>
-            <h2 className="eos-section-title">Your Command Center</h2>
+            <h2 className="eos-section-title">Your <em>command</em> center.</h2>
             <p className="eos-section-subtitle">
               Track every document, payment, and client interaction from a single, intuitive dashboard.
             </p>
@@ -299,13 +313,57 @@ const LandingPage = ({ onEnter }) => {
         <div className="eos-container">
           <div className="eos-section-header eos-parallax">
             <div className="eos-section-badge"><Zap size={12} /> The Complete Suite</div>
-            <h2 className="eos-section-title">Everything You Need to<br />Run Your Business</h2>
+            <h2 className="eos-section-title">Everything you need.<br /><em>Nothing</em> you don't.</h2>
             <p className="eos-section-subtitle">
-              From quotations to certificates — manage your entire business document pipeline in one place.
+              From quotations to certificates — manage your entire business document pipeline in one calm, opinionated workspace.
             </p>
           </div>
 
           <div className="eos-features-grid">
+            {/* AI CO-FOUNDER — full width hero card */}
+            <a href="/ai-cofounder" className="eos-feature-card eos-fc-cofounder eos-fc-span-12 eos-parallax" style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '2rem', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 280 }}>
+                  <div className="eos-fc-badge eos-fc-badge-glow">
+                    <Sparkles size={11} /> Flagship Capability
+                  </div>
+                  <h3 className="eos-fc-title" style={{ marginTop: '1rem', fontSize: 'clamp(1.5rem, 3vw, 2.25rem)' }}>
+                    AI Co-founder
+                  </h3>
+                  <p className="eos-fc-desc" style={{ maxWidth: 720 }}>
+                    A real co-founder built into EdgeOS — not a chatbot. It reads your live business data, makes structured decisions, drafts polite-firm-urgent follow-ups to clients and team, runs guided onboarding, remembers your facts, opportunities & risks, and answers any question about your company in seconds. Always context-aware. Never invents data.
+                  </p>
+                  <div className="eos-cf-skills">
+                    <div className="eos-cf-skill"><Brain size={14} /> Decision Mode</div>
+                    <div className="eos-cf-skill"><MessageSquare size={14} /> Follow-up Drafts</div>
+                    <div className="eos-cf-skill"><Activity size={14} /> Live Business Data</div>
+                    <div className="eos-cf-skill"><Layers size={14} /> Memory & Insights</div>
+                    <div className="eos-cf-skill"><Send size={14} /> Email & WhatsApp</div>
+                  </div>
+                  <div style={{ marginTop: '1.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--eos-text)', fontWeight: 600, fontSize: '0.875rem' }}>
+                    Explore the AI Co-founder <ArrowUpRight size={16} />
+                  </div>
+                </div>
+                <div className="eos-cf-preview" aria-hidden>
+                  <div className="eos-cf-bubble eos-cf-bubble-user">
+                    Should I hire another designer this quarter?
+                  </div>
+                  <div className="eos-cf-bubble eos-cf-bubble-ai">
+                    <span className="eos-cf-bubble-tag">DECISION</span>
+                    Hold off until Q3. Pending revenue (₹4.2L) covers 1.5 months of runway, and your last 3 invoices closed faster — pipeline {'>'} capacity right now.
+                  </div>
+                  <div className="eos-cf-bubble eos-cf-bubble-user">
+                    Draft a polite follow-up for the Acme invoice
+                  </div>
+                  <div className="eos-cf-bubble eos-cf-bubble-ai eos-cf-bubble-typing">
+                    <span className="eos-cf-typing-dot" />
+                    <span className="eos-cf-typing-dot" />
+                    <span className="eos-cf-typing-dot" />
+                  </div>
+                </div>
+              </div>
+            </a>
+
             {/* Row 1 */}
             <div className="eos-feature-card eos-fc-span-7 eos-parallax">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -714,7 +772,7 @@ const LandingPage = ({ onEnter }) => {
         <div className="eos-container">
           <div className="eos-section-header eos-parallax" style={{ marginBottom: '6rem' }}>
             <div className="eos-section-badge"><Activity size={12} /> The Process</div>
-            <h2 className="eos-section-title">How EdgeOS Transforms<br />Your Business</h2>
+            <h2 className="eos-section-title">From first invoice to <em>scale</em>.</h2>
             <p className="eos-section-subtitle">
               A step-by-step journey from setup to scaling — making every operation effortless and profitable.
             </p>
@@ -790,7 +848,7 @@ const LandingPage = ({ onEnter }) => {
         <div className="eos-container">
           <div className="eos-section-header eos-parallax">
             <div className="eos-section-badge"><Star size={12} /> Testimonials</div>
-            <h2 className="eos-section-title">Loved by Teams<br />Who Ship Fast</h2>
+            <h2 className="eos-section-title">Trusted by teams who<br /><em>ship</em> with intent.</h2>
             <p className="eos-section-subtitle">
               Join thousands of businesses that streamlined their operations with EdgeOS.
             </p>
@@ -835,51 +893,18 @@ const LandingPage = ({ onEnter }) => {
         </div>
       </section>
 
-      {/* ════════════════ PRICING ════════════════ */}
+      {/* ════════════════ PRICING TEASER ════════════════ */}
       <section id="pricing" className="eos-section">
         <div className="eos-container">
           <div className="eos-section-header eos-parallax">
             <div className="eos-section-badge"><CreditCard size={12} /> Pricing</div>
-            <h2 className="eos-section-title">Start Free, Scale<br />When You're Ready</h2>
+            <h2 className="eos-section-title">Pricing built for <em>every</em><br />stage of your journey.</h2>
             <p className="eos-section-subtitle">
-              Try EdgeOS free for 7 days. No credit card required. Upgrade when you need more.
+              Free to start. Pro at $12/mo. Max at $54/mo. Enterprise on request. Pick a plan and we'll set up a 15-minute onboarding call.
             </p>
-          </div>
-
-          <div className="eos-pricing-grid">
-            <div className="eos-pricing-card eos-parallax">
-              <div className="eos-pricing-tier">Free Trial</div>
-              <div className="eos-pricing-price">$0 <span>/ 7 days</span></div>
-              <p className="eos-pricing-desc">Perfect for evaluating EdgeOS with your team.</p>
-              <ul className="eos-pricing-features">
-                <li><Check size={16} /> 5 Offer Letters</li>
-                <li><Check size={16} /> 1 MoU / NDA</li>
-                <li><Check size={16} /> 5 Invoices & Quotations</li>
-                <li><Check size={16} /> Professional templates</li>
-                <li><Check size={16} /> PDF export & cloud sync</li>
-                <li><Check size={16} /> Recipient portal access</li>
-              </ul>
-              <button onClick={onEnter} className="eos-btn eos-btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
-                Start Free Trial <ArrowRight size={16} />
-              </button>
-            </div>
-
-            <div className="eos-pricing-card eos-pricing-featured eos-parallax">
-              <div className="eos-pricing-popular">Most Popular</div>
-              <div className="eos-pricing-tier">Enterprise</div>
-              <div className="eos-pricing-price">Custom <span>/ month</span></div>
-              <p className="eos-pricing-desc">For growing teams that need unlimited access.</p>
-              <ul className="eos-pricing-features">
-                <li><Check size={16} /> Unlimited documents</li>
-                <li><Check size={16} /> Unlimited MoUs & NDAs</li>
-                <li><Check size={16} /> Custom branding & white-label</li>
-                <li><Check size={16} /> Role-based access control</li>
-                <li><Check size={16} /> Priority 24/7 support</li>
-                <li><Check size={16} /> API & webhook integration</li>
-                <li><Check size={16} /> Dedicated account manager</li>
-              </ul>
-              <a href="mailto:sales@edgeos.app" className="eos-btn eos-btn-primary" style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}>
-                Contact Sales <Mail size={16} />
+            <div style={{ marginTop: '2rem' }}>
+              <a href="/pricing" className="eos-btn eos-btn-primary">
+                See All Plans <ArrowRight size={16} />
               </a>
             </div>
           </div>
@@ -890,15 +915,15 @@ const LandingPage = ({ onEnter }) => {
       <section className="eos-cta">
         <div className="eos-container">
           <div className="eos-cta-box eos-parallax">
-            <h2 className="eos-cta-title">Ready to streamline your operations?</h2>
+            <h2 className="eos-cta-title">Run a sharper business.<br />Starting today.</h2>
             <p className="eos-cta-subtitle">
-              Start your 7-day free trial today. No credit card, no commitment.
+              Free to begin. No credit card. Bring your AI Co-founder along — and never stare at a blank invoice again.
             </p>
             <div className="eos-cta-actions">
               <button onClick={onEnter} className="eos-btn eos-btn-primary">
                 Get Started Free <ArrowRight size={16} />
               </button>
-              <a href="mailto:sales@edgeos.app" className="eos-btn eos-btn-secondary" style={{ textDecoration: 'none' }}>
+              <a href="mailto:edgeossuite@gmail.com" className="eos-btn eos-btn-secondary" style={{ textDecoration: 'none' }}>
                 Talk to Sales
               </a>
             </div>
@@ -922,6 +947,8 @@ const LandingPage = ({ onEnter }) => {
             <div>
               <div className="eos-footer-col-title">Platform</div>
               <div className="eos-footer-links">
+                <a className="eos-footer-link" href="/ai-cofounder">AI Co-founder</a>
+                <a className="eos-footer-link" href="/pricing">Pricing</a>
                 <a className="eos-footer-link" href="/invoicing">Invoicing</a>
                 <a className="eos-footer-link" href="/quotations">Quotations</a>
                 <a className="eos-footer-link" href="/offer-letters">Offer Letters</a>

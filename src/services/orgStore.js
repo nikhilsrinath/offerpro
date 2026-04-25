@@ -33,6 +33,7 @@ const PROFILE_FIELDS = new Set([
   'primary_contact_name', 'use_cases', 'include_logo', 'account_usage',
   'referral_source', 'created_at', 'trial_start_date', 'is_premium',
   'emailjs_service_id', 'emailjs_template_id', 'emailjs_public_key',
+  'gmail_user', 'gmail_app_password',
 ]);
 
 const LS_KEY = (orgId) => `edgeos_org_${orgId}`;
@@ -215,6 +216,15 @@ export const orgStore = {
   getOrgId() { return _orgId; },
   isLoaded() { return _loaded; },
   getProfile() { return _cache._profile || {}; },
+
+  /**
+   * Return the full in-memory cache for read-only consumers (e.g. AI prompt builder).
+   * Aliases `crm_leads` → `crm` so legacy formatters keep working.
+   * Always reflects the latest local writes; never triggers a Firebase read.
+   */
+  getCache() {
+    return { ..._cache, crm: _cache.crm_leads || {} };
+  },
 
   async updateProfile(updates) {
     const path = fbPath();

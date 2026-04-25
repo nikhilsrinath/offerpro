@@ -30,14 +30,13 @@ export function useScrollParallax() {
         const norm = Math.max(rawNorm, prev);
         peakMap.set(el, norm);
 
-        const scale = 0.88 + norm * 0.12;
-        const opacity = 0.05 + norm * 0.95;
-        const translateY = (1 - norm) * 40;
-        const blur = (1 - norm) * 1.8;
+        const scale = 0.96 + norm * 0.04;
+        const opacity = 0.4 + norm * 0.6;
+        const translateY = (1 - norm) * 16;
 
         el.style.transform = `scale(${scale}) translateY(${translateY}px)`;
         el.style.opacity = opacity;
-        el.style.filter = `blur(${blur}px)`;
+        el.style.filter = 'none';
 
         const dot = el.querySelector('.eos-tl-dot');
         if (dot && norm > 0.6) {

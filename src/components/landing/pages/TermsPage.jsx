@@ -7,7 +7,7 @@ const TermsPage = () => (
       <div className="sp-hero-glow" />
       <div className="eos-container">
         <div className="sp-hero-badge"><FileText size={12} /> Legal</div>
-        <h1 className="sp-hero-title">Terms of Service</h1>
+        <h1 className="sp-hero-title"><em>Terms</em> of Service.</h1>
         <p className="sp-hero-subtitle">
           The terms and conditions governing your use of EdgeOS.
         </p>
@@ -28,9 +28,9 @@ const TermsPage = () => (
           To use EdgeOS, you must create an account with accurate and complete information. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You must notify us immediately of any unauthorized access.
         </p>
 
-        <h2>3. Free Trial</h2>
+        <h2>3. Free Plan & Subscriptions</h2>
         <p>
-          EdgeOS offers a 7-day free trial with limited document generation. During the trial, you may access core features including invoicing, quotations, offer letters, certificates, and legal documents. After the trial expires, you must subscribe to an Enterprise plan to continue using the Service.
+          EdgeOS offers a Free plan with capped document generation and 10 messages with the AI Co-founder, requiring no credit card. Paid tiers — Pro ($12/month), Max ($54/month), and Enterprise (custom) — unlock higher and unlimited usage as described on the Pricing page. Annual billing applies to Pro and Max. You may upgrade, downgrade, or cancel at any time; usage limits reset at the start of each billing cycle.
         </p>
 
         <h2>4. Acceptable Use</h2>

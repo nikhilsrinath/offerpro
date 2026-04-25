@@ -64,7 +64,7 @@ const ChangelogPage = () => (
       <div className="sp-hero-glow" />
       <div className="eos-container">
         <div className="sp-hero-badge"><History size={12} /> Changelog</div>
-        <h1 className="sp-hero-title">What's New<br />in EdgeOS</h1>
+        <h1 className="sp-hero-title">What's <em>new</em><br />in EdgeOS.</h1>
         <p className="sp-hero-subtitle">
           A timeline of features, improvements, and fixes shipped to make EdgeOS better every release.
         </p>

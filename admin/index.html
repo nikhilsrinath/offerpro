@@ -352,6 +352,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getDatabase, ref, get, update, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCqe28dSIfjzI9Ra7lgVlZpiHVnWTD1wk8",
@@ -367,6 +368,10 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getDatabase(app);
+        const firestore = getFirestore(app);
+
+        let organizations = {};
+        let selectedOrgId = null;
 
         signInAnonymously(auth).catch(console.error);
 
@@ -380,45 +385,34 @@
         });
 
         async function fetchDashboardData() {
-            const orgsRef = ref(db, 'organizations');
-            const recordsBaseRef = ref(db, 'records');
-
             try {
-                const [orgsSnap, recordsSnap] = await Promise.all([get(orgsRef), get(recordsBaseRef)]);
+                // Fetch organizations from Firestore
+                const orgsCol = collection(firestore, 'organizations');
+                const orgsSnap = await getDocs(orgsCol);
 
-                if (orgsSnap.exists()) {
-                    organizations = orgsSnap.val();
-                    const allOrgs = Object.entries(organizations);
+                // Convert Firestore docs to object format
+                organizations = {};
+                orgsSnap.forEach(docSnap => {
+                    organizations[docSnap.id] = docSnap.data();
+                });
 
-                    // Calculate Global Stats
-                    let premiumCount = 0;
-                    let totalDocsCount = 0;
-                    let platformRevenue = 0;
+                const allOrgs = Object.entries(organizations);
 
-                    if (recordsSnap.exists()) {
-                        const recordsData = recordsSnap.val();
-                        Object.values(recordsData).forEach(orgDocs => {
-                            const docs = Object.values(orgDocs);
-                            totalDocsCount += docs.length;
-                            docs.forEach(d => {
-                                if (d.type === 'invoice') platformRevenue += (Number(d.totals?.grandTotal) || 0);
-                            });
-                        });
-                    }
+                // Calculate Global Stats
+                let premiumCount = 0;
 
-                    allOrgs.forEach(([id, org]) => {
-                        if (org.is_premium) premiumCount++;
-                    });
+                allOrgs.forEach(([id, org]) => {
+                    if (org.is_premium) premiumCount++;
+                });
 
-                    // Update UI Stats
-                    document.getElementById('totalOrgsStat').textContent = allOrgs.length;
-                    document.getElementById('totalDocsStat').textContent = totalDocsCount;
-                    document.getElementById('totalRevenueStat').textContent = '₹' + Math.round(platformRevenue).toLocaleString('en-IN');
-                    document.getElementById('activeTrialsStat').textContent = allOrgs.length - premiumCount;
+                // Update UI Stats
+                document.getElementById('totalOrgsStat').textContent = allOrgs.length;
+                document.getElementById('totalDocsStat').textContent = '--';
+                document.getElementById('totalRevenueStat').textContent = '₹0';
+                document.getElementById('activeTrialsStat').textContent = allOrgs.length - premiumCount;
 
-                    // Render List
-                    renderOrgList(allOrgs, recordsSnap.val() || {});
-                }
+                // Render List
+                renderOrgList(allOrgs, {});
             } catch (err) {
                 console.error("Dashboard data load error:", err);
             }
@@ -470,7 +464,7 @@
                 input.addEventListener('change', async (e) => {
                     const orgId = e.target.dataset.id;
                     const premium = e.target.checked;
-                    await update(ref(db, `organizations/${orgId}`), { is_premium: premium });
+                    await updateDoc(doc(firestore, 'organizations', orgId), { is_premium: premium });
                     fetchDashboardData();
                 });
             });
@@ -510,10 +504,7 @@
             const confirmName = prompt("WARNING: This will permanently delete this organization and ALL its records including invoices, MOUs, and offer letters. To confirm, type 'DELETE THIS ACCOUNT':");
             if (confirmName === 'DELETE THIS ACCOUNT') {
                 try {
-                    await Promise.all([
-                        remove(ref(db, `organizations/${selectedOrgId}`)),
-                        remove(ref(db, `records/${selectedOrgId}`))
-                    ]);
+                    await deleteDoc(doc(firestore, 'organizations', selectedOrgId));
                     showListView();
                     fetchDashboardData();
                 } catch (err) {
@@ -521,6 +512,37 @@
                 }
             }
         });
+
+        // View Functions
+        function showListView() {
+            document.getElementById('detailView').classList.add('hidden');
+            document.getElementById('listView').classList.remove('hidden');
+            selectedOrgId = null;
+        }
+
+        async function showDetailView(orgId) {
+            selectedOrgId = orgId;
+            const org = organizations[orgId];
+
+            if (!org) {
+                console.error("Organization not found:", orgId);
+                return;
+            }
+
+            // Populate detail view elements
+            document.getElementById('detailOrgName').textContent = org.company_name || 'N/A';
+            document.getElementById('detailOrgEmail').textContent = org.company_email || 'N/A';
+            document.getElementById('detailPremiumBadge').textContent = org.is_premium ? 'Premium' : 'Free Trial';
+            document.getElementById('detailCreatedAt').textContent = org.created_at ? new Date(org.created_at).toLocaleDateString() : 'N/A';
+            document.getElementById('orgLogoPlaceholder').textContent = (org.company_name || 'N')[0];
+
+            // Update contact buttons
+            document.getElementById('emailContactBtn').href = org.company_email ? `mailto:${org.company_email}` : '#';
+
+            // Show detail view and hide list view
+            document.getElementById('listView').classList.add('hidden');
+            document.getElementById('detailView').classList.remove('hidden');
+        }
 
         // Change Password Modal
         const passwordModal = `

@@ -447,7 +447,7 @@ function AppContent() {
               </span>
             )}
             <span>•</span>
-            <a href="mailto:sales@edgeos.com" style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 700, fontSize: '0.8125rem' }}>
+            <a href="mailto:edgeossuite@gmail.com" style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 700, fontSize: '0.8125rem' }}>
               Upgrade →
             </a>
           </div>
@@ -566,7 +566,7 @@ function AppContent() {
             <h2>Your 7-Day Trial Has Expired</h2>
             <p>Your free trial period has ended. Contact our sales team to get full access to EdgeOS with unlimited documents, custom branding, and priority support.</p>
             <div className="trial-expired-actions">
-              <a href="mailto:sales@edgeos.com" className="btn-cinematic" style={{ textDecoration: 'none' }}>
+              <a href="mailto:edgeossuite@gmail.com" className="btn-cinematic" style={{ textDecoration: 'none' }}>
                 <Mail size={16} /> Contact Sales
               </a>
               <button onClick={logout} className="btn-cinematic btn-secondary">

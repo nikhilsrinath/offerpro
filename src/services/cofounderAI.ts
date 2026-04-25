@@ -353,7 +353,9 @@ export async function callCofounderAI(
   rawData?: string,
   intent?: 'factual' | 'reasoning' | 'combined',
   currentQuestion?: OnboardingQuestion | null,
-  isOnboarding?: boolean
+  isOnboarding?: boolean,
+  systemPromptOverride?: string,
+  maxTokensOverride?: number
 ): Promise<void> {
   const { onToken, onComplete, onError } = callbacks;
 
@@ -375,16 +377,18 @@ export async function callCofounderAI(
     // Build prompt based on intent and available data
     let systemPrompt: string;
 
-    // ONBOARDING MODE: If there's a current onboarding question, use onboarding prompt
-    if (isOnboarding && currentQuestion) {
+    // DECISION MODE: override takes highest priority
+    if (systemPromptOverride) {
+      systemPrompt = systemPromptOverride;
+      console.log('[callCofounderAI] Using DECISION MODE prompt override');
+    } else if (isOnboarding && currentQuestion) {
+      // ONBOARDING MODE
       systemPrompt = buildOnboardingPrompt(currentQuestion, memory);
       console.log('[callCofounderAI] Using ONBOARDING prompt');
     } else if (intent === 'factual' && rawData) {
-      // Factual query with raw data
       systemPrompt = buildSystemPromptWithRawData(context, rawData, undefined, memory);
       console.log('[callCofounderAI] Using RAW DATA prompt');
     } else if (intent === 'combined' && rawData && memory) {
-      // Combined query with both raw data and memory insights
       const memoryInsights = {
         insights: (memory.insights || []).slice(0, 3),
         opportunities: (memory.opportunities || []).slice(0, 3),
@@ -393,11 +397,9 @@ export async function callCofounderAI(
       systemPrompt = buildSystemPromptWithRawData(context, rawData, memoryInsights, memory);
       console.log('[callCofounderAI] Using COMBINED prompt (raw + memory)');
     } else if (memory) {
-      // Reasoning query with memory
       systemPrompt = buildSystemPromptWithMemory(context, memory);
       console.log('[callCofounderAI] Using MEMORY prompt');
     } else {
-      // Fallback to basic context - also pass rawData for owner name
       systemPrompt = buildSystemPrompt(context, memory, rawData);
       console.log('[callCofounderAI] Using BASIC context prompt with rawData');
     }
@@ -410,7 +412,6 @@ export async function callCofounderAI(
       { role: 'user', content: message },
     ];
 
-
     const response = await fetch(NVIDIA_API_URL, {
       method: 'POST',
       headers: {
@@ -419,7 +420,7 @@ export async function callCofounderAI(
       body: JSON.stringify({
         model: MODEL,
         messages,
-        max_tokens: 150, // Reduced for faster responses
+        max_tokens: maxTokensOverride ?? 150,
         temperature: 0.2,
         top_p: 0.8,
         stream: true,

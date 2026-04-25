@@ -17,6 +17,8 @@ const SubPageFooter = () => (
         <div>
           <div className="eos-footer-col-title">Platform</div>
           <div className="eos-footer-links">
+            <a className="eos-footer-link" href="/ai-cofounder">AI Co-founder</a>
+            <a className="eos-footer-link" href="/pricing">Pricing</a>
             <a className="eos-footer-link" href="/invoicing">Invoicing</a>
             <a className="eos-footer-link" href="/quotations">Quotations</a>
             <a className="eos-footer-link" href="/offer-letters">Offer Letters</a>

@@ -12,7 +12,7 @@ const InvoicingPage = () => (
       <div className="sp-hero-glow" />
       <div className="eos-container">
         <div className="sp-hero-badge"><Receipt size={12} /> Invoicing</div>
-        <h1 className="sp-hero-title">Professional Invoicing<br />Made Effortless</h1>
+        <h1 className="sp-hero-title">Professional invoicing,<br /><em>made</em> effortless.</h1>
         <p className="sp-hero-subtitle">
           Generate GST-compliant invoices in seconds. Track payments, send via WhatsApp, and manage your entire billing workflow from one place.
         </p>
@@ -297,7 +297,7 @@ const InvoicingPage = () => (
       <div className="eos-container">
         <div className="sp-cta-box eos-parallax">
           <h2 className="sp-cta-title">Ready to streamline your invoicing?</h2>
-          <p className="sp-cta-subtitle">Start your 7-day free trial. No credit card required.</p>
+          <p className="sp-cta-subtitle">Get started free. No credit card required.</p>
           <a href="/" className="eos-btn eos-btn-primary">Get Started Free <ArrowRight size={16} /></a>
         </div>
       </div>

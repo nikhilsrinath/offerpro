@@ -7,7 +7,7 @@ const PrivacyPage = () => (
       <div className="sp-hero-glow" />
       <div className="eos-container">
         <div className="sp-hero-badge"><Shield size={12} /> Legal</div>
-        <h1 className="sp-hero-title">Privacy Policy</h1>
+        <h1 className="sp-hero-title"><em>Privacy</em> Policy.</h1>
         <p className="sp-hero-subtitle">
           How we collect, use, and protect your personal information.
         </p>

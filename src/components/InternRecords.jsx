@@ -72,11 +72,7 @@ export default function InternRecords() {
 
     const result = await emailService.sendOfferNotification({
       recordData: record.data,
-      emailConfig: {
-        serviceId: activeOrg?.emailjs_service_id,
-        templateId: activeOrg?.emailjs_template_id,
-        publicKey: activeOrg?.emailjs_public_key,
-      },
+      orgProfile: activeOrg,
       companyName: activeOrg?.company_name || 'Company',
     });
 

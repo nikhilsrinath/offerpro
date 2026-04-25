@@ -217,11 +217,7 @@ export default function OfferForm() {
       }
       const result = await emailService.sendOfferNotification({
         recordData: resolved,
-        emailConfig: {
-          serviceId: activeOrg?.emailjs_service_id,
-          templateId: activeOrg?.emailjs_template_id,
-          publicKey: activeOrg?.emailjs_public_key,
-        },
+        orgProfile: activeOrg,
         companyName: activeOrg?.company_name || formData.companyName || 'Company',
       });
       setEmailResult(result);
@@ -261,7 +257,7 @@ export default function OfferForm() {
                   <AlertTriangle size={28} />
                   <h3>{isTrialExpired ? 'Trial Expired' : 'Offer Letter Limit Reached'}</h3>
                   <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used all ${TRIAL_LIMITS.offer} offer letters in your free trial.`} Contact our sales team to upgrade.</p>
-                  <a href="mailto:sales@edgeos.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
+                  <a href="mailto:edgeossuite@gmail.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
                     <Mail size={16} /> Contact Sales
                   </a>
                 </div>

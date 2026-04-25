@@ -10,7 +10,7 @@ const CertificatesPage = () => (
       <div className="sp-hero-glow" />
       <div className="eos-container">
         <div className="sp-hero-badge"><Award size={12} /> Certificates</div>
-        <h1 className="sp-hero-title">Certificates That<br />Build Credibility</h1>
+        <h1 className="sp-hero-title">Certificates that<br /><em>build</em> credibility.</h1>
         <p className="sp-hero-subtitle">
           Issue professional, verifiable certificates at scale. Perfect for training programs, internships, and employee recognition.
         </p>
@@ -168,7 +168,7 @@ const CertificatesPage = () => (
       <div className="eos-container">
         <div className="sp-cta-box eos-parallax">
           <h2 className="sp-cta-title">Start issuing professional certificates today</h2>
-          <p className="sp-cta-subtitle">Start your 7-day free trial. No credit card required.</p>
+          <p className="sp-cta-subtitle">Get started free. No credit card required.</p>
           <a href="/" className="eos-btn eos-btn-primary">Get Started Free <ArrowRight size={16} /></a>
         </div>
       </div>

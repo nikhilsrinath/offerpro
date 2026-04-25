@@ -1,6 +1,8 @@
 import { lazy } from 'react';
 
 const subPages = {
+  '/ai-cofounder': lazy(() => import('./pages/AICofounderPage')),
+  '/pricing': lazy(() => import('./pages/PricingPage')),
   '/invoicing': lazy(() => import('./pages/InvoicingPage')),
   '/quotations': lazy(() => import('./pages/QuotationsPage')),
   '/offer-letters': lazy(() => import('./pages/OfferLettersPage')),

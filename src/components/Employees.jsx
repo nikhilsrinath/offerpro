@@ -5,6 +5,7 @@ import {
     Briefcase, LayoutGrid, List, Users, Building,
     Plus, X, ArrowLeft, Copy, Check, Loader,
     AlertTriangle, TrendingUp, ExternalLink, Shield,
+    ChevronRight,
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
@@ -1025,12 +1026,14 @@ export default function Employees() {
                                 <th>Contact</th>
                                 <th>Type</th>
                                 <th>Joined</th>
+                                <th aria-label="Open" />
                             </tr>
                         </thead>
                         <tbody>
                             {filteredEmployees.map((emp) => {
                                 const name = getDisplayName(emp);
                                 const [c1, c2] = getAvatarColor(name);
+                                const deptColor = displayDepts.find(d => d.name === emp.department)?.color;
                                 return (
                                     <tr
                                         key={emp.id}
@@ -1043,21 +1046,28 @@ export default function Employees() {
                                                 <div className="emp-avatar" style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
                                                     {name?.[0]?.toUpperCase()}
                                                 </div>
-                                                <span>{name}</span>
+                                                <div className="emp-table-name-text">
+                                                    <span>{name}</span>
+                                                    {emp.email && <span className="emp-table-name-sub">{emp.email}</span>}
+                                                </div>
                                             </div>
                                         </td>
                                         <td>
-                                            <div className="emp-table-role">{emp.role}</div>
-                                            <div className="emp-table-dept">{emp.department}</div>
+                                            <div className="emp-table-role">{emp.role || '—'}</div>
+                                            {emp.department && (
+                                                <div className="emp-table-dept">
+                                                    <span className="emp-table-dept-dot" style={deptColor ? { background: deptColor, opacity: 0.85 } : undefined} />
+                                                    {emp.department}
+                                                </div>
+                                            )}
                                         </td>
                                         <td>
-                                            <div className="emp-table-contact">
-                                                <Mail size={12} /> {emp.email}
-                                            </div>
-                                            {emp.phone && (
+                                            {emp.phone ? (
                                                 <div className="emp-table-contact">
                                                     <Phone size={12} /> {emp.phone}
                                                 </div>
+                                            ) : (
+                                                <span className="emp-table-date" style={{ color: 'var(--text-muted)' }}>—</span>
                                             )}
                                         </td>
                                         <td>
@@ -1068,6 +1078,11 @@ export default function Employees() {
                                         <td>
                                             <span className="emp-table-date">
                                                 {emp.startDate ? new Date(emp.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span className="emp-table-chevron">
+                                                <ChevronRight size={16} />
                                             </span>
                                         </td>
                                     </tr>

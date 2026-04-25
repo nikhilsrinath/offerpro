@@ -10,7 +10,7 @@ const QuotationsPage = () => (
       <div className="sp-hero-glow" />
       <div className="eos-container">
         <div className="sp-hero-badge"><FilePlus size={12} /> Quotations</div>
-        <h1 className="sp-hero-title">Quotations That<br />Close Deals Faster</h1>
+        <h1 className="sp-hero-title">Quotations that<br /><em>close</em> deals faster.</h1>
         <p className="sp-hero-subtitle">
           Create professional quotations with revision tracking, client portal sharing, and one-click conversion to invoices.
         </p>
@@ -211,7 +211,7 @@ const QuotationsPage = () => (
       <div className="eos-container">
         <div className="sp-cta-box eos-parallax">
           <h2 className="sp-cta-title">Win more deals with professional quotations</h2>
-          <p className="sp-cta-subtitle">Start your 7-day free trial. No credit card required.</p>
+          <p className="sp-cta-subtitle">Get started free. No credit card required.</p>
           <a href="/" className="eos-btn eos-btn-primary">Get Started Free <ArrowRight size={16} /></a>
         </div>
       </div>
