@@ -50,9 +50,9 @@ const OfferLettersPage = () => (
                   <div className="sp-demo-split">
                     <div className="sp-demo-form">
                       {/* Type Toggle */}
-                      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1rem', background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 3 }}>
-                        <div style={{ flex: 1, padding: '0.375rem', textAlign: 'center', borderRadius: 6, fontSize: '0.6875rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>Internship</div>
-                        <div style={{ flex: 1, padding: '0.375rem', textAlign: 'center', borderRadius: 6, fontSize: '0.6875rem', fontWeight: 600, background: 'rgba(255,255,255,0.1)', color: '#fff' }}>Full-Time</div>
+                      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1rem', background: 'rgba(14,14,14,0.06)', borderRadius: 8, padding: 3 }}>
+                        <div style={{ flex: 1, padding: '0.375rem', textAlign: 'center', borderRadius: 6, fontSize: '0.6875rem', fontWeight: 600, color: 'rgba(14,14,14,0.35)' }}>Internship</div>
+                        <div style={{ flex: 1, padding: '0.375rem', textAlign: 'center', borderRadius: 6, fontSize: '0.6875rem', fontWeight: 600, background: 'rgba(14,14,14,0.82)', color: '#FAF9F5' }}>Full-Time</div>
                       </div>
 
                       <div className="sp-df-section">

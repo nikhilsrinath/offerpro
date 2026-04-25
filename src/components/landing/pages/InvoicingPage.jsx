@@ -139,8 +139,8 @@ const InvoicingPage = () => (
                         <div className="sp-df-total-row"><span>Discount (5%)</span><span style={{ color: '#ef4444' }}>-₹7,250</span></div>
                         <div className="sp-df-total-row"><span>Taxable</span><strong>₹1,37,750</strong></div>
                         <div className="sp-df-total-divider" />
-                        <div className="sp-df-total-row" style={{ color: '#60a5fa' }}><span>CGST @ 9%</span><span>₹12,398</span></div>
-                        <div className="sp-df-total-row" style={{ color: '#60a5fa' }}><span>SGST @ 9%</span><span>₹12,398</span></div>
+                        <div className="sp-df-total-row" style={{ color: '#2563eb' }}><span>CGST @ 9%</span><span>₹12,398</span></div>
+                        <div className="sp-df-total-row" style={{ color: '#2563eb' }}><span>SGST @ 9%</span><span>₹12,398</span></div>
                         <div className="sp-df-total-divider" />
                         <div className="sp-df-total-row sp-df-total-grand"><span>Grand Total</span><strong>₹1,62,546</strong></div>
                         <div className="sp-df-total-row" style={{ color: '#f59e0b' }}><span>Making Cost</span><span>₹44,000</span></div>

@@ -110,12 +110,12 @@ const QuotationsPage = () => (
 
                       <div className="sp-df-totals">
                         <div className="sp-df-total-row"><span>Subtotal</span><strong>₹3,25,000</strong></div>
-                        <div className="sp-df-total-row" style={{ color: '#60a5fa' }}><span>GST @ 18%</span><span>₹58,500</span></div>
+                        <div className="sp-df-total-row" style={{ color: '#2563eb' }}><span>GST @ 18%</span><span>₹58,500</span></div>
                         <div className="sp-df-total-divider" />
                         <div className="sp-df-total-row sp-df-total-grand"><span>Grand Total</span><strong>₹3,83,500</strong></div>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-                        <div className="sp-df-btn" style={{ flex: 1, background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}>Save Draft</div>
+                        <div className="sp-df-btn" style={{ flex: 1, background: 'rgba(14,14,14,0.07)', color: 'rgba(14,14,14,0.65)', border: '1px solid rgba(14,14,14,0.12)' }}>Save Draft</div>
                         <div className="sp-df-btn" style={{ flex: 1, background: '#25D366', color: '#fff' }}>Send via WhatsApp</div>
                       </div>
                     </div>
