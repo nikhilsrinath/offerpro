@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, ArrowRight, Zap } from 'lucide-react';
+import { Mail, Lock, ArrowRight, ArrowLeft } from 'lucide-react';
 import Registration from './Registration';
 
 const GoogleIcon = () => (
@@ -12,7 +13,17 @@ const GoogleIcon = () => (
   </svg>
 );
 
+const FEATURES = [
+  'Offer Letters & Contracts',
+  'GST Invoicing',
+  'AI Co-founder',
+  'Legal Documents',
+  'Team Management',
+  'Quotations & Proformas',
+];
+
 const Auth = () => {
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -58,46 +69,66 @@ const Auth = () => {
 
   return (
     <div className="auth-split-wrapper" data-theme="light">
-      {/* Left Side: Premium Visual */}
+      {/* Left Side: Editorial Visual */}
       <div className="auth-visual-side">
-        <div className="sparkle-container auth-sparkle-container">
-          <div className="animate-in" style={{ animationDelay: '0.1s' }}>
-            <div className="badge-cinematic" style={{ marginBottom: '2rem' }}>Royal Infrastructure</div>
-            <h1 className="auth-hero-title">
-              Pure <br /> Intelligence.
-            </h1>
-            <p className="auth-hero-subtitle">
-              The ultimate high-performance workspace for elite business automation and document engineering.
-            </p>
-          </div>
+        <div className="auth-visual-noise" />
 
-          <div className="auth-hero-icon">
-            <Zap size={120} strokeWidth={0.5} />
+        <div className="auth-visual-top">
+          <img src="/edgeos-logo.png" alt="EdgeOS" className="auth-visual-logo" />
+        </div>
+
+        <div className="auth-visual-content">
+          <div className="auth-visual-eyebrow">Business Operating System</div>
+          <h1 className="auth-hero-title">
+            Every document.<br />
+            Every deal.<br />
+            <em>One workspace.</em>
+          </h1>
+          <p className="auth-hero-subtitle">
+            EdgeOS unifies your documents, finances, and team operations into a single intelligent platform.
+          </p>
+
+          <div className="auth-feature-pills">
+            {FEATURES.map((f) => (
+              <span key={f} className="auth-feature-pill">{f}</span>
+            ))}
+          </div>
+        </div>
+
+        <div className="auth-visual-bottom">
+          <div className="auth-visual-stat">
+            <span className="auth-visual-stat-num">10×</span>
+            <span className="auth-visual-stat-label">faster document workflow</span>
+          </div>
+          <div className="auth-visual-stat-divider" />
+          <div className="auth-visual-stat">
+            <span className="auth-visual-stat-num">100%</span>
+            <span className="auth-visual-stat-label">GST compliant invoicing</span>
           </div>
         </div>
       </div>
 
       {/* Right Side: Form */}
       <div className="auth-form-side">
-        <div className="auth-form-container animate-in">
+        <div className="auth-form-container">
+          <button className="auth-back-btn" onClick={() => navigate('/')}>
+            <ArrowLeft size={14} /> Back to home
+          </button>
+
           <div className="auth-form-header">
-            <div className="nav-logo auth-logo">
-              <img src="/edgeos-logo.png" alt="EdgeOS" style={{ height: '24px', width: 'auto' }} />
-            </div>
-            <h2 className="auth-form-title">Sign In</h2>
-            <p className="auth-form-subtitle">Welcome to the elite workspace.</p>
+            <h2 className="auth-form-title">Welcome back</h2>
+            <p className="auth-form-subtitle">Sign in to your EdgeOS workspace.</p>
           </div>
 
           {error && (
             <div className="auth-error-banner">{error}</div>
           )}
 
-          {/* Google Sign-In Button */}
           <button
             type="button"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="auth-google-btn auth-input-focus"
+            className="auth-google-btn"
           >
             <GoogleIcon />
             Continue with Google
@@ -111,31 +142,31 @@ const Auth = () => {
 
           <form onSubmit={handleSubmit}>
             <div className="auth-field">
-              <label className="auth-label">Corporate Identity</label>
+              <label className="auth-label">Email</label>
               <div className="auth-input-wrapper">
-                <Mail size={16} className="auth-input-icon" />
+                <Mail size={15} className="auth-input-icon" />
                 <input
                   type="email"
                   placeholder="name@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="auth-input auth-input-focus"
+                  className="auth-input"
                 />
               </div>
             </div>
 
             <div className="auth-field-last">
-              <label className="auth-label">Access Key</label>
+              <label className="auth-label">Password</label>
               <div className="auth-input-wrapper">
-                <Lock size={16} className="auth-input-icon" />
+                <Lock size={15} className="auth-input-icon" />
                 <input
                   type="password"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="auth-input auth-input-focus"
+                  className="auth-input"
                 />
               </div>
             </div>
@@ -143,19 +174,19 @@ const Auth = () => {
             <button
               type="submit"
               disabled={loading}
-              className="btn-cinematic auth-submit-btn"
+              className="auth-submit-btn"
             >
-              {loading ? 'Authenticating...' : 'Initialize Access'}
-              {!loading && <ArrowRight size={18} />}
+              {loading ? 'Signing in…' : 'Sign In'}
+              {!loading && <ArrowRight size={17} />}
             </button>
           </form>
 
           <div className="auth-footer">
             <button
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => setIsLogin(false)}
               className="auth-switch-btn"
             >
-              New to the suite? Request access
+              Don't have an account? <span>Get started</span>
             </button>
           </div>
         </div>

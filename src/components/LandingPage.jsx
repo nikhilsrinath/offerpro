@@ -743,30 +743,6 @@ const LandingPage = ({ onEnter }) => {
         </div>
       </section>
 
-      {/* ════════════════ STATS ════════════════ */}
-      <section className="eos-stats">
-        <div className="eos-container">
-          <div className="eos-stats-grid eos-parallax">
-            <div>
-              <div className="eos-stat-number">50K+</div>
-              <div className="eos-stat-label">Documents Generated</div>
-            </div>
-            <div>
-              <div className="eos-stat-number">1.2s</div>
-              <div className="eos-stat-label">Avg. Generation Time</div>
-            </div>
-            <div>
-              <div className="eos-stat-number">200%</div>
-              <div className="eos-stat-label">Productivity Boost</div>
-            </div>
-            <div>
-              <div className="eos-stat-number">99.9%</div>
-              <div className="eos-stat-label">Uptime SLA</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ════════════════ TIMELINE — PARALLAX SCROLL ════════════════ */}
       <section id="how-it-works" className="eos-tl-section">
         <div className="eos-container">

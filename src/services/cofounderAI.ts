@@ -555,9 +555,135 @@ export function getSuggestedPrompts(context: EdgeContext): SuggestedPrompt[] {
   return prompts.slice(0, 4);
 }
 
+// ── Task assignment intent detection ─────────────────────────────────────────
+
+export function detectTaskAssignIntent(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    /\bassign\b/.test(m) ||
+    /\bcreate.{0,10}task\b/.test(m) ||
+    /\badd.{0,10}task\b/.test(m) ||
+    /\bnew task\b/.test(m) ||
+    /\btask.{0,15}(for|to)\b/.test(m) ||
+    (/\b(remind|tell|ask)\b/.test(m) && /\bto\b/.test(m) && /\bby\b/.test(m))
+  );
+}
+
+export function parseDateFromMessage(message: string): string | null {
+  const m = message.toLowerCase();
+  const today = new Date();
+
+  if (/\btoday\b/.test(m)) {
+    return today.toISOString().slice(0, 10);
+  }
+  if (/\btomorrow\b/.test(m)) {
+    const d = new Date(today); d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }
+  if (/\bnext week\b/.test(m)) {
+    const d = new Date(today); d.setDate(d.getDate() + 7);
+    return d.toISOString().slice(0, 10);
+  }
+  // "in X days"
+  const inDays = m.match(/\bin\s+(\d+)\s+days?\b/);
+  if (inDays) {
+    const d = new Date(today); d.setDate(d.getDate() + parseInt(inDays[1]));
+    return d.toISOString().slice(0, 10);
+  }
+  // "by Monday/Tuesday/..." → next occurrence
+  const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+  for (let i = 0; i < dayNames.length; i++) {
+    if (m.includes(dayNames[i])) {
+      const d = new Date(today);
+      const diff = (i - d.getDay() + 7) % 7 || 7;
+      d.setDate(d.getDate() + diff);
+      return d.toISOString().slice(0, 10);
+    }
+  }
+  return null;
+}
+
+export function buildTaskAssignPrompt(
+  userMessage: string,
+  employee: any,
+  companyName: string,
+  userName: string,
+  empName: string,
+): string {
+  return `You are the AI Co-founder for ${companyName}, helping ${userName} create a task.
+
+REQUEST: "${userMessage}"
+
+ASSIGNEE: ${empName} (${employee.role || 'Team Member'}, ${employee.department || 'General'})
+
+Extract the task details from the request and output EXACTLY in this format — nothing else:
+
+TITLE: [clear, action-oriented task title, max 8 words]
+PRIORITY: [low|medium|high — infer from urgency/context]
+DESCRIPTION: [1-2 sentences describing what needs to be done. Be specific.]
+
+RULES:
+- TITLE must be a direct action: "Fix homepage loading bug" not "There is a bug"
+- PRIORITY high = urgent/critical/ASAP, medium = normal, low = nice-to-have
+- DESCRIPTION must be specific to the user's request
+- Output only the 3 lines above, nothing else`;
+}
+
+export function parseTaskAssignResponse(content: string): { title: string; priority: 'low'|'medium'|'high'; description: string } | null {
+  const titleMatch = content.match(/^TITLE:\s*(.+)/im);
+  const priorityMatch = content.match(/^PRIORITY:\s*(low|medium|high)/im);
+  const descMatch = content.match(/^DESCRIPTION:\s*(.+)/im);
+  if (!titleMatch) return null;
+  return {
+    title: titleMatch[1].trim(),
+    priority: (priorityMatch?.[1].trim() as 'low'|'medium'|'high') || 'medium',
+    description: descMatch?.[1].trim() || '',
+  };
+}
+
+/**
+ * Check if a task-assign message contains enough detail to create a task
+ * (i.e., more than just "add a task for [name]")
+ */
+export function hasTaskTitle(message: string, empName: string): boolean {
+  let m = message.toLowerCase();
+  // Remove task command words
+  m = m.replace(/\b(add|create|assign|make|give|set\s*up|schedule|put)\b/g, '');
+  m = m.replace(/\ba\b/g, '');
+  m = m.replace(/\btask\b/g, '');
+  m = m.replace(/\b(for|to|with)\b/g, '');
+  // Remove each part of the employee name
+  const nameParts = empName.toLowerCase().split(/\s+/);
+  for (const part of nameParts) {
+    if (part.length > 1) {
+      m = m.replace(new RegExp(`\\b${part}\\b`, 'g'), '');
+    }
+  }
+  // Count remaining meaningful words (length > 2 chars)
+  const words = m.split(/\s+/).filter(w => w.length > 2);
+  return words.length >= 3;
+}
+
+export function buildTaskAwareFollowUpContext(tasks: any[]): string {
+  if (!tasks || tasks.length === 0) return '';
+  const activeTasks = tasks.filter(t => t.status !== 'done');
+  if (activeTasks.length === 0) return '\nNote: This employee has no active tasks.';
+  const lines = activeTasks.map(t => {
+    const deadline = t.deadline ? ` (deadline: ${t.deadline})` : '';
+    return `• [${t.status.toUpperCase()}] ${t.title}${deadline}${t.priority === 'high' ? ' ⚠️ HIGH PRIORITY' : ''}`;
+  });
+  return `\nACTIVE TASKS ASSIGNED TO THIS EMPLOYEE:\n${lines.join('\n')}`;
+}
+
 export default {
   callCofounderAI,
   callCofounderAISimple,
   buildEdgeContext,
   getSuggestedPrompts,
+  detectTaskAssignIntent,
+  hasTaskTitle,
+  parseDateFromMessage,
+  buildTaskAssignPrompt,
+  parseTaskAssignResponse,
+  buildTaskAwareFollowUpContext,
 };

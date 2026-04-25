@@ -607,12 +607,14 @@ const FACTUAL_KEYWORDS = [
   'who', 'list', 'show', 'names', 'details', 'what are', 'how many',
   'employees', 'team members', 'staff', 'people', 'roles',
   'customers', 'leads', 'contacts', 'clients',
-  'tasks', 'projects', 'invoices', 'documents', 'records',
+  'tasks', 'task board', 'projects', 'invoices', 'documents', 'records',
   'revenue', 'money', 'paid', 'pending', 'collected', 'earnings',
   'financial', 'bill', 'quotation', 'proforma', 'expense', 'cost',
   'tell me about', 'give me', 'find', 'search',
   'email', 'phone', 'contact', 'address', 'location',
-  'founder', 'boss', 'owner', 'ceo', 'you', 'me'
+  'founder', 'boss', 'owner', 'ceo', 'you', 'me',
+  'assign', 'assigned', 'deadline', 'overdue', 'due', 'working on',
+  'doing', 'responsible', 'in progress', 'completed',
 ];
 
 const REASONING_KEYWORDS = [
@@ -804,24 +806,29 @@ function formatCRM(crm: any): string {
  * Format raw tasks data for AI prompt
  */
 function formatTasks(tasks: any): string {
-  if (!tasks || typeof tasks !== 'object') return 'No task data available.';
+  if (!tasks || typeof tasks !== 'object') return 'No tasks assigned yet.';
 
   const taskList = Object.values(tasks) as any[];
   if (taskList.length === 0) return 'No tasks found.';
 
   const formatted = taskList.map((t, idx) => {
-    const title = t.title || t.name || t.task || 'Untitled';
-    const status = t.status || 'pending';
-    const assignee = t.assignee || t.assigned_to || t.assignedTo || 'Unassigned';
-    const due = t.due_date || t.dueDate || '';
+    const title    = t.title || 'Untitled';
+    const status   = (t.status || 'pending').toUpperCase();
+    const assignee = t.assignedName || 'Unassigned';   // ← real name, not push-ID
+    const role     = t.assignedRole ? ` (${t.assignedRole})` : '';
+    const deadline = t.deadline || '';                  // ← correct field name
+    const priority = t.priority || 'medium';
+    const desc     = t.description || '';
 
-    let line = `${idx + 1}. ${title} [${status}]`;
-    if (assignee && assignee !== 'Unassigned') line += ` → ${assignee}`;
-    if (due) line += ` (Due: ${due})`;
-    return line;
+    const lines = [`${idx + 1}. "${title}" [${status}] [${priority} priority]`];
+    lines.push(`   Assigned to: ${assignee}${role}`);
+    if (deadline) lines.push(`   Deadline: ${deadline}`);
+    if (desc)     lines.push(`   Details: ${desc}`);
+    if (t.notes)  lines.push(`   Notes: ${t.notes}`);
+    return lines.join('\n');
   });
 
-  return `Tasks (${taskList.length} total):\n${formatted.join('\n')}`;
+  return `TASKS (${taskList.length} total):\n${formatted.join('\n\n')}`;
 }
 
 /**
@@ -875,8 +882,12 @@ export function formatRawDataForPrompt(
                          lowerMsg.includes('expense') || lowerMsg.includes('cost') ||
                          lowerMsg.includes('financial') || lowerMsg.includes('price');
 
-  const needsTasks = lowerMsg.includes('task') || lowerMsg.includes('project') ||
-                     lowerMsg.includes('work') || lowerMsg.includes('assignment');
+  const needsTasks = lowerMsg.includes('task') || lowerMsg.includes('assign') ||
+                     lowerMsg.includes('deadline') || lowerMsg.includes('overdue') ||
+                     lowerMsg.includes('working on') || lowerMsg.includes('doing') ||
+                     lowerMsg.includes('in progress') || lowerMsg.includes('project') ||
+                     lowerMsg.includes('due') || lowerMsg.includes('responsible') ||
+                     lowerMsg.includes('pending work') || lowerMsg.includes('assignment');
 
   const needsCompany = lowerMsg.includes('company') || lowerMsg.includes('business') ||
                        lowerMsg.includes('about us') || lowerMsg.includes('info') ||
@@ -909,6 +920,8 @@ export function formatRawDataForPrompt(
     }
     if (needsTasks || intent === 'factual') {
       sections.push(formatTasks(orgData.tasks));
+      // Always show employees alongside tasks so AI can correlate names ↔ roles
+      if (!needsEmployees) sections.push(formatEmployees(orgData.employees));
     }
     if (needsCompany || intent === 'factual') {
       sections.push(formatCompanyInfo(orgData));

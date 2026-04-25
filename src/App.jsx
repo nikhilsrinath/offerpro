@@ -6,7 +6,7 @@ import {
   Zap, UserCircle, ChevronRight, ChevronDown, Clock, Mail, AlertTriangle, Users,
   UploadCloud, FileCheck, FileSignature, History,
   FileSpreadsheet, Activity, Receipt, FilePlus, RotateCcw, ArrowLeft,
-  Sun, Moon, GitBranch, UserX, Kanban,
+  Sun, Moon, GitBranch, UserX, Kanban, CheckSquare,
   FileText, BarChart3, File, PieChart as PieChartIcon
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
@@ -34,6 +34,9 @@ import Employees from './components/Employees';
 import EmployeeForm from './components/EmployeeForm';
 import ExEmployees from './components/ExEmployees';
 import TeamHierarchy from './components/TeamHierarchy';
+import TasksPage from './components/tasks/TasksPage';
+import CopilotPanel from './components/cofounder/CopilotPanel';
+import { useTaskDeadlineMonitor } from './hooks/useTaskDeadlineMonitor';
 import { useTrialStatus } from './hooks/useTrialStatus';
 import { useTheme } from './hooks/useTheme';
 
@@ -56,7 +59,7 @@ import { documentStore } from './services/documentStore';
 
 const MODULE_FILTER = {
   overall: ['dashboard'],
-  team: ['team-hierarchy', 'employees', 'offer-tracker', 'ex-employees', 'bulk-team'],
+  team: ['team-hierarchy', 'employees', 'offer-tracker', 'ex-employees', 'tasks', 'bulk-team'],
   documents: ['offers', 'new-certificates', 'certificates', 'ndas', 'mous', 'bulk-offers', 'bulk-certificates'],
   finance: ['finance-status', 'invoices', 'quotations', 'proforma', 'recurring'],
   business: ['crm', 'customers', 'revenue', 'planner'],
@@ -70,6 +73,7 @@ const NAV_ITEMS = [
   { id: 'employees', label: 'Employees', icon: Users },
   { id: 'offer-tracker', label: 'Offer Tracker', icon: Activity },
   { id: 'ex-employees', label: 'Ex-Employees', icon: UserX },
+  { id: 'tasks', label: 'Task Board', icon: CheckSquare },
   { section: 'DOCUMENTS' },
   { id: 'offers', label: 'Offer Letters', icon: Briefcase },
   { id: 'new-certificates', label: 'Certificates', icon: Award },
@@ -124,13 +128,14 @@ const PAGE_META = {
   'bulk-certificates': { title: 'Bulk Certificates', subtitle: 'Issue batches of certificates efficiently' },
   'bulk-team': { title: 'Bulk Team Members', subtitle: 'Import your team registry from a CSV file' },
   'bulk-history': { title: 'Bulk History', subtitle: 'Track and review past bulk generation jobs' },
+  tasks: { title: 'Task Board', subtitle: 'Assign and track tasks across your team' },
 };
 
 function AppContent() {
   const location = useLocation();
   const routerNavigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showLanding, setShowLanding] = useState(true);
+  useTaskDeadlineMonitor();
 
   let activePage = location.pathname.substring(1);
   if (activePage === '') activePage = 'hub';
@@ -158,6 +163,8 @@ function AppContent() {
   const { theme, toggleTheme } = useTheme();
   const [notifications, setNotifications] = useState([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [copilotFullscreen, setCopilotFullscreen] = useState(false);
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const refreshNotifications = useCallback(() => {
@@ -208,12 +215,11 @@ function AppContent() {
     );
   }
 
-  if (showLanding && !user) {
-    return <LandingPage onEnter={() => setShowLanding(false)} />;
-  }
-
   if (!user) {
-    return <Auth />;
+    const pathname = location.pathname;
+    if (pathname === '/login') return <Auth />;
+    if (pathname === '/signup') return <Registration onBack={() => routerNavigate('/login')} />;
+    return <LandingPage onEnter={() => routerNavigate('/login')} />;
   }
 
   if (needsOnboarding) {
@@ -517,7 +523,7 @@ function AppContent() {
 
         <div className={`page-content${activePage === 'team-hierarchy' ? ' page-content-canvas' : ''}`}>
           <Routes>
-            <Route index element={<Navigate to="hub" replace />} />
+            <Route index element={<Navigate to="/hub" replace />} />
             <Route path="hub" element={<Hub user={user} activeOrg={activeOrg} theme={theme} />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="profile" element={<CompanyProfile theme={theme} onToggleTheme={toggleTheme} />} />
@@ -547,14 +553,32 @@ function AppContent() {
             <Route path="ex-employees" element={<ExEmployees />} />
             <Route path="team-hierarchy" element={<TeamHierarchy />} />
             <Route path="offer-tracker" element={<OfferTracker onNavigate={routerNavigate} />} />
+            <Route path="tasks" element={<TasksPage />} />
             <Route path="bulk-offers" element={<BulkOfferLetters />} />
             <Route path="bulk-certificates" element={<BulkCertificates />} />
             <Route path="bulk-team" element={<BulkTeamMembers />} />
             <Route path="bulk-history" element={<BulkHistory />} />
-            <Route path="*" element={<Navigate to="hub" replace />} />
+            <Route path="*" element={<Navigate to="/hub" replace />} />
           </Routes>
         </div>
       </div>
+
+      {/* Co-founder AI — lives here so messages survive navigation */}
+      <CopilotPanel
+        isOpen={copilotOpen}
+        onToggle={() => setCopilotOpen(v => !v)}
+        isFullscreen={copilotFullscreen}
+        onFullscreenToggle={() => setCopilotFullscreen(v => !v)}
+        theme={theme}
+        edgeContext={{
+          company: activeOrg?.company_name || activeOrg?.name || 'Company',
+          financials: { totalRevenue: 0, pendingRevenue: 0, avgMonthlyRevenue: 0, lastMonthRevenue: 0, growthRate: '0%', invoicesIssued: 0, invoicesPaid: 0, invoicesPending: 0 },
+          documents: { total: 0, offerLetters: 0, invoices: 0, quotations: 0, proformas: 0 },
+          trends: { monthlyRevenue: [], documentGrowth: 'stable' },
+          team: { user: user?.email || 'Founder', role: 'Admin' },
+          orgId: activeOrg?.id || null,
+        }}
+      />
 
       {/* Trial Expired Overlay */}
       {isTrialExpired && user && !needsOnboarding && !isPremium && (

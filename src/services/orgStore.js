@@ -14,7 +14,7 @@ let _listeners = [];   // active Firestore unsubscribers
 // Sections that hold keyed objects (push-ID children) - Mapping to Firestore Collections
 const KEYED_SECTIONS = new Set([
   'employees', 'ex_employees', 'departments', 'customers',
-  'expenses', 'records', 'fin_docs', 'products', 'crm_leads',
+  'expenses', 'records', 'fin_docs', 'products', 'crm_leads', 'tasks',
 ]);
 
 // Sections that map to fields in the org_metadata/{orgId} document in Firestore
@@ -198,6 +198,17 @@ export const orgStore = {
             reconstructed[section] = rtdbSection.val();
             syncToFirestore(section, null, reconstructed[section]);
           }
+        }
+      }
+
+      // Merge in-memory writes that haven't reached Firestore/RTDB yet.
+      // If the existing cache has MORE items for a section than what we
+      // just fetched, keep the in-memory version (it has pending writes).
+      for (const section of KEYED_SECTIONS) {
+        const inMemCount = Object.keys(_cache[section] || {}).length;
+        const freshCount = Object.keys(reconstructed[section] || {}).length;
+        if (inMemCount > freshCount) {
+          reconstructed[section] = { ...reconstructed[section], ..._cache[section] };
         }
       }
 

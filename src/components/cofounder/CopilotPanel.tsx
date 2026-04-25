@@ -14,7 +14,17 @@ import {
   Mail,
   MessageCircle,
 } from 'lucide-react';
-import { callCofounderAI, getSuggestedPrompts } from '../../services/cofounderAI';
+import {
+  callCofounderAI,
+  getSuggestedPrompts,
+  detectTaskAssignIntent,
+  hasTaskTitle,
+  parseDateFromMessage,
+  buildTaskAssignPrompt,
+  parseTaskAssignResponse,
+  buildTaskAwareFollowUpContext,
+} from '../../services/cofounderAI';
+import { taskStore, Task } from '../../services/taskStore';
 import {
   loadCompanyMemory,
   refreshMemory,
@@ -53,6 +63,10 @@ import { useOrg } from '../../context/OrgContext';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+interface TaskCreated {
+  task: Task;
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -61,6 +75,7 @@ interface Message {
   isStreaming?: boolean;
   isDecisionFinal?: boolean;
   followUpDraft?: FollowUpDraft;
+  taskCreated?: TaskCreated;
 }
 
 interface EdgeContext {
@@ -309,6 +324,56 @@ function FollowUpDraftCard({
   );
 }
 
+// ── Task created card ─────────────────────────────────────────────────────────
+
+const STATUS_PILL: Record<string, { bg: string; color: string }> = {
+  pending:     { bg: 'rgba(251,191,36,0.12)', color: '#d97706' },
+  'in-progress': { bg: 'rgba(59,130,246,0.12)', color: '#2563eb' },
+  done:        { bg: 'rgba(16,185,129,0.12)', color: '#059669' },
+  overdue:     { bg: 'rgba(239,68,68,0.12)', color: '#dc2626' },
+};
+const PRIORITY_DOT: Record<string, string> = { low: '#94a3b8', medium: '#d97706', high: '#dc2626' };
+
+function TaskCreatedCard({ task, onDismiss }: { task: Task; onDismiss: () => void }) {
+  const sc = STATUS_PILL[task.status] || STATUS_PILL.pending;
+  const deadlineLabel = task.deadline
+    ? new Date(task.deadline + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+    : 'No deadline';
+
+  return (
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border-default)', borderRadius: 12, padding: '1rem', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <CheckCircle2 size={15} color="#059669" />
+          <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>Task Created</span>
+        </div>
+        <span style={{ padding: '0.15rem 0.55rem', borderRadius: 100, background: sc.bg, color: sc.color, fontSize: '0.6875rem', fontWeight: 700, textTransform: 'capitalize' }}>
+          {task.status}
+        </span>
+      </div>
+      <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>{task.title}</div>
+      {task.description && (
+        <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{task.description}</div>
+      )}
+      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+          <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Assigned to:</span> {task.assignedName}
+        </div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+          <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Due:</span> {deadlineLabel}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: PRIORITY_DOT[task.priority] || '#94a3b8', display: 'inline-block' }} />
+          <span style={{ textTransform: 'capitalize' }}>{task.priority} priority</span>
+        </div>
+      </div>
+      <button onClick={onDismiss} style={{ alignSelf: 'flex-end', padding: '0.35rem 0.75rem', background: 'none', border: '1px solid var(--border-default)', borderRadius: 7, fontSize: '0.75rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
+        Dismiss
+      </button>
+    </div>
+  );
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function CopilotPanel({
@@ -336,6 +401,9 @@ export default function CopilotPanel({
 
   // Follow-up state
   const [employees, setEmployees] = useState<any[]>([]);
+
+  // Task clarification state — set when intent fires but details are missing
+  const [taskPendingEmployee, setTaskPendingEmployee] = useState<any | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -382,10 +450,15 @@ export default function CopilotPanel({
     setDecisionCtx(null);
     setPendingOptions(null);
     setLastDecisionQuestion('');
+    setTaskPendingEmployee(null);
   }, []);
 
   const cancelFollowUp = useCallback((msgId: string) => {
     setMessages(prev => prev.map(m => m.id === msgId ? { ...m, followUpDraft: undefined } : m));
+  }, []);
+
+  const dismissTaskCard = useCallback((msgId: string) => {
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, taskCreated: undefined } : m));
   }, []);
 
   const handleFollowUpSent = useCallback((channel: 'email' | 'whatsapp', toName: string) => {
@@ -477,19 +550,76 @@ export default function CopilotPanel({
       maxTokensOverride = updatedCtx.questionCount >= 4 ? 450 : 260;
     }
 
+    // ── Task assignment mode wiring ──────────────────────────────────────
+    let isTaskMode = false;
+    let activeTaskEmployee: any = null;
+    let taskDeadline: string | null = null;
+
+    if (!isOnboarding && !isInDecision && !shouldStartDecision && !systemPromptOverride) {
+      // If we were waiting for task details, treat this message as the task description
+      if (taskPendingEmployee) {
+        isTaskMode = true;
+        activeTaskEmployee = taskPendingEmployee;
+        taskDeadline = parseDateFromMessage(trimmedText);
+        systemPromptOverride = buildTaskAssignPrompt(
+          trimmedText, taskPendingEmployee, companyName, decisionUserName,
+          getEmployeeFullName(taskPendingEmployee),
+        );
+        maxTokensOverride = 200;
+        setTaskPendingEmployee(null);
+      } else if (detectTaskAssignIntent(trimmedText)) {
+        const matched = matchEmployee(trimmedText, employees);
+        if (matched) {
+          const empFullName = getEmployeeFullName(matched);
+          if (hasTaskTitle(trimmedText, empFullName)) {
+            // Enough detail — create task now
+            isTaskMode = true;
+            activeTaskEmployee = matched;
+            taskDeadline = parseDateFromMessage(trimmedText);
+            systemPromptOverride = buildTaskAssignPrompt(
+              trimmedText, matched, companyName, decisionUserName, empFullName,
+            );
+            maxTokensOverride = 200;
+          } else {
+            // No task details yet — ask clarifying questions, skip AI call
+            const clarifyMsg = `Sure! I'll create a task for ${empFullName}. Please tell me:\n\n• What is the task? (e.g. "Fix the login bug")\n• What's the deadline? (e.g. "by Friday" or "next week")\n• What priority? (low / medium / high)`;
+            const userMsg: Message = {
+              id: Date.now().toString(),
+              role: 'user',
+              content: trimmedText,
+              timestamp: new Date(),
+            };
+            const assistantMsg: Message = {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: clarifyMsg,
+              timestamp: new Date(),
+            };
+            setMessages(prev => [...prev, userMsg, assistantMsg]);
+            setInputValue('');
+            setTaskPendingEmployee(matched);
+            return;
+          }
+        }
+      }
+    }
+
     // ── Follow-up mode wiring ────────────────────────────────────────────
     let isFollowUpMode = false;
     let activeFollowUpEmployee: any = null;
 
-    if (!isOnboarding && !isInDecision && !shouldStartDecision && !systemPromptOverride) {
+    if (!isOnboarding && !isInDecision && !shouldStartDecision && !isTaskMode && !systemPromptOverride) {
       if (detectFollowUpIntent(trimmedText)) {
         const empList: any[] = employees;
         const matched = matchEmployee(trimmedText, empList);
         if (matched) {
           isFollowUpMode = true;
           activeFollowUpEmployee = matched;
+          // Inject employee's active tasks into the follow-up context
+          const empTasks = taskStore.getByEmployee(matched.id);
+          const taskCtx = buildTaskAwareFollowUpContext(empTasks);
           systemPromptOverride = buildFollowUpPrompt(
-            trimmedText, matched, rawData, companyName, decisionUserName,
+            trimmedText, matched, rawData + taskCtx, companyName, decisionUserName,
           );
           maxTokensOverride = 330;
         }
@@ -524,15 +654,48 @@ export default function CopilotPanel({
         {
           onToken: (_token: string, fullContent: string) => {
             setStreamingContent(fullContent);
-            if (activeDecisionCtx === null && !isFollowUpMode) {
+            if (activeDecisionCtx === null && !isFollowUpMode && !isTaskMode) {
               setMessages(prev =>
                 prev.map(m => (m.id === aiMsgId ? { ...m, content: fullContent } : m))
               );
             }
-            // Decision / follow-up mode: suppress raw output; typing indicator shows instead
           },
-          onComplete: (fullContent: string) => {
-            if (activeDecisionCtx !== null) {
+          onComplete: async (fullContent: string) => {
+            if (isTaskMode && activeTaskEmployee) {
+              const parsed = parseTaskAssignResponse(fullContent);
+              let createdTask: Task | null = null;
+              if (parsed) {
+                try {
+                  createdTask = await taskStore.create({
+                    title: parsed.title,
+                    description: parsed.description,
+                    priority: parsed.priority,
+                    status: 'pending',
+                    assignedTo: activeTaskEmployee.id,
+                    assignedName: getEmployeeFullName(activeTaskEmployee),
+                    assignedEmail: activeTaskEmployee.email || '',
+                    assignedPhone: activeTaskEmployee.phone || '',
+                    assignedRole: activeTaskEmployee.role || '',
+                    assignedDept: activeTaskEmployee.department || '',
+                    deadline: taskDeadline,
+                    notes: '',
+                    followUpSentAt: null,
+                  });
+                } catch (e) {
+                  console.error('[CopilotPanel] Task creation failed:', e);
+                }
+              }
+              const confirmMsg = createdTask
+                ? `Task "${createdTask.title}" assigned to ${getEmployeeFullName(activeTaskEmployee)}${taskDeadline ? ` — due ${new Date(taskDeadline + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}.`
+                : `I couldn't parse the task details. Please try again with a clearer description.`;
+              setMessages(prev =>
+                prev.map(m =>
+                  m.id === aiMsgId
+                    ? { ...m, content: confirmMsg, isStreaming: false, ...(createdTask ? { taskCreated: { task: createdTask } } : {}) }
+                    : m
+                )
+              );
+            } else if (activeDecisionCtx !== null) {
               const parsed = parseDecisionResponse(fullContent);
 
               if (parsed.type === 'question') {
@@ -635,6 +798,7 @@ export default function CopilotPanel({
     isOnboardingMode,
     decisionCtx,
     lastDecisionQuestion,
+    taskPendingEmployee,
   ]);
 
   const handleOptionClick = useCallback(
@@ -980,6 +1144,12 @@ export default function CopilotPanel({
               onSent={handleFollowUpSent}
             />
           )}
+          {message.taskCreated && !isUser && (
+            <TaskCreatedCard
+              task={message.taskCreated.task}
+              onDismiss={() => dismissTaskCard(message.id)}
+            />
+          )}
         </div>
       </div>
     );
@@ -1113,7 +1283,13 @@ export default function CopilotPanel({
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={decisionCtx ? 'Type a custom answer…' : 'Ask anything…'}
+                placeholder={
+                  taskPendingEmployee
+                    ? `Describe the task for ${getEmployeeFullName(taskPendingEmployee)}…`
+                    : decisionCtx
+                    ? 'Type a custom answer…'
+                    : 'Ask anything…'
+                }
                 rows={1}
                 style={{
                   flex: 1,
@@ -1405,6 +1581,12 @@ export default function CopilotPanel({
               onSent={handleFollowUpSent}
             />
           )}
+          {message.taskCreated && !isUser && (
+            <TaskCreatedCard
+              task={message.taskCreated.task}
+              onDismiss={() => dismissTaskCard(message.id)}
+            />
+          )}
         </div>
       </div>
     );
@@ -1690,7 +1872,13 @@ export default function CopilotPanel({
               value={inputValue}
               onChange={e => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={decisionCtx ? 'Type a custom answer…' : 'Ask your co-founder anything…'}
+              placeholder={
+                taskPendingEmployee
+                  ? `Describe the task for ${getEmployeeFullName(taskPendingEmployee)}…`
+                  : decisionCtx
+                  ? 'Type a custom answer…'
+                  : 'Ask your co-founder anything…'
+              }
               rows={1}
               style={{
                 flex: 1,

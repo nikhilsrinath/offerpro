@@ -12,8 +12,6 @@ import {
 import { useOrg } from '../context/OrgContext';
 import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
-import CopilotPanel from './cofounder/CopilotPanel';
-import { buildEdgeContext } from '../services/cofounderAI';
 
 const MODULES = [
     { id: 'team',      label: 'Team',          desc: 'Employee registry, offer tracker & bulk imports.',       icon: Users,        defaultPage: 'team-hierarchy', color: '#8b5cf6' },
@@ -48,8 +46,6 @@ export default function Hub({ user, theme }) {
     const [finDocs, setFinDocs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [hoveredMod, setHoveredMod] = useState(null);
-    const [copilotOpen, setCopilotOpen] = useState(false);
-    const [copilotFullscreen, setCopilotFullscreen] = useState(false);
     const winW = useWindowWidth();
 
     const isMobile = winW < 768;
@@ -149,27 +145,15 @@ export default function Hub({ user, theme }) {
     const modPad      = isMobile ? '1rem' : '1.5rem';
     const h1Size      = isMobile ? '1.6rem' : 'clamp(1.75rem, 3vw, 2.25rem)';
 
-    // Conditional layout styles based on Copilot state
-    const hubContainerStyles = copilotOpen && !copilotFullscreen
-        ? { 
-            width: isMobile ? '100%' : 'calc(100% - 360px)', 
-            height: '100vh',
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            marginLeft: 0,
-            marginRight: 'auto',
-            scrollbarWidth: 'none', // Firefox
-            msOverflowStyle: 'none', // IE/Edge
-          }  // Fluid layout for Desktop, static 100% for Mobile
-        : { 
-            width: isMobile ? '100%' : '75%', 
-            margin: '0 auto',
-            height: '100vh',
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            scrollbarWidth: 'none', // Firefox
-            msOverflowStyle: 'none', // IE/Edge
-          };  // 75% centered layout
+    const hubContainerStyles = {
+        width: isMobile ? '100%' : '75%',
+        margin: '0 auto',
+        height: '100vh',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+    };
 
     return (
         <div style={{
@@ -186,7 +170,7 @@ export default function Hub({ user, theme }) {
                 className="hub-content-container"
                 style={{
                     position: 'relative',
-                    display: copilotFullscreen ? 'none' : 'block',
+                    display: 'block',
                     transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
                     ...hubContainerStyles,
                 }}>
@@ -579,14 +563,6 @@ export default function Hub({ user, theme }) {
                 </div>
             </div>
 
-            <CopilotPanel
-                isOpen={copilotOpen}
-                onToggle={() => setCopilotOpen(!copilotOpen)}
-                isFullscreen={copilotFullscreen}
-                onFullscreenToggle={() => setCopilotFullscreen(!copilotFullscreen)}
-                theme={theme}
-                edgeContext={buildEdgeContext({ records, finDocs, user, activeOrg })}
-            />
             <style>{`
                 .hub-content-container::-webkit-scrollbar {
                     display: none;
