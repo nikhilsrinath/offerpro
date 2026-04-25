@@ -12,7 +12,6 @@ const faqs = [
   { q: 'Can I change my company details after signing up?', a: 'Yes. Go to Company Profile from the sidebar to update your logo, address, GSTIN, bank details, and digital signature at any time.' },
   { q: 'How do I generate invoices with GST?', a: 'Navigate to Finance → New Invoice. Add line items with HSN/SAC codes and the system automatically calculates CGST, SGST, or IGST based on your location settings.' },
   { q: 'Can I send documents via WhatsApp?', a: 'Yes. After generating any document, click the WhatsApp share button to send it directly to the recipient with a portal link.' },
-  { q: 'What happens when my trial expires?', a: 'Your data is preserved for 30 days after trial expiry. Contact our sales team to upgrade and regain access to all features.' },
   { q: 'Is my data secure?', a: 'All data is stored in Firebase with end-to-end encryption, role-based access controls, and automatic backups. See our Security page for details.' },
   { q: 'Can I export my documents?', a: 'Yes. All documents can be exported as high-quality PDFs. You can also download bulk records from the Records section.' },
   { q: 'Do you offer API access?', a: 'API access is available for Enterprise customers. Contact edgeossuite@gmail.com for integration details and documentation.' },

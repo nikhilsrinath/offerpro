@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, CheckCircle, ChevronRight, Eye, AlertTriangle, Mail, Send, Loader, ExternalLink, Copy, X } from 'lucide-react';
+import { Upload, CheckCircle, ChevronRight, Eye, Send, Loader, ExternalLink, Copy, X } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
 import { emailService } from '../services/emailService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
-import { useTrialStatus, TRIAL_LIMITS } from '../hooks/useTrialStatus';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 import OfferPreview from './OfferPreview';
 
@@ -38,7 +37,6 @@ export default function OfferForm() {
       setDeptOptions([...new Set([...fromEmps, ...fromFb])].sort());
     });
   }, [activeOrg?.id]);
-  const { usage, canCreate, isTrialExpired, isPremium, trialDaysLeft, refreshUsage } = useTrialStatus();
   const org = activeOrg || {};
   const [formData, setFormData] = useState({
     offerType: 'internship',
@@ -112,7 +110,6 @@ export default function OfferForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!canCreate('offer')) return;
     setIsSubmitting(true);
     try {
       const resolved = await resolveFormImages(formData, ['companyLogo', 'signature', 'stampUrl']);
@@ -121,7 +118,6 @@ export default function OfferForm() {
       }
       await storageService.save(formData, 'offer', activeOrg?.id, user?.id);
       await pdfService.generateOfferLetter(resolved);
-      await refreshUsage();
       setTimeout(() => {
         setIsSubmitting(false);
         navigate('/records');
@@ -230,40 +226,12 @@ export default function OfferForm() {
     }
   };
 
-  const limitReached = !canCreate('offer');
-  const fillPercent = (usage.offer / TRIAL_LIMITS.offer) * 100;
-  const fillClass = usage.offer >= TRIAL_LIMITS.offer ? 'full' : usage.offer >= TRIAL_LIMITS.offer - 1 ? 'warning' : '';
-
   return (
     <div className="mou-split-layout">
 
       {/* LEFT: Form */}
       <div className="mou-form-pane">
         <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
-
-          {/* Usage */}
-          {!isPremium && (
-            <>
-              <div className="easy-usage">
-                <span className="easy-usage-label">Offer Letters</span>
-                <div className="easy-usage-bar">
-                  <div className={`easy-usage-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
-                </div>
-                <span className="easy-usage-count">{usage.offer}/{TRIAL_LIMITS.offer}</span>
-              </div>
-
-              {limitReached && (
-                <div className="easy-limit-alert">
-                  <AlertTriangle size={28} />
-                  <h3>{isTrialExpired ? 'Trial Expired' : 'Offer Letter Limit Reached'}</h3>
-                  <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used all ${TRIAL_LIMITS.offer} offer letters in your free trial.`} Contact our sales team to upgrade.</p>
-                  <a href="mailto:edgeossuite@gmail.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
-                    <Mail size={16} /> Contact Sales
-                  </a>
-                </div>
-              )}
-            </>
-          )}
 
           {/* Type Toggle */}
           <div className="easy-toggle-bar">

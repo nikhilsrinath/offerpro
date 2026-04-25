@@ -1,19 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, CheckCircle, Eye, ChevronRight, AlertTriangle, Mail } from 'lucide-react';
+import { Upload, CheckCircle, Eye, ChevronRight } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 import MoUPreview from './MoUPreview';
-import { useTrialStatus, TRIAL_LIMITS } from '../hooks/useTrialStatus';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 
 export default function MoUForm() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { activeOrg } = useOrg();
-  const { usage, canCreate, isTrialExpired, isPremium, refreshUsage } = useTrialStatus();
   const org = activeOrg || {};
   const [formData, setFormData] = useState({
     effectiveDate: '',
@@ -70,7 +68,6 @@ export default function MoUForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!canCreate('mou')) return;
     setIsSubmitting(true);
     try {
       const resolved = await resolveFormImages(formData, ['firstPartySignature', 'secondPartySignature', 'companyLogo', 'stampUrl']);
@@ -79,7 +76,6 @@ export default function MoUForm() {
       }
       await storageService.save(formData, 'mou', activeOrg?.id, user?.id);
       await pdfService.generateMoU(resolved);
-      await refreshUsage();
       setTimeout(() => {
         setIsSubmitting(false);
         navigate('/records');
@@ -90,10 +86,6 @@ export default function MoUForm() {
       setIsSubmitting(false);
     }
   };
-
-  const limitReached = !canCreate('mou');
-  const fillPercent = (usage.mou / TRIAL_LIMITS.mou) * 100;
-  const fillClass = usage.mou >= TRIAL_LIMITS.mou ? 'full' : '';
 
   const handlePreview = async () => {
     const resolved = await resolveFormImages(formData, ['firstPartySignature', 'secondPartySignature', 'companyLogo', 'stampUrl']);
@@ -109,30 +101,6 @@ export default function MoUForm() {
       {/* LEFT: Form */}
       <div className="mou-form-pane">
         <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
-
-          {/* Usage */}
-          {!isPremium && (
-            <>
-              <div className="easy-usage">
-                <span className="easy-usage-label">MoU</span>
-                <div className="easy-usage-bar">
-                  <div className={`easy-usage-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
-                </div>
-                <span className="easy-usage-count">{usage.mou}/{TRIAL_LIMITS.mou}</span>
-              </div>
-
-              {limitReached && (
-                <div className="easy-limit-alert">
-                  <AlertTriangle size={28} />
-                  <h3>{isTrialExpired ? 'Trial Expired' : 'MoU Limit Reached'}</h3>
-                  <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used your ${TRIAL_LIMITS.mou} MoU document(s) in the free trial.`} Contact our sales team to upgrade.</p>
-                  <a href="mailto:edgeossuite@gmail.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
-                    <Mail size={16} /> Contact Sales
-                  </a>
-                </div>
-              )}
-            </>
-          )}
 
           {/* 1. Agreement Details */}
           <div className="easy-section">

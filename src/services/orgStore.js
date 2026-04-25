@@ -31,7 +31,7 @@ const PROFILE_FIELDS = new Set([
   'gstin', 'cin', 'upi_id', 'bank_name', 'bank_account_number', 'bank_ifsc', 'bank_account_type',
   'industry', 'country', 'city', 'company_size',
   'primary_contact_name', 'use_cases', 'include_logo', 'account_usage',
-  'referral_source', 'created_at', 'trial_start_date', 'is_premium',
+  'referral_source', 'created_at', 'is_premium',
   'emailjs_service_id', 'emailjs_template_id', 'emailjs_public_key',
   'gmail_user', 'gmail_app_password',
 ]);

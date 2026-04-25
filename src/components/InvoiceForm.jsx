@@ -1,11 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Trash2, ChevronRight, Eye, AlertTriangle, Mail, Lock, UserPlus } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, Eye, Lock, UserPlus } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { customerService } from '../services/customerService';
 import { documentStore } from '../services/documentStore';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
-import { useTrialStatus, TRIAL_LIMITS } from '../hooks/useTrialStatus';
 import InvoicePreview from './InvoicePreview';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 
@@ -26,7 +25,6 @@ export default function InvoiceForm() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { activeOrg } = useOrg();
-  const { usage, canCreate, isTrialExpired, isPremium, refreshUsage } = useTrialStatus();
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -80,10 +78,10 @@ export default function InvoiceForm() {
     if (!formData.invoiceNumber) {
       const today = new Date();
       const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-      const nextNum = String((usage.invoice || 0) + 1).padStart(3, '0');
+      const nextNum = String(Math.floor(Math.random() * 900) + 100).padStart(3, '0');
       setFormData(prev => ({ ...prev, invoiceNumber: `INV-${dateStr}-${nextNum}` }));
     }
-  }, [usage.invoice]);
+  }, []);
 
   useEffect(() => {
     const subtotal = formData.items.reduce((acc, item) => acc + (item.quantity * item.price), 0);
@@ -190,7 +188,6 @@ export default function InvoiceForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!canCreate('invoice')) return;
     setLoading(true);
     try {
       const resolved = await resolveFormImages(formData, ['companyLogo', 'stampUrl']);
@@ -256,7 +253,6 @@ export default function InvoiceForm() {
           buyerState: formData.buyerState,
         });
       }
-      await refreshUsage();
       navigate('/invoices');
     } catch (err) {
       alert("Error saving invoice: " + err.message);
@@ -265,40 +261,12 @@ export default function InvoiceForm() {
     }
   };
 
-  const limitReached = !canCreate('invoice');
-  const fillPercent = (usage.invoice / TRIAL_LIMITS.invoice) * 100;
-  const fillClass = usage.invoice >= TRIAL_LIMITS.invoice ? 'full' : usage.invoice >= TRIAL_LIMITS.invoice - 1 ? 'warning' : '';
-
   return (
     <div className="mou-split-layout">
 
       {/* LEFT: Form */}
       <div className="mou-form-pane">
         <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
-
-          {/* Usage */}
-          {!isPremium && (
-            <>
-              <div className="easy-usage">
-                <span className="easy-usage-label">Invoices</span>
-                <div className="easy-usage-bar">
-                  <div className={`easy-usage-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
-                </div>
-                <span className="easy-usage-count">{usage.invoice}/{TRIAL_LIMITS.invoice}</span>
-              </div>
-
-              {limitReached && (
-                <div className="easy-limit-alert">
-                  <AlertTriangle size={28} />
-                  <h3>{isTrialExpired ? 'Trial Expired' : 'Invoice Limit Reached'}</h3>
-                  <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used all ${TRIAL_LIMITS.invoice} invoices in your free trial.`} Contact our sales team to upgrade.</p>
-                  <a href="mailto:edgeossuite@gmail.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
-                    <Mail size={16} /> Contact Sales
-                  </a>
-                </div>
-              )}
-            </>
-          )}
 
           {/* 1. Invoice Info */}
           <div className="easy-section">
@@ -606,9 +574,9 @@ export default function InvoiceForm() {
           </div>
 
           {/* Actions */}
-          <button type="submit" disabled={loading || limitReached} className="easy-submit">
-            {loading ? 'Processing...' : (limitReached && !isPremium) ? 'Limit Reached' : 'Save & Issue'}
-            {!(limitReached && !isPremium) && <ChevronRight size={18} />}
+          <button type="submit" disabled={loading} className="easy-submit">
+            {loading ? 'Processing...' : 'Save & Issue'}
+            <ChevronRight size={18} />
           </button>
 
           {/* Mobile preview */}

@@ -1,19 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, CheckCircle, Eye, ChevronRight, AlertTriangle, Mail } from 'lucide-react';
+import { Upload, CheckCircle, Eye, ChevronRight } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 import NdaPreview from './NdaPreview';
-import { useTrialStatus, TRIAL_LIMITS } from '../hooks/useTrialStatus';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 
 export default function NdaForm() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { activeOrg } = useOrg();
-  const { usage, canCreate, isTrialExpired, isPremium, refreshUsage } = useTrialStatus();
   const org = activeOrg || {};
   const [formData, setFormData] = useState({
     effectiveDate: '',
@@ -70,7 +68,6 @@ export default function NdaForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!canCreate('nda')) return;
     setIsSubmitting(true);
     try {
       const resolved = await resolveFormImages(formData, ['disclosingSignature', 'receivingSignature', 'companyLogo', 'stampUrl']);
@@ -79,7 +76,6 @@ export default function NdaForm() {
       }
       await storageService.save(formData, 'nda', activeOrg?.id, user?.id);
       await pdfService.generateNda(resolved);
-      await refreshUsage();
       setTimeout(() => {
         setIsSubmitting(false);
         navigate('/records');
@@ -90,10 +86,6 @@ export default function NdaForm() {
       setIsSubmitting(false);
     }
   };
-
-  const limitReached = !canCreate('nda');
-  const fillPercent = (usage.nda / TRIAL_LIMITS.nda) * 100;
-  const fillClass = usage.nda >= TRIAL_LIMITS.nda ? 'full' : '';
 
   const handlePreview = async () => {
     const resolved = await resolveFormImages(formData, ['disclosingSignature', 'receivingSignature', 'companyLogo', 'stampUrl']);
@@ -109,30 +101,6 @@ export default function NdaForm() {
       {/* LEFT: Form */}
       <div className="mou-form-pane">
         <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
-
-          {/* Usage */}
-          {!isPremium && (
-            <>
-              <div className="easy-usage">
-                <span className="easy-usage-label">NDA</span>
-                <div className="easy-usage-bar">
-                  <div className={`easy-usage-fill ${fillClass}`} style={{ width: `${Math.min(fillPercent, 100)}%` }} />
-                </div>
-                <span className="easy-usage-count">{usage.nda}/{TRIAL_LIMITS.nda}</span>
-              </div>
-
-              {limitReached && (
-                <div className="easy-limit-alert">
-                  <AlertTriangle size={28} />
-                  <h3>{isTrialExpired ? 'Trial Expired' : 'NDA Limit Reached'}</h3>
-                  <p>{isTrialExpired ? 'Your 7-day free trial has ended.' : `You've used your ${TRIAL_LIMITS.nda} NDA document(s) in the free trial.`} Contact our sales team to upgrade.</p>
-                  <a href="mailto:edgeossuite@gmail.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 2rem' }}>
-                    <Mail size={16} /> Contact Sales
-                  </a>
-                </div>
-              )}
-            </>
-          )}
 
           {/* 1. Agreement Details */}
           <div className="easy-section">

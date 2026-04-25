@@ -3,7 +3,7 @@ import { Routes, Route, useNavigate, useLocation, Navigate, useParams, NavLink }
 import {
   LayoutDashboard, Briefcase, Award, Scale, ShieldCheck,
   DollarSign, Layers, Archive, LogOut, Menu, X, Bell,
-  Zap, UserCircle, ChevronRight, ChevronDown, Clock, Mail, AlertTriangle, Users,
+  Zap, UserCircle, ChevronRight, ChevronDown, Users,
   UploadCloud, FileCheck, FileSignature, History,
   FileSpreadsheet, Activity, Receipt, FilePlus, RotateCcw, ArrowLeft,
   Sun, Moon, GitBranch, UserX, Kanban, CheckSquare,
@@ -37,7 +37,6 @@ import TeamHierarchy from './components/TeamHierarchy';
 import TasksPage from './components/tasks/TasksPage';
 import CopilotPanel from './components/cofounder/CopilotPanel';
 import { useTaskDeadlineMonitor } from './hooks/useTaskDeadlineMonitor';
-import { useTrialStatus } from './hooks/useTrialStatus';
 import { useTheme } from './hooks/useTheme';
 
 import BulkOfferLetters from './components/bulk/BulkOfferLetters';
@@ -159,7 +158,6 @@ function AppContent() {
 
   const { user, loading, logout, needsOnboarding } = useAuth();
   const { activeOrg } = useOrg();
-  const { trialDaysLeft, isTrialExpired, isPremium } = useTrialStatus();
   const { theme, toggleTheme } = useTheme();
   const [notifications, setNotifications] = useState([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
@@ -447,24 +445,6 @@ function AppContent() {
           </div>
         </div>
 
-        {user && !needsOnboarding && !isPremium && (
-          <div className="trial-banner">
-            <Clock size={14} />
-            {isTrialExpired ? (
-              <span className="trial-banner-badge expired">
-                <AlertTriangle size={12} /> Trial Expired
-              </span>
-            ) : (
-              <span className={`trial-banner-badge ${trialDaysLeft <= 2 ? 'warning' : ''}`}>
-                {trialDaysLeft} {trialDaysLeft === 1 ? 'day' : 'days'} left in trial
-              </span>
-            )}
-            <span>•</span>
-            <a href="mailto:edgeossuite@gmail.com" style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 700, fontSize: '0.8125rem' }}>
-              Upgrade →
-            </a>
-          </div>
-        )}
 
         {showNotifPanel && (
           <div className="notif-panel-overlay" onClick={() => setShowNotifPanel(false)}>
@@ -587,26 +567,6 @@ function AppContent() {
         }}
       />
 
-      {/* Trial Expired Overlay */}
-      {isTrialExpired && user && !needsOnboarding && !isPremium && (
-        <div className="trial-expired-overlay">
-          <div className="trial-expired-modal">
-            <div className="trial-expired-icon">
-              <AlertTriangle size={28} color="var(--error)" />
-            </div>
-            <h2>Your 7-Day Trial Has Expired</h2>
-            <p>Your free trial period has ended. Contact our sales team to get full access to EdgeOS with unlimited documents, custom branding, and priority support.</p>
-            <div className="trial-expired-actions">
-              <a href="mailto:edgeossuite@gmail.com" className="btn-cinematic" style={{ textDecoration: 'none' }}>
-                <Mail size={16} /> Contact Sales
-              </a>
-              <button onClick={logout} className="btn-cinematic btn-secondary">
-                <LogOut size={16} /> Log Out
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
