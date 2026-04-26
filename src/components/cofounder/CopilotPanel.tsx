@@ -7,6 +7,7 @@ import {
   X,
   Bot,
   User,
+  Users,
   Trash2,
   ArrowLeft,
   Scale,
@@ -58,6 +59,17 @@ import {
 import { storageService } from '../../services/storageService';
 // @ts-ignore
 import { emailService } from '../../services/emailService';
+import {
+  detectEmployeeCreateIntent,
+  detectEmployeeEditIntent,
+  detectRoleChangeIntent,
+  detectTerminateIntent,
+  getStepPrompt,
+  processEmployeeInput,
+  executeEmployeeOperation,
+  getEmpName,
+  type EmployeeOperation,
+} from '../../services/employeeAI';
 // @ts-ignore
 import { useOrg } from '../../context/OrgContext';
 
@@ -76,6 +88,7 @@ interface Message {
   isDecisionFinal?: boolean;
   followUpDraft?: FollowUpDraft;
   taskCreated?: TaskCreated;
+  employeeResult?: { success: boolean; message: string; employee?: any };
 }
 
 interface EdgeContext {
@@ -374,6 +387,46 @@ function TaskCreatedCard({ task, onDismiss }: { task: Task; onDismiss: () => voi
   );
 }
 
+// ── Employee result card ──────────────────────────────────────────────────────
+
+function EmployeeResultCard({
+  result,
+  onDismiss,
+}: {
+  result: { success: boolean; message: string; employee?: any };
+  onDismiss: () => void;
+}) {
+  return (
+    <div style={{
+      background: 'var(--surface)',
+      border: `1px solid ${result.success ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'}`,
+      borderRadius: 12,
+      padding: '1rem',
+      marginTop: '0.5rem',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.625rem',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <CheckCircle2 size={15} color={result.success ? '#059669' : '#dc2626'} />
+        <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          {result.success ? 'Done' : 'Error'}
+        </span>
+      </div>
+      <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+        {result.message}
+      </div>
+      <button onClick={onDismiss} style={{
+        alignSelf: 'flex-end', padding: '0.35rem 0.75rem',
+        background: 'none', border: '1px solid var(--border-default)',
+        borderRadius: 7, fontSize: '0.75rem', color: 'var(--text-muted)', cursor: 'pointer',
+      }}>
+        Dismiss
+      </button>
+    </div>
+  );
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function CopilotPanel({
@@ -404,6 +457,9 @@ export default function CopilotPanel({
 
   // Task clarification state — set when intent fires but details are missing
   const [taskPendingEmployee, setTaskPendingEmployee] = useState<any | null>(null);
+
+  // Employee operation state — multi-step employee management via AI
+  const [employeeOp, setEmployeeOp] = useState<EmployeeOperation | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -451,6 +507,7 @@ export default function CopilotPanel({
     setPendingOptions(null);
     setLastDecisionQuestion('');
     setTaskPendingEmployee(null);
+    setEmployeeOp(null);
   }, []);
 
   const cancelFollowUp = useCallback((msgId: string) => {
@@ -459,6 +516,10 @@ export default function CopilotPanel({
 
   const dismissTaskCard = useCallback((msgId: string) => {
     setMessages(prev => prev.map(m => m.id === msgId ? { ...m, taskCreated: undefined } : m));
+  }, []);
+
+  const dismissEmployeeResult = useCallback((msgId: string) => {
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, employeeResult: undefined } : m));
   }, []);
 
   const handleFollowUpSent = useCallback((channel: 'email' | 'whatsapp', toName: string) => {
@@ -500,6 +561,92 @@ export default function CopilotPanel({
           nextQuestion = getCurrentOnboardingQuestion(saved);
           if (isOnboardingComplete(saved)) setIsOnboardingMode(false);
         }
+      }
+    }
+
+    // ── Employee operation mode (pure form flow — no AI call needed) ────────
+    if (!isOnboarding) {
+      // ① Continuing a multi-step employee op
+      if (employeeOp !== null) {
+        const { op: nextOp, done, confirmed, cancelled } = processEmployeeInput(employeeOp, trimmedText);
+        const userMsg: Message = { id: Date.now().toString(), role: 'user', content: trimmedText, timestamp: new Date() };
+
+        if (cancelled) {
+          setEmployeeOp(null);
+          setMessages(prev => [...prev, userMsg, {
+            id: (Date.now() + 1).toString(), role: 'assistant',
+            content: 'Operation cancelled.', timestamp: new Date(),
+          }]);
+          setInputValue('');
+          return;
+        }
+
+        if (done && confirmed) {
+          setEmployeeOp(null);
+          const aiMsgId = (Date.now() + 1).toString();
+          setMessages(prev => [...prev, userMsg, {
+            id: aiMsgId, role: 'assistant',
+            content: '⏳ Processing…', timestamp: new Date(), isStreaming: true,
+          }]);
+          setInputValue('');
+          if (orgId) {
+            try {
+              const result = await executeEmployeeOperation(nextOp, orgId, activeOrg);
+              setMessages(prev => prev.map(m =>
+                m.id === aiMsgId
+                  ? { ...m, content: result.message, isStreaming: false, employeeResult: result }
+                  : m
+              ));
+              storageService.getEmployees(orgId).then((list: any[]) => {
+                if (Array.isArray(list)) setEmployees(list);
+              });
+            } catch (err) {
+              setMessages(prev => prev.map(m =>
+                m.id === aiMsgId
+                  ? { ...m, content: 'Operation failed. Please try again.', isStreaming: false }
+                  : m
+              ));
+            }
+          }
+          return;
+        }
+
+        // Not done yet — show next question
+        const nextPrompt = getStepPrompt(nextOp);
+        setMessages(prev => [...prev, userMsg, {
+          id: (Date.now() + 1).toString(), role: 'assistant',
+          content: nextPrompt, timestamp: new Date(),
+        }]);
+        setEmployeeOp(nextOp);
+        setInputValue('');
+        return;
+      }
+
+      // ② Detect new employee intent and start the multi-step flow
+      let newEmpOp: EmployeeOperation | null = null;
+      if (detectEmployeeCreateIntent(trimmedText)) {
+        newEmpOp = { type: 'create', step: 0, data: {} };
+      } else if (detectTerminateIntent(trimmedText)) {
+        const matched = matchEmployee(trimmedText, employees);
+        if (matched) newEmpOp = { type: 'terminate', step: 0, data: {}, matchedEmployee: matched };
+      } else if (detectRoleChangeIntent(trimmedText)) {
+        const matched = matchEmployee(trimmedText, employees);
+        if (matched) newEmpOp = { type: 'roleChange', step: 0, data: {}, matchedEmployee: matched };
+      } else if (detectEmployeeEditIntent(trimmedText)) {
+        const matched = matchEmployee(trimmedText, employees);
+        if (matched) newEmpOp = { type: 'edit', step: 0, data: {}, matchedEmployee: matched };
+      }
+
+      if (newEmpOp) {
+        const prompt = getStepPrompt(newEmpOp);
+        const userMsg: Message = { id: Date.now().toString(), role: 'user', content: trimmedText, timestamp: new Date() };
+        setMessages(prev => [...prev, userMsg, {
+          id: (Date.now() + 1).toString(), role: 'assistant',
+          content: prompt, timestamp: new Date(),
+        }]);
+        setEmployeeOp(newEmpOp);
+        setInputValue('');
+        return;
       }
     }
 

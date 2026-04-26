@@ -7,6 +7,7 @@ import { documentStore } from '../services/documentStore';
 import { emailService } from '../services/emailService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
+import { usePlanStatus } from '../hooks/usePlanStatus';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 import OfferPreview from './OfferPreview';
 
@@ -37,6 +38,8 @@ export default function OfferForm() {
       setDeptOptions([...new Set([...fromEmps, ...fromFb])].sort());
     });
   }, [activeOrg?.id]);
+  
+  const { currentPlan, planConfig, usage, canCreate, getRemainingCount, getUsagePercent, isAtLimit, refreshUsage } = usePlanStatus();
   const org = activeOrg || {};
   const [formData, setFormData] = useState({
     offerType: 'internship',
@@ -110,6 +113,10 @@ export default function OfferForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canCreate('offerLetters')) {
+      alert(`You've reached your ${planConfig.name} plan limit of ${planConfig.limits.offerLetters} offer letters. Please upgrade to continue.`);
+      return;
+    }
     setIsSubmitting(true);
     try {
       const resolved = await resolveFormImages(formData, ['companyLogo', 'signature', 'stampUrl']);
@@ -118,6 +125,7 @@ export default function OfferForm() {
       }
       await storageService.save(formData, 'offer', activeOrg?.id, user?.id);
       await pdfService.generateOfferLetter(resolved);
+      await refreshUsage();
       setTimeout(() => {
         setIsSubmitting(false);
         navigate('/records');
@@ -242,6 +250,56 @@ export default function OfferForm() {
               </button>
             ))}
           </div>
+
+          {/* Plan Usage */}
+          {currentPlan !== 'max' && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '0.75rem 1rem',
+              background: 'var(--bg-elevated)',
+              borderRadius: '10px',
+              marginBottom: '1.5rem',
+              fontSize: '0.8125rem',
+              border: isAtLimit('offerLetters') ? '1px solid rgba(239,68,68,0.3)' : '1px solid var(--border-subtle)'
+            }}>
+              <span style={{ fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Offer Letters</span>
+              <div style={{ flex: 1, height: '4px', background: 'var(--bg-raised)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%',
+                  borderRadius: '2px',
+                  background: isAtLimit('offerLetters') ? '#ef4444' : getUsagePercent('offerLetters') > 80 ? '#f59e0b' : '#3b82f6',
+                  transition: 'width 0.3s',
+                  width: `${Math.min(getUsagePercent('offerLetters'), 100)}%`
+                }} />
+              </div>
+              <span style={{ fontWeight: 700, color: isAtLimit('offerLetters') ? '#ef4444' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                {usage.offerLetters}/{planConfig.limits.offerLetters === Infinity ? '∞' : planConfig.limits.offerLetters}
+              </span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({getRemainingCount('offerLetters')} remaining)</span>
+            </div>
+          )}
+
+          {isAtLimit('offerLetters') && (
+            <div style={{
+              textAlign: 'center',
+              padding: '1.5rem',
+              background: 'rgba(239,68,68,0.04)',
+              border: '1px solid rgba(239,68,68,0.15)',
+              borderRadius: '12px',
+              marginBottom: '1.5rem'
+            }}>
+              <div style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>⚠️</div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Offer Letter Limit Reached</h3>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                You've used all {planConfig.limits.offerLetters} offer letters in your {planConfig.name} plan.
+              </p>
+              <a href="mailto:edgeossuite@gmail.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 1.5rem', fontSize: '0.875rem' }}>
+                Upgrade to {currentPlan === 'free' ? 'Pro' : 'Max'}
+              </a>
+            </div>
+          )}
 
           {/* 1. Company */}
           <div className="easy-section">
@@ -434,16 +492,16 @@ export default function OfferForm() {
           </div>
 
           {/* Submit */}
-          <button type="submit" className="easy-submit" disabled={isSubmitting || (limitReached && !isPremium)}>
-            {isSubmitting ? 'Generating...' : (limitReached && !isPremium) ? 'Limit Reached' : 'Finalize & Download'}
-            {!isSubmitting && !(limitReached && !isPremium) && <ChevronRight size={18} />}
+          <button type="submit" className="easy-submit" disabled={isSubmitting || isAtLimit('offerLetters')}>
+            {isSubmitting ? 'Generating...' : isAtLimit('offerLetters') ? 'Limit Reached' : 'Finalize & Download'}
+            {!isSubmitting && !isAtLimit('offerLetters') && <ChevronRight size={18} />}
           </button>
 
           {/* Notify Employee */}
           <button
             type="button"
             onClick={handleNotifyEmployee}
-            disabled={isSendingEmail || (limitReached && !isPremium)}
+            disabled={isSendingEmail || isAtLimit('offerLetters')}
             className="offer-notify-btn"
             style={{ marginTop: '0.75rem' }}
           >

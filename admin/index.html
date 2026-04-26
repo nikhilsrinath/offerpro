@@ -188,9 +188,8 @@
                                         <th class="py-5 px-6">Organization</th>
                                         <th class="py-5 px-6">Contact / Owner</th>
                                         <th class="py-5 px-6">Created On</th>
-                                        <th class="py-5 px-6">Current Status</th>
-                                        <th class="py-5 px-6 text-right">Premium Control</th>
-                                        <th class="py-5 px-6">Actions</th>
+                                        <th class="py-5 px-6">Plan</th>
+                                        <th class="py-5 px-6 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="orgList" class="divide-y divide-gray-100">
@@ -225,13 +224,29 @@
 
                                     <div class="space-y-4 pt-6 border-t border-gray-100">
                                         <div class="flex items-center justify-between text-sm">
-                                            <span class="text-gray-500">Premium Status</span>
-                                            <span id="detailPremiumBadge" class="font-bold">--</span>
+                                            <span class="text-gray-500">Plan</span>
+                                            <span id="detailPlanBadge" class="font-bold">--</span>
                                         </div>
                                         <div class="flex items-center justify-between text-sm">
                                             <span class="text-gray-500">Member Since</span>
                                             <span id="detailCreatedAt" class="font-bold">--</span>
                                         </div>
+                                        <div class="flex items-center justify-between text-sm">
+                                            <span class="text-gray-500">Phone</span>
+                                            <span id="detailPhone" class="font-bold">--</span>
+                                        </div>
+                                        <div class="flex items-center justify-between text-sm">
+                                            <span class="text-gray-500">GSTIN</span>
+                                            <span id="detailGstin" class="font-bold">--</span>
+                                        </div>
+                                        <div class="flex items-center justify-between text-sm">
+                                            <span class="text-gray-500">Website</span>
+                                            <a id="detailWebsite" href="#" target="_blank" class="font-bold text-blue-600 hover:underline">--</a>
+                                        </div>
+                                    </div>
+                                    <div class="pt-4 border-t border-gray-100">
+                                        <div class="text-xs text-gray-400 uppercase font-bold tracking-widest mb-2">Address</div>
+                                        <p id="detailAddress" class="text-sm text-gray-700 leading-relaxed">--</p>
                                     </div>
                                 </div>
 
@@ -440,15 +455,11 @@
                     <td class="py-4 px-6 text-sm text-gray-600 font-medium">${org.company_email || 'N/A'}</td>
                     <td class="py-4 px-6 text-xs text-gray-400 font-bold uppercase">${org.created_at ? new Date(org.created_at).toLocaleDateString() : 'N/A'}</td>
                     <td class="py-4 px-6">
-                        <span class="px-3 py-1 text-[10px] font-black rounded-full uppercase tracking-tighter ${isPremium ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">
-                            ${isPremium ? 'Premium' : 'Free Trial'}
-                        </span>
-                    </td>
-                    <td class="py-4 px-6 text-right">
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" class="sr-only peer toggle-premium" data-id="${id}" ${isPremium ? 'checked' : ''}>
-                            <div class="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
+                        <select class="plan-select text-xs font-bold rounded-lg border border-gray-200 px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500" data-id="${id}" style="cursor: pointer;">
+                            <option value="free" ${org.plan === 'free' || !org.plan ? 'selected' : ''}>Free</option>
+                            <option value="pro" ${org.plan === 'pro' ? 'selected' : ''}>Pro</option>
+                            <option value="max" ${org.plan === 'max' ? 'selected' : ''}>Max</option>
+                        </select>
                     </td>
                     <td class="py-4 px-6">
                         <button onclick="showDetailView('${id}')" class="px-4 py-2 bg-gray-100 text-gray-700 text-xs font-bold rounded-xl hover:bg-blue-600 hover:text-white transition-all">
@@ -459,12 +470,12 @@
                 tbody.appendChild(tr);
             });
 
-            // Re-bind toggles
-            document.querySelectorAll('.toggle-premium').forEach(input => {
-                input.addEventListener('change', async (e) => {
+            // Re-bind plan selectors
+            document.querySelectorAll('.plan-select').forEach(select => {
+                select.addEventListener('change', async (e) => {
                     const orgId = e.target.dataset.id;
-                    const premium = e.target.checked;
-                    await updateDoc(doc(firestore, 'organizations', orgId), { is_premium: premium });
+                    const plan = e.target.value;
+                    await updateDoc(doc(firestore, 'organizations', orgId), { plan: plan });
                     fetchDashboardData();
                 });
             });
@@ -513,11 +524,24 @@
             }
         });
 
+        // Chart instances for cleanup
+        let revenueChartInstance = null;
+        let distributionChartInstance = null;
+
         // View Functions
         function showListView() {
             document.getElementById('detailView').classList.add('hidden');
             document.getElementById('listView').classList.remove('hidden');
             selectedOrgId = null;
+            // Cleanup charts
+            if (revenueChartInstance) {
+                revenueChartInstance.destroy();
+                revenueChartInstance = null;
+            }
+            if (distributionChartInstance) {
+                distributionChartInstance.destroy();
+                distributionChartInstance = null;
+            }
         }
 
         async function showDetailView(orgId) {
@@ -532,16 +556,270 @@
             // Populate detail view elements
             document.getElementById('detailOrgName').textContent = org.company_name || 'N/A';
             document.getElementById('detailOrgEmail').textContent = org.company_email || 'N/A';
-            document.getElementById('detailPremiumBadge').textContent = org.is_premium ? 'Premium' : 'Free Trial';
+            document.getElementById('detailPlanBadge').textContent = org.plan === 'free' || !org.plan ? 'Free' : org.plan === 'pro' ? 'Pro' : 'Max';
             document.getElementById('detailCreatedAt').textContent = org.created_at ? new Date(org.created_at).toLocaleDateString() : 'N/A';
             document.getElementById('orgLogoPlaceholder').textContent = (org.company_name || 'N')[0];
+            document.getElementById('detailPhone').textContent = org.company_phone || 'N/A';
+            document.getElementById('detailGstin').textContent = org.gstin || 'N/A';
+            document.getElementById('detailAddress').textContent = org.company_address || 'N/A';
+
+            // Website link
+            const websiteEl = document.getElementById('detailWebsite');
+            if (org.company_website) {
+                websiteEl.textContent = org.company_website.replace(/^https?:\/\//, '');
+                websiteEl.href = org.company_website.startsWith('http') ? org.company_website : 'https://' + org.company_website;
+            } else {
+                websiteEl.textContent = 'N/A';
+                websiteEl.href = '#';
+            }
 
             // Update contact buttons
             document.getElementById('emailContactBtn').href = org.company_email ? `mailto:${org.company_email}` : '#';
 
+            // Fetch all documents for this organization
+            await fetchOrgDetails(orgId);
+
             // Show detail view and hide list view
             document.getElementById('listView').classList.add('hidden');
             document.getElementById('detailView').classList.remove('hidden');
+        }
+
+        async function fetchOrgDetails(orgId) {
+            try {
+                // Fetch from Realtime Database (HR records: offers, NDAs, MoUs)
+                const hrRef = ref(db, `organizations/${orgId}/hr_records`);
+                const hrSnap = await get(hrRef);
+                const hrRecords = hrSnap.exists() ? hrSnap.val() : {};
+
+                // Fetch from Firestore (financial docs: invoices, quotations)
+                const finDocsCol = collection(firestore, 'organizations', orgId, 'fin_docs');
+                const finDocsSnap = await getDocs(finDocsCol);
+                const finDocs = [];
+                finDocsSnap.forEach(doc => {
+                    finDocs.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Process and combine all documents
+                const allDocs = [];
+                let offerCount = 0, ndaCount = 0, mouCount = 0;
+                let invoiceCount = 0, quotationCount = 0, proformaCount = 0;
+                let totalRevenue = 0, totalProfit = 0;
+
+                // Process HR records
+                Object.entries(hrRecords).forEach(([id, record]) => {
+                    const doc = { id, ...record, source: 'hr' };
+                    allDocs.push(doc);
+                    if (record.type === 'offer') offerCount++;
+                    else if (record.type === 'nda') ndaCount++;
+                    else if (record.type === 'mou') mouCount++;
+                });
+
+                // Process financial documents
+                const monthlyRevenue = {};
+                finDocs.forEach(doc => {
+                    allDocs.push({ ...doc, source: 'fin' });
+                    if (doc.type === 'invoice') {
+                        invoiceCount++;
+                        const amount = parseFloat(doc.total) || 0;
+                        totalRevenue += amount;
+                        // Track monthly revenue
+                        if (doc.created_at) {
+                            const date = new Date(doc.created_at);
+                            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                            monthlyRevenue[monthKey] = (monthlyRevenue[monthKey] || 0) + amount;
+                        }
+                    } else if (doc.type === 'quotation') {
+                        quotationCount++;
+                    } else if (doc.type === 'proforma') {
+                        proformaCount++;
+                    }
+                });
+
+                // Estimate profit (simplified - 70% of revenue as profit)
+                totalProfit = totalRevenue * 0.7;
+
+                const totalDocs = allDocs.length;
+
+                // Update stats
+                document.getElementById('detailTotalDocs').textContent = totalDocs;
+                document.getElementById('detailRevenue').textContent = '₹' + totalRevenue.toLocaleString('en-IN');
+                document.getElementById('detailProfit').textContent = '₹' + Math.round(totalProfit).toLocaleString('en-IN');
+                document.getElementById('detailMouCount').textContent = mouCount;
+
+                // Render document history
+                renderDocumentHistory(allDocs);
+
+                // Render charts
+                renderCharts(monthlyRevenue, { offerCount, ndaCount, mouCount, invoiceCount, quotationCount, proformaCount });
+
+            } catch (err) {
+                console.error("Error fetching org details:", err);
+                // Set defaults on error
+                document.getElementById('detailTotalDocs').textContent = '0';
+                document.getElementById('detailRevenue').textContent = '₹0';
+                document.getElementById('detailProfit').textContent = '₹0';
+                document.getElementById('detailMouCount').textContent = '0';
+                document.getElementById('orgRecordsList').innerHTML = '<tr><td colspan="3" class="py-4 px-6 text-center text-gray-400">No data available</td></tr>';
+            }
+        }
+
+        function renderDocumentHistory(docs) {
+            const tbody = document.getElementById('orgRecordsList');
+            tbody.innerHTML = '';
+
+            if (docs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="py-4 px-6 text-center text-gray-400">No documents found</td></tr>';
+                return;
+            }
+
+            // Sort by created_at desc
+            docs.sort((a, b) => {
+                const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
+                const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
+                return dateB - dateA;
+            });
+
+            docs.slice(0, 50).forEach(doc => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50/50 transition-colors';
+
+                const typeLabel = getDocTypeLabel(doc.type);
+                const audience = doc.candidate_name || doc.client_name || doc.recipient_name || doc.counterparty_name || 'N/A';
+                const date = doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'N/A';
+
+                tr.innerHTML = `
+                    <td class="py-4 px-6 border-b border-gray-100 text-sm text-gray-700">${audience}</td>
+                    <td class="py-4 px-6 border-b border-gray-100">
+                        <span class="px-2 py-1 text-[10px] font-bold rounded-full ${getDocTypeBadgeClass(doc.type)}">${typeLabel}</span>
+                    </td>
+                    <td class="py-4 px-6 border-b border-gray-100 text-sm text-gray-500">${date}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function getDocTypeLabel(type) {
+            const labels = {
+                offer: 'Offer Letter',
+                nda: 'NDA',
+                mou: 'MoU',
+                invoice: 'Invoice',
+                quotation: 'Quotation',
+                proforma: 'Proforma',
+                certificate: 'Certificate'
+            };
+            return labels[type] || (type || 'Unknown');
+        }
+
+        function getDocTypeBadgeClass(type) {
+            const classes = {
+                offer: 'bg-blue-100 text-blue-700',
+                nda: 'bg-red-100 text-red-700',
+                mou: 'bg-purple-100 text-purple-700',
+                invoice: 'bg-green-100 text-green-700',
+                quotation: 'bg-yellow-100 text-yellow-700',
+                proforma: 'bg-orange-100 text-orange-700',
+                certificate: 'bg-indigo-100 text-indigo-700'
+            };
+            return classes[type] || 'bg-gray-100 text-gray-700';
+        }
+
+        function renderCharts(monthlyRevenue, counts) {
+            // Cleanup existing charts
+            if (revenueChartInstance) revenueChartInstance.destroy();
+            if (distributionChartInstance) distributionChartInstance.destroy();
+
+            // Prepare revenue chart data
+            const sortedMonths = Object.keys(monthlyRevenue).sort();
+            const revenueData = sortedMonths.map(m => monthlyRevenue[m]);
+            const monthLabels = sortedMonths.map(m => {
+                const [year, month] = m.split('-');
+                return `${month}/${year}`;
+            });
+
+            // Revenue Chart
+            const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+            revenueChartInstance = new Chart(revenueCtx, {
+                type: 'bar',
+                data: {
+                    labels: monthLabels.length > 0 ? monthLabels : ['No Data'],
+                    datasets: [{
+                        label: 'Revenue (₹)',
+                        data: revenueData.length > 0 ? revenueData : [0],
+                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '₹' + value.toLocaleString('en-IN');
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Document Distribution Chart
+            const distCtx = document.getElementById('distributionChart').getContext('2d');
+            const distData = [counts.offerCount, counts.ndaCount, counts.mouCount, counts.invoiceCount, counts.quotationCount, counts.proformaCount];
+            const hasData = distData.some(v => v > 0);
+
+            distributionChartInstance = new Chart(distCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Offers', 'NDAs', 'MoUs', 'Invoices', 'Quotations', 'Proformas'],
+                    datasets: [{
+                        data: hasData ? distData : [1],
+                        backgroundColor: hasData ? [
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(239, 68, 68, 0.8)',
+                            'rgba(168, 85, 247, 0.8)',
+                            'rgba(34, 197, 94, 0.8)',
+                            'rgba(234, 179, 8, 0.8)',
+                            'rgba(249, 115, 22, 0.8)'
+                        ] : ['rgba(200, 200, 200, 0.3)'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 15,
+                                font: { size: 11 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (!hasData) return 'No documents';
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         // Change Password Modal

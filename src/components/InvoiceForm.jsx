@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, ChevronRight, Eye, Lock, UserPlus } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { customerService } from '../services/customerService';
 import { documentStore } from '../services/documentStore';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
+import { usePlanStatus } from '../hooks/usePlanStatus';
 import InvoicePreview from './InvoicePreview';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 
@@ -25,6 +27,7 @@ export default function InvoiceForm() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { activeOrg } = useOrg();
+  const { currentPlan, planConfig, usage, canCreate, getRemainingCount, getUsagePercent, isAtLimit, refreshUsage } = usePlanStatus();
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -188,6 +191,10 @@ export default function InvoiceForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canCreate('invoices')) {
+      alert(`You've reached your ${planConfig.name} plan limit of ${planConfig.limits.invoices} invoices. Please upgrade to continue.`);
+      return;
+    }
     setLoading(true);
     try {
       const resolved = await resolveFormImages(formData, ['companyLogo', 'stampUrl']);
@@ -253,6 +260,7 @@ export default function InvoiceForm() {
           buyerState: formData.buyerState,
         });
       }
+      await refreshUsage();
       navigate('/invoices');
     } catch (err) {
       alert("Error saving invoice: " + err.message);
@@ -267,6 +275,56 @@ export default function InvoiceForm() {
       {/* LEFT: Form */}
       <div className="mou-form-pane">
         <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
+
+          {/* Plan Usage */}
+          {currentPlan !== 'max' && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '0.75rem 1rem',
+              background: 'var(--bg-elevated)',
+              borderRadius: '10px',
+              marginBottom: '1.5rem',
+              fontSize: '0.8125rem',
+              border: isAtLimit('invoices') ? '1px solid rgba(239,68,68,0.3)' : '1px solid var(--border-subtle)'
+            }}>
+              <span style={{ fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Invoices</span>
+              <div style={{ flex: 1, height: '4px', background: 'var(--bg-raised)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%',
+                  borderRadius: '2px',
+                  background: isAtLimit('invoices') ? '#ef4444' : getUsagePercent('invoices') > 80 ? '#f59e0b' : '#3b82f6',
+                  transition: 'width 0.3s',
+                  width: `${Math.min(getUsagePercent('invoices'), 100)}%`
+                }} />
+              </div>
+              <span style={{ fontWeight: 700, color: isAtLimit('invoices') ? '#ef4444' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                {usage.invoices}/{planConfig.limits.invoices === Infinity ? '∞' : planConfig.limits.invoices}
+              </span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({getRemainingCount('invoices')} remaining)</span>
+            </div>
+          )}
+
+          {isAtLimit('invoices') && (
+            <div style={{
+              textAlign: 'center',
+              padding: '1.5rem',
+              background: 'rgba(239,68,68,0.04)',
+              border: '1px solid rgba(239,68,68,0.15)',
+              borderRadius: '12px',
+              marginBottom: '1.5rem'
+            }}>
+              <div style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>⚠️</div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Invoice Limit Reached</h3>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                You've used all {planConfig.limits.invoices} invoices in your {planConfig.name} plan.
+              </p>
+              <a href="mailto:edgeossuite@gmail.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 1.5rem', fontSize: '0.875rem' }}>
+                Upgrade to {currentPlan === 'free' ? 'Pro' : 'Max'}
+              </a>
+            </div>
+          )}
 
           {/* 1. Invoice Info */}
           <div className="easy-section">
@@ -574,9 +632,9 @@ export default function InvoiceForm() {
           </div>
 
           {/* Actions */}
-          <button type="submit" disabled={loading} className="easy-submit">
-            {loading ? 'Processing...' : 'Save & Issue'}
-            <ChevronRight size={18} />
+          <button type="submit" disabled={loading || isAtLimit('invoices')} className="easy-submit">
+            {loading ? 'Processing...' : isAtLimit('invoices') ? 'Limit Reached' : 'Save & Issue'}
+            {!loading && !isAtLimit('invoices') && <ChevronRight size={18} />}
           </button>
 
           {/* Mobile preview */}

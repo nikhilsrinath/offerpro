@@ -898,42 +898,41 @@ export function formatRawDataForPrompt(
   // ALWAYS include basic company identity as the foundation of the context
   sections.push(formatCompanyInfo(orgData));
 
-
   console.log('[Raw Data Formatter] Sections needed:', {
     employees: needsEmployees,
     crm: needsCRM,
+    financials: needsFinancials,
     tasks: needsTasks,
-    company: needsCompany
+    company: needsCompany,
+    intent,
   });
 
-  // For factual queries, include all relevant raw data
-  if (intent === 'factual' || intent === 'combined') {
-    if (needsEmployees || intent === 'factual') {
-      sections.push(formatEmployees(orgData.employees));
-    }
-    if (needsCRM || intent === 'factual') {
-      sections.push(formatCRM(orgData.crm || orgData.leads));
-    }
-    if (needsFinancials || intent === 'factual') {
-      sections.push(formatFinancials(orgData.fin_docs, orgData.expenses));
-      sections.push(formatProducts(orgData.products));
-    }
-    if (needsTasks || intent === 'factual') {
-      sections.push(formatTasks(orgData.tasks));
-      // Always show employees alongside tasks so AI can correlate names ↔ roles
-      if (!needsEmployees) sections.push(formatEmployees(orgData.employees));
-    }
-    if (needsCompany || intent === 'factual') {
-      sections.push(formatCompanyInfo(orgData));
-    }
+  // Include relevant data sections based on query content — regardless of intent type.
+  // Reasoning queries ("should I hire?") need the same raw data as factual queries
+  // to avoid hallucination.
+  if (needsEmployees) {
+    sections.push(formatEmployees(orgData.employees));
+  }
+  if (needsCRM) {
+    sections.push(formatCRM(orgData.crm || orgData.leads));
+  }
+  if (needsFinancials) {
+    sections.push(formatFinancials(orgData.fin_docs, orgData.expenses));
+    sections.push(formatProducts(orgData.products));
+  }
+  if (needsTasks) {
+    sections.push(formatTasks(orgData.tasks));
+    // Always show employees alongside tasks so AI can correlate names ↔ roles
+    if (!needsEmployees) sections.push(formatEmployees(orgData.employees));
   }
 
-  // If no specific sections matched but it's a factual query, include everything
-  if (intent === 'factual' && sections.length === 0) {
-    sections.push(formatCompanyInfo(orgData));
-    sections.push(formatFinancials(orgData.fin_docs, orgData.expenses));
+  // If no specific section was matched (e.g. general reasoning query), include
+  // all org data so the AI has full context
+  if (!needsEmployees && !needsCRM && !needsFinancials && !needsTasks) {
     sections.push(formatEmployees(orgData.employees));
+    sections.push(formatFinancials(orgData.fin_docs, orgData.expenses));
     sections.push(formatCRM(orgData.crm || orgData.leads));
+    sections.push(formatTasks(orgData.tasks));
   }
 
   const result = sections.join('\n\n');

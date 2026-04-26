@@ -38,6 +38,8 @@ import TasksPage from './components/tasks/TasksPage';
 import CopilotPanel from './components/cofounder/CopilotPanel';
 import { useTaskDeadlineMonitor } from './hooks/useTaskDeadlineMonitor';
 import { useTheme } from './hooks/useTheme';
+import { usePlanStatus } from './hooks/usePlanStatus';
+import { getPlanConfig, PLANS } from './services/planConfig';
 
 import BulkOfferLetters from './components/bulk/BulkOfferLetters';
 import BulkCertificates from './components/bulk/BulkCertificates';
@@ -159,6 +161,7 @@ function AppContent() {
   const { user, loading, logout, needsOnboarding } = useAuth();
   const { activeOrg } = useOrg();
   const { theme, toggleTheme } = useTheme();
+  const { currentPlan, planConfig } = usePlanStatus();
   const [notifications, setNotifications] = useState([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
@@ -285,17 +288,18 @@ function AppContent() {
             <div className="sidebar-status" style={{
               display: 'flex', alignItems: 'center', gap: '0.35rem',
               padding: '0.4rem 0.75rem',
-              background: theme === 'dark' ? 'rgba(16,185,129,0.07)' : 'rgba(16,185,129,0.06)',
-              border: `1px solid rgba(16,185,129,0.22)`,
+              background: theme === 'dark' ? `${planConfig.color}12` : `${planConfig.color}10`,
+              border: `1px solid ${planConfig.color}40`,
               borderRadius: '999px',
-              fontSize: '0.6875rem', fontWeight: 600, color: '#10b981',
+              fontSize: '0.6875rem', fontWeight: 600, color: planConfig.color,
               marginBottom: '0.75rem',
               userSelect: 'none',
               justifyContent: 'center',
               whiteSpace: 'nowrap',
-            }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 7px #10b981', display: 'inline-block', flexShrink: 0 }} />
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>All systems active</span>
+              cursor: 'pointer',
+            }} onClick={() => routerNavigate('/pricing')}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: planConfig.color, boxShadow: `0 0 7px ${planConfig.color}`, display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{planConfig.displayName}</span>
             </div>
 
             <div className="sidebar-actions-row" style={{

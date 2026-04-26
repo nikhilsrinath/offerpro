@@ -5,6 +5,7 @@ import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
+import { usePlanStatus } from '../hooks/usePlanStatus';
 import NdaPreview from './NdaPreview';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 
@@ -12,6 +13,7 @@ export default function NdaForm() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { activeOrg } = useOrg();
+  const { currentPlan, planConfig, usage, canCreate, getRemainingCount, getUsagePercent, isAtLimit, refreshUsage } = usePlanStatus();
   const org = activeOrg || {};
   const [formData, setFormData] = useState({
     effectiveDate: '',
@@ -68,6 +70,10 @@ export default function NdaForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canCreate('nda')) {
+      alert(`You've reached your ${planConfig.name} plan limit of ${planConfig.limits.nda} NDAs. Please upgrade to continue.`);
+      return;
+    }
     setIsSubmitting(true);
     try {
       const resolved = await resolveFormImages(formData, ['disclosingSignature', 'receivingSignature', 'companyLogo', 'stampUrl']);
@@ -76,6 +82,7 @@ export default function NdaForm() {
       }
       await storageService.save(formData, 'nda', activeOrg?.id, user?.id);
       await pdfService.generateNda(resolved);
+      await refreshUsage();
       setTimeout(() => {
         setIsSubmitting(false);
         navigate('/records');
@@ -101,6 +108,56 @@ export default function NdaForm() {
       {/* LEFT: Form */}
       <div className="mou-form-pane">
         <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
+
+          {/* Plan Usage */}
+          {currentPlan !== 'max' && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '0.75rem 1rem',
+              background: 'var(--bg-elevated)',
+              borderRadius: '10px',
+              marginBottom: '1.5rem',
+              fontSize: '0.8125rem',
+              border: isAtLimit('nda') ? '1px solid rgba(239,68,68,0.3)' : '1px solid var(--border-subtle)'
+            }}>
+              <span style={{ fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>NDA Documents</span>
+              <div style={{ flex: 1, height: '4px', background: 'var(--bg-raised)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%',
+                  borderRadius: '2px',
+                  background: isAtLimit('nda') ? '#ef4444' : getUsagePercent('nda') > 80 ? '#f59e0b' : '#3b82f6',
+                  transition: 'width 0.3s',
+                  width: `${Math.min(getUsagePercent('nda'), 100)}%`
+                }} />
+              </div>
+              <span style={{ fontWeight: 700, color: isAtLimit('nda') ? '#ef4444' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                {usage.nda}/{planConfig.limits.nda === Infinity ? '∞' : planConfig.limits.nda}
+              </span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({getRemainingCount('nda')} remaining)</span>
+            </div>
+          )}
+
+          {isAtLimit('nda') && (
+            <div style={{
+              textAlign: 'center',
+              padding: '1.5rem',
+              background: 'rgba(239,68,68,0.04)',
+              border: '1px solid rgba(239,68,68,0.15)',
+              borderRadius: '12px',
+              marginBottom: '1.5rem'
+            }}>
+              <div style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>⚠️</div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>NDA Limit Reached</h3>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                You've used all {planConfig.limits.nda} NDAs in your {planConfig.name} plan.
+              </p>
+              <a href="mailto:edgeossuite@gmail.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 1.5rem', fontSize: '0.875rem' }}>
+                Upgrade to {currentPlan === 'free' ? 'Pro' : 'Max'}
+              </a>
+            </div>
+          )}
 
           {/* 1. Agreement Details */}
           <div className="easy-section">
@@ -319,9 +376,9 @@ export default function NdaForm() {
           </div>
 
           {/* Submit */}
-          <button type="submit" disabled={isSubmitting || (limitReached && !isPremium)} className="easy-submit">
-            {isSubmitting ? 'Generating...' : (limitReached && !isPremium) ? 'Limit Reached' : 'Save & Download NDA'}
-            {!isSubmitting && !(limitReached && !isPremium) && <ChevronRight size={18} />}
+          <button type="submit" disabled={isSubmitting || isAtLimit('nda')} className="easy-submit">
+            {isSubmitting ? 'Generating...' : isAtLimit('nda') ? 'Limit Reached' : 'Save & Download NDA'}
+            {!isSubmitting && !isAtLimit('nda') && <ChevronRight size={18} />}
           </button>
 
           {/* Mobile preview */}

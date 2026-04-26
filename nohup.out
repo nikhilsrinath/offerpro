@@ -1,0 +1,10 @@
+
+> qbitointern@0.0.0 dev
+> vite --host
+
+
+  VITE v7.3.1  ready in 575 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://192.168.29.229:5173/
+6:49:21 PM [vite] (client) hmr update /src/App.jsx

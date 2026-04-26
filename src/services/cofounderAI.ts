@@ -385,23 +385,22 @@ export async function callCofounderAI(
       // ONBOARDING MODE
       systemPrompt = buildOnboardingPrompt(currentQuestion, memory);
       console.log('[callCofounderAI] Using ONBOARDING prompt');
-    } else if (intent === 'factual' && rawData) {
-      systemPrompt = buildSystemPromptWithRawData(context, rawData, undefined, memory);
-      console.log('[callCofounderAI] Using RAW DATA prompt');
-    } else if (intent === 'combined' && rawData && memory) {
-      const memoryInsights = {
+    } else if (rawData) {
+      // Always use raw data when available — covers factual, combined, and reasoning.
+      // Using memory-only for reasoning was the root cause of hallucinations.
+      const memoryInsights = memory ? {
         insights: (memory.insights || []).slice(0, 3),
         opportunities: (memory.opportunities || []).slice(0, 3),
         risks: (memory.risks || []).slice(0, 3),
-      };
+      } : undefined;
       systemPrompt = buildSystemPromptWithRawData(context, rawData, memoryInsights, memory);
-      console.log('[callCofounderAI] Using COMBINED prompt (raw + memory)');
+      console.log('[callCofounderAI] Using RAW DATA prompt (intent:', intent, ')');
     } else if (memory) {
       systemPrompt = buildSystemPromptWithMemory(context, memory);
-      console.log('[callCofounderAI] Using MEMORY prompt');
+      console.log('[callCofounderAI] Using MEMORY prompt (no raw data available)');
     } else {
       systemPrompt = buildSystemPrompt(context, memory, rawData);
-      console.log('[callCofounderAI] Using BASIC context prompt with rawData');
+      console.log('[callCofounderAI] Using BASIC context prompt');
     }
 
     const formattedConversation = formatConversation(conversation);
@@ -420,7 +419,7 @@ export async function callCofounderAI(
       body: JSON.stringify({
         model: MODEL,
         messages,
-        max_tokens: maxTokensOverride ?? 150,
+        max_tokens: maxTokensOverride ?? 400,
         temperature: 0.2,
         top_p: 0.8,
         stream: true,

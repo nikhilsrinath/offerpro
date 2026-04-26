@@ -61,6 +61,7 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
     emailjs_public_key: '',
     gmail_user: '',
     gmail_app_password: '',
+    plan: 'free',
   });
 
   useEffect(() => {
@@ -91,6 +92,7 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         emailjs_public_key: activeOrg.emailjs_public_key || '',
         gmail_user: activeOrg.gmail_user || '',
         gmail_app_password: activeOrg.gmail_app_password || '',
+        plan: activeOrg.plan || 'free',
       };
       setForm(formData);
       // orgStore handles caching — no localStorage write needed
@@ -278,10 +280,54 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         </div>
       </div>
 
-      {/* 2. Payment & Banking */}
+      {/* 2. Plan Limits - Read Only */}
       <div className="easy-section">
         <div className="easy-section-head">
           <div className="easy-num">2</div>
+          <span className="easy-section-title">Current Plan: {form.plan === 'free' ? 'Free' : form.plan === 'pro' ? 'Pro' : 'Max'}</span>
+        </div>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+          Your current plan limits. Contact admin to upgrade.
+        </p>
+
+        {/* Plan Features Summary */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+          gap: '0.75rem',
+          padding: '1rem',
+          background: 'var(--bg-elevated)',
+          borderRadius: '10px',
+          border: '1px solid var(--border-subtle)'
+        }}>
+          {(() => {
+            const planLimits = {
+              free: { offerLetters: 5, mou: 1, nda: 1, invoices: 5, quotations: 5, aiMessages: 10 },
+              pro: { offerLetters: 25, mou: 5, nda: 5, invoices: 20, quotations: 20, aiMessages: 50 },
+              max: { offerLetters: '∞', mou: '∞', nda: '∞', invoices: '∞', quotations: '∞', aiMessages: '∞' }
+            };
+            const limits = planLimits[form.plan] || planLimits.free;
+            const features = [
+              { label: 'Offer Letters', value: limits.offerLetters },
+              { label: 'MoU / NDA', value: limits.mou },
+              { label: 'Invoices', value: limits.invoices },
+              { label: 'Quotations', value: limits.quotations },
+              { label: 'AI Messages', value: limits.aiMessages },
+            ];
+            return features.map((f, i) => (
+              <div key={i} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>{f.label}</div>
+                <div style={{ fontSize: '1.125rem', fontWeight: 700, color: form.plan === 'max' ? '#10b981' : 'var(--text-primary)' }}>{f.value}</div>
+              </div>
+            ));
+          })()}
+        </div>
+      </div>
+
+      {/* 3. Payment & Banking */}
+      <div className="easy-section">
+        <div className="easy-section-head">
+          <div className="easy-num">3</div>
           <span className="easy-section-title">Payment & Banking</span>
         </div>
         <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
@@ -321,10 +367,10 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         </div>
       </div>
 
-      {/* 3. Authorized Person */}
+      {/* 4. Authorized Person */}
       <div className="easy-section">
         <div className="easy-section-head">
-          <div className="easy-num">3</div>
+          <div className="easy-num">4</div>
           <span className="easy-section-title">Authorized person</span>
         </div>
         <div className="easy-row">
@@ -341,10 +387,10 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         </div>
       </div>
 
-      {/* 4. Branding */}
+      {/* 5. Branding */}
       <div className="easy-section">
         <div className="easy-section-head">
-          <div className="easy-num">4</div>
+          <div className="easy-num">5</div>
           <span className="easy-section-title">Logo & signature</span>
         </div>
         <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
@@ -395,10 +441,10 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         </div>
       </div>
 
-      {/* 5. Company Stamp */}
+      {/* 6. Company Stamp */}
       <div className="easy-section">
         <div className="easy-section-head">
-          <div className="easy-num">5</div>
+          <div className="easy-num">6</div>
           <span className="easy-section-title">Company stamp</span>
         </div>
         <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
@@ -461,10 +507,10 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         )}
       </div>
 
-      {/* 6. Appearance */}
+      {/* 7. Appearance */}
       <div className="easy-section">
         <div className="easy-section-head">
-          <div className="easy-num">6</div>
+          <div className="easy-num">7</div>
           <span className="easy-section-title">Appearance</span>
         </div>
         <div className="theme-toggle-row">
@@ -482,10 +528,10 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         </div>
       </div>
 
-      {/* 7. Email Configuration (Gmail SMTP) */}
+      {/* 8. Email Configuration (Gmail SMTP) */}
       <div className="easy-section">
         <div className="easy-section-head">
-          <div className="easy-num">7</div>
+          <div className="easy-num">8</div>
           <span className="easy-section-title">Email Configuration</span>
         </div>
         <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.6 }}>
@@ -610,10 +656,10 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         </div>
       </div>
 
-      {/* 6. Account Settings */}
+      {/* 9. Account Settings */}
       <div className="easy-section">
         <div className="easy-section-head">
-          <div className="easy-num">6</div>
+          <div className="easy-num">9</div>
           <span className="easy-section-title">Account Settings</span>
         </div>
         {!showPasswordChange ? (

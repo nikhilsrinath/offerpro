@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Users, FileText, PieChart as PieChartIcon, File,
-    ChevronRight, Receipt, BarChart3, TrendingUp, Layers,
+    ChevronRight, ChevronDown, Receipt, BarChart3, TrendingUp, Layers,
     Calendar,
 } from 'lucide-react';
 import {
@@ -46,6 +46,8 @@ export default function Hub({ user, theme }) {
     const [finDocs, setFinDocs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [hoveredMod, setHoveredMod] = useState(null);
+    const [revenuePeriod, setRevenuePeriod] = useState('Last 7 Days');
+    const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
     const winW = useWindowWidth();
 
     const isMobile = winW < 768;
@@ -76,18 +78,54 @@ export default function Hub({ user, theme }) {
         const paidFinInvoices = finInvoices.filter(d => d.status === 'paid');
         const revenue = paidFinInvoices.reduce((acc, d) => acc + (d.grand_total || d.amount || d.subtotal || 0), 0);
 
-        // Monthly revenue — use issue_date (when invoice was issued), not created_at
+        // Daily revenue — use issue_date (when invoice was issued), not created_at
         const now = new Date();
-        const monthlyRevenue = [];
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const monthRevenue = paidFinInvoices
-                .filter(inv => {
-                    const dt = new Date(inv.issue_date || inv.created_at);
-                    return dt.getMonth() === d.getMonth() && dt.getFullYear() === d.getFullYear();
-                })
-                .reduce((acc, inv) => acc + (inv.grand_total || inv.amount || inv.subtotal || 0), 0);
-            monthlyRevenue.push({ month: d.toLocaleDateString('en-IN', { month: 'short' }), revenue: monthRevenue });
+        const dailyRevenue = [];
+
+        // Determine number of days based on period selection
+        const periodDays = {
+            'Last 7 Days': 7,
+            'Last 30 Days': 30,
+            'Last 3 Months': 90,
+            'Last 6 Months': 180,
+            'Last 1 Year': 365,
+        }[revenuePeriod] || 7;
+
+        // Create a map of date -> revenue for quick lookup
+        const revenueByDate = new Map();
+        
+        paidFinInvoices.forEach(inv => {
+            const dt = new Date(inv.issue_date || inv.created_at);
+            const dateKey = dt.toISOString().split('T')[0]; // YYYY-MM-DD
+            const amount = inv.grand_total || inv.amount || inv.subtotal || 0;
+            revenueByDate.set(dateKey, (revenueByDate.get(dateKey) || 0) + amount);
+        });
+
+        // Generate daily data points for the selected period
+        for (let i = periodDays - 1; i >= 0; i--) {
+            const d = new Date(now);
+            d.setDate(d.getDate() - i);
+            const dateKey = d.toISOString().split('T')[0];
+            const dayRevenue = revenueByDate.get(dateKey) || 0;
+            
+            // Format label based on period density
+            let dayLabel;
+            if (periodDays <= 7) {
+                // For last 7 days: show day name (Mon, Tue, etc.)
+                dayLabel = d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' });
+            } else if (periodDays <= 30) {
+                // For last 30 days: show date (5 Jan)
+                dayLabel = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+            } else {
+                // For longer periods: show date with year (5 Jan 24)
+                dayLabel = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
+            }
+            
+            dailyRevenue.push({ 
+                date: dateKey,
+                day: dayLabel, 
+                revenue: dayRevenue 
+            });
         }
 
         const rawDistribution = [
@@ -101,10 +139,10 @@ export default function Hub({ user, theme }) {
             total:    nonInvoiceRecords.length + finDocs.length,
             revenue,
             invoices: finInvoices.length,
-            monthlyRevenue,
+            dailyRevenue,
             typeDistribution: rawDistribution,
         };
-    }, [records, finDocs]);
+    }, [records, finDocs, revenuePeriod]);
 
     if (loading) return null;
 
@@ -346,13 +384,73 @@ export default function Hub({ user, theme }) {
                     {/* Revenue Trend */}
                     <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: isMobile ? '12px' : '14px', padding: isMobile ? '1rem' : '1.5rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: isMobile ? '1rem' : '1.5rem' }}>
-                            <div>
+                            <div style={{ position: 'relative' }}>
                                 <h3 style={{ fontSize: isMobile ? '0.8rem' : '0.875rem', fontWeight: 700, color: isDark ? '#fafafa' : '#18181b', margin: '0 0 0.25rem', letterSpacing: '-0.02em' }}>
                                     Revenue Trend
                                 </h3>
-                                <p style={{ fontSize: '0.6rem', color: isDark ? 'rgba(255,255,255,0.3)' : '#a1a1aa', margin: 0, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    Last 6 months
-                                </p>
+                                {/* Period Dropdown */}
+                                <div
+                                    style={{ position: 'relative', display: 'inline-block' }}
+                                    onMouseLeave={() => setShowPeriodDropdown(false)}
+                                >
+                                    <button
+                                        onClick={() => setShowPeriodDropdown(!showPeriodDropdown)}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.25rem',
+                                            fontSize: '0.6rem',
+                                            color: isDark ? 'rgba(255,255,255,0.6)' : '#71717a',
+                                            background: 'transparent',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            padding: '0.25rem 0',
+                                            fontWeight: 500,
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.05em',
+                                        }}
+                                    >
+                                        {revenuePeriod}
+                                        <ChevronDown size={10} />
+                                    </button>
+                                    {showPeriodDropdown && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: '100%',
+                                            left: 0,
+                                            zIndex: 100,
+                                            background: isDark ? '#1f2937' : '#ffffff',
+                                            border: `1px solid ${cardBorder}`,
+                                            borderRadius: '6px',
+                                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                            minWidth: '140px',
+                                            padding: '0.25rem 0',
+                                        }}>
+                                            {['Last 7 Days', 'Last 30 Days', 'Last 3 Months', 'Last 6 Months', 'Last 1 Year'].map((period) => (
+                                                <button
+                                                    key={period}
+                                                    onClick={() => {
+                                                        setRevenuePeriod(period);
+                                                        setShowPeriodDropdown(false);
+                                                    }}
+                                                    style={{
+                                                        display: 'block',
+                                                        width: '100%',
+                                                        padding: '0.5rem 0.75rem',
+                                                        fontSize: '0.7rem',
+                                                        textAlign: 'left',
+                                                        background: revenuePeriod === period ? (isDark ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.1)') : 'transparent',
+                                                        color: revenuePeriod === period ? '#10b981' : (isDark ? '#e5e7eb' : '#374151'),
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    {period}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
                                 <div style={{ fontSize: isMobile ? '1.125rem' : '1.375rem', fontWeight: 800, letterSpacing: '-0.04em', color: isDark ? '#fafafa' : '#18181b' }}>
@@ -365,7 +463,7 @@ export default function Hub({ user, theme }) {
                         </div>
                         <div style={{ height: chartH }}>
                             <ResponsiveContainer>
-                                <AreaChart data={stats.monthlyRevenue} margin={{ top: 5, right: 0, left: isMobile ? -30 : -25, bottom: 0 }}>
+                                <AreaChart data={stats.dailyRevenue} margin={{ top: 5, right: 0, left: isMobile ? -30 : -25, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="hubRevGrad" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%"  stopColor="#10b981" stopOpacity={isDark ? 0.3 : 0.18} />
@@ -373,7 +471,7 @@ export default function Hub({ user, theme }) {
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} />
-                                    <XAxis dataKey="month" tick={{ fill: axisText, fontSize: isMobile ? 10 : 11 }} axisLine={false} tickLine={false} dy={8} />
+                                    <XAxis dataKey="day" tick={{ fill: axisText, fontSize: isMobile ? 10 : 11 }} axisLine={false} tickLine={false} dy={8} />
                                     <YAxis tick={{ fill: axisText, fontSize: isMobile ? 10 : 11 }} axisLine={false} tickLine={false} />
                                     <Tooltip
                                         contentStyle={{ background: tooltipBg, border: `1px solid ${cardBorder}`, borderRadius: 10, fontSize: 12 }}

@@ -4,7 +4,6 @@ const subPages = {
   '/ai-cofounder': lazy(() => import('./pages/AICofounderPage')),
   '/pricing': lazy(() => import('./pages/PricingPage')),
   '/invoicing': lazy(() => import('./pages/InvoicingPage')),
-  '/quotations': lazy(() => import('./pages/QuotationsPage')),
   '/offer-letters': lazy(() => import('./pages/OfferLettersPage')),
   '/legal-documents': lazy(() => import('./pages/LegalDocumentsPage')),
   '/certificates': lazy(() => import('./pages/CertificatesPage')),

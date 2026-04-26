@@ -49,6 +49,8 @@ export const saveOrganizationData = async ({ userId, email, isGoogleUser, formDa
         account_usage: formData.account_usage,
         referral_source: formData.referral_source || null,
         created_at: timestamp,
+        plan: 'free',
+        ai_message_count: 0,
         owner_uid: userId
     };
 
