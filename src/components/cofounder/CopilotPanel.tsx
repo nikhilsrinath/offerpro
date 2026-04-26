@@ -127,6 +127,25 @@ interface SuggestedPrompt {
   icon?: React.ReactNode;
 }
 
+// Render inline markdown: **bold** and *italic* only.
+// Preserves newlines (pre-wrap handles them).
+function renderMarkdown(text: string): React.ReactNode {
+  if (!text) return null;
+  // Match **bold** before *italic* so double-stars aren't eaten by the single-star pattern
+  const regex = /\*\*(.+?)\*\*|\*([^*\n]+?)\*/gs;
+  const nodes: React.ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(text)) !== null) {
+    if (m.index > last) nodes.push(text.slice(last, m.index));
+    if (m[1] !== undefined) nodes.push(<strong key={m.index}>{m[1]}</strong>);
+    else if (m[2] !== undefined) nodes.push(<em key={m.index}>{m[2]}</em>);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
+}
+
 const getDynamicPrompts = (context?: EdgeContext): SuggestedPrompt[] => {
   if (!context) {
     return [
@@ -687,14 +706,14 @@ export default function CopilotPanel({
       setLastDecisionQuestion('');
       activeDecisionCtx = newCtx;
       systemPromptOverride = buildDecisionPrompt(newCtx, rawData, companyName, decisionUserName);
-      maxTokensOverride = 300;
+      maxTokensOverride = 380;
     } else if (isInDecision) {
       const updatedCtx = addDecisionAnswer(decisionCtx!, lastDecisionQuestion, trimmedText);
       setDecisionCtx(updatedCtx);
       setPendingOptions(null);
       activeDecisionCtx = updatedCtx;
       systemPromptOverride = buildDecisionPrompt(updatedCtx, rawData, companyName, decisionUserName);
-      maxTokensOverride = updatedCtx.questionCount >= 4 ? 450 : 260;
+      maxTokensOverride = updatedCtx.questionCount >= 4 ? 520 : 380;
     }
 
     // ── Task assignment mode wiring ──────────────────────────────────────
@@ -805,6 +824,11 @@ export default function CopilotPanel({
               setMessages(prev =>
                 prev.map(m => (m.id === aiMsgId ? { ...m, content: fullContent } : m))
               );
+            } else if (activeDecisionCtx !== null) {
+              // Don't stream raw QUESTION:/OPTIONS: text — show placeholder instead
+              setMessages(prev =>
+                prev.map(m => (m.id === aiMsgId && !m.content ? { ...m, content: '…' } : m))
+              );
             }
           },
           onComplete: async (fullContent: string) => {
@@ -845,16 +869,25 @@ export default function CopilotPanel({
             } else if (activeDecisionCtx !== null) {
               const parsed = parseDecisionResponse(fullContent);
 
-              if (parsed.type === 'question') {
-                setLastDecisionQuestion(parsed.question);
-                const opts = parsed.options.length > 0
+              // Guard: reject DECISION: if the model hasn't asked at least 2 questions yet.
+              // This stops the AI from immediately concluding based on question phrasing.
+              const tooEarly = parsed.type === 'final' && activeDecisionCtx.questionCount < 2;
+
+              if (parsed.type === 'question' || tooEarly) {
+                const question = tooEarly
+                  ? 'To give you an accurate recommendation, let me understand your situation better. What is the main driver for considering this right now?'
+                  : parsed.question;
+                const opts = tooEarly
+                  ? ['Immediate business need', 'Planning ahead for growth', 'Filling a skills gap', 'Exploring options']
+                  : parsed.options.length > 0
                   ? parsed.options
-                  : ['Yes, definitely', 'No, not yet', 'Partially / mixed', "I'm not sure"];
+                  : ['Yes', 'No', 'Partially / not sure', 'Need more time to decide'];
+                setLastDecisionQuestion(question);
                 setPendingOptions(opts);
                 setMessages(prev =>
                   prev.map(m =>
                     m.id === aiMsgId
-                      ? { ...m, content: parsed.question || fullContent, isStreaming: false }
+                      ? { ...m, content: question, isStreaming: false }
                       : m
                   )
                 );
@@ -946,6 +979,7 @@ export default function CopilotPanel({
     decisionCtx,
     lastDecisionQuestion,
     taskPendingEmployee,
+    employeeOp,
   ]);
 
   const handleOptionClick = useCallback(
@@ -1009,6 +1043,40 @@ export default function CopilotPanel({
             padding: '0 0 0 4px',
             lineHeight: 1,
           }}
+        >
+          <X size={12} />
+        </button>
+      </div>
+    );
+  };
+
+  // Employee operation banner (shown while collecting employee data)
+  const EmployeeBanner = () => {
+    if (!employeeOp) return null;
+    const labels: Record<string, string> = {
+      create: 'Adding employee',
+      edit: 'Editing employee',
+      roleChange: 'Role change',
+      terminate: 'Terminating',
+    };
+    const label = labels[employeeOp.type] || 'Employee operation';
+    const empName = employeeOp.matchedEmployee ? getEmpName(employeeOp.matchedEmployee) : '';
+    return (
+      <div style={{
+        padding: '0.5rem 1rem',
+        background: 'rgba(16,185,129,0.07)',
+        borderBottom: '1px solid rgba(16,185,129,0.15)',
+        display: 'flex', alignItems: 'center', gap: '0.5rem',
+        fontSize: '0.6875rem', color: '#059669', fontWeight: 600, flexShrink: 0,
+      }}>
+        <Users size={12} />
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {label}{empName ? ` — ${empName}` : ''}
+        </span>
+        <button
+          onClick={() => setEmployeeOp(null)}
+          title="Cancel"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0 0 0 4px', lineHeight: 1 }}
         >
           <X size={12} />
         </button>
@@ -1280,7 +1348,7 @@ export default function CopilotPanel({
               </div>
             )}
             <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {message.content}
+              {renderMarkdown(message.content)}
             </div>
           </div>
           {message.followUpDraft && !isUser && (
@@ -1295,6 +1363,12 @@ export default function CopilotPanel({
             <TaskCreatedCard
               task={message.taskCreated.task}
               onDismiss={() => dismissTaskCard(message.id)}
+            />
+          )}
+          {message.employeeResult && !isUser && (
+            <EmployeeResultCard
+              result={message.employeeResult}
+              onDismiss={() => dismissEmployeeResult(message.id)}
             />
           )}
         </div>
@@ -1381,8 +1455,9 @@ export default function CopilotPanel({
           </button>
         </div>
 
-        {/* Decision banner */}
+        {/* Decision / Employee banners */}
         <DecisionBanner />
+        <EmployeeBanner />
 
         {/* Chat content */}
         <div
@@ -1431,7 +1506,9 @@ export default function CopilotPanel({
                 onChange={e => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={
-                  taskPendingEmployee
+                  employeeOp
+                    ? 'Type your answer…'
+                    : taskPendingEmployee
                     ? `Describe the task for ${getEmployeeFullName(taskPendingEmployee)}…`
                     : decisionCtx
                     ? 'Type a custom answer…'
@@ -1714,7 +1791,7 @@ export default function CopilotPanel({
               </div>
             )}
             <div style={{ fontSize: '0.8125rem', lineHeight: 1.55, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {message.content}
+              {renderMarkdown(message.content)}
             </div>
             <div style={{ fontSize: '0.625rem', color: 'var(--text-tertiary)', marginTop: '0.375rem', fontWeight: 400 }}>
               {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -1732,6 +1809,12 @@ export default function CopilotPanel({
             <TaskCreatedCard
               task={message.taskCreated.task}
               onDismiss={() => dismissTaskCard(message.id)}
+            />
+          )}
+          {message.employeeResult && !isUser && (
+            <EmployeeResultCard
+              result={message.employeeResult}
+              onDismiss={() => dismissEmployeeResult(message.id)}
             />
           )}
         </div>
@@ -1905,8 +1988,9 @@ export default function CopilotPanel({
         </div>
       </div>
 
-      {/* Decision mode banner */}
+      {/* Decision / Employee banners */}
       <DecisionBanner />
+      <EmployeeBanner />
 
       {/* Messages area */}
       <div
@@ -2020,7 +2104,9 @@ export default function CopilotPanel({
               onChange={e => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={
-                taskPendingEmployee
+                employeeOp
+                  ? 'Type your answer…'
+                  : taskPendingEmployee
                   ? `Describe the task for ${getEmployeeFullName(taskPendingEmployee)}…`
                   : decisionCtx
                   ? 'Type a custom answer…'

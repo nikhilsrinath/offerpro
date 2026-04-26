@@ -115,17 +115,20 @@ export function buildDecisionPrompt(
           .join('\n\n')
       : '\n(No context yet — this is the first question.)';
 
+  // Enforce minimum 3 questions before allowing a final recommendation.
+  // This prevents the model from immediately concluding based on question phrasing.
   const phaseInstruction =
-    ctx.questionCount === 0
-      ? 'Ask the FIRST clarifying question. Start your response with QUESTION:'
+    ctx.questionCount <= 1
+      ? `You MUST ask a clarifying question — outputting DECISION: at this stage is FORBIDDEN.
+Start your response with QUESTION:`
       : ctx.questionCount >= 5
-      ? 'You have enough context. Give the final recommendation now. Start your response with DECISION:'
-      : ctx.questionCount >= 3
-      ? 'If you have enough to give a confident recommendation, start with DECISION: Otherwise start with QUESTION: and ask one more.'
+      ? 'You have gathered enough context. Give the final recommendation now. Start your response with DECISION:'
+      : ctx.questionCount >= 4
+      ? 'If you have strong evidence for a confident recommendation, start with DECISION: Otherwise start with QUESTION: and ask one more.'
       : 'Ask one more focused question. Start your response with QUESTION:';
 
   return `You are the strategic AI Co-founder for ${companyName}, speaking directly to ${userName}.
-You are in DECISION MODE — helping ${userName} reach a well-informed decision.
+You are in DECISION MODE — helping ${userName} make a well-informed, data-backed decision.
 
 DECISION TOPIC: "${ctx.topic}"
 ${answersSection}
@@ -135,26 +138,37 @@ ${rawData || 'No company data available.'}
 
 ${phaseInstruction}
 
+⚠️  CRITICAL ANTI-BIAS RULE:
+Your recommendation MUST be based on the COMPANY DATA and GATHERED ANSWERS — NOT on how the question was phrased.
+If the user asked "should I hire when there is no need?", do NOT simply confirm their framing.
+Analyse the actual data (revenue, team size, workload, tasks, cash) and give an honest, objective answer.
+The same data should produce the same recommendation regardless of question wording.
+
 RESPONSE FORMAT — choose exactly one:
 
-To ask one more clarifying question:
+To ask a clarifying question:
 QUESTION: [One focused question — the most critical unknown, 1 sentence]
 OPTIONS: [2–6 word option] | [2–6 word option] | [2–6 word option] | [2–6 word option]
 
-To give the final recommendation:
-DECISION: [Clear yes/no/which option — one direct sentence]
-WHY: [specific reason using company data or gathered answers] | [specific reason] | [specific reason]
+To give the final recommendation (only after enough context):
+DECISION: [Clear yes/no/which option — one direct sentence grounded in data]
+WHY: [specific data-backed reason] | [specific reason] | [specific reason]
 RISKS: [concrete risk] | [concrete risk]
 NEXT_STEP: [One specific action to take this week]
 
 STRICT OUTPUT RULES:
-- Your response MUST start with either the word QUESTION: or the word DECISION: — nothing before it.
-- Do NOT write "FORMAT A:", "FORMAT B:", or any other label. Start directly with QUESTION: or DECISION:.
-- When you write QUESTION:, you MUST write OPTIONS: on the very next line — OPTIONS are mandatory, never skip them.
-- OPTIONS: must contain exactly 3–5 choices separated by |. Each choice must be 2–7 words. No punctuation at end of choices.
-- For DECISION: — use only facts from company data + gathered context. No invented data.
-- Avoid repeating questions already answered above.
-- Prioritise uncovered dimensions: financial impact, team capacity, urgency, alternatives, downside risk.`;
+1. Start ENTIRELY with QUESTION: or DECISION: — no preamble, no extra text before it.
+2. QUESTION: on line 1. OPTIONS: on line 2 immediately after. SEPARATE LINES — never the same line.
+3. OPTIONS are short answer choices (2–6 words each) separated by |. Never restate the question as an option.
+4. DECISION must cite actual numbers or facts from the company data above. No invented data.
+5. Do not repeat questions already answered.
+
+CORRECT EXAMPLE:
+QUESTION: Do you have budget allocated for this hire?
+OPTIONS: Yes, fully allocated | No budget yet | Partially available | Still planning
+
+WRONG (never do this):
+QUESTION: Do you have budget? OPTIONS: Yes | No   ← OPTIONS must be on its own line`;
 }
 
 // ── Parser ───────────────────────────────────────────────────────────────────
@@ -173,33 +187,59 @@ export function parseDecisionResponse(content: string): ParsedDecisionResponse {
     rawContent: content,
   };
 
-  // Use multiline flag so QUESTION:/DECISION: is found even when the model
-  // prefixes the response with "FORMAT A:" or similar preamble.
+  // Locate QUESTION: — may appear after model preamble (multiline + case-insensitive)
   const questionMatch = trimmed.match(/^QUESTION:\s*(.+)/im);
-  const optionsMatch  = trimmed.match(/^OPTIONS:\s*(.+)/im);
 
   if (questionMatch) {
-    const question = questionMatch[1].trim();
-    const options = optionsMatch
-      ? optionsMatch[1].split('|').map(o => o.trim()).filter(Boolean)
+    let questionText = questionMatch[1].trim();
+    let optionText   = '';
+
+    // Case A: model put OPTIONS: on the SAME LINE as QUESTION:
+    // e.g. "QUESTION: Do you have budget? OPTIONS: Yes | No | Maybe"
+    const inlineOpts = questionText.match(/\s+OPTIONS:\s*(.+)$/i);
+    if (inlineOpts) {
+      optionText   = inlineOpts[1];
+      questionText = questionText.replace(/\s+OPTIONS:\s*.+$/i, '').trim();
+    } else {
+      // Case B: OPTIONS: on a separate line (normal format)
+      const optionsMatch = trimmed.match(/^OPTIONS:\s*(.+)/im);
+      if (optionsMatch) optionText = optionsMatch[1];
+    }
+
+    // Parse pipe-separated option list
+    const rawOptions = optionText
+      ? optionText.split('|').map(o => o.trim()).filter(Boolean)
       : [];
-    return { ...base, type: 'question', question, options };
+
+    // Strip options that are placeholder templates or duplicate the question text
+    const qPrefix = questionText.toLowerCase().substring(0, 25);
+    const options = rawOptions.filter(o => {
+      const ol = o.toLowerCase();
+      return (
+        ol !== qPrefix &&
+        !ol.startsWith(qPrefix) &&
+        !o.includes('[') &&          // filter "[2–6 word option]" template leftovers
+        o.length > 0
+      );
+    });
+
+    return { ...base, type: 'question', question: questionText, options };
   }
 
-  const decisionMatch  = trimmed.match(/^DECISION:\s*(.+)/im);
-  const whyMatch       = trimmed.match(/^WHY:\s*(.+)/im);
-  const risksMatch     = trimmed.match(/^RISKS:\s*(.+)/im);
-  const nextStepMatch  = trimmed.match(/^NEXT_STEP:\s*(.+)/im);
+  const decisionMatch = trimmed.match(/^DECISION:\s*(.+)/im);
+  const whyMatch      = trimmed.match(/^WHY:\s*(.+)/im);
+  const risksMatch    = trimmed.match(/^RISKS:\s*(.+)/im);
+  const nextStepMatch = trimmed.match(/^NEXT_STEP:\s*(.+)/im);
 
   if (decisionMatch) {
     const decision = decisionMatch[1].trim();
-    const why      = whyMatch      ? whyMatch[1].split('|').map(w => w.trim()).filter(Boolean)      : [];
-    const risks    = risksMatch    ? risksMatch[1].split('|').map(r => r.trim()).filter(Boolean)    : [];
-    const nextStep = nextStepMatch ? nextStepMatch[1].trim()                                         : '';
+    const why      = whyMatch      ? whyMatch[1].split('|').map(w => w.trim()).filter(Boolean)   : [];
+    const risks    = risksMatch    ? risksMatch[1].split('|').map(r => r.trim()).filter(Boolean) : [];
+    const nextStep = nextStepMatch ? nextStepMatch[1].trim()                                      : '';
     return { ...base, type: 'final', decision, why, risks, nextStep };
   }
 
-  // Couldn't parse structured format — show raw as a plain final response
+  // Model returned unstructured text — treat as plain final response
   return base;
 }
 

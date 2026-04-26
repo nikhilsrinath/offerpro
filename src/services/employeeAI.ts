@@ -21,11 +21,26 @@ export interface EmployeeOperation {
 
 // ── Intent detection ──────────────────────────────────────────────────────────
 
+/**
+ * Returns true when the message looks like a question or advisory request
+ * rather than a direct action command.  Used to prevent intent detection from
+ * hijacking "should I hire?" → form flow.
+ */
+function isAdvisoryOrQuestion(m: string): boolean {
+  return (
+    /\b(should|could|would|can i|how|why|when|is it|thinking about|considering|advice|suggest|recommend|strategy|wondering|maybe|perhaps|if i|want to know|good time|right time|best way|is there)\b/.test(m) ||
+    m.trimEnd().endsWith('?')
+  );
+}
+
 export function detectEmployeeCreateIntent(message: string): boolean {
   const m = message.toLowerCase();
+  if (isAdvisoryOrQuestion(m)) return false;
   return (
-    (/\b(add|create|hire|onboard|new)\b/.test(m) &&
-     /\b(employee|hire|staff|team\s+member|person|recruit)\b/.test(m)) ||
+    (/\b(add|create|onboard|new)\b/.test(m) &&
+     /\b(employee|staff|team\s+member|person|recruit)\b/.test(m)) ||
+    // "hire [Name]" only when a proper-noun-style name follows (capitalised in original)
+    (/\bhire\b/.test(m) && /\bhire\s+[a-z]+(\s+[a-z]+)?(\s+(as|for|in)\b)/.test(m)) ||
     /\bonboard\s+someone\b/.test(m) ||
     /\badd\s+someone\s+to\s+(the\s+)?team\b/.test(m)
   );
@@ -33,20 +48,25 @@ export function detectEmployeeCreateIntent(message: string): boolean {
 
 export function detectEmployeeEditIntent(message: string): boolean {
   const m = message.toLowerCase();
-  return /\b(edit|update|change|modify|correct)\b.{0,30}(employee|staff)\b/.test(m) ||
-    /\b(employee|staff).{0,30}(edit|update|change|modify)\b/.test(m);
+  if (isAdvisoryOrQuestion(m)) return false;
+  return (
+    /\b(edit|update|change|modify|correct)\b.{0,30}(employee|staff)\b/.test(m) ||
+    /\b(employee|staff).{0,30}(edit|update|change|modify)\b/.test(m)
+  );
 }
 
 export function detectRoleChangeIntent(message: string): boolean {
   const m = message.toLowerCase();
+  if (isAdvisoryOrQuestion(m)) return false;
   return (
-    /\b(promote|role\s*change|change\s*(the\s+)?role|new\s+role|transfer|move)\b/.test(m) ||
+    /\b(promote|role\s*change|change\s*(the\s+)?role|new\s+role|transfer)\b/.test(m) ||
     /\b(change|update)\b.{0,15}\b(position|designation|title)\b/.test(m)
   ) && !detectEmployeeCreateIntent(m);
 }
 
 export function detectTerminateIntent(message: string): boolean {
   const m = message.toLowerCase();
+  if (isAdvisoryOrQuestion(m)) return false;
   return /\b(terminate|fire|let\s+go|dismiss|offboard|end\s+employment|remove\s+(from\s+(the\s+)?team)?)\b/.test(m);
 }
 
