@@ -8,7 +8,7 @@ import StampPreview from './StampPreview';
 import ImageEditor from './ImageEditor';
 
 export default function CompanyProfile({ theme, onToggleTheme }) {
-  const { activeOrg, updateOrganization } = useOrg();
+  const { activeOrg, updateOrganization, loading: orgLoading, fetchOrganizations } = useOrg();
   const { user, updatePassword, reauthenticate } = useAuth();
   const [saving, setSaving] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
@@ -207,7 +207,30 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
     }
   };
 
-  if (!activeOrg) return null;
+  if (!activeOrg) {
+    return (
+      <div className="easy-form animate-in" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
+        {orgLoading ? (
+          <>
+            <Loader size={28} className="spin-icon" style={{ marginBottom: '1rem', color: 'var(--accent-primary)' }} />
+            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>Loading profile...</h2>
+            <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>Fetching your organization details.</p>
+          </>
+        ) : (
+          <>
+            <AlertCircle size={28} style={{ marginBottom: '1rem', color: '#f59e0b' }} />
+            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>No organization profile found</h2>
+            <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+              We could not find an organization linked to your account.
+            </p>
+            <button type="button" className="btn-cinematic" onClick={fetchOrganizations} style={{ marginTop: '1rem' }}>
+              Retry
+            </button>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <>

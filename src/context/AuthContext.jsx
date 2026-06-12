@@ -10,8 +10,9 @@ import {
   EmailAuthProvider
 } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { auth, db, firestore, googleProvider } from '../lib/firebase';
+import { orgStore } from '../services/orgStore';
 
 const AuthContext = createContext({});
 
@@ -21,6 +22,36 @@ export const AuthProvider = ({ children }) => {
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const signupInProgressRef = useRef(false);
 
+  const userHasOrganization = async (uid) => {
+    if (orgStore.getLocalOrgIds(uid).length > 0) return true;
+
+    try {
+      const membershipsQuery = query(collection(firestore, 'memberships'), where('user_id', '==', uid));
+      const membershipsSnap = await getDocs(membershipsQuery);
+      if (!membershipsSnap.empty) return true;
+    } catch (err) {
+      console.warn("Could not check Firestore memberships:", err.message);
+    }
+
+    try {
+      const userDocRef = doc(firestore, 'users', uid);
+      const snapshot = await getDoc(userDocRef);
+      const userData = snapshot.exists() ? snapshot.data() : null;
+      const userOrgs = userData?.organizations || {};
+      if (Object.keys(userOrgs).length > 0) return true;
+    } catch (err) {
+      console.warn("Could not check Firestore user orgs:", err.message);
+    }
+
+    try {
+      const legacySnapshot = await get(ref(db, `users/${uid}/organizations`));
+      return legacySnapshot.exists() && Object.keys(legacySnapshot.val() || {}).length > 0;
+    } catch (err) {
+      console.warn("Could not check legacy user orgs:", err.message);
+      return false;
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       // During email signup, skip — the signup function handles state updates
@@ -29,18 +60,11 @@ export const AuthProvider = ({ children }) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         try {
-          // Check onboarding status via Firestore users collection
-          const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-          const snapshot = await getDoc(userDocRef);
-          
-          const userData = snapshot.exists() ? snapshot.data() : null;
-          const userOrgs = userData?.organizations || {};
-          setNeedsOnboarding(Object.keys(userOrgs).length === 0);
+          await userHasOrganization(firebaseUser.uid);
+          setNeedsOnboarding(false);
         } catch (err) {
-          console.warn("Could not check onboarding status via Firestore:", err.message);
-          // Fallback check to RTDB for robustness during migration if needed, 
-          // but user requested Firestore primary.
-          setNeedsOnboarding(true);
+          console.warn("Could not check onboarding status:", err.message);
+          setNeedsOnboarding(false);
         }
       } else {
         setUser(null);

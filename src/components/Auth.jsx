@@ -37,6 +37,7 @@ const Auth = () => {
     setError(null);
     try {
       await login(email, password);
+      navigate('/hub', { replace: true });
     } catch (err) {
       const msg = err.code === 'auth/invalid-credential' ? 'Invalid email or password.'
         : err.code === 'auth/user-not-found' ? 'No account found with this email.'
@@ -54,6 +55,7 @@ const Auth = () => {
     setError(null);
     try {
       await loginWithGoogle();
+      navigate('/hub', { replace: true });
     } catch (err) {
       if (err.code !== 'auth/popup-closed-by-user') {
         setError(err.message);

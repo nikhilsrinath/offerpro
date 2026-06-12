@@ -37,6 +37,7 @@ const PROFILE_FIELDS = new Set([
 ]);
 
 const LS_KEY = (orgId) => `edgeos_org_${orgId}`;
+const USER_ORGS_KEY = (userId) => `edgeos_user_orgs_${userId || 'local'}`;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,6 +74,40 @@ function readFromLS() {
   } catch { return null; }
 }
 
+function readUserOrgIds(userId) {
+  try {
+    const raw = localStorage.getItem(USER_ORGS_KEY(userId));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeUserOrgIds(userId, orgIds) {
+  try {
+    localStorage.setItem(USER_ORGS_KEY(userId), JSON.stringify([...new Set(orgIds.filter(Boolean))]));
+  } catch (e) {
+    console.warn('[orgStore] local org registry write failed:', e.message);
+  }
+}
+
+function registerLocalOrg(userId, orgId) {
+  if (!userId || !orgId) return;
+  writeUserOrgIds(userId, [...readUserOrgIds(userId), orgId]);
+}
+
+function localOrgIdForUser(userId) {
+  return `local_${userId || 'workspace'}`;
+}
+
+function createEmptyCache(profile = {}) {
+  const cache = { _profile: sanitize(profile) || {} };
+  KEYED_SECTIONS.forEach((section) => { cache[section] = {}; });
+  METADATA_SECTIONS.forEach((section) => { cache[section] = section === 'fin_recurring' ? [] : {}; });
+  return cache;
+}
+
 /** Firestore Dual-Write Helper */
 async function syncToFirestore(section, id, data, type = 'set') {
   if (!_orgId) return;
@@ -106,6 +141,33 @@ async function syncToFirestore(section, id, data, type = 'set') {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export const orgStore = {
+  localOrgIdForUser,
+  registerLocalOrg,
+  getLocalOrgIds: readUserOrgIds,
+
+  ensureLocalOrg(userId, email) {
+    const existing = readUserOrgIds(userId);
+    const orgId = existing[0] || localOrgIdForUser(userId);
+    _orgId = orgId;
+
+    const existingCache = readFromLS();
+    if (existingCache && Object.keys(existingCache).length > 0) {
+      _cache = existingCache;
+    } else {
+      _cache = createEmptyCache({
+        id: orgId,
+        company_email: email || '',
+        owner_uid: userId || '',
+        created_at: new Date().toISOString(),
+        plan: 'free',
+      });
+      persistToLS();
+    }
+
+    _loaded = true;
+    registerLocalOrg(userId, orgId);
+    return { id: orgId, ...(_cache._profile || {}) };
+  },
 
   /** 
    * Load entire org from FIRESTORE (Primary). 
@@ -165,9 +227,20 @@ export const orgStore = {
       // 1. Profile healing
       if (Object.keys(reconstructed._profile || {}).length <= 1) { // {id} or {}
         const rtdbProfile = await get(ref(db, `organizations/${_orgId}/_profile`));
-        if (rtdbProfile.exists()) {
+        const rtdbRootProfile = await get(ref(db, `organizations/${_orgId}`));
+        const rootProfile = rtdbRootProfile.exists()
+          ? Object.fromEntries(
+              Object.entries(rtdbRootProfile.val() || {}).filter(([key]) => PROFILE_FIELDS.has(key))
+            )
+          : {};
+
+        if (rtdbProfile.exists() || Object.keys(rootProfile).length > 0) {
           console.log('[orgStore] Healing _profile from RTDB');
-          reconstructed._profile = { ...rtdbProfile.val(), ...reconstructed._profile };
+          reconstructed._profile = {
+            ...rootProfile,
+            ...(rtdbProfile.exists() ? rtdbProfile.val() : {}),
+            ...reconstructed._profile,
+          };
           syncToFirestore('_profile', null, reconstructed._profile);
         }
       }
@@ -204,6 +277,13 @@ export const orgStore = {
       // Merge in-memory writes that haven't reached Firestore/RTDB yet.
       // If the existing cache has MORE items for a section than what we
       // just fetched, keep the in-memory version (it has pending writes).
+      if (
+        Object.keys(reconstructed._profile || {}).length <= 1 &&
+        Object.keys(_cache._profile || {}).length > 0
+      ) {
+        reconstructed._profile = { ..._cache._profile, ...reconstructed._profile };
+      }
+
       for (const section of KEYED_SECTIONS) {
         const inMemCount = Object.keys(_cache[section] || {}).length;
         const freshCount = Object.keys(reconstructed[section] || {}).length;
@@ -212,13 +292,26 @@ export const orgStore = {
         }
       }
 
+      for (const section of METADATA_SECTIONS) {
+        const fresh = reconstructed[section];
+        const current = _cache[section];
+        const freshEmpty = !fresh || (Array.isArray(fresh) ? fresh.length === 0 : Object.keys(fresh).length === 0);
+        const currentHasData = current && (Array.isArray(current) ? current.length > 0 : Object.keys(current).length > 0);
+        if (freshEmpty && currentHasData) reconstructed[section] = current;
+      }
+
       _cache = reconstructed;
       _loaded = true;
       persistToLS();
       console.log('[orgStore] Load complete. Per-section hybrid state synchronized.');
     } catch (err) {
       console.error('[orgStore] Firestore load failed:', err.message);
-      if (!_loaded) { _cache = { _profile: {} }; _loaded = true; }
+      if (!_loaded) {
+        const fallback = readFromLS();
+        _cache = fallback && Object.keys(fallback).length > 0 ? fallback : createEmptyCache({ id: _orgId });
+        _loaded = true;
+        persistToLS();
+      }
     }
 
     return _cache;
@@ -242,12 +335,12 @@ export const orgStore = {
     if (!path) return;
     if (!_cache._profile) _cache._profile = {};
     Object.assign(_cache._profile, updates);
+    if (!_cache._profile.id) _cache._profile.id = _orgId;
     persistToLS();
 
     // Dual-Write
-    const rtdbPromise = update(ref(db, path), sanitize(updates)).catch(() => {});
-    const fsPromise = syncToFirestore('_profile', _orgId, updates);
-    await Promise.all([rtdbPromise, fsPromise]);
+    update(ref(db, path), sanitize(updates)).catch(() => {});
+    syncToFirestore('_profile', _orgId, updates);
   },
 
   getSection(section) {
@@ -272,18 +365,24 @@ export const orgStore = {
   async addItem(section, data) {
     const path = fbPath(section);
     if (!path) throw new Error('[orgStore] No orgId set');
-    const itemRef = push(ref(db, path));
-    const item = { id: itemRef.key, ...data };
+    const localId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    let itemRef = null;
+    try {
+      itemRef = push(ref(db, path));
+    } catch {
+      itemRef = { key: localId };
+    }
+    const itemId = itemRef?.key || localId;
+    const item = { id: itemId, ...data };
     if (!item.created_at) item.created_at = new Date().toISOString();
     const clean = sanitize(item);
     
     if (!_cache[section]) _cache[section] = {};
-    _cache[section][itemRef.key] = clean;
+    _cache[section][itemId] = clean;
     persistToLS();
 
-    const rtdbPromise = set(itemRef, clean).catch(() => {});
-    const fsPromise = syncToFirestore(section, itemRef.key, clean);
-    await Promise.all([rtdbPromise, fsPromise]);
+    if (itemRef) set(itemRef, clean).catch(() => {});
+    syncToFirestore(section, itemId, clean);
     return item;
   },
 
@@ -295,9 +394,8 @@ export const orgStore = {
     _cache[section][id] = clean;
     persistToLS();
 
-    const rtdbPromise = set(ref(db, path), clean).catch(() => {});
-    const fsPromise = syncToFirestore(section, id, clean);
-    await Promise.all([rtdbPromise, fsPromise]);
+    set(ref(db, path), clean).catch(() => {});
+    syncToFirestore(section, id, clean);
   },
 
   async updateItem(section, id, updates) {
@@ -307,9 +405,8 @@ export const orgStore = {
     _cache[section][id] = { ...(_cache[section][id] || {}), ...updates };
     persistToLS();
 
-    const rtdbPromise = update(ref(db, path), sanitize(updates)).catch(() => {});
-    const fsPromise = syncToFirestore(section, id, updates, 'update');
-    await Promise.all([rtdbPromise, fsPromise]);
+    update(ref(db, path), sanitize(updates)).catch(() => {});
+    syncToFirestore(section, id, updates, 'update');
   },
 
   removeItem(section, id) {
@@ -382,9 +479,6 @@ export const orgStore = {
   clear() {
     _listeners.forEach(unsub => { try { unsub(); } catch {} });
     _listeners = [];
-    if (_orgId) {
-      try { localStorage.removeItem(LS_KEY(_orgId)); } catch {}
-    }
     _orgId = null;
     _cache = {};
     _loaded = false;
