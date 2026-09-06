@@ -1,0 +1,1629 @@
+<title>EdgeOS Health Report</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#F4F6F8;
+  --surface:#FFFFFF;
+  --surface-2:#EDF0F3;
+  --ink:#111925;
+  --ink-2:#3D4A5C;
+  --ink-3:#68758A;
+  --rule:#D8DEE6;
+  --rule-2:#E9EDF1;
+  --accent:#2C5A87;
+  --accent-soft:#E4EDF5;
+  --crit:#A8201A;
+  --crit-soft:#F7E4E2;
+  --high:#B45309;
+  --high-soft:#FAECDC;
+  --med:#8A6D0B;
+  --med-soft:#F6F0DA;
+  --low:#4A6B7C;
+  --low-soft:#E6EDF1;
+  --good:#2F6B4F;
+  --shadow:0 1px 2px rgba(17,25,37,.05),0 4px 16px rgba(17,25,37,.06);
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --serif:'Newsreader',Georgia,'Times New Roman',serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0B1017;
+    --surface:#131A24;
+    --surface-2:#1A222E;
+    --ink:#E8ECF1;
+    --ink-2:#B3BDCA;
+    --ink-3:#7D8A9B;
+    --rule:#2A3441;
+    --rule-2:#212A36;
+    --accent:#7FAFD8;
+    --accent-soft:#1B2C3C;
+    --crit:#F08A82;
+    --crit-soft:#331615;
+    --high:#E0A257;
+    --high-soft:#2E2011;
+    --med:#D4BC63;
+    --med-soft:#2A2512;
+    --low:#9CB6C4;
+    --low-soft:#1B242A;
+    --good:#7FC4A0;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0B1017;
+  --surface:#131A24;
+  --surface-2:#1A222E;
+  --ink:#E8ECF1;
+  --ink-2:#B3BDCA;
+  --ink-3:#7D8A9B;
+  --rule:#2A3441;
+  --rule-2:#212A36;
+  --accent:#7FAFD8;
+  --accent-soft:#1B2C3C;
+  --crit:#F08A82;
+  --crit-soft:#331615;
+  --high:#E0A257;
+  --high-soft:#2E2011;
+  --med:#D4BC63;
+  --med-soft:#2A2512;
+  --low:#9CB6C4;
+  --low-soft:#1B242A;
+  --good:#7FC4A0;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.35);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:15px;
+  line-height:1.6;
+  margin:0;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1140px;margin:0 auto;padding:0 28px 96px}
+h1,h2,h3,h4{text-wrap:balance;margin:0}
+a{color:var(--accent)}
+
+/* ── Masthead ─────────────────────────────── */
+.mast{
+  border-bottom:2px solid var(--ink);
+  padding:36px 0 20px;
+  margin-bottom:32px;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:20px;
+}
+.mast-id{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--ink-3);
+  margin-bottom:10px;
+}
+.mast h1{
+  font-family:var(--serif);
+  font-size:clamp(38px,5.5vw,58px);
+  font-weight:500;
+  line-height:1.02;
+  letter-spacing:-.015em;
+}
+.mast h1 em{font-style:italic;color:var(--ink-2)}
+.mast-meta{
+  font-family:var(--mono);
+  font-size:12px;
+  line-height:1.9;
+  color:var(--ink-3);
+  text-align:right;
+}
+.mast-meta b{color:var(--ink-2);font-weight:500}
+
+/* ── Verdict banner ───────────────────────── */
+.verdict{
+  background:var(--crit-soft);
+  border:1px solid var(--crit);
+  border-left-width:5px;
+  padding:20px 24px;
+  margin-bottom:36px;
+  display:flex;
+  gap:18px;
+  align-items:flex-start;
+}
+.verdict-tag{
+  font-family:var(--mono);
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--crit);
+  border:1px solid var(--crit);
+  padding:3px 8px;
+  white-space:nowrap;
+  flex-shrink:0;
+  margin-top:2px;
+}
+.verdict p{margin:0;color:var(--ink);font-size:15px}
+.verdict strong{font-weight:600}
+
+/* ── Score instrument ─────────────────────── */
+.instrument{
+  display:grid;
+  grid-template-columns:minmax(0,320px) minmax(0,1fr);
+  gap:0;
+  background:var(--surface);
+  border:1px solid var(--rule);
+  box-shadow:var(--shadow);
+  margin-bottom:14px;
+}
+.score-face{
+  padding:28px 30px;
+  border-right:1px solid var(--rule);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+.score-label{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--ink-3);
+  margin-bottom:6px;
+}
+.score-value{
+  font-family:var(--serif);
+  font-size:84px;
+  line-height:.9;
+  font-weight:500;
+  letter-spacing:-.03em;
+  color:var(--crit);
+  font-variant-numeric:tabular-nums;
+}
+.score-value span{font-size:30px;color:var(--ink-3)}
+.gauge{margin-top:18px}
+.gauge-track{height:8px;background:var(--surface-2);position:relative;border:1px solid var(--rule-2)}
+.gauge-fill{position:absolute;inset:0 auto 0 0;width:28%;background:var(--crit)}
+.gauge-target{position:absolute;top:-4px;bottom:-4px;left:80%;width:2px;background:var(--ink)}
+.gauge-scale{
+  display:flex;justify-content:space-between;
+  font-family:var(--mono);font-size:10px;color:var(--ink-3);
+  margin-top:5px;font-variant-numeric:tabular-nums;
+}
+.gauge-note{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:9px}
+
+.counts{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+}
+.count{
+  padding:24px 22px;
+  border-right:1px solid var(--rule);
+  border-bottom:1px solid var(--rule);
+}
+.count:nth-child(4n){border-right:0}
+.count:nth-child(n+5){border-bottom:0}
+.count-n{
+  font-family:var(--mono);
+  font-size:34px;
+  font-weight:600;
+  line-height:1;
+  font-variant-numeric:tabular-nums;
+}
+.count-l{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--ink-3);
+  margin-top:7px;
+}
+.count-s{font-size:12.5px;color:var(--ink-2);margin-top:6px;line-height:1.45}
+.c-crit .count-n{color:var(--crit)}
+.c-high .count-n{color:var(--high)}
+.c-med .count-n{color:var(--med)}
+.c-low .count-n{color:var(--low)}
+
+/* ── Sections ─────────────────────────────── */
+section{margin-top:56px}
+.sec-head{
+  display:flex;align-items:baseline;gap:14px;
+  border-bottom:1px solid var(--ink);
+  padding-bottom:9px;margin-bottom:22px;
+}
+.sec-num{
+  font-family:var(--mono);font-size:11px;font-weight:600;
+  letter-spacing:.1em;color:var(--accent);
+}
+.sec-head h2{
+  font-family:var(--serif);font-size:27px;font-weight:500;letter-spacing:-.01em;
+}
+.sec-sub{margin:0 0 22px;color:var(--ink-2);max-width:66ch;font-size:14.5px}
+
+/* ── Category bars ────────────────────────── */
+.bars{background:var(--surface);border:1px solid var(--rule);box-shadow:var(--shadow)}
+.bar-row{
+  display:grid;
+  grid-template-columns:minmax(150px,1.15fr) 46px minmax(0,2.4fr);
+  align-items:center;
+  gap:14px;
+  padding:9px 20px;
+  border-bottom:1px solid var(--rule-2);
+}
+.bar-row:last-child{border-bottom:0}
+.bar-name{font-size:13.5px;font-weight:500;color:var(--ink)}
+.bar-score{
+  font-family:var(--mono);font-size:14px;font-weight:600;
+  text-align:right;font-variant-numeric:tabular-nums;
+}
+.bar-track{
+  position:relative;height:15px;background:var(--surface-2);
+  border:1px solid var(--rule-2);
+}
+.bar-fill{position:absolute;top:0;bottom:0;left:0}
+.bar-tick{position:absolute;top:-3px;bottom:-3px;width:1px;background:var(--rule)}
+.s-crit .bar-fill{background:var(--crit)} .s-crit .bar-score{color:var(--crit)}
+.s-high .bar-fill{background:var(--high)} .s-high .bar-score{color:var(--high)}
+.s-med  .bar-fill{background:var(--med)}  .s-med  .bar-score{color:var(--med)}
+.s-ok   .bar-fill{background:var(--good)} .s-ok   .bar-score{color:var(--good)}
+.bars-axis{
+  display:grid;grid-template-columns:minmax(150px,1.15fr) 46px minmax(0,2.4fr);
+  gap:14px;padding:7px 20px 10px;border-top:1px solid var(--rule);
+  background:var(--surface-2);
+}
+.axis-marks{
+  display:flex;justify-content:space-between;
+  font-family:var(--mono);font-size:10px;color:var(--ink-3);
+  grid-column:3;font-variant-numeric:tabular-nums;
+}
+.axis-lab{
+  grid-column:1/3;font-family:var(--mono);font-size:10px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+}
+
+/* ── Findings ─────────────────────────────── */
+.finding{
+  background:var(--surface);
+  border:1px solid var(--rule);
+  border-left:4px solid var(--crit);
+  margin-bottom:12px;
+  box-shadow:var(--shadow);
+}
+.f-high{border-left-color:var(--high)}
+.f-head{padding:17px 22px 15px}
+.f-top{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:9px}
+.f-id{
+  font-family:var(--mono);font-size:11px;font-weight:600;
+  background:var(--ink);color:var(--paper);padding:2.5px 7px;letter-spacing:.04em;
+}
+.pill{
+  font-family:var(--mono);font-size:9.5px;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;padding:2.5px 7px;
+  border:1px solid currentColor;
+}
+.p-crit{color:var(--crit);background:var(--crit-soft)}
+.p-high{color:var(--high);background:var(--high-soft)}
+.p-meta{color:var(--ink-3);background:transparent;border-color:var(--rule)}
+.f-title{font-family:var(--serif);font-size:20.5px;font-weight:500;line-height:1.25;margin-bottom:9px}
+.f-body{color:var(--ink-2);font-size:14px;max-width:78ch;margin:0}
+.f-body strong{color:var(--ink);font-weight:600}
+.f-body code{
+  font-family:var(--mono);font-size:12.5px;
+  background:var(--surface-2);padding:1px 5px;border:1px solid var(--rule-2);
+  color:var(--ink);
+}
+.f-ev{
+  margin:13px 0 0;padding:12px 15px;
+  background:var(--surface-2);border:1px solid var(--rule-2);
+  border-left:3px solid var(--ink-3);
+  font-family:var(--mono);font-size:12px;line-height:1.65;
+  overflow-x:auto;white-space:pre;color:var(--ink);
+}
+.f-ev b{color:var(--crit);font-weight:600}
+.f-impact{
+  margin-top:13px;padding-top:12px;border-top:1px solid var(--rule-2);
+  font-size:13.5px;color:var(--ink-2);
+}
+.f-impact b{
+  font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:3px;
+}
+
+/* ── Prompt disclosure ────────────────────── */
+details.prompt{border-top:1px solid var(--rule)}
+details.prompt summary{
+  padding:11px 22px;cursor:pointer;
+  font-family:var(--mono);font-size:11px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--accent);
+  background:var(--accent-soft);
+  list-style:none;display:flex;align-items:center;gap:8px;
+}
+details.prompt summary::-webkit-details-marker{display:none}
+details.prompt summary::before{content:"▸";font-size:11px;transition:transform .15s}
+details.prompt[open] summary::before{transform:rotate(90deg)}
+details.prompt summary:hover{filter:brightness(.97)}
+:root[data-theme="dark"] details.prompt summary:hover{filter:brightness(1.25)}
+.prompt-body{position:relative;border-top:1px solid var(--rule)}
+.prompt-body pre{
+  margin:0;padding:18px 22px;
+  font-family:var(--mono);font-size:12px;line-height:1.62;
+  white-space:pre-wrap;word-break:break-word;
+  background:var(--surface-2);color:var(--ink);
+  max-height:460px;overflow-y:auto;
+}
+.copy{
+  position:absolute;top:10px;right:14px;
+  font-family:var(--mono);font-size:10px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;
+  background:var(--surface);color:var(--ink-2);
+  border:1px solid var(--rule);padding:5px 10px;cursor:pointer;
+}
+.copy:hover{border-color:var(--accent);color:var(--accent)}
+.copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.copy.done{color:var(--good);border-color:var(--good)}
+
+/* ── Feature grid ─────────────────────────── */
+.feat-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(238px,1fr));
+  gap:0;border:1px solid var(--rule);background:var(--surface);
+  box-shadow:var(--shadow);
+}
+.feat{padding:15px 18px;border-right:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)}
+.feat-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:7px}
+.feat-name{font-size:13.5px;font-weight:600;line-height:1.25}
+.feat-score{font-family:var(--mono);font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;flex-shrink:0}
+.feat-meter{height:4px;background:var(--surface-2);margin-bottom:8px;border:1px solid var(--rule-2)}
+.feat-meter i{display:block;height:100%}
+.feat-note{font-size:12.5px;color:var(--ink-2);line-height:1.5;margin:0}
+
+/* ── Roadmap ──────────────────────────────── */
+.phase{
+  display:grid;grid-template-columns:118px minmax(0,1fr);
+  border:1px solid var(--rule);border-bottom:0;background:var(--surface);
+}
+.phase:last-of-type{border-bottom:1px solid var(--rule)}
+.phase-when{
+  padding:19px 18px;border-right:1px solid var(--rule);background:var(--surface-2);
+}
+.phase-p{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--accent)}
+.phase-w{font-family:var(--mono);font-size:12.5px;color:var(--ink-3);margin-top:5px}
+.phase-main{padding:19px 22px}
+.phase-main h3{font-family:var(--serif);font-size:19px;font-weight:500;margin-bottom:5px}
+.phase-goal{font-size:13px;color:var(--ink-3);margin:0 0 12px;font-style:italic}
+.phase-items{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.phase-items li{
+  display:grid;grid-template-columns:44px minmax(0,1fr);gap:11px;
+  font-size:13.5px;color:var(--ink-2);align-items:baseline;
+}
+.phase-items code{
+  font-family:var(--mono);font-size:11px;font-weight:600;
+  color:var(--ink);background:var(--surface-2);
+  border:1px solid var(--rule-2);padding:1.5px 0;text-align:center;
+}
+.phase-exit{
+  margin-top:13px;padding-top:11px;border-top:1px dashed var(--rule);
+  font-size:13px;color:var(--ink);
+}
+.phase-exit b{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);margin-right:7px;
+}
+
+/* ── Target state ─────────────────────────── */
+.target{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(252px,1fr));gap:1px;
+  background:var(--rule);border:1px solid var(--rule);box-shadow:var(--shadow);
+}
+.target > div{background:var(--surface);padding:19px 20px}
+.target h4{
+  font-family:var(--mono);font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--accent);margin-bottom:9px;
+}
+.target p{margin:0;font-size:13.5px;color:var(--ink-2);line-height:1.55}
+
+.close{
+  margin-top:52px;padding:26px 28px;
+  border:1px solid var(--ink);background:var(--surface);
+}
+.close h3{font-family:var(--serif);font-size:22px;font-weight:500;margin-bottom:11px}
+.close p{margin:0 0 12px;color:var(--ink-2);max-width:76ch;font-size:14.5px}
+.close p:last-child{margin-bottom:0}
+.close strong{color:var(--ink);font-weight:600}
+
+footer{
+  margin-top:44px;padding-top:18px;border-top:1px solid var(--rule);
+  font-family:var(--mono);font-size:11px;color:var(--ink-3);line-height:1.8;
+}
+
+@media (max-width:820px){
+  .instrument{grid-template-columns:1fr}
+  .score-face{border-right:0;border-bottom:1px solid var(--rule)}
+  .counts{grid-template-columns:repeat(2,1fr)}
+  .count:nth-child(2n){border-right:0}
+  .count:nth-child(n+3){border-bottom:0}
+  .count:nth-child(4n){border-right:0}
+  .bar-row,.bars-axis{grid-template-columns:minmax(112px,1fr) 40px minmax(0,1.5fr);gap:10px;padding-left:14px;padding-right:14px}
+  .phase{grid-template-columns:1fr}
+  .phase-when{border-right:0;border-bottom:1px solid var(--rule);display:flex;gap:12px;align-items:baseline;padding:12px 18px}
+  .phase-w{margin-top:0}
+  .mast-meta{text-align:left}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div>
+    <div class="mast-id">Mega Audit · nikhilsrinath/offerpro</div>
+    <h1>EdgeOS is a<br><em>prototype in a</em> suit.</h1>
+  </div>
+  <div class="mast-meta">
+    <b>06 Sep 2026</b><br>
+    47,121 LOC · 111 files<br>
+    React 19 · Vite 7 · Firebase<br>
+    Build <b>pass</b> · Lint <b>86 err</b> · Tests <b>0</b>
+  </div>
+</header>
+
+<div class="verdict">
+  <span class="verdict-tag">Do not launch</span>
+  <p><strong>The application cannot safely hold a single real customer's data.</strong> There is no server-side authorization anywhere in the system — tenant isolation exists only as a client-side query filter, and no Firebase security rules exist in the repository at all. The admin panel, which permanently deletes organizations, is guarded by a hardcoded <code style="font-family:var(--mono);font-size:13px">admin123</code> in localStorage. A live API key is committed to git. Nine independent findings each block a commercial launch.</p>
+</div>
+
+<div class="instrument">
+  <div class="score-face">
+    <div class="score-label">Overall SaaS health</div>
+    <div class="score-value">2.8<span>/10</span></div>
+    <div class="gauge">
+      <div class="gauge-track">
+        <div class="gauge-fill"></div>
+        <div class="gauge-target" title="Production-ready threshold: 8.0"></div>
+      </div>
+      <div class="gauge-scale"><span>0</span><span>5</span><span>10</span></div>
+      <div class="gauge-note">▌ marks 8.0 — production-ready threshold</div>
+    </div>
+  </div>
+  <div class="counts">
+    <div class="count c-crit">
+      <div class="count-n">9</div><div class="count-l">Critical</div>
+      <div class="count-s">Data breach, open relay, leaked key</div>
+    </div>
+    <div class="count c-high">
+      <div class="count-n">14</div><div class="count-l">High</div>
+      <div class="count-s">Bundle, tenancy, tests, SEO</div>
+    </div>
+    <div class="count c-med">
+      <div class="count-n">16</div><div class="count-l">Medium</div>
+      <div class="count-s">Validation, a11y, IDs, CSS</div>
+    </div>
+    <div class="count c-low">
+      <div class="count-n">9</div><div class="count-l">Low</div>
+      <div class="count-s">Docs, naming, PWA polish</div>
+    </div>
+    <div class="count">
+      <div class="count-n">10–14</div><div class="count-l">Weeks to fix</div>
+      <div class="count-s">Engineer-weeks, dependency-ordered</div>
+    </div>
+    <div class="count">
+      <div class="count-n">3.38<span style="font-size:16px;color:var(--ink-3)"> MB</span></div>
+      <div class="count-l">Main JS chunk</div>
+      <div class="count-s">976 KB gzip, one file, no splitting</div>
+    </div>
+    <div class="count">
+      <div class="count-n">0</div><div class="count-l">Security rules</div>
+      <div class="count-s">No firestore.rules in the repo</div>
+    </div>
+    <div class="count">
+      <div class="count-n">25</div><div class="count-l">CVEs</div>
+      <div class="count-s">3 critical, 15 high (npm audit)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CATEGORY SCORES ══════════════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>Category scores</h2></div>
+  <p class="sec-sub">Fifteen areas, rated against what a commercially operated SaaS requires. The pattern is diagnostic: everything a user can <em>see</em> scores acceptably; everything that protects them scores near zero.</p>
+
+  <div class="bars">
+    <div class="bar-row s-crit"><span class="bar-name">Security</span><span class="bar-score">1.0</span><span class="bar-track"><i class="bar-fill" style="width:10%"></i><i class="bar-tick" style="left:50%"></i></span></div>
+    <div class="bar-row s-crit"><span class="bar-name">Testing &amp; Observability</span><span class="bar-score">0.0</span><span class="bar-track"><i class="bar-fill" style="width:0%"></i><i class="bar-tick" style="left:50%"></i></span></div>
+    <div class="bar-row s-crit"><span class="bar-name">SEO Readiness</span><span class="bar-score">1.0</span><span class="bar-track"><i class="bar-fill" style="width:10%"></i><i class="bar-tick" style="left:50%"></i></span></div>
+    <div class="bar-row s-crit"><span class="bar-name">Backup &amp; Disaster Recovery</span><span class="bar-score">1.0</span><span class="bar-track"><i class="bar-fill" style="width:10%"></i><i class="bar-tick" style="left:50%"></i></span></div>
+    <div class="bar-row s-crit"><span class="bar-name">Database &amp; Data Integrity</span><span class="bar-score">2.0</span><span class="bar-track"><i class="bar-fill" style="width:20%"></i><i class="bar-tick" style="left:50%"></i></span></div>
+    <div class="bar-row s-crit"><span class="bar-name">Performance &amp; Bundle</span><span class="bar-score">2.0</span><span class="bar-track"><i class="bar-fill" style="width:20%"></i><i class="bar-tick" style="left:50%"></i></span></div>
+    <div class="bar-row s-crit"><span class="bar-name">Infrastructure &amp; Deployment</span><span class="bar-score">2.0</span><span class="bar-track"><i class="bar-fill" style="width:20%"></i><i class="bar-tick" style="left:50%"></i></span></div>
+    <div class="bar-row s-crit"><span class="bar-name">SaaS / Product Readiness</span><span class="bar-score">2.0</span><span class="bar-track"><i class="bar-fill" style="width:20%"></i><i class="bar-tick" style="left:50%"></i></span></div>
+    <div class="bar-row s-high"><span class="bar-name">Core Architecture</span><span class="bar-score">3.0</span><span class="bar-track"><i class="bar-fill" style="width:30%"></i><i class="bar-tick" style="left:50%"></i></span></div>
+    <div class="bar-row s-high"><span class="bar-name">Code Quality</span><span class="bar-score">3.0</span><span class="bar-track"><i class="bar-fill" style="width:30%"></i><i class="bar-tick" style="left:50%"></i></span></div>
+    <div class="bar-row s-high"><span class="bar-name">Reliability</span><span class="bar-score">3.0</span><span class="bar-track"><i class="bar-fill" style="width:30%"></i><i class="bar-tick" style="left:50%"></i></span></div>
+    <div class="bar-row s-high"><span class="bar-name">Application Stability</span><span class="bar-score">4.0</span><span class="bar-track"><i class="bar-fill" style="width:40%"></i><i class="bar-tick" style="left:50%"></i></span></div>
+    <div class="bar-row s-med"><span class="bar-name">Browser / Device Compat.</span><span class="bar-score">5.0</span><span class="bar-track"><i class="bar-fill" style="width:50%"></i><i class="bar-tick" style="left:50%"></i></span></div>
+    <div class="bar-row s-med"><span class="bar-name">Features &amp; Business Logic</span><span class="bar-score">6.0</span><span class="bar-track"><i class="bar-fill" style="width:60%"></i><i class="bar-tick" style="left:50%"></i></span></div>
+    <div class="bar-row s-ok"><span class="bar-name">UI / UX</span><span class="bar-score">7.0</span><span class="bar-track"><i class="bar-fill" style="width:70%"></i><i class="bar-tick" style="left:50%"></i></span></div>
+    <div class="bars-axis">
+      <span class="axis-lab">Rating scale</span>
+      <span class="axis-marks"><span>0</span><span>5</span><span>10</span></span>
+    </div>
+  </div>
+</section>
+
+<!-- ══ CRITICAL FINDINGS ════════════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>Critical findings</h2></div>
+  <p class="sec-sub">Nine issues, each independently sufficient to block launch. Every one cites the file and line it was found in. Expand any finding for a copy-ready prompt you can paste straight into a coding agent.</p>
+
+  <!-- C-1 -->
+  <article class="finding">
+    <div class="f-head">
+      <div class="f-top">
+        <span class="f-id">C-1</span>
+        <span class="pill p-crit">Critical</span>
+        <span class="pill p-meta">Architectural</span>
+        <span class="pill p-meta">≈2 weeks</span>
+      </div>
+      <h3 class="f-title">No server-side authorization — complete cross-tenant data exposure</h3>
+      <p class="f-body">There are <strong>no security rules files anywhere in the repository</strong>. Tenant isolation is attempted purely in the browser, and the Firestore schema is flat: every organization's employees, salaries, customers, invoices and expenses share the same top-level collections, separated only by a field the client chooses to filter on.</p>
+      <pre class="f-ev">src/services/orgStore.js:193
+  getDocs(query(collection(firestore, section),
+          <b>where('orgId', '==', _orgId)</b>))   ← the only isolation
+
+src/components/portal/RecipientPortal.jsx:99
+  // Sign in anonymously so Firebase security rules
+  // (<b>auth != null</b>) are satisfied
+
+$ find . -name "firestore.rules" -o -name "firebase.json"
+  <b>(no results)</b></pre>
+      <div class="f-impact"><b>Impact</b>The portal's own comment states the deployed rule shape. Anyone can call <code>signInAnonymously()</code> and then read and write every document in every collection for every tenant — including the plaintext Gmail App Passwords stored on the org profile. A reportable breach under GDPR and India's DPDP Act.</div>
+    </div>
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Implement server-side multi-tenant authorization for the EdgeOS Firebase backend.
+There is currently NO authorization layer: tenant isolation exists only as a
+client-side `where('orgId','==',orgId)` filter in src/services/orgStore.js, and the
+app relies on anonymous auth passing an `auth != null` rule.
+
+INSPECT FIRST
+- src/services/orgStore.js — KEYED_SECTIONS (line 15), METADATA_SECTIONS (line 21),
+  PROFILE_FIELDS (line 26), and every read/write path (load, addItem, setItem,
+  updateItem, removeItem, setSection, listenSection).
+- src/context/OrgContext.jsx — how memberships are created (createOrganization) and
+  read (fetchOrganizationIds).
+- src/services/dualWriteService.js — the onboarding write, which creates the
+  `memberships/{id}` doc with {organization_id, user_id, role}.
+- src/components/portal/RecipientPortal.jsx — the anonymous-auth read path.
+
+CREATE
+1. `firebase.json`, `.firebaserc`, `firestore.rules`, `firestore.indexes.json`,
+   `database.rules.json` at the repo root so all rules are version-controlled.
+2. In firestore.rules, define:
+     function isSignedIn() { return request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous'; }
+     function isMember(orgId) { return exists(/databases/$(database)/documents/memberships/$(request.auth.uid + '_' + orgId)); }
+     function memberRole(orgId) { return get(/databases/$(database)/documents/memberships/$(request.auth.uid + '_' + orgId)).data.role; }
+   IMPORTANT: change membership doc IDs from Firebase push IDs to the deterministic
+   composite `{uid}_{orgId}` so rules can look them up in O(1) without a query.
+   Update dualWriteService.js and OrgContext.createOrganization to write that ID,
+   and write a one-off migration script under scripts/ that backfills existing
+   membership docs to the new ID scheme (keep the old docs until verified).
+3. For every collection in KEYED_SECTIONS: allow read/write only if
+   isSignedIn() && isMember(resource.data.orgId), and on create require
+   isMember(request.resource.data.orgId). Explicitly deny any write that changes
+   `orgId` on an existing document.
+4. For `organizations/{orgId}` and `org_metadata/{orgId}`: read requires
+   isMember(orgId); write requires memberRole(orgId) in ['owner','admin'].
+5. Default-deny everything else: match /{document=**} { allow read, write: if false; }
+6. Mirror the same model in database.rules.json for the RTDB paths
+   `organizations/$orgId`, `memberships/$id`, `users/$uid`.
+
+EDGE CASES YOU MUST HANDLE
+- The recipient portal must keep working for unauthenticated recipients. Do NOT
+  solve this by allowing anonymous reads. The portal must move to a signed,
+  expiring token validated by a serverless function (see the C-4 prompt) —
+  coordinate the two changes and ship them together.
+- orgStore.load() fans out to 10 collections in parallel; each now needs a
+  composite index on (orgId). Generate firestore.indexes.json accordingly.
+- The `_profile` healing path (orgStore.js:226-275) reads RTDB directly; ensure the
+  RTDB rules permit it for members only.
+- Users who belong to multiple orgs must not read org B while org A is active.
+
+MUST NOT BREAK
+- Existing users must retain access to their existing orgs after the membership-ID
+  migration. Run the backfill BEFORE deploying rules and verify with a read test.
+- The onboarding flow in Registration.jsx must still complete end to end.
+
+VERIFY
+- Add `npm run test:rules` using @firebase/rules-unit-testing. Prove: a member of
+  org A CANNOT read employees/customers/fin_docs/records of org B; an anonymous
+  user CANNOT read anything; a non-owner CANNOT write organizations/{orgId}; a
+  member CAN do all normal CRUD in their own org.
+- Deploy to a staging project and confirm the app still functions.</pre></div></details>
+  </article>
+
+  <!-- C-2 -->
+  <article class="finding">
+    <div class="f-head">
+      <div class="f-top">
+        <span class="f-id">C-2</span><span class="pill p-crit">Critical</span>
+        <span class="pill p-meta">Destructive</span><span class="pill p-meta">≈3 days</span>
+      </div>
+      <h3 class="f-title">Admin panel: hardcoded <code>admin123</code>, client-side auth, permanent deletion</h3>
+      <p class="f-body"><code>admin/index.html</code> is a 52 KB page deployed at <code>/admin</code>, built as its own Vite entry point. Its entire authentication is a localStorage string comparison — and the session gate does not even check the password.</p>
+      <pre class="f-ev">admin/index.html:490
+  const storedPass = localStorage.getItem('admin_password') || <b>'admin123'</b>;
+
+admin/index.html:394
+  onAuthStateChanged(auth, (user) =&gt; {
+    if (localStorage.getItem(<b>'admin_session'</b>) === 'true') {  ← the whole gate
+
+admin/index.html:515
+  prompt("WARNING: This will <b>permanently delete</b> this organization
+          and ALL its records...")
+
+scripts/setup-admin.js:11
+  const ADMIN_EMAIL = 'admin@edgeos.com';
+  const ADMIN_PASSWORD = <b>'admin123'</b>;   ← provisions a real Firebase user</pre>
+      <div class="f-impact"><b>Impact</b>Any visitor can run <code>localStorage.setItem('admin_session','true')</code> in DevTools and become a full administrator — no password required — then irreversibly destroy any tenant. There are no backups (C-9), so deletion is permanent.</div>
+    </div>
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Replace the insecure EdgeOS admin panel authentication with real server-verified
+admin identity, and make destructive operations safe and auditable.
+
+INSPECT FIRST
+- admin/index.html in full. Note: auth at lines 488-493 and 885-923 (localStorage
+  password, default 'admin123'), session gate at line 394, anonymous Firebase
+  sign-in at line 391, and the org-delete flow at line 515.
+- scripts/setup-admin.js — hardcoded admin@edgeos.com / admin123.
+- vite.config.js lines 18-28 (the /admin dev middleware) and 83-90 (the admin
+  rollup entry point).
+
+IMPLEMENT
+1. Delete ALL client-side password logic from admin/index.html: the
+   `admin_password` and `admin_session` localStorage keys, the login comparison,
+   and the change-password modal. Remove signInAnonymously entirely.
+2. Authenticate admins with Firebase Auth email/password sign-in, then gate on a
+   custom claim `admin: true` read from the ID token
+   ((await user.getIdTokenResult()).claims.admin === true). If the claim is
+   absent, sign the user out and show "Not authorized" — never render admin UI.
+3. Rewrite scripts/setup-admin.js to (a) take email and password from
+   process.argv/env rather than constants, (b) refuse to run if the password is
+   shorter than 16 chars, and (c) call
+   auth.setCustomUserClaims(uid, { admin: true }). Never commit a credential.
+4. Move every destructive and cross-tenant admin operation out of the browser into
+   a serverless function under api/admin/ that verifies the caller's ID token with
+   firebase-admin verifyIdToken() AND re-checks the `admin` claim server-side. The
+   browser must never hold privileges the rules don't grant it.
+5. Make org deletion a soft delete: set `deleted_at` and `deleted_by`, exclude
+   soft-deleted orgs from all app queries, and add a 30-day purge job. Write an
+   entry to a new append-only `audit_log` collection for every admin action
+   (actor uid, action, target orgId, timestamp, IP).
+6. In firestore.rules (from C-1), allow admin-claim reads across tenants but route
+   all admin WRITES exclusively through the serverless functions.
+
+EDGE CASES
+- The panel currently reads all orgs by listing collections; after C-1 rules land
+  those reads must be authorized by the admin claim — deploy both in one release.
+- Handle expired/revoked tokens: force re-auth rather than falling through to a
+  rendered panel.
+- The panel is a separate Vite entry; confirm `npm run build` still emits
+  dist/admin/index.html.
+
+MUST NOT BREAK
+- The main application at / must be entirely unaffected.
+- Legitimate admin workflows — viewing orgs and records — must still work once the
+  claim is set on the real admin account.
+
+VERIFY
+- Confirm setting localStorage.admin_session='true' in DevTools grants no access.
+- Confirm a signed-in NON-admin user is rejected.
+- Confirm org deletion writes an audit_log entry and is reversible within 30 days.
+- Grep the built dist/ output to prove the string 'admin123' is gone.</pre></div></details>
+  </article>
+
+  <!-- C-3 -->
+  <article class="finding">
+    <div class="f-head">
+      <div class="f-top">
+        <span class="f-id">C-3</span><span class="pill p-crit">Critical</span>
+        <span class="pill p-meta">Secrets</span><span class="pill p-meta">≈1 day</span>
+      </div>
+      <h3 class="f-title">Live API key committed to git; <code>.env</code> tracked, <code>.gitignore</code> omits it</h3>
+      <p class="f-body">The <code>.gitignore</code> contains <code>*.local</code> but has no <code>.env</code> entry, so the environment file — containing a working credential — is under version control and present across multiple commits.</p>
+      <pre class="f-ev">$ git ls-files | grep -E "^\.env"
+  <b>.env</b>
+  .env.example
+
+.env
+  <b>VITE_</b>NVIDIA_API_KEY=nvapi-zRk6l_XSt3uoFbSX55l7…
+
+  ↑ the VITE_ prefix means Vite <b>inlines this into the client bundle</b>
+
+$ git log --oneline -- .env
+  cd8b4f0, f2ebe2d   ← present in history</pre>
+      <div class="f-impact"><b>Impact</b>Unbounded third-party inference billing on a permanently compromised key. <code>.gitignore</code> also fails to cover <code>service-account.json</code>, which <code>scripts/setup-admin.js:5</code> expects to read — a future commit of that file would hand over total Firebase control.</div>
+    </div>
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Remove committed secrets from the EdgeOS repository and prevent recurrence.
+
+INSPECT FIRST
+- .gitignore (no .env entry), .env (tracked, contains a live NVIDIA key),
+  .env.example, nohup.out (committed, leaks a LAN IP),
+  scripts/setup-admin.js line 5 (reads ./service-account.json),
+  vite.config.js lines 8-9 (reads VITE_NVIDIA_API_KEY / NVIDIA_API_KEY).
+
+IMPLEMENT
+1. FIRST, out of band: the user must revoke and reissue the NVIDIA key at
+   build.nvidia.com. Treat the existing key as permanently burned — purging git
+   history does not un-leak it. State this clearly in your summary.
+2. Add to .gitignore: `.env`, `.env.*`, `!.env.example`, `service-account.json`,
+   `*.pem`, `*.key`, `nohup.out`, `dist/`.
+3. `git rm --cached .env nohup.out` and commit the removal.
+4. Purge both files from history with git-filter-repo (preferred) or BFG. Because
+   this rewrites history, DO NOT run the force-push yourself — prepare the command,
+   explain that every collaborator must re-clone, and ask the user to confirm
+   before any push.
+5. Rename the variable from VITE_NVIDIA_API_KEY to NVIDIA_API_KEY everywhere so it
+   can never be inlined into the client bundle. Update vite.config.js line 9 to
+   read only env.NVIDIA_API_KEY. Update .env.example to match and remove the
+   misleading VITE_FIREBASE_* placeholders that are not actually used (the real
+   config is hardcoded in src/lib/firebase.js).
+6. Add a pre-commit hook (husky + gitleaks, or a small Node script) that blocks
+   commits containing `nvapi-`, `AIza`, `-----BEGIN`, or a tracked .env.
+7. Add a GitHub Actions job running gitleaks on every PR.
+
+EDGE CASES
+- The Vite dev proxy at vite.config.js:71-80 injects the key server-side in the dev
+  process only; that is acceptable and must keep working after the rename.
+- Firebase web config in src/lib/firebase.js is NOT a secret and need not move —
+  but note in your summary that it is only safe once C-1 rules exist.
+
+MUST NOT BREAK
+- `npm run dev` must still reach NVIDIA locally with a valid key in .env.
+- `npm run build` must succeed.
+
+VERIFY
+- `git ls-files | grep .env` returns only .env.example.
+- `git log --all -p -- .env | grep nvapi-` returns nothing after the purge.
+- `npm run build && grep -r "nvapi-" dist/` returns nothing.</pre></div></details>
+  </article>
+
+  <!-- C-4 -->
+  <article class="finding">
+    <div class="f-head">
+      <div class="f-top">
+        <span class="f-id">C-4</span><span class="pill p-crit">Critical</span>
+        <span class="pill p-meta">IDOR</span><span class="pill p-meta">≈4 days</span>
+      </div>
+      <h3 class="f-title">Recipient portal generates a security token and never validates it</h3>
+      <p class="f-body">Three defects in three lines: the token is not cryptographically secure, it is regenerated on every React render (ESLint flags it as impure), and <strong>it is never stored or checked anywhere</strong>. Document IDs are sequential, so valid URLs can simply be counted upward.</p>
+      <pre class="f-ev">src/components/shared/PortalLinkGenerator.jsx:11
+  const token = <b>Math.random()</b>.toString(36).substring(2, 10);
+  const portalUrl = `…/portal/${documentId}?token=${token}&org=${orgId}`;
+
+$ grep -n "token" src/components/portal/RecipientPortal.jsx
+  99:  // …a temporary anonymous token without requiring a login
+       <b>← a comment. that is the only match.</b>
+
+src/services/documentStore.js:101
+  const num = matching.length + 1;
+  return `${prefix}-2026-${String(num).padStart(4,'0')}`;
+       <b>→ /portal/INV-2026-0001, 0002, 0003 …</b></pre>
+      <div class="f-impact"><b>Impact</b>The portal is not read-only — it captures legally binding e-signatures. Any third party can enumerate, read, download and <strong>sign or accept</strong> another company's offer letters, NDAs, MoUs and invoices. The UI even advertises it: <em>"Link does not expire."</em></div>
+    </div>
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Secure the EdgeOS recipient portal with real, verifiable, expiring access tokens.
+Today the token is decorative: PortalLinkGenerator.jsx:11 generates it with
+Math.random() on every render, and RecipientPortal.jsx never validates it.
+Document IDs are sequential (documentStore.js:98-103), so the portal is a
+straightforward IDOR over legally binding documents.
+
+INSPECT FIRST
+- src/components/shared/PortalLinkGenerator.jsx (whole file, 57 lines).
+- src/components/portal/RecipientPortal.jsx lines 66-205 (load path) and every
+  call to documentStore.updateStatus (the signature/accept/decline writes).
+- src/services/documentStore.js — setContext, init, getById, save, updateStatus,
+  nextId.
+- src/App.jsx lines 601-608 and 616 — the /portal/:documentId route.
+
+IMPLEMENT
+1. Create api/portal/issue-token.js (serverless): verifies the caller's Firebase ID
+   token, confirms membership of the document's org, then signs a JWT with claims
+   { documentId, orgId, recipientEmail, scope: 'sign'|'view', exp: now + 14 days,
+   jti }. Sign with a PORTAL_TOKEN_SECRET env var (never a VITE_ variable).
+   Persist the jti in a `portal_tokens` collection with {documentId, orgId,
+   issued_by, issued_at, expires_at, revoked: false, used_at: null}.
+2. Create api/portal/document.js: accepts the JWT, verifies signature + expiry +
+   jti not revoked, and only then returns the document and the subset of org
+   profile fields the portal renders (company name, logo, address, authorized
+   signatory). It must NEVER return gmail_app_password, bank_account_number, or any
+   other secret — build an explicit allowlist.
+3. Create api/portal/sign.js: same verification, plus scope==='sign', plus a check
+   that the document is not already signed. Write the signature server-side. Record
+   IP and user-agent on the signature record for evidentiary value.
+4. Rewrite PortalLinkGenerator to call issue-token and render the returned URL.
+   Remove the Math.random() token. Move the call into an event handler or useEffect
+   so it does not run during render. Show the real expiry date instead of "Link
+   does not expire", and add a "Revoke link" button.
+5. Rewrite RecipientPortal to read the JWT from the URL and fetch exclusively
+   through the new endpoints. Remove signInAnonymously (lines 101-103), remove the
+   direct getDoc/get(ref(db,...)) calls (lines 120-155), and remove
+   documentStore.setContext/_portalOrgId entirely.
+6. Replace sequential IDs: change documentStore.nextId to produce a
+   collision-resistant ID (crypto.randomUUID(), or a ULID) while keeping a separate
+   human-readable display number generated server-side by an atomic Firestore
+   counter transaction so it cannot duplicate.
+
+EDGE CASES YOU MUST HANDLE
+- Expired token → friendly "This link has expired, please request a new one" page,
+  not a crash or a blank screen.
+- Already-signed document → show the signed state read-only; never allow a second
+  signature to overwrite the first.
+- Revoked token → same treatment as expired.
+- Clock skew: allow 60s leeway on exp.
+- A recipient opening the link on a second device must still work (the token is the
+  credential; do not bind to a device).
+- Rate-limit issue-token and sign per IP to stop brute-forcing jti values.
+
+MUST NOT BREAK
+- The existing PDF rendering and download in the portal (RecipientPortal.jsx lines
+  343-360) must still work with the server-fetched document shape.
+- The offer-acceptance notification flow that writes to fin_notifs and drives
+  OfferTracker must still fire.
+
+VERIFY
+- Prove that GET /portal/INV-2026-0002 with no token, a random token, an expired
+  token, or a token minted for a DIFFERENT document all fail closed.
+- Prove a valid token still allows view + sign exactly once.
+- Add integration tests for each of those six cases.</pre></div></details>
+  </article>
+
+  <!-- C-5 -->
+  <article class="finding">
+    <div class="f-head">
+      <div class="f-top">
+        <span class="f-id">C-5</span><span class="pill p-crit">Critical</span>
+        <span class="pill p-meta">Open relay</span><span class="pill p-meta">≈3 days</span>
+      </div>
+      <h3 class="f-title"><code>/api/email</code> is an unauthenticated open SMTP relay</h3>
+      <p class="f-body">The handler has no ID-token check, no origin check, no rate limit and no recipient validation. Credentials arrive <strong>from the browser</strong>, read out of the org profile — where they are stored in plaintext in Firestore, in RTDB, and in <code>localStorage</code>.</p>
+      <pre class="f-ev">api/email.js:14   ← no auth anywhere in this file
+  const { <b>gmailUser, appPassword</b>, to, subject, … } = req.body || {};
+  nodemailer.createTransport({ auth: { user: gmailUser, pass: cleanPass } });
+
+api/email.js:39
+  await transporter.<b>verify()</b>;   ← returns 401 on bad creds, 200 on good
+                                  = a free credential-validation oracle
+
+src/services/orgStore.js:36   PROFILE_FIELDS includes:
+  'gmail_user', <b>'gmail_app_password'</b>   → Firestore + RTDB + localStorage</pre>
+      <div class="f-impact"><b>Impact</b>Three outcomes at once: anyone can send mail through your infrastructure (blacklisting); attackers can validate stolen Gmail App Passwords at scale; and a Gmail App Password grants full SMTP/IMAP access to the customer's mailbox — stored in plaintext in a database with no rules.</div>
+    </div>
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Secure EdgeOS outbound email. api/email.js is currently an unauthenticated open
+SMTP relay that accepts arbitrary Gmail credentials and recipients from any caller,
+and doubles as a credential-validation oracle via transporter.verify().
+
+INSPECT FIRST
+- api/email.js (whole file, 73 lines).
+- src/services/emailService.js — send() at line 11, getConfig() at line 46, and
+  every public method that calls send().
+- src/services/orgStore.js line 36 — gmail_user / gmail_app_password in
+  PROFILE_FIELDS, and persistToLS() at line 60 which writes them to localStorage.
+- src/components/CompanyProfile.jsx lines 62-63, 93-94, 164-165, 570-612 — the
+  credential UI and the test-connection call.
+- vite.config.js lines 30-65 — the dev middleware that shims this same handler.
+
+IMPLEMENT
+1. Authenticate the endpoint. Require an `Authorization: Bearer <Firebase ID
+   token>` header; verify it with firebase-admin verifyIdToken(). Resolve the
+   caller's orgId and confirm membership via the memberships collection. Reject
+   everything else with 401/403.
+2. STOP accepting credentials from the client. The handler must load the org's SMTP
+   credentials server-side from Firestore using the admin SDK, keyed by the
+   verified orgId. Remove gmailUser/appPassword from the request body contract and
+   from emailService.js's send() payload.
+3. Encrypt credentials at rest. Add api/lib/crypto.js using AES-256-GCM with a key
+   from an EMAIL_CRED_KEY env var. Store {ciphertext, iv, tag} in a separate
+   `org_secrets/{orgId}` collection that firestore.rules denies to ALL clients
+   (server-only). Remove gmail_user and gmail_app_password from PROFILE_FIELDS in
+   orgStore.js so they can never again reach the org profile, RTDB, or
+   localStorage. Write a migration that moves existing values into org_secrets and
+   blanks them from organizations/*, and note that any already-exposed passwords
+   must be revoked by the customer in their Google account.
+4. Rate-limit per org (e.g. 100 emails/hour, 20 test-connections/day) with a
+   Firestore or Upstash counter. Return 429 with a clear message.
+5. Validate recipients: enforce a strict email regex, cap `to` at 50 addresses, and
+   reject header-injection attempts (CR/LF in subject or fromName) — the installed
+   nodemailer version has a known CRLF header-injection advisory, so upgrade it as
+   part of this change.
+6. Make the test-connection path not act as an oracle: it may only test the
+   CALLER'S OWN stored credentials, never arbitrary ones supplied in the request.
+7. Update the vite.config.js dev middleware so local development exercises the same
+   auth path rather than bypassing it.
+
+EDGE CASES
+- CompanyProfile must still let a user enter and save an App Password — but it
+  should POST it to a new authenticated api/email/credentials.js endpoint that
+  encrypts and stores it, and the field must render write-only (show
+  "configured ••••" once set, never read the value back to the client).
+- Existing orgs with plaintext credentials must keep sending through the migration
+  window — run the migration before flipping the read path.
+- All emailService callers (offer letters, follow-ups, notifications, bulk sends)
+  must be updated to the new signature; find them all before you change send().
+
+MUST NOT BREAK
+- Bulk send flows in src/components/bulk/* including progress tracking.
+- The follow-up engine (src/services/followUpEngine.ts).
+
+VERIFY
+- curl with no Authorization header → 401.
+- curl with a valid token but an orgId the caller is not a member of → 403.
+- Confirm a normal in-app send still succeeds.
+- Confirm the response no longer distinguishes valid from invalid third-party
+  credentials.
+- Grep the client bundle to prove no App Password value ever reaches it.</pre></div></details>
+  </article>
+
+  <!-- C-6 -->
+  <article class="finding">
+    <div class="f-head">
+      <div class="f-top">
+        <span class="f-id">C-6</span><span class="pill p-crit">Critical</span>
+        <span class="pill p-meta">Cost / abuse</span><span class="pill p-meta">≈1 day</span>
+      </div>
+      <h3 class="f-title"><code>/api/nvidia</code> is an unauthenticated, wildcard-CORS AI proxy</h3>
+      <p class="f-body">No <code>Authorization</code> header is accepted or checked anywhere in the file. The caller fully controls the model and an unbounded <code>max_tokens</code>. Meanwhile the quota that is meant to govern AI usage is <strong>never incremented anywhere in the codebase</strong>.</p>
+      <pre class="f-ev">api/nvidia.js:8
+  res.setHeader('Access-Control-Allow-Origin', <b>'*'</b>);
+  // …no auth check exists in this file
+
+api/nvidia.js:30
+  const { model, messages, <b>max_tokens</b>, … } = req.body;  ← unbounded
+
+$ grep -rn "ai_message_count" src/
+  usePlanStatus.js:48   read
+  usePlanStatus.js:109  read
+  dualWriteService.js:53  initialized to 0
+  <b>← never incremented. PLANS.free.limits.aiMessages = 10 is decorative.</b></pre>
+      <div class="f-impact"><b>Impact</b>A free, unlimited, globally embeddable LLM endpoint billed to the project owner, with no circuit breaker. Separately, paying customers receive no more AI than free ones, so the pricing tiers are fictional.</div>
+    </div>
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Secure and meter the EdgeOS AI proxy. api/nvidia.js is currently an
+unauthenticated LLM endpoint with Access-Control-Allow-Origin:* and no rate
+limiting, and the ai_message_count quota it is supposed to respect is never
+incremented anywhere in the codebase.
+
+INSPECT FIRST
+- api/nvidia.js (whole file, 89 lines) — ACAO:* at line 8, absent auth,
+  caller-controlled model/max_tokens at line 30.
+- src/services/cofounderAI.ts line 11 (NVIDIA_API_URL) and the fetch at line 412.
+- src/services/companyMemory.ts line 665 (orgStore.getCache()) — check exactly what
+  org data is placed into the prompt.
+- src/hooks/usePlanStatus.js lines 48 and 109; src/services/planConfig.js lines 18,
+  36, 54; src/services/dualWriteService.js line 53.
+
+IMPLEMENT
+1. Require `Authorization: Bearer <Firebase ID token>`; verify with firebase-admin
+   verifyIdToken(). Reject unauthenticated calls with 401.
+2. Replace ACAO:* with an explicit allowlist from an ALLOWED_ORIGINS env var
+   (production domain + localhost for dev). Echo back only a matching origin.
+3. Server-side quota enforcement: resolve the caller's orgId, read its `plan` and
+   `ai_message_count` with the admin SDK, look up the limit from a SHARED plan
+   config (extract src/services/planConfig.js into a location importable by both
+   client and api/, e.g. shared/planConfig.js, so limits can never drift), and
+   return 429 with {error:'quota_exceeded', limit, used} when reached. Increment
+   with a Firestore FieldValue.increment(1) transaction AFTER a successful call.
+4. Clamp inputs server-side: allowlist permitted `model` values, cap `max_tokens`
+   (e.g. 2048), cap total prompt characters and messages.length. Reject with 400.
+5. Add per-org and per-IP rate limiting (e.g. 20 req/min).
+6. Audit what leaves the building: companyMemory.ts sends organization data to a
+   third-party inference provider. Enumerate exactly which fields are included and
+   strip anything sensitive — bank_account_number, gmail_app_password, GSTIN,
+   employee salaries and personal emails must never be in a prompt. Add an explicit
+   allowlist rather than passing orgStore.getCache() wholesale. Then document the
+   third-party data flow in src/components/landing/pages/PrivacyPage.jsx.
+7. Update cofounderAI.ts to attach the ID token to its fetch and to surface the 429
+   quota state in the UI (CopilotPanel should show "You've used all N messages on
+   the Free plan" with an upgrade link, not a generic error).
+
+EDGE CASES
+- Streaming responses (stream:true) must keep working; increment after the stream
+  completes, and handle a client disconnecting mid-stream without double-counting
+  or losing the increment.
+- Concurrent requests from one org must not race past the limit — use a
+  transaction, not read-then-write.
+- Max-plan limits are Infinity; JSON has no Infinity — serialize as null or -1.
+
+MUST NOT BREAK
+- The AI co-founder chat, its onboarding prompt flow, and the decision engine must
+  continue to function for authenticated users within quota.
+- The local dev path via the vite.config.js proxy (lines 71-80) must still work.
+
+VERIFY
+- curl with no token → 401. curl from a disallowed Origin → CORS rejection.
+- Send 11 messages on a Free-plan org → the 11th returns 429 and the UI shows the
+  upgrade prompt.
+- Confirm ai_message_count actually increments in Firestore.
+- Confirm no sensitive field appears in the outbound prompt payload.</pre></div></details>
+  </article>
+
+  <!-- C-7 -->
+  <article class="finding">
+    <div class="f-head">
+      <div class="f-top">
+        <span class="f-id">C-7</span><span class="pill p-crit">Critical</span>
+        <span class="pill p-meta">Business</span><span class="pill p-meta">≈2 weeks</span>
+      </div>
+      <h3 class="f-title">Billing is client-side and unenforceable; no payment system exists</h3>
+      <p class="f-body"><code>plan</code> and <code>is_premium</code> are ordinary writable profile fields, and <code>updateProfile()</code> writes them straight to Firestore from the browser. Enforcement is advisory only — no server ever re-checks. There is <strong>no payment provider anywhere in the codebase</strong>.</p>
+      <pre class="f-ev">src/hooks/usePlanStatus.js:19
+  const currentPlan = <b>activeOrg?.plan</b> || DEFAULT_PLAN;   ← client state
+
+src/services/orgStore.js:34   PROFILE_FIELDS includes 'is_premium', <b>'plan'</b>
+src/services/orgStore.js:333  updateProfile(updates) → writes to Firestore
+
+  <b>orgStore.updateProfile({ plan: 'max' })</b>  ← from the browser console
+
+$ grep -rn "stripe\|razorpay\|paddle" package.json src/
+  <b>(no results)</b>   — while PricingPage.jsx advertises paid tiers</pre>
+      <div class="f-impact"><b>Impact</b>Zero revenue is collectible, and any revenue that were collected would be trivially bypassed. The product cannot function as a SaaS business in its current form.</div>
+    </div>
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Make EdgeOS billing real and server-authoritative. Today `plan` is a
+client-writable field on the org profile (src/services/orgStore.js line 34, written
+by updateProfile at line 333), read by usePlanStatus.js line 19, and there is no
+payment provider in the codebase at all.
+
+INSPECT FIRST
+- src/hooks/usePlanStatus.js (whole file) — plan resolution and usage counting.
+- src/services/planConfig.js — PLANS, isLimitReached, getRemaining.
+- src/services/orgStore.js lines 26-37 (PROFILE_FIELDS) and 333-344 (updateProfile).
+- src/components/landing/pages/PricingPage.jsx — the advertised tiers.
+- Every call site of canCreate / isAtLimit / refreshUsage across src/components.
+
+IMPLEMENT
+1. Choose a provider (Razorpay suits the INR/GST orientation of this product;
+   Stripe if the target is global). Ask the user which they want before building.
+2. Remove `plan`, `is_premium` and `ai_message_count` from PROFILE_FIELDS so the
+   client can never write them. Move billing state to a `subscriptions/{orgId}`
+   document that firestore.rules makes READ-ONLY to org members and writable only
+   by the server.
+3. Build api/billing/: create-checkout-session.js, webhook.js, portal-session.js.
+   The webhook MUST verify the provider's signature, must be idempotent (store
+   processed event IDs), and is the ONLY thing that ever writes subscription state.
+   Handle: created, renewed, payment failed, cancelled, upgraded, downgraded.
+4. Enforce limits server-side. Every quota-bearing creation path (offer letters,
+   NDAs, MoUs, invoices, quotations, AI messages, bulk operations) must be checked
+   by the server before the write is allowed — either in firestore.rules using the
+   subscription doc, or by routing creation through a serverless function. The
+   client check stays, but only as UX.
+5. Replace the O(n) usage counting in usePlanStatus.js with maintained counters on
+   `org_metadata/{orgId}.usage`, updated transactionally on each create/delete.
+6. Handle the full lifecycle: trial, dunning on failed payment, grace period,
+   downgrade behavior when a customer exceeds the lower tier's limits (do NOT
+   delete their data — mark it read-only and prompt to upgrade), and cancellation
+   with data export.
+7. Wire PricingPage.jsx to real checkout, and add a Billing section in
+   CompanyProfile with plan, usage, invoices and a "manage subscription" link.
+
+EDGE CASES
+- Webhook arrives before the client redirect completes — the subscription doc is
+  the source of truth; the UI must poll or subscribe to it.
+- Duplicate webhooks (providers retry) — idempotency keys are mandatory.
+- A downgrade that puts an org over the new limit: block new creates, keep existing
+  data readable.
+- Currency, tax and GST invoice requirements for Indian customers.
+- Refunds and chargebacks must revoke access.
+
+MUST NOT BREAK
+- Existing orgs must keep working; default them to Free by creating subscription
+  docs in a migration, and grandfather anyone currently marked premium.
+- usePlanStatus's public API (canCreate, getRemainingCount, getUsagePercent,
+  isAtLimit) should stay stable so component call sites don't all need rewriting.
+
+VERIFY
+- Prove that running orgStore.updateProfile({plan:'max'}) in the console no longer
+  grants Max features.
+- Complete a real test-mode checkout end to end and confirm the plan changes.
+- Simulate a failed renewal webhook and confirm access degrades correctly.
+- Add tests for webhook idempotency and signature rejection.</pre></div></details>
+  </article>
+
+  <!-- C-8 -->
+  <article class="finding">
+    <div class="f-head">
+      <div class="f-top">
+        <span class="f-id">C-8</span><span class="pill p-crit">Critical</span>
+        <span class="pill p-meta">XSS</span><span class="pill p-meta">≈1 day</span>
+      </div>
+      <h3 class="f-title">DOM XSS via unescaped template interpolation in invoice rendering</h3>
+      <p class="f-body">The invoice PDF path builds an A4 sheet by string concatenation into <code>innerHTML</code>. None of the interpolated company fields is escaped, and <code>logo_url</code> is interpolated <strong>inside an attribute</strong>, so it breaks out directly.</p>
+      <pre class="f-ev">src/components/financial/InvoiceList.jsx:144
+  container.<b>innerHTML</b> = `
+    …
+    ${company.logo_url ? `&lt;img src="<b>${company.logo_url}</b>" …&gt;` : ''}
+    ${company.company_tagline ? `&lt;div…&gt;<b>${company.company_tagline}</b>&lt;/div&gt;` : ''}
+    &lt;div…&gt;${(company.company_name || '').toUpperCase()}&lt;/div&gt;
+    ${company.cin ? … }  ${company.company_address ? … }   ← none escaped
+
+src/components/StampPreview.jsx:9
+  &lt;div <b>dangerouslySetInnerHTML</b>={{ __html: svgString }} /&gt;
+       ← svgString interpolates user-supplied company name and city</pre>
+      <div class="f-impact"><b>Impact</b>Stored XSS in an authenticated financial application. Combined with C-1 — where any anonymous user can write any org's profile — an attacker plants a payload in one tenant and executes script in another user's session: session theft, silent modification of bank details on invoices, escalation into the admin panel.</div>
+    </div>
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Eliminate the DOM XSS sinks in EdgeOS invoice and stamp rendering.
+
+INSPECT FIRST
+- src/components/financial/InvoiceList.jsx lines 135-230 (the full innerHTML
+  template) — every ${...} interpolation of company.* and doc.*.
+- src/components/StampPreview.jsx (12 lines) and src/utils/imageUtils.js
+  buildStampSvg — confirm whether companyName/city are escaped before entering SVG.
+- src/components/CompanyProfile.jsx — the fields that feed these (company_name,
+  company_tagline, cin, company_address, company_email, company_phone,
+  company_website, logo_url, stamp_city).
+- src/services/pdfService.js — check whether the same pattern appears there.
+
+IMPLEMENT
+1. Preferred fix for InvoiceList: stop building HTML from strings. The codebase
+   already has a React component for this exact layout —
+   src/components/InvoicePreview.jsx. Render it offscreen with
+   ReactDOM.createRoot into the detached container instead of assigning innerHTML.
+   React escapes text nodes by default, removing the entire class of bug.
+2. If a string-built path must remain for html2canvas/jsPDF reasons, then:
+   - add a single escapeHtml(s) helper (& < > " ' /) and wrap EVERY text
+     interpolation;
+   - for logo_url, validate with new URL() and allow only https: and data:image/
+     schemes, then attribute-encode it;
+   - do not rely on the field being "internal" — with the current data model any
+     tenant's profile is attacker-influenced.
+3. For StampPreview, escape companyName and city inside buildStampSvg before they
+   enter the SVG string. Better: build the stamp with real React SVG elements and
+   delete the dangerouslySetInnerHTML entirely.
+4. Add a Content-Security-Policy header as defense in depth: no unsafe-inline for
+   scripts.
+
+EDGE CASES
+- Escaping must not corrupt legitimate content: company names with & or ', and
+  addresses with line breaks, must still render correctly in both the on-screen
+  preview and the generated PDF.
+- html2canvas needs computed styles; if you switch to a React offscreen render,
+  keep the container in the document (offscreen via left:-9999px, not
+  display:none) and ensure fonts/images have loaded before capture — keep the
+  existing crossOrigin='anonymous' handling for logos.
+- The generated PDF must be visually identical to today's output.
+
+MUST NOT BREAK
+- Invoice, quotation and proforma PDF download from InvoiceList and FinanceStatus.
+- The stamp rendering in CompanyProfile and on all generated documents.
+
+VERIFY
+- Set company_name to `<img src=x onerror=alert(1)>` and company_tagline to
+  `"><script>alert(2)</script>`, then generate a PDF — no alert may fire and the
+  text must appear literally.
+- Set logo_url to `x" onerror="alert(3)` — no alert.
+- Visually diff a generated PDF before and after the change.</pre></div></details>
+  </article>
+
+  <!-- C-9 -->
+  <article class="finding">
+    <div class="f-head">
+      <div class="f-top">
+        <span class="f-id">C-9</span><span class="pill p-crit">Critical</span>
+        <span class="pill p-meta">Operational</span><span class="pill p-meta">≈1 week</span>
+      </div>
+      <h3 class="f-title">No backups, no export, no migrations — with a live destructive delete</h3>
+      <p class="f-body">No backup configuration exists in the repository. No migration framework exists. No customer-facing data export exists. Yet the admin panel offers permanent, unrecoverable organization deletion — reachable by anyone (C-2).</p>
+      <pre class="f-ev">No firebase.json  → no scheduled Firestore export defined as code
+No migrations/    → the only script is scripts/setup-admin.js
+No export UI      → customers cannot retrieve their own data
+
+src/services/orgStore.js:226-275
+  // <b>HYBRID HEAL</b>: …if empty in Firestore, try RTDB fallback
+  ← an undocumented, unversioned migration that re-runs on <b>every load</b>
+
+src/services/orgStore.js:288
+  if (inMemCount &gt; freshCount) { …keep the in-memory version }
+  ← "more items wins" — <b>silently resurrects deleted records</b></pre>
+      <div class="f-impact"><b>Impact</b>A single accidental or malicious deletion is permanent and total. No point-in-time restore, no recovery path, and no way for a customer to retrieve their data — failing the most basic vendor due-diligence question any B2B buyer asks.</div>
+    </div>
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Establish backup, restore, export and migration capability for EdgeOS. There is
+currently no backup config, no migration framework, no customer data export, and
+an admin panel that permanently deletes organizations (admin/index.html:515).
+
+INSPECT FIRST
+- src/services/orgStore.js lines 176-318 — the load path, including the
+  undocumented RTDB→Firestore "HYBRID HEAL" migration at lines 226-275 and the
+  "more items wins" merge at 277-301.
+- src/services/dualWriteService.js — the three-way write on onboarding.
+- admin/index.html around line 515 — the destructive delete.
+- The absence of firebase.json / .firebaserc at the repo root.
+
+IMPLEMENT
+1. Scheduled backups: add firebase.json and a scheduled Cloud Function (or Cloud
+   Scheduler + gcloud firestore export) writing daily Firestore exports to a GCS
+   bucket with 30-day retention and a monthly export retained 12 months. Same for
+   RTDB. Enable Firestore Point-in-Time Recovery. Commit all of it as code, not
+   console clicks.
+2. Write and TEST a restore runbook at docs/RUNBOOK-restore.md: how to restore one
+   organization, and how to restore everything, with the actual commands. An
+   untested backup is not a backup — perform one real restore into a scratch
+   project and record how long it took.
+3. Soft delete everywhere: replace the admin hard delete with deleted_at +
+   deleted_by, exclude soft-deleted records from all queries, and add a purge job
+   that runs only after 30 days.
+4. Customer data export: add an "Export all data" action in CompanyProfile calling
+   an authenticated serverless function that returns a ZIP containing JSON for
+   every collection belonging to the org plus the generated PDFs. This is both a
+   trust feature and a GDPR/DPDP portability obligation.
+5. Formalize migrations: create a migrations/ directory with numbered, idempotent,
+   forward-only scripts and a schema_version field on org_metadata. Convert the
+   implicit RTDB heal into an explicit, versioned, run-once migration, then DELETE
+   the heal logic from the read path — it currently runs on every load and silently
+   rewrites data.
+6. Document an RPO and RTO (suggest RPO 24h / RTO 4h to start) in docs/.
+
+EDGE CASES
+- Exports must exclude server-only secrets (org_secrets, encrypted SMTP creds).
+- Large orgs may exceed serverless memory/time limits — stream the ZIP or generate
+  it to GCS and return a signed URL.
+- The purge job must be idempotent and must never run against a non-soft-deleted
+  org; add a dry-run mode and require an explicit flag.
+- Restoring one org into a live database must not clobber newer data — restore to a
+  staging collection first and diff.
+
+MUST NOT BREAK
+- Normal application reads must get faster, not slower, once the heal logic leaves
+  the hot path — verify orgStore.load() still returns correct data for existing
+  orgs after the migration runs.
+
+VERIFY
+- Run the backup job, then perform a full restore into a scratch project and
+  confirm data integrity.
+- Soft-delete an org, confirm it disappears from the app, then restore it.
+- Download a customer export and confirm it opens and contains everything.</pre></div></details>
+  </article>
+</section>
+
+<!-- ══ HIGH SEVERITY ════════════════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-num">03</span><h2>High severity</h2></div>
+  <p class="sec-sub">Fourteen findings that block a credible commercial product but do not, on their own, expose customer data. Full evidence and implementation prompts for each are in <code>MEGA_AUDIT.md</code>.</p>
+
+  <article class="finding f-high">
+    <div class="f-head">
+      <div class="f-top"><span class="f-id">H-1</span><span class="pill p-high">High</span><span class="pill p-meta">≈4 days</span></div>
+      <h3 class="f-title">3.38 MB single-chunk bundle shipped to anonymous visitors</h3>
+      <p class="f-body"><code>App.jsx:15-58</code> statically imports all 40+ route components — the org-chart engine, two charting libraries, the spreadsheet parser and the PDF engine. Because <code>AppContent</code> renders the landing page for logged-out users, <strong>every anonymous marketing visitor downloads the entire authenticated application.</strong></p>
+      <pre class="f-ev">dist/assets/main-C2IMFzqc.js   <b>3,382.59 kB</b> │ gzip: <b>975.61 kB</b>
+dist/assets/main-mp8_LvCm.css    260.13 kB │ gzip:  42.18 kB
+
+(!) Some chunks are larger than 500 kB after minification.</pre>
+      <div class="f-impact"><b>Impact</b>Roughly 4–8 s to interactive on 4G, a near-certain Lighthouse performance score below 40, and a direct hit on marketing conversion and Core Web Vitals ranking.</div>
+    </div>
+  </article>
+
+  <article class="finding f-high">
+    <div class="f-head">
+      <div class="f-top"><span class="f-id">H-2</span><span class="pill p-high">High</span><span class="pill p-meta">≈1 week</span></div>
+      <h3 class="f-title">Module-global singleton state causes cross-org data leakage</h3>
+      <p class="f-body">All org data lives in module scope, so every consumer reads whatever org was loaded last. <code>storageService.getAll(orgId)</code> accepts an <code>orgId</code> and <strong>completely ignores it.</strong> <code>fetchOrganizations</code> loops over every org the user belongs to, each call overwriting the same global cache, then arbitrarily activates the first.</p>
+      <pre class="f-ev">src/services/orgStore.js:9    let _orgId = null;  let _cache = {};
+
+src/services/storageService.js:6
+  getAll: async (<b>orgId</b>, type) =&gt; {
+    if (!orgId) return [];
+    const records = orgStore.getSectionAsList('records');  <b>← reads the global</b></pre>
+      <div class="f-impact"><b>Impact</b>Multi-org users can see another org's records. Subscriptions leak across org switches. The store cannot be unit-tested, because two isolated instances cannot exist.</div>
+    </div>
+  </article>
+
+  <article class="finding f-high">
+    <div class="f-head">
+      <div class="f-top"><span class="f-id">H-3</span><span class="pill p-high">High</span><span class="pill p-meta">10 minutes</span></div>
+      <h3 class="f-title">Confirmed crash: variable shadowing in <code>documentStore.save</code></h3>
+      <p class="f-body">The parameter <code>doc</code> shadows the Firestore <code>doc</code> import, so the call attempts to invoke a plain object. The same file uses the import correctly in <code>updateStatus</code>, confirming the shadowing is accidental.</p>
+      <pre class="f-ev">src/services/documentStore.js:4   import { <b>doc</b>, setDoc } from 'firebase/firestore';
+src/services/documentStore.js:47  save: async (<b>doc</b>) =&gt; {          ← shadows it
+src/services/documentStore.js:63    const fsDocRef = <b>doc</b>(firestore, 'fin_docs', doc.id);
+
+  → <b>TypeError: doc is not a function</b>  on the portal write path</pre>
+      <div class="f-impact"><b>Impact</b>Throws on exactly the recipient-portal scenario this code branch exists to serve. A ten-minute fix; ship it today.</div>
+    </div>
+  </article>
+
+  <article class="finding f-high">
+    <div class="f-head">
+      <div class="f-top"><span class="f-id">H-5</span><span class="pill p-high">High</span><span class="pill p-meta">≈3 days</span></div>
+      <h3 class="f-title">86 ESLint errors, including defects in legal-document content</h3>
+      <p class="f-body">Not merely style. Four sparse-array errors sit in document-content arrays — almost certainly double-comma typos inserting <code>undefined</code> into rendered legal text. Five purity errors mean line-item IDs change on every render, breaking React reconciliation in the financial forms.</p>
+      <pre class="f-ev">no-unused-vars                57      react-hooks/purity           <b>5</b>
+react-hooks/exhaustive-deps   13      no-undef                      5
+react-hooks/set-state-in-effect 6     no-sparse-arrays             <b>4</b>
+react-hooks/immutability       2      no-empty                      2
+
+MoUPreview.jsx:14, NdaPreview.jsx:14, pdfService.js:569, :875
+  <b>← sparse arrays inside legal-document content</b>
+QuotationForm.jsx:98   { id: <b>Date.now()</b>, … }   ← impure, during render</pre>
+      <div class="f-impact"><b>Impact</b>Possible silent content loss in NDAs and MoUs, and unstable line-item identity in quotations and proforma invoices. Neither is covered by a test, because no tests exist.</div>
+    </div>
+  </article>
+
+  <article class="finding f-high">
+    <div class="f-head">
+      <div class="f-top"><span class="f-id">H-7</span><span class="pill p-high">High</span><span class="pill p-meta">≈1.5 weeks</span></div>
+      <h3 class="f-title">Three sources of truth, with write failures deliberately discarded</h3>
+      <p class="f-body">Every write goes to localStorage, RTDB and Firestore with no coordination. <code>.catch(() =&gt; {})</code> appears on six RTDB writes in <code>orgStore.js</code>. The onboarding service documents the choice explicitly.</p>
+      <pre class="f-ev">src/services/orgStore.js:384
+  persistToLS();
+  if (itemRef) set(itemRef, clean)<b>.catch(() =&gt; {})</b>;   ← errors discarded
+  syncToFirestore(section, itemId, clean);              ← logged only
+
+src/services/dualWriteService.js:155
+  console.error(`[CRITICAL ERROR] Failed to write Org…`);
+  <b>// We do NOT throw here</b> to preserve backwards compatibility</pre>
+      <div class="f-impact"><b>Impact</b>A user can create an invoice, see a success message, and have it exist only in their browser. They discover this on their next device. The reconciliation heuristic keeps whichever store has more items — silently resurrecting deleted records.</div>
+    </div>
+  </article>
+
+  <article class="finding f-high">
+    <div class="f-head">
+      <div class="f-top"><span class="f-id">H-8</span><span class="pill p-high">High</span><span class="pill p-meta">≈1 day</span></div>
+      <h3 class="f-title">Onboarding gate is dead code — result computed then discarded</h3>
+      <p class="f-body"><code>userHasOrganization</code> performs three sequential network round-trips and its return value is thrown away. <code>needsOnboarding</code> is set to <code>false</code> on both branches, so the guard at <code>App.jsx:233</code> can never fire.</p>
+      <pre class="f-ev">src/context/AuthContext.jsx:63
+  <b>await</b> userHasOrganization(firebaseUser.uid);   ← result never assigned
+  setNeedsOnboarding(<b>false</b>);
+} catch (err) {
+  setNeedsOnboarding(<b>false</b>);                     ← also false</pre>
+      <div class="f-impact"><b>Impact</b>Google users without an organization skip onboarding entirely and land in a broken app with no org profile — where <code>ensureLocalOrg</code> silently fabricates a phantom workspace, hiding the bug. Three wasted round-trips on every sign-in.</div>
+    </div>
+  </article>
+
+  <article class="finding f-high">
+    <div class="f-head">
+      <div class="f-top"><span class="f-id">H-9</span><span class="pill p-high">High</span><span class="pill p-meta">≈1 week</span></div>
+      <h3 class="f-title">No role-based access control despite a roles data model</h3>
+      <p class="f-body">Memberships are written with a <code>role</code> field — but it is <strong>never read for any access decision anywhere in <code>src/</code></strong>. There is also no invitation flow: nothing in the codebase can add a second user to an organization.</p>
+      <pre class="f-ev">src/services/dualWriteService.js:93
+  const membershipData = { organization_id, user_id, <b>role: 'owner'</b>, … };
+
+$ grep -rn "role" src/ | grep -i "permission\|can\|allow"
+  <b>(no access decision reads it)</b>
+
+  → every member can read salaries, bank details, the Gmail App Password,
+    delete records, and issue legally binding documents</pre>
+      <div class="f-impact"><b>Impact</b>The product cannot be sold to any organization with more than one employee — which is its entire stated market. Any junior employee has founder-level access.</div>
+    </div>
+  </article>
+
+  <article class="finding f-high">
+    <div class="f-head">
+      <div class="f-top"><span class="f-id">H-12</span><span class="pill p-high">High</span><span class="pill p-meta">Ongoing</span></div>
+      <h3 class="f-title">Zero tests and zero CI</h3>
+      <p class="f-body">No test files, no runner config, no <code>test</code> script, and no <code>.github/</code> directory. Nothing verifies GST arithmetic, PDF generation, plan limits, the dual-write layer or the signature flow — in an application whose entire output is legally binding documents and tax invoices.</p>
+      <pre class="f-ev">$ find . -name "*.test.*" -o -name "vitest.config*" -o -name "jest.config*"
+  <b>(no results)</b>
+$ ls .github
+  <b>No such file or directory</b></pre>
+      <div class="f-impact"><b>Impact</b>No regression safety on financial calculations. More importantly: the codebase cannot be refactored with confidence — which is precisely what every other finding in this audit requires. This is the prerequisite for the rest of the work.</div>
+    </div>
+  </article>
+
+  <article class="finding f-high">
+    <div class="f-head">
+      <div class="f-top"><span class="f-id">H-13</span><span class="pill p-high">High</span><span class="pill p-meta">≈3 days</span></div>
+      <h3 class="f-title">2,800 lines of TypeScript with no <code>tsconfig.json</code></h3>
+      <p class="f-body">Eight <code>.ts</code> files hold the most intricate logic in the product — including the 988-line company memory and the 681-line AI co-founder. There is no <code>tsconfig.json</code> anywhere and no <code>typescript</code> dependency. esbuild strips the annotations and nothing checks them.</p>
+      <pre class="f-ev">src/services/companyMemory.ts    988 lines
+src/services/cofounderAI.ts      681 lines   } <b>never type-checked</b>
+src/services/employeeAI.ts       331 lines
+…5 more                        ≈ 2,800 total
+
+$ ls tsconfig*   → <b>No such file or directory</b></pre>
+      <div class="f-impact"><b>Impact</b>The codebase pays TypeScript's syntax cost and receives none of its safety. <code>@types/react</code> is installed and unused.</div>
+    </div>
+  </article>
+
+  <article class="finding f-high">
+    <div class="f-head">
+      <div class="f-top"><span class="f-id">H-4 · H-6 · H-10 · H-11 · H-14</span><span class="pill p-high">High</span></div>
+      <h3 class="f-title">Also at high severity</h3>
+      <p class="f-body">
+        <strong>H-4 — No error boundaries.</strong> No <code>ErrorBoundary</code>, <code>componentDidCatch</code> or Sentry anywhere in <code>src/</code>. Any render error blanks the whole application, with no report reaching the team and 96 <code>console.*</code> calls shipping to production.<br><br>
+        <strong>H-6 — SEO is effectively absent.</strong> <code>index.html</code> is 22 lines with a <code>&lt;title&gt;</code> and nothing else: no description, no Open Graph, no canonical, no <code>robots.txt</code>, no sitemap, no structured data, no per-route meta for the twelve landing sub-pages, and no SSR. Line 10 also sets <code>user-scalable=no</code>, a WCAG 1.4.4 failure.<br><br>
+        <strong>H-10 — 25 dependency CVEs.</strong> Three critical, fifteen high. <code>jspdf</code> (PDF object injection) is the core of every generated document; <code>nodemailer</code> (CRLF header injection) is directly exploitable through the open relay in C-5. No Dependabot, no CI audit.<br><br>
+        <strong>H-11 — No security headers; conflicting deploy configs.</strong> The repo ships <em>both</em> <code>vercel.json</code> and <code>netlify.toml</code>; the Netlify config has no <code>/api</code> handling, so deploying there silently breaks both serverless functions. Neither sets CSP, HSTS, X-Frame-Options, nosniff or Referrer-Policy.<br><br>
+        <strong>H-14 — Interval polling instead of subscriptions.</strong> <code>App.jsx:184</code> re-reads notifications every 3 seconds forever, re-rendering the entire app shell 20× per minute — while <code>orgStore.listenSection</code> already implements correct Firestore <code>onSnapshot</code> subscriptions that go unused.
+      </p>
+    </div>
+  </article>
+</section>
+
+<!-- ══ FEATURES ═════════════════════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-num">04</span><h2>Feature-by-feature</h2></div>
+  <p class="sec-sub">Twenty features rated on their own merits. The spread tells the story: presentation and product thinking are strong, and everything that guards or verifies is missing.</p>
+
+  <div class="feat-grid">
+    <div class="feat"><div class="feat-top"><span class="feat-name">Landing &amp; marketing</span><span class="feat-score" style="color:var(--good)">7</span></div><div class="feat-meter"><i style="width:70%;background:var(--good)"></i></div><p class="feat-note">Visually excellent, 12 content sub-pages. Zero SEO; 3.4 MB payload.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">Offer letters</span><span class="feat-score" style="color:var(--med)">6</span></div><div class="feat-meter"><i style="width:60%;background:var(--med)"></i></div><p class="feat-note">Good forms and templates. No validation, versioning or audit trail.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">Certificates</span><span class="feat-score" style="color:var(--med)">6</span></div><div class="feat-meter"><i style="width:60%;background:var(--med)"></i></div><p class="feat-note">Clean, template-driven. Same validation and audit gaps.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">Team hierarchy</span><span class="feat-score" style="color:var(--med)">6</span></div><div class="feat-meter"><i style="width:60%;background:var(--med)"></i></div><p class="feat-note">Nice @xyflow org chart. Heaviest dependency, never split. 6 lint errors.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">Invoices / Quotations</span><span class="feat-score" style="color:var(--med)">5</span></div><div class="feat-meter"><i style="width:50%;background:var(--med)"></i></div><p class="feat-note">Most complete feature: GST, discounts, recurring. Untested maths, XSS sink, colliding IDs.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">NDA / MoU</span><span class="feat-score" style="color:var(--med)">5</span></div><div class="feat-meter"><i style="width:50%;background:var(--med)"></i></div><p class="feat-note">Signature flow works — but sparse-array defects may be dropping clauses.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">Employee registry</span><span class="feat-score" style="color:var(--med)">5</span></div><div class="feat-meter"><i style="width:50%;background:var(--med)"></i></div><p class="feat-note">Solid CRUD with departments. Salary has no field-level protection.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">Task board</span><span class="feat-score" style="color:var(--med)">5</span></div><div class="feat-meter"><i style="width:50%;background:var(--med)"></i></div><p class="feat-note">Functional Kanban with deadline monitoring. 5-second polling.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">CRM</span><span class="feat-score" style="color:var(--med)">5</span></div><div class="feat-meter"><i style="width:50%;background:var(--med)"></i></div><p class="feat-note">Coherent lead pipeline. No pagination, no validation.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">Customers</span><span class="feat-score" style="color:var(--med)">5</span></div><div class="feat-meter"><i style="width:50%;background:var(--med)"></i></div><p class="feat-note">Straightforward CRUD, well integrated with invoicing.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">Billing &amp; revenue</span><span class="feat-score" style="color:var(--med)">5</span></div><div class="feat-meter"><i style="width:50%;background:var(--med)"></i></div><p class="feat-note">Recharts visualizations, expense tracking. Reads all data, no aggregation.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">Records archive</span><span class="feat-score" style="color:var(--med)">5</span></div><div class="feat-meter"><i style="width:50%;background:var(--med)"></i></div><p class="feat-note">Central store with search and download. Loads everything at once.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">Authentication</span><span class="feat-score" style="color:var(--high)">4</span></div><div class="feat-meter"><i style="width:40%;background:var(--high)"></i></div><p class="feat-note">Firebase Auth is sound. Dead onboarding gate; no verification, MFA or password policy.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">Bulk operations</span><span class="feat-score" style="color:var(--high)">4</span></div><div class="feat-meter"><i style="width:40%;background:var(--high)"></i></div><p class="feat-note">Ambitious CSV pipeline. No transactional safety or resume; gated on an unenforced flag.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">AI Co-founder</span><span class="feat-score" style="color:var(--high)">4</span></div><div class="feat-meter"><i style="width:40%;background:var(--high)"></i></div><p class="feat-note">Most sophisticated code here. Runs on an open proxy; quota never increments; 2,800 unchecked lines.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">Company profile</span><span class="feat-score" style="color:var(--high)">4</span></div><div class="feat-meter"><i style="width:40%;background:var(--high)"></i></div><p class="feat-note">Comprehensive — branding, banking, signatures. Stores App Passwords in plaintext.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">Notifications</span><span class="feat-score" style="color:var(--high)">3</span></div><div class="feat-meter"><i style="width:30%;background:var(--high)"></i></div><p class="feat-note">Works, but polls every 3s, unbounded array in one doc, org-global read state.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">Recipient portal</span><span class="feat-score" style="color:var(--crit)">2</span></div><div class="feat-meter"><i style="width:20%;background:var(--crit)"></i></div><p class="feat-note">Genuinely differentiated, 1,682 lines of real work — undone entirely by C-4. Highest-value fix.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">Multi-tenancy</span><span class="feat-score" style="color:var(--crit)">2</span></div><div class="feat-meter"><i style="width:20%;background:var(--crit)"></i></div><p class="feat-note">Modelled but not enforced. No rules, leaking singleton, no switcher, no invitations.</p></div>
+    <div class="feat"><div class="feat-top"><span class="feat-name">Admin panel</span><span class="feat-score" style="color:var(--crit)">0</span></div><div class="feat-meter"><i style="width:2%;background:var(--crit)"></i></div><p class="feat-note">Actively dangerous. admin123, client-side auth, anonymous Firebase, permanent deletion.</p></div>
+  </div>
+</section>
+
+<!-- ══ ROADMAP ══════════════════════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-num">05</span><h2>Where to start</h2></div>
+  <p class="sec-sub">The phases below are <strong>dependency-ordered</strong>, not priority-ordered. Each unblocks the next; doing them out of sequence means redoing work. Phase numbers are real dependencies — Phase 2's tests exist so Phase 3's refactors are survivable.</p>
+
+  <div class="phase">
+    <div class="phase-when"><div class="phase-p">PHASE 0</div><div class="phase-w">Days 1–2</div></div>
+    <div class="phase-main">
+      <h3>Stop the bleeding</h3>
+      <p class="phase-goal">Small changes. Until they are done the application is actively unsafe.</p>
+      <ul class="phase-items">
+        <li><code>C-3</code><span>Revoke the leaked NVIDIA key out of band, then gitignore and untrack <code>.env</code></span></li>
+        <li><code>C-2</code><span>Take <code>/admin</code> offline — remove the route or block it at the edge until rebuilt</span></li>
+        <li><code>C-5·6</code><span>Add any authentication to <code>/api/email</code> and <code>/api/nvidia</code> — even a shared secret stops the relay today</span></li>
+        <li><code>H-3</code><span>Fix the <code>documentStore.save</code> shadowing crash</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-when"><div class="phase-p">PHASE 1</div><div class="phase-w">Weeks 1–3</div></div>
+    <div class="phase-main">
+      <h3>Make the data safe</h3>
+      <p class="phase-goal">Nothing else matters until tenant isolation is real.</p>
+      <ul class="phase-items">
+        <li><code>C-1</code><span>Firestore + RTDB security rules with the membership model — the single most important change in this audit</span></li>
+        <li><code>C-4</code><span>Recipient portal signed, expiring tokens; depends on C-1's anonymous-auth decision</span></li>
+        <li><code>C-2</code><span>Rebuild the admin panel on custom claims, with soft delete and audit log</span></li>
+        <li><code>C-5</code><span>Encrypt SMTP credentials server-side; remove them from the client entirely</span></li>
+        <li><code>C-8</code><span>Fix the XSS sinks — independent, run in parallel</span></li>
+        <li><code>C-9</code><span>Backups and a <em>tested</em> restore, before any migration touches production data</span></li>
+      </ul>
+      <div class="phase-exit"><b>Exit</b>Tenant isolation enforced server-side. No open endpoints. No committed secrets. <strong>Can onboard a first design partner.</strong></div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-when"><div class="phase-p">PHASE 2</div><div class="phase-w">Weeks 4–6</div></div>
+    <div class="phase-main">
+      <h3>Make it correct</h3>
+      <p class="phase-goal">Tests come before the refactors, or Phase 3 is done blind.</p>
+      <ul class="phase-items">
+        <li><code>H-12</code><span>Testing foundation and CI — start with security-rules tests and GST arithmetic</span></li>
+        <li><code>H-5</code><span>Fix all 86 lint errors, including the sparse arrays that may be corrupting legal documents</span></li>
+        <li><code>H-4</code><span>Error boundaries and Sentry, with PII scrubbed from reports</span></li>
+        <li><code>H-8</code><span>Repair the onboarding gate and remove the phantom-workspace fallback</span></li>
+        <li><code>H-10</code><span>Dependency remediation — after M-12 splits <code>pdfService</code> so the jsPDF bump is testable</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-when"><div class="phase-p">PHASE 3</div><div class="phase-w">Weeks 6–9</div></div>
+    <div class="phase-main">
+      <h3>Make it sound</h3>
+      <p class="phase-goal">The architectural work, now survivable because Phase 2 exists.</p>
+      <ul class="phase-items">
+        <li><code>H-7</code><span>Collapse three stores to one source of truth; delete the resurrect-on-load heuristic</span></li>
+        <li><code>H-2</code><span>Per-org store instances, enabling real org switching</span></li>
+        <li><code>H-13</code><span>TypeScript config and domain types — alongside H-7, so the new data layer is typed from birth</span></li>
+        <li><code>H-9</code><span>RBAC and team invitations; needs C-1's rules and H-2's per-org context</span></li>
+        <li><code>M-1·2·4</code><span>Validation layer, collision-free IDs, images moved to Storage</span></li>
+      </ul>
+      <div class="phase-exit"><b>Exit</b>Single source of truth, RBAC, validation, observable errors. <strong>Can sign a paying customer.</strong></div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-when"><div class="phase-p">PHASE 4</div><div class="phase-w">Weeks 9–11</div></div>
+    <div class="phase-main">
+      <h3>Make it fast and findable</h3>
+      <p class="phase-goal">Growth work, unblocked by the route-tree split.</p>
+      <ul class="phase-items">
+        <li><code>M-10</code><span>Split the marketing shell from the app shell — prerequisite for the two below</span></li>
+        <li><code>H-1</code><span>Lazy routes, dynamic PDF/xlsx imports, vendor chunking, a CI size budget</span></li>
+        <li><code>H-6</code><span>Prerendered marketing pages, per-route meta, sitemap, structured data</span></li>
+        <li><code>H-14</code><span>Replace the 3-second and 5-second polls with the existing onSnapshot subscriptions</span></li>
+        <li><code>M-7·8</code><span>Design tokens, CSS splitting, and an accessibility pass to Lighthouse ≥ 95</span></li>
+      </ul>
+      <div class="phase-exit"><b>Exit</b>Code-split, paginated, real-time, accessible, indexed. <strong>Can support growth and organic acquisition.</strong></div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-when"><div class="phase-p">PHASE 5</div><div class="phase-w">Weeks 11–14</div></div>
+    <div class="phase-main">
+      <h3>Make it a business</h3>
+      <p class="phase-goal">Payments last, deliberately: charging for a system that cannot protect data is worse than not charging.</p>
+      <ul class="phase-items">
+        <li><code>C-7</code><span>Payments with a signature-verified, idempotent webhook as the only writer of subscription state</span></li>
+        <li><code>H-11</code><span>Security headers and deployment consolidation to a single target</span></li>
+        <li><code>M-13</code><span>Append-only audit trail on every legally significant action, retained 7 years</span></li>
+        <li><code>M-14·16</code><span>Durable resumable bulk jobs, rate limiting, and App Check</span></li>
+      </ul>
+      <div class="phase-exit"><b>Exit</b>Enforced billing, audit trail, abuse protection. <strong>Can sell to organizations that run due diligence.</strong></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ TARGET STATE ═════════════════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-num">06</span><h2>Target state</h2></div>
+  <p class="sec-sub">What "production-grade" concretely means for this product, area by area.</p>
+
+  <div class="target">
+    <div>
+      <h4>Security &amp; tenancy</h4>
+      <p>Every read and write authorized server-side by rules keyed on a membership document. Anonymous access grants nothing. Portal links are signed, expiring and revocable. Secrets live server-only, encrypted at rest. Admin identity is a verified custom claim; every admin action is audited; deletion is reversible for 30 days. Rules are covered by tests that fail the build if isolation breaks.</p>
+    </div>
+    <div>
+      <h4>Data</h4>
+      <p>One source of truth. Every write awaited, its failure surfaced to the user and to Sentry. IDs collision-free; display numbers from atomic server-side counters. Every entity has a schema enforced at the boundary and mirrored in rules. Images in Storage behind a CDN. Backups daily, restores rehearsed, and customers can export everything they own.</p>
+    </div>
+    <div>
+      <h4>Architecture</h4>
+      <p>Marketing and application are separate bundles; an anonymous visitor downloads under 200 KB gzipped and makes zero database reads. Routes are lazy. The data layer is instantiable and per-org, so multi-org users switch cleanly and the store is unit-testable. The 2,800 lines of TypeScript are checked under <code>strict</code>, and the domain types double as the schema documentation.</p>
+    </div>
+    <div>
+      <h4>Quality</h4>
+      <p>Zero lint errors, enforced in CI. Financial arithmetic, plan limits, ID generation and security rules are covered by tests. Every document type has a PDF snapshot test. Playwright covers the three journeys that matter. Errors are caught by boundaries, reported with PII scrubbed, and never blank the screen.</p>
+    </div>
+    <div>
+      <h4>Product</h4>
+      <p>Real payments, with a signature-verified idempotent webhook as the only writer of subscription state. Limits enforced server-side. Roles that actually restrict — a member cannot read salaries, a viewer cannot write, only an owner touches billing. Teams can invite each other. Every legally significant action is in an append-only log retained seven years.</p>
+    </div>
+    <div>
+      <h4>Discoverability</h4>
+      <p>Marketing pages prerendered to static HTML with per-route metadata, structured data, sitemap and robots.txt. Pinch-zoom restored. Lighthouse SEO 100, Accessibility ≥ 95, Performance ≥ 90 — from a current performance score almost certainly below 40.</p>
+    </div>
+  </div>
+</section>
+
+<div class="close">
+  <h3>Closing assessment</h3>
+  <p>The instinct behind EdgeOS is right, and the execution of the visible product is better than most seed-stage software. Someone with real taste designed this interface, and someone with real domain understanding scoped these features — GST-aware invoicing, proforma advance tracking, recipient e-signature portals and an org-aware AI assistant are not obvious things to build.</p>
+  <p>What is missing is the invisible half: the layer that decides who may read what, the tests that prove the arithmetic is right, and the operational discipline that lets you recover when something goes wrong. That layer is thin and well-understood. Almost every critical finding here is confined to security rules, one <code style="font-family:var(--mono);font-size:13px">api/</code> directory, one data-access module and the build configuration.</p>
+  <p><strong>The blunt version: do not put a real customer's data in this system until Phase 1 is complete.</strong> After that, this is a credible product with roughly three months of foundational work between it and a business.</p>
+</div>
+
+<footer>
+  Conducted by direct inspection of all 111 source files, production build output, <code>npm audit</code>, and static analysis.<br>
+  Every finding cites file and line. No conclusion is inferred without code evidence.<br>
+  Full detail, including all 16 medium and 9 low findings and every implementation prompt, is in <b>MEGA_AUDIT.md</b>.
+</footer>
+
+</div>
+
+<script>
+document.querySelectorAll('.copy').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var pre = btn.parentElement.querySelector('pre');
+    if(!pre) return;
+    navigator.clipboard.writeText(pre.textContent).then(function(){
+      btn.textContent = 'Copied';
+      btn.classList.add('done');
+      setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1800);
+    }).catch(function(){
+      btn.textContent = 'Press Ctrl+C';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1800);
+    });
+  });
+});
+</script>
