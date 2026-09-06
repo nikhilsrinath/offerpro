@@ -1,5 +1,15 @@
 # EdgeOS — Fix Plan
 
+> ## ⚠️ Superseded in part — read `SUPABASE_MIGRATION.md` first
+>
+> **Decision taken: migrate to Supabase before working this backlog.**
+>
+> The migration **absorbs** items **4** (security rules → RLS), **17** (single source of truth), **23** (ID generation → Postgres function), **25** (notifications → table), and parts of **18**, **21**, **22**, **24**, **26**. Do not start those here — they are executed as part of the schema in `SUPABASE_MIGRATION.md`.
+>
+> **Do these alongside the migration** (DB-agnostic, and they make the cutover safer): **1**, **2**, **3**, **8**, **10** (DB-agnostic tests only — skip the Firebase rules tests), **11**, **12**, **14**.
+>
+> Everything else below carries over unchanged and runs after cutover. ~35 of the 48 items remain.
+
 Complete execution backlog derived from `MEGA_AUDIT.md`, in dependency order.
 **48 work items.** Each is scoped to specific files, with what changes and how it is verified.
 
