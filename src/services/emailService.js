@@ -1,26 +1,38 @@
 /**
- * Unified email service — all outbound email goes through /api/email,
- * which uses Gmail SMTP via Nodemailer. Credentials are stored per-org
- * in the company profile (gmail_user + gmail_app_password).
+ * Unified email service — all outbound email goes through /api/email, which
+ * uses Gmail SMTP via Nodemailer.
+ *
+ * The browser no longer holds the credentials. It sends the org id and a
+ * Supabase access token; the server reads gmail_user and the encrypted app
+ * password out of org_secrets, a table no client role can read at all. The
+ * A password never crosses the wire from the browser to this endpoint at all.
+ * Setting one goes to /api/org-secrets, which encrypts it; testing one tests what
+ * is already stored. See api/email.js for why the test mode works that way.
  */
+
+import { supabase } from '../lib/supabase';
 
 const API_URL = '/api/email';
 
 // ── Core sender ─────────────────────────────────────────────────────────────
 
-async function send({ gmailUser, appPassword, to, subject, text, html, fromName }) {
-  if (!gmailUser || !appPassword) {
-    return {
-      success: false,
-      message: 'Email is not configured. Open Profile → Email Configuration to set up Gmail.',
-    };
+async function post(payload, { describeAs }) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    return { success: false, message: 'Your session has expired. Sign in again to send email.' };
+  }
+  if (!payload.org_id) {
+    return { success: false, message: 'No active organization — cannot send email.' };
   }
 
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gmailUser, appPassword, to, subject, text, html, fromName }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
 
@@ -30,66 +42,53 @@ async function send({ gmailUser, appPassword, to, subject, text, html, fromName 
         message: data.error || data.message || `Email server returned ${res.status}`,
       };
     }
-    return {
-      success: true,
-      message: `Email sent to ${Array.isArray(to) ? to.join(', ') : to}`,
-      messageId: data.messageId,
-    };
+    return { success: true, message: describeAs, messageId: data.messageId };
   } catch (err) {
     console.error('[emailService] network error:', err);
     return { success: false, message: err?.message || 'Network error — could not reach email server.' };
   }
 }
 
-// Extract Gmail config from the org profile object
-function getConfig(orgProfile) {
-  return {
-    gmailUser:   (orgProfile?.gmail_user || '').trim(),
-    appPassword: (orgProfile?.gmail_app_password || '').trim(),
-  };
+function send({ orgId, to, subject, text, html, fromName }) {
+  const recipients = Array.isArray(to) ? to.join(', ') : to;
+  return post(
+    { org_id: orgId, to, subject, text, html, fromName },
+    { describeAs: `Email sent to ${recipients}` },
+  );
+}
+
+// The org id travels with the profile object every caller already passes.
+function orgIdOf(orgProfile) {
+  return orgProfile?.id || orgProfile?.org_id || '';
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export const emailService = {
   /**
-   * Test the connection by sending a test email to the configured Gmail address itself.
+   * Test the connection by sending a test email to the org's own Gmail address.
+   *
+   * No credentials are sent. The server reads what is stored in org_secrets and
+   * mails the stored address, so the caller learns only whether their own saved
+   * settings work — posting somebody else's address and a guessed App Password
+   * used to answer the same question about their account.
+   *
+   * Save before calling: CompanyProfile does that for the user, because a test
+   * of credentials that were never stored would always fail.
    */
-  async testConnection({ gmailUser, appPassword }) {
-    if (!gmailUser || !appPassword) {
-      return { success: false, message: 'Please enter both your Gmail address and App Password.' };
-    }
-    return send({
-      gmailUser,
-      appPassword,
-      to: gmailUser,
-      subject: 'EdgeOS — Email Test',
-      text: 'This is a test email from EdgeOS. If you received this, your Gmail SMTP is configured correctly.',
-      html: `
-        <div style="font-family:'Segoe UI',sans-serif;max-width:500px;margin:0 auto;padding:24px;">
-          <div style="background:linear-gradient(135deg,#10b981,#059669);padding:24px;border-radius:12px 12px 0 0;text-align:center;">
-            <h2 style="color:#fff;margin:0;font-size:18px;">Gmail SMTP is Working</h2>
-          </div>
-          <div style="background:#ffffff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
-            <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">
-              This is a test email from <strong>EdgeOS</strong>.
-            </p>
-            <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.6;">
-              If you received this in your inbox, your setup is complete. You can now send offer letters, notifications, and follow-ups directly from EdgeOS.
-            </p>
-          </div>
-        </div>`,
-      fromName: 'EdgeOS',
-    });
+  async testConnection({ orgId, gmailUser }) {
+    return post(
+      { org_id: orgId, mode: 'test' },
+      { describeAs: gmailUser ? `Test email sent to ${gmailUser}` : 'Test email sent' },
+    );
   },
 
   /**
    * Generic send — used by follow-up system, notifications, tasks, etc.
    */
   async sendEmail({ to, subject, text, html, orgProfile, fromName }) {
-    const cfg = getConfig(orgProfile);
     return send({
-      ...cfg,
+      orgId: orgIdOf(orgProfile),
       fromName: fromName || orgProfile?.company_name || '',
       to,
       subject,
@@ -110,9 +109,8 @@ export const emailService = {
       ? `Offer of Full-Time Employment – ${companyName}`
       : `Internship Offer Letter – ${companyName}`;
     const html = buildEmailBody(recordData, companyName);
-    const cfg = getConfig(orgProfile);
     return send({
-      ...cfg,
+      orgId: orgIdOf(orgProfile),
       fromName: companyName,
       to: recordData.email,
       subject,
@@ -139,9 +137,8 @@ export const emailService = {
       ? new Date(deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
       : '';
     const html = buildPortalLinkEmail({ recipientName, role, companyName, portalUrl, deadline: deadlineStr });
-    const cfg = getConfig(orgProfile);
     return send({
-      ...cfg,
+      orgId: orgIdOf(orgProfile),
       fromName: companyName,
       to: recipientEmail,
       subject: `Your Offer Letter from ${companyName} – Action Required`,

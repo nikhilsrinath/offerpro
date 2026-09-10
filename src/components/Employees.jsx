@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
+import { createPortalLink } from '../services/portalService';
 import { orgStore } from '../services/orgStore';
 import { DEPT_PALETTE } from './TeamHierarchy';
 import { useOrg } from '../context/OrgContext';
@@ -81,9 +82,7 @@ function EmployeeDetailModal({ emp, orgId, org, departments, onClose, onDelete, 
 
         let doc;
         if (type === 'role_change') {
-            const id = documentStore.nextId('RC');
             doc = {
-                id,
                 type: 'role_change',
                 status: 'sent',
                 title: `Role Change – ${name}`,
@@ -104,9 +103,7 @@ function EmployeeDetailModal({ emp, orgId, org, departments, onClose, onDelete, 
                 created_at: new Date().toISOString(),
             };
         } else {
-            const id = documentStore.nextId('TRM');
             doc = {
-                id,
                 type: 'termination',
                 status: 'sent',
                 title: `Termination Notice – ${name}`,
@@ -124,9 +121,13 @@ function EmployeeDetailModal({ emp, orgId, org, departments, onClose, onDelete, 
             };
         }
 
-        documentStore.save(doc);
-        const link = `${window.location.origin}/portal/${doc.id}?org=${orgId}`;
-        setPortalLink(link);
+        const saved = await documentStore.save(doc);
+        const { url } = await createPortalLink({
+            orgId,
+            documentId: saved.id,
+            recipientEmail: emp.email,
+        });
+        setPortalLink(url);
         setCreating(false);
     };
 
@@ -655,10 +656,10 @@ export default function Employees() {
                 const prevDate = new Date(prev.created_at || 0);
                 const curDate = new Date(emp.created_at || 0);
                 if (curDate > prevDate) {
-                    await storageService.deleteEmployee(prev.id, orgId);
+                    await storageService.deleteEmployee(prev.id, orgId, 'Duplicate record — superseded by a newer entry for the same email');
                     seenEmails.set(key, emp);
                 } else {
-                    await storageService.deleteEmployee(emp.id, orgId);
+                    await storageService.deleteEmployee(emp.id, orgId, 'Duplicate record — superseded by a newer entry for the same email');
                 }
                 changed = true;
             } else {
@@ -666,72 +667,71 @@ export default function Employees() {
             }
         }
 
-        // 2. Sync from offer records
-        for (const r of allRecords) {
-            const email = (r.data?.email || '').toLowerCase();
-            if (r.data?.studentName && email && !seenEmails.has(email) && !r.employee_synced) {
-                await storageService.saveEmployee(r.data, orgId);
-                orgStore.updateItem('records', r.id, { employee_synced: true });
-                seenEmails.set(email, true);
+        // 2. Sync employees from ACCEPTED offer letters.
+        //
+        // An offer only becomes an employee once the candidate has responded to
+        // the portal link ('signed'), or when it was issued from this page,
+        // which onboards directly and files the record as 'accepted'. An offer
+        // that is still draft/pending/sent/viewed is a candidate, not a
+        // colleague, and must not appear in the registry.
+        const ACCEPTED = new Set(['signed', 'accepted']);
+        // The offer forms speak in offer types; `employees.employment_type` is
+        // an enum of four values. Anything unmapped falls back to fulltime.
+        const EMPLOYMENT_TYPE = {
+            internship: 'intern', intern: 'intern',
+            collaboration: 'contract', contract: 'contract',
+            parttime: 'parttime', fulltime: 'fulltime',
+        };
+        try {
+            for (const r of allRecords) {
+                if (!ACCEPTED.has(r.status) || r.employee_synced) continue;
+
+                // Two record shapes: the document forms store the whole form
+                // under `data`, OfferTracker promotes the fields to the top.
+                const d = r.data || {};
+                const name = r.issued_to || d.studentName || d.name || '';
+                const email = (r.recipient_email || d.email || '').toLowerCase();
+                if (!name || !email || seenEmails.has(email)) continue;
+
+                const empData = {
+                    ...d,
+                    studentName: name,
+                    email,
+                    phone: r.recipient_phone || d.phone || '',
+                    role: r.role || d.role || '',
+                    department: r.department || d.department || '',
+                    offerType: EMPLOYMENT_TYPE[r.offer_type || d.offerType] || 'fulltime',
+                    startDate: r.start_date || d.startDate || '',
+                    endDate: r.end_date || d.endDate || '',
+                    offer_doc_id: r.id,
+                    signed_at: r.signed_at || '',
+                };
+                const employee = await storageService.saveEmployee(empData, orgId);
+                await orgStore.updateItem('records', r.id, {
+                    employee_synced: true,
+                    employee_id: employee?.id || r.employee_id || null,
+                });
+                seenEmails.set(email, empData);
                 changed = true;
             }
-        }
-
-        // 3. Sync from OfferTracker accepted offer letters
-        try {
-            const finDocsData = orgStore.getSection('fin_docs');
-            if (finDocsData && Object.keys(finDocsData).length > 0) {
-                for (const doc of Object.values(finDocsData)) {
-                    if (doc.type !== 'offer_letter' || doc.status !== 'signed' || doc.employee_synced) continue;
-                    const email = (doc.recipient_email || '').toLowerCase();
-                    if (!doc.issued_to || !email || seenEmails.has(email)) continue;
-                    const empData = {
-                        studentName: doc.issued_to,
-                        email: doc.recipient_email || '',
-                        phone: doc.recipient_phone || '',
-                        role: doc.role || '',
-                        department: doc.department || '',
-                        offerType: doc.offer_type || 'internship',
-                        startDate: doc.start_date || '',
-                        endDate: doc.end_date || '',
-                        offer_doc_id: doc.id,
-                        signed_at: doc.signed_at || '',
-                    };
-                    await storageService.saveEmployee(empData, orgId);
-                    orgStore.updateItem('fin_docs', doc.id, { employee_synced: true });
-                    seenEmails.set(email, empData);
-                    changed = true;
-                }
-            }
         } catch (err) {
-            console.warn('[Employees] Failed to sync from OfferTracker docs:', err.message);
+            console.warn('[Employees] Failed to sync accepted offers:', err.message);
         }
 
-        let freshData = changed
+        const freshData = changed
             ? await storageService.getEmployees(orgId)
             : existingEmps;
 
-        // 4. Auto-archive terminated employees whose last working day has passed 6 PM
-        const now = new Date();
-        const toArchive = freshData.filter(emp => {
-            if (emp.status !== 'terminated' || !emp.termination_date) return false;
-            const cutoff = new Date(emp.termination_date);
-            cutoff.setHours(18, 0, 0, 0);
-            return now >= cutoff;
-        });
-
-        if (toArchive.length > 0) {
-            await Promise.all(toArchive.map(async (emp) => {
-                await storageService.saveExEmployee({
-                    ...emp,
-                    terminated_at: emp.termination_date,
-                    archived_at: now.toISOString(),
-                }, orgId);
-                await storageService.deleteEmployee(emp.id, orgId);
-            }));
-            freshData = freshData.filter(emp => !toArchive.some(a => a.id === emp.id));
-            changed = true;
-        }
+        // An employee is archived the moment `exited_at` is set — the portal
+        // does it when a termination notice is acknowledged, and the employees
+        // section filters on `exited_at IS NULL`. There is no separate archive
+        // step and no window in which someone is both active and terminated.
+        //
+        // A client-side sweep used to live here, moving anyone with
+        // `status === 'terminated' && termination_date` into ex-employees after
+        // 6 PM on their last day. It could never run: this list only ever
+        // contains active employees, whose status is always 'active', and
+        // `termination_date` was written nowhere in the codebase.
 
         setEmployees(freshData);
         setLoading(false);
@@ -740,7 +740,7 @@ export default function Employees() {
     const handleDelete = async (id) => {
         if (window.confirm('Delete this employee record? This will not delete their issued documents.')) {
             try {
-                await storageService.deleteEmployee(id, activeOrg?.id);
+                await storageService.deleteEmployee(id, activeOrg?.id, 'Removed from the employee registry');
                 setSelectedEmp(null);
                 loadEmployees();
             } catch (err) {

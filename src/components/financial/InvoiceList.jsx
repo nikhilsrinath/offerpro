@@ -1,14 +1,15 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, Edit3, Copy, CheckCircle, Bell, Search, Filter, Plus, ChevronDown, ChevronUp, X, Download, MessageSquare, RotateCcw, XCircle } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { documentStore } from '../../services/documentStore';
+import { documentStore, docNumber as docNo } from '../../services/documentStore';
 import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
 import PortalLinkGenerator from '../shared/PortalLinkGenerator';
 import { useToast } from '../shared/Toast';
+import { esc, safeImageUrl } from '../../utils/htmlEscape';
 
 export default function InvoiceList({ type = 'invoice' }) {
   const navigate = useNavigate();
@@ -25,7 +26,6 @@ export default function InvoiceList({ type = 'invoice' }) {
   const [downloadingId, setDownloadingId] = useState(null);
   const [expandedRevision, setExpandedRevision] = useState(null);
   const [expandedDecline, setExpandedDecline] = useState(null);
-  const pdfRef = useRef(null);
 
   const typeLabel = {
     invoice: 'Invoice',
@@ -48,7 +48,8 @@ export default function InvoiceList({ type = 'invoice' }) {
   const filteredDocs = useMemo(() => {
     const filtered = documents.filter((d) => {
       const matchesSearch = !search ||
-        d.id.toLowerCase().includes(search.toLowerCase()) ||
+        (d.doc_number || '').toLowerCase().includes(search.toLowerCase()) ||
+        (d.id || '').toLowerCase().includes(search.toLowerCase()) ||
         (d.issued_to || '').toLowerCase().includes(search.toLowerCase()) ||
         (d.client?.name || '').toLowerCase().includes(search.toLowerCase());
       const matchesStatus = statusFilter === 'all' || d.status === statusFilter;
@@ -70,19 +71,46 @@ export default function InvoiceList({ type = 'invoice' }) {
 
   // Auto-detect overdue invoices
   useEffect(() => {
-    documents.forEach((d) => {
-      if (d.type === 'invoice' && d.status === 'sent' && d.due_date) {
-        const dueDate = new Date(d.due_date);
-        if (dueDate < new Date()) {
-          documentStore.updateStatus(d.id, 'overdue');
+    const overdue = documents.filter((d) =>
+      d.type === 'invoice' && d.status === 'sent' && d.due_date
+      && new Date(d.due_date) < new Date());
+    if (overdue.length === 0) return;
+
+    // Sequential, and awaited: fired off in a forEach these raced each other
+    // through the same document cache, and a rejected write went nowhere but an
+    // unhandled promise.
+    (async () => {
+      for (const d of overdue) {
+        try {
+          await documentStore.updateStatus(d.id, 'overdue');
+        } catch (err) {
+          console.warn('[InvoiceList] could not mark invoice overdue:', err.message);
         }
       }
-    });
+    })();
   }, [documents]);
 
-  const handleMarkPaid = (id) => {
-    documentStore.updateStatus(id, 'paid');
-    toast('Invoice marked as paid', 'success');
+  // Marking an invoice paid means recording the money, not setting a flag: the
+  // paid / partially_paid status and amount_paid are derived by the database
+  // from confirmed payment rows. Writing the status directly (which is what
+  // this did) left amount_paid at 0 on every "paid" invoice.
+  const handleMarkPaid = async (id) => {
+    const doc = documents.find((d) => d.id === id);
+    const outstanding = documentStore.outstandingOf(doc);
+    if (outstanding <= 0) {
+      toast('This invoice is already fully paid', 'info');
+      return;
+    }
+    try {
+      await documentStore.recordPayment(id, {
+        amount: outstanding,
+        method: 'Manual entry',
+        note: 'Marked paid from the invoice list',
+      });
+      toast('Payment recorded and invoice marked as paid', 'success');
+    } catch (err) {
+      toast(`Could not record the payment: ${err.message}`, 'error');
+    }
     loadDocuments();
   };
 
@@ -90,18 +118,57 @@ export default function InvoiceList({ type = 'invoice' }) {
     setShowPortalLink(doc.id);
   };
 
-  const handleVerifyPayment = (id) => {
-    documentStore.updateStatus(id, 'paid', { verified_at: new Date().toISOString() });
-    toast('Payment verified and marked as paid', 'success');
+  // The recipient submitted a claim through the portal; this is an admin
+  // confirming it. Confirming the pending row is what moves the money onto the
+  // books — and the trigger, not this handler, decides whether the result is
+  // `paid` or `partially_paid`.
+  const handleVerifyPayment = async (id) => {
+    const doc = documents.find((d) => d.id === id);
+    const pending = documentStore.getPendingPayment(id);
+    try {
+      // Written first, while the status is still whatever the portal set: an
+      // update after the payment lands would push the stale cached status back
+      // over the one the trigger just computed.
+      await documentStore.updateMeta(id, {
+        verified_at: new Date().toISOString(),
+      });
+
+      if (pending) {
+        await documentStore.confirmPayment(pending.id, id);
+      } else {
+        // Documents from before payments were recorded, and any claim that
+        // never became a row, keep the amount in the portal's payload.
+        const claimed = Number(doc?.payment_confirmation?.amountPaid) || 0;
+        await documentStore.recordPayment(id, {
+          amount: claimed > 0 ? claimed : documentStore.outstandingOf(doc),
+          method: doc?.payment_confirmation?.paymentMethod || 'Portal confirmation',
+          reference: doc?.payment_confirmation?.transactionId || null,
+          paidOn: doc?.payment_confirmation?.paymentDate || null,
+          bySubmitter: true,
+        });
+      }
+      toast('Payment verified and recorded', 'success');
+    } catch (err) {
+      toast(`Could not verify the payment: ${err.message}`, 'error');
+    }
     loadDocuments();
   };
 
-  const handleRejectPayment = (id) => {
-    documentStore.updateStatus(id, 'sent', {
-      payment_rejected: true,
-      rejection_reason: rejectReason,
-    });
-    toast('Payment confirmation rejected', 'warning');
+  const handleRejectPayment = async (id) => {
+    try {
+      // Drop the unconfirmed claim before restoring the status, so the ledger
+      // does not keep a row the admin has just rejected.
+      const pending = documentStore.getPendingPayment(id);
+      if (pending) await documentStore.deletePayment(pending.id, id);
+
+      await documentStore.updateStatus(id, 'sent', {
+        payment_rejected: true,
+        rejection_reason: rejectReason,
+      });
+      toast('Payment confirmation rejected', 'warning');
+    } catch (err) {
+      toast(`Could not reject the payment: ${err.message}`, 'error');
+    }
     setShowRejectModal(null);
     setRejectReason('');
     loadDocuments();
@@ -139,6 +206,15 @@ export default function InvoiceList({ type = 'invoice' }) {
     const isPaid = doc.status === 'paid';
 
     // Build offscreen A4 using the InvoicePreview template (doc-header + inv-* classes)
+    //
+    // Every interpolation below goes through esc() and every image URL through
+    // safeImageUrl(). This is string-built markup assigned to innerHTML, so a
+    // company name, buyer address or item description containing markup would
+    // otherwise be parsed as markup and run in the issuer's own session. React
+    // escapes for free; here it has to be explicit, so treat a bare ${…} inside
+    // this template as a bug.
+    const logoUrl = safeImageUrl(company.logo_url);
+    const stampUrl = safeImageUrl(company.stamp_url);
     const container = document.createElement('div');
     container.style.cssText = 'position:absolute;left:-9999px;top:0;width:794px;min-width:794px;max-width:794px;';
     container.innerHTML = `
@@ -146,16 +222,16 @@ export default function InvoiceList({ type = 'invoice' }) {
         <!-- Document Header -->
         <div class="doc-header">
           <div class="doc-header-left">
-            ${company.logo_url ? `<img src="${company.logo_url}" alt="Logo" class="doc-header-logo" />` : ''}
-            ${company.company_tagline ? `<div class="doc-header-tagline">${company.company_tagline}</div>` : ''}
+            ${logoUrl ? `<img src="${logoUrl}" alt="Logo" class="doc-header-logo" />` : ''}
+            ${company.company_tagline ? `<div class="doc-header-tagline">${esc(company.company_tagline)}</div>` : ''}
           </div>
           <div class="doc-header-right">
-            <div class="doc-header-name">${(company.company_name || doc.issued_by || '').toUpperCase()}</div>
-            ${company.cin ? `<div class="doc-header-detail">CIN: ${company.cin}</div>` : ''}
-            ${company.company_address ? `<div class="doc-header-detail">${company.company_address}</div>` : ''}
-            ${company.company_email ? `<div class="doc-header-detail">${company.company_email}</div>` : ''}
-            ${company.company_phone ? `<div class="doc-header-detail">${company.company_phone}</div>` : ''}
-            ${company.company_website ? `<div class="doc-header-detail">${company.company_website}</div>` : ''}
+            <div class="doc-header-name">${esc((company.company_name || doc.issued_by || '').toUpperCase())}</div>
+            ${company.cin ? `<div class="doc-header-detail">CIN: ${esc(company.cin)}</div>` : ''}
+            ${company.company_address ? `<div class="doc-header-detail">${esc(company.company_address)}</div>` : ''}
+            ${company.company_email ? `<div class="doc-header-detail">${esc(company.company_email)}</div>` : ''}
+            ${company.company_phone ? `<div class="doc-header-detail">${esc(company.company_phone)}</div>` : ''}
+            ${company.company_website ? `<div class="doc-header-detail">${esc(company.company_website)}</div>` : ''}
           </div>
         </div>
 
@@ -163,32 +239,32 @@ export default function InvoiceList({ type = 'invoice' }) {
 
         <!-- Title -->
         <div class="inv-header">
-          <div class="inv-header-title">${titleText}</div>
-          <div class="inv-header-number">${doc.id || ''}</div>
+          <div class="inv-header-title">${esc(titleText)}</div>
+          <div class="inv-header-number">${esc(docNo(doc))}</div>
         </div>
 
         <!-- FROM / BILL TO -->
         <div class="inv-parties">
           <div class="inv-party-col">
             <div class="inv-party-label">FROM</div>
-            <div class="inv-party-name">${company.company_name || doc.issued_by || ''}</div>
-            ${company.gstin ? `<div class="inv-party-detail">GSTIN: ${company.gstin}</div>` : ''}
+            <div class="inv-party-name">${esc(company.company_name || doc.issued_by || '')}</div>
+            ${company.gstin ? `<div class="inv-party-detail">GSTIN: ${esc(company.gstin)}</div>` : ''}
           </div>
           <div class="inv-party-col inv-party-right">
             <div class="inv-party-label">BILL TO</div>
-            <div class="inv-party-name">${doc.issued_to || doc.client?.name || ''}</div>
-            ${doc.client?.email ? `<div class="inv-party-detail">${doc.client.email}</div>` : ''}
-            ${doc.client?.address ? `<div class="inv-party-detail">${doc.client.address}</div>` : ''}
-            ${doc.client?.gstin ? `<div class="inv-party-detail">GSTIN: ${doc.client.gstin}</div>` : ''}
+            <div class="inv-party-name">${esc(doc.issued_to || doc.client?.name || '')}</div>
+            ${doc.client?.email ? `<div class="inv-party-detail">${esc(doc.client.email)}</div>` : ''}
+            ${doc.client?.address ? `<div class="inv-party-detail">${esc(doc.client.address)}</div>` : ''}
+            ${doc.client?.gstin ? `<div class="inv-party-detail">GSTIN: ${esc(doc.client.gstin)}</div>` : ''}
           </div>
         </div>
 
         <!-- Dates -->
         <div class="inv-dates-bar">
-          <span>${doc.type === 'quotation' ? 'Date' : 'Invoice Date'}: ${doc.issue_date || '-'}</span>
+          <span>${doc.type === 'quotation' ? 'Date' : 'Invoice Date'}: ${esc(doc.issue_date || '-')}</span>
           ${isPaid
         ? '<span class="inv-paid-badge">PAID</span>'
-        : `<span>${doc.type === 'quotation' ? 'Valid Until' : 'Due Date'}: ${doc.valid_until || doc.due_date || '-'}</span>`
+        : `<span>${doc.type === 'quotation' ? 'Valid Until' : 'Due Date'}: ${esc(doc.valid_until || doc.due_date || '-')}</span>`
       }
         </div>
 
@@ -208,9 +284,9 @@ export default function InvoiceList({ type = 'invoice' }) {
         const lineTotal = (Number(item.quantity) || 0) * (Number(item.rate) || Number(item.price) || 0);
         return `
                 <tr>
-                  <td>${item.description || '-'}</td>
-                  ${gstRate > 0 ? `<td class="inv-td-muted">${item.hsnSac || item.hsnCode || '-'}</td>` : ''}
-                  <td>${item.quantity || 0}</td>
+                  <td>${esc(item.description || '-')}</td>
+                  ${gstRate > 0 ? `<td class="inv-td-muted">${esc(item.hsnSac || item.hsnCode || '-')}</td>` : ''}
+                  <td>${esc(item.quantity || 0)}</td>
                   <td>\u20B9${(Number(item.rate) || Number(item.price) || 0).toLocaleString('en-IN')}</td>
                   <td class="inv-td-amount">\u20B9${lineTotal.toLocaleString('en-IN')}</td>
                 </tr>`;
@@ -221,7 +297,7 @@ export default function InvoiceList({ type = 'invoice' }) {
         <!-- Totals -->
         <div class="inv-totals">
           <div class="inv-total-row"><span>Subtotal:</span><span>\u20B9${subtotal.toLocaleString('en-IN')}</span></div>
-          ${discountAmt > 0 ? `<div class="inv-total-row" style="color:#ef4444"><span>Discount (${doc.discount?.type === 'percentage' ? doc.discount.value + '%' : 'flat'}):</span><span>-\u20B9${discountAmt.toLocaleString('en-IN')}</span></div>` : ''}
+          ${discountAmt > 0 ? `<div class="inv-total-row" style="color:#ef4444"><span>Discount (${doc.discount?.type === 'percentage' ? esc(doc.discount.value) + '%' : 'flat'}):</span><span>-\u20B9${discountAmt.toLocaleString('en-IN')}</span></div>` : ''}
           <div class="inv-total-row"><span>Taxable Amount:</span><span>\u20B9${taxableAmount.toLocaleString('en-IN')}</span></div>
           ${gstRate > 0 ? `
             <div class="inv-total-divider"></div>
@@ -235,13 +311,13 @@ export default function InvoiceList({ type = 'invoice' }) {
         ${doc.terms || doc.payment_instructions ? `
           <div class="inv-notes">
             <div class="inv-notes-label">NOTES / TERMS:</div>
-            <div class="inv-notes-text">${doc.terms || doc.payment_instructions || ''}</div>
+            <div class="inv-notes-text">${esc(doc.terms || doc.payment_instructions || '')}</div>
           </div>
         ` : ''}
 
-        ${company.stamp_url ? `
+        ${stampUrl ? `
           <div class="inv-stamp-float">
-            <img src="${company.stamp_url}" alt="Company Stamp" class="doc-stamp-img" />
+            <img src="${stampUrl}" alt="Company Stamp" class="doc-stamp-img" />
           </div>
         ` : ''}
 
@@ -292,7 +368,7 @@ export default function InvoiceList({ type = 'invoice' }) {
         }
       }
       const clientName = (doc.issued_to || doc.client?.name || 'Client').replace(/\s+/g, '_');
-      pdf.save(`${docTypeLabel}_${doc.id}_${clientName}.pdf`);
+      pdf.save(`${docTypeLabel}_${docNo(doc)}_${clientName}.pdf`);
     } catch (err) {
       console.error('PDF generation failed:', err);
       toast('Failed to generate PDF', 'error');
@@ -324,37 +400,49 @@ export default function InvoiceList({ type = 'invoice' }) {
     }
   };
 
-  const handleConvertToProforma = (doc) => {
-    const newId = documentStore.nextId('PF');
+  const handleConvertToProforma = async (doc) => {
     const newProforma = {
       ...doc,
-      id: newId,
+      id: undefined,
+      // The spread above carries the SOURCE document's number. Reusing it
+      // violates unique(org_id, doc_number); leaving it unset makes
+      // saveFinDoc() draw a fresh one from next_document_number().
+      doc_number: undefined,
+      invoiceNumber: undefined,
+      quotationNumber: undefined,
+      proformaNumber: undefined,
       type: 'proforma',
       status: 'draft',
       title: 'Proforma Invoice',
       converted_from: doc.id,
       created_at: new Date().toISOString(),
     };
-    documentStore.save(newProforma);
-    documentStore.updateStatus(doc.id, 'converted');
-    toast(`Converted to proforma ${newId}`, 'success');
+    const saved = await documentStore.save(newProforma);
+    await documentStore.updateStatus(doc.id, 'converted');
+    toast(`Converted to proforma ${saved.doc_number}`, 'success');
     loadDocuments();
   };
 
-  const handleConvertToInvoice = (doc) => {
-    const newId = documentStore.nextId('INV');
+  const handleConvertToInvoice = async (doc) => {
     const newInvoice = {
       ...doc,
-      id: newId,
+      id: undefined,
+      // The spread above carries the SOURCE document's number. Reusing it
+      // violates unique(org_id, doc_number); leaving it unset makes
+      // saveFinDoc() draw a fresh one from next_document_number().
+      doc_number: undefined,
+      invoiceNumber: undefined,
+      quotationNumber: undefined,
+      proformaNumber: undefined,
       type: 'invoice',
       status: 'draft',
       title: 'Tax Invoice',
       converted_from: doc.id,
       created_at: new Date().toISOString(),
     };
-    documentStore.save(newInvoice);
-    documentStore.updateStatus(doc.id, 'converted');
-    toast(`Converted to invoice ${newId}`, 'success');
+    const saved = await documentStore.save(newInvoice);
+    await documentStore.updateStatus(doc.id, 'converted');
+    toast(`Converted to invoice ${saved.doc_number}`, 'success');
     loadDocuments();
   };
 
@@ -439,7 +527,7 @@ export default function InvoiceList({ type = 'invoice' }) {
             ) : (
               filteredDocs.map((doc) => (
                 <tr key={doc.id}>
-                  <td className="fin-list-id">{doc.id}</td>
+                  <td className="fin-list-id">{docNo(doc)}</td>
                   <td>{doc.issued_to || doc.client?.name || '-'}</td>
                   <td className="fin-list-amount">₹{(doc.grand_total || doc.amount || 0).toLocaleString('en-IN')}</td>
                   {type === 'invoice' && <td>₹{(doc.gst || 0).toLocaleString('en-IN')}</td>}
@@ -519,7 +607,7 @@ export default function InvoiceList({ type = 'invoice' }) {
           <div className="fin-list-payment-header" onClick={() => setExpandedPayment(expandedPayment === doc.id ? null : doc.id)}>
             <div className="fin-list-payment-icon">💰</div>
             <div>
-              <strong>Payment confirmation received — {doc.id}</strong>
+              <strong>Payment confirmation received — {docNo(doc)}</strong>
               <p>{doc.issued_to || doc.client?.name}: ₹{(doc.payment_confirmation?.amountPaid || doc.amount || 0).toLocaleString('en-IN')}</p>
             </div>
             {expandedPayment === doc.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -564,7 +652,7 @@ export default function InvoiceList({ type = 'invoice' }) {
           <div className="fin-list-payment-header" onClick={() => setExpandedRevision(expandedRevision === doc.id ? null : doc.id)}>
             <div className="fin-list-payment-icon"><MessageSquare size={18} style={{ color: '#6366f1' }} /></div>
             <div>
-              <strong>Revision requested — {doc.id}</strong>
+              <strong>Revision requested — {docNo(doc)}</strong>
               <p>{doc.issued_to || doc.client?.name} wants changes to this quotation</p>
             </div>
             {expandedRevision === doc.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -606,7 +694,7 @@ export default function InvoiceList({ type = 'invoice' }) {
           <div className="fin-list-payment-header" onClick={() => setExpandedDecline(expandedDecline === doc.id ? null : doc.id)}>
             <div className="fin-list-payment-icon"><XCircle size={18} style={{ color: '#ef4444' }} /></div>
             <div>
-              <strong>Quotation declined — {doc.id}</strong>
+              <strong>Quotation declined — {docNo(doc)}</strong>
               <p>{doc.issued_to || doc.client?.name} has declined this quotation</p>
             </div>
             {expandedDecline === doc.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}

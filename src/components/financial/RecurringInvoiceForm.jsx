@@ -107,7 +107,7 @@ function generateRecurringId() {
 /* ═══════════════════════════════════════
    RecurringInvoiceForm
    ═══════════════════════════════════════ */
-function RecurringInvoiceForm({ onCancel, editItem }) {
+function RecurringInvoiceForm({ editItem }) {
   const navigate = useNavigate();
   const toast = useToast();
   const { activeOrg } = useOrg();
@@ -860,7 +860,7 @@ function RecurringInvoicePreview({ formData, totals, dueDatePreview, company }) 
 /* ═══════════════════════════════════════
    RecurringInvoiceList
    ═══════════════════════════════════════ */
-function RecurringInvoiceList({ onCreateNew, onEdit }) {
+function RecurringInvoiceList() {
   const navigate = useNavigate();
   const toast = useToast();
   const [items, setItems] = useState([]);

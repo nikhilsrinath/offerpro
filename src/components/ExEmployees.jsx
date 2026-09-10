@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { storageService } from '../services/storageService';
 import { useOrg } from '../context/OrgContext';
 import { orgStore } from '../services/orgStore';
 import { Search, Users, Calendar, Briefcase, Building, UserX, LayoutGrid, List } from 'lucide-react';

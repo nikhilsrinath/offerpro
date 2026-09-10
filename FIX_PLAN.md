@@ -35,7 +35,7 @@ Complete execution backlog derived from `MEGA_AUDIT.md`, in dependency order.
 
 Small, independent, no prerequisites. Do these before anything else.
 
-### ☐ 1. Fix the `documentStore.save` shadowing crash — `H-3`
+### ☑ 1. Fix the `documentStore.save` shadowing crash — `H-3`
 **Files:** `src/services/documentStore.js`
 The `save` parameter is named `doc`, shadowing the Firestore `doc` import from line 4, so line 63 calls a plain object → `TypeError: doc is not a function` on the portal write path.
 - Rename the parameter to `docData`; update all references in lines 48–69.
@@ -44,7 +44,7 @@ The `save` parameter is named `doc`, shadowing the Firestore `doc` import from l
 **Verify:** unit test calling `save()` with `orgStore` unloaded and `_portalOrgId` set; assert no throw and both writes attempted.
 **Effort:** 10 minutes.
 
-### ☐ 2. Repository hygiene — `L-4`
+### ☑ 2. Repository hygiene — `L-4`
 **Files:** `.gitignore`, `nohup.out`
 `nohup.out` is committed and leaks an internal LAN address (`192.168.29.229`). `.gitignore` also fails to cover `service-account.json`, which `scripts/setup-admin.js:5` reads — a full Firebase admin credential.
 - Add `service-account.json`, `*.pem`, `*.key`, `nohup.out`, `dist/` to `.gitignore`.
@@ -53,12 +53,16 @@ The `save` parameter is named `doc`, shadowing the Firestore `doc` import from l
 **Verify:** `git status` clean; `git ls-files | grep -E "nohup|service-account"` empty.
 **Effort:** 15 minutes.
 
-### ☐ 3. Take `/admin` offline temporarily — `C-2` (stopgap)
+### ☒ 3. Take `/admin` offline temporarily — `C-2` (stopgap) — **not needed**
 **Files:** `vite.config.js` (lines 18–28, 83–90), `vercel.json`
 Anyone can set `localStorage.admin_session='true'` and permanently delete any organization. Until item 8 lands, remove the attack surface.
 - Remove the `admin` entry from `build.rollupOptions.input`, or block `/admin` at the edge.
 **Verify:** `npm run build` no longer emits `dist/admin/index.html`; `/admin` 404s on a preview deploy.
 **Effort:** 30 minutes.
+**Superseded by item 6, which landed first.** `/admin` now requires a Supabase sign-in plus a
+`platform_admin` claim in `app_metadata` that only the service role can set, and every destructive
+action goes through `/api/admin`. There is no longer a surface to take offline, so the panel stays
+in the build deliberately.
 
 ---
 
@@ -66,7 +70,7 @@ Anyone can set `localStorage.admin_session='true'` and permanently delete any or
 
 Nothing else matters until tenant isolation is real. Item 4 gates most of this phase.
 
-### ☐ 4. Server-side authorization: Firestore + RTDB security rules — `C-1`
+### ☑ 4. Server-side authorization: Firestore + RTDB security rules — `C-1`
 **Files:** new `firebase.json`, `.firebaserc`, `firestore.rules`, `firestore.indexes.json`, `database.rules.json`; `src/services/dualWriteService.js`, `src/context/OrgContext.jsx`; new `scripts/migrate-membership-ids.js`
 No rules exist anywhere in the repository. Isolation is only the client-side `where('orgId','==',_orgId)` filter at `orgStore.js:193`, over flat global collections. Anonymous auth is enabled and the deployed rule is `auth != null`.
 - Change membership doc IDs from push IDs to deterministic `{uid}_{orgId}` so rules resolve them in O(1); backfill existing docs first.
@@ -79,7 +83,7 @@ No rules exist anywhere in the repository. Isolation is only the client-side `wh
 **Verify:** `npm run test:rules` proving org A cannot read org B's employees/customers/fin_docs/records; anonymous reads nothing; non-owner cannot write the org doc.
 **Effort:** ~2 weeks. **Blocks:** 5, 6, 7, 21.
 
-### ☐ 5. Recipient portal: signed, expiring, revocable tokens — `C-4`
+### ☑ 5. Recipient portal: signed, expiring, revocable tokens — `C-4`
 **Files:** new `api/portal/issue-token.js`, `api/portal/document.js`, `api/portal/sign.js`; `src/components/shared/PortalLinkGenerator.jsx`, `src/components/portal/RecipientPortal.jsx`, `src/services/documentStore.js`
 The token at `PortalLinkGenerator.jsx:11` uses `Math.random()`, regenerates on every render, and is never validated. IDs are sequential (`INV-2026-0001`), so documents are enumerable — and the portal captures legally binding signatures.
 - JWT with `{documentId, orgId, recipientEmail, scope, exp: +14d, jti}`, signed with `PORTAL_TOKEN_SECRET`; persist `jti` in `portal_tokens` for revocation.
@@ -90,7 +94,7 @@ The token at `PortalLinkGenerator.jsx:11` uses `Math.random()`, regenerates on e
 **Verify:** no token, random token, expired token, and a token minted for a *different* document all fail closed; a valid token allows view + sign exactly once.
 **Effort:** ~4 days. **Depends on:** 4. **Pairs with:** 23.
 
-### ☐ 6. Rebuild the admin panel on server-verified identity — `C-2`
+### ☑ 6. Rebuild the admin panel on server-verified identity — `C-2`
 **Files:** `admin/index.html`, `scripts/setup-admin.js`, new `api/admin/*`, `firestore.rules`
 Auth is `localStorage.getItem('admin_password') || 'admin123'` (line 490) and the session gate is just `admin_session === 'true'` (line 394) — no password needed. `setup-admin.js:11-12` provisions a real Firebase user with that credential.
 - Delete all client-side password logic and `signInAnonymously`.
@@ -101,7 +105,7 @@ Auth is `localStorage.getItem('admin_password') || 'admin123'` (line 490) and th
 **Verify:** `localStorage.admin_session='true'` grants nothing; non-admin rejected; `grep -r "admin123" dist/` empty.
 **Effort:** ~3 days. **Depends on:** 4. **Supersedes:** 3.
 
-### ☐ 7. Email: authenticate the endpoint, encrypt credentials server-side — `C-5`
+### ☑ 7. Email: authenticate the endpoint, encrypt credentials server-side — `C-5`
 **Files:** `api/email.js`, `src/services/emailService.js`, `src/services/orgStore.js`, `src/components/CompanyProfile.jsx`, `vite.config.js`; new `api/lib/crypto.js`, `api/email/credentials.js`
 `api/email.js` has no auth of any kind — an open SMTP relay accepting arbitrary credentials and recipients. `transporter.verify()` (line 39) makes it a Gmail credential-validation oracle. Credentials travel from the browser and are stored in plaintext in Firestore, RTDB and `localStorage`.
 - Require `Authorization: Bearer <ID token>`; verify and confirm org membership.
@@ -114,7 +118,7 @@ Auth is `localStorage.getItem('admin_password') || 'admin123'` (line 490) and th
 **Verify:** no header → 401; wrong org → 403; normal send works; response no longer distinguishes valid from invalid third-party credentials; no App Password value in the client bundle.
 **Effort:** ~3 days. **Depends on:** 4.
 
-### ☐ 8. Fix the DOM XSS sinks — `C-8`
+### ☑ 8. Fix the DOM XSS sinks — `C-8`
 **Files:** `src/components/financial/InvoiceList.jsx` (lines 135–230), `src/components/StampPreview.jsx`, `src/utils/imageUtils.js`
 `InvoiceList.jsx:144` builds an A4 sheet by string concatenation into `innerHTML` with unescaped `company.*` fields; `logo_url` is interpolated inside an `src` attribute. `StampPreview.jsx:9` uses `dangerouslySetInnerHTML` on an SVG built from user-supplied company name and city.
 - Preferred: render the existing `InvoicePreview.jsx` component offscreen with `ReactDOM.createRoot` instead of assigning `innerHTML` — React escapes text nodes by default.
@@ -135,6 +139,14 @@ No backup config, no migrations, no customer export — against a live permanent
 - Document RPO 24h / RTO 4h.
 **Verify:** full restore into a scratch project with integrity confirmed; soft-delete then restore an org; downloaded export opens and is complete.
 **Effort:** ~1 week. **Blocks:** 17.
+
+> **Partially done.** Shipped: the customer export (`api/export.js`, wired to Profile → Account
+> Settings), the migration framework (`supabase/migrations/`, 25 numbered forward-only files), and
+> `docs/RUNBOOK-restore.md`. **Outstanding, and none of it can be done from this repository:**
+> turning on PITR and daily backups (Supabase dashboard), the weekly off-platform `pg_dump` +
+> Storage sync (a scheduler this project does not have — sketched in the runbook §4), and the
+> rehearsal. The runbook is unproven until its rehearsal log has a row; item 9 is not complete
+> until then, because an untested restore is a guess.
 
 ---
 

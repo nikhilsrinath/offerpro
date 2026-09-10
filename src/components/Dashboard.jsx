@@ -14,6 +14,8 @@ import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
 import { useOrg } from '../context/OrgContext';
 import { useAuth } from '../context/AuthContext';
+import { displayNameOf } from '../lib/user';
+import SalesByCountries from './dashboard/SalesByCountries';
 
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const chartStyles = () => ({
@@ -136,7 +138,7 @@ export default function Dashboard() {
     return 'Good evening';
   };
 
-  const orgName = activeOrg?.owner_full_name || activeOrg?.company_name || user?.displayName || 'there';
+  const orgName = activeOrg?.owner_full_name || activeOrg?.company_name || displayNameOf(user) || 'there';
 
   if (loading) {
     return (
@@ -216,6 +218,10 @@ export default function Dashboard() {
           );
         })}
       </div>
+
+      {/* Sales by Countries — revenue grouped by the country frozen onto each
+          document at issue time, not by the customer's current address. */}
+      <SalesByCountries />
 
       {/* Charts Row: Revenue Trend + Document Distribution */}
       <div className="pro-two-col">

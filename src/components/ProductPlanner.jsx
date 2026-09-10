@@ -61,13 +61,21 @@ export default function ProductPlanner() {
   };
 
   const handleStatusChange = async (id, newStatus) => {
-    orgStore.updateItem('products', id, { status: newStatus });
+    try {
+      await orgStore.updateItem('products', id, { status: newStatus });
+    } catch (err) {
+      alert('Error updating item: ' + err.message);
+    }
     loadProducts();
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this item?')) return;
-    orgStore.removeItem('products', id);
+    try {
+      await orgStore.removeItem('products', id);
+    } catch (err) {
+      alert('Error deleting item: ' + err.message);
+    }
     loadProducts();
   };
 

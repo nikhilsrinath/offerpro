@@ -3,10 +3,25 @@
  * Extracts intelligence from org data and stores structured memory
  */
 
-import { ref, get, set, update } from 'firebase/database';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { db, firestore } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 import { orgStore } from './orgStore';
+
+// Memory lives in one row per org: ai_company_memory(org_id, memory jsonb).
+// Firebase wrote it to RTDB `memory/{orgId}` and Firestore `memory/{orgId}` at
+// the same time and the two drifted.
+async function readMemoryRow(orgId: string): Promise<CompanyMemory | null> {
+  const { data, error } = await supabase
+    .from('ai_company_memory').select('memory').eq('org_id', orgId).maybeSingle();
+  if (error) throw error;
+  return (data?.memory as CompanyMemory) ?? null;
+}
+
+async function writeMemoryRow(orgId: string, memory: CompanyMemory): Promise<void> {
+  const { error } = await supabase
+    .from('ai_company_memory')
+    .upsert({ org_id: orgId, memory }, { onConflict: 'org_id' });
+  if (error) throw error;
+}
 
 export interface CompanyFacts {
   company_name: string;
@@ -147,14 +162,7 @@ export async function saveOnboardingAnswer(
       updated_at: new Date().toISOString(),
     };
 
-    // Save to Firebase (Dual-Write)
-    const memoryRef = ref(db, `memory/${orgId}`);
-    const rtdbPromise = set(memoryRef, updatedMemory);
-    
-    const fsDocRef = doc(firestore, 'memory', orgId);
-    const fsPromise = setDoc(fsDocRef, updatedMemory, { merge: true });
-
-    await Promise.all([rtdbPromise, fsPromise]);
+    await writeMemoryRow(orgId, updatedMemory);
 
     console.log('[Onboarding] Saved answer for field:', field);
     console.log('[Onboarding] Next question index:', updatedOnboarding.currentQuestionIndex);
@@ -285,28 +293,19 @@ export async function loadCompanyMemory(orgId: string): Promise<CompanyMemory | 
   if (!orgId) return null;
 
   try {
-    // First try to get cached memory from Firestore
-    const fsDocRef = doc(firestore, 'memory', orgId);
-    const memorySnap = await getDoc(fsDocRef);
+    // The Firebase version called .val() on a Firestore snapshot — an
+    // RTDB-only method — so this path always threw and memory never loaded.
+    const existing = await readMemoryRow(orgId);
+    if (existing) return existing;
 
-    if (memorySnap.exists()) {
-      return memorySnap.val() as CompanyMemory;
-    }
+    // Nothing stored yet: derive it from the org profile and persist.
+    const { data: orgData, error } = await supabase
+      .from('organizations').select('*').eq('id', orgId).maybeSingle();
+    if (error) throw error;
+    if (!orgData) return null;
 
-    // If no memory exists, fetch org data and extract
-    const orgDocRef = doc(firestore, 'organizations', orgId);
-    const orgSnap = await getDoc(orgDocRef);
-
-    if (!orgSnap.exists()) return null;
-
-    const orgData = orgSnap.data();
     const memory = extractCompanyMemory(orgData) as CompanyMemory;
-
-    // Store extracted memory (Dual-Write)
-    await setDoc(fsDocRef, memory, { merge: true });
-    
-    const memoryRef = ref(db, `memory/${orgId}`);
-    await set(memoryRef, memory);
+    await writeMemoryRow(orgId, memory);
     return memory;
   } catch (error) {
     console.error('[companyMemory] Failed to load memory:', error);
@@ -324,9 +323,7 @@ export async function updateCompanyMemory(
   if (!orgId) return;
 
   try {
-    const memoryRef = ref(db, `memory/${orgId}`);
-    const existingSnap = await get(memoryRef);
-    const existing = existingSnap.exists() ? existingSnap.val() : {};
+    const existing = (await readMemoryRow(orgId)) ?? ({} as CompanyMemory);
 
     const merged: CompanyMemory = {
       facts: { ...existing.facts, ...updates.facts },
@@ -336,12 +333,7 @@ export async function updateCompanyMemory(
       updated_at: new Date().toISOString(),
     };
 
-    // Save to Firebase (Dual-Write)
-    const rtdbPromise = set(memoryRef, merged);
-    const fsDocRef = doc(firestore, 'memory', orgId);
-    const fsPromise = setDoc(fsDocRef, merged, { merge: true });
-
-    await Promise.all([rtdbPromise, fsPromise]);
+    await writeMemoryRow(orgId, merged);
   } catch (error) {
     console.error('[companyMemory] Failed to update memory:', error);
   }
@@ -375,12 +367,11 @@ export async function refreshMemory(orgId: string): Promise<CompanyMemory | null
   if (!orgId) return null;
 
   try {
-    const orgDocRef = doc(firestore, 'organizations', orgId);
-    const orgSnap = await getDoc(orgDocRef);
+    const { data: orgData, error } = await supabase
+      .from('organizations').select('*').eq('id', orgId).maybeSingle();
+    if (error) throw error;
+    if (!orgData) return null;
 
-    if (!orgSnap.exists()) return null;
-
-    const orgData = orgSnap.data();
     const memory = extractCompanyMemory(orgData) as CompanyMemory;
 
     await updateCompanyMemory(orgId, memory);
@@ -414,12 +405,23 @@ function extractKeyMetrics(orgData: any): CompanyFacts['key_metrics'] {
     metrics.employee_count = Object.keys(employees).length;
   }
 
-  // Count CRM leads/customers
-  const crm = orgData.crm || orgData.leads;
+  // Count CRM leads. The key is `crm_leads`; `crm`/`leads` are Firebase-era
+  // names kept only so an old cached payload still reads.
+  const crm = orgData.crm_leads || orgData.crm || orgData.leads;
   if (crm && typeof crm === 'object') {
     const items = Object.values(crm);
-    metrics.lead_count = items.filter((l: any) => l.status === 'lead' || l.stage === 'lead').length;
-    metrics.customer_count = items.filter((l: any) => l.status === 'customer' || l.stage === 'customer' || l.status === 'won').length;
+    // Everything not yet resolved either way is still a lead in the pipeline.
+    metrics.lead_count = items.filter(
+      (l: any) => (l.stage || 'lead') !== 'deal' && (l.stage || 'lead') !== 'not_deal'
+    ).length;
+  }
+
+  // Clients come from the customers table, not from the pipeline. There is no
+  // 'customer' or 'won' stage in crm_leads — the old filter for them always
+  // returned zero.
+  const clients = orgData.customers;
+  if (clients && typeof clients === 'object') {
+    metrics.customer_count = Object.keys(clients).length;
   }
 
   // Financial metrics from fin_docs
@@ -457,7 +459,7 @@ function extractKeyMetrics(orgData: any): CompanyFacts['key_metrics'] {
 }
 
 function analyzeCRM(orgData: any, insights: string[], opportunities: string[], risks: string[]) {
-  const crm = orgData.crm || orgData.leads;
+  const crm = orgData.crm_leads || orgData.crm || orgData.leads;
   if (!crm || typeof crm !== 'object') return;
 
   const items = Object.values(crm) as any[];
@@ -470,29 +472,38 @@ function analyzeCRM(orgData: any, insights: string[], opportunities: string[], r
 
     // High-value opportunity detection
     if (value >= 20000 || notes.toLowerCase().includes('20k') || notes.toLowerCase().includes('large')) {
-      opportunities.push(`Potential large deal (${value > 0 ? value.toLocaleString() : 'significant'} value) from ${item.name || 'lead'}`);
+      opportunities.push(`Potential large deal (${value > 0 ? value.toLocaleString() : 'significant'} value) from ${item.company_name || item.person_name || item.name || 'a lead'}`);
     }
 
     // Deal in negotiation
     if (stage.toLowerCase().includes('negotiation') || stage.toLowerCase().includes('proposal')) {
-      insights.push(`Active negotiation with ${item.name || 'lead'} at ${stage}`);
+      insights.push(`Active negotiation with ${item.company_name || item.person_name || item.name || 'a lead'} at ${stage}`);
     }
 
     // Stuck deals
     if (stage.toLowerCase().includes('stuck') || stage.toLowerCase().includes('delayed')) {
-      risks.push(`Deal with ${item.name || 'lead'} appears stalled at ${stage}`);
+      risks.push(`Deal with ${item.company_name || item.person_name || item.name || 'a lead'} appears stalled at ${stage}`);
     }
   });
 
-  // Pipeline summary
-  const leads = items.filter((i: any) => i.stage === 'lead' || i.status === 'lead').length;
-  const customers = items.filter((i: any) => i.stage === 'customer' || i.status === 'won' || i.status === 'customer').length;
+  // Pipeline summary. The real stages are lead / contacted / deal / not_deal;
+  // 'customer' and 'won' were never among them.
+  const open = items.filter((i: any) => {
+    const s = i.stage || 'lead';
+    return s !== 'deal' && s !== 'not_deal';
+  }).length;
+  const won = items.filter((i: any) => i.stage === 'deal').length;
 
-  if (leads > 5) {
-    opportunities.push(`${leads} active leads in pipeline - potential for growth`);
+  if (open > 5) {
+    opportunities.push(`${open} active leads in pipeline - potential for growth`);
   }
-  if (customers > 0) {
-    insights.push(`${customers} active customer${customers > 1 ? 's' : ''} on record`);
+  if (won > 0) {
+    insights.push(`${won} deal${won > 1 ? 's' : ''} won in the CRM`);
+  }
+
+  const clientCount = Object.keys(orgData.customers || {}).length;
+  if (clientCount > 0) {
+    insights.push(`${clientCount} client${clientCount > 1 ? 's' : ''} in the directory`);
   }
 }
 
@@ -676,6 +687,20 @@ export async function fetchRawOrgData(orgId: string): Promise<any | null> {
 /**
  * Format raw financial documents (invoices, quotes) for AI prompt
  */
+// What counts as collected, and what counts as issued-but-unpaid.
+//
+// These mirror app.catalog_is_collected() and app.catalog_is_sold() in
+// 0011_product_catalog.sql, which is the database's definition of a sale and
+// the one Product Performance and Sales by Countries already use. The filter
+// here used to be `status === 'pending' || status === 'sent'`, which missed
+// viewed, partially_paid, overdue, payment_submitted and advance_paid — so the
+// AI under-reported outstanding money and disagreed with every other screen.
+const COLLECTED_STATUSES = new Set(['paid']);
+const UNPAID_ISSUED_STATUSES = new Set([
+  'pending', 'sent', 'viewed', 'partially_paid', 'overdue',
+  'payment_submitted', 'advance_paid',
+]);
+
 function formatFinancials(finDocs: any, expenses: any): string {
   if ((!finDocs || typeof finDocs !== 'object') && (!expenses || typeof expenses !== 'object')) {
     return 'No financial records available.';
@@ -686,8 +711,8 @@ function formatFinancials(finDocs: any, expenses: any): string {
 
   // 1. Invoices & Revenue Summary
   const invoices = docs.filter(d => d.type === 'invoice');
-  const paid = invoices.filter(d => d.status === 'paid');
-  const pending = invoices.filter(d => d.status === 'pending' || d.status === 'sent');
+  const paid = invoices.filter(d => COLLECTED_STATUSES.has(d.status));
+  const pending = invoices.filter(d => UNPAID_ISSUED_STATUSES.has(d.status));
   
   const totalPaid = paid.reduce((acc, d) => acc + (d.grand_total || d.amount || 0), 0);
   const totalPending = pending.reduce((acc, d) => acc + (d.grand_total || d.amount || 0), 0);
@@ -696,7 +721,9 @@ function formatFinancials(finDocs: any, expenses: any): string {
   const formatDoc = (d: any, idx: number) => {
     const type = (d.type || 'document').toUpperCase();
     const id = d.invoice_number || d.id;
-    const client = d.client_name || d.issued_to || d.customer_name || 'Client';
+    // clientName is what orgStore's financialDocFromRow() emits (bill_to_name);
+    // the other three are Firebase-era aliases that survive only via `payload`.
+    const client = d.clientName || d.client_name || d.issued_to || d.customer_name || 'Client';
     const amount = d.grand_total || d.amount || 0;
     const status = d.status || 'draft';
     const date = d.issue_date || d.created_at || '';
@@ -730,17 +757,61 @@ function formatFinancials(finDocs: any, expenses: any): string {
 }
 
 /**
- * Format products data for AI prompt
+ * Format the ROADMAP for the AI prompt — orgStore's `products` section, which
+ * is ProductPlanner's backlog. What the company SELLS is a different section
+ * (`catalog`) and a different formatter; see formatCatalog below.
  */
 function formatProducts(products: any): string {
-  if (!products || typeof products !== 'object') return 'No product/service data available.';
+  if (!products || typeof products !== 'object') return 'No product roadmap data available.';
   const items = Object.values(products) as any[];
-  if (items.length === 0) return 'No products found.';
+  if (items.length === 0) return 'No roadmap items found.';
 
-  const formatted = items.map((p, idx) => 
-    `${idx + 1}. ${p.name || 'Unnamed'} - ₹${(p.price || p.rate || 0).toLocaleString()} (${p.category || 'General'})`
+  const formatted = items.map((p, idx) =>
+    `${idx + 1}. ${p.name || 'Unnamed'} — ${p.status || 'planned'} (${p.priority || 'medium'} priority)${p.due_date ? `, due ${p.due_date}` : ''}`
   );
-  return `PRODUCTS & SERVICES:\n${formatted.join('\n')}`;
+  return `PRODUCT ROADMAP (planned/in-progress work, NOT the sales catalogue):\n${formatted.join('\n')}`;
+}
+
+/**
+ * Format the sellable catalogue and its sales performance.
+ *
+ * units_sold / revenue / revenue_paid / last_sold_at are maintained in Postgres
+ * by app.recompute_catalog_sales() off the issued invoices, so these are the
+ * same numbers the Products page shows — the model is not asked to add anything
+ * up, only to read the ranking. That matters: totals an LLM derives itself from
+ * a list of invoices are exactly the kind of number it gets confidently wrong.
+ */
+function formatCatalog(catalog: any): string {
+  if (!catalog || typeof catalog !== 'object') return 'No product catalogue available.';
+  const items = (Object.values(catalog) as any[]).filter((p) => !p.archived_at);
+  if (items.length === 0) return 'The product catalogue is empty.';
+
+  const money = (n: any) => `₹${(Number(n) || 0).toLocaleString('en-IN')}`;
+  const ranked = [...items].sort((a, b) => (Number(b.revenue) || 0) - (Number(a.revenue) || 0));
+
+  const lines = ranked.map((p, idx) => {
+    const parts = [`${idx + 1}. ${p.name || 'Unnamed'}`];
+    if (p.sku) parts.push(`[${p.sku}]`);
+    parts.push(`— ${money(p.unit_price)} per ${p.unit || 'Nos'}`);
+    parts.push(`(${p.category || 'Uncategorised'}, ${p.tax_rate ?? 18}% GST${p.hsn_sac ? `, HSN ${p.hsn_sac}` : ''})`);
+    if (Number(p.units_sold) > 0) {
+      parts.push(`| sold ${Number(p.units_sold).toLocaleString('en-IN')} units across ${p.invoice_count} invoice(s), ${money(p.revenue)} billed, ${money(p.revenue_paid)} collected, last sold ${p.last_sold_at || 'unknown'}`);
+    } else {
+      parts.push('| no recorded sales yet');
+    }
+    if (p.track_inventory) parts.push(`| stock on hand: ${p.stock_qty}`);
+    return parts.join(' ');
+  });
+
+  const sold = ranked.filter((p) => Number(p.units_sold) > 0);
+  const header = sold.length > 0
+    ? `PRODUCT CATALOGUE & SALES (${items.length} products, ranked by revenue billed; best seller: ${sold[0].name}):`
+    : `PRODUCT CATALOGUE (${items.length} products, none sold yet):`;
+
+  return `${header}\n${lines.join('\n')}\n`
+    + 'Note: these totals cover invoices that have been issued (sent/viewed/overdue/part-paid/paid). '
+    + 'Quotations and proformas are NOT counted as sales. "Collected" is the paid-only subset. '
+    + 'Figures are all-time; the Products page has a date filter for a specific window.';
 }
 
 /**
@@ -770,36 +841,108 @@ function formatEmployees(employees: any): string {
 /**
  * Format raw CRM data for AI prompt
  */
+// The stages CRM.jsx actually renders (its COLUMNS array at CRM.jsx:10-15).
+const CRM_STAGE_LABELS: Record<string, string> = {
+  lead: 'Lead',
+  contacted: 'Contacted',
+  deal: 'Deal (won)',
+  not_deal: 'Not a deal (lost)',
+};
+
 function formatCRM(crm: any): string {
   if (!crm || typeof crm !== 'object') return 'No CRM data available.';
 
   const items = Object.values(crm) as any[];
   if (items.length === 0) return 'No CRM entries found.';
 
-  const leads = items.filter(i => i.status === 'lead' || i.stage === 'lead' || !i.status);
-  const customers = items.filter(i => i.status === 'customer' || i.stage === 'customer' || i.status === 'won');
+  // company_name / person_name / stage / value are what orgStore's
+  // crm_leads.fromRow emits. This used to read item.name / item.company /
+  // item.contact and bucket on stages named 'customer' and 'won' — none of
+  // which exist — so every lead rendered as "Unknown [unknown]" and both
+  // buckets were empty on real data.
+  const nameOf = (i: any) =>
+    i.company_name || i.person_name || i.name || i.company || 'Unnamed lead';
 
   const formatItem = (item: any, idx: number) => {
-    const name = item.name || item.company || item.contact || 'Unknown';
-    const status = item.status || item.stage || 'unknown';
-    const value = item.value || item.deal_value || item.amount;
-    const notes = item.notes || item.description;
-
-    let line = `${idx + 1}. ${name} [${status}]`;
-    if (value) line += ` (Value: ₹${value.toLocaleString()})`;
-    if (notes) line += ` - ${notes.substring(0, 50)}${notes.length > 50 ? '...' : ''}`;
-    return line;
+    const contact = item.person_name && item.company_name ? ` (contact: ${item.person_name})` : '';
+    const parts = [`${idx + 1}. ${nameOf(item)}${contact}`];
+    if (item.value) parts.push(`Value: ₹${Number(item.value).toLocaleString('en-IN')}`);
+    if (item.email) parts.push(item.email);
+    if (item.phone) parts.push(item.phone);
+    let out = parts.join(' - ');
+    const notes = item.notes ? String(item.notes) : '';
+    if (notes) out += `\n   Notes: ${notes.substring(0, 120)}${notes.length > 120 ? '...' : ''}`;
+    return out;
   };
 
-  let result = '';
-  if (leads.length > 0) {
-    result += `Leads (${leads.length}):\n${leads.map(formatItem).join('\n')}\n\n`;
-  }
-  if (customers.length > 0) {
-    result += `Customers (${customers.length}):\n${customers.map(formatItem).join('\n')}`;
+  const byStage = new Map<string, any[]>();
+  for (const item of items) {
+    const stage = item.stage || 'lead';
+    if (!byStage.has(stage)) byStage.set(stage, []);
+    byStage.get(stage)!.push(item);
   }
 
-  return result || 'No categorized CRM data found.';
+  const openValue = items
+    .filter(i => i.stage !== 'not_deal')
+    .reduce((acc, i) => acc + (Number(i.value) || 0), 0);
+  const wonValue = (byStage.get('deal') || [])
+    .reduce((acc, i) => acc + (Number(i.value) || 0), 0);
+
+  const sections: string[] = [];
+  sections.push(`CRM PIPELINE (${items.length} lead${items.length === 1 ? '' : 's'}):
+- Open pipeline value (excludes lost): ₹${openValue.toLocaleString('en-IN')}
+- Won (stage "deal"): ${(byStage.get('deal') || []).length} worth ₹${wonValue.toLocaleString('en-IN')}`);
+
+  const ORDER = ['lead', 'contacted', 'deal', 'not_deal'];
+  for (const stage of ORDER) {
+    const group = byStage.get(stage);
+    if (!group?.length) continue;
+    sections.push(`${CRM_STAGE_LABELS[stage]} (${group.length}):\n${group.map(formatItem).join('\n')}`);
+  }
+  // stage has no check constraint in 0001_init.sql, so an unrecognised value is
+  // reported rather than silently dropped.
+  for (const [stage, group] of byStage) {
+    if (ORDER.includes(stage)) continue;
+    sections.push(`Other stage "${stage}" (${group.length}):\n${group.map(formatItem).join('\n')}`);
+  }
+
+  return sections.join('\n\n');
+}
+
+/**
+ * Format the client directory — the `customers` table — for the AI prompt.
+ *
+ * There was no formatter for this section at all, so nothing in the AI's
+ * context ever mentioned a client. Deliberately separate from formatCRM: a lead
+ * is someone being pursued, a client is someone on the books, and answering
+ * "how many clients do we have" from the pipeline would be wrong.
+ */
+function formatCustomers(customers: any): string {
+  if (!customers || typeof customers !== 'object') return 'No client directory available.';
+
+  const list = Object.values(customers) as any[];
+  if (list.length === 0) return 'No clients in the directory yet.';
+
+  const withGstin = list.filter(c => c.buyerGSTIN).length;
+  const countries = [...new Set(list.map(c => c.country_code).filter(Boolean))];
+
+  const formatItem = (c: any, idx: number) => {
+    const detail: string[] = [];
+    if (c.clientEmail) detail.push(c.clientEmail);
+    if (c.contactPhone) detail.push(c.contactPhone);
+    if (c.buyerGSTIN) detail.push(`GSTIN ${c.buyerGSTIN}`);
+    if (c.buyerState) detail.push(c.buyerState);
+    if (c.country_code) detail.push(c.country_code);
+    const head = `${idx + 1}. ${c.clientName || c.name || 'Unnamed'}`;
+    const line = detail.length ? `${head} - ${detail.join(' - ')}` : head;
+    return c.clientAddress ? `${line}\n   ${c.clientAddress}` : line;
+  };
+
+  const header = [`CLIENT DIRECTORY (${list.length} client${list.length === 1 ? '' : 's'}):`];
+  if (withGstin) header.push(`- ${withGstin} with a GSTIN on file`);
+  if (countries.length) header.push(`- Countries: ${countries.join(', ')}`);
+
+  return `${header.join('\n')}\n${list.map(formatItem).join('\n')}`;
 }
 
 /**
@@ -889,6 +1032,22 @@ export function formatRawDataForPrompt(
                      lowerMsg.includes('due') || lowerMsg.includes('responsible') ||
                      lowerMsg.includes('pending work') || lowerMsg.includes('assignment');
 
+  // Sales-catalogue questions. Kept separate from needsFinancials so "what is
+  // our best seller" pulls the catalogue without dragging in every invoice, and
+  // separate from the roadmap below so "what are we building" does not.
+  const needsProducts = lowerMsg.includes('product') || lowerMsg.includes('sku') ||
+                        lowerMsg.includes('catalog') || lowerMsg.includes('catalogue') ||
+                        lowerMsg.includes('best-selling') || lowerMsg.includes('best selling') ||
+                        lowerMsg.includes('bestseller') || lowerMsg.includes('best seller') ||
+                        lowerMsg.includes('top selling') || lowerMsg.includes('sell') ||
+                        lowerMsg.includes('sold') || lowerMsg.includes('sales') ||
+                        lowerMsg.includes('service') || lowerMsg.includes('inventory') ||
+                        lowerMsg.includes('stock') || lowerMsg.includes('hsn');
+
+  const needsRoadmap = lowerMsg.includes('roadmap') || lowerMsg.includes('planner') ||
+                       lowerMsg.includes('building') || lowerMsg.includes('backlog') ||
+                       lowerMsg.includes('shipping') || lowerMsg.includes('launch');
+
   const needsCompany = lowerMsg.includes('company') || lowerMsg.includes('business') ||
                        lowerMsg.includes('about us') || lowerMsg.includes('info') ||
                        lowerMsg.includes('founder') || lowerMsg.includes('boss') ||
@@ -902,6 +1061,8 @@ export function formatRawDataForPrompt(
     employees: needsEmployees,
     crm: needsCRM,
     financials: needsFinancials,
+    products: needsProducts,
+    roadmap: needsRoadmap,
     tasks: needsTasks,
     company: needsCompany,
     intent,
@@ -914,10 +1075,23 @@ export function formatRawDataForPrompt(
     sections.push(formatEmployees(orgData.employees));
   }
   if (needsCRM) {
-    sections.push(formatCRM(orgData.crm || orgData.leads));
+    // orgStore's section key is `crm_leads`. `crm` and `leads` are Firebase-era
+    // names that no longer exist in the cache, so this read was always
+    // undefined and formatCRM always returned "No CRM data available."
+    sections.push(formatCRM(orgData.crm_leads || orgData.crm || orgData.leads));
+    sections.push(formatCustomers(orgData.customers));
   }
   if (needsFinancials) {
     sections.push(formatFinancials(orgData.fin_docs, orgData.expenses));
+  }
+  if (needsFinancials || needsProducts) {
+    // The catalogue is what answers "what is our best-selling product this
+    // quarter" — a question the invoices alone cannot answer, because without
+    // catalog_item_id the model would be matching product names against
+    // free-text line descriptions and guessing.
+    sections.push(formatCatalog(orgData.catalog));
+  }
+  if (needsRoadmap) {
     sections.push(formatProducts(orgData.products));
   }
   if (needsTasks) {
@@ -928,10 +1102,13 @@ export function formatRawDataForPrompt(
 
   // If no specific section was matched (e.g. general reasoning query), include
   // all org data so the AI has full context
-  if (!needsEmployees && !needsCRM && !needsFinancials && !needsTasks) {
+  if (!needsEmployees && !needsCRM && !needsFinancials && !needsProducts
+      && !needsRoadmap && !needsTasks) {
     sections.push(formatEmployees(orgData.employees));
     sections.push(formatFinancials(orgData.fin_docs, orgData.expenses));
-    sections.push(formatCRM(orgData.crm || orgData.leads));
+    sections.push(formatCatalog(orgData.catalog));
+    sections.push(formatCRM(orgData.crm_leads || orgData.crm || orgData.leads));
+    sections.push(formatCustomers(orgData.customers));
     sections.push(formatTasks(orgData.tasks));
   }
 

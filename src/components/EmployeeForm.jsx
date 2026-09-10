@@ -130,9 +130,25 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                 // Update existing employee
                 await storageService.updateEmployee(formData.id, formData, activeOrg?.id);
             } else {
-                // Create new employee
-                await storageService.saveEmployee(formData, activeOrg?.id);
-                await storageService.save(formData, 'offer', activeOrg?.id, user?.uid);
+                // Create new employee. Onboarding from this page is direct:
+                // the person joins the registry immediately and the offer
+                // letter is generated as a record they can download. It is not
+                // a portal offer awaiting a signature, so it is filed as
+                // already accepted and linked to the employee — that keeps it
+                // out of the Offer Tracker's pending list and stops the
+                // acceptance sync from creating the same person twice.
+                const savedEmployee = await storageService.saveEmployee(formData, activeOrg?.id);
+                await storageService.save(
+                    { ...formData, source: 'employee_form', employee_synced: true },
+                    'offer', activeOrg?.id, user?.id,
+                    // savedEmployee, not the `employee` prop: this branch only runs
+                    // when creating someone, so the prop is undefined here and the
+                    // record would be filed with no employee_id — leaving the offer
+                    // unlinked and the person eligible to be onboarded twice. The
+                    // previous name for this const was `employee`, which shadowed
+                    // the prop and made the right value reachable by accident.
+                    { status: 'accepted', employee_id: savedEmployee?.id || employee?.id || null },
+                );
             }
             setShowSuccess(true);
             setTimeout(() => {

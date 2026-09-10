@@ -11,7 +11,7 @@ export default function NdaPreview({ formData }) {
     if (!d) return '___________';
     const dt = new Date(d);
     const day = dt.getDate();
-    const suffix = [, 'st', 'nd', 'rd'][day % 10 > 3 ? 0 : (day % 100 - day % 10 === 10 ? 0 : day % 10)] || 'th';
+    const suffix = [null, 'st', 'nd', 'rd'][day % 10 > 3 ? 0 : (day % 100 - day % 10 === 10 ? 0 : day % 10)] || 'th';
     return `${day}${suffix} ${dt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
   };
 

@@ -4,13 +4,19 @@ import {
   Mail, MapPin, Phone, Hash, ArrowLeft, FileText,
 } from 'lucide-react';
 import { customerService } from '../services/customerService';
-import { documentStore } from '../services/documentStore';
+import { documentStore, docNumber as docNo } from '../services/documentStore';
 import { useOrg } from '../context/OrgContext';
 import DocumentStatusBadge from './shared/DocumentStatusBadge';
+import CountrySelect from './shared/CountrySelect';
 
 const EMPTY_CUSTOMER = {
   clientName: '', clientEmail: '', clientAddress: '',
   buyerGSTIN: '', buyerState: '', contactPhone: '',
+  // Optional. Left blank, a document billed to this customer falls back to the
+  // GST state (an Indian state implies India) and then to your organisation's
+  // own country — so Sales by Countries works without anyone filling this in.
+  // It is here for the cases inference gets wrong.
+  country_code: '',
 };
 
 function fmt(n) {
@@ -42,12 +48,9 @@ function CustomerDetail({ customer, orgId, onBack, onEdit }) {
       if (cancelled) return;
       const FINANCIAL_TYPES = new Set(['invoice', 'quotation', 'proforma']);
       const all = documentStore.getAll();
-      const name = (customer.clientName || '').toLowerCase().trim();
-      const matched = all.filter(d => {
-        if (!FINANCIAL_TYPES.has(d.type)) return false;
-        const n = (d.issued_to || d.client?.name || '').toLowerCase().trim();
-        return n === name;
-      });
+      // financial_documents.customer_id is the join. See documentsFor() for why
+      // the name comparison is still there for rows that have no FK.
+      const matched = customerService.documentsFor(all, customer, FINANCIAL_TYPES);
       setDocs(
         matched.sort((a, b) =>
           new Date(b.issue_date || b.created_at || 0) -
@@ -220,7 +223,7 @@ function CustomerDetail({ customer, orgId, onBack, onEdit }) {
                   </span>
                   {/* Doc ID */}
                   <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', flex: 1, minWidth: '8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {doc.id}
+                    {docNo(doc)}
                   </span>
                   {/* Date */}
                   <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', flexShrink: 0 }}>{dateStr}</span>
@@ -249,6 +252,11 @@ export default function Customers() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name_asc');
+  // Since 0016 merged customers and crm_leads into one `clients` table, this page
+  // and the CRM board read the same rows. 'billable' is the default because this
+  // screen is about parties you invoice — the pipeline has its own board — and
+  // without it the Customers list silently became the lead list too.
+  const [statusFilter, setStatusFilter] = useState('billable');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [formData, setFormData] = useState(EMPTY_CUSTOMER);
@@ -261,14 +269,22 @@ export default function Customers() {
 
   const loadCustomers = async () => {
     setLoading(true);
-    await customerService.syncFromInvoices(activeOrg?.id);
     const data = await customerService.getAll(activeOrg?.id);
     setCustomers(data);
     setLoading(false);
   };
 
   const filtered = useMemo(() => {
-    const searched = customerService.search(customers, searchTerm);
+    const byStatus = customers.filter((c) => {
+      // Rows written before the merge, and any row whose status never got set,
+      // are treated as customers: they came from the customers table.
+      const status = c.status || 'active';
+      if (statusFilter === 'all')      return status !== 'archived';
+      if (statusFilter === 'billable') return status === 'active';
+      if (statusFilter === 'pipeline') return status === 'lead' || status === 'contacted';
+      return status === statusFilter;
+    });
+    const searched = customerService.search(byStatus, searchTerm);
     return [...searched].sort((a, b) => {
       if (sortBy === 'name_asc')  return (a.clientName || '').localeCompare(b.clientName || '');
       if (sortBy === 'name_desc') return (b.clientName || '').localeCompare(a.clientName || '');
@@ -276,7 +292,7 @@ export default function Customers() {
       if (sortBy === 'gstin')     return (a.buyerGSTIN || '').localeCompare(b.buyerGSTIN || '');
       return 0;
     });
-  }, [customers, searchTerm, sortBy]);
+  }, [customers, searchTerm, sortBy, statusFilter]);
 
   const openAdd = () => {
     setEditingCustomer(null);
@@ -293,6 +309,7 @@ export default function Customers() {
       clientAddress: customer.clientAddress || '',
       buyerGSTIN:    customer.buyerGSTIN    || '',
       buyerState:    customer.buyerState    || '',
+      country_code:  customer.country_code  || '',
       contactPhone:  customer.contactPhone  || '',
     });
     setModalOpen(true);
@@ -396,6 +413,13 @@ export default function Customers() {
                     <input type="text" placeholder="e.g. Tamil Nadu" value={formData.buyerState}
                       onChange={e => setFormData({ ...formData, buyerState: e.target.value })} className="easy-inp" />
                   </div>
+                  <div className="easy-field">
+                    <label className="easy-lbl">Country</label>
+                    <CountrySelect
+                      value={formData.country_code}
+                      onChange={code => setFormData({ ...formData, country_code: code })}
+                    />
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
                   <button type="submit" disabled={saving} className="easy-submit" style={{ flex: 1 }}>
@@ -430,6 +454,16 @@ export default function Customers() {
             style={{ paddingLeft: '2rem', height: '40px', fontSize: '0.8125rem' }}
           />
         </div>
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          style={{ height: '40px', padding: '0 0.625rem', borderRadius: '0.5rem', border: '1px solid var(--border-default)', background: 'var(--background)', color: 'var(--text-secondary)', fontSize: '0.8rem', cursor: 'pointer', outline: 'none', flexShrink: 0 }}
+        >
+          <option value="billable">Customers</option>
+          <option value="pipeline">Leads &amp; prospects</option>
+          <option value="lost">Lost</option>
+          <option value="all">Everyone</option>
+        </select>
         <select
           value={sortBy}
           onChange={e => setSortBy(e.target.value)}
@@ -520,7 +554,7 @@ export default function Customers() {
 
       {filtered.length > 0 && (
         <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-          Showing {filtered.length} of {customers.length} customer{customers.length !== 1 ? 's' : ''}
+          Showing {filtered.length} of {customers.length} client{customers.length !== 1 ? 's' : ''}
         </div>
       )}
 
@@ -568,6 +602,13 @@ export default function Customers() {
                   <label className="easy-lbl">State</label>
                   <input type="text" placeholder="e.g. Tamil Nadu" value={formData.buyerState}
                     onChange={e => setFormData({ ...formData, buyerState: e.target.value })} className="easy-inp" />
+                </div>
+                <div className="easy-field">
+                  <label className="easy-lbl">Country</label>
+                  <CountrySelect
+                    value={formData.country_code}
+                    onChange={code => setFormData({ ...formData, country_code: code })}
+                  />
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>

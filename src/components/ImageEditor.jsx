@@ -30,7 +30,7 @@ export default function ImageEditor({ imageSrc, onSave, onCancel }) {
   const [state, setState] = useState(INITIAL_STATE);
   const [imgLoaded, setImgLoaded] = useState(false);
   // Original image before any crop — kept for Reset All
-  const [originalSrc, setOriginalSrc] = useState(imageSrc);
+  const [originalSrc] = useState(imageSrc);
   // Current working source (updated after crop apply)
   const [workingSrc, setWorkingSrc] = useState(imageSrc);
 

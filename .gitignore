@@ -25,3 +25,16 @@ dist-ssr
 
 # Migration working directory (contains exported customer data)
 .migration/
+
+# Local secrets. .env.example is the tracked template.
+.env
+.env.*
+!.env.example
+
+# Credentials and keys. service-account.json was a full Firebase admin
+# credential read by the old scripts/setup-admin.js; nohup.out was committed and
+# leaked an internal LAN address.
+service-account.json
+*.pem
+*.key
+nohup.out

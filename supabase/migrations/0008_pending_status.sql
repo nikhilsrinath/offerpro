@@ -1,0 +1,22 @@
+-- ============================================================================
+-- 0008_pending_status.sql — add the one doc_status value that 0005 did not.
+--
+-- A probe of the live enum found every value 0005 declares EXCEPT 'pending':
+--   present: draft sent viewed accepted declined paid partially_paid overdue
+--            cancelled expired signed party_a_signed fully_signed acknowledged
+--            payment_submitted advance_paid revision_requested order_confirmed
+--            converted
+--   missing: pending
+--
+-- 'pending' is the state every offer letter is created in — OfferTracker's New
+-- Offer modal, BulkOfferLetters and OfferForm's "Create portal link" all insert
+-- with it — so without this value each of those inserts fails outright with
+--   invalid input value for enum doc_status: "pending"
+-- and no offer can be raised from the tracker at all.
+--
+-- RUN THIS STATEMENT ON ITS OWN. Postgres forbids using a newly added enum
+-- value in the transaction that added it, which is the likely reason it was
+-- skipped when 0005 was applied. Run the ALTER, then the backfill separately.
+-- ============================================================================
+
+alter type doc_status add value if not exists 'pending';

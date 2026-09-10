@@ -17,7 +17,7 @@ const MODULES = [
     { id: 'team',      label: 'Team',          desc: 'Employee registry, offer tracker & bulk imports.',       icon: Users,        defaultPage: 'team-hierarchy', color: '#8b5cf6' },
     { id: 'documents', label: 'Documents',      desc: 'Offer letters, NDAs, MoUs, and certificates.',          icon: FileText,     defaultPage: 'new-certificates', color: '#10b981' },
     { id: 'finance',   label: 'Finance',        desc: 'Invoices, quotations, proformas & financial status.',   icon: Receipt,      defaultPage: 'finance-status', color: '#f59e0b' },
-    { id: 'business',  label: 'Business',       desc: 'CRM pipeline, client database, and revenue analytics.', icon: BarChart3,    defaultPage: 'crm',            color: '#d946ef' },
+    { id: 'business',  label: 'Business',       desc: 'CRM pipeline, client database, product catalogue and revenue analytics.', icon: BarChart3,    defaultPage: 'crm',            color: '#d946ef' },
     { id: 'data',      label: 'Records',        desc: 'Past documents and bulk operation history.',            icon: File,         defaultPage: 'records',        color: '#ef4444' },
     { id: 'overall',   label: 'Overview',       desc: 'Comprehensive analytics and business stats.',           icon: PieChartIcon, defaultPage: 'dashboard',      color: '#64748b' },
 ];
@@ -160,7 +160,6 @@ export default function Hub({ user, theme }) {
     // ── Theme tokens ──────────────────────────────────────────────────────────
     const cardBg         = isDark ? '#0f0f12' : '#ffffff';
     const cardBorder     = isDark ? 'rgba(255,255,255,0.08)'  : 'rgba(0,0,0,0.08)';
-    const cardBorderHov  = isDark ? 'rgba(255,255,255,0.18)'  : 'rgba(0,0,0,0.16)';
     const gridLine       = isDark ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.03)';
     const tooltipBg      = isDark ? '#111113' : '#ffffff';
     const tooltipText    = isDark ? '#fafafa'  : '#18181b';
@@ -180,7 +179,6 @@ export default function Hub({ user, theme }) {
     const chartsGrid  = isMobile || isTablet ? '1fr'     : 'minmax(0,1.55fr) minmax(0,1fr)';
     const modulesGrid = isMobile ? 'repeat(2, 1fr)'      : isTablet ? 'repeat(2, 1fr)'    : 'repeat(3, 1fr)';
     const chartH      = isMobile ? 145 : 175;
-    const modPad      = isMobile ? '1rem' : '1.5rem';
     const h1Size      = isMobile ? '1.6rem' : 'clamp(1.75rem, 3vw, 2.25rem)';
 
     const hubContainerStyles = {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { authErrorMessage } from '../lib/authErrors';
 import { Mail, Lock, ArrowRight, ArrowLeft } from 'lucide-react';
 import Registration from './Registration';
 
@@ -39,12 +40,7 @@ const Auth = () => {
       await login(email, password);
       navigate('/hub', { replace: true });
     } catch (err) {
-      const msg = err.code === 'auth/invalid-credential' ? 'Invalid email or password.'
-        : err.code === 'auth/user-not-found' ? 'No account found with this email.'
-          : err.code === 'auth/wrong-password' ? 'Incorrect password.'
-            : err.code === 'auth/too-many-requests' ? 'Too many attempts. Please try again later.'
-              : err.message;
-      setError(msg);
+      setError(authErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -54,13 +50,12 @@ const Auth = () => {
     setLoading(true);
     setError(null);
     try {
+      // Redirect-based: the browser leaves this page and returns to /hub with a
+      // session, where AuthContext picks it up. Nothing after this line runs on
+      // the success path, so there is no navigate() here.
       await loginWithGoogle();
-      navigate('/hub', { replace: true });
     } catch (err) {
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setError(err.message);
-      }
-    } finally {
+      setError(authErrorMessage(err));
       setLoading(false);
     }
   };

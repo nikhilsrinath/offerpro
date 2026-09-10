@@ -44,10 +44,6 @@ const LandingPage = ({ onEnter }) => {
     return () => window.removeEventListener('scroll', handler);
   }, []);
 
-  const logoItems = [
-    'Vercel', 'Loom', 'Linear', 'Loops', 'Zapier', 'Ramp', 'Raycast',
-    'Notion', 'Stripe', 'Figma', 'Slack', 'Supabase',
-  ];
 
   const chartBars = [35, 55, 42, 68, 52, 78, 45, 60, 80, 65, 90, 72, 85, 58, 95, 70, 88, 62, 75, 92];
 

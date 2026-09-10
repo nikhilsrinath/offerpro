@@ -6,6 +6,8 @@
 
 import type { CompanyMemory, CompanyFacts, OnboardingQuestion } from './companyMemory';
 import { getRelevantMemory, buildOnboardingPrompt, isOnboardingComplete, getCurrentOnboardingQuestion } from './companyMemory';
+import { supabase } from '../lib/supabase';
+import { orgStore } from './orgStore';
 
 // Backend proxy URL - all AI requests go through our backend
 const NVIDIA_API_URL = '/api/nvidia';
@@ -67,7 +69,16 @@ export function buildEdgeContext(edgeData: {
   const finInvoices = finDocs.filter((d: any) => d.type === 'invoice');
   const paidInvoices = finInvoices.filter((d: any) => d.status === 'paid');
   const revenue = paidInvoices.reduce((acc: number, d: any) => acc + (d.grand_total || d.amount || d.subtotal || 0), 0);
-  const pendingInvoices = finInvoices.filter((d: any) => d.status === 'pending' || d.status === 'sent');
+  // Issued but not collected. Mirrors app.catalog_is_sold() minus
+  // app.catalog_is_collected() in 0011_product_catalog.sql — the definition the
+  // rest of the product already uses. The old filter was 'pending' or 'sent'
+  // only, which silently excluded viewed, partially_paid, overdue,
+  // payment_submitted and advance_paid.
+  const UNPAID = new Set([
+    'pending', 'sent', 'viewed', 'partially_paid', 'overdue',
+    'payment_submitted', 'advance_paid',
+  ]);
+  const pendingInvoices = finInvoices.filter((d: any) => UNPAID.has(d.status));
   const pendingRevenue = pendingInvoices.reduce((acc: number, d: any) => acc + (d.grand_total || d.amount || d.subtotal || 0), 0);
 
   // Calculate monthly revenue trend
@@ -404,20 +415,40 @@ export async function callCofounderAI(
       { role: 'user', content: message },
     ];
 
+    // /api/nvidia meters each message against the org's plan, so it needs to
+    // know who is asking. Without the token it answers 401 rather than serving
+    // an uncounted request.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      onError?.('Your session has expired. Please sign in again.');
+      return;
+    }
+    const orgId = (edgeContext as EdgeContext)?.orgId || orgStore.getOrgId();
+
     const response = await fetch(NVIDIA_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
         model: MODEL,
         messages,
+        org_id: orgId,
         max_tokens: maxTokensOverride ?? 400,
         temperature: 0.2,
         top_p: 0.8,
         stream: true,
       }),
     });
+
+    // The plan ceiling. Surfaced as itself so the panel can say so rather than
+    // reporting a generic HTTP failure.
+    if (response.status === 429) {
+      const body = await response.json().catch(() => ({} as any));
+      onError?.(body.error || 'AI message limit reached for your plan');
+      return;
+    }
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '');

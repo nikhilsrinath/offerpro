@@ -8,11 +8,9 @@ import {
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { ref, get, update } from 'firebase/database';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { signInAnonymously } from 'firebase/auth';
-import { db, auth, firestore } from '../../lib/firebase';
-import { documentStore } from '../../services/documentStore';
+import {
+  fetchPortalDocument, submitPortalAction, portalTokenFromUrl,
+} from '../../services/portalService';
 import SignatureCapture from '../shared/SignatureCapture';
 import UPIQRGenerator from '../shared/UPIQRGenerator';
 import PaymentConfirmationForm from '../shared/PaymentConfirmationForm';
@@ -27,6 +25,11 @@ const fadeUp = {
 const stagger = {
   animate: { transition: { staggerChildren: 0.08 } },
 };
+
+function fmtSignedAt(d) {
+  if (!d) return '—';
+  try { return new Date(d).toLocaleString('en-IN'); } catch { return String(d); }
+}
 
 function fmtOfferDate(d) {
   if (!d) return '—';
@@ -86,231 +89,135 @@ export default function RecipientPortal({ documentId }) {
   const [partyBAgreed, setPartyBAgreed] = useState(false);
   const [copied, setCopied] = useState('');
   const [downloading, setDownloading] = useState(false);
+  // The live company profile now arrives with the document from /api/portal —
+  // the recipient has no database access to look it up with.
+  const [company, setCompany] = useState({});
+  const [portalError, setPortalError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [submitting, setSubmitting] = useState(null);
+  const [readOnly, setReadOnly] = useState(false);
   const a4Ref = useRef(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadDocument = async () => {
-      // Extract orgId from URL query params for Firebase sync
-      const params = new URLSearchParams(window.location.search);
-      const orgId = params.get('org');
+      const token = portalTokenFromUrl();
+      if (!token) {
+        // Links issued before portal tokens existed carried only ?org= and a
+        // random string; they no longer open anything.
+        if (!cancelled) { setPortalError('This link is missing its access token. Ask the sender for a new one.'); setLoading(false); }
+        return;
+      }
 
-      // Sign in anonymously so Firebase security rules (auth != null) are satisfied
-      // on ANY device — the employee's phone/laptop has no session, this gives them
-      // a temporary anonymous token without requiring a login screen.
       try {
-        if (!auth.currentUser) {
-          await signInAnonymously(auth);
-        }
-      } catch (authErr) {
-        console.warn('[RecipientPortal] Anonymous sign-in failed:', authErr.message);
+        const { document: loaded, company: liveCompany, scope } = await fetchPortalDocument(token);
+        if (cancelled) return;
+        // Normalize once, at the boundary:
+        //  • the database stores offers as 'offer'; this screen keys everything
+        //    off 'offer_letter';
+        //  • documents saved from the form pages keep the recipient inside
+        //    `data` (studentName), so `issued_to` can be empty on older rows —
+        //    without this the letter is addressed to nobody.
+        setDocData({
+          ...loaded,
+          type: loaded.type === 'offer' ? 'offer_letter' : loaded.type,
+          issued_to: loaded.issued_to || loaded.studentName || loaded.recipientName || loaded.name || '',
+        });
+        setCompany(liveCompany);
+        setReadOnly(scope !== 'sign');
+        setStatus(loaded.status);
+        const recipient = loaded.issued_to || loaded.studentName || loaded.recipientName || loaded.name;
+        if (recipient) setCandidateName(recipient);
+      } catch (err) {
+        if (!cancelled) setPortalError(err.message);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      if (orgId) {
-        documentStore.setContext(orgId);
-        await documentStore.init();
-      }
-
-      let docData = documentStore.getById(documentId);
-
-      // Fallback: direct Firebase fetch if localStorage cache missed (always the case
-      // on a fresh device). This works once anonymous auth has been granted above.
-      if (!docData && orgId) {
-        try {
-          // 1. Try Firestore First
-          const docRef = doc(firestore, 'fin_docs', documentId);
-          const snap = await getDoc(docRef);
-          
-          if (snap.exists()) {
-            docData = snap.data();
-          } else {
-            // 2. Fallback to RTDB (Legacy documents)
-            console.log('[RecipientPortal] doc not found in Firestore, checking RTDB fallback...');
-            const rtdbSnap = await get(ref(db, `organizations/${orgId}/fin_docs/${documentId}`));
-            if (rtdbSnap.exists()) {
-              docData = rtdbSnap.val();
-            }
-          }
-
-          if (docData) {
-            setDocData(docData);
-            setStatus(docData.status);
-            // Save into documentStore so it's available in cache
-            await documentStore.save(docData);
-          }
-        } catch (err) {
-          console.warn('[RecipientPortal] Multi-store fetch failed:', err.message);
-        }
-      }
-
-      if (docData) {
-        // Compute advance_amount & balance_due if missing (for proforma/invoices)
-        if (docData.total && docData.advance_pct && !docData.advance_amount) {
-          docData.advance_amount = Math.round(docData.total * (docData.advance_pct / 100));
-          docData.balance_due = docData.total - docData.advance_amount;
-        }
-
-        // Always fetch live org profile so logo/name changes reflect immediately
-        if (orgId) {
-          try {
-            const orgSnap = await get(ref(db, `organizations/${orgId}`));
-            if (orgSnap.exists()) {
-              const org = orgSnap.val();
-              const liveProfile = {
-                company_name: org.company_name || '',
-                address: org.company_address || org.address || '',
-                email: org.company_email || org.email || '',
-                phone: org.company_phone || org.phone || '',
-                gstin: org.gstin || '',
-                logo_url: org.logo_url || '',
-                signature_url: org.signature_url || '',
-                upi_id: org.upi_id || '',
-                bank_name: org.bank_name || '',
-                bank_account_number: org.bank_account_number || '',
-                bank_ifsc: org.bank_ifsc || '',
-                bank_account_type: org.bank_account_type || '',
-                company_tagline: org.company_tagline || '',
-                company_website: org.company_website || '',
-                authorized_person: org.owner_full_name || '',
-                authorized_designation: org.document_designation || '',
-              };
-              // Merge: live org data takes priority, snapshot fills any gaps
-              docData.company_profile = { ...(docData.company_profile || {}), ...liveProfile };
-            }
-          } catch (err) {
-            console.error('[RecipientPortal] Failed to load org profile:', err.message);
-          }
-        }
-        setDocData(docData);
-        setStatus(docData.status);
-        if (docData.issued_to) setCandidateName(docData.issued_to);
-        
-        // Auto-mark as viewed when client opens the portal link
-        if (docData.status === 'sent') {
-          // Use status update helper (handles dual writing)
-          await documentStore.updateStatus(docData.id, 'viewed', {
-            first_viewed_at: docData.first_viewed_at || new Date().toISOString(),
-            last_viewed_at: new Date().toISOString(),
-          });
-          setStatus('viewed');
-        }
-      } else {
-        setDocData(null);
-      }
-      setLoading(false);
     };
 
     // Small delay for loading animation
     const timer = setTimeout(loadDocument, 1200);
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [documentId]);
 
+  /**
+   * Every response goes through the same server call: the recipient names an
+   * action, not a status, and /api/portal decides what that action is allowed
+   * to write.
+   */
+  const respond = async (action, payload, nextStatus) => {
+    if (submitting) return false;
+    setSubmitting(action);
+    setActionError('');
+    try {
+      await submitPortalAction(portalTokenFromUrl(), action, payload);
+      setStatus(nextStatus);
+      return true;
+    } catch (err) {
+      setActionError(err.message);
+      return false;
+    } finally {
+      setSubmitting(null);
+    }
+  };
+
   // ── Handlers ──
+  //
+  // The status each one lands on is decided by the server; the second argument
+  // here only keeps the local UI in step with what the server will have written.
   const handleAcceptOffer = async () => {
     if (!signature || !agreed) return;
-    await documentStore.updateStatus(docData.id, 'signed', {
-      candidate_signature: signature,
+    await respond('accept_offer', {
+      signature,
       signature_method: signatureMethod,
-      candidate_name: candidateName,
-      signed_at: new Date().toISOString(),
-    });
-    documentStore.addNotification({
-      type: 'offer_signed',
-      title: `Offer accepted by ${candidateName}`,
-      message: `${candidateName} has signed the offer letter ${docData.id}`,
-      document_id: docData.id,
-    });
-    setStatus('signed');
+      name: candidateName,
+    }, 'signed');
   };
 
   const handleDecline = async () => {
-    await documentStore.updateStatus(docData.id, 'declined', { decline_reason: declineReason });
-    documentStore.addNotification({
-      type: 'document_declined',
-      title: `Document declined`,
-      message: `${docData.issued_to} has declined ${docData.id}. Reason: ${declineReason || 'Not specified'}`,
-      document_id: docData.id,
-    });
-    setShowDeclineModal(false);
-    setStatus('declined');
+    const ok = await respond('decline', { reason: declineReason }, 'declined');
+    if (ok) setShowDeclineModal(false);
   };
 
   const handleMoUSign = async () => {
     if (!partyBSignature || !partyBAgreed) return;
-    await documentStore.updateStatus(docData.id, 'fully_signed', {
-      party_b: {
-        ...docData.party_b,
-        signature: partyBSignature,
-        representative: candidateName || docData.party_b?.representative,
-        designation: candidateDesignation || docData.party_b?.designation,
-        signed_at: new Date().toISOString(),
-      },
-    });
-    documentStore.addNotification({
-      type: 'mou_fully_signed',
-      title: `MoU fully signed`,
-      message: `Both parties have signed ${docData.id}`,
-      document_id: docData.id,
-    });
-    setStatus('fully_signed');
+    await respond('mou_sign', {
+      signature: partyBSignature,
+      signature_method: signatureMethod,
+      name: candidateName || docData.party_b?.representative,
+      designation: candidateDesignation || docData.party_b?.designation,
+    }, 'fully_signed');
   };
 
   const handlePaymentConfirmation = async (data) => {
-    await documentStore.updateStatus(docData.id, 'payment_submitted', { payment_confirmation: data });
-    documentStore.addNotification({
-      type: 'payment_submitted',
-      title: `Payment submitted for ${docData.id}`,
-      message: `₹${data.amountPaid?.toLocaleString('en-IN')} — UTR: ${data.transactionId}`,
-      document_id: docData.id,
-    });
-    setPaymentSubmitted(true);
-    setStatus('payment_submitted');
+    const ok = await respond('payment_confirmation', { payment: data }, 'payment_submitted');
+    if (ok) setPaymentSubmitted(true);
   };
 
   const handleAcceptQuotation = async () => {
     if (!signature || !agreed) return;
-    await documentStore.updateStatus(docData.id, 'accepted', {
-      accepted_by: candidateName,
-      accepted_signature: signature,
-      accepted_at: new Date().toISOString(),
-    });
-    documentStore.addNotification({
-      type: 'quotation_accepted',
-      title: `Quotation accepted`,
-      message: `${candidateName} accepted ${docData.id}`,
-      document_id: docData.id,
-    });
-    setStatus('accepted');
+    await respond('accept_quotation', {
+      signature,
+      signature_method: signatureMethod,
+      name: candidateName,
+    }, 'accepted');
   };
 
   const handleRevisionRequest = async () => {
-    await documentStore.updateStatus(docData.id, 'revision_requested', { revision_notes: revisionText });
-    documentStore.addNotification({
-      type: 'revision_requested',
-      title: `Revision requested for ${docData.id}`,
-      message: revisionText,
-      document_id: docData.id,
-    });
-    setShowRevisionModal(false);
-    setStatus('revision_requested');
+    const ok = await respond('request_revision', { notes: revisionText }, 'revision_requested');
+    if (ok) setShowRevisionModal(false);
   };
 
   const handleConfirmOrder = async () => {
-    await documentStore.updateStatus(docData.id, 'order_confirmed');
-    setOrderConfirmed(true);
+    const ok = await respond('confirm_order', {}, 'order_confirmed');
+    if (ok) setOrderConfirmed(true);
   };
 
   const handleProformaPayment = async (data) => {
-    await documentStore.updateStatus(docData.id, 'advance_paid', { payment_confirmation: data });
-    documentStore.addNotification({
-      type: 'advance_paid',
-      title: `Advance payment received for ${docData.id}`,
-      message: `₹${data.amountPaid?.toLocaleString('en-IN')} advance paid`,
-      document_id: docData.id,
-    });
-    setPaymentSubmitted(true);
-    setStatus('advance_paid');
+    const ok = await respond('proforma_payment', { payment: data }, 'advance_paid');
+    if (ok) setPaymentSubmitted(true);
   };
-
   const handleCopy = async (text, label) => {
     await navigator.clipboard.writeText(text);
     setCopied(label);
@@ -505,8 +412,8 @@ export default function RecipientPortal({ documentId }) {
       <div className="rp-loading">
         <div className="rp-loading-inner">
           <div className="rp-notfound-icon"><AlertCircle size={32} /></div>
-          <h2>Document Not Found</h2>
-          <p>This link may have expired or the document ID is invalid.</p>
+          <h2>Document Unavailable</h2>
+          <p>{portalError || 'This link may have expired or the document ID is invalid.'}</p>
         </div>
         <footer className="rp-footer">
           <div className="rp-footer-inner">
@@ -519,60 +426,40 @@ export default function RecipientPortal({ documentId }) {
   }
 
   const isActionTaken = ['signed', 'declined', 'paid', 'payment_submitted', 'accepted', 'fully_signed', 'advance_paid', 'revision_requested', 'acknowledged'].includes(status);
-  // Use company profile embedded in the document (for recipients), fall back to localStorage
-  const company = docData.company_profile || documentStore.getCompanyProfile();
 
   // ── HR Notice acknowledge (role_change / termination) ──
+  //
+  // The employee-record change that follows an acknowledgement is applied by
+  // /api/portal under the service role. It used to be written from here
+  // straight into RTDB and Firestore, which meant the recipient's browser held
+  // write access to the employee table.
   const handleAcknowledge = async () => {
     if (!signature || !agreed) return;
-    const portalOrgId = new URLSearchParams(window.location.search).get('org');
-
-    await documentStore.updateStatus(docData.id, 'acknowledged', {
-      acknowledged_at: new Date().toISOString(),
-      acknowledged_by: candidateName || docData.issued_to,
-      candidate_signature: signature,
+    await respond('acknowledge', {
+      signature,
       signature_method: signatureMethod,
-    });
-
-    // Write changes back to employee record
-    if (portalOrgId && docData.employee_id) {
-      try {
-        if (docData.type === 'role_change') {
-          const empUpdates = { role: docData.new_role };
-          if (docData.new_department) empUpdates.department = docData.new_department;
-          if (docData.new_salary) empUpdates.salary = Number(docData.new_salary);
-          
-          await update(ref(db, `organizations/${portalOrgId}/employees/${docData.employee_id}`), empUpdates);
-          // Dual-sync to Firestore
-          await updateDoc(doc(firestore, 'employees', docData.employee_id), { ...empUpdates, name: docData.issued_to });
-        } else if (docData.type === 'termination') {
-          const termUpdates = {
-            status: 'terminated',
-            termination_date: docData.last_day,
-          };
-          await update(ref(db, `organizations/${portalOrgId}/employees/${docData.employee_id}`), termUpdates);
-          // Dual-sync to Firestore
-          await updateDoc(doc(firestore, 'employees', docData.employee_id), termUpdates);
-        }
-      } catch (err) {
-        console.warn('[RecipientPortal] Failed to update employee record:', err.message);
-      }
-    }
-
-    documentStore.addNotification({
-      type: docData.type === 'role_change' ? 'role_change_acknowledged' : 'termination_acknowledged',
-      title: docData.type === 'role_change'
-        ? `Role change acknowledged by ${candidateName || docData.issued_to}`
-        : `Termination acknowledged by ${candidateName || docData.issued_to}`,
-      message: `${candidateName || docData.issued_to} has acknowledged the ${docData.type === 'role_change' ? 'role change notice' : 'termination notice'}.`,
-      document_id: docData.id,
-    });
-    setStatus('acknowledged');
+      name: candidateName || docData.issued_to,
+    }, 'acknowledged');
   };
 
   // ── Render ──
   return (
     <div className="rp-page">
+      {/* A rejected response has to be visible: the recipient has no other
+          way to learn that their acceptance was not recorded. */}
+      {actionError && (
+        <div className="rp-action-error" role="alert" style={{
+          position: 'sticky', top: 0, zIndex: 60,
+          display: 'flex', alignItems: 'center', gap: '0.5rem',
+          padding: '0.75rem 1rem', background: 'rgba(239,68,68,0.12)',
+          borderBottom: '1px solid rgba(239,68,68,0.35)', color: '#fca5a5',
+          fontSize: '0.8125rem', fontWeight: 500,
+        }}>
+          <AlertCircle size={15} />
+          <span>{actionError}</span>
+        </div>
+      )}
+
       {/* ── Top Navigation ── */}
       <header className="rp-header">
         <div className="rp-header-inner">
@@ -1100,7 +987,11 @@ export default function RecipientPortal({ documentId }) {
           <motion.div className="rp-actions" variants={fadeUp}>
 
             {/* ════════ OFFER LETTER ════════ */}
-            {docData.type === 'offer_letter' && status === 'pending' && (
+            {/* Opening the link flips 'pending' to 'viewed', and a letter saved
+                from the documents page starts as 'draft' — gate on whether a
+                response has been recorded, not on one particular status, or
+                the accept panel vanishes on the candidate's second visit. */}
+            {docData.type === 'offer_letter' && !isActionTaken && (
               <div className="rp-card">
                 <div className="rp-card-header">
                   <Sparkles size={18} />
@@ -1116,10 +1007,10 @@ export default function RecipientPortal({ documentId }) {
                 </label>
 
                 <div className="rp-card-actions">
-                  <button className="rp-btn rp-btn-primary" disabled={!signature || !agreed} onClick={handleAcceptOffer}>
+                  <button className="rp-btn rp-btn-primary" disabled={!signature || !agreed || readOnly || !!submitting} onClick={handleAcceptOffer}>
                     <Check size={16} /> Accept & Sign
                   </button>
-                  <button className="rp-btn rp-btn-danger-outline" onClick={() => setShowDeclineModal(true)}>
+                  <button className="rp-btn rp-btn-danger-outline" disabled={readOnly || !!submitting} onClick={() => setShowDeclineModal(true)}>
                     <X size={16} /> Decline
                   </button>
                 </div>
@@ -1131,9 +1022,26 @@ export default function RecipientPortal({ documentId }) {
                 title="Offer Accepted"
                 subtitle={`Thank you, ${candidateName || docData.issued_to}`}
                 details={[
-                  { label: 'Signed on', value: new Date().toLocaleString() },
+                  // The signing time is on the document. Rendering `new Date()`
+                  // told anyone revisiting the link that they had signed it
+                  // just now.
+                  { label: 'Signed on', value: fmtSignedAt(docData.signed_at) },
                   { label: 'Method', value: signatureMethod === 'draw' ? 'Drawn' : signatureMethod === 'upload' ? 'Uploaded' : 'Typed' },
-                  { label: 'Document', value: docData.id },
+                  { label: 'Document', value: docData.doc_number || docData.id },
+                ]}
+              />
+            )}
+
+            {/* Issued straight from the Employees page: the person is already
+                on the registry, so the letter is a record, not a request. */}
+            {docData.type === 'offer_letter' && status === 'accepted' && (
+              <SuccessCard
+                title="Offer Already Accepted"
+                subtitle={`This letter is on record for ${docData.issued_to || 'you'}. Nothing further is needed.`}
+                details={[
+                  { label: 'Status', value: 'Accepted' },
+                  { label: 'Issued on', value: docData.issue_date || '—' },
+                  { label: 'Document', value: docData.doc_number || docData.id },
                 ]}
               />
             )}
@@ -1188,7 +1096,7 @@ export default function RecipientPortal({ documentId }) {
                   <span>I am authorized to sign on behalf of <strong>{docData.party_b?.company}</strong>.</span>
                 </label>
 
-                <button className="rp-btn rp-btn-primary" disabled={!partyBSignature || !partyBAgreed} onClick={handleMoUSign}>
+                <button className="rp-btn rp-btn-primary" disabled={!partyBSignature || !partyBAgreed || readOnly || !!submitting} onClick={handleMoUSign}>
                   <Check size={16} /> Sign Agreement
                 </button>
               </div>
@@ -1313,13 +1221,13 @@ export default function RecipientPortal({ documentId }) {
                 </label>
 
                 <div className="rp-card-actions">
-                  <button className="rp-btn rp-btn-primary" disabled={!signature || !agreed} onClick={handleAcceptQuotation}>
+                  <button className="rp-btn rp-btn-primary" disabled={!signature || !agreed || readOnly || !!submitting} onClick={handleAcceptQuotation}>
                     <Check size={16} /> Accept Quotation
                   </button>
                   <button className="rp-btn rp-btn-outline" onClick={() => setShowRevisionModal(true)}>
                     <MessageSquare size={14} /> Request Revision
                   </button>
-                  <button className="rp-btn rp-btn-danger-outline" onClick={() => setShowDeclineModal(true)}>
+                  <button className="rp-btn rp-btn-danger-outline" disabled={readOnly || !!submitting} onClick={() => setShowDeclineModal(true)}>
                     <X size={14} /> Decline
                   </button>
                 </div>
@@ -1371,7 +1279,7 @@ export default function RecipientPortal({ documentId }) {
                         <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
                         <span>I confirm the order details in this proforma invoice.</span>
                       </label>
-                      <button className="rp-btn rp-btn-primary" disabled={!agreed} onClick={handleConfirmOrder}>
+                      <button className="rp-btn rp-btn-primary" disabled={!agreed || readOnly || !!submitting} onClick={handleConfirmOrder}>
                         Confirm Order
                       </button>
                     </div>
@@ -1470,7 +1378,7 @@ export default function RecipientPortal({ documentId }) {
                 </label>
 
                 <div className="rp-card-actions">
-                  <button className="rp-btn rp-btn-primary" disabled={!signature || !agreed} onClick={handleAcknowledge}>
+                  <button className="rp-btn rp-btn-primary" disabled={!signature || !agreed || readOnly || !!submitting} onClick={handleAcknowledge}>
                     <Check size={16} /> Acknowledge & Sign
                   </button>
                 </div>
@@ -1518,7 +1426,7 @@ export default function RecipientPortal({ documentId }) {
                 </label>
 
                 <div className="rp-card-actions">
-                  <button className="rp-btn rp-btn-danger" disabled={!signature || !agreed} onClick={handleAcknowledge}>
+                  <button className="rp-btn rp-btn-danger" disabled={!signature || !agreed || readOnly || !!submitting} onClick={handleAcknowledge}>
                     <Check size={16} /> Acknowledge & Sign
                   </button>
                 </div>
@@ -1560,7 +1468,7 @@ export default function RecipientPortal({ documentId }) {
             />
             <div className="rp-modal-actions">
               <button className="rp-btn rp-btn-ghost" onClick={() => setShowDeclineModal(false)}>Cancel</button>
-              <button className="rp-btn rp-btn-danger" onClick={handleDecline}>Confirm Decline</button>
+              <button className="rp-btn rp-btn-danger" onClick={handleDecline} disabled={!!submitting}>Confirm Decline</button>
             </div>
           </ModalOverlay>
         )}
@@ -1580,7 +1488,7 @@ export default function RecipientPortal({ documentId }) {
             />
             <div className="rp-modal-actions">
               <button className="rp-btn rp-btn-ghost" onClick={() => setShowRevisionModal(false)}>Cancel</button>
-              <button className="rp-btn rp-btn-primary" onClick={handleRevisionRequest} disabled={!revisionText.trim()}>
+              <button className="rp-btn rp-btn-primary" onClick={handleRevisionRequest} disabled={!revisionText.trim() || !!submitting}>
                 Submit Request
               </button>
             </div>
