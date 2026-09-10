@@ -2,9 +2,13 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Eye, Send, Save, MessageCircle, ArrowLeft } from 'lucide-react';
 import { documentStore } from '../../services/documentStore';
+import { createPortalLink } from '../../services/portalService';
 import { customerService } from '../../services/customerService';
 import { useOrg } from '../../context/OrgContext';
 import PortalLinkGenerator from '../shared/PortalLinkGenerator';
+import ProductPicker from '../shared/ProductPicker';
+import { productToLineItem } from '../../services/catalogService';
+import CountrySelect from '../shared/CountrySelect';
 import { useToast } from '../shared/Toast';
 
 const UNIT_OPTIONS = ['Hrs', 'Units', 'Nos', 'Kg', 'Ltr'];
@@ -76,6 +80,7 @@ export default function QuotationForm({ editDocId }) {
   const clientDropdownRef = useRef(null);
 
   const [portalDoc, setPortalDoc] = useState(null);
+  const [portalLink, setPortalLink] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [originalCreatedAt, setOriginalCreatedAt] = useState(null);
 
@@ -84,9 +89,12 @@ export default function QuotationForm({ editDocId }) {
     clientCompany: '',
     clientAddress: '',
     clientGstin: '',
+    // ISO alpha-2 -> financial_documents.country_code. Blank defers to the
+    // insert trigger, which reads the customer record then the organisation.
+    clientCountry: '',
     clientEmail: '',
     clientPhone: '',
-    quotationNumber: documentStore.nextId('QUO'),
+    quotationNumber: '', // allocated by the database on save
     quotationDate: new Date().toISOString().split('T')[0],
     validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     revision: 'v1',
@@ -128,6 +136,9 @@ export default function QuotationForm({ editDocId }) {
       clientCompany: doc.client?.company || '',
       clientAddress: doc.client?.address || '',
       clientGstin: doc.client?.gstin || '',
+      // Read from the document, not the customer: this is the copy that was
+      // frozen when the quotation was raised.
+      clientCountry: doc.country_code || '',
       clientEmail: doc.client?.email || '',
       quotationNumber: doc.id,
       quotationDate: doc.issue_date || new Date().toISOString().split('T')[0],
@@ -144,6 +155,9 @@ export default function QuotationForm({ editDocId }) {
         unit: item.unit || 'Nos',
         rate: item.rate || item.price || 0,
         hsnSac: item.hsnSac || item.hsnCode || '',
+        // Without this, re-saving a quotation would drop its catalogue
+        // attribution and the product would lose the sale on conversion.
+        catalog_item_id: item.catalog_item_id || null,
       })),
       paymentInstructions: doc.payment_instructions || '',
       terms: doc.terms || '',
@@ -215,6 +229,7 @@ export default function QuotationForm({ editDocId }) {
       clientCompany: client.company,
       clientAddress: client.address,
       clientGstin: client.gstin || '',
+      clientCountry: client.country_code || '',
       clientEmail: client.email,
     }));
   };
@@ -257,8 +272,34 @@ export default function QuotationForm({ editDocId }) {
     }));
   };
 
+  // Picking a product fills the line in from the catalogue. Everything it
+  // writes is an ordinary editable field afterwards, so a one-off price or a
+  // reworded description is just typing over it — catalog_item_id is what keeps
+  // the sale attributed either way.
+  const handleSelectProduct = (id, product) => {
+    setFormData((prev) => ({
+      ...prev,
+      items: prev.items.map((item) =>
+        item.id === id
+          ? { ...item, ...productToLineItem(product, { hsn: 'hsnSac', rate: 'rate' }) }
+          : item
+      ),
+    }));
+  };
+
+  // Detach without touching the values: the line stays exactly as typed and
+  // simply stops counting towards that product.
+  const handleClearProduct = (id) => {
+    setFormData((prev) => ({
+      ...prev,
+      items: prev.items.map((item) =>
+        item.id === id ? { ...item, catalog_item_id: null } : item
+      ),
+    }));
+  };
+
   // Build document object for saving
-  const buildDocument = (status) => {
+  const buildDocument = (status, customerId = null) => {
     const client = {
       name: formData.clientName,
       company: formData.clientCompany,
@@ -268,9 +309,12 @@ export default function QuotationForm({ editDocId }) {
     };
 
     return {
-      id: formData.quotationNumber,
+      id: undefined,
       type: 'quotation',
       status,
+      // The FK to the client row, resolved by syncCustomer() before the save.
+      // Null only when there is no client name to resolve.
+      customer_id: customerId,
       title: 'Quotation',
       issued_by: company.company_name,
       issued_to: formData.clientCompany || formData.clientName,
@@ -279,6 +323,9 @@ export default function QuotationForm({ editDocId }) {
       amount: totals.grandTotal,
       valid_until: formData.validUntil,
       issue_date: formData.quotationDate,
+      // Picked by hand, so it overrides whatever the trigger would infer.
+      country_code: formData.clientCountry || undefined,
+      country_source: formData.clientCountry ? 'manual' : undefined,
       revision: formData.revision,
       items: formData.items.map((item) => ({
         description: item.description,
@@ -286,6 +333,11 @@ export default function QuotationForm({ editDocId }) {
         unit: item.unit,
         rate: Number(item.rate) || 0,
         hsnSac: item.hsnSac,
+        // Carried to document_line_items.catalog_item_id. A quotation is not a
+        // sale, so this contributes nothing to Product Performance until the
+        // line reaches an issued invoice — but it has to survive the round trip
+        // for the conversion to inherit it.
+        catalog_item_id: item.catalog_item_id || null,
       })),
       subtotal: totals.subtotal,
       discount: {
@@ -304,26 +356,36 @@ export default function QuotationForm({ editDocId }) {
     };
   };
 
-  const syncCustomer = () => {
-    if (activeOrg?.id && formData.clientName) {
-      customerService.upsert(activeOrg.id, {
+  // Now awaited and run BEFORE the save, and it returns the client row's id so
+  // the document can carry customer_id. It used to be fire-and-forget after the
+  // save with the id discarded, which is why financial_documents.customer_id was
+  // null on every quotation.
+  const syncCustomer = async () => {
+    if (!activeOrg?.id || !formData.clientName) return null;
+    try {
+      const row = await customerService.upsert(activeOrg.id, {
         clientName: formData.clientCompany || formData.clientName,
         clientEmail: formData.clientEmail || '',
         clientAddress: formData.clientAddress || '',
         buyerGSTIN: formData.clientGstin || '',
-      }).catch(() => { });
+        country_code: formData.clientCountry || '',
+      });
+      return row?.id || null;
+    } catch {
+      // A failed client upsert must not block saving the quotation; the
+      // document simply keeps a null FK and falls back to the name match.
+      return null;
     }
   };
 
-  const handleSaveDraft = () => {
-    const doc = buildDocument('draft');
-    documentStore.save(doc);
-    syncCustomer();
+  const handleSaveDraft = async () => {
+    const customerId = await syncCustomer();
+    await documentStore.save(buildDocument('draft', customerId));
     toast('Quotation saved as draft', 'success');
     navigate('/quotations');
   };
 
-  const handleSendToClient = () => {
+  const handleSendToClient = async () => {
     if (!formData.clientName) {
       toast('Please enter client name before sending', 'error');
       return;
@@ -333,9 +395,10 @@ export default function QuotationForm({ editDocId }) {
       return;
     }
 
-    const doc = buildDocument('sent');
-    documentStore.save(doc);
-    syncCustomer();
+    // The row id and the document number are assigned by the database, so the
+    // save has to complete before there is anything to link to.
+    const customerId = await syncCustomer();
+    const doc = await documentStore.save(buildDocument('sent', customerId));
 
     documentStore.addNotification({
       type: 'quotation_sent',
@@ -344,20 +407,28 @@ export default function QuotationForm({ editDocId }) {
       documentId: doc.id,
     });
 
-    // Build portal link
-    const token = Math.random().toString(36).substring(2, 10);
-    const orgId = activeOrg?.id || '';
-    const portalUrl = `${window.location.origin}/portal/${doc.id}?token=${token}&org=${orgId}`;
+    let issued;
+    try {
+      issued = await createPortalLink({
+        orgId: activeOrg?.id,
+        documentId: doc.id,
+        recipientEmail: formData.clientEmail,
+      });
+    } catch (err) {
+      toast('Saved, but the portal link could not be created: ' + err.message, 'error');
+      return;
+    }
+    const portalUrl = issued.url;
 
     // Open WhatsApp with pre-filled message
     const phone = (formData.clientPhone || '').replace(/[^0-9+]/g, '');
-    const clientLabel = formData.clientCompany || formData.clientName;
     const message = `Hi ${formData.clientName},\n\nPlease find your quotation *${doc.id}* from *${company.company_name}*.\n\nAmount: ₹${(doc.grand_total || 0).toLocaleString('en-IN')}\nValid until: ${formData.validUntil}\n\nView & respond here:\n${portalUrl}\n\nThank you!`;
     const waUrl = `https://wa.me/${phone.replace('+', '')}?text=${encodeURIComponent(message)}`;
     window.open(waUrl, '_blank');
 
     toast('Quotation sent — WhatsApp opened', 'success');
     setPortalDoc(doc);
+    setPortalLink(issued);
     // Give a short delay before redirecting so they see the toast and WhatsApp opens
     setTimeout(() => navigate('/quotations'), 2000);
   };
@@ -389,7 +460,7 @@ export default function QuotationForm({ editDocId }) {
           {/* Portal Link Generator (shown after send) */}
           {portalDoc && (
             <div style={{ marginBottom: '1.5rem' }}>
-              <PortalLinkGenerator documentId={portalDoc.id} documentType="quotation" />
+              <PortalLinkGenerator documentId={portalDoc.id} documentType="quotation" link={portalLink} />
             </div>
           )}
 
@@ -458,6 +529,14 @@ export default function QuotationForm({ editDocId }) {
                   className="easy-inp"
                   maxLength={15}
                   style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Client country</label>
+                <CountrySelect
+                  value={formData.clientCountry}
+                  placeholder="From customer record"
+                  onChange={(code) => setFormData({ ...formData, clientCountry: code || '' })}
                 />
               </div>
               <div className="easy-field">
@@ -572,6 +651,13 @@ export default function QuotationForm({ editDocId }) {
               <div key={item.id} className="easy-line-item">
                 <div className="easy-line-num">{index + 1}</div>
                 <div className="easy-line-fields">
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <ProductPicker
+                      linkedId={item.catalog_item_id}
+                      onSelect={(p) => handleSelectProduct(item.id, p)}
+                      onClear={() => handleClearProduct(item.id)}
+                    />
+                  </div>
                   <div className="easy-line-top">
                     <input
                       type="text"

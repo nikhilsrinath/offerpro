@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   DollarSign, TrendingUp, TrendingDown, Plus, Trash2,
-  Receipt, Wallet, PiggyBank
+  Receipt, Wallet, PiggyBank, Package
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -10,7 +10,9 @@ import {
 import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
 import { orgStore } from '../services/orgStore';
+import { catalogService } from '../services/catalogService';
 import { useOrg } from '../context/OrgContext';
+import { useNavigate } from 'react-router-dom';
 
 const EXPENSE_CATEGORIES = ['Operations', 'Marketing', 'Salaries', 'Tools & Software', 'Office', 'Travel', 'Other'];
 
@@ -24,11 +26,13 @@ const chartStyles = () => ({
 
 export default function BillingRevenue() {
   const { activeOrg } = useOrg();
+  const navigate = useNavigate();
   const [records, setRecords] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [finDocs, setFinDocs] = useState([]);
+  const [catalog, setCatalog] = useState([]);
   const [newExpense, setNewExpense] = useState({
     description: '',
     amount: '',
@@ -48,6 +52,11 @@ export default function BillingRevenue() {
 
       // Load financial documents from orgStore
       setFinDocs(documentStore.getAll());
+
+      // Product catalogue. units_sold / revenue / revenue_paid on each row are
+      // maintained by trigger from the issued invoices, so this needs no
+      // aggregation here — it is already the answer.
+      setCatalog(catalogService.getActive());
 
       // Load expenses from orgStore
       const expList = orgStore.getSectionAsList('expenses');
@@ -114,6 +123,17 @@ export default function BillingRevenue() {
     return { totalRevenue, totalMakingCharges, grossProfit, totalExpenses, netProfit, invoiceCount: invoices.length + paidFinInvoices.length, categoryBreakdown, monthlyCashFlow, expensePieData };
   }, [records, expenses, finDocs]);
 
+  // Ranked by what was billed, not what was collected: a product that sold well
+  // and has an invoice still outstanding is still the product that sold well.
+  const topProducts = useMemo(
+    () => catalog
+      .filter((p) => Number(p.revenue) > 0)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5),
+    [catalog]
+  );
+  const topProductMax = topProducts[0]?.revenue || 0;
+
   const handleAddExpense = async (e) => {
     e.preventDefault();
     if (!newExpense.description || !newExpense.amount) return;
@@ -130,7 +150,11 @@ export default function BillingRevenue() {
 
   const handleDeleteExpense = async (id) => {
     if (!window.confirm('Delete this expense?')) return;
-    orgStore.removeItem('expenses', id);
+    try {
+      await orgStore.removeItem('expenses', id);
+    } catch (err) {
+      alert('Error deleting expense: ' + err.message);
+    }
     loadData();
   };
 
@@ -273,6 +297,53 @@ export default function BillingRevenue() {
           )}
         </div>
       </div>
+
+      {/* Top products — only worth the space once something has been sold
+          against the catalogue. Revenue here is what was BILLED on issued
+          invoices; `Collected` is the paid-only subset, which is the same
+          definition the revenue card above uses. */}
+      {topProducts.length > 0 && (
+        <div className="pro-card">
+          <div className="pro-card-header">
+            <div className="pro-card-title-group">
+              <Package size={18} style={{ color: '#8b5cf6' }} />
+              <h3>Top Products</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/products')}
+              style={{
+                border: 'none', background: 'transparent', cursor: 'pointer',
+                fontSize: '0.75rem', fontWeight: 650, color: 'var(--text-muted)',
+                fontFamily: 'inherit',
+              }}
+            >
+              Full breakdown
+            </button>
+          </div>
+          <div className="br-top-products">
+            {topProducts.map((p, i) => (
+              <div key={p.id} className="br-top-product">
+                <span className="br-top-rank">{i + 1}</span>
+                <div className="br-top-main">
+                  <div className="br-top-name">{p.name}</div>
+                  <div className="br-top-meta">
+                    {Number(p.units_sold).toLocaleString('en-IN')} sold
+                    {p.category ? ` · ${p.category}` : ''}
+                  </div>
+                  <div className="prod-perf-bar" style={{ maxWidth: '100%' }}>
+                    <div style={{ width: topProductMax ? `${Math.max((p.revenue / topProductMax) * 100, 1)}%` : '0%' }} />
+                  </div>
+                </div>
+                <div className="br-top-money">
+                  <div>₹{Number(p.revenue).toLocaleString('en-IN')}</div>
+                  <span>₹{Number(p.revenue_paid).toLocaleString('en-IN')} collected</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Profit/Loss Trend */}
       <div className="pro-card">

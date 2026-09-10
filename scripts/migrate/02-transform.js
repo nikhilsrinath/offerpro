@@ -402,8 +402,10 @@ export function transformOrg(orgId, src, authUsers) {
   for (const [legacyId, l] of Object.entries(src.crm_leads ?? {})) {
     const company = nn(l?.company_name), person = nn(l?.person_name);
     if (!company && !person) continue;                       // violates crm_leads_named
-    const { company_name, person_name, email: e, phone, status, stage, value, notes,
-            created_at, updated_at, id: _i, ...extra } = l;
+    // company_name/person_name/value/updated_at are pulled out to keep them OUT
+    // of ...extra — they are written explicitly below from `company`/`person`.
+    const { company_name: _cn, person_name: _pn, email: e, phone, status, stage,
+            value: _v, notes, created_at, updated_at: _u, id: _i, ...extra } = l;
     out.crm_leads.push({
       id: uuidFor('crm_lead', legacyId, newOrgId),
       org_id: newOrgId, company_name: company, person_name: person,

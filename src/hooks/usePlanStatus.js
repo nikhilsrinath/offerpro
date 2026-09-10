@@ -3,6 +3,7 @@ import { useOrg } from '../context/OrgContext';
 import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
 import { getPlanConfig, isLimitReached, getRemaining, getUsagePercentage, DEFAULT_PLAN } from '../services/planConfig';
+import { orgStore } from '../services/orgStore';
 
 export function usePlanStatus() {
   const { activeOrg } = useOrg();
@@ -45,7 +46,10 @@ export function usePlanStatus() {
           nda: 0,
           invoices: 0,
           quotations: 0,
-          aiMessages: activeOrg?.ai_message_count || 0, // From org profile
+          // usage_counters.ai_messages, incremented server-side by /api/nvidia.
+          // This used to read `activeOrg.ai_message_count` — a column that does
+          // not exist on `organizations` — so the AI quota was always 0.
+          aiMessages: orgStore.getUsage().ai_messages || 0,
         };
 
         // Count HR records
@@ -73,7 +77,7 @@ export function usePlanStatus() {
 
     fetchUsage();
     return () => { cancelled = true };
-  }, [activeOrg?.id, activeOrg?.ai_message_count]);
+  }, [activeOrg?.id]);
 
   const canCreate = useCallback((feature) => {
     return !isLimitReached(currentPlan, feature, usage[feature]);
@@ -99,6 +103,9 @@ export function usePlanStatus() {
       documentStore.setContext(activeOrg.id);
       await documentStore.init();
       const finDocs = documentStore.getAll();
+      // ai_messages only changes server-side, so a recount of local rows would
+      // never see a message the user just sent.
+      await orgStore.refreshUsage();
 
       const counts = {
         offerLetters: 0,
@@ -106,7 +113,7 @@ export function usePlanStatus() {
         nda: 0,
         invoices: 0,
         quotations: 0,
-        aiMessages: activeOrg?.ai_message_count || 0,
+        aiMessages: orgStore.getUsage().ai_messages || 0,
       };
 
       allRecords.forEach(record => {
@@ -124,7 +131,7 @@ export function usePlanStatus() {
     } catch (err) {
       console.warn('Error refreshing usage:', err);
     }
-  }, [activeOrg?.id, activeOrg?.ai_message_count]);
+  }, [activeOrg?.id]);
 
   return {
     currentPlan,

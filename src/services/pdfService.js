@@ -1,6 +1,5 @@
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { renderCertificatePdf } from './certificateTemplates';
 
 /**
  * Render a professional document header in the PDF.
@@ -146,9 +145,15 @@ async function renderStamp(doc, data, x, y, size = 35) {
   try {
     const rotated = await preRotateStamp(stampImg, -8);
     doc.addImage(rotated, 'PNG', x, y, size, size);
-  } catch (e) {
-    // Fallback without rotation
-    try { doc.addImage(stampImg, 'PNG', x, y, size, size); } catch (_) { }
+  } catch {
+    // Fallback without rotation. If even the unrotated image will not add, the
+    // stamp is simply left off the page — it is decoration, and a missing stamp
+    // must not cost the caller their document.
+    try {
+      doc.addImage(stampImg, 'PNG', x, y, size, size);
+    } catch (err) {
+      console.warn('[pdfService] stamp omitted:', err?.message);
+    }
   }
 }
 
@@ -199,7 +204,6 @@ export const pdfService = {
       let words = [];
       segments.forEach(seg => {
         const text = seg.text || '';
-        const style = seg.bold ? 'bold' : 'normal';
         const segWords = text.split(/(\s+)/); // Preserve spaces
         segWords.forEach(w => {
           if (w.trim().length > 0) {
@@ -566,7 +570,7 @@ export const pdfService = {
       if (!d) return '___________';
       const dt = new Date(d);
       const day = dt.getDate();
-      const suffix = [, 'st', 'nd', 'rd'][day % 10 > 3 ? 0 : (day % 100 - day % 10 === 10 ? 0 : day % 10)] || 'th';
+      const suffix = [null, 'st', 'nd', 'rd'][day % 10 > 3 ? 0 : (day % 100 - day % 10 === 10 ? 0 : day % 10)] || 'th';
       return `${day}${suffix} ${dt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
     };
 
@@ -872,7 +876,7 @@ export const pdfService = {
       if (!d) return '___________';
       const dt = new Date(d);
       const day = dt.getDate();
-      const suffix = [, 'st', 'nd', 'rd'][day % 10 > 3 ? 0 : (day % 100 - day % 10 === 10 ? 0 : day % 10)] || 'th';
+      const suffix = [null, 'st', 'nd', 'rd'][day % 10 > 3 ? 0 : (day % 100 - day % 10 === 10 ? 0 : day % 10)] || 'th';
       return `${day}${suffix} ${dt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
     };
 

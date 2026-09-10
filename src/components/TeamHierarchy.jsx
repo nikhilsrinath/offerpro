@@ -214,7 +214,7 @@ function MobileTreeNode({ nodeData, childIds, nodesById, childrenMap }) {
 }
 
 // ── Mobile: full hierarchy view ───────────────────────────────────────────────
-function MobileHierarchyView({ nodes, edges, employees, departments, deptMap, allDeptNames, stats, onEdit, hasHierarchy, onSetup }) {
+function MobileHierarchyView({ nodes, edges, employees, stats, onEdit, hasHierarchy, onSetup }) {
   const nodesById = useMemo(() => Object.fromEntries(nodes.map(n => [n.id, n])), [nodes]);
   const childrenMap = useMemo(() => {
     const map = {};
@@ -628,7 +628,7 @@ export default function TeamHierarchy() {
 
       const nodesObj = Object.fromEntries(saveNodes.map(n => [n.id, { id: n.id, position: n.position }]));
       const edgesObj = Object.fromEntries(saveEdges.map(e => [e.id, { id: e.id, source: e.source, target: e.target }]));
-      orgStore.setSection('hierarchy', { nodes: nodesObj, edges: edgesObj });
+      await orgStore.setSection('hierarchy', { nodes: nodesObj, edges: edgesObj });
 
       const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
       const supervisorOf = {};

@@ -364,83 +364,123 @@
 
     <!-- Scripts -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getDatabase, ref, get, update, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-        import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        // Supabase replaces Firebase here, and a real login replaces
+        // `localStorage.admin_password || 'admin123'`. Cross-tenant reads are
+        // allowed by the *_platform_admin_select RLS policies, which key off a
+        // `platform_admin` claim in app_metadata that only the service role can
+        // set; every write goes to /api/admin.
+        import { createClient } from '@supabase/supabase-js';
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyCqe28dSIfjzI9Ra7lgVlZpiHVnWTD1wk8",
-            authDomain: "offerpro-892b9.firebaseapp.com",
-            databaseURL: "https://offerpro-892b9-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "offerpro-892b9",
-            storageBucket: "offerpro-892b9.firebasestorage.app",
-            messagingSenderId: "881939498050",
-            appId: "1:881939498050:web:b53cc4c683e356d28719db",
-            measurementId: "G-NJ2EKT3FH3"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getDatabase(app);
-        const firestore = getFirestore(app);
+        const supabase = createClient(
+            import.meta.env.VITE_SUPABASE_URL,
+            import.meta.env.VITE_SUPABASE_ANON_KEY
+        );
 
         let organizations = {};
         let selectedOrgId = null;
 
-        signInAnonymously(auth).catch(console.error);
+        const $ = (id) => document.getElementById(id);
 
-        onAuthStateChanged(auth, (user) => {
-            if (localStorage.getItem('admin_session') === 'true') {
-                document.getElementById('loginSection').classList.add('hidden');
-                document.getElementById('adminSection').classList.remove('hidden');
-                document.getElementById('userDisplay').textContent = 'admin@edgeos.com';
-                fetchDashboardData();
-            }
-        });
-
-        async function fetchDashboardData() {
-            try {
-                // Fetch organizations from Firestore
-                const orgsCol = collection(firestore, 'organizations');
-                const orgsSnap = await getDocs(orgsCol);
-
-                // Convert Firestore docs to object format
-                organizations = {};
-                orgsSnap.forEach(docSnap => {
-                    organizations[docSnap.id] = docSnap.data();
-                });
-
-                const allOrgs = Object.entries(organizations);
-
-                // Calculate Global Stats
-                let premiumCount = 0;
-
-                allOrgs.forEach(([id, org]) => {
-                    if (org.is_premium) premiumCount++;
-                });
-
-                // Update UI Stats
-                document.getElementById('totalOrgsStat').textContent = allOrgs.length;
-                document.getElementById('totalDocsStat').textContent = '--';
-                document.getElementById('totalRevenueStat').textContent = '₹0';
-                document.getElementById('activeTrialsStat').textContent = allOrgs.length - premiumCount;
-
-                // Render List
-                renderOrgList(allOrgs, {});
-            } catch (err) {
-                console.error("Dashboard data load error:", err);
+        function showLogin(message) {
+            $('loginSection').classList.remove('hidden');
+            $('adminSection').classList.add('hidden');
+            if (message) {
+                const errorEl = $('loginError');
+                errorEl.textContent = message;
+                errorEl.classList.remove('hidden');
             }
         }
 
-        function renderOrgList(orgEntries, allRecords) {
-            const tbody = document.getElementById('orgList');
+        function showDashboard(user) {
+            $('loginSection').classList.add('hidden');
+            $('adminSection').classList.remove('hidden');
+            $('userDisplay').textContent = user.email || '';
+            $('loginError').classList.add('hidden');
+            fetchDashboardData();
+        }
+
+        const isPlatformAdmin = (user) => user?.app_metadata?.platform_admin === true;
+
+        // The session is restored from storage on load; a non-admin who signed
+        // in through the main app must not land here.
+        supabase.auth.onAuthStateChange((_event, session) => {
+            const user = session?.user;
+            if (user && isPlatformAdmin(user)) showDashboard(user);
+            else showLogin();
+        });
+
+        /** Authorization header for /api/admin. */
+        async function authHeaders() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('Session expired — sign in again.');
+            return {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`,
+            };
+        }
+
+        async function adminAction(body) {
+            const res = await fetch('/api/admin', {
+                method: 'POST',
+                headers: await authHeaders(),
+                body: JSON.stringify(body),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.success) throw new Error(data.error || `Request failed (${res.status})`);
+            return data;
+        }
+
+        async function fetchDashboardData() {
+            try {
+                // One query per table rather than the old per-org fan-out: the
+                // platform-admin policies return every tenant's rows.
+                const [{ data: orgs, error: orgErr }, { data: subs }, { data: usage }] = await Promise.all([
+                    supabase.from('organizations')
+                        .select('id, company_name, company_email, company_phone, company_address, company_website, created_at')
+                        .is('deleted_at', null)
+                        .order('created_at', { ascending: false }),
+                    supabase.from('subscriptions').select('org_id, plan, status'),
+                    supabase.from('usage_counters').select('*'),
+                ]);
+
+                if (orgErr) throw orgErr;
+
+                const planByOrg = Object.fromEntries((subs || []).map((s) => [s.org_id, s.plan]));
+                const usageByOrg = Object.fromEntries((usage || []).map((u) => [u.org_id, u]));
+
+                organizations = {};
+                (orgs || []).forEach((org) => {
+                    organizations[org.id] = {
+                        ...org,
+                        plan: planByOrg[org.id] || 'free',
+                        usage: usageByOrg[org.id] || {},
+                    };
+                });
+
+                const allOrgs = Object.entries(organizations);
+                const paidCount = allOrgs.filter(([, org]) => org.plan !== 'free').length;
+                const totalDocs = allOrgs.reduce((sum, [, org]) => sum + countDocs(org.usage), 0);
+
+                $('totalOrgsStat').textContent = allOrgs.length;
+                $('totalDocsStat').textContent = totalDocs;
+                $('totalRevenueStat').textContent = '₹0';
+                $('activeTrialsStat').textContent = allOrgs.length - paidCount;
+
+                renderOrgList(allOrgs);
+            } catch (err) {
+                console.error('Dashboard data load error:', err);
+                showLogin('Could not load data: ' + (err.message || 'unknown error'));
+            }
+        }
+
+        const USAGE_FIELDS = ['offer_letters', 'certificates', 'nda', 'mou', 'invoices', 'quotations', 'proformas'];
+        const countDocs = (usage) => USAGE_FIELDS.reduce((sum, f) => sum + (usage?.[f] || 0), 0);
+
+        function renderOrgList(orgEntries) {
+            const tbody = $('orgList');
             tbody.innerHTML = '';
 
-            orgEntries.sort((a, b) => new Date(b[1].created_at) - new Date(a[1].created_at)).forEach(([id, org]) => {
-                const docCount = allRecords[id] ? Object.keys(allRecords[id]).length : 0;
-                const isPremium = org.is_premium || false;
-
+            orgEntries.forEach(([id, org]) => {
                 const tr = document.createElement('tr');
                 tr.className = 'group hover:bg-gray-50/50 transition-colors';
                 tr.innerHTML = `
@@ -456,7 +496,7 @@
                     <td class="py-4 px-6 text-xs text-gray-400 font-bold uppercase">${org.created_at ? new Date(org.created_at).toLocaleDateString() : 'N/A'}</td>
                     <td class="py-4 px-6">
                         <select class="plan-select text-xs font-bold rounded-lg border border-gray-200 px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500" data-id="${id}" style="cursor: pointer;">
-                            <option value="free" ${org.plan === 'free' || !org.plan ? 'selected' : ''}>Free</option>
+                            <option value="free" ${org.plan === 'free' ? 'selected' : ''}>Free</option>
                             <option value="pro" ${org.plan === 'pro' ? 'selected' : ''}>Pro</option>
                             <option value="max" ${org.plan === 'max' ? 'selected' : ''}>Max</option>
                         </select>
@@ -470,57 +510,62 @@
                 tbody.appendChild(tr);
             });
 
-            // Re-bind plan selectors
-            document.querySelectorAll('.plan-select').forEach(select => {
+            document.querySelectorAll('.plan-select').forEach((select) => {
                 select.addEventListener('change', async (e) => {
-                    const orgId = e.target.dataset.id;
-                    const plan = e.target.value;
-                    await updateDoc(doc(firestore, 'organizations', orgId), { plan: plan });
+                    try {
+                        await adminAction({ action: 'set_plan', org_id: e.target.dataset.id, plan: e.target.value });
+                    } catch (err) {
+                        alert('Could not change the plan: ' + err.message);
+                    }
                     fetchDashboardData();
                 });
             });
         }
 
         // Action Handlers
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        $('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const loginEmail = document.getElementById('username').value;
-            const loginPass = document.getElementById('password').value;
-            const errorEl = document.getElementById('loginError');
-            const storedPass = localStorage.getItem('admin_password') || 'admin123';
+            const errorEl = $('loginError');
+            errorEl.classList.add('hidden');
 
-            if (loginEmail === 'admin@edgeos.com' && loginPass === storedPass) {
-                localStorage.setItem('admin_session', 'true');
-                document.getElementById('loginSection').classList.add('hidden');
-                document.getElementById('adminSection').classList.remove('hidden');
-                document.getElementById('userDisplay').textContent = 'admin@edgeos.com';
-                fetchDashboardData();
-                errorEl.classList.add('hidden');
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: $('username').value.trim(),
+                password: $('password').value,
+            });
+
+            if (error) {
+                errorEl.textContent = 'Access denied: ' + error.message;
+                errorEl.classList.remove('hidden');
                 return;
             }
 
-            errorEl.textContent = "Access Denied: Invalid Administrative Credentials.";
-            errorEl.classList.remove('hidden');
+            // Signing in successfully is not the same as being allowed in here.
+            if (!isPlatformAdmin(data.user)) {
+                await supabase.auth.signOut();
+                errorEl.textContent = 'This account does not have platform administrator access.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            showDashboard(data.user);
         });
 
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            localStorage.removeItem('admin_session');
-            document.getElementById('loginSection').classList.remove('hidden');
-            document.getElementById('adminSection').classList.add('hidden');
+        $('logoutBtn').addEventListener('click', async () => {
+            await supabase.auth.signOut();
+            showLogin();
         });
-        document.getElementById('refreshBtn').addEventListener('click', () => fetchDashboardData());
+        $('refreshBtn').addEventListener('click', () => fetchDashboardData());
 
-        document.getElementById('deleteOrgBtn').addEventListener('click', async () => {
+        $('deleteOrgBtn').addEventListener('click', async () => {
             if (!selectedOrgId) return;
-            const confirmName = prompt("WARNING: This will permanently delete this organization and ALL its records including invoices, MOUs, and offer letters. To confirm, type 'DELETE THIS ACCOUNT':");
-            if (confirmName === 'DELETE THIS ACCOUNT') {
-                try {
-                    await deleteDoc(doc(firestore, 'organizations', selectedOrgId));
-                    showListView();
-                    fetchDashboardData();
-                } catch (err) {
-                    alert("Deletion failed. Check Firebase permissions.");
-                }
+            const confirmName = prompt("WARNING: This removes the organization and hides ALL its records — invoices, MOUs, offer letters — from every user. To confirm, type 'DELETE THIS ACCOUNT':");
+            if (confirmName !== 'DELETE THIS ACCOUNT') return;
+            try {
+                await adminAction({ action: 'delete_org', org_id: selectedOrgId });
+                showListView();
+                fetchDashboardData();
+            } catch (err) {
+                alert('Deletion failed: ' + err.message);
             }
         });
 
@@ -544,6 +589,11 @@
             }
         }
 
+        // The row buttons use inline onclick, which resolves against `window`;
+        // this file is a module, so its functions are not global by default.
+        window.showDetailView = showDetailView;
+        window.showListView = showListView;
+
         async function showDetailView(orgId) {
             selectedOrgId = orgId;
             const org = organizations[orgId];
@@ -560,7 +610,7 @@
             document.getElementById('detailCreatedAt').textContent = org.created_at ? new Date(org.created_at).toLocaleDateString() : 'N/A';
             document.getElementById('orgLogoPlaceholder').textContent = (org.company_name || 'N')[0];
             document.getElementById('detailPhone').textContent = org.company_phone || 'N/A';
-            document.getElementById('detailGstin').textContent = org.gstin || 'N/A';
+            document.getElementById('detailGstin').textContent = '—';
             document.getElementById('detailAddress').textContent = org.company_address || 'N/A';
 
             // Website link
@@ -586,78 +636,73 @@
 
         async function fetchOrgDetails(orgId) {
             try {
-                // Fetch from Realtime Database (HR records: offers, NDAs, MoUs)
-                const hrRef = ref(db, `organizations/${orgId}/hr_records`);
-                const hrSnap = await get(hrRef);
-                const hrRecords = hrSnap.exists() ? hrSnap.val() : {};
+                // Two tables, not an RTDB path plus a Firestore subcollection:
+                // HR documents live in `records`, money in `financial_documents`.
+                const [{ data: records, error: recErr }, { data: finDocs, error: finErr }] = await Promise.all([
+                    supabase.from('records')
+                        .select('id, type, status, recipient_name, created_at')
+                        .eq('org_id', orgId)
+                        .order('created_at', { ascending: false }),
+                    supabase.from('financial_documents')
+                        .select('id, type, status, bill_to_name, grand_total, amount_paid, created_at')
+                        .eq('org_id', orgId)
+                        .order('created_at', { ascending: false }),
+                ]);
 
-                // Fetch from Firestore (financial docs: invoices, quotations)
-                const finDocsCol = collection(firestore, 'organizations', orgId, 'fin_docs');
-                const finDocsSnap = await getDocs(finDocsCol);
-                const finDocs = [];
-                finDocsSnap.forEach(doc => {
-                    finDocs.push({ id: doc.id, ...doc.data() });
-                });
+                if (recErr) throw recErr;
+                if (finErr) throw finErr;
 
-                // Process and combine all documents
                 const allDocs = [];
-                let offerCount = 0, ndaCount = 0, mouCount = 0;
-                let invoiceCount = 0, quotationCount = 0, proformaCount = 0;
-                let totalRevenue = 0, totalProfit = 0;
+                const counts = { offer: 0, nda: 0, mou: 0, certificate: 0, invoice: 0, quotation: 0, proforma: 0, role_change: 0, termination: 0 };
+                let totalRevenue = 0;
+                const monthlyRevenue = {};
 
-                // Process HR records
-                Object.entries(hrRecords).forEach(([id, record]) => {
-                    const doc = { id, ...record, source: 'hr' };
-                    allDocs.push(doc);
-                    if (record.type === 'offer') offerCount++;
-                    else if (record.type === 'nda') ndaCount++;
-                    else if (record.type === 'mou') mouCount++;
+                (records || []).forEach((r) => {
+                    allDocs.push({ ...r, audience: r.recipient_name, source: 'hr' });
+                    if (r.type in counts) counts[r.type]++;
                 });
 
-                // Process financial documents
-                const monthlyRevenue = {};
-                finDocs.forEach(doc => {
-                    allDocs.push({ ...doc, source: 'fin' });
-                    if (doc.type === 'invoice') {
-                        invoiceCount++;
-                        const amount = parseFloat(doc.total) || 0;
-                        totalRevenue += amount;
-                        // Track monthly revenue
-                        if (doc.created_at) {
-                            const date = new Date(doc.created_at);
-                            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                            monthlyRevenue[monthKey] = (monthlyRevenue[monthKey] || 0) + amount;
-                        }
-                    } else if (doc.type === 'quotation') {
-                        quotationCount++;
-                    } else if (doc.type === 'proforma') {
-                        proformaCount++;
+                (finDocs || []).forEach((d) => {
+                    allDocs.push({ ...d, audience: d.bill_to_name, source: 'fin' });
+                    if (d.type in counts) counts[d.type]++;
+                    if (d.type !== 'invoice') return;
+
+                    // Revenue is money actually collected — amount_paid is
+                    // maintained by app.recompute_amount_paid() from confirmed
+                    // payments, so a raised invoice is not counted as income.
+                    const amount = Number(d.amount_paid) || 0;
+                    totalRevenue += amount;
+                    if (d.created_at) {
+                        const date = new Date(d.created_at);
+                        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                        monthlyRevenue[monthKey] = (monthlyRevenue[monthKey] || 0) + amount;
                     }
                 });
 
-                // Estimate profit (simplified - 70% of revenue as profit)
-                totalProfit = totalRevenue * 0.7;
-
-                const totalDocs = allDocs.length;
-
-                // Update stats
-                document.getElementById('detailTotalDocs').textContent = totalDocs;
+                document.getElementById('detailTotalDocs').textContent = allDocs.length;
                 document.getElementById('detailRevenue').textContent = '₹' + totalRevenue.toLocaleString('en-IN');
-                document.getElementById('detailProfit').textContent = '₹' + Math.round(totalProfit).toLocaleString('en-IN');
-                document.getElementById('detailMouCount').textContent = mouCount;
+                // No cost data exists anywhere in the system, so there is no
+                // profit figure to show — the old 70%-of-revenue guess was
+                // presented as if it were measured.
+                document.getElementById('detailProfit').textContent = '—';
+                document.getElementById('detailMouCount').textContent = counts.mou;
 
-                // Render document history
                 renderDocumentHistory(allDocs);
-
-                // Render charts
-                renderCharts(monthlyRevenue, { offerCount, ndaCount, mouCount, invoiceCount, quotationCount, proformaCount });
+                renderCharts(monthlyRevenue, {
+                    offerCount: counts.offer,
+                    ndaCount: counts.nda,
+                    mouCount: counts.mou,
+                    invoiceCount: counts.invoice,
+                    quotationCount: counts.quotation,
+                    proformaCount: counts.proforma,
+                });
 
             } catch (err) {
                 console.error("Error fetching org details:", err);
                 // Set defaults on error
                 document.getElementById('detailTotalDocs').textContent = '0';
                 document.getElementById('detailRevenue').textContent = '₹0';
-                document.getElementById('detailProfit').textContent = '₹0';
+                document.getElementById('detailProfit').textContent = '—';
                 document.getElementById('detailMouCount').textContent = '0';
                 document.getElementById('orgRecordsList').innerHTML = '<tr><td colspan="3" class="py-4 px-6 text-center text-gray-400">No data available</td></tr>';
             }
@@ -684,7 +729,7 @@
                 tr.className = 'hover:bg-gray-50/50 transition-colors';
 
                 const typeLabel = getDocTypeLabel(doc.type);
-                const audience = doc.candidate_name || doc.client_name || doc.recipient_name || doc.counterparty_name || 'N/A';
+                const audience = doc.audience || 'N/A';
                 const date = doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'N/A';
 
                 tr.innerHTML = `
@@ -882,7 +927,7 @@
             }
         });
 
-        document.getElementById('passwordForm').addEventListener('submit', (e) => {
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const currentPass = document.getElementById('currentPassword').value;
             const newPass = document.getElementById('newPassword').value;
@@ -890,30 +935,33 @@
             const errorEl = document.getElementById('passwordError');
             const successEl = document.getElementById('passwordSuccess');
 
-            const storedPass = localStorage.getItem('admin_password') || 'admin123';
-            
-            if (currentPass !== storedPass) {
-                errorEl.textContent = 'Current password is incorrect';
+            const fail = (message) => {
+                errorEl.textContent = message;
                 errorEl.classList.remove('hidden');
                 successEl.classList.add('hidden');
-                return;
-            }
+            };
 
-            if (newPass.length < 6) {
-                errorEl.textContent = 'New password must be at least 6 characters';
-                errorEl.classList.remove('hidden');
-                successEl.classList.add('hidden');
-                return;
-            }
+            if (newPass.length < 6) return fail('New password must be at least 6 characters');
+            if (newPass !== confirmPass) return fail('New passwords do not match');
 
-            if (newPass !== confirmPass) {
-                errorEl.textContent = 'New passwords do not match';
-                errorEl.classList.remove('hidden');
-                successEl.classList.add('hidden');
-                return;
-            }
+            // This changes the account's real password in Supabase Auth. The
+            // old version compared against localStorage.admin_password and
+            // wrote the new one back there, so "changing the password" changed
+            // nothing for anyone on another browser.
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user?.email) return fail('Session expired — sign in again.');
 
-            localStorage.setItem('admin_password', newPass);
+            // Re-authenticate: updateUser() would otherwise let anyone with the
+            // open tab set a new password.
+            const { error: reauthError } = await supabase.auth.signInWithPassword({
+                email: user.email,
+                password: currentPass,
+            });
+            if (reauthError) return fail('Current password is incorrect');
+
+            const { error } = await supabase.auth.updateUser({ password: newPass });
+            if (error) return fail(error.message);
+
             errorEl.classList.add('hidden');
             successEl.textContent = 'Password updated successfully!';
             successEl.classList.remove('hidden');

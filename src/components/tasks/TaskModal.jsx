@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import { taskStore } from '../../services/taskStore';
 import { orgStore } from '../../services/orgStore';
@@ -43,8 +43,6 @@ export default function TaskModal({ task, onClose, onSaved }) {
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
-  const selectedEmp = employees.find(e => e.id === form.assignedTo);
-
   const handleSave = async () => {
     if (!form.title.trim()) { setError('Task title is required.'); return; }
     if (!form.assignedTo) { setError('Please assign this task to an employee.'); return; }
@@ -70,7 +68,7 @@ export default function TaskModal({ task, onClose, onSaved }) {
       }
       onSaved();
       onClose();
-    } catch (err) {
+    } catch {
       setError('Failed to save task. Please try again.');
     } finally {
       setSaving(false);

@@ -1,18 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  signOut,
-  updatePassword as firebaseUpdatePassword,
-  reauthenticateWithCredential,
-  EmailAuthProvider
-} from 'firebase/auth';
-import { ref, get } from 'firebase/database';
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
-import { auth, db, firestore, googleProvider } from '../lib/firebase';
-import { orgStore } from '../services/orgStore';
+import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext({});
 
@@ -22,101 +9,132 @@ export const AuthProvider = ({ children }) => {
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const signupInProgressRef = useRef(false);
 
-  const userHasOrganization = async (uid) => {
-    if (orgStore.getLocalOrgIds(uid).length > 0) return true;
+  // A user belongs to an organization iff they have a membership row. Under
+  // Firebase this needed three fallback round-trips (Firestore `memberships`,
+  // the `users/{uid}.organizations` map, and the legacy RTDB path) because the
+  // sources disagreed. Postgres has one source of truth, and RLS scopes the
+  // query to the caller automatically.
+  const userHasOrganization = async () => {
+    const { data, error } = await supabase
+      .from('memberships')
+      .select('org_id')
+      .limit(1);
 
-    try {
-      const membershipsQuery = query(collection(firestore, 'memberships'), where('user_id', '==', uid));
-      const membershipsSnap = await getDocs(membershipsQuery);
-      if (!membershipsSnap.empty) return true;
-    } catch (err) {
-      console.warn("Could not check Firestore memberships:", err.message);
-    }
-
-    try {
-      const userDocRef = doc(firestore, 'users', uid);
-      const snapshot = await getDoc(userDocRef);
-      const userData = snapshot.exists() ? snapshot.data() : null;
-      const userOrgs = userData?.organizations || {};
-      if (Object.keys(userOrgs).length > 0) return true;
-    } catch (err) {
-      console.warn("Could not check Firestore user orgs:", err.message);
-    }
-
-    try {
-      const legacySnapshot = await get(ref(db, `users/${uid}/organizations`));
-      return legacySnapshot.exists() && Object.keys(legacySnapshot.val() || {}).length > 0;
-    } catch (err) {
-      console.warn("Could not check legacy user orgs:", err.message);
+    if (error) {
+      console.warn('Could not check memberships:', error.message);
       return false;
     }
+    return (data?.length ?? 0) > 0;
+  };
+
+  const applySession = async (session) => {
+    const nextUser = session?.user ?? null;
+    setUser(nextUser);
+
+    if (nextUser) {
+      // Previously the result of this check was awaited and then discarded, so
+      // setNeedsOnboarding(false) ran unconditionally and the gate never fired.
+      const hasOrg = await userHasOrganization();
+      setNeedsOnboarding(!hasOrg);
+    } else {
+      setNeedsOnboarding(false);
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      // During email signup, skip — the signup function handles state updates
-      if (signupInProgressRef.current) return;
+    let cancelled = false;
 
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        try {
-          await userHasOrganization(firebaseUser.uid);
-          setNeedsOnboarding(false);
-        } catch (err) {
-          console.warn("Could not check onboarding status:", err.message);
-          setNeedsOnboarding(false);
-        }
-      } else {
-        setUser(null);
-        setNeedsOnboarding(false);
-      }
-      setLoading(false);
+    // getSession() resolves from local storage first, so a reload does not
+    // flash the logged-out tree while the token is revalidated.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled || signupInProgressRef.current) return;
+      applySession(session);
     });
 
-    return () => unsubscribe();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      // During email signup, skip — signup() owns the state transition so that
+      // the organization exists before the app re-renders around the new user.
+      if (cancelled || signupInProgressRef.current) return;
+      applySession(session);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email, password) => {
-    const result = await signInWithEmailAndPassword(auth, email, password);
-    return result.user;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return data.user;
   };
 
-  // signup accepts an optional callback that runs AFTER user creation but BEFORE React state update
-  // This allows Registration to store org data before the app re-renders
+  // signup accepts an optional callback that runs AFTER user creation but BEFORE
+  // React state update, so Registration can create the organization before the
+  // app re-renders and briefly shows the onboarding gate.
   const signup = async (email, password, onUserCreated) => {
     signupInProgressRef.current = true;
     try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      if (onUserCreated) {
-        await onUserCreated(result.user.uid);
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) throw error;
+
+      // With "Confirm email" enabled in the Supabase project, signUp returns a
+      // user but no session — there is no auth.uid() yet, so create_organization
+      // would fail its `authentication required` guard. Fail loudly rather than
+      // stranding the user in a half-registered state.
+      if (!data.session) {
+        throw new Error(
+          'Account created, but email confirmation is required before signing in. ' +
+          'Disable "Confirm email" in Supabase Auth settings to complete onboarding in one step.'
+        );
       }
-      setUser(result.user);
+
+      if (onUserCreated) {
+        await onUserCreated(data.user.id);
+      }
+      setUser(data.user);
       setNeedsOnboarding(false);
       setLoading(false);
-      return result.user;
+      return data.user;
     } finally {
       signupInProgressRef.current = false;
     }
   };
 
+  // Redirect-based, unlike Firebase's popup. The browser leaves the page here
+  // and returns to `redirectTo`, where onAuthStateChange picks the session up —
+  // so this does not resolve with a user, and callers must not expect one.
   const loginWithGoogle = async () => {
-    const result = await signInWithPopup(auth, googleProvider);
-    return result.user;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/hub` },
+    });
+    if (error) throw error;
   };
 
   const logout = async () => {
-    await signOut(auth);
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
   const updatePassword = async (newPassword) => {
     if (!user) throw new Error('No user logged in');
-    await firebaseUpdatePassword(user, newPassword);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
   };
 
+  // Supabase has no reauthenticate-with-credential primitive. Re-running the
+  // password sign-in verifies the current password and refreshes the session,
+  // which is what the callers actually want before a sensitive change.
   const reauthenticate = async (currentPassword) => {
-    if (!user || !user.email) throw new Error('No user logged in');
-    const credential = EmailAuthProvider.credential(user.email, currentPassword);
-    await reauthenticateWithCredential(user, credential);
+    if (!user?.email) throw new Error('No user logged in');
+    const { error } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });
+    if (error) throw error;
   };
 
   const completeOnboarding = () => {

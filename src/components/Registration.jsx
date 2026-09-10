@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowRight, ArrowLeft, Check, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { saveOrganizationData } from '../services/dualWriteService';
+import { createOrganization } from '../services/orgProvisioning';
+import { authErrorMessage } from '../lib/authErrors';
+import { displayNameOf } from '../lib/user';
 
 const QUESTIONS = [
     { id: 'welcome', type: 'welcome', category: 'Welcome' },
@@ -58,7 +60,7 @@ export default function Registration({ onBack, isGoogleUser }) {
             country: '',
             city: '',
             company_size: '',
-            owner_full_name: user?.displayName || '',
+            owner_full_name: displayNameOf(user),
             owner_role: '',
             primary_contact_name: '',
             document_designation: '',
@@ -145,7 +147,7 @@ export default function Registration({ onBack, isGoogleUser }) {
         try {
             if (isGoogleUser && user) {
                 // User is already authenticated via Google, execute dual-write
-                await saveOrganizationData({ userId: user.uid, email: user.email, isGoogleUser, formData });
+                await createOrganization(formData.company_name, { ...formData, company_email: user.email });
 
                 localStorage.removeItem('offerpro_reg_data');
                 localStorage.removeItem('offerpro_reg_step');
@@ -155,8 +157,8 @@ export default function Registration({ onBack, isGoogleUser }) {
             } else {
                 // Email/Password signup flow
                 // Use the callback pattern to store org data BEFORE React re-renders
-                await signup(formData.company_email, formData.password, async (uid) => {
-                    await saveOrganizationData({ userId: uid, email: formData.company_email, isGoogleUser: false, formData });
+                await signup(formData.company_email, formData.password, async () => {
+                    await createOrganization(formData.company_name, formData);
                 });
 
                 localStorage.removeItem('offerpro_reg_data');
@@ -164,12 +166,8 @@ export default function Registration({ onBack, isGoogleUser }) {
                 setStep('redirecting');
             }
         } catch (err) {
-            console.error("Firebase Operation Failed:", err);
-            const msg = err.code === 'auth/email-already-in-use' ? 'This email is already registered. Please sign in instead.'
-                : err.code === 'auth/weak-password' ? 'Password should be at least 6 characters.'
-                    : err.code === 'auth/invalid-email' ? 'Please enter a valid email address.'
-                        : err.message || 'Registration failed. Please try again.';
-            setError(msg);
+            console.error('Registration failed:', err);
+            setError(authErrorMessage(err));
         } finally {
             setLoading(false);
         }

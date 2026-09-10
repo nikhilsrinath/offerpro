@@ -4,10 +4,12 @@ import { Plus, Trash2, ChevronRight, Eye, Lock, UserPlus } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { customerService } from '../services/customerService';
 import { documentStore } from '../services/documentStore';
-import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 import { usePlanStatus } from '../hooks/usePlanStatus';
 import InvoicePreview from './InvoicePreview';
+import ProductPicker from './shared/ProductPicker';
+import CountrySelect from './shared/CountrySelect';
+import { productToLineItem } from '../services/catalogService';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 
 const INDIAN_STATES = [
@@ -25,7 +27,6 @@ const GST_RATES = [0, 5, 12, 18, 28];
 
 export default function InvoiceForm() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { activeOrg } = useOrg();
   const { currentPlan, planConfig, usage, canCreate, getRemainingCount, getUsagePercent, isAtLimit, refreshUsage } = usePlanStatus();
   const [loading, setLoading] = useState(false);
@@ -47,6 +48,11 @@ export default function InvoiceForm() {
     buyerGSTIN: '',
     sellerState: '',
     buyerState: '',
+    // ISO alpha-2, written straight to financial_documents.country_code. Blank
+    // leaves it to the insert trigger, which reads the customer record and then
+    // the organisation — so this only has to be touched for a buyer the
+    // customer record does not already place correctly.
+    buyerCountry: '',
     gstRate: 18,
     items: [{ id: 1, description: '', hsnCode: '', quantity: 1, price: 0, makingCost: 0 }],
     discountRate: 0,
@@ -74,17 +80,52 @@ export default function InvoiceForm() {
     cgst: 0, sgst: 0, igst: 0, grandTotal: 0
   });
 
-  const isInterState = formData.sellerState && formData.buyerState && formData.sellerState !== formData.buyerState;
+  // A buyer in another country is an inter-state supply for GST purposes
+  // whatever the state boxes say — and those boxes only list Indian states, so
+  // a foreign buyer leaves `buyerState` empty and the state comparison alone
+  // would quietly charge CGST+SGST on an export. Adding the country field is
+  // what surfaced that; ignoring it here would leave the bug in place.
+  const sellerCountry = org.country_code || '';
+  const isForeignBuyer = Boolean(
+    formData.buyerCountry && sellerCountry && formData.buyerCountry !== sellerCountry
+  );
+  const isInterState = isForeignBuyer || Boolean(
+    formData.sellerState && formData.buyerState && formData.sellerState !== formData.buyerState
+  );
 
-  // Auto-generate a meaningful invoice number based on the sequential count
+  // Auto-generate the invoice number. It has to be unique: it becomes
+  // doc_number, and unique(org_id, doc_number) rejects a repeat. The previous
+  // version used a random 3-digit suffix, which collides roughly once in a
+  // few hundred invoices and, being random, was never actually sequential.
   useEffect(() => {
-    if (!formData.invoiceNumber) {
+    if (formData.invoiceNumber) return;
+    let cancelled = false;
+
+    (async () => {
+      if (activeOrg?.id) {
+        documentStore.setContext(activeOrg.id);
+        await documentStore.init();
+      }
+      if (cancelled) return;
+
       const today = new Date();
       const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-      const nextNum = String(Math.floor(Math.random() * 900) + 100).padStart(3, '0');
-      setFormData(prev => ({ ...prev, invoiceNumber: `INV-${dateStr}-${nextNum}` }));
-    }
-  }, []);
+      const taken = new Set(
+        documentStore.getByType('invoice').map((d) => d.doc_number || d.invoiceNumber)
+      );
+
+      let seq = documentStore.getByType('invoice').length + 1;
+      let candidate = `INV-${dateStr}-${String(seq).padStart(3, '0')}`;
+      while (taken.has(candidate)) {
+        seq += 1;
+        candidate = `INV-${dateStr}-${String(seq).padStart(3, '0')}`;
+      }
+      setFormData(prev => (prev.invoiceNumber ? prev : { ...prev, invoiceNumber: candidate }));
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeOrg?.id]);
 
   useEffect(() => {
     const subtotal = formData.items.reduce((acc, item) => acc + (item.quantity * item.price), 0);
@@ -95,7 +136,10 @@ export default function InvoiceForm() {
     if (isInterState) { igst = gstAmount; } else { cgst = gstAmount / 2; sgst = gstAmount / 2; }
     const grandTotal = taxableAmount + gstAmount;
     setTotals({ subtotal, discountAmount, taxableAmount, cgst, sgst, igst, grandTotal });
-  }, [formData.items, formData.gstRate, formData.discountRate, formData.sellerState, formData.buyerState]);
+    // `isInterState` rather than the three fields behind it: the effect reads
+    // the derived value, and listing its inputs instead is how the country
+    // field would have been missed here.
+  }, [formData.items, formData.gstRate, formData.discountRate, isInterState]);
 
   // Fetch customers on mount
   useEffect(() => {
@@ -130,6 +174,7 @@ export default function InvoiceForm() {
       clientAddress: customer.clientAddress || '',
       buyerGSTIN: customer.buyerGSTIN || '',
       buyerState: customer.buyerState || '',
+      buyerCountry: customer.country_code || '',
     }));
   };
 
@@ -181,6 +226,30 @@ export default function InvoiceForm() {
     });
   };
 
+  // This form is where a product actually becomes a sale: the catalog_item_id
+  // carried here is what app.recompute_catalog_sales() attributes once the
+  // invoice is issued. `unit` is omitted because InvoiceForm has no unit field —
+  // document_line_items falls back to its 'Nos' default.
+  const handleSelectProduct = (id, product) => {
+    setFormData({
+      ...formData,
+      items: formData.items.map(item =>
+        item.id === id
+          ? { ...item, ...productToLineItem(product, { hsn: 'hsnCode', rate: 'price', includeUnit: false }) }
+          : item
+      )
+    });
+  };
+
+  const handleClearProduct = (id) => {
+    setFormData({
+      ...formData,
+      items: formData.items.map(item =>
+        item.id === id ? { ...item, catalog_item_id: null } : item
+      )
+    });
+  };
+
   const handlePreview = async () => {
     const resolved = await resolveFormImages(formData, ['companyLogo', 'stampUrl']);
     if (resolved.stampType === 'generated') {
@@ -207,8 +276,35 @@ export default function InvoiceForm() {
       // Save to documentStore (fin_docs) — single source of truth for invoices
       if (activeOrg?.id) documentStore.setContext(activeOrg.id);
       await documentStore.init();
-      documentStore.save({
-        id: formData.invoiceNumber,
+      // The customer row is resolved BEFORE the document is written, so the
+      // document can carry customer_id. It used to be upserted afterwards and
+      // the id thrown away, which left financial_documents.customer_id null on
+      // every row in the table: the Customers detail page had to fall back to
+      // matching on name, and the first two steps of
+      // app.resolve_document_country() — the customer's own country, then the
+      // country implied by their GST state — were unreachable, so Sales by
+      // Countries never saw a customer-sourced country.
+      let customerId = selectedCustomerId || null;
+      if (formData.clientName) {
+        const customerRow = await customerService.upsert(activeOrg.id, {
+          clientName: formData.clientName,
+          clientEmail: formData.clientEmail,
+          clientAddress: formData.clientAddress,
+          buyerGSTIN: formData.buyerGSTIN,
+          buyerState: formData.buyerState,
+          country_code: formData.buyerCountry || '',
+        });
+        customerId = customerRow?.id || customerId;
+      }
+
+      // Awaited. Previously this was fire-and-forget, so a rejected insert
+      // became an unhandled promise rejection: the catch below never ran, no
+      // error was shown, and navigate() left for the list as if it had worked.
+      await documentStore.save({
+        customer_id: customerId,
+        // doc_number, not id. `id` is a uuid column; the invoice number is the
+        // human number printed on the PDF above, and the two must agree.
+        doc_number: formData.invoiceNumber,
         type: 'invoice',
         status: formData.isPaid ? 'paid' : 'sent',
         title: 'Tax Invoice',
@@ -234,15 +330,41 @@ export default function InvoiceForm() {
           address: formData.clientAddress,
           gstin: formData.buyerGSTIN,
         },
+        // The bill_to_* columns are read from these top-level keys, not from
+        // the nested `client` object above. Without them bill_to_name fell back
+        // to the literal 'Unnamed' and the buyer's email, address, GSTIN and
+        // state were never stored — so the list, the portal and any reminder
+        // email had no client on them.
+        clientName: formData.clientName,
+        clientEmail: formData.clientEmail,
+        clientAddress: formData.clientAddress,
+        buyerGSTIN: formData.buyerGSTIN,
+        buyerState: formData.buyerState,
+        // Chosen by hand, so it beats anything the trigger would infer.
+        // country_source records that this was a person's decision rather than
+        // a default, which is the same slot a storefront checkout will fill.
+        country_code: formData.buyerCountry || undefined,
+        country_source: formData.buyerCountry ? 'manual' : undefined,
         items: (formData.items || []).map((item) => ({
           description: item.description,
           quantity: Number(item.quantity) || 0,
           rate: Number(item.price) || 0,
-          hsnSac: item.hsnCode || '',
+          hsn: item.hsnCode || '',
           unit: '',
+          // The attribution the whole Product Performance view rests on.
+          catalog_item_id: item.catalog_item_id || null,
         })),
         subtotal: totals.subtotal,
         gstRate: formData.gstRate,
+        // Postgres recomputes the money from these, so they have to be sent:
+        // without them every invoice was stored as 18% GST, intra-state, no
+        // discount and no making charges, whatever the form showed.
+        isInterState,
+        // Stays in `payload`, not the making_charges column: it is a cost for
+        // the profit estimate, not an amount billed to the client.
+        makingCharges: totalMakingCost,
+        discountType: 'percent',
+        discountValue: Number(formData.discountRate) || 0,
         gst: (totals.cgst || 0) + (totals.sgst || 0) + (totals.igst || 0),
         grand_total: totals.grandTotal,
         amount: totals.grandTotal,
@@ -250,16 +372,7 @@ export default function InvoiceForm() {
         due_date: formData.dueDate,
       });
 
-      // Auto-save customer to customer database
-      if (formData.clientName) {
-        customerService.upsert(activeOrg.id, {
-          clientName: formData.clientName,
-          clientEmail: formData.clientEmail,
-          clientAddress: formData.clientAddress,
-          buyerGSTIN: formData.buyerGSTIN,
-          buyerState: formData.buyerState,
-        });
-      }
+      // (The customer upsert moved above documentStore.save — see the note there.)
       await refreshUsage();
       navigate('/invoices');
     } catch (err) {
@@ -464,6 +577,14 @@ export default function InvoiceForm() {
                   {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Buyer country</label>
+                <CountrySelect
+                  value={formData.buyerCountry}
+                  placeholder="From customer record"
+                  onChange={(code) => setFormData({ ...formData, buyerCountry: code || '' })}
+                />
+              </div>
               <div className="easy-field full">
                 <label className="easy-lbl">GST rate</label>
                 <div className="easy-chips">
@@ -499,6 +620,13 @@ export default function InvoiceForm() {
               <div key={item.id} className="easy-line-item">
                 <div className="easy-line-num">{index + 1}</div>
                 <div className="easy-line-fields">
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <ProductPicker
+                      linkedId={item.catalog_item_id}
+                      onSelect={(p) => handleSelectProduct(item.id, p)}
+                      onClear={() => handleClearProduct(item.id)}
+                    />
+                  </div>
                   <div className="easy-line-top">
                     <input type="text" placeholder="Item description..." value={item.description}
                       onChange={(e) => handleItemChange(item.id, 'description', e.target.value)} className="easy-inp" />

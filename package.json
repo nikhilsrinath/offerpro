@@ -7,11 +7,13 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.115.0",
     "@xyflow/react": "^12.10.2",
-    "firebase": "^12.10.0",
     "framer-motion": "^12.38.0",
     "jspdf": "^4.2.0",
     "lucide-react": "^0.575.0",
@@ -29,10 +31,16 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "d3-geo": "^3.1.1",
     "eslint": "^9.39.1",
+    "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
-    "vite": "^7.3.1"
+    "i18n-iso-countries": "^7.14.0",
+    "topojson-client": "^3.1.0",
+    "vite": "^7.3.1",
+    "vitest": "^5.0.0",
+    "world-atlas": "^2.0.2"
   }
 }

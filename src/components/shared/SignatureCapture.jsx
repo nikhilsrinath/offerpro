@@ -8,7 +8,7 @@ const SIGNATURE_FONTS = [
   { name: 'Satisfy', style: "'Satisfy', cursive" },
 ];
 
-export default function SignatureCapture({ onSignatureChange, initialSignature = null }) {
+export default function SignatureCapture({ onSignatureChange }) {
   const [activeTab, setActiveTab] = useState('draw');
   const [typedName, setTypedName] = useState('');
   const [selectedFont, setSelectedFont] = useState(0);

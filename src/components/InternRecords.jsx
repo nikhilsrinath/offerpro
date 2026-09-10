@@ -3,7 +3,6 @@ import { Download, Trash2, Search, FileSpreadsheet, ClipboardCheck, FileText, Aw
 import { storageService } from '../services/storageService';
 import { pdfService } from '../services/pdfService';
 import { emailService } from '../services/emailService';
-import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 
 const TYPE_CONFIG = {
@@ -24,7 +23,6 @@ const TABS = [
 ];
 
 export default function InternRecords() {
-  const { user } = useAuth();
   const { activeOrg } = useOrg();
   const [records, setRecords] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,16 +33,19 @@ export default function InternRecords() {
   const [sendingEmail, setSendingEmail] = useState(null); // record id being sent
   const [emailStatus, setEmailStatus] = useState(null); // { id, success, message }
 
-  useEffect(() => {
-    if (activeOrg) loadRecords();
-  }, [activeOrg]);
-
   const loadRecords = async () => {
     setLoading(true);
     const data = await storageService.getAll(activeOrg?.id);
     setRecords(data);
     setLoading(false);
   };
+
+  // Declared above the effect that calls it: a `const` referenced before its
+  // initialiser is a temporal-dead-zone read that only happens to work because
+  // effects run after render.
+  useEffect(() => {
+    if (activeOrg) loadRecords();
+  }, [activeOrg]);
 
   const handleDelete = async (id) => {
     if (window.confirm('Delete this record permanently?')) {

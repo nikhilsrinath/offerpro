@@ -2,9 +2,13 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Eye, Send, Save, MessageCircle, ArrowLeft } from 'lucide-react';
 import { documentStore } from '../../services/documentStore';
+import { createPortalLink } from '../../services/portalService';
 import { customerService } from '../../services/customerService';
 import { useOrg } from '../../context/OrgContext';
 import PortalLinkGenerator from '../shared/PortalLinkGenerator';
+import ProductPicker from '../shared/ProductPicker';
+import { productToLineItem } from '../../services/catalogService';
+import CountrySelect from '../shared/CountrySelect';
 import { useToast } from '../shared/Toast';
 
 const GST_RATES = [0, 5, 12, 18, 28];
@@ -42,15 +46,19 @@ export default function ProformaInvoiceForm() {
   const clientDropdownRef = useRef(null);
   const [showPortalLink, setShowPortalLink] = useState(false);
   const [savedDocId, setSavedDocId] = useState(null);
+  const [portalLink, setPortalLink] = useState(null);
 
   const [formData, setFormData] = useState({
     clientName: '',
     clientCompany: '',
     clientAddress: '',
     clientGSTIN: '',
+    // ISO alpha-2 -> financial_documents.country_code. Blank defers to the
+    // insert trigger, which reads the customer record then the organisation.
+    clientCountry: '',
     clientEmail: '',
     clientPhone: '',
-    proformaNumber: documentStore.nextId('PI'),
+    proformaNumber: '', // allocated by the database on save
     date: new Date().toISOString().split('T')[0],
     dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     advancePercent: 50,
@@ -102,6 +110,7 @@ export default function ProformaInvoiceForm() {
       clientCompany: client.company,
       clientAddress: client.address,
       clientGSTIN: client.gstin,
+      clientCountry: client.country_code || '',
       clientEmail: client.email,
     }));
   };
@@ -166,6 +175,27 @@ export default function ProformaInvoiceForm() {
     }));
   };
 
+  // The catalogue supplies defaults; the line owns them from here. This form is
+  // the only one of the three with a per-line GST rate, so it takes the
+  // product's tax_rate as well as its HSN and price.
+  const handleSelectProduct = (id, product) => {
+    setFormData((prev) => ({
+      ...prev,
+      items: prev.items.map((item) =>
+        item.id === id
+          ? { ...item, ...productToLineItem(product, { hsn: 'hsnSac', rate: 'rate', tax: 'gstRate' }) }
+          : item
+      ),
+    }));
+  };
+
+  const handleClearProduct = (id) => {
+    setFormData((prev) => ({
+      ...prev,
+      items: prev.items.map((item) => (item.id === id ? { ...item, catalog_item_id: null } : item)),
+    }));
+  };
+
   // Advance preset handler
   const handleAdvancePreset = (pct) => {
     setFormData((prev) => ({
@@ -189,11 +219,14 @@ export default function ProformaInvoiceForm() {
   };
 
   // Build a save payload for documentStore
-  const buildDocument = (status) => {
+  const buildDocument = (status, customerId = null) => {
     return {
-      id: formData.proformaNumber,
+      id: undefined,
       type: 'proforma',
       status,
+      // The FK to the client row, resolved by syncCustomer() before the save.
+      // Null only when there is no client name to resolve.
+      customer_id: customerId,
       title: 'Proforma Invoice',
       issued_by: company.company_name,
       issued_to: formData.clientCompany || formData.clientName,
@@ -207,6 +240,9 @@ export default function ProformaInvoiceForm() {
       },
       proforma_number: formData.proformaNumber,
       date: formData.date,
+      // Picked by hand, so it overrides whatever the trigger would infer.
+      country_code: formData.clientCountry || undefined,
+      country_source: formData.clientCountry ? 'manual' : undefined,
       due_date: formData.dueDate,
       advance_percent: activeAdvancePercent,
       advance_amount: totals.advanceAmount,
@@ -218,6 +254,10 @@ export default function ProformaInvoiceForm() {
         unit: item.unit,
         rate: Number(item.rate) || 0,
         gstRate: Number(item.gstRate) || 0,
+        // A proforma requests an advance rather than recording a sale, so this
+        // does not reach Product Performance yet; it has to persist so the
+        // invoice raised from it inherits the attribution.
+        catalog_item_id: item.catalog_item_id || null,
         taxable: itemCalcs[i].taxable,
         cgst: itemCalcs[i].cgst,
         sgst: itemCalcs[i].sgst,
@@ -231,43 +271,62 @@ export default function ProformaInvoiceForm() {
     };
   };
 
-  const syncCustomer = () => {
-    if (activeOrg?.id && (formData.clientName || formData.clientCompany)) {
-      customerService.upsert(activeOrg.id, {
+  // Now awaited and run BEFORE the save, and it returns the client row's id so
+  // the document can carry customer_id. It used to be fire-and-forget after the
+  // save with the id discarded, which is why financial_documents.customer_id was
+  // null on every proforma.
+  const syncCustomer = async () => {
+    if (!activeOrg?.id || !(formData.clientName || formData.clientCompany)) return null;
+    try {
+      const row = await customerService.upsert(activeOrg.id, {
         clientName: formData.clientCompany || formData.clientName,
         clientEmail: formData.clientEmail || '',
         clientAddress: formData.clientAddress || '',
         buyerGSTIN: formData.clientGSTIN || '',
-      }).catch(() => { });
+        country_code: formData.clientCountry || '',
+      });
+      return row?.id || null;
+    } catch {
+      // A failed client upsert must not block saving the proforma; the document
+      // simply keeps a null FK and falls back to the name match.
+      return null;
     }
   };
 
-  const handleSaveDraft = () => {
-    const doc = buildDocument('draft');
-    documentStore.save(doc);
-    syncCustomer();
+  const handleSaveDraft = async () => {
+    const customerId = await syncCustomer();
+    await documentStore.save(buildDocument('draft', customerId));
     toast('Proforma invoice saved as draft', 'success');
     navigate('/proforma');
   };
 
-  const handleSendToClient = () => {
+  const handleSendToClient = async () => {
     if (!formData.clientName && !formData.clientCompany) {
       toast('Please fill in client details before sending', 'warning');
       return;
     }
-    const doc = buildDocument('sent');
-    documentStore.save(doc);
-    syncCustomer();
+    // The row id and the document number are assigned by the database, so the
+    // save has to complete before there is anything to link to.
+    const customerId = await syncCustomer();
+    const doc = await documentStore.save(buildDocument('sent', customerId));
     documentStore.addNotification({
       type: 'proforma_sent',
       title: 'Proforma Invoice Sent',
-      message: `${formData.proformaNumber} sent to ${formData.clientCompany || formData.clientName}`,
+      message: `${doc.doc_number || formData.proformaNumber} sent to ${formData.clientCompany || formData.clientName}`,
     });
 
-    // Build portal link
-    const token = Math.random().toString(36).substring(2, 10);
-    const orgId = activeOrg?.id || '';
-    const portalUrl = `${window.location.origin}/portal/${doc.id}?token=${token}&org=${orgId}`;
+    let issued;
+    try {
+      issued = await createPortalLink({
+        orgId: activeOrg?.id,
+        documentId: doc.id,
+        recipientEmail: formData.clientEmail,
+      });
+    } catch (err) {
+      toast('Saved, but the portal link could not be created: ' + err.message, 'error');
+      return;
+    }
+    const portalUrl = issued.url;
 
     // Open WhatsApp with pre-filled message
     const phone = (formData.clientPhone || '').replace(/[^0-9+]/g, '');
@@ -276,6 +335,7 @@ export default function ProformaInvoiceForm() {
     window.open(waUrl, '_blank');
 
     setSavedDocId(doc.id);
+    setPortalLink(issued);
     setShowPortalLink(true);
     toast('Proforma sent — WhatsApp opened', 'success');
     setTimeout(() => navigate('/proforma'), 2000);
@@ -363,6 +423,14 @@ export default function ProformaInvoiceForm() {
                   className="easy-inp"
                   maxLength={15}
                   style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                />
+              </div>
+              <div className="easy-field">
+                <label className="easy-lbl">Client country</label>
+                <CountrySelect
+                  value={formData.clientCountry}
+                  placeholder="From customer record"
+                  onChange={(code) => setFormData({ ...formData, clientCountry: code || '' })}
                 />
               </div>
               <div className="easy-field">
@@ -490,6 +558,13 @@ export default function ProformaInvoiceForm() {
                 <div key={item.id} className="easy-line-item">
                   <div className="easy-line-num">{index + 1}</div>
                   <div className="easy-line-fields">
+                    <div style={{ marginBottom: '0.5rem' }}>
+                      <ProductPicker
+                        linkedId={item.catalog_item_id}
+                        onSelect={(p) => handleSelectProduct(item.id, p)}
+                        onClear={() => handleClearProduct(item.id)}
+                      />
+                    </div>
                     <div className="easy-line-top">
                       <input
                         type="text"
@@ -670,7 +745,7 @@ export default function ProformaInvoiceForm() {
           {/* Portal Link Generator */}
           {showPortalLink && savedDocId && (
             <div style={{ marginTop: '1.5rem' }}>
-              <PortalLinkGenerator documentId={savedDocId} documentType="proforma" />
+              <PortalLinkGenerator documentId={savedDocId} documentType="proforma" link={portalLink} />
             </div>
           )}
 

@@ -4,7 +4,6 @@ import {
   User, Phone, Mail, Building2, StickyNote, ChevronRight,
 } from 'lucide-react';
 import { orgStore } from '../services/orgStore';
-import { customerService } from '../services/customerService';
 import { useOrg } from '../context/OrgContext';
 
 const COLUMNS = [
@@ -17,6 +16,19 @@ const COLUMNS = [
 const EMPTY_LEAD = {
   person_name: '', email: '', phone: '', company_name: '', notes: '',
 };
+
+const STAGE_IDS = new Set(COLUMNS.map(c => c.id));
+
+// The pipeline column lives in crm_leads.stage. Leads written before this
+// component used the column carry it as `status` inside the jsonb `extra`
+// instead, and their `stage` was left at the 'lead' default — so fall back to
+// `status` only when `stage` still reads as the default. Both are written
+// together now, which makes the fallback a no-op for anything saved since.
+function leadStage(lead) {
+  if (lead.stage && lead.stage !== 'lead' && STAGE_IDS.has(lead.stage)) return lead.stage;
+  if (STAGE_IDS.has(lead.status)) return lead.status;
+  return 'lead';
+}
 
 function useWindowWidth() {
   const [w, setW] = useState(() => window.innerWidth);
@@ -62,8 +74,7 @@ export default function CRM() {
       if (term && !(l.company_name || '').toLowerCase().includes(term)
         && !(l.person_name || '').toLowerCase().includes(term)
         && !(l.email || '').toLowerCase().includes(term)) return;
-      const col = map[l.status] ? l.status : 'lead';
-      map[col].push(l);
+      map[leadStage(l)].push(l);
     });
     Object.values(map).forEach(arr => arr.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
     return map;
@@ -72,7 +83,7 @@ export default function CRM() {
   // ── CRUD ──────────────────────────────────────────────────────────────────────
   const openAdd = (status = 'lead') => {
     setEditingLead(null);
-    setFormData({ ...EMPTY_LEAD, _status: status });
+    setFormData({ ...EMPTY_LEAD, _stage: status });
     setModalOpen(true);
   };
 
@@ -94,13 +105,18 @@ export default function CRM() {
     try {
       const now = new Date().toISOString();
       if (editingLead) {
-        orgStore.updateItem('crm_leads', editingLead.id, {
+        await orgStore.updateItem('crm_leads', editingLead.id, {
           ...formData, updated_at: now,
         });
       } else {
+        const { _stage, ...fields } = formData;
+        const stage = _stage || 'lead';
+        // Only `stage` is sent. The clients.status column is derived from it by
+        // the crm_leads adapter in orgStore; passing a second `status` alongside
+        // it used to land in the clients.extra jsonb and shadow the real column.
         await orgStore.addItem('crm_leads', {
-          ...formData,
-          status: formData._status || 'lead',
+          ...fields,
+          stage,
           created_at: now,
           updated_at: now,
         });
@@ -113,25 +129,35 @@ export default function CRM() {
     }
   };
 
-  const handleDelete = (lead) => {
+  const handleDelete = async (lead) => {
     if (!window.confirm(`Delete lead "${lead.company_name || lead.person_name}"?`)) return;
-    orgStore.removeItem('crm_leads', lead.id);
+    try {
+      await orgStore.removeItem('crm_leads', lead.id);
+    } catch (err) {
+      alert('Error deleting lead: ' + err.message);
+    }
   };
 
-  const moveToColumn = async (leadId, newStatus) => {
+  // Moving a card is now one update to one row.
+  //
+  // Under the split tables, dragging to "Deal" also upserted a copy of the lead
+  // into `customers` — entity-decision.md §5 row 5 marks that copy as deleted by
+  // the merge. Since 0016 both screens read `clients`, so the stage change IS the
+  // promotion: the crm_leads adapter maps stage 'deal' to status 'active', which
+  // is exactly what the Customers page filters on. The old call also wrote
+  // `status` into the jsonb side-channel on its way through.
+  const moveToColumn = async (leadId, newStage) => {
     const lead = leads.find(l => l.id === leadId);
-    if (!lead || lead.status === newStatus) return;
-    orgStore.updateItem('crm_leads', leadId, {
-      status: newStatus,
-      updated_at: new Date().toISOString(),
-    });
+    if (!lead) return;
+    if (leadStage(lead) === newStage) return;
     setMoveMenuId(null);
-    if (newStatus === 'deal' && activeOrg?.id) {
-      await customerService.upsert(activeOrg.id, {
-        clientName: lead.company_name || lead.person_name,
-        clientEmail: lead.email || '',
-        contactPhone: lead.phone || '',
+    try {
+      await orgStore.updateItem('crm_leads', leadId, {
+        stage: newStage,
+        updated_at: new Date().toISOString(),
       });
+    } catch (err) {
+      alert('Error moving lead: ' + err.message);
     }
   };
 

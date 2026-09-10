@@ -28,7 +28,6 @@ export default function CertificateForm() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showBranding, setShowBranding] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

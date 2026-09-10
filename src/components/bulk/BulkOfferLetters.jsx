@@ -7,6 +7,7 @@ import ValidationTable from './shared/ValidationTable';
 import BulkProgressTracker from './shared/BulkProgressTracker';
 import DocumentCard from './shared/DocumentCard';
 import { documentStore } from '../../services/documentStore';
+import { createPortalLink } from '../../services/portalService';
 import { useOrg } from '../../context/OrgContext';
 
 const MOCK_OFFER_SAMPLE = [
@@ -49,7 +50,7 @@ export default function BulkOfferLetters() {
     const [failed, setFailed] = useState(0);
     const [generationStatus, setGenerationStatus] = useState('idle');
     const [results, setResults] = useState([]);
-    const [copiedId, setCopiedId] = useState(null);
+    const [, setCopiedId] = useState(null);
 
     const handleUpload = (parsedData) => {
         setData(parsedData);
@@ -103,11 +104,11 @@ export default function BulkOfferLetters() {
         for (let i = 0; i < validRows.length; i++) {
             const row = validRows[i];
             try {
-                const docId = documentStore.nextId('OL');
                 const salary = row.salary ? parseFloat(row.salary) : null;
 
+                // The document number is allocated by the database at save time
+                // (next_document_number), so the id is only known afterwards.
                 const doc = {
-                    id: docId,
                     type: 'offer_letter',
                     status: 'pending',
                     issued_to: (row.candidate_name || '').trim(),
@@ -141,16 +142,20 @@ export default function BulkOfferLetters() {
                     },
                 };
 
-                documentStore.save(doc);
+                const saved = await documentStore.save(doc);
 
-                const portalUrl = `${window.location.origin}/portal/${docId}?org=${activeOrg?.id || ''}`;
+                const { url: portalUrl } = await createPortalLink({
+                    orgId: activeOrg?.id,
+                    documentId: saved.id,
+                    recipientEmail: row.email,
+                });
                 pCount++;
                 setProcessed(pCount);
                 newResults.push({
                     ...row,
                     status: 'Generated',
                     timestamp: new Date().toLocaleTimeString(),
-                    docId,
+                    docId: saved.doc_number || saved.id,
                     portalUrl,
                 });
             } catch (err) {

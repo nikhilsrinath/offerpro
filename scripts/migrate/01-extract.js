@@ -150,7 +150,7 @@ async function main() {
     const profile = {
       ...(rtdbOrg._profile ?? {}),
       ...Object.fromEntries(Object.entries(rtdbOrg).filter(
-        ([k, v]) => typeof v !== 'object' || v === null)),
+        ([, v]) => typeof v !== 'object' || v === null)),
       ...(fsOrgDoc.exists ? fsOrgDoc.data() : {}),
     };
 

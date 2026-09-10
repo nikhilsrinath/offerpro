@@ -7,7 +7,7 @@ import {
   UploadCloud, FileCheck, FileSignature, History,
   FileSpreadsheet, Activity, Receipt, FilePlus, RotateCcw, ArrowLeft,
   Sun, Moon, GitBranch, UserX, Kanban, CheckSquare,
-  FileText, BarChart3, File, PieChart as PieChartIcon
+  FileText, BarChart3, File, Package, PieChart as PieChartIcon
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
 import subPages from './components/landing/subPageData';
@@ -24,6 +24,7 @@ import Hub from './components/Hub';
 import Customers from './components/Customers';
 import BillingRevenue from './components/BillingRevenue';
 import ProductPlanner from './components/ProductPlanner';
+import Products from './components/Products';
 import Registration from './components/Registration';
 import CompanyProfile from './components/CompanyProfile';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -39,7 +40,7 @@ import CopilotPanel from './components/cofounder/CopilotPanel';
 import { useTaskDeadlineMonitor } from './hooks/useTaskDeadlineMonitor';
 import { useTheme } from './hooks/useTheme';
 import { usePlanStatus } from './hooks/usePlanStatus';
-import { getPlanConfig, PLANS } from './services/planConfig';
+import { PLANS } from './services/planConfig';
 
 import BulkOfferLetters from './components/bulk/BulkOfferLetters';
 import BulkCertificates from './components/bulk/BulkCertificates';
@@ -56,6 +57,8 @@ import FinanceStatus from './components/financial/FinanceStatus';
 import InvoiceList from './components/financial/InvoiceList';
 import { RecurringInvoiceForm, RecurringInvoiceList } from './components/financial/RecurringInvoiceForm';
 import { documentStore } from './services/documentStore';
+import { orgStore } from './services/orgStore';
+import { buildEdgeContext } from './services/cofounderAI';
 
 
 const MODULE_FILTER = {
@@ -63,7 +66,7 @@ const MODULE_FILTER = {
   team: ['team-hierarchy', 'employees', 'offer-tracker', 'ex-employees', 'tasks', 'bulk-team'],
   documents: ['offers', 'new-certificates', 'certificates', 'ndas', 'mous', 'bulk-offers', 'bulk-certificates'],
   finance: ['finance-status', 'invoices', 'quotations', 'proforma', 'recurring'],
-  business: ['crm', 'customers', 'revenue', 'planner'],
+  business: ['crm', 'customers', 'products', 'revenue', 'planner'],
   data: ['records', 'bulk-history']
 };
 
@@ -89,6 +92,7 @@ const NAV_ITEMS = [
   { section: 'BUSINESS' },
   { id: 'crm', label: 'CRM', icon: Kanban },
   { id: 'customers', label: 'Customers', icon: Users },
+  { id: 'products', label: 'Products', icon: Package },
   { id: 'revenue', label: 'Billing & Revenue', icon: DollarSign },
   { id: 'planner', label: 'Product Planner', icon: Layers },
   { section: 'DATA' },
@@ -118,6 +122,7 @@ const PAGE_META = {
   'new-proforma': { title: 'New Proforma Invoice', subtitle: 'Create proforma invoices with advance payment tracking' },
   crm: { title: 'CRM', subtitle: 'Manage your sales pipeline' },
   customers: { title: 'Customers', subtitle: 'Manage your client database' },
+  products: { title: 'Products', subtitle: 'Product and service catalogue, and what each one has sold' },
   revenue: { title: 'Billing & Revenue', subtitle: 'Track revenue, expenses, and profitability' },
   planner: { title: 'Product Planner', subtitle: 'Plan and track products and projects' },
   records: { title: 'Records', subtitle: 'Manage and download issued documents' },
@@ -161,12 +166,55 @@ function AppContent() {
   const { user, loading, logout, needsOnboarding } = useAuth();
   const { activeOrg } = useOrg();
   const { theme, toggleTheme } = useTheme();
-  const { currentPlan, planConfig } = usePlanStatus();
+  const { planConfig } = usePlanStatus();
   const [notifications, setNotifications] = useState([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [copilotFullscreen, setCopilotFullscreen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  // The Co-founder's numeric context. This was an inline literal with every
+  // figure hardcoded to 0, so the AI was told the company had no revenue, no
+  // invoices and no documents no matter what the database held —
+  // buildEdgeContext() has existed since the AI shipped and was never called.
+  //
+  // Recomputed when the org changes and each time the panel is opened, which is
+  // when it is about to be read. Both sources are synchronous reads of the
+  // orgStore cache; the init() is only there for the case where the panel is
+  // opened before OrgContext has finished hydrating.
+  // Stamped with the org it was built for, so a context built for the previous
+  // org is never handed to the AI after a switch.
+  const [builtContext, setBuiltContext] = useState(null);
+
+  useEffect(() => {
+    if (!activeOrg?.id) return undefined;
+    let cancelled = false;
+    (async () => {
+      documentStore.setContext(activeOrg.id);
+      await documentStore.init();
+      if (cancelled) return;
+      setBuiltContext({
+        orgId: activeOrg.id,
+        ctx: buildEdgeContext({
+          records: orgStore.getSectionAsList('records'),
+          finDocs: documentStore.getAll(),
+          user,
+          activeOrg,
+        }),
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [activeOrg, user, copilotOpen]);
+
+  // Both sides optional-chained meant that on the first render — builtContext
+  // still null, activeOrg not yet hydrated — this compared undefined to
+  // undefined, took the truthy branch and dereferenced null. The org stamp is
+  // only meaningful once there is both a built context and an org to match it
+  // against; either one missing means there is no context to hand the AI.
+  const edgeContext =
+    builtContext && activeOrg?.id && builtContext.orgId === activeOrg.id
+      ? builtContext.ctx
+      : null;
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -536,6 +584,7 @@ function AppContent() {
             <Route path="new-proforma" element={<ProformaInvoiceForm />} />
             <Route path="crm" element={<CRM />} />
             <Route path="customers" element={<Customers />} />
+            <Route path="products" element={<Products />} />
             <Route path="revenue" element={<BillingRevenue />} />
             <Route path="planner" element={<ProductPlanner />} />
             <Route path="records" element={<InternRecords />} />
@@ -561,7 +610,9 @@ function AppContent() {
         isFullscreen={copilotFullscreen}
         onFullscreenToggle={() => setCopilotFullscreen(v => !v)}
         theme={theme}
-        edgeContext={{
+        edgeContext={edgeContext || {
+          // Only until the first build completes, or when there is no active
+          // org. Shaped identically so CopilotPanel never reads undefined.
           company: activeOrg?.company_name || activeOrg?.name || 'Company',
           financials: { totalRevenue: 0, pendingRevenue: 0, avgMonthlyRevenue: 0, lastMonthRevenue: 0, growthRate: '0%', invoicesIssued: 0, invoicesPaid: 0, invoicesPending: 0 },
           documents: { total: 0, offerLetters: 0, invoices: 0, quotations: 0, proformas: 0 },

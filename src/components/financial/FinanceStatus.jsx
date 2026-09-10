@@ -6,11 +6,10 @@ import {
   AlertTriangle, Eye, Copy, RefreshCw, Building, DollarSign,
   ArrowUpRight, XCircle
 } from 'lucide-react';
-import { documentStore } from '../../services/documentStore';
+import { documentStore, docNumber as docNo } from '../../services/documentStore';
 import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
 import PortalLinkGenerator from '../shared/PortalLinkGenerator';
-import { useToast } from '../shared/Toast';
 
 const TYPE_CONFIG = {
   quotation: { label: 'Quotation', icon: FilePlus, color: '#3b82f6', prefix: 'QUO' },
@@ -64,7 +63,6 @@ function groupByClient(docs) {
 }
 
 export default function FinanceStatus() {
-  const toast = useToast();
   const { activeOrg } = useOrg();
   const [documents, setDocuments] = useState([]);
   const [search, setSearch] = useState('');
@@ -73,10 +71,6 @@ export default function FinanceStatus() {
   const [expandedClient, setExpandedClient] = useState(null);
   const [showPortalLink, setShowPortalLink] = useState(null);
   const [viewMode, setViewMode] = useState('pipeline'); // 'pipeline' | 'list'
-
-  useEffect(() => {
-    loadDocuments();
-  }, [activeOrg]);
 
   const loadDocuments = async () => {
     if (activeOrg?.id) {
@@ -87,6 +81,13 @@ export default function FinanceStatus() {
     const financial = all.filter((d) => ['invoice', 'quotation', 'proforma'].includes(d.type));
     setDocuments(financial);
   };
+
+  // Above the effect deliberately: referencing a `const` declared further down
+  // is a temporal-dead-zone read that survives only because effects run late.
+  useEffect(() => {
+    loadDocuments();
+  }, [activeOrg]);
+
 
   const filteredDocs = useMemo(() => {
     const filtered = documents.filter((d) => {
@@ -320,7 +321,7 @@ export default function FinanceStatus() {
                                 <div className="fin-status-timeline-content">
                                   <div className="fin-status-timeline-header">
                                     <Icon size={14} style={{ color: cfg?.color }} />
-                                    <span className="fin-status-timeline-id">{doc.id}</span>
+                                    <span className="fin-status-timeline-id">{docNo(doc)}</span>
                                     <DocumentStatusBadge status={doc.status} size="small" />
                                   </div>
                                   <div className="fin-status-timeline-body">
@@ -410,7 +411,7 @@ export default function FinanceStatus() {
                   const cfg = TYPE_CONFIG[doc.type];
                   return (
                     <tr key={doc.id}>
-                      <td className="fin-list-id">{doc.id}</td>
+                      <td className="fin-list-id">{docNo(doc)}</td>
                       <td>
                         <span
                           className="fin-status-type-badge"

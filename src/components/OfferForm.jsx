@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 import { usePlanStatus } from '../hooks/usePlanStatus';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
+import { createPortalLink } from '../services/portalService';
 import OfferPreview from './OfferPreview';
 
 function getDisplayName(emp) {
@@ -154,10 +155,9 @@ export default function OfferForm() {
     try {
       documentStore.setContext(activeOrg?.id);
       await documentStore.init();
-      const docId = documentStore.nextId('OL');
       const today = new Date().toISOString().split('T')[0];
+      // The document number is allocated by the database on save.
       const doc = {
-        id: docId,
         type: 'offer_letter',
         status: 'pending',
         issued_to: formData.studentName,
@@ -188,8 +188,12 @@ export default function OfferForm() {
           authorized_designation: formData.authorizedPersonDesignation || '',
         },
       };
-      documentStore.save(doc);
-      const url = `${window.location.origin}/portal/${docId}?org=${activeOrg?.id || ''}`;
+      const saved = await documentStore.save(doc);
+      const { url } = await createPortalLink({
+        orgId: activeOrg?.id,
+        documentId: saved.id,
+        recipientEmail: formData.email,
+      });
       setPortalUrl(url);
       setShowPortalModal(true);
     } catch (err) {
@@ -226,7 +230,7 @@ export default function OfferForm() {
       });
       setEmailResult(result);
       setTimeout(() => setEmailResult(null), 5000);
-    } catch (err) {
+    } catch {
       setEmailResult({ success: false, message: 'Failed to send email.' });
       setTimeout(() => setEmailResult(null), 5000);
     } finally {

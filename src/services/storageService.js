@@ -20,7 +20,9 @@ export const storageService = {
     return { data };
   },
 
-  save: async (recordData, type, orgId, userId) => {
+  // `options` promotes the columns `records` indexes on: status (default
+  // 'draft'), employee_id, and the recipient fields derived from the form.
+  save: async (recordData, type, orgId, userId, options = {}) => {
     if (!orgId) throw new Error('Organization ID is required');
 
     const title = type === 'offer'
@@ -38,13 +40,17 @@ export const storageService = {
       title,
       type,
       user_id: userId || null,
+      ...options,
     });
     return record;
   },
 
   delete: async (id, orgId) => {
     if (!orgId) throw new Error('Organization ID is required');
-    orgStore.removeItem('records', id);
+    // Awaited so a rejected write reaches the caller. Unawaited, orgStore had
+    // already updated its cache and localStorage, so a failure showed up as a
+    // successful delete that came back on the next reload.
+    await orgStore.removeItem('records', id);
   },
 
   // Employees registry
@@ -65,14 +71,17 @@ export const storageService = {
     return employee;
   },
 
-  deleteEmployee: async (id, orgId) => {
+  // Archives rather than deletes: the row stays so tasks and documents keep
+  // their foreign key. `reason` fills employees.exit_reason, which had no
+  // writer at all, so every archived employee left without a recorded reason.
+  deleteEmployee: async (id, orgId, reason) => {
     if (!orgId) throw new Error('Organization ID is required');
-    orgStore.removeItem('employees', id);
+    await orgStore.removeItem('employees', id, { reason });
   },
 
   updateEmployee: async (id, updates, orgId) => {
     if (!orgId) throw new Error('Organization ID is required');
-    orgStore.updateItem('employees', id, updates);
+    await orgStore.updateItem('employees', id, updates);
   },
 
   // Department master list
@@ -90,7 +99,7 @@ export const storageService = {
   saveDepartment: async (deptData, orgId) => {
     if (!orgId) throw new Error('Organization ID is required');
     if (deptData.id) {
-      orgStore.setItem('departments', deptData.id, deptData);
+      await orgStore.setItem('departments', deptData.id, deptData);
       return deptData;
     }
     const dept = await orgStore.addItem('departments', deptData);
@@ -99,7 +108,7 @@ export const storageService = {
 
   deleteDepartment: async (id, orgId) => {
     if (!orgId) throw new Error('Organization ID is required');
-    orgStore.removeItem('departments', id);
+    await orgStore.removeItem('departments', id);
   },
 
   // Ex-employees archive
@@ -116,7 +125,7 @@ export const storageService = {
 
   saveExEmployee: async (empData, orgId) => {
     if (!orgId) throw new Error('Organization ID is required');
-    orgStore.setItem('ex_employees', empData.id, empData);
+    await orgStore.setItem('ex_employees', empData.id, empData);
     return empData;
   },
 
