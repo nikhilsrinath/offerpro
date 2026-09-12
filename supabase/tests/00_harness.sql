@@ -16,9 +16,42 @@ end $$;
 
 grant usage on schema public to anon, authenticated, service_role;
 
+-- crypt()/gen_salt() for the generated portal passwords in 0031. A real project
+-- has pgcrypto installed in `extensions`; here public is close enough, and the
+-- functions that use it search both.
+create extension if not exists pgcrypto;
+
+-- Mirrors the GoTrue columns 0031 writes, and nothing else. The test suite only
+-- ever asserts that a row with a usable bcrypt password and an identity was
+-- written — it cannot prove GoTrue accepts it, which is why 0031 says so out
+-- loud in its header.
 create table if not exists auth.users (
-  id    uuid primary key default gen_random_uuid(),
-  email text unique
+  id                      uuid primary key default gen_random_uuid(),
+  instance_id             uuid,
+  aud                     text,
+  role                    text,
+  email                   text unique,
+  encrypted_password      text,
+  email_confirmed_at      timestamptz,
+  raw_app_meta_data       jsonb,
+  raw_user_meta_data      jsonb,
+  created_at              timestamptz,
+  updated_at              timestamptz,
+  confirmation_token      text,
+  recovery_token          text,
+  email_change            text,
+  email_change_token_new  text
+);
+
+create table if not exists auth.identities (
+  id              uuid primary key default gen_random_uuid(),
+  provider_id     text,
+  user_id         uuid references auth.users(id) on delete cascade,
+  identity_data   jsonb,
+  provider        text,
+  last_sign_in_at timestamptz,
+  created_at      timestamptz,
+  updated_at      timestamptz
 );
 
 -- Supabase resolves these from the request JWT. Locally they read GUCs that the

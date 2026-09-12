@@ -289,12 +289,66 @@ const SECTIONS = {
     fromRow: (r) => ({
       id: r.id, description: r.description, amount: r.amount,
       category: r.category, date: r.incurred_on, incurred_on: r.incurred_on,
+      tax_amount: Number(r.tax_amount) || 0, receipt_path: r.receipt_path || null,
+      vendor_id: r.vendor_id || null,
       created_at: r.created_at,
     }),
     toRow: (i) => ({
       description: i.description || '', amount: num(i.amount, 0),
       category: i.category || 'Operations',
       incurred_on: date(i.date || i.incurred_on) || date(nowIso()),
+      tax_amount: num(i.tax_amount, 0),
+      receipt_path: nn(i.receipt_path),
+      vendor_id: nn(i.vendor_id),
+    }),
+  },
+
+  // Supplier directory (0028). Archived rather than deleted once billed.
+  vendors: {
+    table: 'vendors',
+    order: 'company_name',
+    fromRow: (r) => ({
+      id: r.id, company_name: r.company_name, contact_name: r.contact_name,
+      email: r.email, phone: r.phone, address: r.address, state: r.state,
+      gstin: r.gstin, payment_terms_days: r.payment_terms_days,
+      category: r.category, notes: r.notes, archived_at: r.archived_at,
+      created_at: r.created_at,
+    }),
+    toRow: (i) => ({
+      company_name: (i.company_name || '').trim(),
+      contact_name: nn(i.contact_name), email: nn(i.email), phone: nn(i.phone),
+      address: nn(i.address), state: nn(i.state),
+      gstin: nn((i.gstin || '').trim().toUpperCase()),
+      payment_terms_days: num(i.payment_terms_days, 30),
+      category: nn(i.category), notes: nn(i.notes),
+      archived_at: nn(i.archived_at),
+    }),
+  },
+
+  // Bills received from vendors (0028). tax_amount, total and status are
+  // recomputed by app.purchase_invoice_guard(); what is sent for them is ignored.
+  purchase_invoices: {
+    table: 'purchase_invoices',
+    order: 'bill_date',
+    fromRow: (r) => ({
+      id: r.id, vendor_id: r.vendor_id, bill_number: r.bill_number,
+      bill_date: r.bill_date, due_date: r.due_date, category: r.category,
+      description: r.description,
+      subtotal: Number(r.subtotal) || 0, tax_rate: Number(r.tax_rate) || 0,
+      tax_amount: Number(r.tax_amount) || 0, total: Number(r.total) || 0,
+      amount_paid: Number(r.amount_paid) || 0, status: r.status,
+      paid_on: r.paid_on, receipt_path: r.receipt_path, notes: r.notes,
+      created_at: r.created_at,
+    }),
+    toRow: (i) => ({
+      vendor_id: i.vendor_id, bill_number: (i.bill_number || '').trim(),
+      bill_date: date(i.bill_date) || date(nowIso()),
+      due_date: date(i.due_date), category: i.category || 'Operations',
+      description: nn(i.description),
+      subtotal: num(i.subtotal, 0), tax_rate: num(i.tax_rate, 18),
+      amount_paid: num(i.amount_paid, 0),
+      status: i.status === 'void' ? 'void' : 'unpaid',
+      receipt_path: nn(i.receipt_path), notes: nn(i.notes),
     }),
   },
 
@@ -425,6 +479,12 @@ function employeeFromRow(r) {
     terminated_at: r.exited_at, termination_date: r.exited_at,
     status: r.exited_at ? 'terminated' : 'active',
     created_at: r.created_at,
+    // 0029. `user_id` is the login attached to this record; `access_revoked_at`
+    // is stamped by app.revoke_employee_access() when the exit deletes their
+    // membership, which is what ExEmployees.jsx shows as proof access is gone.
+    photo_path: r.photo_path,
+    user_id: r.user_id,
+    access_revoked_at: r.access_revoked_at,
     // employee_compensation is admin-only under RLS. A non-admin simply gets
     // no row back — not an error — so these stay undefined rather than throwing.
     ...(comp ? {
@@ -448,6 +508,9 @@ function employeeToRow(i) {
     is_owner: bool(i.is_owner),
     start_date: date(i.startDate), end_date: date(i.endDate),
     acceptance_deadline: date(i.acceptanceDeadline),
+    // `user_id` is deliberately absent: linking a login is meService's job, not
+    // a field an employee form can overwrite by round-tripping a stale object.
+    photo_path: nn(i.photo_path),
   };
 }
 

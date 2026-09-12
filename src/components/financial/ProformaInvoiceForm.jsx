@@ -48,7 +48,7 @@ export default function ProformaInvoiceForm() {
   const [savedDocId, setSavedDocId] = useState(null);
   const [portalLink, setPortalLink] = useState(null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     clientName: '',
     clientCompany: '',
     clientAddress: '',
@@ -68,7 +68,7 @@ export default function ProformaInvoiceForm() {
       { id: Date.now(), description: '', hsnSac: '', quantity: 1, unit: 'Nos', rate: 0, gstRate: 18 },
     ],
     notes: 'This is a proforma invoice and is not valid for GST input tax credit. GST amounts shown are indicative and subject to actuals at the time of invoicing.',
-  });
+  }));
 
   // Set Firebase context for cloud sync
   useEffect(() => {
@@ -774,10 +774,6 @@ export default function ProformaInvoiceForm() {
    ───────────────────────────────────── */
 
 function ProformaPreview({ formData, totals, itemCalcs, company, activeAdvancePercent }) {
-  const fmt = (num) => {
-    return (num || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
-  };
-
   const fmtDate = (dateStr) => {
     if (!dateStr) return '-';
     const d = new Date(dateStr);

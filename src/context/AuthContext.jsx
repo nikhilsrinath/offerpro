@@ -106,10 +106,15 @@ export const AuthProvider = ({ children }) => {
   // Redirect-based, unlike Firebase's popup. The browser leaves the page here
   // and returns to `redirectTo`, where onAuthStateChange picks the session up —
   // so this does not resolve with a user, and callers must not expect one.
-  const loginWithGoogle = async () => {
+  //
+  // `next` is where to come back to. /join passes its own URL so an employee
+  // redeeming an invitation returns to the page that was mid-redemption rather
+  // than to /hub, which would show them the create-a-company gate — they have
+  // no membership yet, which is the entire reason they are on /join.
+  const loginWithGoogle = async (next) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/hub` },
+      options: { redirectTo: next || `${window.location.origin}/hub` },
     });
     if (error) throw error;
   };

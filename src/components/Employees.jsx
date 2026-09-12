@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Search, UserPlus, Trash2, Mail, Phone, Calendar,
     Briefcase, LayoutGrid, List, Users, Building,
     Plus, X, ArrowLeft, Copy, Check, Loader,
     AlertTriangle, TrendingUp, ExternalLink, Shield,
-    ChevronRight,
+    ChevronRight, KeyRound,
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
@@ -15,6 +15,9 @@ import { DEPT_PALETTE } from './TeamHierarchy';
 import { useOrg } from '../context/OrgContext';
 import { useAuth } from '../context/AuthContext';
 import EmployeeForm from './EmployeeForm';
+import AccessRolePicker from './settings/AccessRolePicker';
+import { EmployeePhotoFill } from './shared/EmployeeAvatar';
+import { portalAccessService } from '../services/portalAccessService';
 
 const AVATAR_COLORS = [
     ['#3b82f6', '#2563eb'], ['#8b5cf6', '#7c3aed'], ['#10b981', '#059669'],
@@ -37,6 +40,175 @@ function getDisplayName(emp) {
 }
 
 // ── Employee Detail Modal ────────────────────────────────────────────────────
+function PortalAccessPanel({ emp, orgId }) {
+    const [row, setRow] = useState(null);        // from employee_portal_state
+    const [state, setState] = useState('unknown');
+    const [busy, setBusy] = useState(false);
+    const [creds, setCreds] = useState(null);    // { email, password } — in memory only
+    const [note, setNote] = useState('');
+    const [error, setError] = useState('');
+    const [copied, setCopied] = useState('');
+
+    const load = useCallback(() => {
+        if (!orgId) return;
+        portalAccessService.states(orgId)
+            .then((all) => {
+                const r = all[emp.id] || null;
+                setRow(r);
+                setState(r?.state || (emp.user_id ? 'active' : 'none'));
+            })
+            // Reading the state needs no special right, but if it fails there is
+            // nothing useful to claim — offer the action and let it speak.
+            .catch(() => setState(emp.user_id ? 'active' : 'none'));
+    }, [orgId, emp.id, emp.user_id]);
+
+    useEffect(load, [load]);
+
+    const create = async () => {
+        setBusy(true); setError(''); setNote('');
+        try {
+            const res = await portalAccessService.createLogin(emp.id);
+            if (res.outcome === 'created') {
+                setCreds({ email: res.email, password: res.password });
+            } else if (res.outcome === 'linked') {
+                setNote(`${res.email} already has an EdgeOS login. They sign in with the password they already use — there is nothing to hand over.`);
+            } else {
+                setNote('They already have portal access.');
+            }
+            load();
+        } catch (err) {
+            setError(err.message || 'Could not create the login.');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const reset = async () => {
+        if (!window.confirm('Generate a new password? The current one stops working immediately.')) return;
+        setBusy(true); setError(''); setNote('');
+        try {
+            const password = await portalAccessService.resetPassword(emp.id);
+            setCreds({ email: emp.email, password });
+            load();
+        } catch (err) {
+            setError(err.message || 'Could not reset the password.');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const revoke = async () => {
+        if (!window.confirm('Turn off this login? They stay on the team; they just cannot sign in.')) return;
+        setBusy(true); setError(''); setNote('');
+        try {
+            await portalAccessService.revokeLogin(emp.id);
+            setCreds(null);
+            load();
+        } catch (err) {
+            setError(err.message || 'Could not turn the login off.');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    // One paste for a chat window: where to go, who to sign in as, what to type.
+    const handoverText = () => [
+        'Your employee portal is ready.',
+        `Sign in at: ${window.location.origin}/login`,
+        `Email: ${creds.email}`,
+        `Password: ${creds.password}`,
+        'Please change the password once you are in.',
+    ].join('\n');
+
+    const copy = async (what, value) => {
+        await navigator.clipboard.writeText(value);
+        setCopied(what);
+        setTimeout(() => setCopied(''), 2000);
+    };
+
+    const LABEL = {
+        active:  'Can sign in',
+        invited: 'Invitation sent',
+        revoked: 'Access turned off',
+        none:    'No login yet',
+        unknown: 'Checking…',
+    };
+
+    return (
+        <div style={{ padding: '0.6rem 0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.67rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Employee portal
+                </span>
+                {state !== 'unknown' && (
+                    <span className={`pa-state ${state}`}>
+                        <KeyRound size={11} /> {LABEL[state]}
+                    </span>
+                )}
+            </div>
+
+            {/* Shown once. Nothing stores this password, so this panel is the only
+                place it will ever exist — say so rather than let them find out. */}
+            {creds && (
+                <div className="pa-creds">
+                    <div className="pa-creds-row"><span>Email</span><code>{creds.email}</code></div>
+                    <div className="pa-creds-row"><span>Password</span><code>{creds.password}</code></div>
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.45rem' }}>
+                        <button type="button" className="prod-btn-primary" onClick={() => copy('all', handoverText())}>
+                            {copied === 'all' ? <Check size={13} /> : <Copy size={13} />}
+                            {copied === 'all' ? 'Copied' : 'Copy message to send'}
+                        </button>
+                        <button type="button" className="prod-btn-ghost" onClick={() => copy('pw', creds.password)}>
+                            {copied === 'pw' ? <Check size={13} /> : <Copy size={13} />} Copy password
+                        </button>
+                        <button type="button" className="prod-btn-ghost" onClick={() => setCreds(null)}>Done</button>
+                    </div>
+                    <div className="pa-creds-warn">
+                        <AlertTriangle size={12} /> Shown once. Nothing stores this password — if it is
+                        lost, generate a new one.
+                    </div>
+                </div>
+            )}
+
+            {state === 'unknown' ? null : state === 'active' ? (
+                <>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.4rem', lineHeight: 1.5 }}>
+                        {emp.email} signs in on the normal sign-in page and lands on their own portal —
+                        attendance, leave and announcements. Archiving them removes it.
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                        {row?.can_reset_password && (
+                            <button type="button" className="prod-btn-ghost" onClick={reset} disabled={busy}>
+                                <KeyRound size={13} /> {busy ? 'Working…' : 'New password'}
+                            </button>
+                        )}
+                        <button type="button" className="prod-btn-ghost" onClick={revoke} disabled={busy}>
+                            Turn off access
+                        </button>
+                    </div>
+                </>
+            ) : (
+                <>
+                    <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                        <button type="button" className="prod-btn-primary" onClick={create} disabled={busy || !emp.email}>
+                            <KeyRound size={13} />
+                            {busy ? 'Creating…' : state === 'revoked' ? 'Turn access back on' : 'Create login'}
+                        </button>
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.4rem', lineHeight: 1.5 }}>
+                        {!emp.email
+                            ? 'Add an email address above first — that is the username.'
+                            : `Creates a login for ${emp.email} and generates a password you hand over. No invitation to accept, no email to wait for.`}
+                    </div>
+                </>
+            )}
+
+            {note && <div className="prod-field-note" style={{ marginTop: '0.35rem' }}>{note}</div>}
+            {error && <div className="prod-form-error" style={{ marginTop: '0.35rem' }}>{error}</div>}
+        </div>
+    );
+}
+
 function EmployeeDetailModal({ emp, orgId, org, departments, onClose, onDelete, currentUserEmail, onEdit }) {
     const name = getDisplayName(emp);
     const [c1, c2] = getAvatarColor(name);
@@ -209,6 +381,9 @@ function EmployeeDetailModal({ emp, orgId, org, departments, onClose, onDelete, 
                                 <InfoField icon={<Phone size={13} />} label="Phone" value={emp.phone || '—'} />
                             </div>
 
+                            {/* EdgeOS login role for this employee's email */}
+                            <AccessRolePicker email={emp.email} />
+
                             {/* Dates */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
                                 <InfoField
@@ -231,6 +406,8 @@ function EmployeeDetailModal({ emp, orgId, org, departments, onClose, onDelete, 
                                     <InfoField icon={<Users size={13} />} label="Reports To" value={emp.supervisorName} />
                                 </div>
                             )}
+
+                            <PortalAccessPanel emp={emp} orgId={orgId} />
 
                             {/* Employee ID */}
                             <div style={{ padding: '0.6rem 0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
@@ -1045,6 +1222,7 @@ export default function Employees() {
                                             <div className="emp-table-name">
                                                 <div className="emp-avatar" style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
                                                     {name?.[0]?.toUpperCase()}
+                                                    <EmployeePhotoFill photoPath={emp.photo_path} />
                                                 </div>
                                                 <div className="emp-table-name-text">
                                                     <span>{name}</span>
@@ -1107,6 +1285,7 @@ export default function Employees() {
                                 <div className="emp-grid-card-top">
                                     <div className="emp-avatar emp-avatar-lg" style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
                                         {name?.[0]?.toUpperCase()}
+                                        <EmployeePhotoFill photoPath={emp.photo_path} />
                                     </div>
                                 </div>
                                 <h4 className="emp-card-name">{name}</h4>

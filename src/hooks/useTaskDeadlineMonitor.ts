@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { taskStore } from '../services/taskStore';
 import { orgStore } from '../services/orgStore';
 import { emailService } from '../services/emailService';
+import { invoiceReminderService } from '../services/invoiceReminderService';
 
 function formatDeadline(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -52,12 +53,19 @@ async function runCheck() {
   }
 }
 
+// One scheduler for the app: task deadlines, then overdue invoices and their
+// payment reminders (invoiceReminderService). Neither pass may stop the other.
+async function runAll() {
+  try { await runCheck(); } catch (err) { console.warn('[TaskDeadlineMonitor] task pass failed:', err); }
+  try { await invoiceReminderService.runCheck(); } catch (err) { console.warn('[TaskDeadlineMonitor] invoice pass failed:', err); }
+}
+
 export function useTaskDeadlineMonitor() {
   useEffect(() => {
     // Run on mount with 5-second delay to let orgStore finish loading
-    const initial = setTimeout(runCheck, 5000);
+    const initial = setTimeout(runAll, 5000);
     // Run every hour
-    const interval = setInterval(runCheck, 60 * 60 * 1000);
+    const interval = setInterval(runAll, 60 * 60 * 1000);
     return () => {
       clearTimeout(initial);
       clearInterval(interval);

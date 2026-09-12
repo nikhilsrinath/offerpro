@@ -6,6 +6,14 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
+    // src/lib/supabase.js calls createClient() at import time and throws without
+    // a URL, so every test importing a service needed a real .env to exist. Unit
+    // tests must not depend on local secrets (and must never reach a real
+    // project): these are inert placeholders nothing ever connects to.
+    env: {
+      VITE_SUPABASE_URL: 'http://localhost:54321',
+      VITE_SUPABASE_ANON_KEY: 'test-anon-key',
+    },
     // api/ is included as well as src/: the serverless handlers hold the
     // recipient validation and the header-injection guards, which are exactly
     // the parts worth a unit test. They import lazily (supabaseAdmin() is only

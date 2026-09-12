@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useOrg } from '../context/OrgContext';
 import { orgStore } from '../services/orgStore';
-import { Search, Users, Calendar, Briefcase, Building, UserX, LayoutGrid, List } from 'lucide-react';
+import { Search, Users, Calendar, Briefcase, Building, UserX, LayoutGrid, List, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { listMembers } from '../services/permissionService';
 import { DEPT_PALETTE } from './TeamHierarchy';
 
 const AVATAR_COLORS = [
@@ -30,7 +31,7 @@ function fmtDate(d) {
     catch { return d; }
 }
 
-function ExEmpCard({ emp }) {
+function ExEmpCard({ emp, liveUserIds }) {
     const name = getDisplayName(emp);
     const [c1, c2] = getAvatarColor(name);
     return (
@@ -78,6 +79,7 @@ function ExEmpCard({ emp }) {
                                 {emp.offerType === 'fulltime' ? 'Full-Time' : emp.offerType === 'collaboration' ? 'Collaborator' : 'Intern'}
                             </span>
                         )}
+                        <AccessBadge emp={emp} liveUserIds={liveUserIds} />
                     </div>
                 </div>
             </div>
@@ -114,6 +116,43 @@ function ExEmpCard({ emp }) {
     );
 }
 
+/**
+ * Whether this person can still sign in — checked against the live membership
+ * list, not against a flag on the employee row.
+ *
+ * The brief promised access is revoked on exit and nothing implemented it:
+ * before 0029 an exit set `exited_at` and left the membership in place. The
+ * trigger now deletes it, but rows archived before that migration still carry
+ * a live login, and only comparing against `memberships` can tell them apart.
+ * `liveUserIds` is null while the list is still loading, or when the caller is
+ * not an admin and cannot read it — in which case nothing is claimed either way.
+ */
+function AccessBadge({ emp, liveUserIds }) {
+    if (!emp.user_id) return null;
+    if (!liveUserIds) return null;
+
+    const stillHasLogin = liveUserIds.has(emp.user_id);
+    const style = {
+        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+        fontSize: '0.68rem', fontWeight: 650, padding: '0.2rem 0.5rem',
+        borderRadius: '20px', whiteSpace: 'nowrap',
+        background: stillHasLogin ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.1)',
+        color: stillHasLogin ? '#f87171' : '#10b981',
+        border: `1px solid ${stillHasLogin ? 'rgba(239,68,68,0.25)' : 'rgba(16,185,129,0.22)'}`,
+    };
+
+    return (
+        <span style={style} title={stillHasLogin
+            ? 'This person still has a membership in this organization and can sign in. Remove them from Team access.'
+            : 'No membership row for this person: they cannot sign in to this organization.'}>
+            {stillHasLogin ? <ShieldAlert size={11} /> : <ShieldCheck size={11} />}
+            {stillHasLogin
+                ? 'Login still active'
+                : `Access revoked${emp.access_revoked_at ? ` ${fmtDate(emp.access_revoked_at)}` : ''}`}
+        </span>
+    );
+}
+
 function InfoCell({ icon, label, value, red }) {
     return (
         <div style={{ padding: '0.45rem 0.625rem', background: red ? 'rgba(239,68,68,0.05)' : 'rgba(255,255,255,0.03)', borderRadius: '7px', border: `1px solid ${red ? 'rgba(239,68,68,0.15)' : 'var(--border-subtle)'}` }}>
@@ -126,7 +165,7 @@ function InfoCell({ icon, label, value, red }) {
     );
 }
 
-function ExEmpRowCells({ emp }) {
+function ExEmpRowCells({ emp, liveUserIds }) {
     const name = getDisplayName(emp);
     const [c1, c2] = getAvatarColor(name);
     return (
@@ -161,7 +200,8 @@ function ExEmpRowCells({ emp }) {
                 {fmtDate(emp.terminated_at || emp.termination_date)}
             </td>
             <td style={{ padding: '0.875rem 1rem', fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                {fmtDate(emp.archived_at)}
+                <div>{fmtDate(emp.archived_at)}</div>
+                <div style={{ marginTop: '0.25rem' }}><AccessBadge emp={emp} liveUserIds={liveUserIds} /></div>
             </td>
         </>
     );
@@ -170,6 +210,10 @@ function ExEmpRowCells({ emp }) {
 export default function ExEmployees() {
     const { activeOrg } = useOrg();
     const [exEmployees, setExEmployees] = useState([]);
+    // The user ids that still hold a membership here. Null means "not known" —
+    // listMembers() is admin-only, so a member viewing this page gets no claim
+    // about anyone's access rather than a wrong one.
+    const [liveUserIds, setLiveUserIds] = useState(null);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [viewMode, setViewMode] = useState('grid');
@@ -183,6 +227,17 @@ export default function ExEmployees() {
             setLoading(false);
         });
         return () => unsubscribe();
+    }, [activeOrg?.id]);
+
+    useEffect(() => {
+        let cancelled = false;
+        Promise.resolve(activeOrg?.id ? listMembers(activeOrg.id) : null)
+            .then((members) => {
+                if (cancelled) return;
+                setLiveUserIds(members ? new Set(members.map((m) => m.user_id)) : null);
+            })
+            .catch(() => { if (!cancelled) setLiveUserIds(null); });
+        return () => { cancelled = true; };
     }, [activeOrg?.id]);
 
     const filtered = useMemo(() => {
@@ -282,7 +337,7 @@ export default function ExEmployees() {
                 </div>
             ) : viewMode === 'grid' ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
-                    {filtered.map(emp => <ExEmpCard key={emp.id} emp={emp} />)}
+                    {filtered.map(emp => <ExEmpCard key={emp.id} emp={emp} liveUserIds={liveUserIds} />)}
                 </div>
             ) : (
                 <div style={{ background: 'var(--surface)', borderRadius: '1rem', border: '1px solid rgba(239,68,68,0.15)', overflow: 'hidden' }}>
@@ -300,7 +355,7 @@ export default function ExEmployees() {
                             <tbody>
                                 {filtered.map((emp, i) => (
                                     <tr key={emp.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid var(--border-default)' : 'none' }}>
-                                        <ExEmpRowCells emp={emp} />
+                                        <ExEmpRowCells emp={emp} liveUserIds={liveUserIds} />
                                     </tr>
                                 ))}
                             </tbody>

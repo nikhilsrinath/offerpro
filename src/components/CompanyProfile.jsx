@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Upload, CheckCircle, Save, Loader, AlertCircle, Pencil, Sun, Moon, Mail, Zap, XCircle, Key, Download } from 'lucide-react';
+import { Upload, CheckCircle, Save, Loader, AlertCircle, Pencil, Sun, Moon, Mail, Zap, XCircle, Key, Download, KeyRound } from 'lucide-react';
 import { useOrg } from '../context/OrgContext';
 import { useAuth } from '../context/AuthContext';
 import { emailService } from '../services/emailService';
@@ -7,6 +7,8 @@ import { uploadOrgImage } from '../services/imageUploadService';
 import { supabase } from '../lib/supabase';
 
 import StampPreview from './StampPreview';
+import RolePermissions from './settings/RolePermissions';
+import PortalJoinCode from './settings/PortalJoinCode';
 import ImageEditor from './ImageEditor';
 
 export default function CompanyProfile({ theme, onToggleTheme }) {
@@ -860,6 +862,24 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Roles & permissions */}
+      <div className="easy-section">
+        <div className="easy-section-head">
+          <div className="easy-num"><Key size={14} /></div>
+          <span className="easy-section-title">Roles & permissions</span>
+        </div>
+        <RolePermissions orgId={activeOrg?.id} />
+      </div>
+
+      {/* Employee portal access */}
+      <div className="easy-section">
+        <div className="easy-section-head">
+          <div className="easy-num"><KeyRound size={14} /></div>
+          <span className="easy-section-title">Employee portal access</span>
+        </div>
+        <PortalJoinCode orgId={activeOrg?.id} />
       </div>
 
       {/* 9. Account Settings */}

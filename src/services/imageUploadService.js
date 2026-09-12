@@ -38,7 +38,20 @@ export const IMAGE_KINDS = {
     maxBytes: Math.floor(1 * 1024 * 1024 * 0.9),
     quality: 0.9,
   },
+  // 0029: employee-photos, private, 2 MB, png|jpeg|webp. Shown at avatar size
+  // on the employee card and in the org chart, so 512 is already generous.
+  employeePhoto: {
+    bucket: 'employee-photos',
+    pathField: 'photo_path',
+    maxDimension: 512,
+    maxBytes: Math.floor(2 * 1024 * 1024 * 0.9),
+    quality: 0.85,
+  },
 };
+
+// Buckets whose objects are not publicly readable: an <img> needs a signed URL
+// rather than a public one. A staff photo is not something to leave on a CDN.
+const PRIVATE_BUCKETS = new Set(['signatures', 'employee-photos']);
 
 // SVG has no reliable intrinsic size: many exports carry only a viewBox, and an
 // <img> then reports the CSS default 150x150 rather than 0x0 — small enough to
@@ -310,12 +323,12 @@ export async function resolveImageUrl(value, bucket) {
   if (!value) return '';
   if (isDataUrl(value) || isHttpUrl(value)) return value;
 
-  if (bucket === 'signatures') {
-    // Private bucket: needs a signed URL. One hour outlives any editing session
-    // without leaving a long-lived link in the page.
+  if (PRIVATE_BUCKETS.has(bucket)) {
+    // Needs a signed URL. One hour outlives any editing session without leaving
+    // a long-lived link in the page.
     const { data, error } = await supabase.storage.from(bucket).createSignedUrl(value, 3600);
     if (error) {
-      console.warn('[imageUpload] could not sign signature URL:', error.message);
+      console.warn(`[imageUpload] could not sign ${bucket} URL:`, error.message);
       return '';
     }
     return data.signedUrl;

@@ -7,7 +7,8 @@ import {
   UploadCloud, FileCheck, FileSignature, History,
   FileSpreadsheet, Activity, Receipt, FilePlus, RotateCcw, ArrowLeft,
   Sun, Moon, GitBranch, UserX, Kanban, CheckSquare,
-  FileText, BarChart3, File, Package, PieChart as PieChartIcon
+  FileText, BarChart3, File, Package, PieChart as PieChartIcon,
+  Truck, FileInput, TrendingUp, CalendarCheck, Plane, Megaphone
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
 import subPages from './components/landing/subPageData';
@@ -48,12 +49,22 @@ import BulkTeamMembers from './components/bulk/BulkTeamMembers';
 import OfferTracker from './components/OfferTracker';
 import BulkHistory from './components/bulk/BulkHistory';
 import RecipientPortal from './components/portal/RecipientPortal';
+import EmployeePortal from './components/portal/EmployeePortal';
+import JoinPortal from './components/portal/JoinPortal';
+import AttendanceSheet from './components/people/AttendanceSheet';
+import LeaveRequests from './components/people/LeaveRequests';
+import Announcements from './components/people/Announcements';
+import { meService } from './services/meService';
 import { ToastProvider } from './components/shared/Toast';
 
 // Financial Documents
 import QuotationForm from './components/financial/QuotationForm';
 import ProformaInvoiceForm from './components/financial/ProformaInvoiceForm';
 import FinanceStatus from './components/financial/FinanceStatus';
+import Vendors from './components/financial/Vendors';
+import PurchaseInvoices from './components/financial/PurchaseInvoices';
+import TaxSummary from './components/financial/TaxSummary';
+import ProfitLoss from './components/financial/ProfitLoss';
 import InvoiceList from './components/financial/InvoiceList';
 import { RecurringInvoiceForm, RecurringInvoiceList } from './components/financial/RecurringInvoiceForm';
 import { documentStore } from './services/documentStore';
@@ -63,9 +74,10 @@ import { buildEdgeContext } from './services/cofounderAI';
 
 const MODULE_FILTER = {
   overall: ['dashboard'],
-  team: ['team-hierarchy', 'employees', 'offer-tracker', 'ex-employees', 'tasks', 'bulk-team'],
+  team: ['team-hierarchy', 'employees', 'offer-tracker', 'ex-employees', 'tasks', 'bulk-team',
+         'attendance', 'leave', 'announcements'],
   documents: ['offers', 'new-certificates', 'certificates', 'ndas', 'mous', 'bulk-offers', 'bulk-certificates'],
-  finance: ['finance-status', 'invoices', 'quotations', 'proforma', 'recurring'],
+  finance: ['finance-status', 'invoices', 'quotations', 'proforma', 'recurring', 'vendors', 'purchases', 'tax-summary', 'profit-loss'],
   business: ['crm', 'customers', 'products', 'revenue', 'planner'],
   data: ['records', 'bulk-history']
 };
@@ -78,6 +90,10 @@ const NAV_ITEMS = [
   { id: 'offer-tracker', label: 'Offer Tracker', icon: Activity },
   { id: 'ex-employees', label: 'Ex-Employees', icon: UserX },
   { id: 'tasks', label: 'Task Board', icon: CheckSquare },
+  { section: 'PEOPLE OPS' },
+  { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
+  { id: 'leave', label: 'Leave', icon: Plane },
+  { id: 'announcements', label: 'Announcements', icon: Megaphone },
   { section: 'DOCUMENTS' },
   { id: 'offers', label: 'Offer Letters', icon: Briefcase },
   { id: 'new-certificates', label: 'Certificates', icon: Award },
@@ -89,6 +105,10 @@ const NAV_ITEMS = [
   { id: 'quotations', label: 'Quotations', icon: FilePlus },
   { id: 'proforma', label: 'Proforma Invoice', icon: FileCheck },
   { id: 'recurring', label: 'Recurring', icon: RotateCcw },
+  { id: 'vendors', label: 'Vendors', icon: Truck },
+  { id: 'purchases', label: 'Purchase Invoices', icon: FileInput },
+  { id: 'tax-summary', label: 'Tax Summary', icon: Scale },
+  { id: 'profit-loss', label: 'Profit & Loss', icon: TrendingUp },
   { section: 'BUSINESS' },
   { id: 'crm', label: 'CRM', icon: Kanban },
   { id: 'customers', label: 'Customers', icon: Users },
@@ -117,6 +137,10 @@ const PAGE_META = {
   quotations: { title: 'Quotations', subtitle: 'View and manage your quotations' },
   proforma: { title: 'Proforma Invoices', subtitle: 'View and manage your proforma invoices' },
   recurring: { title: 'Recurring Invoices', subtitle: 'Set up and manage recurring invoices' },
+  vendors: { title: 'Vendors', subtitle: 'Suppliers, payment terms and what you owe each of them' },
+  purchases: { title: 'Purchase Invoices', subtitle: 'Bills received from vendors — money out as a tracked payable' },
+  'tax-summary': { title: 'Tax Summary', subtitle: 'Output GST against input GST — a preparation aid, not a filing tool' },
+  'profit-loss': { title: 'Profit & Loss', subtitle: 'Income, expenses and net profit for any period' },
   'new-invoice': { title: 'New Invoice', subtitle: 'Generate professional business invoices' },
   'new-quotation': { title: 'New Quotation', subtitle: 'Create a quotation for your client' },
   'new-proforma': { title: 'New Proforma Invoice', subtitle: 'Create proforma invoices with advance payment tracking' },
@@ -128,6 +152,10 @@ const PAGE_META = {
   records: { title: 'Records', subtitle: 'Manage and download issued documents' },
   employees: { title: 'Employee Registry', subtitle: 'Manage your internal team and onboarding' },
   'ex-employees': { title: 'Ex-Employees', subtitle: 'Archive of employees who have left the organization' },
+  me: { title: 'My Portal', subtitle: 'Your attendance, leave and announcements' },
+  attendance: { title: 'Attendance', subtitle: 'Daily sheet, monthly calendar and export' },
+  leave: { title: 'Leave', subtitle: 'Approve requests, track balances and set quotas' },
+  announcements: { title: 'Announcements', subtitle: 'Broadcast to the whole team or one department' },
   'team-hierarchy': { title: 'Team Hierarchy', subtitle: 'Visual org chart — drag nodes and connect reporting lines' },
   'offer-tracker': { title: 'Offer Tracker', subtitle: 'Real-time acceptance status for all sent offer letters' },
   'bulk-offers': { title: 'Bulk Offer Letters', subtitle: 'Generate and distribute multiple offer letters at once' },
@@ -221,6 +249,21 @@ function AppContent() {
     window.addEventListener('resize', handler);
     return () => window.removeEventListener('resize', handler);
   }, []);
+
+  // An `employee` (0029) holds no org-wide permission at all — their access is
+  // to their own attendance and leave rows. Rendering the admin shell for them
+  // would be a sidebar of screens that all come back empty, so they get the
+  // portal instead. This is presentation only: the RLS policies are what
+  // actually stop them reading the rest of the organization.
+  // undefined = not yet known, which is why the load gate below waits on it.
+  const [myRole, setMyRole] = useState(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    Promise.resolve(user && activeOrg?.id ? meService.getMyRole(activeOrg.id) : null)
+      .then((r) => { if (!cancelled) setMyRole(r); })
+      .catch(() => { if (!cancelled) setMyRole(null); });
+    return () => { cancelled = true; };
+  }, [user, activeOrg?.id]);
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const refreshNotifications = useCallback(() => {
@@ -281,6 +324,21 @@ function AppContent() {
   if (needsOnboarding) {
     return <Registration isGoogleUser={true} onBack={() => logout()} />;
   }
+
+  // Wait for the role before choosing a shell, so an employee never sees the
+  // admin sidebar flash past on the way to their portal.
+  if (activeOrg?.id && myRole === undefined) {
+    return (
+      <div className="app-loading">
+        <div style={{ textAlign: 'center' }}>
+          <div className="app-loading-spinner" />
+          <span className="app-loading-text">Loading EdgeOS...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (myRole === 'employee') return <EmployeePortal />;
 
   const meta = activePage === 'new-quotation' && editingDocId
     ? { title: 'Edit Quotation', subtitle: `Revising ${editingDocId}` }
@@ -576,6 +634,10 @@ function AppContent() {
             <Route path="quotations" element={<InvoiceList type="quotation" />} />
             <Route path="proforma" element={<InvoiceList type="proforma" />} />
             <Route path="recurring" element={<RecurringInvoiceList />} />
+            <Route path="vendors" element={<Vendors />} />
+            <Route path="purchases" element={<PurchaseInvoices />} />
+            <Route path="tax-summary" element={<TaxSummary />} />
+            <Route path="profit-loss" element={<ProfitLoss />} />
             <Route path="recurring/new" element={<RecurringInvoiceForm />} />
             <Route path="recurring/edit/:id" element={<RecurringInvoiceFormWrapper />} />
             <Route path="new-invoice" element={<InvoiceForm />} />
@@ -591,6 +653,10 @@ function AppContent() {
             <Route path="employees" element={<Employees />} />
             <Route path="employees/new" element={<EmployeeForm />} />
             <Route path="ex-employees" element={<ExEmployees />} />
+            <Route path="me" element={<EmployeePortal />} />
+            <Route path="attendance" element={<AttendanceSheet />} />
+            <Route path="leave" element={<LeaveRequests />} />
+            <Route path="announcements" element={<Announcements />} />
             <Route path="team-hierarchy" element={<TeamHierarchy />} />
             <Route path="offer-tracker" element={<OfferTracker onNavigate={routerNavigate} />} />
             <Route path="tasks" element={<TasksPage />} />
@@ -665,6 +731,9 @@ function App() {
         <ToastProvider>
           <Routes>
             <Route path="/portal/:documentId" element={<PortalRouteWrapper />} />
+            {/* Outside AppContent: whoever lands here has no membership yet,
+                and the shell would read that as "needs to create a company". */}
+            <Route path="/join" element={<JoinPortal />} />
             {Object.keys(subPages).map(path => {
               const SubPageComponent = subPages[path];
               return (

@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, ArrowRight, ChevronRight, UserCircle, Briefcase,
     Mail, Phone, Calendar, MapPin, DollarSign, FileText, Users,
-    CheckCircle, Zap, Hash, Building, Link2
+    CheckCircle, Zap, Hash, Building, Link2, Camera, Trash2
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
+import { uploadOrgImage } from '../services/imageUploadService';
+import EmployeeAvatar from './shared/EmployeeAvatar';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 
@@ -26,6 +28,9 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
     const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
+    const photoInputRef = useRef(null);
+    const [photoBusy, setPhotoBusy] = useState(false);
+    const [photoError, setPhotoError] = useState('');
 
     const [formData, setFormData] = useState(() => {
         // If editing, pre-fill with employee data
@@ -33,6 +38,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
             return {
                 offerType: employee.offerType || 'fulltime',
                 studentName: employee.studentName || employee.first_name || '',
+                photo_path: employee.photo_path || null,
                 email: employee.email || '',
                 phone: employee.phone || '',
                 studentAddress: employee.studentAddress || '',
@@ -69,6 +75,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
         return {
             offerType: 'fulltime',
             studentName: '',
+            photo_path: null,
             email: '',
             phone: '',
             studentAddress: '',
@@ -120,6 +127,27 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
 
     const handleBack = () => {
         if (step > 1) setStep(step - 1);
+    };
+
+    // Uploaded straight away rather than held until save: processImage() resizes
+    // and re-encodes, and doing that during a multi-step submit would stall the
+    // whole form on an operation that can fail on its own.
+    const handlePhoto = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        setPhotoBusy(true);
+        setPhotoError('');
+        try {
+            const { path } = await uploadOrgImage({
+                orgId: activeOrg?.id, kind: 'employeePhoto', source: file,
+            });
+            setFormData((f) => ({ ...f, photo_path: path }));
+        } catch (err) {
+            setPhotoError(err.message || 'Could not upload that photo.');
+        } finally {
+            setPhotoBusy(false);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -255,6 +283,26 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                                 <p>Enter the employee's personal and contact details.</p>
                             </div>
                             <div className="empf-fields">
+                                <div className="empf-field">
+                                    <label className="empf-label">Photo</label>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                        <EmployeeAvatar name={formData.studentName} photoPath={formData.photo_path} size={56} />
+                                        <input ref={photoInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handlePhoto} hidden />
+                                        <button type="button" className="prod-btn-ghost" onClick={() => photoInputRef.current?.click()} disabled={photoBusy}>
+                                            <Camera size={14} /> {photoBusy ? 'Uploading…' : formData.photo_path ? 'Replace' : 'Add photo'}
+                                        </button>
+                                        {formData.photo_path && (
+                                            <button type="button" className="prod-btn-ghost" onClick={() => setFormData((f) => ({ ...f, photo_path: null }))}>
+                                                <Trash2 size={14} /> Remove
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="prod-field-note">
+                                        PNG, JPEG or WebP. Resized automatically and stored privately, so it is
+                                        only visible to people who can see the team.
+                                    </div>
+                                    {photoError && <div className="prod-form-error">{photoError}</div>}
+                                </div>
                                 <div className="empf-field">
                                     <label className="empf-label">Full Name</label>
                                     <div className="empf-input-wrap">

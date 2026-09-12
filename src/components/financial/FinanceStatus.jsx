@@ -10,6 +10,7 @@ import { documentStore, docNumber as docNo } from '../../services/documentStore'
 import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
 import PortalLinkGenerator from '../shared/PortalLinkGenerator';
+import PaymentPositionCards from './PaymentPositionCards';
 
 const TYPE_CONFIG = {
   quotation: { label: 'Quotation', icon: FilePlus, color: '#3b82f6', prefix: 'QUO' },
@@ -133,6 +134,7 @@ export default function FinanceStatus() {
 
   return (
     <div className="fin-status animate-in">
+      <PaymentPositionCards />
       {/* Summary Cards */}
       <div className="fin-status-stats">
         <div className="fin-status-stat-card">

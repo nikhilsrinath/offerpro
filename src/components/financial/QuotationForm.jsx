@@ -84,7 +84,7 @@ export default function QuotationForm({ editDocId }) {
   const [isEditing, setIsEditing] = useState(false);
   const [originalCreatedAt, setOriginalCreatedAt] = useState(null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     clientName: '',
     clientCompany: '',
     clientAddress: '',
@@ -107,7 +107,7 @@ export default function QuotationForm({ editDocId }) {
     ],
     paymentInstructions: '',
     terms: '',
-  });
+  }));
 
   // Set Firebase context for cloud sync
   useEffect(() => {

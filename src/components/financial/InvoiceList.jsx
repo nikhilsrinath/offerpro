@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, Edit3, Copy, CheckCircle, Bell, Search, Filter, Plus, ChevronDown, ChevronUp, X, Download, MessageSquare, RotateCcw, XCircle } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -10,6 +10,8 @@ import DocumentStatusBadge from '../shared/DocumentStatusBadge';
 import PortalLinkGenerator from '../shared/PortalLinkGenerator';
 import { useToast } from '../shared/Toast';
 import { esc, safeImageUrl } from '../../utils/htmlEscape';
+import { isOverdue, balanceOf, daysOverdue } from '../../services/financeAnalytics';
+import { invoiceReminderService } from '../../services/invoiceReminderService';
 
 export default function InvoiceList({ type = 'invoice' }) {
   const navigate = useNavigate();
@@ -18,7 +20,10 @@ export default function InvoiceList({ type = 'invoice' }) {
   const [documents, setDocuments] = useState([]);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('date_desc');
-  const [statusFilter, setStatusFilter] = useState('all');
+  // Payment position cards on Finance Status link here with ?filter=, so the
+  // initial filter comes from the URL when there is one.
+  const [searchParams] = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('filter') || 'all');
   const [showPortalLink, setShowPortalLink] = useState(null);
   const [expandedPayment, setExpandedPayment] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -52,7 +57,15 @@ export default function InvoiceList({ type = 'invoice' }) {
         (d.id || '').toLowerCase().includes(search.toLowerCase()) ||
         (d.issued_to || '').toLowerCase().includes(search.toLowerCase()) ||
         (d.client?.name || '').toLowerCase().includes(search.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || d.status === statusFilter;
+      // outstanding/collected are derived views rather than statuses, and
+      // overdue is computed from the due date so a partially paid invoice past
+      // due is included even though its status column says partially_paid.
+      const matchesStatus = statusFilter === 'all'
+        || (statusFilter === 'overdue' && (isOverdue(d) || d.status === 'overdue'))
+        || (statusFilter === 'outstanding' && d.type === 'invoice'
+          && !['draft', 'cancelled', 'paid'].includes(d.status) && balanceOf(d) > 0.009)
+        || (statusFilter === 'collected' && Number(d.amount_paid) > 0)
+        || d.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
     return [...filtered].sort((a, b) => {
@@ -446,7 +459,7 @@ export default function InvoiceList({ type = 'invoice' }) {
     loadDocuments();
   };
 
-  let statuses = ['all', 'draft', 'sent', 'viewed', 'payment_submitted', 'paid', 'overdue', 'partially_paid'];
+  let statuses = ['all', 'draft', 'sent', 'viewed', 'payment_submitted', 'paid', 'overdue', 'partially_paid', 'outstanding', 'collected'];
   if (type === 'quotation') {
     statuses = ['all', 'draft', 'sent', 'viewed', 'accepted', 'revision_requested', 'declined', 'converted'];
   }
@@ -532,7 +545,15 @@ export default function InvoiceList({ type = 'invoice' }) {
                   <td className="fin-list-amount">₹{(doc.grand_total || doc.amount || 0).toLocaleString('en-IN')}</td>
                   {type === 'invoice' && <td>₹{(doc.gst || 0).toLocaleString('en-IN')}</td>}
                   <td>{doc.issue_date || '-'}</td>
-                  <td>{doc.valid_until || doc.due_date || '-'}</td>
+                  <td>
+                    {doc.valid_until || doc.due_date || '-'}
+                    {isOverdue(doc) && (
+                      <div style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: 600 }}>
+                        {daysOverdue(doc)}d overdue
+                        {doc.reminder_count ? ` · ${doc.reminder_count} reminder${doc.reminder_count > 1 ? 's' : ''}` : ''}
+                      </div>
+                    )}
+                  </td>
                   <td><DocumentStatusBadge status={doc.status} size="small" /></td>
                   <td>
                     <div className="fin-list-actions">
@@ -547,6 +568,19 @@ export default function InvoiceList({ type = 'invoice' }) {
                       >
                         {downloadingId === doc.id ? <span className="fin-list-spin" /> : <Download size={14} />}
                       </button>
+                      {type === 'invoice' && isOverdue(doc) && doc.clientEmail && (
+                        <button
+                          className="fin-list-action-btn"
+                          title="Send payment reminder now"
+                          onClick={async () => {
+                            const res = await invoiceReminderService.send(doc);
+                            toast(res.message || (res.success ? 'Reminder sent' : 'Reminder failed'), res.success ? 'success' : 'error');
+                            loadDocuments();
+                          }}
+                        >
+                          <Bell size={14} />
+                        </button>
+                      )}
                       {type === 'invoice' && doc.status !== 'paid' && (
                         <button className="fin-list-action-btn success" title="Mark Paid" onClick={() => handleMarkPaid(doc.id)}>
                           <CheckCircle size={14} />

@@ -60,6 +60,25 @@ export default defineConfig([
       'react/no-unescaped-entities': 'off',
       'react/no-unknown-property': 'off',
       'react/jsx-key': 'error',
+
+      // Context files export their hook beside their provider (useAuth, useOrg,
+      // useToast) — the idiomatic shape, and splitting each into two files buys
+      // nothing but a slightly faster hot reload of a provider nobody edits.
+      // DEPT_PALETTE is a constant two screens import from TeamHierarchy.
+      'react-refresh/only-export-components': ['error', {
+        allowConstantExport: true,
+        allowExportNames: ['useAuth', 'useOrg', 'useToast', 'DEPT_PALETTE'],
+      }],
+
+      // These two come from the React Compiler rule set bundled into
+      // eslint-plugin-react-hooks v7. This project does not run the compiler
+      // (no babel-plugin-react-compiler; vite.config.js uses plain react()), so
+      // they flag patterns that are correct here: every screen loads its data in
+      // a mount effect that sets `loading` first. Replacing that pattern wholesale
+      // is a data-fetching-library decision for Phase 2, not a lint fix, so they
+      // stay visible as warnings rather than being "fixed" one effect at a time.
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/preserve-manual-memoization': 'warn',
     },
   },
   {

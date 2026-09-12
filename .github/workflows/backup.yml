@@ -1,0 +1,160 @@
+# Weekly off-platform backup — docs/RUNBOOK-restore.md §4.
+#
+# Supabase's own backups and PITR live inside the Supabase account. They protect
+# against our mistakes, not against losing the account itself (billing failure,
+# suspension, a compromised owner login). This is the copy that survives that.
+#
+# Output: a GitHub Actions artifact per run, retained 90 days, containing
+#   db/edgeos-<date>.dump   pg_dump custom format (restore with pg_restore)
+#   storage/<bucket>/...    every object in the three buckets
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL            Direct Postgres connection string, session mode
+#                              (Dashboard → Project Settings → Database). Use the
+#                              port-5432 URL, not the 6543 pooler: pg_dump needs a
+#                              session.
+#   SUPABASE_URL               https://<ref>.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY  for listing and downloading Storage objects
+#   BACKUP_PASSPHRASE          long random string; the archive is encrypted with
+#                              it. Store a copy OUTSIDE GitHub — without it the
+#                              backup cannot be opened.
+#
+# The archive is encrypted before upload because workflow artifacts are readable
+# by anyone with read access to the repository, and on a public repository by any
+# signed-in GitHub user. An unencrypted dump would publish every tenant's data,
+# salaries and bank details included.
+#
+# To restore:  gpg --decrypt edgeos-backup.tar.gz.gpg | tar xz
+#
+# 90 days of weeklies is ~13 copies. For the 12-month retention in FIX_PLAN
+# item 9, download one run per month into cold storage, or point the upload step
+# at an S3/R2 bucket with a lifecycle rule — artifacts max out at 90 days.
+
+name: Weekly backup
+
+on:
+  schedule:
+    - cron: '30 20 * * 0'   # Sundays 20:30 UTC (Monday 02:00 IST)
+  workflow_dispatch: {}      # and on demand, for the restore rehearsal
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+
+    steps:
+      - name: Refuse to run without secrets
+        run: |
+          for v in SUPABASE_DB_URL SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY BACKUP_PASSPHRASE; do
+            if [ -z "${!v}" ]; then echo "::error::missing secret $v"; exit 1; fi
+          done
+
+      # pg_dump must be at least the server's major version (17, per
+      # supabase/config.toml); the runner's default client is older.
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+            https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          /usr/lib/postgresql/17/bin/pg_dump --version
+
+      - name: Dump the database
+        run: |
+          mkdir -p out/db
+          # public + app hold the tenant data and the functions RLS depends on;
+          # auth holds the users that memberships.user_id points at. Restoring
+          # data without auth.users breaks every membership (runbook §3.4 step 5).
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" \
+            --format=custom --no-owner --no-acl \
+            --schema=public --schema=app --schema=auth \
+            --file="out/db/edgeos-$(date -u +%F).dump"
+          ls -lh out/db
+
+      - name: Verify the dump is readable
+        run: |
+          # A dump that pg_restore cannot list is not a backup. Fail the run, so a
+          # broken backup shows up as a red X rather than as a surprise at restore.
+          n=$(/usr/lib/postgresql/17/bin/pg_restore --list out/db/*.dump | grep -c "TABLE DATA")
+          echo "tables with data: $n"
+          if [ "$n" -lt 20 ]; then echo "::error::dump lists only $n tables"; exit 1; fi
+
+      - name: Download Storage objects
+        run: |
+          node - <<'EOF'
+          const fs = require('fs'), path = require('path');
+          const base = process.env.SUPABASE_URL.replace(/\/$/, '');
+          const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+          const H = { apikey: key, Authorization: `Bearer ${key}` };
+          const buckets = ['org-branding', 'signatures', 'uploads'];
+
+          async function list(bucket, prefix) {
+            const out = [];
+            for (let offset = 0; ; offset += 1000) {
+              const r = await fetch(`${base}/storage/v1/object/list/${bucket}`, {
+                method: 'POST', headers: { ...H, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prefix, limit: 1000, offset }),
+              });
+              if (r.status === 400 || r.status === 404) return out; // bucket absent
+              if (!r.ok) throw new Error(`${bucket} list ${r.status}`);
+              const page = await r.json();
+              for (const e of page) {
+                const p = prefix ? `${prefix}/${e.name}` : e.name;
+                if (e.id) out.push(p); else out.push(...await list(bucket, p));
+              }
+              if (page.length < 1000) return out;
+            }
+          }
+
+          (async () => {
+            let total = 0;
+            for (const bucket of buckets) {
+              const files = await list(bucket, '');
+              for (const f of files) {
+                const r = await fetch(`${base}/storage/v1/object/${bucket}/${f}`, { headers: H });
+                if (!r.ok) throw new Error(`${bucket}/${f} ${r.status}`);
+                const dest = path.join('out', 'storage', bucket, f);
+                fs.mkdirSync(path.dirname(dest), { recursive: true });
+                fs.writeFileSync(dest, Buffer.from(await r.arrayBuffer()));
+              }
+              console.log(`${bucket}: ${files.length} objects`);
+              total += files.length;
+            }
+            console.log(`total objects: ${total}`);
+          })().catch((e) => { console.error(e); process.exit(1); });
+          EOF
+
+      - name: Encrypt
+        run: |
+          tar czf backup.tar.gz -C out .
+          gpg --batch --yes --pinentry-mode loopback \
+              --passphrase-fd 3 3<<<"$BACKUP_PASSPHRASE" \
+              --symmetric --cipher-algo AES256 \
+              --output edgeos-backup.tar.gz.gpg backup.tar.gz
+          # Nothing unencrypted may reach the upload step.
+          rm -rf out backup.tar.gz
+          ls -lh edgeos-backup.tar.gz.gpg
+
+      - name: Upload backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: edgeos-backup-${{ github.run_id }}
+          path: edgeos-backup.tar.gz.gpg
+          retention-days: 90
+          if-no-files-found: error

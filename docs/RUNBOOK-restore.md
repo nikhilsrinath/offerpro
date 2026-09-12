@@ -156,9 +156,12 @@ stale URL in a `company_snapshot` is expected and harmless.
 
 ## 4. The off-platform copy (scheduled, outside this repo)
 
-Nothing in this project runs on a schedule — there is no cron, no queue, no
-worker (`feature-audit.md` #29). So this is a GitHub Actions workflow or an
-external scheduler, and it is **not yet created**:
+Implemented as **`.github/workflows/backup.yml`**: weekly (Sunday 20:30 UTC) and on
+demand, it dumps `public`, `app` and `auth`, verifies the dump with `pg_restore
+--list`, downloads every Storage object, encrypts the lot with `BACKUP_PASSPHRASE`
+and uploads it as a 90-day artifact. It needs four repository secrets — listed at
+the top of the file — and does nothing until they are set. Keep the passphrase
+outside GitHub. The sketch below is kept for anyone moving it to S3/R2:
 
 ```yaml
 # .github/workflows/backup.yml — TO BE CREATED

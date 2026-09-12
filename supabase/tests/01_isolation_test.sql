@@ -107,7 +107,8 @@ begin
   begin
     execute p_sql;
   exception when insufficient_privilege or check_violation or raise_exception
-                 or unique_violation or foreign_key_violation or not_null_violation then
+                 or unique_violation or foreign_key_violation or not_null_violation
+                 or invalid_parameter_value then
     raise notice '  PASS  % [error: %]', p_label, left(sqlerrm, 60);
     return;
   end;
@@ -181,7 +182,11 @@ set request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
 select assert((select count(*) from employees) = 1,              'member sees org employees');
 select assert((select count(*) from employee_compensation) = 0,  'member CANNOT see salaries');
 select assert((select count(*) from org_banking) = 0,            'member CANNOT see bank details');
-select assert((select count(*) from audit_log) = 0,              'member CANNOT read the audit log');
+-- 0021 widened audit reads to members, except the admin-only entity types. The
+-- fixture inserts above fire the 0020 triggers, so there IS a compensation row.
+select assert((select count(*) from audit_log
+                where entity_type = any(array['employee_compensation','organization'])) = 0,
+              'member CANNOT read compensation/organization audit rows');
 
 -- viewer: read-only
 set request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
@@ -733,7 +738,7 @@ select assert(
 \echo ''
 \echo '════ 25. the audit trigger records edits, and cannot be forged (0020) ════'
 reset role;
-delete from audit_log where org_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+truncate audit_log;  -- DELETE is blocked by app.forbid_write even here; TRUNCATE fires no row trigger
 
 -- An ordinary member edit writes exactly one row, naming the actor and the field.
 set role authenticated;
@@ -837,7 +842,8 @@ select assert(
   (select count(*) from audit_log
     where org_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 0,
   'another org''s owner reads none of it');
-reset role;
+reset role; set role anon;   -- was missing: the check ran as the superuser
+set request.jwt.claim.sub = '';
 select assert_denied('select * from audit_log', 'anon cannot read the audit log');
 
 \echo ''
@@ -953,11 +959,11 @@ select assert(
   'no client row carries a key in extra that duplicates a column');
 
 -- Leave the audit log as the fixture found it, so a re-run starts clean.
-delete from audit_log where org_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+truncate audit_log;  -- DELETE is blocked by app.forbid_write even here; TRUNCATE fires no row trigger
 update clients set notes = null where id = 'cccccccc-0000-0000-0000-00000000000a';
 update employee_compensation set amount = 1800000.00
   where employee_id = 'eeeeeeee-0000-0000-0000-00000000000a';
-delete from audit_log where org_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+truncate audit_log;  -- DELETE is blocked by app.forbid_write even here; TRUNCATE fires no row trigger
 
 \echo ''
 \echo '╔══════════════════════════════════════════════════════════╗'

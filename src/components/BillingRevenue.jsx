@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   DollarSign, TrendingUp, TrendingDown, Plus, Trash2,
-  Receipt, Wallet, PiggyBank, Package
+  Receipt, Wallet, PiggyBank, Package, Paperclip, Upload
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -13,6 +13,8 @@ import { orgStore } from '../services/orgStore';
 import { catalogService } from '../services/catalogService';
 import { useOrg } from '../context/OrgContext';
 import { useNavigate } from 'react-router-dom';
+import { receiptService, RECEIPT_ACCEPT } from '../services/receiptService';
+import { ReceiptField } from './financial/financeUi';
 
 const EXPENSE_CATEGORIES = ['Operations', 'Marketing', 'Salaries', 'Tools & Software', 'Office', 'Travel', 'Other'];
 
@@ -37,8 +39,12 @@ export default function BillingRevenue() {
     description: '',
     amount: '',
     category: 'Operations',
-    date: new Date().toISOString().split('T')[0]
+    date: new Date().toISOString().split('T')[0],
+    tax_amount: '',
+    vendor_id: '',
+    receipt_path: null,
   });
+  const vendors = orgStore.getSectionAsList('vendors').filter((v) => !v.archived_at);
 
   useEffect(() => {
     if (activeOrg) loadData();
@@ -138,20 +144,43 @@ export default function BillingRevenue() {
     e.preventDefault();
     if (!newExpense.description || !newExpense.amount) return;
 
+    if (Number(newExpense.tax_amount) > Number(newExpense.amount)) {
+      alert('The GST included cannot be more than the amount.');
+      return;
+    }
     await orgStore.addItem('expenses', {
       ...newExpense,
       amount: Number(newExpense.amount),
+      tax_amount: Number(newExpense.tax_amount) || 0,
     });
 
-    setNewExpense({ description: '', amount: '', category: 'Operations', date: new Date().toISOString().split('T')[0] });
+    setNewExpense({
+      description: '', amount: '', category: 'Operations', date: new Date().toISOString().split('T')[0],
+      tax_amount: '', vendor_id: '', receipt_path: null,
+    });
     setShowAddExpense(false);
     loadData();
+  };
+
+  // Attach a receipt to an expense that was saved without one.
+  const handleAttachReceipt = async (exp, file) => {
+    if (!file) return;
+    try {
+      const path = await receiptService.upload(activeOrg.id, 'expenses', file);
+      await orgStore.updateItem('expenses', exp.id, { receipt_path: path });
+      if (exp.receipt_path) receiptService.remove(exp.receipt_path);
+      loadData();
+    } catch (err) {
+      alert(err.message || 'Could not upload the receipt.');
+    }
   };
 
   const handleDeleteExpense = async (id) => {
     if (!window.confirm('Delete this expense?')) return;
     try {
+      const exp = expenses.find((x) => x.id === id);
       await orgStore.removeItem('expenses', id);
+      if (exp?.receipt_path) receiptService.remove(exp.receipt_path);
     } catch (err) {
       alert('Error deleting expense: ' + err.message);
     }
@@ -477,6 +506,20 @@ export default function BillingRevenue() {
             </select>
             <input type="date" value={newExpense.date}
               onChange={e => setNewExpense({ ...newExpense, date: e.target.value })} className="pro-input" />
+            <input type="number" min="0" step="0.01" placeholder="GST included (₹, optional)" value={newExpense.tax_amount}
+              title="Input GST included in the amount — counted as input credit on the Tax Summary"
+              onChange={e => setNewExpense({ ...newExpense, tax_amount: e.target.value })} className="pro-input" />
+            {vendors.length > 0 && (
+              <select value={newExpense.vendor_id}
+                onChange={e => setNewExpense({ ...newExpense, vendor_id: e.target.value })} className="pro-input">
+                <option value="">No vendor</option>
+                {vendors.map(v => <option key={v.id} value={v.id}>{v.company_name}</option>)}
+              </select>
+            )}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <ReceiptField path={newExpense.receipt_path} kind="expenses"
+                onChange={(p) => setNewExpense((x) => ({ ...x, receipt_path: p }))} />
+            </div>
             <div className="billing-expense-form-actions">
               <button type="submit" className="billing-save-btn">Save</button>
               <button type="button" className="billing-cancel-btn" onClick={() => setShowAddExpense(false)}>Cancel</button>
@@ -496,10 +539,24 @@ export default function BillingRevenue() {
               <div key={exp.id} className="billing-expense-item">
                 <div className="billing-expense-info">
                   <span className="billing-expense-desc">{exp.description}</span>
-                  <span className="billing-expense-meta">{exp.category} · {new Date(exp.date).toLocaleDateString()}</span>
+                  <span className="billing-expense-meta">
+                    {exp.category} · {new Date(exp.date).toLocaleDateString()}
+                    {Number(exp.tax_amount) > 0 ? ` · GST ₹${Number(exp.tax_amount).toLocaleString()}` : ''}
+                  </span>
                 </div>
                 <div className="billing-expense-right">
                   <span className="billing-expense-amount">₹{Number(exp.amount).toLocaleString()}</span>
+                  {exp.receipt_path ? (
+                    <button className="billing-delete-btn" title="View receipt" onClick={() => receiptService.open(exp.receipt_path)}>
+                      <Paperclip size={14} />
+                    </button>
+                  ) : (
+                    <label className="billing-delete-btn" title="Attach receipt (PDF or image, max 5 MB)" style={{ cursor: 'pointer' }}>
+                      <Upload size={14} />
+                      <input type="file" accept={RECEIPT_ACCEPT} hidden
+                        onChange={(e) => { handleAttachReceipt(exp, e.target.files?.[0]); e.target.value = ''; }} />
+                    </label>
+                  )}
                   <button className="billing-delete-btn" onClick={() => handleDeleteExpense(exp.id)}>
                     <Trash2 size={14} />
                   </button>

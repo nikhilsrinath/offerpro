@@ -14407,3 +14407,467 @@ label {
   .sbc-callout-name { font-size: 0.55rem; }
   .sbc-flag { width: 16px; height: 16px; font-size: 0.6rem; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PEOPLE OPS — attendance, leave, announcements, employee portal (Phase 5)
+   Built on the prod-* kit so these pages look like the rest of the app rather
+   than a bolt-on. Only what the kit has no answer for is defined here.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* The kit's fields are <div class="prod-field"><label>; these pages wrap the
+   control in the <label> instead and title it with a <span>, so the click
+   target is the whole field. Same look, better hit area. */
+.prod-field > span {
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--text-secondary);
+}
+/* .prod-select is a fixed-height control; a textarea has to grow. */
+.prod-field textarea.prod-select { height: auto; padding: 0.5rem 0.65rem; cursor: text; }
+.prod-field input.prod-select[type="color"] { padding: 0.15rem; cursor: pointer; }
+
+/* ── Attendance ─────────────────────────────────────────────────────────── */
+
+.att-datenav { display: flex; align-items: center; gap: 0.35rem; }
+.att-datenav input[type="date"] { cursor: pointer; }
+
+.att-sheet td { vertical-align: middle; }
+.att-status { height: 30px; font-weight: 600; min-width: 8rem; }
+
+.att-cal {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.att-cal-head {
+  text-align: center;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding-bottom: 0.2rem;
+}
+
+.att-cal-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-height: 72px;
+  padding: 0.4rem 0.45rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  text-align: left;
+  font: inherit;
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+button.att-cal-cell { cursor: pointer; }
+button.att-cal-cell:hover { border-color: var(--border-strong); background: var(--bg-raised); }
+
+.att-cal-cell.is-today { outline: 2px solid var(--border-strong); outline-offset: -2px; }
+/* Leading blanks before the 1st: keep the grid rhythm, show nothing. */
+.att-cal-pad { background: transparent; border-color: transparent; min-height: 0; }
+
+.att-cal-day { font-size: 0.78rem; font-weight: 700; }
+.att-cal-status { font-size: 0.64rem; font-weight: 650; line-height: 1.3; }
+.att-cal-hours { font-size: 0.62rem; color: var(--text-tertiary); }
+
+.att-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+.att-legend span { display: inline-flex; align-items: center; gap: 0.3rem; }
+.att-legend i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+
+/* ── Announcements ──────────────────────────────────────────────────────── */
+
+.ann-list { display: flex; flex-direction: column; gap: 0.7rem; }
+
+.ann-card {
+  padding: 0.85rem 1rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  box-shadow: var(--shadow-xs);
+}
+
+.ann-card > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.ann-card h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.ann-card p {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+.ann-card > footer { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.ann-card-actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
+
+.ann-card.is-pinned { border-color: #f59e0b59; }
+.ann-card.is-unread { border-left: 3px solid var(--accent); }
+.ann-card.is-expired { opacity: 0.55; }
+
+/* ── Employee portal ────────────────────────────────────────────────────── */
+
+.me-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 4rem;
+}
+
+.me-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+.me-head h1 { margin: 0; font-size: 1.4rem; font-weight: 750; }
+.me-head p { margin: 0.15rem 0 0; font-size: 0.8rem; color: var(--text-tertiary); }
+.me-head-right { display: flex; align-items: center; gap: 0.65rem; }
+
+.me-tabs { flex-wrap: wrap; }
+
+.me-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  margin-left: 0.35rem;
+  border-radius: 9px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.me-body { display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* The password panel. Carries a warning edge only while it is compulsory —
+   an employee who opened it themselves is not being told off. */
+.me-card {
+  padding: 1.1rem 1.25rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+}
+.me-pw h2 {
+  display: flex; align-items: center; gap: 0.45rem;
+  margin: 0 0 0.5rem; font-size: 0.95rem; font-weight: 700;
+}
+.me-pw-note {
+  margin: 0 0 0.85rem; font-size: 0.8rem; line-height: 1.55;
+  color: var(--text-secondary);
+  border-left: 3px solid #f59e0b; padding-left: 0.7rem;
+}
+.me-pw-form { display: flex; flex-direction: column; gap: 0.7rem; max-width: 22rem; }
+.me-pw-form label { display: flex; flex-direction: column; gap: 0.25rem; }
+.me-pw-form label span {
+  font-size: 0.7rem; font-weight: 650; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--text-tertiary);
+}
+.me-pw-form input {
+  height: 38px; padding: 0 0.7rem; border-radius: 8px;
+  background: var(--bg-base); color: var(--text-primary);
+  border: 1px solid var(--border-default); font-size: 0.88rem;
+}
+.me-pw-form input:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 1px; }
+.me-pw-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.me-section-title {
+  margin: 0 0 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.me-clock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1.1rem 1.25rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+}
+.me-clock-label {
+  display: block;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.me-clock strong { font-size: 1.05rem; }
+.me-clock p { margin: 0.2rem 0 0; font-size: 0.82rem; color: var(--text-secondary); }
+.me-clock-btn { height: 42px; padding: 0 1.25rem; font-size: 0.85rem; }
+.me-clock-done {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.82rem; font-weight: 650; color: #10b981;
+}
+
+.me-balances {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.7rem;
+}
+.me-balance {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.8rem 0.9rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+}
+.me-balance-value { font-size: 1.5rem; font-weight: 750; line-height: 1.1; }
+.me-balance-label { font-size: 0.78rem; font-weight: 650; color: var(--text-secondary); }
+
+.me-two-col {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.me-facts { list-style: none; margin: 0 0 0.75rem; padding: 0; }
+.me-facts li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.82rem;
+}
+.me-facts li span { color: var(--text-tertiary); }
+
+.me-leave-form { display: flex; flex-direction: column; gap: 0.75rem; }
+.me-leave-form .prod-btn-primary { align-self: flex-start; height: 38px; padding: 0 1.1rem; }
+
+.me-requests { display: flex; flex-direction: column; gap: 0.6rem; }
+.me-request {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+}
+.me-request > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.me-request p { margin: 0; }
+.me-request .prod-btn-ghost { align-self: flex-start; margin-top: 0.2rem; }
+
+@media (max-width: 640px) {
+  .me-shell { padding: 1rem 0.85rem 3rem; }
+  .att-cal { gap: 0.2rem; }
+  .att-cal-cell { min-height: 58px; padding: 0.3rem; }
+  .att-cal-status, .att-cal-hours { display: none; }
+}
+
+/* Photos sit over the gradient-initials tile Employees.jsx and the org chart
+   already draw, so the initials remain the fallback while the signed URL for a
+   private employee-photos object is still being minted. */
+.emp-avatar { position: relative; overflow: hidden; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   JOIN — the only page an employee sees before they have an account (0030).
+   Standalone: no sidebar, no app chrome, nothing to read but the one action.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.join-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  background: var(--bg-base);
+}
+
+.join-card {
+  width: 100%;
+  max-width: 26rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 2rem 1.75rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+}
+
+.join-eyebrow {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.join-card h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.join-sub { margin: 0; font-size: 0.86rem; color: var(--text-secondary); line-height: 1.55; }
+.join-muted {
+  display: flex; align-items: center; gap: 0.5rem;
+  margin: 0.5rem 0; font-size: 0.85rem; color: var(--text-tertiary);
+}
+
+.join-icon {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.join-icon.good { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+.join-icon.bad  { background: rgba(239, 68, 68, 0.1);   color: #ef4444; }
+
+.join-field { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.25rem; }
+.join-field > span {
+  font-size: 0.72rem; font-weight: 650; color: var(--text-secondary);
+}
+
+.join-input {
+  padding: 0.65rem 0.8rem;
+  background: var(--bg-base);
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: var(--text-primary);
+  outline: none;
+  width: 100%;
+}
+.join-input:focus { border-color: var(--border-strong); }
+.join-input[readonly] { color: var(--text-tertiary); cursor: default; }
+
+/* The code is read off a phone and typed by hand — give it room and rhythm. */
+.join-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.15rem;
+  letter-spacing: 0.3em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.join-google, .join-primary {
+  display: flex; align-items: center; justify-content: center; gap: 0.55rem;
+  width: 100%; height: 44px; padding: 0 1rem;
+  border-radius: 10px; font-size: 0.9rem; font-weight: 650;
+  font-family: inherit; cursor: pointer; border: 1px solid var(--border-default);
+  transition: background 0.15s, border-color 0.15s;
+}
+.join-google { margin-top: 0.5rem; background: var(--bg-elevated); color: var(--text-primary); }
+.join-google:hover { background: var(--bg-raised); border-color: var(--border-strong); }
+
+.join-primary { background: var(--accent); color: var(--bg-elevated); border-color: var(--accent); }
+.join-primary:hover { opacity: 0.9; }
+
+.join-switch {
+  background: none; border: 0; padding: 0.35rem 0;
+  font-family: inherit; font-size: 0.8rem; color: var(--text-tertiary);
+  cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+  align-self: center;
+}
+.join-switch:hover { color: var(--text-primary); }
+
+.join-ghost {
+  align-self: flex-start; margin-top: 0.5rem;
+  background: none; border: 1px solid var(--border-default); border-radius: 9px;
+  padding: 0.5rem 0.9rem; font-family: inherit; font-size: 0.82rem;
+  color: var(--text-secondary); cursor: pointer;
+}
+
+.join-form { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 0.35rem; }
+
+.join-note {
+  margin: 0; font-size: 0.74rem; line-height: 1.5; color: var(--text-tertiary);
+}
+.join-hint { display: flex; align-items: center; gap: 0.35rem; margin-top: 0.35rem; }
+
+.join-error {
+  display: flex; align-items: flex-start; gap: 0.4rem;
+  margin: 0.25rem 0 0; padding: 0.6rem 0.7rem;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  border-radius: 9px;
+  font-size: 0.8rem; line-height: 1.5; color: #ef4444;
+}
+.join-error svg { flex-shrink: 0; margin-top: 2px; }
+
+/* Portal access state on the employee card and list. */
+.pa-state {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-size: 0.68rem; font-weight: 650; padding: 0.2rem 0.5rem;
+  border-radius: 20px; white-space: nowrap; border: 1px solid;
+}
+.pa-state.active  { background: rgba(16,185,129,0.1);  color: #10b981; border-color: rgba(16,185,129,0.22); }
+.pa-state.invited { background: rgba(245,158,11,0.1);  color: #f59e0b; border-color: rgba(245,158,11,0.24); }
+.pa-state.none    { background: transparent; color: var(--text-muted); border-color: var(--border-default); }
+.pa-state.revoked { background: rgba(239,68,68,0.1);   color: #ef4444; border-color: rgba(239,68,68,0.24); }
+
+/* The credential hand-over. Deliberately loud: it is on screen once, and the
+   admin has to notice it before they close the card. */
+.pa-creds {
+  margin-top: 0.55rem; padding: 0.6rem 0.7rem; border-radius: 8px;
+  background: rgba(16,185,129,0.07); border: 1px solid rgba(16,185,129,0.28);
+}
+.pa-creds-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.15rem 0; }
+.pa-creds-row span {
+  min-width: 4.5rem; font-size: 0.66rem; font-weight: 650; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.pa-creds-row code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem; font-weight: 600; letter-spacing: 0.04em;
+  color: var(--text-primary); word-break: break-all;
+}
+.pa-creds-warn {
+  display: flex; align-items: flex-start; gap: 0.35rem; margin-top: 0.45rem;
+  font-size: 0.68rem; line-height: 1.45; color: var(--text-muted);
+}
+.pa-creds-warn svg { flex-shrink: 0; margin-top: 0.15rem; }

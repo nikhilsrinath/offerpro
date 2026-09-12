@@ -12,6 +12,7 @@ import {
   Save, Edit2, X, Users, GitBranch, Plus, Trash2,
   ChevronDown, ChevronRight, Check,
 } from 'lucide-react';
+import { EmployeePhotoFill } from './shared/EmployeeAvatar';
 
 // ── Department colour palette ─────────────────────────────────────────────────
 export const DEPT_PALETTE = [
@@ -71,8 +72,9 @@ function EmployeeNode({ data, selected }) {
         <div style={{ height: 3, background: color }} />
         <div style={{ padding: '0.875rem 1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: `${color}22`, border: `1.5px solid ${color}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.78rem', fontWeight: 800, color }}>
+            <div style={{ position: 'relative', overflow: 'hidden', width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: `${color}22`, border: `1.5px solid ${color}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.78rem', fontWeight: 800, color }}>
               {initials(data.name)}
+              <EmployeePhotoFill photoPath={data.photo_path} />
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.015em' }}>
@@ -107,7 +109,7 @@ function buildFlowData(hierData, empMap, deptMap) {
     const emp = empMap[n.id];
     const name = getDisplayName(emp);
     const color = resolveColor({ ...emp, name }, deptMap);
-    return { id: n.id, type: 'employee', position: n.position || { x: 0, y: 0 }, data: { name, email: emp.email || '', role: emp.role || '', department: emp.department || '', color } };
+    return { id: n.id, type: 'employee', position: n.position || { x: 0, y: 0 }, data: { name, email: emp.email || '', role: emp.role || '', department: emp.department || '', color, photo_path: emp.photo_path || null } };
   });
   const nodeSet = new Set(nodes.map(n => n.id));
   const edges = hierEdges.filter(e => nodeSet.has(e.source) && nodeSet.has(e.target)).map(e => {
@@ -140,12 +142,14 @@ function MobileTreeNode({ nodeData, childIds, nodesById, childrenMap }) {
         <div style={{ padding: '0.75rem 0.875rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {/* Avatar */}
           <div style={{
+            position: 'relative', overflow: 'hidden',
             width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
             background: `${color}18`, border: `2px solid ${color}45`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '0.78rem', fontWeight: 800, color, letterSpacing: '0.02em',
           }}>
             {initials(nodeData.data.name)}
+            <EmployeePhotoFill photoPath={nodeData.data.photo_path} />
           </div>
           {/* Info */}
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -615,7 +619,7 @@ export default function TeamHierarchy() {
     const position = rfInstance.screenToFlowPosition({ x: event.clientX, y: event.clientY });
     const name = getDisplayName(emp);
     const color = resolveColor({ ...emp, name }, deptMap);
-    setNodes(nds => [...nds, { id: emp.id, type: 'employee', position, data: { name, email: emp.email || '', role: emp.role || '', department: emp.department || '', color } }]);
+    setNodes(nds => [...nds, { id: emp.id, type: 'employee', position, data: { name, email: emp.email || '', role: emp.role || '', department: emp.department || '', color, photo_path: emp.photo_path || null } }]);
   }, [rfInstance, editMode, employees, nodes, deptMap, setNodes]);
 
   // Accept optional override nodes/edges (used by mobile save)
@@ -667,7 +671,7 @@ export default function TeamHierarchy() {
       const existingPos = nodes.find(n => n.id === emp.id)?.position;
       const cols = 3;
       const autoPos = { x: (i % cols) * 280 + 60, y: Math.floor(i / cols) * 160 + 60 };
-      return { id: emp.id, type: 'employee', position: existingPos || autoPos, data: { name, email: emp.email || '', role: emp.role || '', department: emp.department || '', color } };
+      return { id: emp.id, type: 'employee', position: existingPos || autoPos, data: { name, email: emp.email || '', role: emp.role || '', department: emp.department || '', color, photo_path: emp.photo_path || null } };
     }).filter(Boolean);
 
     const newEdges = members.filter(m => m.managerId).map(m => {
