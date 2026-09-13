@@ -483,6 +483,10 @@ function employeeFromRow(r) {
     // is stamped by app.revoke_employee_access() when the exit deletes their
     // membership, which is what ExEmployees.jsx shows as proof access is gone.
     photo_path: r.photo_path,
+    // 0032: personal details the employee keeps current from their portal.
+    date_of_birth: r.date_of_birth, bio: r.bio,
+    emergency_contact_name: r.emergency_contact_name,
+    emergency_contact_phone: r.emergency_contact_phone,
     user_id: r.user_id,
     access_revoked_at: r.access_revoked_at,
     // employee_compensation is admin-only under RLS. A non-admin simply gets

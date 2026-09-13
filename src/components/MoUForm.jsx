@@ -127,12 +127,12 @@ export default function MoUForm() {
                 <div style={{
                   height: '100%',
                   borderRadius: '2px',
-                  background: isAtLimit('mou') ? '#ef4444' : getUsagePercent('mou') > 80 ? '#f59e0b' : '#3b82f6',
+                  background: isAtLimit('mou') ? 'var(--error)' : getUsagePercent('mou') > 80 ? 'var(--text-primary)' : 'var(--text-secondary)',
                   transition: 'width 0.3s',
                   width: `${Math.min(getUsagePercent('mou'), 100)}%`
                 }} />
               </div>
-              <span style={{ fontWeight: 700, color: isAtLimit('mou') ? '#ef4444' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              <span style={{ fontWeight: 700, color: isAtLimit('mou') ? 'var(--error)' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                 {usage.mou}/{planConfig.limits.mou === Infinity ? '∞' : planConfig.limits.mou}
               </span>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({getRemainingCount('mou')} remaining)</span>
@@ -168,15 +168,15 @@ export default function MoUForm() {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Effective date</label>
-                <input type="date" name="effectiveDate" value={formData.effectiveDate} onChange={handleChange} className="easy-inp" required />
+                <input aria-label="Effective date" type="date" name="effectiveDate" value={formData.effectiveDate} onChange={handleChange} className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">City of execution</label>
-                <input name="executionCity" value={formData.executionCity} onChange={handleChange} placeholder="e.g. Chennai" className="easy-inp" required />
+                <input aria-label="City of execution" name="executionCity" value={formData.executionCity} onChange={handleChange} placeholder="e.g. Chennai" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">State</label>
-                <input name="executionState" value={formData.executionState} onChange={handleChange} placeholder="e.g. Tamil Nadu" className="easy-inp" required />
+                <input aria-label="State" name="executionState" value={formData.executionState} onChange={handleChange} placeholder="e.g. Tamil Nadu" className="easy-inp" required />
               </div>
             </div>
           </div>
@@ -190,15 +190,15 @@ export default function MoUForm() {
             <div className="easy-row">
               <div className="easy-field full">
                 <label className="easy-lbl">Company / entity name</label>
-                <input name="firstPartyName" value={formData.firstPartyName} onChange={handleChange} placeholder="e.g. Auralinks Corporation LLC" className="easy-inp" required />
+                <input aria-label="Company / entity name" name="firstPartyName" value={formData.firstPartyName} onChange={handleChange} placeholder="e.g. Auralinks Corporation LLC" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Country of incorporation</label>
-                <input name="firstPartyIncorporation" value={formData.firstPartyIncorporation} onChange={handleChange} placeholder="India" className="easy-inp" required />
+                <input aria-label="Country of incorporation" name="firstPartyIncorporation" value={formData.firstPartyIncorporation} onChange={handleChange} placeholder="India" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Registered office address</label>
-                <textarea name="firstPartyAddress" value={formData.firstPartyAddress} onChange={handleChange} placeholder="Full address with PIN code" rows={2} className="easy-inp" style={{ resize: 'none' }} required />
+                <textarea aria-label="Registered office address" name="firstPartyAddress" value={formData.firstPartyAddress} onChange={handleChange} placeholder="Full address with PIN code" rows={2} className="easy-inp" style={{ resize: 'none' }} required />
               </div>
             </div>
           </div>
@@ -212,22 +212,22 @@ export default function MoUForm() {
             <div className="easy-row">
               <div className="easy-field full">
                 <label className="easy-lbl">Company / individual name</label>
-                <input name="secondPartyName" value={formData.secondPartyName} onChange={handleChange} placeholder="e.g. Beta Labs Private Limited" className="easy-inp" required />
+                <input aria-label="Company / individual name" name="secondPartyName" value={formData.secondPartyName} onChange={handleChange} placeholder="e.g. Beta Labs Private Limited" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Entity type</label>
-                <select name="secondPartyType" value={formData.secondPartyType} onChange={handleChange} className="easy-inp">
+                <select aria-label="Entity type" name="secondPartyType" value={formData.secondPartyType} onChange={handleChange} className="easy-inp">
                   <option value="company">Company</option>
                   <option value="individual">Individual</option>
                 </select>
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Country of incorporation</label>
-                <input name="secondPartyIncorporation" value={formData.secondPartyIncorporation} onChange={handleChange} placeholder="India" className="easy-inp" required />
+                <input aria-label="Country of incorporation" name="secondPartyIncorporation" value={formData.secondPartyIncorporation} onChange={handleChange} placeholder="India" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Registered office address</label>
-                <textarea name="secondPartyAddress" value={formData.secondPartyAddress} onChange={handleChange} placeholder="Full address with PIN code" rows={2} className="easy-inp" style={{ resize: 'none' }} required />
+                <textarea aria-label="Registered office address" name="secondPartyAddress" value={formData.secondPartyAddress} onChange={handleChange} placeholder="Full address with PIN code" rows={2} className="easy-inp" style={{ resize: 'none' }} required />
               </div>
             </div>
           </div>
@@ -240,7 +240,7 @@ export default function MoUForm() {
             </div>
             <div className="easy-field">
               <label className="easy-lbl">Describe the purpose of this collaboration</label>
-              <textarea name="purpose" value={formData.purpose} onChange={handleChange}
+              <textarea aria-label="Describe the purpose of this collaboration" name="purpose" value={formData.purpose} onChange={handleChange}
                 placeholder="e.g. To establish a framework of cooperation for joint development and deployment of AI-powered solutions for the healthcare industry..."
                 rows={4} className="easy-inp" style={{ resize: 'vertical' }} required />
             </div>
@@ -254,7 +254,7 @@ export default function MoUForm() {
             </div>
             <div className="easy-field">
               <label className="easy-lbl">Enter each collaboration area on a new line</label>
-              <textarea name="scopeAreas" value={formData.scopeAreas} onChange={handleChange}
+              <textarea aria-label="Enter each collaboration area on a new line" name="scopeAreas" value={formData.scopeAreas} onChange={handleChange}
                 placeholder={"e.g.\nDevelopment of AI-powered analytics platform\nSharing of technical expertise and knowledge\nJoint exploration of market opportunities\nCo-development of research papers and publications"}
                 rows={5} className="easy-inp" style={{ resize: 'vertical', lineHeight: '1.6' }} required />
             </div>
@@ -269,13 +269,13 @@ export default function MoUForm() {
             <div className="easy-row">
               <div className="easy-field full">
                 <label className="easy-lbl">First party responsibilities (one per line)</label>
-                <textarea name="firstPartyResponsibilities" value={formData.firstPartyResponsibilities} onChange={handleChange}
+                <textarea aria-label="First party responsibilities (one per line)" name="firstPartyResponsibilities" value={formData.firstPartyResponsibilities} onChange={handleChange}
                   placeholder={"e.g.\nProvide technology platform and infrastructure\nParticipate in planning and coordination\nShare relevant knowledge and technical expertise\nFulfill commitments for successful implementation"}
                   rows={4} className="easy-inp" style={{ resize: 'vertical', lineHeight: '1.6' }} required />
               </div>
               <div className="easy-field full">
                 <label className="easy-lbl">Second party responsibilities (one per line)</label>
-                <textarea name="secondPartyResponsibilities" value={formData.secondPartyResponsibilities} onChange={handleChange}
+                <textarea aria-label="Second party responsibilities (one per line)" name="secondPartyResponsibilities" value={formData.secondPartyResponsibilities} onChange={handleChange}
                   placeholder={"e.g.\nProvide domain expertise and industry knowledge\nSupport implementation of collaborative activities\nCoordinate with First Party for execution\nEnsure timely performance of assigned duties"}
                   rows={4} className="easy-inp" style={{ resize: 'vertical', lineHeight: '1.6' }} required />
               </div>
@@ -291,13 +291,13 @@ export default function MoUForm() {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">MoU term (years)</label>
-                <select name="mouTermYears" value={formData.mouTermYears} onChange={handleChange} className="easy-inp">
+                <select aria-label="MoU term (years)" name="mouTermYears" value={formData.mouTermYears} onChange={handleChange} className="easy-inp">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Year' : 'Years'}</option>)}
                 </select>
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Place of arbitration</label>
-                <input name="arbitrationCity" value={formData.arbitrationCity} onChange={handleChange} placeholder="e.g. Chennai" className="easy-inp" required />
+                <input aria-label="Place of arbitration" name="arbitrationCity" value={formData.arbitrationCity} onChange={handleChange} placeholder="e.g. Chennai" className="easy-inp" required />
               </div>
             </div>
           </div>
@@ -314,20 +314,20 @@ export default function MoUForm() {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Name</label>
-                <input name="firstPartySignatoryName" value={formData.firstPartySignatoryName} onChange={handleChange} placeholder="Full name" className="easy-inp" required />
+                <input aria-label="Name" name="firstPartySignatoryName" value={formData.firstPartySignatoryName} onChange={handleChange} placeholder="Full name" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Designation</label>
-                <input name="firstPartySignatoryDesignation" value={formData.firstPartySignatoryDesignation} onChange={handleChange} placeholder="e.g. Managing Director & CEO" className="easy-inp" required />
+                <input aria-label="Designation" name="firstPartySignatoryDesignation" value={formData.firstPartySignatoryDesignation} onChange={handleChange} placeholder="e.g. Managing Director & CEO" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Signing date</label>
-                <input type="date" name="firstPartySignatoryDate" value={formData.firstPartySignatoryDate} onChange={handleChange} className="easy-inp" required />
+                <input aria-label="Signing date" type="date" name="firstPartySignatoryDate" value={formData.firstPartySignatoryDate} onChange={handleChange} className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Signature</label>
                 <div className="easy-upload-wrap">
-                  <input type="file" onChange={(e) => handleFileUpload(e, 'firstPartySignature')} accept="image/*" />
+                  <input aria-label="Signature" type="file" onChange={(e) => handleFileUpload(e, 'firstPartySignature')} accept="image/*" />
                   <div className={`easy-upload ${formData.firstPartySignature ? 'done' : ''}`}>
                     {formData.firstPartySignature ? <><CheckCircle size={16} /> Uploaded</> : <><Upload size={16} /> Upload signature</>}
                   </div>
@@ -343,20 +343,20 @@ export default function MoUForm() {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Name</label>
-                <input name="secondPartySignatoryName" value={formData.secondPartySignatoryName} onChange={handleChange} placeholder="Full name" className="easy-inp" required />
+                <input aria-label="Name" name="secondPartySignatoryName" value={formData.secondPartySignatoryName} onChange={handleChange} placeholder="Full name" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Designation</label>
-                <input name="secondPartySignatoryDesignation" value={formData.secondPartySignatoryDesignation} onChange={handleChange} placeholder="e.g. CEO / Director" className="easy-inp" required />
+                <input aria-label="Designation" name="secondPartySignatoryDesignation" value={formData.secondPartySignatoryDesignation} onChange={handleChange} placeholder="e.g. CEO / Director" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Signing date</label>
-                <input type="date" name="secondPartySignatoryDate" value={formData.secondPartySignatoryDate} onChange={handleChange} className="easy-inp" required />
+                <input aria-label="Signing date" type="date" name="secondPartySignatoryDate" value={formData.secondPartySignatoryDate} onChange={handleChange} className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Signature</label>
                 <div className="easy-upload-wrap">
-                  <input type="file" onChange={(e) => handleFileUpload(e, 'secondPartySignature')} accept="image/*" />
+                  <input aria-label="Signature" type="file" onChange={(e) => handleFileUpload(e, 'secondPartySignature')} accept="image/*" />
                   <div className={`easy-upload ${formData.secondPartySignature ? 'done' : ''}`}>
                     {formData.secondPartySignature ? <><CheckCircle size={16} /> Uploaded</> : <><Upload size={16} /> Upload signature</>}
                   </div>
@@ -364,14 +364,15 @@ export default function MoUForm() {
                 {formData.secondPartySignature && <img src={formData.secondPartySignature} alt="Signature" style={{ height: '28px', marginTop: '0.25rem' }} />}
               </div>
               <div className="easy-field full">
-                <div
+                <button
+                  type="button" role="switch" aria-checked={!!formData.showStamp}
                   className={`easy-switch-row ${formData.showStamp ? 'active' : ''}`}
                   onClick={() => handleChange({ target: { name: 'showStamp', checked: !formData.showStamp, type: 'checkbox' } })}
                   style={{ marginTop: '0.5rem' }}
                 >
                   <span className="easy-switch-label">Include company stamp</span>
-                  <div className="easy-switch-dot" />
-                </div>
+                  <span className="easy-switch-dot" aria-hidden="true" />
+                </button>
               </div>
             </div>
           </div>

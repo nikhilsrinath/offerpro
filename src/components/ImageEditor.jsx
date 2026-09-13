@@ -371,7 +371,7 @@ export default function ImageEditor({ imageSrc, onSave, onCancel }) {
         {/* Header */}
         <div className="img-editor-header">
           <h3>Edit image</h3>
-          <button type="button" onClick={onCancel} style={{
+          <button type="button" onClick={onCancel} aria-label="Close" title="Close" style={{
             background: 'none', border: 'none', color: 'var(--text-tertiary)',
             cursor: 'pointer', padding: '0.25rem', display: 'flex'
           }}>

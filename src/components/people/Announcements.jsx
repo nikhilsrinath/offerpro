@@ -1,211 +1,230 @@
-// Announcements.jsx — broadcast to the whole team or one department.
+// Announcements — broadcast to the whole team or one department.
 //
 // The audience is `department_id`: null means everyone. Who can actually read a
 // notice is decided by RLS (0029 §6), not by this screen, so an announcement
 // aimed at one department genuinely does not reach the rest.
+//
+// Redesigned as a board: pinned notices first, each one a plain card whose
+// audience and dates sit on a single footer line. Pinning is a toggle on the
+// card rather than a checkbox buried in the editor, because pinning is
+// something you decide about an existing notice, not while writing one.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Megaphone, Plus, Pin, Trash2, Pencil, Loader2, Clock, Building2 } from 'lucide-react';
-import { useSection, fmtDate } from '../financial/financeHooks';
+import { useSection } from '../financial/financeHooks';
 import { useToast } from '../shared/Toast';
-import { Stat, Modal } from '../financial/financeUi';
 import { orgStore } from '../../services/orgStore';
 import { announcementService } from '../../services/announcementService';
+import {
+    Page, Toolbar, Panel, Row, Btn, Seg, Field, Input, Select, Textarea,
+    StatBand, Empty, Loading, Modal, ConfirmBtn, Status,
+} from '../ui/edge';
+import { useT, fmtDate } from '../ui/edgeUtils';
 
 const BLANK = { title: '', body: '', departmentId: '', isPinned: false, expiresAt: '' };
-
 const isExpired = (a) => !!a.expires_at && new Date(a.expires_at) < new Date();
 
 export default function Announcements() {
-  const toast = useToast();
-  const departments = useSection('departments');
-  const orgId = orgStore.getOrgId();
+    const t = useT();
+    const toast = useToast();
+    const departments = useSection('departments');
+    const orgId = orgStore.getOrgId();
 
-  const [tab, setTab] = useState('board');
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(null);
-  const [busy, setBusy] = useState(false);
+    const [tab, setTab] = useState('board');
+    const [items, setItems] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [editing, setEditing] = useState(null);
+    const [busy, setBusy] = useState(false);
 
-  const deptName = useMemo(
-    () => Object.fromEntries(departments.map((d) => [d.id, d.name])), [departments],
-  );
+    const deptName = useMemo(
+        () => Object.fromEntries(departments.map((d) => [d.id, d.name])), [departments],
+    );
 
-  const load = useCallback(async () => {
-    if (!orgId) return;
-    setLoading(true);
-    try {
-      setItems(await announcementService.list(orgId, { includeExpired: true }));
-    } catch (err) {
-      toast(err.message || 'Could not load announcements.', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [orgId, toast]);
+    const load = useCallback(async () => {
+        if (!orgId) return;
+        setLoading(true);
+        try {
+            setItems(await announcementService.list(orgId, { includeExpired: true }));
+        } catch (err) {
+            toast(err.message || 'Could not load announcements.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [orgId, toast]);
 
-  useEffect(() => { load(); }, [load]);
+    useEffect(() => { load(); }, [load]);
 
-  const live = useMemo(() => items.filter((a) => !isExpired(a)), [items]);
-  const shown = tab === 'board' ? live : items;
+    const live = useMemo(() => items.filter((a) => !isExpired(a)), [items]);
+    const shown = useMemo(() => {
+        const base = tab === 'board' ? live : items;
+        return [...base].sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned)
+            || new Date(b.published_at || 0) - new Date(a.published_at || 0));
+    }, [tab, live, items]);
 
-  const save = async (e) => {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      await announcementService.publish(orgId, {
-        id: editing.id,
-        title: editing.title,
-        body: editing.body,
-        departmentId: editing.departmentId || null,
-        isPinned: editing.isPinned,
-        // A date input gives a local calendar day; expire at the end of it.
-        expiresAt: editing.expiresAt ? new Date(`${editing.expiresAt}T23:59:59`).toISOString() : null,
-      });
-      setEditing(null);
-      await load();
-      toast(editing.id ? 'Announcement updated' : 'Announcement published', 'success');
-    } catch (err) {
-      toast(err.message || 'Could not publish.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
+    const publish = async (patch) => {
+        setBusy(true);
+        try {
+            await announcementService.publish(orgId, {
+                id: patch.id,
+                title: patch.title,
+                body: patch.body,
+                departmentId: patch.departmentId || null,
+                isPinned: patch.isPinned,
+                // A date input gives a local calendar day; expire at the end of it.
+                expiresAt: patch.expiresAt ? new Date(`${patch.expiresAt}T23:59:59`).toISOString() : null,
+            });
+            setEditing(null);
+            await load();
+            toast(patch.id ? 'Announcement updated' : 'Announcement published', 'success');
+        } catch (err) {
+            toast(err.message || 'Could not publish.', 'error');
+        } finally {
+            setBusy(false);
+        }
+    };
 
-  const remove = async (a) => {
-    if (!window.confirm(`Delete "${a.title}"? This removes it for everyone.`)) return;
-    try {
-      await announcementService.remove(a.id);
-      setItems((prev) => prev.filter((x) => x.id !== a.id));
-      toast('Announcement deleted', 'success');
-    } catch (err) {
-      toast(err.message || 'Could not delete.', 'error');
-    }
-  };
+    const togglePin = (a) => publish({
+        id: a.id, title: a.title, body: a.body,
+        departmentId: a.department_id || '', isPinned: !a.is_pinned,
+        expiresAt: a.expires_at ? a.expires_at.slice(0, 10) : '',
+    });
 
-  const openEditor = (a) => setEditing(a ? {
-    id: a.id,
-    title: a.title,
-    body: a.body,
-    departmentId: a.department_id || '',
-    isPinned: a.is_pinned,
-    expiresAt: a.expires_at ? a.expires_at.slice(0, 10) : '',
-  } : { ...BLANK });
+    const remove = async (a) => {
+        try {
+            await announcementService.remove(a.id);
+            setItems((prev) => prev.filter((x) => x.id !== a.id));
+            toast('Announcement deleted', 'success');
+        } catch (err) {
+            toast(err.message || 'Could not delete.', 'error');
+        }
+    };
 
-  return (
-    <div className="prod-inventory">
-      <div className="prod-stats">
-        <Stat icon={<Megaphone size={18} />} label="Live announcements" value={live.length} accent="#3b82f6" />
-        <Stat icon={<Pin size={18} />} label="Pinned" value={live.filter((a) => a.is_pinned).length} accent="#f59e0b" />
-        <Stat icon={<Building2 size={18} />} label="Department-only" value={live.filter((a) => a.department_id).length} />
-        <Stat icon={<Clock size={18} />} label="Expired" value={items.length - live.length} />
-      </div>
+    const openEditor = (a) => setEditing(a ? {
+        id: a.id, title: a.title, body: a.body,
+        departmentId: a.department_id || '',
+        isPinned: a.is_pinned,
+        expiresAt: a.expires_at ? a.expires_at.slice(0, 10) : '',
+    } : { ...BLANK });
 
-      <div className="prod-toolbar">
-        <div className="prod-tabs" style={{ margin: 0 }}>
-          <button type="button" className={`pro-chip ${tab === 'board' ? 'active' : ''}`} onClick={() => setTab('board')}>Board</button>
-          <button type="button" className={`pro-chip ${tab === 'history' ? 'active' : ''}`} onClick={() => setTab('history')}>History</button>
-        </div>
-        <div style={{ flex: 1 }} />
-        <button type="button" className="prod-btn-primary" onClick={() => openEditor(null)}>
-          <Plus size={14} /> New announcement
-        </button>
-      </div>
+    return (
+        <Page>
+            <Toolbar right={<Btn primary onClick={() => openEditor(null)}>New announcement</Btn>}>
+                <Seg value={tab} onChange={setTab} options={[
+                    { id: 'board', label: 'Board', count: live.length },
+                    { id: 'history', label: 'History', count: items.length },
+                ]} />
+            </Toolbar>
 
-      {loading ? (
-        <div className="prod-empty"><Loader2 className="spin" size={18} /> Loading…</div>
-      ) : !shown.length ? (
-        <div className="prod-empty">
-          {tab === 'board' ? 'Nothing on the board. Publish the first announcement.' : 'No announcements yet.'}
-        </div>
-      ) : (
-        <div className="ann-list">
-          {shown.map((a) => (
-            <article key={a.id} className={`ann-card${a.is_pinned ? ' is-pinned' : ''}${isExpired(a) ? ' is-expired' : ''}`}>
-              <header>
-                <h4>
-                  {a.is_pinned && <Pin size={13} />} {a.title}
-                </h4>
-                <div className="ann-card-actions">
-                  <button type="button" className="prod-btn-ghost" onClick={() => openEditor(a)}>
-                    <Pencil size={13} /> Edit
-                  </button>
-                  <button type="button" className="prod-btn-ghost" onClick={() => remove(a)}>
-                    <Trash2 size={13} /> Delete
-                  </button>
+            {items.length > 0 && (
+                <StatBand items={[
+                    { label: 'On the board', value: live.length },
+                    { label: 'Pinned', value: live.filter((a) => a.is_pinned).length },
+                    { label: 'Department only', value: live.filter((a) => a.department_id).length },
+                    { label: 'Expired', value: items.length - live.length },
+                ]} />
+            )}
+
+            {loading ? <Loading /> : shown.length === 0 ? (
+                <Panel>
+                    <Empty action={<Btn primary onClick={() => openEditor(null)}>Write the first one</Btn>}>
+                        {tab === 'board'
+                            ? 'Nothing on the board. An announcement appears in every reader’s portal until it expires.'
+                            : 'No announcements yet.'}
+                    </Empty>
+                </Panel>
+            ) : (
+                <div style={{ display: 'grid', gap: 10 }}>
+                    {shown.map((a) => {
+                        const expired = isExpired(a);
+                        return (
+                            <article key={a.id} style={{
+                                border: '1px solid ' + (a.is_pinned ? t.lineStrong : t.line),
+                                borderRadius: 10, padding: 14, background: t.panel,
+                                opacity: expired ? 0.62 : 1,
+                            }}>
+                                <Row gap={10} align="flex-start" style={{ marginBottom: 8 }}>
+                                    <h3 style={{
+                                        margin: 0, flex: 1, minWidth: 0, fontSize: 12.5,
+                                        fontWeight: 500, color: t.text, letterSpacing: '-0.01em',
+                                    }}>
+                                        {a.is_pinned && <span style={{ color: t.faint, marginRight: 7, fontSize: 10 }}>PINNED</span>}
+                                        {a.title}
+                                    </h3>
+                                    <Row gap={6}>
+                                        <Btn size="sm" onClick={() => togglePin(a)} disabled={busy}>
+                                            {a.is_pinned ? 'Unpin' : 'Pin'}
+                                        </Btn>
+                                        <Btn size="sm" onClick={() => openEditor(a)}>Edit</Btn>
+                                        <ConfirmBtn label="Delete" confirmLabel="Delete for everyone" onConfirm={() => remove(a)} />
+                                    </Row>
+                                </Row>
+
+                                <p style={{
+                                    margin: '0 0 11px', fontSize: 11.5, color: t.dim,
+                                    lineHeight: 1.75, whiteSpace: 'pre-wrap',
+                                }}>{a.body}</p>
+
+                                <Row gap={14} wrap style={{
+                                    paddingTop: 10, borderTop: '1px solid ' + t.lineSoft,
+                                    fontSize: 10, color: t.faint,
+                                }}>
+                                    <Status tone={a.department_id ? 'neutral' : 'mute'}>
+                                        {a.department_id ? (deptName[a.department_id] || 'Department') + ' only' : 'Whole team'}
+                                    </Status>
+                                    <span>Posted {fmtDate(a.published_at)}</span>
+                                    {a.expires_at && (
+                                        <span style={{ color: expired ? t.down : t.faint }}>
+                                            {expired ? 'Expired ' : 'Expires '}{fmtDate(a.expires_at)}
+                                        </span>
+                                    )}
+                                </Row>
+                            </article>
+                        );
+                    })}
                 </div>
-              </header>
-              <p>{a.body}</p>
-              <footer className="prod-perf-meta">
-                <span className="prod-tag">
-                  {a.department_id ? deptName[a.department_id] || 'Department' : 'Whole team'}
-                </span>
-                <span>{fmtDate(a.published_at)}</span>
-                {a.expires_at && <span>{isExpired(a) ? 'Expired' : 'Expires'} {fmtDate(a.expires_at)}</span>}
-              </footer>
-            </article>
-          ))}
-        </div>
-      )}
+            )}
 
-      {editing && (
-        <Modal title={editing.id ? 'Edit announcement' : 'New announcement'} onClose={() => setEditing(null)} width="560px">
-          <form onSubmit={save}>
-            <div className="prod-modal-body">
-              <label className="prod-field">
-                <span>Title</span>
-                <input
-                  className="prod-select" value={editing.title} maxLength={200} required
-                  placeholder="Office closed on Friday"
-                  onChange={(e) => setEditing({ ...editing, title: e.target.value })}
-                />
-              </label>
-              <label className="prod-field">
-                <span>Message</span>
-                <textarea
-                  className="prod-select" rows={6} value={editing.body} required
-                  placeholder="What the team needs to know…"
-                  onChange={(e) => setEditing({ ...editing, body: e.target.value })}
-                />
-              </label>
-              <div className="prod-form-grid">
-                <label className="prod-field">
-                  <span>Audience</span>
-                  <select
-                    className="prod-select" value={editing.departmentId}
-                    onChange={(e) => setEditing({ ...editing, departmentId: e.target.value })}
-                  >
-                    <option value="">Whole team</option>
-                    {departments.map((d) => <option key={d.id} value={d.id}>{d.name} only</option>)}
-                  </select>
-                </label>
-                <label className="prod-field">
-                  <span>Expires (optional)</span>
-                  <input
-                    type="date" className="prod-select" value={editing.expiresAt}
-                    onChange={(e) => setEditing({ ...editing, expiresAt: e.target.value })}
-                  />
-                </label>
-                <label className="prod-field prod-toggle">
-                  <input
-                    type="checkbox" checked={editing.isPinned}
-                    onChange={(e) => setEditing({ ...editing, isPinned: e.target.checked })}
-                  />
-                  <span>Pin to the top</span>
-                </label>
-              </div>
-              <div className="prod-field-note">
-                A department announcement is invisible to everyone outside it — including in
-                their portal — not just hidden from this list.
-              </div>
-            </div>
-            <div className="prod-modal-foot">
-              <button type="button" className="prod-btn-ghost" onClick={() => setEditing(null)}>Cancel</button>
-              <button type="submit" className="prod-btn-primary" disabled={busy}>
-                {busy ? 'Publishing…' : editing.id ? 'Save' : 'Publish'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
-    </div>
-  );
+            {editing && (
+                <Modal open onClose={() => setEditing(null)} width={560}
+                    title={editing.id ? 'Edit announcement' : 'New announcement'}
+                    note="A department announcement is invisible to everyone outside it"
+                    footer={
+                        <>
+                            <Btn onClick={() => setEditing(null)}>Cancel</Btn>
+                            <Btn primary disabled={busy || !editing.title.trim() || !editing.body.trim()}
+                                onClick={() => publish(editing)}>
+                                {busy ? 'Publishing…' : editing.id ? 'Save' : 'Publish'}
+                            </Btn>
+                        </>
+                    }>
+                    <Field label="Title">
+                        <Input value={editing.title} maxLength={200} placeholder="Office closed on Friday"
+                            onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
+                    </Field>
+                    <div style={{ height: 13 }} />
+                    <Field label="Message">
+                        <Textarea rows={7} value={editing.body} placeholder="What the team needs to know…"
+                            style={{ minHeight: 130 }}
+                            onChange={(e) => setEditing({ ...editing, body: e.target.value })} />
+                    </Field>
+                    <div style={{ height: 13 }} />
+                    <Row gap={13} align="flex-end" wrap>
+                        <div style={{ flex: '1 1 200px' }}>
+                            <Field label="Audience">
+                                <Select value={editing.departmentId}
+                                    onChange={(e) => setEditing({ ...editing, departmentId: e.target.value })}>
+                                    <option value="">Whole team</option>
+                                    {departments.map((d) => <option key={d.id} value={d.id}>{d.name} only</option>)}
+                                </Select>
+                            </Field>
+                        </div>
+                        <div style={{ flex: '1 1 160px' }}>
+                            <Field label="Expires" hint="Leave blank to keep it up">
+                                <Input type="date" value={editing.expiresAt}
+                                    onChange={(e) => setEditing({ ...editing, expiresAt: e.target.value })} />
+                            </Field>
+                        </div>
+                    </Row>
+                </Modal>
+            )}
+        </Page>
+    );
 }

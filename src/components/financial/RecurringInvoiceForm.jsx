@@ -349,7 +349,7 @@ function RecurringInvoiceForm({ editItem }) {
             <div className="easy-row">
               <div className="easy-field" ref={clientDropdownRef} style={{ position: 'relative' }}>
                 <label className="easy-lbl">Client name</label>
-                <input
+                <input aria-label="Client name"
                   required type="text" placeholder="Search or type client name..."
                   value={clientSearch || formData.clientName}
                   onChange={(e) => {
@@ -389,23 +389,23 @@ function RecurringInvoiceForm({ editItem }) {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Company</label>
-                <input type="text" placeholder="Company name" value={formData.clientCompany}
+                <input aria-label="Company" type="text" placeholder="Company name" value={formData.clientCompany}
                   onChange={(e) => set('clientCompany', e.target.value)} className="easy-inp" />
               </div>
               <div className="easy-field full">
                 <label className="easy-lbl">Address</label>
-                <input type="text" placeholder="Full billing address" value={formData.clientAddress}
+                <input aria-label="Address" type="text" placeholder="Full billing address" value={formData.clientAddress}
                   onChange={(e) => set('clientAddress', e.target.value)} className="easy-inp" />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">GSTIN</label>
-                <input type="text" placeholder="22AAAAA0000A1Z5" value={formData.clientGstin}
+                <input aria-label="GSTIN" type="text" placeholder="22AAAAA0000A1Z5" value={formData.clientGstin}
                   onChange={(e) => set('clientGstin', e.target.value.toUpperCase())} className="easy-inp"
                   maxLength={15} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Email</label>
-                <input type="email" placeholder="billing@client.com" value={formData.clientEmail}
+                <input aria-label="Email" type="email" placeholder="billing@client.com" value={formData.clientEmail}
                   onChange={(e) => set('clientEmail', e.target.value)} className="easy-inp" />
               </div>
             </div>
@@ -420,13 +420,13 @@ function RecurringInvoiceForm({ editItem }) {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Invoice number prefix</label>
-                <input type="text" value={formData.invoicePrefix}
+                <input aria-label="Invoice number prefix" type="text" value={formData.invoicePrefix}
                   onChange={(e) => set('invoicePrefix', e.target.value)}
                   className="easy-inp" style={{ fontWeight: 700 }} />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Invoice date</label>
-                <input type="date" value={formData.invoiceDate}
+                <input aria-label="Invoice date" type="date" value={formData.invoiceDate}
                   onChange={(e) => set('invoiceDate', e.target.value)} className="easy-inp" />
               </div>
               <div className="easy-field full">
@@ -456,7 +456,7 @@ function RecurringInvoiceForm({ editItem }) {
                   {GST_RATES.map(rate => (
                     <button key={rate} type="button"
                       onClick={() => set('gstRate', rate)}
-                      className={`easy-chip ${formData.gstRate === rate ? 'active' : ''}`}>
+                      aria-pressed={formData.gstRate === rate} className={`easy-chip ${formData.gstRate === rate ? 'active' : ''}`}>
                       {rate}%
                     </button>
                   ))}
@@ -477,26 +477,26 @@ function RecurringInvoiceForm({ editItem }) {
                 <div className="easy-line-num">{index + 1}</div>
                 <div className="easy-line-fields">
                   <div className="easy-line-top">
-                    <input type="text" placeholder="Item description..." value={item.description}
+                    <input aria-label="Item description" type="text" placeholder="Item description..." value={item.description}
                       onChange={(e) => handleItemChange(item.id, 'description', e.target.value)} className="easy-inp" />
-                    <input type="text" placeholder="HSN/SAC" value={item.hsnSac}
+                    <input aria-label="HSN/SAC code" type="text" placeholder="HSN/SAC" value={item.hsnSac}
                       onChange={(e) => handleItemChange(item.id, 'hsnSac', e.target.value)} className="easy-inp" />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.625rem' }}>
                     <div>
                       <label className="easy-lbl-sm">Qty</label>
-                      <input type="number" value={item.quantity} min="1"
+                      <input aria-label="Qty" type="number" value={item.quantity} min="1"
                         onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)} className="easy-inp" />
                     </div>
                     <div>
                       <label className="easy-lbl-sm">Unit</label>
-                      <select value={item.unit} onChange={(e) => handleItemChange(item.id, 'unit', e.target.value)} className="easy-inp">
+                      <select aria-label="Unit" value={item.unit} onChange={(e) => handleItemChange(item.id, 'unit', e.target.value)} className="easy-inp">
                         {UNIT_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="easy-lbl-sm">Rate</label>
-                      <input type="number" value={item.rate} min="0"
+                      <input aria-label="Rate" type="number" value={item.rate} min="0"
                         onChange={(e) => handleItemChange(item.id, 'rate', e.target.value)} className="easy-inp" />
                     </div>
                     <div>
@@ -507,7 +507,7 @@ function RecurringInvoiceForm({ editItem }) {
                     </div>
                   </div>
                 </div>
-                <button type="button" onClick={() => handleRemoveItem(item.id)} className="easy-delete-btn" title="Remove">
+                <button type="button" onClick={() => handleRemoveItem(item.id)} className="easy-delete-btn" title="Remove" aria-label="Remove">
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -530,9 +530,9 @@ function RecurringInvoiceForm({ editItem }) {
                 <strong>{formatCurrency(totals.subtotal)}</strong>
               </div>
               {formData.gstRate > 0 && (
-                <div className="easy-total-row" style={{ color: 'rgba(59,130,246,0.7)' }}>
+                <div className="easy-total-row" style={{ color: 'var(--text-secondary)' }}>
                   <span>GST @ {formData.gstRate}%</span>
-                  <span style={{ color: '#60a5fa', fontWeight: 600 }}>{formatCurrency(totals.gst)}</span>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{formatCurrency(totals.gst)}</span>
                 </div>
               )}
               <div className="easy-total-divider" />
@@ -557,7 +557,7 @@ function RecurringInvoiceForm({ editItem }) {
               borderRadius: '12px', padding: '1.25rem', marginBottom: '1rem',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                <RotateCcw size={16} style={{ color: '#3b82f6' }} />
+                <RotateCcw size={16} style={{ color: 'var(--text-secondary)' }} />
                 <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>Schedule Configuration</span>
               </div>
 
@@ -568,7 +568,7 @@ function RecurringInvoiceForm({ editItem }) {
                   {FREQUENCIES.map(freq => (
                     <button key={freq.value} type="button"
                       onClick={() => set('frequency', freq.value)}
-                      className={`easy-chip ${formData.frequency === freq.value ? 'active' : ''}`}>
+                      aria-pressed={formData.frequency === freq.value} className={`easy-chip ${formData.frequency === freq.value ? 'active' : ''}`}>
                       {freq.label}
                     </button>
                   ))}
@@ -579,7 +579,7 @@ function RecurringInvoiceForm({ editItem }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                 <div className="easy-field">
                   <label className="easy-lbl">Start date</label>
-                  <input required type="date" value={formData.startDate}
+                  <input aria-label="Start date" required type="date" value={formData.startDate}
                     onChange={(e) => set('startDate', e.target.value)} className="easy-inp" />
                 </div>
                 <div className="easy-field">
@@ -589,7 +589,7 @@ function RecurringInvoiceForm({ editItem }) {
                       No end date
                     </div>
                   ) : (
-                    <input type="date" value={formData.endDate}
+                    <input aria-label="End date" type="date" value={formData.endDate}
                       onChange={(e) => set('endDate', e.target.value)}
                       className="easy-inp" min={formData.startDate} />
                   )}
@@ -654,11 +654,11 @@ function RecurringInvoiceForm({ editItem }) {
                 fontSize: '0.8125rem', color: 'var(--text-secondary)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Calendar size={14} style={{ color: '#3b82f6' }} />
+                  <Calendar size={14} style={{ color: 'var(--text-secondary)' }} />
                   <span>Next invoice date: <strong style={{ color: 'var(--text-primary)' }}>{nextDate ? formatDate(nextDate) : '-'}</strong></span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <RotateCcw size={14} style={{ color: '#3b82f6' }} />
+                  <RotateCcw size={14} style={{ color: 'var(--text-secondary)' }} />
                   <span>Total cycles: <strong style={{ color: 'var(--text-primary)' }}>
                     {totalCycles !== null ? `${totalCycles} invoices` : 'Unlimited'}
                   </strong></span>
@@ -675,7 +675,7 @@ function RecurringInvoiceForm({ editItem }) {
             </div>
             <div className="easy-field">
               <label className="easy-lbl">Notes / payment terms</label>
-              <textarea
+              <textarea aria-label="Notes / payment terms"
                 placeholder="Bank details, payment terms, or thank you note..."
                 rows={5} value={formData.notes}
                 onChange={(e) => set('notes', e.target.value)}
@@ -998,7 +998,7 @@ function RecurringInvoiceList() {
                       display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
                       fontSize: '0.8125rem', color: 'var(--text-secondary)',
                     }}>
-                      <RotateCcw size={12} style={{ color: '#3b82f6' }} />
+                      <RotateCcw size={12} style={{ color: 'var(--text-secondary)' }} />
                       {getFrequencyLabel(item.frequency)}
                     </span>
                   </td>
@@ -1024,7 +1024,7 @@ function RecurringInvoiceList() {
                             background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
                             borderRadius: '6px', padding: '0.375rem 0.625rem',
                             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem',
-                            fontSize: '0.75rem', fontWeight: 600, color: '#f59e0b',
+                            fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)',
                             fontFamily: 'var(--font-main)', transition: 'all 0.15s',
                           }}>
                           <Pause size={12} /> Pause
@@ -1037,7 +1037,7 @@ function RecurringInvoiceList() {
                             background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
                             borderRadius: '6px', padding: '0.375rem 0.625rem',
                             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem',
-                            fontSize: '0.75rem', fontWeight: 600, color: '#10b981',
+                            fontSize: '0.75rem', fontWeight: 600, color: 'var(--success)',
                             fontFamily: 'var(--font-main)', transition: 'all 0.15s',
                           }}>
                           <Play size={12} /> Resume
@@ -1051,7 +1051,7 @@ function RecurringInvoiceList() {
                               background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',
                               borderRadius: '6px', padding: '0.375rem 0.625rem',
                               cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem',
-                              fontSize: '0.75rem', fontWeight: 600, color: '#3b82f6',
+                              fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)',
                               fontFamily: 'var(--font-main)', transition: 'all 0.15s',
                             }}>
                             Edit

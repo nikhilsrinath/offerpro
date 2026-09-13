@@ -1,227 +1,133 @@
 import React, { useState } from 'react';
-import { X, Trash2 } from 'lucide-react';
 import { taskStore } from '../../services/taskStore';
 import { orgStore } from '../../services/orgStore';
+import {
+    Btn, Seg, Field, Input, Select, Textarea, Modal, ConfirmBtn,
+} from '../ui/edge';
+import { useT } from '../ui/edgeUtils';
 
-const STATUSES = ['pending', 'in-progress', 'done'];
-const PRIORITIES = ['low', 'medium', 'high'];
+/* The task sheet. Status and priority are segmented controls rather than
+   dropdowns — three options each, all worth seeing without opening anything. */
 
-const STATUS_COLORS = {
-  pending: { bg: 'rgba(251,191,36,0.1)', color: '#d97706', border: 'rgba(251,191,36,0.25)' },
-  'in-progress': { bg: 'rgba(59,130,246,0.1)', color: '#2563eb', border: 'rgba(59,130,246,0.25)' },
-  done: { bg: 'rgba(16,185,129,0.1)', color: '#059669', border: 'rgba(16,185,129,0.25)' },
-  overdue: { bg: 'rgba(239,68,68,0.1)', color: '#dc2626', border: 'rgba(239,68,68,0.25)' },
-};
+const STATUSES = [
+    { id: 'pending', label: 'Pending' },
+    { id: 'in-progress', label: 'In progress' },
+    { id: 'done', label: 'Done' },
+];
+const PRIORITIES = [
+    { id: 'low', label: 'Low' },
+    { id: 'medium', label: 'Medium' },
+    { id: 'high', label: 'High' },
+];
 
-const PRIORITY_COLORS = {
-  low: { bg: 'rgba(148,163,184,0.1)', color: 'var(--text-tertiary)', border: 'var(--border-subtle)' },
-  medium: { bg: 'rgba(251,191,36,0.1)', color: '#d97706', border: 'rgba(251,191,36,0.25)' },
-  high: { bg: 'rgba(239,68,68,0.1)', color: '#dc2626', border: 'rgba(239,68,68,0.25)' },
-};
-
-function getEmpName(emp) {
-  if (emp.first_name && emp.last_name) return `${emp.first_name} ${emp.last_name}`;
-  return emp.first_name || emp.last_name || emp.studentName || emp.name || '';
+function empName(emp) {
+    if (!emp) return '';
+    if (emp.first_name && emp.last_name) return `${emp.first_name} ${emp.last_name}`;
+    return emp.first_name || emp.last_name || emp.studentName || emp.name || '';
 }
 
 export default function TaskModal({ task, onClose, onSaved }) {
-  const employees = orgStore.getSectionAsList('employees');
+    const t = useT();
+    const employees = orgStore.getSectionAsList('employees');
+    const isEdit = !!task;
 
-  const [form, setForm] = useState({
-    title: task?.title || '',
-    description: task?.description || '',
-    assignedTo: task?.assignedTo || '',
-    status: task?.status || 'pending',
-    priority: task?.priority || 'medium',
-    deadline: task?.deadline || '',
-    notes: task?.notes || '',
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+    const [form, setForm] = useState({
+        title: task?.title || '',
+        description: task?.description || '',
+        assignedTo: task?.assignedTo || '',
+        status: task?.status || 'pending',
+        priority: task?.priority || 'medium',
+        deadline: task?.deadline || '',
+        notes: task?.notes || '',
+    });
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
 
-  const isEdit = !!task;
+    const set = (key) => (v) => setForm((f) => ({ ...f, [key]: v?.target ? v.target.value : v }));
 
-  const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+    const save = async () => {
+        if (!form.title.trim()) { setError('Give the task a title.'); return; }
+        if (!form.assignedTo) { setError('Choose who this is for.'); return; }
+        setSaving(true);
+        setError('');
+        try {
+            const emp = employees.find((e) => e.id === form.assignedTo) || {};
+            const payload = {
+                ...form,
+                title: form.title.trim(),
+                assignedName: empName(emp),
+                assignedEmail: emp.email || '',
+                assignedPhone: emp.phone || '',
+                assignedRole: emp.role || '',
+                assignedDept: emp.department || '',
+                deadline: form.deadline || null,
+                followUpSentAt: task?.followUpSentAt ?? null,
+            };
+            if (isEdit) await taskStore.update(task.id, payload);
+            else await taskStore.create(payload);
+            onSaved();
+            onClose();
+        } catch {
+            setError('Could not save the task. Try again.');
+        } finally {
+            setSaving(false);
+        }
+    };
 
-  const handleSave = async () => {
-    if (!form.title.trim()) { setError('Task title is required.'); return; }
-    if (!form.assignedTo) { setError('Please assign this task to an employee.'); return; }
-    setSaving(true);
-    setError('');
-    try {
-      const empData = employees.find(e => e.id === form.assignedTo) || {};
-      const payload = {
-        ...form,
-        title: form.title.trim(),
-        assignedName: getEmpName(empData),
-        assignedEmail: empData.email || '',
-        assignedPhone: empData.phone || '',
-        assignedRole: empData.role || '',
-        assignedDept: empData.department || '',
-        deadline: form.deadline || null,
-        followUpSentAt: task?.followUpSentAt ?? null,
-      };
-      if (isEdit) {
-        await taskStore.update(task.id, payload);
-      } else {
-        await taskStore.create(payload);
-      }
-      onSaved();
-      onClose();
-    } catch {
-      setError('Failed to save task. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
+    const remove = async () => {
+        taskStore.remove(task.id);
+        onSaved();
+        onClose();
+    };
 
-  const handleDelete = async () => {
-    if (!window.confirm('Delete this task?')) return;
-    taskStore.remove(task.id);
-    onSaved();
-    onClose();
-  };
+    return (
+        <Modal open onClose={onClose} width={540}
+            title={isEdit ? 'Edit task' : 'New task'}
+            note={isEdit ? undefined : 'The person sees this in their portal, with its deadline'}
+            footer={
+                <>
+                    {isEdit && <ConfirmBtn size="md" label="Delete task" confirmLabel="Delete for good" onConfirm={remove} />}
+                    <div style={{ flex: 1 }} />
+                    <Btn onClick={onClose}>Cancel</Btn>
+                    <Btn primary onClick={save} disabled={saving}>{saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create task'}</Btn>
+                </>
+            }>
+            <Field label="Title">
+                <Input value={form.title} onChange={set('title')} placeholder="What needs doing" autoFocus />
+            </Field>
+            <div style={{ height: 13 }} />
+            <Field label="Details" hint="Optional — what done looks like">
+                <Textarea rows={3} value={form.description} onChange={set('description')} />
+            </Field>
+            <div style={{ height: 13 }} />
+            <Field label="Assign to">
+                <Select value={form.assignedTo} onChange={set('assignedTo')}>
+                    <option value="">Choose a person…</option>
+                    {employees.map((e) => (
+                        <option key={e.id} value={e.id}>{empName(e)}{e.role ? ` — ${e.role}` : ''}</option>
+                    ))}
+                </Select>
+            </Field>
+            <div style={{ height: 13 }} />
+            <Field label="Status">
+                <Seg value={form.status} onChange={set('status')} options={STATUSES} />
+            </Field>
+            <div style={{ height: 13 }} />
+            <Field label="Priority">
+                <Seg value={form.priority} onChange={set('priority')} options={PRIORITIES} />
+            </Field>
+            <div style={{ height: 13 }} />
+            <Field label="Deadline" hint="Leave blank if there is no date">
+                <Input type="date" value={form.deadline} onChange={set('deadline')} />
+            </Field>
+            <div style={{ height: 13 }} />
+            <Field label="Notes" hint="Kept on the task, not sent as a message">
+                <Textarea rows={2} value={form.notes} onChange={set('notes')} style={{ minHeight: 56 }} />
+            </Field>
 
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
-    }} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{
-        background: 'var(--surface)', borderRadius: '16px', width: '100%', maxWidth: '520px',
-        border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-xl)',
-        maxHeight: '90vh', overflowY: 'auto',
-      }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
-          <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
-            {isEdit ? 'Edit Task' : 'New Task'}
-          </span>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {isEdit && (
-              <button onClick={handleDelete} style={{ background: 'rgba(239,68,68,0.08)', border: 'none', borderRadius: '8px', padding: '0.4rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem', color: '#dc2626', fontSize: '0.8125rem', fontWeight: 600 }}>
-                <Trash2 size={14} /> Delete
-              </button>
+            {error && (
+                <div style={{ marginTop: 13, fontSize: 11, color: t.down }}>{error}</div>
             )}
-            <button onClick={onClose} style={{ background: 'var(--bg-raised)', border: 'none', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex' }}>
-              <X size={18} />
-            </button>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {error && (
-            <div style={{ background: 'rgba(239,68,68,0.08)', color: '#dc2626', borderRadius: '8px', padding: '0.75rem 1rem', fontSize: '0.875rem', border: '1px solid rgba(239,68,68,0.15)' }}>
-              {error}
-            </div>
-          )}
-
-          {/* Title */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', marginBottom: '0.4rem' }}>Title *</label>
-            <input
-              autoFocus
-              value={form.title}
-              onChange={e => set('title', e.target.value)}
-              placeholder="What needs to be done?"
-              style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '0.75rem 1rem', color: 'var(--text-primary)', fontSize: '0.9375rem', outline: 'none', fontFamily: 'inherit' }}
-            />
-          </div>
-
-          {/* Assign + Deadline row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', marginBottom: '0.4rem' }}>Assign To *</label>
-              <select
-                value={form.assignedTo}
-                onChange={e => set('assignedTo', e.target.value)}
-                style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '0.75rem 1rem', color: form.assignedTo ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '0.875rem', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
-              >
-                <option value="">Select employee</option>
-                {employees.map(e => (
-                  <option key={e.id} value={e.id}>{getEmpName(e)}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', marginBottom: '0.4rem' }}>Deadline</label>
-              <input
-                type="date"
-                value={form.deadline}
-                onChange={e => set('deadline', e.target.value)}
-                style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '0.75rem 1rem', color: 'var(--text-primary)', fontSize: '0.875rem', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
-              />
-            </div>
-          </div>
-
-          {/* Priority */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>Priority</label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {PRIORITIES.map(p => {
-                const c = PRIORITY_COLORS[p];
-                const active = form.priority === p;
-                return (
-                  <button key={p} onClick={() => set('priority', p)} style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: `1px solid ${active ? c.border : 'var(--border-subtle)'}`, background: active ? c.bg : 'transparent', color: active ? c.color : 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.8125rem', cursor: 'pointer', textTransform: 'capitalize', fontFamily: 'inherit', transition: 'all 0.15s' }}>
-                    {p}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Status */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>Status</label>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {STATUSES.map(s => {
-                const c = STATUS_COLORS[s];
-                const active = form.status === s;
-                return (
-                  <button key={s} onClick={() => set('status', s)} style={{ padding: '0.45rem 0.875rem', borderRadius: '8px', border: `1px solid ${active ? c.border : 'var(--border-subtle)'}`, background: active ? c.bg : 'transparent', color: active ? c.color : 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.8125rem', cursor: 'pointer', textTransform: 'capitalize', fontFamily: 'inherit', transition: 'all 0.15s' }}>
-                    {s.replace('-', ' ')}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', marginBottom: '0.4rem' }}>Description</label>
-            <textarea
-              value={form.description}
-              onChange={e => set('description', e.target.value)}
-              placeholder="Add context, requirements, or links..."
-              rows={3}
-              style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '0.75rem 1rem', color: 'var(--text-primary)', fontSize: '0.875rem', outline: 'none', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.5 }}
-            />
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', marginBottom: '0.4rem' }}>Notes</label>
-            <textarea
-              value={form.notes}
-              onChange={e => set('notes', e.target.value)}
-              placeholder="Internal notes for this task..."
-              rows={2}
-              style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: '10px', padding: '0.75rem 1rem', color: 'var(--text-primary)', fontSize: '0.875rem', outline: 'none', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.5 }}
-            />
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ padding: '0.625rem 1.25rem', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: '10px', color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            Cancel
-          </button>
-          <button onClick={handleSave} disabled={saving} style={{ padding: '0.625rem 1.5rem', background: 'var(--accent)', border: 'none', borderRadius: '10px', color: 'var(--surface)', fontSize: '0.875rem', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontFamily: 'inherit' }}>
-            {saving ? 'Saving…' : isEdit ? 'Update Task' : 'Create Task'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+        </Modal>
+    );
 }

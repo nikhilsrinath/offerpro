@@ -1,101 +1,39 @@
-import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import React from 'react';
+import { Bar, StatBand } from '../../ui/edge';
+import { useT } from '../../ui/edgeUtils';
 
-export default function BulkProgressTracker({ total, processed, failed, status }) {
-    const [animatedProcessed, setAnimatedProcessed] = useState(0);
+/* How far a batch has got. A bar rather than a ring — it reads at a glance and
+   exposes itself as a progressbar, so a screen reader hears the same number. */
+export default function BulkProgressTracker({ total, processed, failed, status, noun = 'documents', verb = 'Generated' }) {
+    const t = useT();
+    const done = processed + failed;
+    const percentage = total === 0 ? 0 : Math.round((done / total) * 100);
 
-    // Animate the counter number smoothly
-    useEffect(() => {
-        setAnimatedProcessed(processed);
-    }, [processed]);
-
-    const percentage = total === 0 ? 0 : Math.round((processed / total) * 100);
-
-    // Colors based on status
-    const getColor = () => {
-        if (status === 'error') return '#E74C3C';
-        if (status === 'done' && failed === 0) return '#2EE8A0';
-        if (status === 'done' && failed > 0) return '#f59e0b';
-        return 'var(--text-primary)';
-    };
-
-    const getStatusIcon = () => {
-        if (status === 'done') {
-            return failed > 0 ? <AlertTriangle size={24} color="#f59e0b" /> : <CheckCircle2 size={24} color="#2EE8A0" />;
-        }
-        if (status === 'error') {
-            return <AlertTriangle size={24} color="#E74C3C" />;
-        }
-        return <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }}><Loader2 size={24} color="var(--text-primary)" /></motion.div>;
-    };
-
-    const strokeDasharray = 283; // 2 * pi * r (r=45)
-    const strokeDashoffset = strokeDasharray - (strokeDasharray * percentage) / 100;
+    const heading = status === 'processing'
+        ? `Working… ${done} of ${total}`
+        : status === 'done'
+            ? (failed > 0 ? `Finished with ${failed} failed` : 'Finished')
+            : 'Something went wrong';
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', padding: '2rem', background: 'var(--surface)', borderRadius: '16px', border: '1px solid var(--border)' }}>
-            {/* Circular Progress */}
-            <div style={{ position: 'relative', width: '120px', height: '120px' }}>
-                <svg width="120" height="120" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
-                    {/* Background circle */}
-                    <circle cx="50" cy="50" r="45" fill="none" stroke="var(--border)" strokeWidth="8" />
-
-                    {/* Progress circle */}
-                    <motion.circle
-                        cx="50"
-                        cy="50"
-                        r="45"
-                        fill="none"
-                        stroke={getColor()}
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        initial={{ strokeDashoffset: strokeDasharray }}
-                        animate={{ strokeDashoffset }}
-                        transition={{ duration: 0.5, ease: "easeInOut" }}
-                        style={{ strokeDasharray }}
-                    />
-                </svg>
-
-                {/* Center Text (percentage) */}
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>
-                        {percentage}%
-                    </span>
-                </div>
+        <section aria-label="Batch progress" style={{ border: '1px solid ' + t.line, borderRadius: 10, padding: '14px 16px', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
+                <h3 aria-live="polite" style={{ margin: 0, fontSize: 12.5, fontWeight: 500, color: t.text }}>{heading}</h3>
+                <div style={{ flex: 1 }} />
+                <span style={{ fontSize: 20, fontWeight: 500, letterSpacing: '-0.03em', color: t.text }}>{percentage}%</span>
             </div>
-
-            {/* Stats Row */}
-            <div style={{ textAlign: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                    {getStatusIcon()}
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
-                        {status === 'processing' ? 'Generating Documents...' :
-                            status === 'done' ? 'Generation Complete' : 'Generation Failed'}
-                    </h3>
-                </div>
-
-                <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <span style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{animatedProcessed}</span>
-                        <span>Generated</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <span style={{ fontSize: '1.5rem', fontWeight: 700, color: failed > 0 ? 'var(--error)' : 'var(--text-primary)' }}>{failed}</span>
-                        <span>Failed</span>
-                    </div>
-                    {status === 'processing' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <span style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{total - processed - failed}</span>
-                            <span>Pending</span>
-                        </div>
-                    )}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <span style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{total}</span>
-                        <span>Total</span>
-                    </div>
-                </div>
+            <div role="progressbar" aria-label={`${verb} ${noun}`} aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}
+                aria-valuetext={`${done} of ${total}`}>
+                <Bar value={done} max={total || 1} height={5} tone={status === 'done' && failed === 0 ? t.up : t.text} />
             </div>
-        </div>
+            <div style={{ marginTop: 14 }}>
+                <StatBand items={[
+                    { label: verb, value: processed, tone: processed > 0 ? 'up' : undefined },
+                    { label: 'Failed', value: failed, tone: failed > 0 ? 'down' : undefined },
+                    ...(status === 'processing' ? [{ label: 'Pending', value: Math.max(0, total - done) }] : []),
+                    { label: 'Total', value: total },
+                ]} />
+            </div>
+        </section>
     );
 }

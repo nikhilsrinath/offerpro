@@ -127,12 +127,12 @@ export default function NdaForm() {
                 <div style={{
                   height: '100%',
                   borderRadius: '2px',
-                  background: isAtLimit('nda') ? '#ef4444' : getUsagePercent('nda') > 80 ? '#f59e0b' : '#3b82f6',
+                  background: isAtLimit('nda') ? 'var(--error)' : getUsagePercent('nda') > 80 ? 'var(--text-primary)' : 'var(--text-secondary)',
                   transition: 'width 0.3s',
                   width: `${Math.min(getUsagePercent('nda'), 100)}%`
                 }} />
               </div>
-              <span style={{ fontWeight: 700, color: isAtLimit('nda') ? '#ef4444' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              <span style={{ fontWeight: 700, color: isAtLimit('nda') ? 'var(--error)' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                 {usage.nda}/{planConfig.limits.nda === Infinity ? '∞' : planConfig.limits.nda}
               </span>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({getRemainingCount('nda')} remaining)</span>
@@ -168,15 +168,15 @@ export default function NdaForm() {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Effective date</label>
-                <input type="date" name="effectiveDate" value={formData.effectiveDate} onChange={handleChange} className="easy-inp" required />
+                <input aria-label="Effective date" type="date" name="effectiveDate" value={formData.effectiveDate} onChange={handleChange} className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">City of execution</label>
-                <input name="executionCity" value={formData.executionCity} onChange={handleChange} placeholder="e.g. Chennai" className="easy-inp" required />
+                <input aria-label="City of execution" name="executionCity" value={formData.executionCity} onChange={handleChange} placeholder="e.g. Chennai" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">State</label>
-                <input name="executionState" value={formData.executionState} onChange={handleChange} placeholder="e.g. Tamil Nadu" className="easy-inp" required />
+                <input aria-label="State" name="executionState" value={formData.executionState} onChange={handleChange} placeholder="e.g. Tamil Nadu" className="easy-inp" required />
               </div>
             </div>
           </div>
@@ -190,15 +190,15 @@ export default function NdaForm() {
             <div className="easy-row">
               <div className="easy-field full">
                 <label className="easy-lbl">Company / entity name</label>
-                <input name="disclosingPartyName" value={formData.disclosingPartyName} onChange={handleChange} placeholder="e.g. Acme Technologies Pvt Ltd" className="easy-inp" required />
+                <input aria-label="Company / entity name" name="disclosingPartyName" value={formData.disclosingPartyName} onChange={handleChange} placeholder="e.g. Acme Technologies Pvt Ltd" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Country of incorporation</label>
-                <input name="disclosingPartyIncorporation" value={formData.disclosingPartyIncorporation} onChange={handleChange} placeholder="India" className="easy-inp" required />
+                <input aria-label="Country of incorporation" name="disclosingPartyIncorporation" value={formData.disclosingPartyIncorporation} onChange={handleChange} placeholder="India" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Registered office address</label>
-                <textarea name="disclosingPartyAddress" value={formData.disclosingPartyAddress} onChange={handleChange} placeholder="Full address with PIN code" rows={2} className="easy-inp" style={{ resize: 'none' }} required />
+                <textarea aria-label="Registered office address" name="disclosingPartyAddress" value={formData.disclosingPartyAddress} onChange={handleChange} placeholder="Full address with PIN code" rows={2} className="easy-inp" style={{ resize: 'none' }} required />
               </div>
             </div>
           </div>
@@ -212,15 +212,15 @@ export default function NdaForm() {
             <div className="easy-row">
               <div className="easy-field full">
                 <label className="easy-lbl">Company / entity name</label>
-                <input name="receivingPartyName" value={formData.receivingPartyName} onChange={handleChange} placeholder="e.g. Beta Labs Private Limited" className="easy-inp" required />
+                <input aria-label="Company / entity name" name="receivingPartyName" value={formData.receivingPartyName} onChange={handleChange} placeholder="e.g. Beta Labs Private Limited" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Country of incorporation</label>
-                <input name="receivingPartyIncorporation" value={formData.receivingPartyIncorporation} onChange={handleChange} placeholder="India" className="easy-inp" required />
+                <input aria-label="Country of incorporation" name="receivingPartyIncorporation" value={formData.receivingPartyIncorporation} onChange={handleChange} placeholder="India" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Registered office address</label>
-                <textarea name="receivingPartyAddress" value={formData.receivingPartyAddress} onChange={handleChange} placeholder="Full address with PIN code" rows={2} className="easy-inp" style={{ resize: 'none' }} required />
+                <textarea aria-label="Registered office address" name="receivingPartyAddress" value={formData.receivingPartyAddress} onChange={handleChange} placeholder="Full address with PIN code" rows={2} className="easy-inp" style={{ resize: 'none' }} required />
               </div>
             </div>
           </div>
@@ -234,13 +234,13 @@ export default function NdaForm() {
             <div className="easy-row">
               <div className="easy-field full">
                 <label className="easy-lbl">Proposed transaction</label>
-                <textarea name="proposedTransaction" value={formData.proposedTransaction} onChange={handleChange}
+                <textarea aria-label="Proposed transaction" name="proposedTransaction" value={formData.proposedTransaction} onChange={handleChange}
                   placeholder="e.g. proposes to provide [Receiving Party Name] with a sample unit of its product for evaluation..."
                   rows={3} className="easy-inp" style={{ resize: 'none' }} required />
               </div>
               <div className="easy-field full">
                 <label className="easy-lbl">Purpose of disclosure</label>
-                <textarea name="purposeOfDisclosure" value={formData.purposeOfDisclosure} onChange={handleChange}
+                <textarea aria-label="Purpose of disclosure" name="purposeOfDisclosure" value={formData.purposeOfDisclosure} onChange={handleChange}
                   placeholder="e.g. sharing confidential information solely to enable evaluation..."
                   rows={3} className="easy-inp" style={{ resize: 'none' }} required />
               </div>
@@ -255,7 +255,7 @@ export default function NdaForm() {
             </div>
             <div className="easy-field">
               <label className="easy-lbl">Enter each item on a new line</label>
-              <textarea name="specificConfidentialItems" value={formData.specificConfidentialItems} onChange={handleChange}
+              <textarea aria-label="Enter each item on a new line" name="specificConfidentialItems" value={formData.specificConfidentialItems} onChange={handleChange}
                 placeholder={"e.g.\nThe physical product sample provided for evaluation\nProprietary hardware architecture and board design\nInternal circuit design concepts\nFirmware behavior and system functionality\nTechnical documentation and user guides\nCommercial pricing and business discussions"}
                 rows={6} className="easy-inp" style={{ resize: 'vertical', lineHeight: '1.6' }} required />
             </div>
@@ -270,13 +270,13 @@ export default function NdaForm() {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Confidentiality obligation (years)</label>
-                <select name="obligationYears" value={formData.obligationYears} onChange={handleChange} className="easy-inp">
+                <select aria-label="Confidentiality obligation (years)" name="obligationYears" value={formData.obligationYears} onChange={handleChange} className="easy-inp">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Year' : 'Years'}</option>)}
                 </select>
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Non-solicitation period (years)</label>
-                <select name="nonSolicitationYears" value={formData.nonSolicitationYears} onChange={handleChange} className="easy-inp">
+                <select aria-label="Non-solicitation period (years)" name="nonSolicitationYears" value={formData.nonSolicitationYears} onChange={handleChange} className="easy-inp">
                   {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Year' : 'Years'}</option>)}
                 </select>
               </div>
@@ -292,11 +292,11 @@ export default function NdaForm() {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Arbitration city</label>
-                <input name="arbitrationCity" value={formData.arbitrationCity} onChange={handleChange} placeholder="e.g. Chennai" className="easy-inp" required />
+                <input aria-label="Arbitration city" name="arbitrationCity" value={formData.arbitrationCity} onChange={handleChange} placeholder="e.g. Chennai" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Arbitration state</label>
-                <input name="arbitrationState" value={formData.arbitrationState} onChange={handleChange} placeholder="e.g. Tamil Nadu" className="easy-inp" required />
+                <input aria-label="Arbitration state" name="arbitrationState" value={formData.arbitrationState} onChange={handleChange} placeholder="e.g. Tamil Nadu" className="easy-inp" required />
               </div>
             </div>
           </div>
@@ -313,20 +313,20 @@ export default function NdaForm() {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Name</label>
-                <input name="disclosingSignatoryName" value={formData.disclosingSignatoryName} onChange={handleChange} placeholder="Full name" className="easy-inp" required />
+                <input aria-label="Name" name="disclosingSignatoryName" value={formData.disclosingSignatoryName} onChange={handleChange} placeholder="Full name" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Designation</label>
-                <input name="disclosingSignatoryDesignation" value={formData.disclosingSignatoryDesignation} onChange={handleChange} placeholder="e.g. CEO / Director" className="easy-inp" required />
+                <input aria-label="Designation" name="disclosingSignatoryDesignation" value={formData.disclosingSignatoryDesignation} onChange={handleChange} placeholder="e.g. CEO / Director" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Signing date</label>
-                <input type="date" name="disclosingSignatoryDate" value={formData.disclosingSignatoryDate} onChange={handleChange} className="easy-inp" required />
+                <input aria-label="Signing date" type="date" name="disclosingSignatoryDate" value={formData.disclosingSignatoryDate} onChange={handleChange} className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Signature</label>
                 <div className="easy-upload-wrap">
-                  <input type="file" onChange={(e) => handleFileUpload(e, 'disclosingSignature')} accept="image/*" />
+                  <input aria-label="Signature" type="file" onChange={(e) => handleFileUpload(e, 'disclosingSignature')} accept="image/*" />
                   <div className={`easy-upload ${formData.disclosingSignature ? 'done' : ''}`}>
                     {formData.disclosingSignature ? <><CheckCircle size={16} /> Uploaded</> : <><Upload size={16} /> Upload signature</>}
                   </div>
@@ -342,20 +342,20 @@ export default function NdaForm() {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Name</label>
-                <input name="receivingSignatoryName" value={formData.receivingSignatoryName} onChange={handleChange} placeholder="Full name" className="easy-inp" required />
+                <input aria-label="Name" name="receivingSignatoryName" value={formData.receivingSignatoryName} onChange={handleChange} placeholder="Full name" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Designation</label>
-                <input name="receivingSignatoryDesignation" value={formData.receivingSignatoryDesignation} onChange={handleChange} placeholder="e.g. CEO / Director" className="easy-inp" required />
+                <input aria-label="Designation" name="receivingSignatoryDesignation" value={formData.receivingSignatoryDesignation} onChange={handleChange} placeholder="e.g. CEO / Director" className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Signing date</label>
-                <input type="date" name="receivingSignatoryDate" value={formData.receivingSignatoryDate} onChange={handleChange} className="easy-inp" required />
+                <input aria-label="Signing date" type="date" name="receivingSignatoryDate" value={formData.receivingSignatoryDate} onChange={handleChange} className="easy-inp" required />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Signature</label>
                 <div className="easy-upload-wrap">
-                  <input type="file" onChange={(e) => handleFileUpload(e, 'receivingSignature')} accept="image/*" />
+                  <input aria-label="Signature" type="file" onChange={(e) => handleFileUpload(e, 'receivingSignature')} accept="image/*" />
                   <div className={`easy-upload ${formData.receivingSignature ? 'done' : ''}`}>
                     {formData.receivingSignature ? <><CheckCircle size={16} /> Uploaded</> : <><Upload size={16} /> Upload signature</>}
                   </div>
@@ -363,14 +363,15 @@ export default function NdaForm() {
                 {formData.receivingSignature && <img src={formData.receivingSignature} alt="Signature" style={{ height: '28px', marginTop: '0.25rem' }} />}
               </div>
               <div className="easy-field full">
-                <div
+                <button
+                  type="button" role="switch" aria-checked={!!formData.showStamp}
                   className={`easy-switch-row ${formData.showStamp ? 'active' : ''}`}
                   onClick={() => handleChange({ target: { name: 'showStamp', checked: !formData.showStamp, type: 'checkbox' } })}
                   style={{ marginTop: '0.5rem' }}
                 >
                   <span className="easy-switch-label">Include company stamp</span>
-                  <div className="easy-switch-dot" />
-                </div>
+                  <span className="easy-switch-dot" aria-hidden="true" />
+                </button>
               </div>
             </div>
           </div>

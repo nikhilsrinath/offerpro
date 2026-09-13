@@ -204,21 +204,21 @@ export default function BillingRevenue() {
       <div className="pro-stats-grid">
         <div className="pro-stat-card">
           <div className="pro-stat-top">
-            <div className="pro-stat-icon" style={{ background: '#10b98112', color: '#10b981' }}>
+            <div className="pro-stat-icon" style={{ color: 'var(--success)' }}>
               <TrendingUp size={20} />
             </div>
           </div>
-          <div className="pro-stat-value" style={{ color: '#10b981' }}>₹{stats.totalRevenue.toLocaleString()}</div>
+          <div className="pro-stat-value" style={{ color: 'var(--success)' }}>₹{stats.totalRevenue.toLocaleString()}</div>
           <div className="pro-stat-label">Revenue · {stats.invoiceCount} invoice{stats.invoiceCount !== 1 ? 's' : ''}</div>
         </div>
 
         <div className="pro-stat-card">
           <div className="pro-stat-top">
-            <div className="pro-stat-icon" style={{ background: '#f59e0b12', color: '#f59e0b' }}>
+            <div className="pro-stat-icon" style={{ color: 'var(--text-primary)' }}>
               <Wallet size={20} />
             </div>
           </div>
-          <div className="pro-stat-value" style={{ color: '#f59e0b' }}>₹{stats.totalMakingCharges.toLocaleString()}</div>
+          <div className="pro-stat-value" style={{ color: 'var(--text-primary)' }}>₹{stats.totalMakingCharges.toLocaleString()}</div>
           <div className="pro-stat-label">Making Charges · {stats.totalRevenue > 0 ? `${((stats.totalMakingCharges / stats.totalRevenue) * 100).toFixed(0)}% of revenue` : 'No data'}</div>
         </div>
 
@@ -234,14 +234,11 @@ export default function BillingRevenue() {
 
         <div className="pro-stat-card">
           <div className="pro-stat-top">
-            <div className="pro-stat-icon" style={{
-              background: stats.netProfit >= 0 ? '#3b82f612' : '#ef444412',
-              color: stats.netProfit >= 0 ? '#3b82f6' : '#ef4444'
-            }}>
+            <div className="pro-stat-icon">
               <PiggyBank size={20} />
             </div>
           </div>
-          <div className="pro-stat-value" style={{ color: stats.netProfit >= 0 ? '#3b82f6' : '#ef4444' }}>
+          <div className="pro-stat-value" style={{ color: stats.netProfit >= 0 ? 'var(--success)' : 'var(--error)' }}>
             {stats.netProfit >= 0 ? '+' : ''}₹{stats.netProfit.toLocaleString()}
           </div>
           <div className="pro-stat-label">
@@ -255,7 +252,7 @@ export default function BillingRevenue() {
         <div className="pro-card">
           <div className="pro-card-header">
             <div className="pro-card-title-group">
-              <TrendingUp size={18} style={{ color: '#10b981' }} />
+              <TrendingUp size={18} style={{ color: 'var(--success)' }} />
               <h3>Revenue vs Expenses</h3>
             </div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Last 6 months</span>
@@ -286,7 +283,7 @@ export default function BillingRevenue() {
         <div className="pro-card">
           <div className="pro-card-header">
             <div className="pro-card-title-group">
-              <Wallet size={18} style={{ color: '#f59e0b' }} />
+              <Wallet size={18} style={{ color: 'var(--text-primary)' }} />
               <h3>Expense Categories</h3>
             </div>
           </div>
@@ -335,7 +332,7 @@ export default function BillingRevenue() {
         <div className="pro-card">
           <div className="pro-card-header">
             <div className="pro-card-title-group">
-              <Package size={18} style={{ color: '#8b5cf6' }} />
+              <Package size={18} style={{ color: 'var(--text-secondary)' }} />
               <h3>Top Products</h3>
             </div>
             <button
@@ -378,7 +375,7 @@ export default function BillingRevenue() {
       <div className="pro-card">
         <div className="pro-card-header">
           <div className="pro-card-title-group">
-            <PiggyBank size={18} style={{ color: '#3b82f6' }} />
+            <PiggyBank size={18} style={{ color: 'var(--text-secondary)' }} />
             <h3>Profit & Loss Trend</h3>
           </div>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Monthly net</span>
@@ -412,7 +409,7 @@ export default function BillingRevenue() {
         <div className="pro-card">
           <div className="pro-card-header">
             <div className="pro-card-title-group">
-              <Wallet size={18} style={{ color: '#f59e0b' }} />
+              <Wallet size={18} style={{ color: 'var(--text-primary)' }} />
               <h3>Expense Breakdown</h3>
             </div>
           </div>
@@ -445,7 +442,7 @@ export default function BillingRevenue() {
         <div className="pro-card">
           <div className="pro-card-header">
             <div className="pro-card-title-group">
-              <Receipt size={18} style={{ color: '#10b981' }} />
+              <Receipt size={18} style={{ color: 'var(--success)' }} />
               <h3>Invoice Revenue</h3>
             </div>
           </div>
@@ -547,7 +544,7 @@ export default function BillingRevenue() {
                 <div className="billing-expense-right">
                   <span className="billing-expense-amount">₹{Number(exp.amount).toLocaleString()}</span>
                   {exp.receipt_path ? (
-                    <button className="billing-delete-btn" title="View receipt" onClick={() => receiptService.open(exp.receipt_path)}>
+                    <button className="billing-delete-btn" title="View receipt" onClick={() => receiptService.open(exp.receipt_path)} aria-label="View receipt">
                       <Paperclip size={14} />
                     </button>
                   ) : (
@@ -557,7 +554,7 @@ export default function BillingRevenue() {
                         onChange={(e) => { handleAttachReceipt(exp, e.target.files?.[0]); e.target.value = ''; }} />
                     </label>
                   )}
-                  <button className="billing-delete-btn" onClick={() => handleDeleteExpense(exp.id)}>
+                  <button className="billing-delete-btn" onClick={() => handleDeleteExpense(exp.id)} aria-label="Delete expense" title="Delete expense">
                     <Trash2 size={14} />
                   </button>
                 </div>

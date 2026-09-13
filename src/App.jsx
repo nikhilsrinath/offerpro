@@ -1,13 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Routes, Route, useNavigate, useLocation, Navigate, useParams, NavLink } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation, Navigate, useParams } from 'react-router-dom';
 import {
   LayoutDashboard, Briefcase, Award, Scale, ShieldCheck,
-  DollarSign, Layers, Archive, LogOut, Menu, X, Bell,
-  Zap, UserCircle, ChevronRight, ChevronDown, Users,
+  DollarSign, Layers, Archive, Users,
   UploadCloud, FileCheck, FileSignature, History,
-  FileSpreadsheet, Activity, Receipt, FilePlus, RotateCcw, ArrowLeft,
-  Sun, Moon, GitBranch, UserX, Kanban, CheckSquare,
-  FileText, BarChart3, File, Package, PieChart as PieChartIcon,
+  Activity, Receipt, FilePlus, RotateCcw,
+  GitBranch, UserX, Kanban, CheckSquare, Package,
   Truck, FileInput, TrendingUp, CalendarCheck, Plane, Megaphone
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
@@ -20,8 +18,9 @@ import CertificateForm from './components/CertificateForm';
 import NdaForm from './components/NdaForm';
 import MoUForm from './components/MoUForm';
 import InvoiceForm from './components/InvoiceForm';
-import Dashboard from './components/Dashboard';
+import Overview from './components/overview/Overview';
 import Hub from './components/Hub';
+import ModuleShell from './components/shell/ModuleShell';
 import Customers from './components/Customers';
 import BillingRevenue from './components/BillingRevenue';
 import ProductPlanner from './components/ProductPlanner';
@@ -37,10 +36,9 @@ import EmployeeForm from './components/EmployeeForm';
 import ExEmployees from './components/ExEmployees';
 import TeamHierarchy from './components/TeamHierarchy';
 import TasksPage from './components/tasks/TasksPage';
-import CopilotPanel from './components/cofounder/CopilotPanel';
+import AIAssistant from './components/assistant/AIAssistant';
 import { useTaskDeadlineMonitor } from './hooks/useTaskDeadlineMonitor';
 import { useTheme } from './hooks/useTheme';
-import { usePlanStatus } from './hooks/usePlanStatus';
 import { PLANS } from './services/planConfig';
 
 import BulkOfferLetters from './components/bulk/BulkOfferLetters';
@@ -82,8 +80,30 @@ const MODULE_FILTER = {
   data: ['records', 'bulk-history']
 };
 
+// Pages that belong to a module without having a place in its rail — the
+// editors reached from a list. They still wear that module's frame.
+const MODULE_EXTRA_PAGES = {
+  finance: ['new-invoice', 'new-quotation', 'new-proforma'],
+};
+
+// Pages whose content manages its own scrolling edge to edge: the org chart's
+// canvas and the form-beside-preview document editors.
+const FLUSH_PAGES = new Set([
+  'team-hierarchy', 'offers', 'new-certificates', 'certificates', 'ndas', 'mous',
+  'new-invoice', 'new-quotation', 'new-proforma',
+]);
+
+const MODULE_META = {
+  team:      { label: 'Team' },
+  documents: { label: 'Documents' },
+  finance:   { label: 'Finance' },
+  business:  { label: 'Business' },
+  data:      { label: 'Records' },
+  overall:   { label: 'Overview' },
+};
+
 const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
   { section: 'TEAM' },
   { id: 'team-hierarchy', label: 'Team Hierarchy', icon: GitBranch },
   { id: 'employees', label: 'Employees', icon: Users },
@@ -125,8 +145,8 @@ const NAV_ITEMS = [
 ];
 
 const PAGE_META = {
-  dashboard: { title: 'Dashboard', subtitle: 'Organization overview and analytics' },
-  profile: { title: 'Company Profile', subtitle: 'Manage your company details, logo, and signature' },
+  dashboard: { title: 'Overview', subtitle: 'The whole organisation, one period — click anything for the analysis behind it' },
+  profile: { title: 'Company Profile', subtitle: 'The details every document you issue is signed with' },
   offers: { title: 'Offer Letters', subtitle: 'Generate employment and internship offers' },
   'new-certificates': { title: 'Certificates', subtitle: 'Issue professional attainment certificates' },
   certificates: { title: 'Certificates', subtitle: 'Issue professional attainment certificates' },
@@ -168,7 +188,6 @@ const PAGE_META = {
 function AppContent() {
   const location = useLocation();
   const routerNavigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   useTaskDeadlineMonitor();
 
   let activePage = location.pathname.substring(1);
@@ -185,7 +204,7 @@ function AppContent() {
 
   let activeModule = null;
   for (const [mod, pages] of Object.entries(MODULE_FILTER)) {
-    if (pages.includes(activePage)) {
+    if (pages.includes(activePage) || MODULE_EXTRA_PAGES[mod]?.includes(activePage)) {
       activeModule = mod;
       break;
     }
@@ -194,12 +213,6 @@ function AppContent() {
   const { user, loading, logout, needsOnboarding } = useAuth();
   const { activeOrg } = useOrg();
   const { theme, toggleTheme } = useTheme();
-  const { planConfig } = usePlanStatus();
-  const [notifications, setNotifications] = useState([]);
-  const [showNotifPanel, setShowNotifPanel] = useState(false);
-  const [copilotOpen, setCopilotOpen] = useState(false);
-  const [copilotFullscreen, setCopilotFullscreen] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   // The Co-founder's numeric context. This was an inline literal with every
   // figure hardcoded to 0, so the AI was told the company had no revenue, no
@@ -232,7 +245,7 @@ function AppContent() {
       });
     })();
     return () => { cancelled = true; };
-  }, [activeOrg, user, copilotOpen]);
+  }, [activeOrg, user]);
 
   // Both sides optional-chained meant that on the first render — builtContext
   // still null, activeOrg not yet hydrated — this compared undefined to
@@ -243,12 +256,6 @@ function AppContent() {
     builtContext && activeOrg?.id && builtContext.orgId === activeOrg.id
       ? builtContext.ctx
       : null;
-
-  useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, []);
 
   // An `employee` (0029) holds no org-wide permission at all — their access is
   // to their own attendance and leave rows. Rendering the admin shell for them
@@ -264,45 +271,6 @@ function AppContent() {
       .catch(() => { if (!cancelled) setMyRole(null); });
     return () => { cancelled = true; };
   }, [user, activeOrg?.id]);
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const refreshNotifications = useCallback(() => {
-    setNotifications(documentStore.getNotifications());
-  }, []);
-
-  useEffect(() => {
-    setNotifications(documentStore.getNotifications());
-    const interval = setInterval(() => {
-      setNotifications(documentStore.getNotifications());
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-
-  const handleNotifClick = (notif) => {
-    documentStore.deleteNotification(notif.id);
-    refreshNotifications();
-    if (notif.type === 'offer_signed' || notif.type === 'document_declined' && notif.document_id?.startsWith('OL')) {
-      routerNavigate('/offer-tracker');
-    } else if (notif.type === 'role_change_acknowledged') {
-      routerNavigate('/offer-tracker');
-    } else if (notif.type === 'termination_acknowledged') {
-      routerNavigate('/offer-tracker');
-    } else if (notif.type === 'quotation_accepted' || notif.type === 'quotation_sent') {
-      routerNavigate('/new-quotation');
-    } else if (notif.type === 'revision_requested') {
-      routerNavigate('/new-quotation');
-    } else if (notif.type === 'payment_submitted') {
-      routerNavigate('/invoices');
-    }
-    setShowNotifPanel(false);
-  };
-
-  const handleClearAllNotifs = () => {
-    documentStore.clearAllNotifications();
-    refreshNotifications();
-  };
-
   if (loading) {
     return (
       <div className="app-loading">
@@ -344,286 +312,35 @@ function AppContent() {
     ? { title: 'Edit Quotation', subtitle: `Revising ${editingDocId}` }
     : (PAGE_META[activePage] || PAGE_META.dashboard);
 
-  const HUB_MODULES = [
-    { id: 'team', label: 'Team', icon: Users, defaultPage: 'team-hierarchy', color: '#8b5cf6' },
-    { id: 'documents', label: 'Documents', icon: FileText, defaultPage: 'new-certificates', color: '#10b981' },
-    { id: 'finance', label: 'Finance', icon: Receipt, defaultPage: 'finance-status', color: '#f59e0b' },
-    { id: 'business', label: 'Business', icon: BarChart3, defaultPage: 'crm', color: '#d946ef' },
-    { id: 'data', label: 'Records', icon: File, defaultPage: 'records', color: '#ef4444' },
-    { id: 'overall', label: 'Overview', icon: PieChartIcon, defaultPage: 'dashboard', color: '#64748b' },
-  ];
+  // The company profile belongs to no module but is reached from the hub's
+  // account menu, so it wears the same frame with its sections as the rail.
+  // /recurring/edit/:id reduces to 'recurring' above; its form is split too.
+  const onProfile = activePage === 'profile';
+  const framed = (!!activeModule || onProfile) && activePage !== 'hub';
+  const moduleItems = activeModule
+    ? NAV_ITEMS.filter((i) => i.id && MODULE_FILTER[activeModule]?.includes(i.id))
+    : [];
+  const flush = FLUSH_PAGES.has(activePage) || /^\/recurring\/(new|edit)/.test(location.pathname);
 
   return (
-    <div className={`app-layout ${!activeModule && activePage !== 'hub' ? 'no-sidebar' : ''}`}>
-      {sidebarOpen && (
-        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
-      )}
-
-      {activePage === 'hub' && (
-        <aside className={`sidebar hub-sidebar ${sidebarOpen ? 'open' : ''}`}>
-          <div className="sidebar-brand">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <img src="/app-icon.png" alt="" className="app-con" />
-              <span className="sidebar-brand-text">EdgeOS</span>
-            </div>
-            <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)}>
-              <X size={20} />
-            </button>
-          </div>
-
-          <nav className="sidebar-nav">
-            {HUB_MODULES.map((mod) => {
-              const Icon = mod.icon;
-              const targetPath = mod.id === 'overall' ? '/dashboard' : `/${mod.defaultPage}`;
-              return (
-                <NavLink
-                  key={mod.id}
-                  to={targetPath}
-                  className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
-                  onClick={() => setSidebarOpen(false)}
-                  title={mod.label}
-                >
-                  <Icon size={20} style={{ flexShrink: 0 }} />
-                  <span>{mod.label}</span>
-                </NavLink>
-              );
-            })}
-          </nav>
-
-          <div className="sidebar-footer">
-            <div className="sidebar-status" style={{
-              display: 'flex', alignItems: 'center', gap: '0.35rem',
-              padding: '0.4rem 0.75rem',
-              background: theme === 'dark' ? `${planConfig.color}12` : `${planConfig.color}10`,
-              border: `1px solid ${planConfig.color}40`,
-              borderRadius: '999px',
-              fontSize: '0.6875rem', fontWeight: 600, color: planConfig.color,
-              marginBottom: '0.75rem',
-              userSelect: 'none',
-              justifyContent: 'center',
-              whiteSpace: 'nowrap',
-              cursor: 'pointer',
-            }} onClick={() => routerNavigate('/pricing')}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: planConfig.color, boxShadow: `0 0 7px ${planConfig.color}`, display: 'inline-block', flexShrink: 0 }} />
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{planConfig.displayName}</span>
-            </div>
-
-            <div className="sidebar-actions-row" style={{
-              display: 'flex', flexDirection: 'column',
-              marginBottom: '0.75rem',
-              gap: '0.25rem',
-            }}>
-              <button
-                onClick={toggleTheme}
-                className="sidebar-item sidebar-action-item"
-              >
-                {theme === 'dark' ? <Sun size={18} strokeWidth={2} /> : <Moon size={18} strokeWidth={2} />}
-                <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-              </button>
-
-              <button
-                onClick={() => setShowNotifPanel(p => !p)}
-                className="sidebar-item sidebar-action-item"
-                style={{ position: 'relative' }}
-              >
-                <div style={{ position: 'relative' }}>
-                  <Bell size={18} strokeWidth={2} />
-                  {unreadCount > 0 && (
-                    <span style={{
-                      position: 'absolute', top: -4, right: -4,
-                      minWidth: 16, height: 16, borderRadius: '999px',
-                      background: '#ef4444',
-                      fontSize: '0.5rem', fontWeight: 800, color: '#fff',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      padding: '0 3px',
-                      border: `2px solid ${theme === 'dark' ? '#09090b' : '#f8f9fb'}`,
-                      lineHeight: 1,
-                    }}>
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
-                </div>
-                <span>Notifications</span>
-              </button>
-
-              <button
-                onClick={logout}
-                className="sidebar-item sidebar-action-item"
-              >
-                <LogOut size={18} strokeWidth={2} />
-                <span>Log Out</span>
-              </button>
-            </div>
-
-            {activeOrg && (
-              <div className="sidebar-org-info sidebar-org-clickable" onClick={() => { setSidebarOpen(false); routerNavigate('/profile'); }}>
-                {activeOrg.logo_url ? (
-                  <img src={activeOrg.logo_url} alt="" className="sidebar-org-avatar" />
-                ) : (
-                  <div className="sidebar-org-avatar-placeholder">
-                    {(activeOrg.company_name || 'O')[0].toUpperCase()}
-                  </div>
-                )}
-                <div className="sidebar-org-text" style={{ flex: 1, minWidth: 0 }}>
-                  <span className="sidebar-org-name">{activeOrg.company_name || activeOrg.name}</span>
-                  <span className="sidebar-org-email">{user.email}</span>
-                </div>
-                <ChevronRight size={14} className="sidebar-chevron" style={{ flexShrink: 0 }} />
-              </div>
-            )}
-          </div>
-        </aside>
-      )}
-
-      {activeModule && activePage !== 'hub' && (
-        <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-          <div className="sidebar-brand">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <img src="/app-icon.png" alt="" className="app-con" />
-              <span className="sidebar-brand-text">EdgeOS</span>
-            </div>
-            <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)}>
-              <X size={20} />
-            </button>
-          </div>
-
-          <nav className="sidebar-nav">
-            <NavLink to="/hub" className="sidebar-item sidebar-back-btn" onClick={() => setSidebarOpen(false)}>
-              <ArrowLeft size={20} />
-              <span>Back to Hub</span>
-            </NavLink>
-            {NAV_ITEMS.map((item, i) => {
-              if (activeModule && item.id && !MODULE_FILTER[activeModule]?.includes(item.id)) return null;
-              if (item.section) {
-                return activeModule ? null : <div key={`section-${i}`} className="sidebar-section-label">{item.section}</div>;
-              }
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.id}
-                  to={`/${item.id}`}
-                  className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <Icon size={20} />
-                  <span>{item.label}</span>
-                </NavLink>
-              );
-            })}
-          </nav>
-
-          <div className="sidebar-footer">
-            {activeOrg && (
-              <div className="sidebar-org-info sidebar-org-clickable" onClick={() => { setSidebarOpen(false); routerNavigate('/profile'); }}>
-                {activeOrg.logo_url ? (
-                  <img src={activeOrg.logo_url} alt="" className="sidebar-org-avatar" />
-                ) : (
-                  <div className="sidebar-org-avatar-placeholder">
-                    {(activeOrg.company_name || 'O')[0].toUpperCase()}
-                  </div>
-                )}
-                <div className="sidebar-org-text" style={{ flex: 1, minWidth: 0 }}>
-                  <span className="sidebar-org-name">{activeOrg.company_name || activeOrg.name}</span>
-                  <span className="sidebar-org-email">{user.email}</span>
-                </div>
-                <ChevronRight size={14} className="sidebar-chevron" style={{ flexShrink: 0 }} />
-              </div>
-            )}
-            <button className="sidebar-logout-btn" onClick={logout}>
-              <LogOut size={16} />
-              <span>Log Out</span>
-            </button>
-          </div>
-        </aside>
-      )}
-
+    <div className="app-layout no-sidebar">
       <div className="main-content">
-        <div className="mobile-topbar">
-          <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)}>
-            <Menu size={22} />
-          </button>
-          <div className="mobile-topbar-brand">
-            <img src="/app-icon.png" alt="" className="app-con" style={{ height: '18px', width: '18px' }} />
-            <span className="brand-text-poppins">EdgeOS</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ position: 'relative' }}>
-              <Bell size={20} style={{ opacity: 0.6, cursor: 'pointer' }} onClick={() => setShowNotifPanel((p) => !p)} />
-              {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
-            </div>
-            <UserCircle size={22} style={{ opacity: 0.5, cursor: 'pointer' }} onClick={() => routerNavigate('/profile')} />
-          </div>
-        </div>
-
-
-        {showNotifPanel && (
-          <div className="notif-panel-overlay" onClick={() => setShowNotifPanel(false)}>
-            <div className="notif-panel" onClick={(e) => e.stopPropagation()}>
-              <div className="notif-panel-header">
-                <h3>Notifications</h3>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  {unreadCount > 0 && <span className="notif-panel-count">{unreadCount} new</span>}
-                  {notifications.length > 0 && (
-                    <button
-                      onClick={handleClearAllNotifs}
-                      style={{
-                        background: 'none', border: 'none', color: 'var(--text-muted)',
-                        fontSize: '0.75rem', cursor: 'pointer', padding: '2px 6px',
-                        borderRadius: 4, textDecoration: 'underline',
-                      }}
-                    >
-                      Clear all
-                    </button>
-                  )}
-                </div>
-              </div>
-              {notifications.length === 0 ? (
-                <div className="notif-panel-empty">No notifications yet</div>
-              ) : (
-                <div className="notif-panel-list">
-                  {notifications.slice(0, 20).map((n) => (
-                    <div
-                      key={n.id}
-                      className={`notif-panel-item ${!n.read ? 'unread' : ''}`}
-                      onClick={() => handleNotifClick(n)}
-                    >
-                      <div className="notif-panel-item-title">{n.title}</div>
-                      <div className="notif-panel-item-msg">{n.message}</div>
-                      <div className="notif-panel-item-time">
-                        {n.created_at ? new Date(n.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : ''}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activePage !== 'hub' && activePage !== 'dashboard' && (
-          <div className="page-header" style={{ display: 'flex', alignItems: 'center' }}>
-            {(!activeModule || activePage === 'profile') && (
-              <button
-                onClick={() => routerNavigate('/hub')}
-                className="btn-cinematic btn-secondary"
-                style={{ marginRight: '1.5rem', padding: '0.5rem 0.85rem', height: 'fit-content', gap: '8px' }}
-              >
-                <ArrowLeft size={16} />{!isMobile && ' Back to Hub'}
-              </button>
-            )}
-            <div>
-              <h1 className="page-title">{meta.title}</h1>
-              <p className="page-subtitle">{meta.subtitle}</p>
-            </div>
-          </div>
-        )}
-
-        <div className={`page-content${activePage === 'team-hierarchy' ? ' page-content-canvas' : ''}`}>
+        <div className="page-content page-content-canvas">
+          <ShellFrame
+            on={framed}
+            theme={theme} user={user}
+            module={onProfile ? { label: 'Settings' } : MODULE_META[activeModule]}
+            items={moduleItems}
+            title={meta.title} subtitle={meta.subtitle}
+            flush={flush}
+            railSlot={onProfile}
+            onToggleTheme={toggleTheme} onLogout={logout}
+          >
           <Routes>
             <Route index element={<Navigate to="/hub" replace />} />
-            <Route path="hub" element={<Hub user={user} activeOrg={activeOrg} theme={theme} />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="profile" element={<CompanyProfile theme={theme} onToggleTheme={toggleTheme} />} />
+            <Route path="hub" element={<Hub user={user} activeOrg={activeOrg} theme={theme} onToggleTheme={toggleTheme} onLogout={logout} />} />
+            <Route path="dashboard" element={<Overview />} />
+            <Route path="profile" element={<CompanyProfile />} />
             <Route path="offers" element={<OfferForm />} />
             <Route path="new-certificates" element={<CertificateForm />} />
             <Route path="certificates" element={<CertificateForm />} />
@@ -666,15 +383,12 @@ function AppContent() {
             <Route path="bulk-history" element={<BulkHistory />} />
             <Route path="*" element={<Navigate to="/hub" replace />} />
           </Routes>
+          </ShellFrame>
         </div>
       </div>
 
-      {/* Co-founder AI — lives here so messages survive navigation */}
-      <CopilotPanel
-        isOpen={copilotOpen}
-        onToggle={() => setCopilotOpen(v => !v)}
-        isFullscreen={copilotFullscreen}
-        onFullscreenToggle={() => setCopilotFullscreen(v => !v)}
+      {/* AI Assistant — lives here so the conversation survives navigation */}
+      <AIAssistant
         theme={theme}
         edgeContext={edgeContext || {
           // Only until the first build completes, or when there is no active
@@ -693,6 +407,13 @@ function AppContent() {
 }
 
 
+// Wraps a module's pages in the shell. The hub and the self-framed employee
+// portal pass straight through.
+function ShellFrame({ on, children, ...props }) {
+  if (!on) return children;
+  return <ModuleShell {...props}>{children}</ModuleShell>;
+}
+
 function QuotationFormWrapper() {
   const { docId } = useParams();
   return <QuotationForm editDocId={docId} />;
@@ -710,8 +431,8 @@ function RecurringInvoiceFormWrapper() {
     setLoading(false);
   }, [id]);
 
-  if (loading) return <div>Loading...</div>;
-  if (!item) return <div>Recurring invoice not found.</div>;
+  if (loading) return <div role="status" style={{ padding: 24, fontSize: 11.5 }}>Loading…</div>;
+  if (!item) return <div role="alert" style={{ padding: 24, fontSize: 11.5 }}>Recurring invoice not found.</div>;
   return <RecurringInvoiceForm editItem={item} />;
 }
 

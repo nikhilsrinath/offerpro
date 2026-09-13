@@ -2873,6 +2873,9 @@ h3 {
 
 .app-layout.no-sidebar .main-content {
   margin-left: 0;
+  /* A flex item keeps its content's width unless told otherwise; without this
+     a wide document preview pushed the shell's top bar off the screen. */
+  min-width: 0;
 }
 
 .app-layout.no-sidebar .mobile-menu-btn {

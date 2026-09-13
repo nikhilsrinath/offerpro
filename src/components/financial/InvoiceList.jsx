@@ -7,6 +7,7 @@ import { jsPDF } from 'jspdf';
 import { documentStore, docNumber as docNo } from '../../services/documentStore';
 import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
+import { DialogSheet } from '../ui/edge';
 import PortalLinkGenerator from '../shared/PortalLinkGenerator';
 import { useToast } from '../shared/Toast';
 import { esc, safeImageUrl } from '../../utils/htmlEscape';
@@ -479,9 +480,11 @@ export default function InvoiceList({ type = 'invoice' }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="fin-list-search"
+            aria-label="Search documents"
           />
         </div>
         <select
+          aria-label="Sort by"
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
           style={{
@@ -557,12 +560,13 @@ export default function InvoiceList({ type = 'invoice' }) {
                   <td><DocumentStatusBadge status={doc.status} size="small" /></td>
                   <td>
                     <div className="fin-list-actions">
-                      <button className="fin-list-action-btn" title="Copy Portal Link" onClick={() => handleCopyLink(doc)}>
+                      <button className="fin-list-action-btn" title="Copy Portal Link" onClick={() => handleCopyLink(doc)} aria-label="Copy Portal Link">
                         <Copy size={14} />
                       </button>
                       <button
                         className="fin-list-action-btn"
                         title="Download PDF"
+                        aria-label="Download PDF"
                         onClick={() => handleDownloadPDF(doc)}
                         disabled={downloadingId === doc.id}
                       >
@@ -577,21 +581,21 @@ export default function InvoiceList({ type = 'invoice' }) {
                             toast(res.message || (res.success ? 'Reminder sent' : 'Reminder failed'), res.success ? 'success' : 'error');
                             loadDocuments();
                           }}
-                        >
+                         aria-label="Send payment reminder now">
                           <Bell size={14} />
                         </button>
                       )}
                       {type === 'invoice' && doc.status !== 'paid' && (
-                        <button className="fin-list-action-btn success" title="Mark Paid" onClick={() => handleMarkPaid(doc.id)}>
+                        <button className="fin-list-action-btn success" title="Mark Paid" onClick={() => handleMarkPaid(doc.id)} aria-label="Mark Paid">
                           <CheckCircle size={14} />
                         </button>
                       )}
                       {doc.status === 'payment_submitted' && (
                         <>
-                          <button className="fin-list-action-btn success" title="Verify Payment" onClick={() => handleVerifyPayment(doc.id)}>
+                          <button className="fin-list-action-btn success" title="Verify Payment" onClick={() => handleVerifyPayment(doc.id)} aria-label="Verify Payment">
                             <CheckCircle size={14} />
                           </button>
-                          <button className="fin-list-action-btn danger" title="Reject" onClick={() => setShowRejectModal(doc.id)}>
+                          <button className="fin-list-action-btn danger" title="Reject" onClick={() => setShowRejectModal(doc.id)} aria-label="Reject">
                             <X size={14} />
                           </button>
                         </>
@@ -607,7 +611,7 @@ export default function InvoiceList({ type = 'invoice' }) {
                             }
                             navigate(`/new-quotation/${doc.id}`);
                           }}
-                        >
+                         aria-label={doc.status === 'draft' ? 'Edit Quotation' : 'Pull Back & Edit'}>
                           <Edit3 size={14} />
                         </button>
                       )}
@@ -762,18 +766,20 @@ export default function InvoiceList({ type = 'invoice' }) {
       <AnimatePresence>
         {showPortalLink && (
           <div className="fin-modal-overlay" onClick={() => setShowPortalLink(null)}>
-            <motion.div
+            <DialogSheet
+              as={motion.div}
+              label={`Share ${typeLabel.toLowerCase()} portal link`}
+              onClose={() => setShowPortalLink(null)}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               className="fin-modal"
-              onClick={(e) => e.stopPropagation()}
             >
               <PortalLinkGenerator documentId={showPortalLink} documentType={typeLabel} />
-              <button className="fin-modal-close" onClick={() => setShowPortalLink(null)}>
-                <X size={18} />
+              <button type="button" className="fin-modal-close" aria-label="Close" title="Close (Esc)" onClick={() => setShowPortalLink(null)}>
+                <X aria-hidden="true" size={18} />
               </button>
-            </motion.div>
+            </DialogSheet>
           </div>
         )}
       </AnimatePresence>
@@ -782,15 +788,18 @@ export default function InvoiceList({ type = 'invoice' }) {
       <AnimatePresence>
         {showRejectModal && (
           <div className="fin-modal-overlay" onClick={() => setShowRejectModal(null)}>
-            <motion.div
+            <DialogSheet
+              as={motion.div}
+              labelledBy="reject-payment-title"
+              onClose={() => setShowRejectModal(null)}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               className="fin-modal"
-              onClick={(e) => e.stopPropagation()}
             >
-              <h3 style={{ margin: '0 0 1rem' }}>Reject Payment Confirmation</h3>
+              <h3 id="reject-payment-title" style={{ margin: '0 0 1rem' }}>Reject Payment Confirmation</h3>
               <textarea
+                aria-label="Reason for rejection"
                 placeholder="Reason for rejection..."
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
@@ -800,9 +809,9 @@ export default function InvoiceList({ type = 'invoice' }) {
               />
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
                 <button className="easy-submit-outline" onClick={() => setShowRejectModal(null)} style={{ flex: 1 }}>Cancel</button>
-                <button className="easy-submit" onClick={() => handleRejectPayment(showRejectModal)} style={{ flex: 1, background: '#ef4444' }}>Reject</button>
+                <button className="easy-submit" onClick={() => handleRejectPayment(showRejectModal)} style={{ flex: 1, background: 'var(--error)', borderColor: 'var(--error)' }}>Reject</button>
               </div>
-            </motion.div>
+            </DialogSheet>
           </div>
         )}
       </AnimatePresence>

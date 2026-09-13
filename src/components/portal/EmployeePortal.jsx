@@ -1,58 +1,63 @@
 // EmployeePortal.jsx — what an employee sees when they sign in.
 //
-// Deliberately not the admin shell: no sidebar, no org switcher, four tabs.
-// Every read and write here is one an `employee` role is allowed to make on
-// their OWN rows (0029 §6 `*_self_*` policies); this component holds no
-// authority of its own, so a person who reaches it with a different role sees
-// exactly what the database gives them and nothing more.
+// Deliberately not the admin shell: no org switcher and no modules, just the
+// five places a person goes for themselves. It wears the same terminal theme
+// (theme/edge.js) so it reads as the same product. Every read and write here
+// is one an `employee` role may make on their OWN rows (0029 §6 `*_self_*`
+// policies, 0032 update_my_profile); this component holds no authority of its
+// own, so a person who reaches it with a different role sees exactly what the
+// database gives them and nothing more.
+//
+// Layout, for reach: navigation on a rail at the left (a bar along the bottom
+// on a phone, under the thumb), and check-in/out always in the top bar, since
+// it is the one thing people do here every single day.
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
-  LayoutDashboard, CalendarDays, Plane, Megaphone, LogIn, LogOut, Clock,
-  Loader2, Check, X, Pin, ChevronLeft, ChevronRight, UserCircle, KeyRound,
+  LayoutDashboard, CalendarDays, Plane, Megaphone, UserRound, LogIn, LogOut, Sun, Moon,
+  ArrowLeft, UserCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useOrg } from '../../context/OrgContext';
 import { useToast } from '../shared/Toast';
+import { useTheme } from '../../hooks/useTheme';
+import { EdgeThemeContext } from '../../theme/EdgeTheme';
+import { makeTokens, MONO } from '../../theme/edge';
+import { Page, Btn, Loading, Empty } from '../ui/edge';
 import { meService } from '../../services/meService';
 import { announcementService } from '../../services/announcementService';
-import { leaveService, LEAVE_STATUSES, countLeaveDays } from '../../services/leaveService';
-import {
-  attendanceService, ATTENDANCE_STATUSES, statusLabel, todayKey,
-  currentMonthKey, monthBounds, workedMinutes, formatDuration, summariseMonth,
-} from '../../services/attendanceService';
-
-const STATUS_COLOR = Object.fromEntries(ATTENDANCE_STATUSES.map((s) => [s.key, s.color]));
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+import { leaveService } from '../../services/leaveService';
+import { attendanceService, todayKey, currentMonthKey } from '../../services/attendanceService';
+import { PhotoAvatar } from './me/portalKit';
+import { recentMonths, clockTime, useWindowWidth, monthLabel } from './me/portalUtils';
+import OverviewTab from './me/OverviewTab';
+import AttendanceTab from './me/AttendanceTab';
+import LeaveTab from './me/LeaveTab';
+import AnnouncementsTab from './me/AnnouncementsTab';
+import ProfileTab, { ChangePassword } from './me/ProfileTab';
 
 const TABS = [
-  { id: 'dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
-  { id: 'attendance',    label: 'My attendance', icon: CalendarDays },
-  { id: 'leave',         label: 'My leave',      icon: Plane },
-  { id: 'announcements', label: 'Announcements', icon: Megaphone },
+  { id: 'overview',      label: 'Overview',      short: 'Home',    icon: LayoutDashboard, sub: 'Your day and your month at a glance' },
+  { id: 'attendance',    label: 'Attendance',    short: 'Days',    icon: CalendarDays,    sub: 'Every day you have checked in' },
+  { id: 'leave',         label: 'Leave',         short: 'Leave',   icon: Plane,           sub: 'Balances, requests and decisions' },
+  { id: 'announcements', label: 'Announcements', short: 'News',    icon: Megaphone,       sub: 'What your workplace wants you to know' },
+  { id: 'profile',       label: 'My profile',    short: 'Profile', icon: UserRound,       sub: 'Your photo, details and password' },
 ];
-
-const fmtDay = (d) => (d
-  ? new Date(`${String(d).slice(0, 10)}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-  : '—');
-
-const clockTime = (iso) => (iso
-  ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  : null);
-
-const shiftMonth = (monthKey, delta) => {
-  const [y, m] = monthKey.split('-').map(Number);
-  const d = new Date(y, m - 1 + delta, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-};
 
 export default function EmployeePortal() {
   const { user, logout } = useAuth();
   const { activeOrg } = useOrg();
   const toast = useToast();
+  const { theme, toggleTheme } = useTheme();
+  const t = makeTokens(theme === 'dark');
   const orgId = activeOrg?.id;
+  const width = useWindowWidth();
+  const mobile = width < 760;
+  const narrow = width < 1080;
 
-  const [tab, setTab] = useState('dashboard');
+  const [tab, setTab] = useState('overview');
   const [me, setMe] = useState(null);
+  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
   const [today, setToday] = useState(null);
   const [balances, setBalances] = useState([]);
@@ -60,30 +65,41 @@ export default function EmployeePortal() {
   const [requests, setRequests] = useState([]);
   const [notices, setNotices] = useState([]);
   const [readIds, setReadIds] = useState(new Set());
+  // Attendance by month key, then by date. The overview draws the last six
+  // months from it and the attendance tab adds older months as it browses.
+  const [history, setHistory] = useState({});
   const [monthKey, setMonthKey] = useState(currentMonthKey());
-  const [monthRows, setMonthRows] = useState({});
+  const [monthLoading, setMonthLoading] = useState(false);
   const [clocking, setClocking] = useState(false);
-  const [pwOpen, setPwOpen] = useState(false);
 
   // ── Load ───────────────────────────────────────────────────────────────────
   const loadAll = useCallback(async () => {
     if (!orgId) return;
     setLoading(true);
     try {
-      const employee = await meService.getMyEmployee(orgId);
-      setMe(employee);
-      if (!employee) return;
+      const [employee, myRole] = await Promise.all([
+        meService.getMyEmployee(orgId),
+        meService.getMyRole(orgId).catch(() => null),
+      ]);
+      setRole(myRole);
+      if (!employee) { setMe(null); return; }
 
-      const [t, r, b, day, live, read] = await Promise.all([
+      const months = recentMonths(6);
+      const [ty, r, b, day, live, read, ...monthRows] = await Promise.all([
         leaveService.listTypes(orgId),
         leaveService.listRequests(orgId, { employeeId: employee.id }),
         leaveService.balances(orgId, employee.id),
         attendanceService.getDay(orgId, employee.id, todayKey()),
         announcementService.list(orgId),
         announcementService.readIds(),
+        ...months.map((k) => attendanceService.listMonth(orgId, employee.id, k).catch(() => ({}))),
       ]);
-      setTypes(t); setRequests(r); setBalances(b);
+      setTypes(ty); setRequests(r); setBalances(b);
       setToday(day); setNotices(live); setReadIds(read);
+      setHistory(Object.fromEntries(months.map((k, i) => [k, monthRows[i]])));
+      // Last, so the month effect below sees the six months already held and
+      // does not fetch the current one a second time.
+      setMe(employee);
     } catch (err) {
       toast(err.message || 'Could not load your portal.', 'error');
     } finally {
@@ -93,10 +109,22 @@ export default function EmployeePortal() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
+  // Fetch a month the attendance tab browses to that is not already held.
   useEffect(() => {
+    if (!orgId || !me?.id || history[monthKey]) return;
+    let cancelled = false;
+    setMonthLoading(true);
+    attendanceService.listMonth(orgId, me.id, monthKey)
+      .then((rows) => { if (!cancelled) setHistory((h) => ({ ...h, [monthKey]: rows })); })
+      .catch(() => { if (!cancelled) setHistory((h) => ({ ...h, [monthKey]: {} })); })
+      .finally(() => { if (!cancelled) setMonthLoading(false); });
+    return () => { cancelled = true; };
+  }, [orgId, me?.id, monthKey, history]);
+
+  const refreshBalances = useCallback(async () => {
     if (!orgId || !me?.id) return;
-    attendanceService.listMonth(orgId, me.id, monthKey).then(setMonthRows).catch(() => setMonthRows({}));
-  }, [orgId, me?.id, monthKey]);
+    try { setBalances(await leaveService.balances(orgId, me.id)); } catch { /* the list still shows */ }
+  }, [orgId, me?.id]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
   const clock = async (direction) => {
@@ -106,7 +134,8 @@ export default function EmployeePortal() {
         ? await attendanceService.checkIn(orgId, me.id)
         : await attendanceService.checkOut(orgId, me.id);
       setToday(row);
-      setMonthRows((prev) => ({ ...prev, [row.work_date]: row }));
+      const mk = row.work_date.slice(0, 7);
+      setHistory((h) => ({ ...h, [mk]: { ...(h[mk] || {}), [row.work_date]: row } }));
       toast(direction === 'in' ? `Checked in at ${clockTime(row.check_in)}` : `Checked out at ${clockTime(row.check_out)}`, 'success');
     } catch (err) {
       toast(err.message || 'Could not record that.', 'error');
@@ -115,483 +144,268 @@ export default function EmployeePortal() {
     }
   };
 
-  const unread = useMemo(() => notices.filter((a) => !readIds.has(a.id)), [notices, readIds]);
+  const unread = useMemo(() => notices.filter((a) => !readIds.has(a.id)).length, [notices, readIds]);
 
-  const markRead = async (id) => {
+  const markRead = useCallback(async (id) => {
     if (readIds.has(id)) return;
+    setReadIds((prev) => new Set(prev).add(id));
     try {
       await announcementService.markRead(id);
-      setReadIds((prev) => new Set(prev).add(id));
     } catch { /* a failed read receipt is not worth interrupting anyone over */ }
+  }, [readIds]);
+
+  const go = (id) => {
+    setTab(id);
+    document.getElementById('me-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const typeName = (id) => types.find((x) => x.id === id)?.name || 'Leave';
+  const current = TABS.find((x) => x.id === tab) || TABS[0];
+  const orgName = activeOrg?.company_name || activeOrg?.name || 'Workspace';
+
+  // ── Frame ──────────────────────────────────────────────────────────────────
+  const frame = (body) => (
+    <EdgeThemeContext.Provider value={theme}>
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 100, background: t.shell, color: t.text,
+        fontFamily: MONO, WebkitFontSmoothing: 'antialiased',
+      }}>
+        {/* Page brings the kit's hover and focus styles with it. */}
+        <Page>{body}</Page>
+      </div>
+    </EdgeThemeContext.Provider>
+  );
+
   if (loading) {
-    return <div className="me-shell"><div className="prod-empty"><Loader2 className="spin" size={20} /> Loading your portal…</div></div>;
+    return frame(<div style={{ height: '100vh', display: 'grid', placeItems: 'center' }}><Loading>Loading your portal…</Loading></div>);
   }
 
   if (!me) {
-    return (
-      <div className="me-shell">
-        <div className="prod-empty" style={{ maxWidth: '32rem', margin: '4rem auto' }}>
-          <UserCircle size={28} />
-          <h3>Your employee record isn&rsquo;t linked yet</h3>
-          <p>
-            Your sign-in works, but no employee record in {activeOrg?.name || 'this organization'} is
-            connected to it — so there is no attendance or leave to show. Ask an admin to link
-            your record from the Employees page.
-          </p>
-          <button type="button" className="prod-btn-ghost" onClick={logout}>Sign out</button>
+    return frame(
+      <div style={{ height: '100vh', display: 'grid', placeItems: 'center', padding: 20 }}>
+        <div style={{ maxWidth: 420, border: '1px solid ' + t.line, borderRadius: 12, padding: 24, textAlign: 'center' }}>
+          <UserCircle size={28} style={{ color: t.faint }} />
+          <div style={{ fontSize: 14, margin: '10px 0 8px' }}>Your employee record isn&rsquo;t linked yet</div>
+          <Empty>
+            Your sign-in works, but no employee record in {orgName} is connected to it — so there is no
+            attendance or leave to show. Ask an admin to link your record from the Employees page.
+          </Empty>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            {role && role !== 'employee' && <Link to="/hub" style={{ textDecoration: 'none' }}><Btn><ArrowLeft size={13} /> Back to hub</Btn></Link>}
+            <Btn onClick={logout}><LogOut size={13} /> Sign out</Btn>
+          </div>
         </div>
-      </div>
+      </div>,
     );
   }
 
-  return (
-    <div className="me-shell">
-      <header className="me-head">
-        <div>
-          <h1>{me.full_name}</h1>
-          <p>
-            {[me.role, me.department_name].filter(Boolean).join(' · ') || 'Team member'}
-            {me.manager && <> · reports to {me.manager.full_name}</>}
-          </p>
-        </div>
-        <div className="me-head-right">
-          <span className="prod-perf-meta">{user?.email}</span>
-          <button type="button" className="prod-btn-ghost" onClick={() => setPwOpen((v) => !v)}>
-            <KeyRound size={14} /> Change password
-          </button>
-          <button type="button" className="prod-btn-ghost" onClick={logout}><LogOut size={14} /> Sign out</button>
-        </div>
-      </header>
+  const inAt = today?.check_in;
+  const outAt = today?.check_out;
 
-      <nav className="prod-tabs me-tabs">
-        {TABS.map((t) => (
-          <button key={t.id} type="button" className={`pro-chip ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
-            <t.icon size={14} /> {t.label}
-            {t.id === 'announcements' && unread.length > 0 && <span className="me-badge">{unread.length}</span>}
-          </button>
-        ))}
-      </nav>
-
-      <main className="me-body">
-        {/* Above the tabs' content, not inside one of them: a person still on a
-            password their admin generated should meet this first. */}
-        {(pwOpen || me.portal_must_change_password) && (
-          <ChangePassword
-            mustChange={!!me.portal_must_change_password}
-            onClose={() => setPwOpen(false)}
-            onDone={() => { setPwOpen(false); setMe((m) => ({ ...m, portal_must_change_password: false })); }}
-          />
-        )}
-        {tab === 'dashboard' && (
-          <DashboardTab
-            me={me} today={today} clocking={clocking} onClock={clock}
-            balances={balances} monthRows={monthRows}
-            notices={notices.slice(0, 3)} onOpen={markRead} readIds={readIds}
-            requests={requests}
-          />
-        )}
-        {tab === 'attendance' && (
-          <AttendanceTab monthKey={monthKey} setMonthKey={setMonthKey} rows={monthRows} />
-        )}
-        {tab === 'leave' && (
-          <LeaveTab
-            orgId={orgId} me={me} types={types} balances={balances}
-            requests={requests} setRequests={setRequests} toast={toast}
-            onChanged={loadAll}
-          />
-        )}
-        {tab === 'announcements' && (
-          <AnnouncementsTab notices={notices} readIds={readIds} onOpen={markRead} />
-        )}
-      </main>
-    </div>
-  );
-}
-
-// The password an admin generated is a password an admin saw. This is the one
-// place an employee can replace it, and the banner above it is why they will.
-function ChangePassword({ mustChange, onClose, onDone }) {
-  const toast = useToast();
-  const [pw, setPw] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-
-  const submit = async (e) => {
-    e.preventDefault();
-    if (pw !== confirm) { setError('The two passwords do not match.'); return; }
-    if (pw.length < 8) { setError('Use at least 8 characters.'); return; }
-    setBusy(true);
-    setError('');
-    try {
-      await meService.changeMyPassword(pw);
-      setPw(''); setConfirm('');
-      toast('Password changed', 'success');
-      onDone?.();
-    } catch (err) {
-      setError(err.message || 'Could not change your password.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <section className="me-card me-pw">
-      <h2><KeyRound size={15} /> {mustChange ? 'Choose your own password' : 'Change password'}</h2>
-      {mustChange && (
-        <p className="me-pw-note">
-          You are signed in with the password your workplace generated for you, which means
-          someone else has seen it. Pick one only you know.
-        </p>
-      )}
-      <form className="me-pw-form" onSubmit={submit}>
-        <label>
-          <span>New password</span>
-          <input
-            id="me-pw" type="password" required minLength={8} autoComplete="new-password"
-            value={pw} placeholder="At least 8 characters"
-            onChange={(e) => setPw(e.target.value)}
-          />
-        </label>
-        <label>
-          <span>Confirm it</span>
-          <input
-            id="me-pw2" type="password" required minLength={8} autoComplete="new-password"
-            value={confirm} onChange={(e) => setConfirm(e.target.value)}
-          />
-        </label>
-        <div className="me-pw-actions">
-          <button type="submit" className="prod-btn-primary" disabled={busy}>
-            {busy ? 'Saving…' : 'Save password'}
-          </button>
-          {!mustChange && (
-            <button type="button" className="prod-btn-ghost" onClick={onClose}>
-              Cancel
-            </button>
-          )}
-        </div>
-        {error && <p className="prod-form-error">{error}</p>}
-      </form>
-    </section>
-  );
-}
-
-// ── Dashboard ────────────────────────────────────────────────────────────────
-
-function DashboardTab({ today, clocking, onClock, balances, monthRows, notices, onOpen, readIds, requests }) {
-  const summary = summariseMonth(monthRows);
-  const pending = requests.filter((r) => r.status === 'pending');
-  const inAt = clockTime(today?.check_in);
-  const outAt = clockTime(today?.check_out);
-
-  return (
-    <>
-      <section className="me-clock">
-        <div>
-          <span className="me-clock-label">Today</span>
-          <strong>{fmtDay(todayKey())}</strong>
-          <p>
-            {!inAt && 'You have not checked in yet.'}
-            {inAt && !outAt && `Checked in at ${inAt}. Still working.`}
-            {inAt && outAt && `${inAt} — ${outAt} · ${formatDuration(workedMinutes(today))}`}
-          </p>
-        </div>
-        {/* The button disappears once the day is closed rather than re-opening
-            it: correcting a finished day is a manager's job, not a second tap. */}
-        {!inAt ? (
-          <button type="button" className="prod-btn-primary me-clock-btn" onClick={() => onClock('in')} disabled={clocking}>
-            <LogIn size={16} /> {clocking ? 'Checking in…' : 'Check in'}
-          </button>
-        ) : !outAt ? (
-          <button type="button" className="prod-btn-primary me-clock-btn" onClick={() => onClock('out')} disabled={clocking}>
-            <LogOut size={16} /> {clocking ? 'Checking out…' : 'Check out'}
-          </button>
-        ) : (
-          <div className="me-clock-done"><Check size={16} /> Day complete</div>
-        )}
-      </section>
-
-      <h3 className="me-section-title">Leave balance</h3>
-      <div className="me-balances">
-        {balances.length ? balances.map((b) => (
-          <div key={b.leave_type_id} className="me-balance">
-            <span className="me-balance-value">{Number(b.remaining)}</span>
-            <span className="me-balance-label">{b.leave_type_name}</span>
-            <span className="prod-perf-meta">{Number(b.taken)} of {Number(b.quota) + Number(b.adjusted)} used</span>
-          </div>
-        )) : <div className="prod-empty">No leave types configured yet.</div>}
-      </div>
-
-      <div className="me-two-col">
-        <div>
-          <h3 className="me-section-title">This month</h3>
-          <ul className="me-facts">
-            <li><span>Days present</span><strong>{summary.present}</strong></li>
-            <li><span>Half days</span><strong>{summary.halfDays}</strong></li>
-            <li><span>Leave taken</span><strong>{summary.leave}</strong></li>
-            <li><span>Hours logged</span><strong>{formatDuration(summary.workedMinutes)}</strong></li>
-          </ul>
-          {pending.length > 0 && (
-            <p className="prod-perf-meta">
-              <Clock size={12} /> {pending.length} leave request{pending.length === 1 ? '' : 's'} awaiting a decision.
-            </p>
-          )}
-        </div>
-
-        <div>
-          <h3 className="me-section-title">Latest announcements</h3>
-          {notices.length ? (
-            <div className="ann-list">
-              {notices.map((a) => (
-                <article
-                  key={a.id}
-                  className={`ann-card${readIds.has(a.id) ? '' : ' is-unread'}`}
-                  onMouseEnter={() => onOpen(a.id)}
-                >
-                  <header><h4>{a.is_pinned && <Pin size={12} />} {a.title}</h4></header>
-                  <p>{a.body}</p>
-                  <footer className="prod-perf-meta">{fmtDay(a.published_at)}</footer>
-                </article>
-              ))}
-            </div>
-          ) : <div className="prod-empty">Nothing announced yet.</div>}
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ── My attendance ────────────────────────────────────────────────────────────
-
-function AttendanceTab({ monthKey, setMonthKey, rows }) {
-  const { days } = monthBounds(monthKey);
-  const firstDow = (new Date(`${monthKey}-01T00:00:00`).getDay() + 6) % 7;
-  const summary = summariseMonth(rows);
-  const label = new Date(`${monthKey}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-
-  const cells = [];
-  for (let i = 0; i < firstDow; i += 1) cells.push(null);
-  for (let d = 1; d <= days; d += 1) cells.push(`${monthKey}-${String(d).padStart(2, '0')}`);
-
-  return (
-    <>
-      <div className="prod-toolbar">
-        <div className="att-datenav">
-          <button type="button" className="prod-btn-ghost" onClick={() => setMonthKey(shiftMonth(monthKey, -1))}>
-            <ChevronLeft size={14} />
-          </button>
-          <strong style={{ minWidth: '9rem', textAlign: 'center' }}>{label}</strong>
-          <button
-            type="button" className="prod-btn-ghost"
-            onClick={() => setMonthKey(shiftMonth(monthKey, 1))}
-            disabled={monthKey >= currentMonthKey()}
-          >
-            <ChevronRight size={14} />
-          </button>
-        </div>
-        <div style={{ flex: 1 }} />
-        <span className="prod-perf-meta">
-          {summary.present} present · {summary.leave} leave · {formatDuration(summary.workedMinutes)}
-        </span>
-      </div>
-
-      <div className="att-cal">
-        {WEEKDAYS.map((w) => <div key={w} className="att-cal-head">{w}</div>)}
-        {cells.map((dateKey, i) => {
-          if (!dateKey) return <div key={`pad-${i}`} className="att-cal-cell att-cal-pad" />;
-          const row = rows[dateKey];
-          return (
-            <div
-              key={dateKey}
-              className={`att-cal-cell${dateKey === todayKey() ? ' is-today' : ''}`}
-              style={row ? { borderLeft: `3px solid ${STATUS_COLOR[row.status]}` } : undefined}
-            >
-              <span className="att-cal-day">{Number(dateKey.slice(-2))}</span>
-              {row && (
-                <>
-                  <span className="att-cal-status" style={{ color: STATUS_COLOR[row.status] }}>{statusLabel(row.status)}</span>
-                  <span className="att-cal-hours">{formatDuration(workedMinutes(row))}</span>
-                </>
+  return frame(
+      <div style={{ height: '100vh', display: 'flex', overflow: 'hidden', background: t.shell }}>
+        {/* ── rail ───────────────────────────────────────────────────────── */}
+        {!mobile && (
+          <aside style={{
+            width: narrow ? 64 : 224, flexShrink: 0, background: t.panel, borderRight: '1px solid ' + t.line,
+            display: 'flex', flexDirection: 'column',
+          }}>
+            <div style={{
+              height: 57, display: 'flex', alignItems: 'center', gap: 10, padding: narrow ? '0 16px' : '0 16px',
+              borderBottom: '1px solid ' + t.line, flexShrink: 0,
+            }}>
+              {activeOrg?.logo_url ? (
+                <img src={activeOrg.logo_url} alt="" style={{ width: 30, height: 30, borderRadius: 7, objectFit: 'cover' }} />
+              ) : (
+                <span style={{
+                  width: 30, height: 30, borderRadius: 7, background: t.selBg, color: t.selText, flexShrink: 0,
+                  display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 600,
+                }}>{orgName.slice(0, 2).toUpperCase()}</span>
+              )}
+              {!narrow && (
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 11.5, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}</span>
+                  <span style={{ display: 'block', fontSize: 9, letterSpacing: '0.1em', color: t.faint, marginTop: 2 }}>EMPLOYEE PORTAL</span>
+                </span>
               )}
             </div>
-          );
-        })}
-      </div>
-      <div className="att-legend">
-        {ATTENDANCE_STATUSES.map((s) => <span key={s.key}><i style={{ background: s.color }} />{s.label}</span>)}
-      </div>
-    </>
-  );
-}
 
-// ── My leave ─────────────────────────────────────────────────────────────────
-
-function LeaveTab({ orgId, me, types, balances, requests, setRequests, toast, onChanged }) {
-  const [form, setForm] = useState({
-    leaveTypeId: '', startDate: todayKey(), endDate: todayKey(), halfDay: false, reason: '',
-  });
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!form.leaveTypeId && types.length) setForm((f) => ({ ...f, leaveTypeId: types[0].id }));
-  }, [types, form.leaveTypeId]);
-
-  const days = countLeaveDays(form.startDate, form.endDate, { halfDay: form.halfDay });
-  const balance = balances.find((b) => b.leave_type_id === form.leaveTypeId);
-  const wouldOverdraw = balance && days > Number(balance.remaining);
-
-  const apply = async (e) => {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      const created = await leaveService.applyForLeave(orgId, { employeeId: me.id, ...form });
-      setRequests((prev) => [created, ...prev]);
-      setForm((f) => ({ ...f, reason: '', halfDay: false }));
-      toast('Leave requested — your manager has been notified.', 'success');
-      onChanged();
-    } catch (err) {
-      toast(err.message || 'Could not submit your request.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const cancel = async (r) => {
-    if (!window.confirm('Withdraw this leave request?')) return;
-    try {
-      const updated = await leaveService.cancel(r.id);
-      setRequests((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
-      toast('Request withdrawn', 'success');
-    } catch (err) {
-      toast(err.message || 'Could not withdraw the request.', 'error');
-    }
-  };
-
-  const typeName = (id) => types.find((t) => t.id === id)?.name || 'Leave';
-
-  return (
-    <div className="me-two-col">
-      <form className="me-leave-form" onSubmit={apply}>
-        <h3 className="me-section-title">Apply for leave</h3>
-        <label className="prod-field">
-          <span>Type</span>
-          <select
-            className="prod-select" value={form.leaveTypeId} required
-            onChange={(e) => setForm({ ...form, leaveTypeId: e.target.value })}
-          >
-            {types.map((t) => <option key={t.id} value={t.id}>{t.name}{t.is_paid ? '' : ' (unpaid)'}</option>)}
-          </select>
-        </label>
-        <div className="prod-form-grid">
-          <label className="prod-field">
-            <span>From</span>
-            <input
-              type="date" className="prod-select" value={form.startDate} required
-              onChange={(e) => setForm({
-                ...form,
-                startDate: e.target.value,
-                // Keep the range coherent as the start moves past the end.
-                endDate: form.endDate < e.target.value ? e.target.value : form.endDate,
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '12px 9px' }}>
+              {TABS.map((x) => {
+                const active = x.id === tab;
+                const badge = x.id === 'announcements' ? unread : 0;
+                return (
+                  <button
+                    key={x.id} type="button" onClick={() => go(x.id)} title={x.label}
+                    aria-current={active ? 'page' : undefined}
+                    className="edge-seg"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12, height: 38, padding: narrow ? 0 : '0 10px',
+                      justifyContent: narrow ? 'center' : 'flex-start', position: 'relative',
+                      border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: MONO, fontSize: 12,
+                      background: active ? t.panelAlt : 'transparent', color: active ? t.text : t.dim,
+                      boxShadow: active ? 'inset 2px 0 0 ' + t.text : 'none',
+                    }}
+                  >
+                    <x.icon size={16} strokeWidth={1.8} style={{ flexShrink: 0 }} />
+                    {!narrow && <span style={{ flex: 1, textAlign: 'left' }}>{x.label}</span>}
+                    {badge > 0 && (
+                      <span style={narrow ? {
+                        position: 'absolute', top: 7, right: 12, width: 7, height: 7, borderRadius: '50%', background: t.down,
+                      } : {
+                        fontSize: 9.5, minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9, boxSizing: 'border-box',
+                        display: 'grid', placeItems: 'center', background: t.selBg, color: t.selText,
+                      }}>{narrow ? '' : badge}</span>
+                    )}
+                  </button>
+                );
               })}
-            />
-          </label>
-          <label className="prod-field">
-            <span>To</span>
-            <input
-              type="date" className="prod-select" value={form.endDate} min={form.startDate} required
-              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-            />
-          </label>
-        </div>
-        {form.startDate === form.endDate && (
-          <label className="prod-field prod-toggle">
-            <input
-              type="checkbox" checked={form.halfDay}
-              onChange={(e) => setForm({ ...form, halfDay: e.target.checked })}
-            />
-            <span>Half day</span>
-          </label>
-        )}
-        <label className="prod-field">
-          <span>Reason</span>
-          <textarea
-            className="prod-select" rows={3} value={form.reason} maxLength={500}
-            placeholder="Optional, but it helps your manager decide"
-            onChange={(e) => setForm({ ...form, reason: e.target.value })}
-          />
-        </label>
+            </nav>
 
-        <div className="prod-field-note">
-          {days > 0 ? `${days} day${days === 1 ? '' : 's'}` : 'Pick your dates'}
-          {balance && <> · {Number(balance.remaining)} {typeName(form.leaveTypeId).toLowerCase()} day(s) left</>}
-        </div>
-        {/* A warning, not a block: unpaid and carried-over leave are real, and
-            the approver is the one who should decide, not this form. */}
-        {wouldOverdraw && (
-          <div className="prod-form-error">
-            This is more than your remaining balance. You can still apply — your manager will see it.
-          </div>
+            <div style={{ flex: 1 }} />
+
+            <div style={{ padding: 9, borderTop: '1px solid ' + t.line, display: 'grid', gap: 2 }}>
+              {role && role !== 'employee' && (
+                <Link to="/hub" title="Back to hub" className="edge-seg" style={railLink(t, narrow)}>
+                  <ArrowLeft size={15} strokeWidth={1.8} />{!narrow && 'Back to hub'}
+                </Link>
+              )}
+              <button type="button" onClick={toggleTheme} title={theme === 'dark' ? 'Light mode' : 'Dark mode'} className="edge-seg" style={railLink(t, narrow)}>
+                {theme === 'dark' ? <Sun size={15} strokeWidth={1.8} /> : <Moon size={15} strokeWidth={1.8} />}
+                {!narrow && (theme === 'dark' ? 'Light mode' : 'Dark mode')}
+              </button>
+              <button type="button" onClick={logout} title="Sign out" className="edge-seg" style={{ ...railLink(t, narrow), color: t.down }}>
+                <LogOut size={15} strokeWidth={1.8} />{!narrow && 'Sign out'}
+              </button>
+            </div>
+          </aside>
         )}
 
-        <button type="submit" className="prod-btn-primary" disabled={busy || !days || !form.leaveTypeId}>
-          {busy ? 'Submitting…' : 'Request leave'}
-        </button>
-      </form>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          {/* ── top bar ──────────────────────────────────────────────────── */}
+          <header style={{
+            height: 57, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12,
+            padding: mobile ? '0 12px' : '0 22px', background: t.panel, borderBottom: '1px solid ' + t.line,
+          }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <h1 style={{ margin: 0, fontSize: mobile ? 14 : 15, fontWeight: 500, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {current.label}
+              </h1>
+              {!mobile && <div style={{ fontSize: 10, color: t.faint, marginTop: 2 }}>{current.id === 'attendance' ? monthLabel(monthKey) : current.sub}</div>}
+            </div>
 
-      <div>
-        <h3 className="me-section-title">My requests</h3>
-        {requests.length ? (
-          <div className="me-requests">
-            {requests.map((r) => {
-              const s = LEAVE_STATUSES[r.status] || {};
+            {/* Check-in lives here on every tab. Hidden once the day is closed. */}
+            {!outAt && (
+              <Btn primary onClick={() => clock(inAt ? 'out' : 'in')} disabled={clocking} title={inAt ? `Checked in at ${clockTime(inAt)}` : 'Start your day'}>
+                {inAt ? <LogOut size={13} /> : <LogIn size={13} />}
+                {clocking ? 'Saving…' : inAt ? (mobile ? 'Out' : `Check out · in since ${clockTime(inAt)}`) : (mobile ? 'In' : 'Check in')}
+              </Btn>
+            )}
+
+            {mobile && (
+              <>
+                <button type="button" onClick={toggleTheme} aria-label="Toggle theme" style={iconBtn(t)}>
+                  {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+                </button>
+                <button type="button" onClick={logout} aria-label="Sign out" style={{ ...iconBtn(t), color: t.down }}>
+                  <LogOut size={15} />
+                </button>
+              </>
+            )}
+
+            <button type="button" onClick={() => go('profile')} title="My profile" className="edge-btn" style={{
+              display: 'flex', alignItems: 'center', gap: 9, padding: mobile ? 2 : '3px 10px 3px 3px', borderRadius: 9,
+              border: '1px solid ' + (tab === 'profile' ? t.lineStrong : t.line), background: t.panelAlt,
+              cursor: 'pointer', fontFamily: MONO, color: t.text,
+            }}>
+              <PhotoAvatar name={me.full_name} path={me.photo_path} size={30} radius={7} />
+              {!mobile && (
+                <span style={{ textAlign: 'left', lineHeight: 1.25, maxWidth: 150 }}>
+                  <span style={{ display: 'block', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{me.full_name}</span>
+                  <span style={{ display: 'block', fontSize: 9, color: t.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.email}</span>
+                </span>
+              )}
+            </button>
+          </header>
+
+          {/* ── body ─────────────────────────────────────────────────────── */}
+          <main id="me-scroll" className="edge-scroll" style={{
+            flex: 1, minHeight: 0, overflowY: 'auto', background: t.shell,
+            padding: mobile ? '14px 12px 84px' : '22px 24px 40px',
+          }}>
+            <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gap: 16 }}>
+              {/* Above every tab, not inside one: a person still on a password
+                  their admin generated should meet this first. */}
+              {me.portal_must_change_password && (
+                <ChangePassword mustChange onDone={() => setMe((m) => ({ ...m, portal_must_change_password: false }))} />
+              )}
+
+              {tab === 'overview' && (
+                <OverviewTab
+                  me={me} today={today} clocking={clocking} onClock={clock} balances={balances}
+                  history={history} requests={requests} notices={notices} readIds={readIds}
+                  typeName={typeName} go={go} narrow={narrow}
+                />
+              )}
+              {tab === 'attendance' && (
+                <AttendanceTab
+                  monthKey={monthKey} setMonthKey={setMonthKey} rows={history[monthKey]}
+                  loading={monthLoading && !history[monthKey]} narrow={mobile}
+                />
+              )}
+              {tab === 'leave' && (
+                <LeaveTab
+                  orgId={orgId} me={me} types={types} balances={balances} requests={requests}
+                  setRequests={setRequests} toast={toast} onChanged={refreshBalances} narrow={narrow}
+                />
+              )}
+              {tab === 'announcements' && <AnnouncementsTab notices={notices} readIds={readIds} onOpen={markRead} />}
+              {tab === 'profile' && <ProfileTab orgId={orgId} me={me} setMe={setMe} email={user?.email} narrow={narrow} />}
+            </div>
+          </main>
+        </div>
+
+        {/* ── phone: navigation under the thumb ─────────────────────────── */}
+        {mobile && (
+          <nav style={{
+            position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 20, display: 'grid',
+            gridTemplateColumns: `repeat(${TABS.length}, 1fr)`, background: t.panel, borderTop: '1px solid ' + t.line,
+            paddingBottom: 'env(safe-area-inset-bottom)',
+          }}>
+            {TABS.map((x) => {
+              const active = x.id === tab;
               return (
-                <div key={r.id} className="me-request">
-                  <div>
-                    <strong>{typeName(r.leave_type_id)}</strong>
-                    <span className="prod-tag" style={{ color: s.color, borderColor: s.color }}>{s.label || r.status}</span>
-                  </div>
-                  <div className="prod-perf-meta">
-                    {fmtDay(r.start_date)}{r.end_date !== r.start_date && <> &rarr; {fmtDay(r.end_date)}</>}
-                    {' '}· {r.days} day{Number(r.days) === 1 ? '' : 's'}
-                  </div>
-                  {r.reason && <p className="prod-perf-note">{r.reason}</p>}
-                  {r.decision_comment && (
-                    <p className="prod-perf-note">
-                      {r.status === 'approved' ? <Check size={12} /> : <X size={12} />} {r.decision_comment}
-                    </p>
+                <button key={x.id} type="button" onClick={() => go(x.id)} aria-current={active ? 'page' : undefined} style={{
+                  height: 60, border: 'none', background: 'transparent', cursor: 'pointer', position: 'relative',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
+                  color: active ? t.text : t.faint, fontFamily: MONO, fontSize: 9.5,
+                  boxShadow: active ? 'inset 0 2px 0 ' + t.text : 'none',
+                }}>
+                  <x.icon size={18} strokeWidth={active ? 2 : 1.7} />
+                  {x.short}
+                  {x.id === 'announcements' && unread > 0 && (
+                    <span style={{ position: 'absolute', top: 10, left: '58%', width: 7, height: 7, borderRadius: '50%', background: t.down }} />
                   )}
-                  {r.status === 'pending' && (
-                    <button type="button" className="prod-btn-ghost" onClick={() => cancel(r)}>Withdraw</button>
-                  )}
-                </div>
+                </button>
               );
             })}
-          </div>
-        ) : <div className="prod-empty">You have not requested any leave yet.</div>}
-      </div>
-    </div>
+          </nav>
+        )}
+      </div>,
   );
 }
 
-// ── Announcements ────────────────────────────────────────────────────────────
+function railLink(t, narrow) {
+  return {
+    display: 'flex', alignItems: 'center', gap: 12, height: 34, padding: narrow ? 0 : '0 10px',
+    justifyContent: narrow ? 'center' : 'flex-start', borderRadius: 8, border: 'none', background: 'transparent',
+    cursor: 'pointer', fontFamily: MONO, fontSize: 11.5, color: t.dim, textDecoration: 'none',
+  };
+}
 
-function AnnouncementsTab({ notices, readIds, onOpen }) {
-  if (!notices.length) return <div className="prod-empty">Nothing announced yet.</div>;
-  return (
-    <div className="ann-list">
-      {notices.map((a) => (
-        <article
-          key={a.id}
-          className={`ann-card${a.is_pinned ? ' is-pinned' : ''}${readIds.has(a.id) ? '' : ' is-unread'}`}
-          onMouseEnter={() => onOpen(a.id)}
-        >
-          <header><h4>{a.is_pinned && <Pin size={13} />} {a.title}</h4></header>
-          <p>{a.body}</p>
-          <footer className="prod-perf-meta">{fmtDay(a.published_at)}</footer>
-        </article>
-      ))}
-    </div>
-  );
+function iconBtn(t) {
+  return {
+    width: 32, height: 32, display: 'grid', placeItems: 'center', flexShrink: 0, cursor: 'pointer',
+    border: '1px solid ' + t.line, background: t.panelAlt, color: t.dim, borderRadius: 8,
+  };
 }

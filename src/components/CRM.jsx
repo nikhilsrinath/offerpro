@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { DialogSheet } from './ui/edge';
 import {
   Plus, X, Edit3, Trash2, Search, GripVertical,
   User, Phone, Mail, Building2, StickyNote, ChevronRight,
@@ -211,10 +212,10 @@ export default function CRM() {
             </div>
           )}
           <div className="crm-card-actions" style={isMobile ? { opacity: 1 } : undefined}>
-            <button onClick={() => openEdit(lead)} title="Edit">
+            <button onClick={() => openEdit(lead)} title="Edit" aria-label="Edit">
               <Edit3 size={12} />
             </button>
-            <button onClick={() => handleDelete(lead)} title="Delete">
+            <button onClick={() => handleDelete(lead)} title="Delete" aria-label="Delete">
               <Trash2 size={12} />
             </button>
           </div>
@@ -315,7 +316,7 @@ export default function CRM() {
         <div className="crm-toolbar-mobile">
           <div style={{ position: 'relative', flex: 1 }}>
             <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input
+            <input aria-label="Search leads"
               type="text"
               placeholder="Search leads..."
               value={searchTerm}
@@ -372,40 +373,40 @@ export default function CRM() {
   function renderModal() {
     return (
       <div className="customer-modal-overlay" onClick={() => setModalOpen(false)}>
-        <div className="customer-modal" onClick={e => e.stopPropagation()}>
+        <DialogSheet className="customer-modal" labelledBy="lead-form-title" onClose={() => setModalOpen(false)}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>
+            <h3 id="lead-form-title" style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>
               {editingLead ? 'Edit Lead' : 'Add Lead'}
             </h3>
-            <button onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '0.25rem' }}>
-              <X size={20} />
+            <button type="button" aria-label="Close" title="Close (Esc)" onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '0.25rem' }}>
+              <X aria-hidden="true" size={20} />
             </button>
           </div>
           <form onSubmit={handleSave}>
             <div className="easy-row" style={{ gap: '1rem' }}>
               <div className="easy-field full">
                 <label className="easy-lbl">Company Name *</label>
-                <input required type="text" placeholder="e.g. Acme Corp" value={formData.company_name}
+                <input aria-label="Company Name" required type="text" placeholder="e.g. Acme Corp" value={formData.company_name}
                   onChange={e => setFormData({ ...formData, company_name: e.target.value })} className="easy-inp" />
               </div>
               <div className="easy-field full">
                 <label className="easy-lbl">Contact Person *</label>
-                <input required type="text" placeholder="e.g. John Doe" value={formData.person_name}
+                <input aria-label="Contact Person" required type="text" placeholder="e.g. John Doe" value={formData.person_name}
                   onChange={e => setFormData({ ...formData, person_name: e.target.value })} className="easy-inp" />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Email</label>
-                <input type="email" placeholder="john@acme.com" value={formData.email}
+                <input aria-label="Email" type="email" placeholder="john@acme.com" value={formData.email}
                   onChange={e => setFormData({ ...formData, email: e.target.value })} className="easy-inp" />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Phone</label>
-                <input type="text" placeholder="+91 ..." value={formData.phone}
+                <input aria-label="Phone" type="text" placeholder="+91 ..." value={formData.phone}
                   onChange={e => setFormData({ ...formData, phone: e.target.value })} className="easy-inp" />
               </div>
               <div className="easy-field full">
                 <label className="easy-lbl">Notes</label>
-                <textarea
+                <textarea aria-label="Notes"
                   placeholder="Any notes about this lead..."
                   value={formData.notes}
                   onChange={e => setFormData({ ...formData, notes: e.target.value })}
@@ -424,7 +425,7 @@ export default function CRM() {
               </button>
             </div>
           </form>
-        </div>
+        </DialogSheet>
       </div>
     );
   }
@@ -435,7 +436,7 @@ export default function CRM() {
       <div className="crm-toolbar">
         <div style={{ position: 'relative', flex: 1, minWidth: '160px', maxWidth: '320px' }}>
           <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input
+          <input aria-label="Search leads"
             type="text"
             placeholder="Search leads..."
             value={searchTerm}
@@ -483,7 +484,7 @@ export default function CRM() {
                   onClick={() => openAdd(col.id)}
                   className="crm-col-add-btn"
                   title={`Add to ${col.label}`}
-                >
+                 aria-label={`Add to ${col.label}`}>
                   <Plus size={14} />
                 </button>
               </div>

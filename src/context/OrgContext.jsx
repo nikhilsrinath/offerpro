@@ -4,7 +4,7 @@ import { useAuth } from './AuthContext';
 import { orgStore } from '../services/orgStore';
 import { createOrganization as provisionOrganization } from '../services/orgProvisioning';
 
-const OrgContext = createContext({});
+export const OrgContext = createContext({});
 
 export const OrgProvider = ({ children }) => {
   const { user, needsOnboarding } = useAuth();

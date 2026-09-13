@@ -14,6 +14,7 @@ export default function CountrySelect({
   value,
   onChange,
   id,
+  ariaLabel = 'Country',
   placeholder = 'Infer from state / organisation',
 }) {
   const [countries, setCountries] = useState(null);
@@ -27,12 +28,13 @@ export default function CountrySelect({
   }, []);
 
   if (!countries) {
-    return <input id={id} className="easy-inp" value="Loading..." disabled readOnly />;
+    return <input id={id} aria-label={ariaLabel} className="easy-inp" value="Loading countries…" disabled readOnly />;
   }
 
   return (
     <select
       id={id}
+      aria-label={ariaLabel}
       className="easy-inp"
       value={value || ''}
       onChange={(e) => onChange(e.target.value || null)}

@@ -32,7 +32,8 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={addToast}>
       {children}
-      <div className="toast-container">
+      {/* Announced as they arrive; errors interrupt, everything else waits its turn. */}
+      <div className="toast-container" role="region" aria-label="Notifications">
         <AnimatePresence>
           {toasts.map((toast) => {
             const Icon = ICONS[toast.type] || ICONS.info;
@@ -44,13 +45,16 @@ export function ToastProvider({ children }) {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -20, scale: 0.95 }}
                 className="toast-item"
+                role={toast.type === 'error' ? 'alert' : 'status'}
                 style={{ background: colors.bg, borderColor: colors.border, color: colors.text }}
               >
-                <Icon size={16} style={{ color: colors.icon, flexShrink: 0 }} />
+                <Icon aria-hidden="true" size={16} style={{ color: colors.icon, flexShrink: 0 }} />
                 <span>{toast.message}</span>
                 <button
                   onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
+                  type="button"
                   className="toast-close"
+                  aria-label="Dismiss notification"
                 >
                   <X size={14} />
                 </button>

@@ -49,7 +49,7 @@ export default function ProfitLoss() {
     <div style={{ maxWidth: '100%' }}>
       <div className="prod-toolbar">
         {PRESETS.map((p) => (
-          <button key={p.id} className={`pro-chip ${preset === p.id ? 'active' : ''}`} onClick={() => setPreset(p.id)}>{p.label}</button>
+          <button key={p.id} aria-pressed={preset === p.id} className={`pro-chip ${preset === p.id ? 'active' : ''}`} onClick={() => setPreset(p.id)}>{p.label}</button>
         ))}
         {preset === 'custom' && (
           <div className="prod-range">
@@ -63,9 +63,9 @@ export default function ProfitLoss() {
 
       <div className="prod-stats">
         <Stat icon={<TrendingUp size={15} />} label="Income" value={money(pl.income)} accent="var(--success)" />
-        <Stat icon={<TrendingDown size={15} />} label="Expenses" value={money(pl.expenses)} accent="#ef4444" />
+        <Stat icon={<TrendingDown size={15} />} label="Expenses" value={money(pl.expenses)} accent="var(--error)" />
         <Stat icon={<Wallet size={15} />} label={pl.net >= 0 ? 'Net profit' : 'Net loss'} value={money(Math.abs(pl.net))}
-          accent={pl.net >= 0 ? 'var(--success)' : '#ef4444'} />
+          accent={pl.net >= 0 ? 'var(--success)' : 'var(--error)'} />
         <Stat icon={<Percent size={15} />} label="Net margin" value={pl.margin == null ? '—' : `${pl.margin.toFixed(1)}%`} />
       </div>
 
@@ -87,10 +87,10 @@ export default function ProfitLoss() {
               <YAxis tickLine={false} axisLine={false} fontSize={11} width={70}
                 tickFormatter={(v) => (Math.abs(v) >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${(v / 1000).toFixed(0)}k`)} />
               <Tooltip formatter={(v, name) => [money(v), name]} cursor={{ fill: 'var(--surface-hover)' }} />
-              <Legend />
+              <Legend formatter={(value) => <span style={{ color: 'var(--text-secondary)' }}>{value}</span>} />
               <Bar dataKey="income" name="Income" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={28} />
               <Bar dataKey="expenses" name="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={28} opacity={0.75} />
-              <Bar dataKey="net" name="Net" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={28} />
+              <Bar dataKey="net" name="Net" fill="var(--text-primary)" radius={[4, 4, 0, 0]} maxBarSize={28} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -109,7 +109,7 @@ export default function ProfitLoss() {
           <tfoot>
             <tr>
               <td>{pl.net >= 0 ? 'Net profit' : 'Net loss'}</td>
-              <td className="num strong" style={{ color: pl.net >= 0 ? 'var(--success)' : '#ef4444' }}>{money(pl.net, 2)}</td>
+              <td className="num strong" style={{ color: pl.net >= 0 ? 'var(--success)' : 'var(--error)' }}>{money(pl.net, 2)}</td>
             </tr>
           </tfoot>
         </table>

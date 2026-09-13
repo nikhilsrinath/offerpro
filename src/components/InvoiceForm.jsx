@@ -407,12 +407,12 @@ export default function InvoiceForm() {
                 <div style={{
                   height: '100%',
                   borderRadius: '2px',
-                  background: isAtLimit('invoices') ? '#ef4444' : getUsagePercent('invoices') > 80 ? '#f59e0b' : '#3b82f6',
+                  background: isAtLimit('invoices') ? 'var(--error)' : getUsagePercent('invoices') > 80 ? 'var(--text-primary)' : 'var(--text-secondary)',
                   transition: 'width 0.3s',
                   width: `${Math.min(getUsagePercent('invoices'), 100)}%`
                 }} />
               </div>
-              <span style={{ fontWeight: 700, color: isAtLimit('invoices') ? '#ef4444' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              <span style={{ fontWeight: 700, color: isAtLimit('invoices') ? 'var(--error)' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                 {usage.invoices}/{planConfig.limits.invoices === Infinity ? '∞' : planConfig.limits.invoices}
               </span>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({getRemainingCount('invoices')} remaining)</span>
@@ -448,30 +448,31 @@ export default function InvoiceForm() {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Invoice number</label>
-                <input type="text" value={formData.invoiceNumber}
+                <input aria-label="Invoice number" type="text" value={formData.invoiceNumber}
                   onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
                   className="easy-inp" style={{ fontWeight: 700 }} />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Invoice date</label>
-                <input type="date" value={formData.invoiceDate}
+                <input aria-label="Invoice date" type="date" value={formData.invoiceDate}
                   onChange={(e) => setFormData({ ...formData, invoiceDate: e.target.value })} className="easy-inp" />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Due date</label>
-                <input type="date" value={formData.dueDate}
+                <input aria-label="Due date" type="date" value={formData.dueDate}
                   onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })} className="easy-inp" />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Status</label>
-                <div
+                <button
+                  type="button" role="switch" aria-checked={!!formData.isPaid} aria-label="Paid"
                   className={`easy-switch-row ${formData.isPaid ? 'active' : ''}`}
                   onClick={() => setFormData({ ...formData, isPaid: !formData.isPaid })}
                   style={{ marginTop: '0.25rem' }}
                 >
                   <span className="easy-switch-label">{formData.isPaid ? 'Paid' : 'Unpaid'}</span>
-                  <div className="easy-switch-dot" />
-                </div>
+                  <span className="easy-switch-dot" aria-hidden="true" />
+                </button>
               </div>
             </div>
           </div>
@@ -488,11 +489,11 @@ export default function InvoiceForm() {
                 <label className="easy-lbl">Invoice Template</label>
                 <div className="easy-chips">
                   <button type="button" onClick={() => setFormData({ ...formData, templateId: 'standard' })}
-                    className={`easy-chip ${formData.templateId === 'standard' ? 'active' : ''}`}>
+                    aria-pressed={formData.templateId === 'standard'} className={`easy-chip ${formData.templateId === 'standard' ? 'active' : ''}`}>
                     Standard Professional
                   </button>
                   <button type="button" onClick={() => setFormData({ ...formData, templateId: 'saffron' })}
-                    className={`easy-chip ${formData.templateId === 'saffron' ? 'active' : ''}`}>
+                    aria-pressed={formData.templateId === 'saffron'} className={`easy-chip ${formData.templateId === 'saffron' ? 'active' : ''}`}>
                     Saffron Ornamental
                   </button>
                 </div>
@@ -502,7 +503,7 @@ export default function InvoiceForm() {
             <div className="easy-row">
               <div className="easy-field" ref={customerDropdownRef} style={{ position: 'relative' }}>
                 <label className="easy-lbl">Client name (Bill To)</label>
-                <input required type="text" placeholder="Search or type client name..."
+                <input aria-label="Client name (Bill To)" required type="text" placeholder="Search or type client name..."
                   value={customerSearch || formData.clientName}
                   onChange={(e) => handleCustomerSearchChange(e.target.value)}
                   onFocus={() => { if (customerSearch.length > 0 || customers.length > 0) setShowCustomerDropdown(true); }}
@@ -522,12 +523,12 @@ export default function InvoiceForm() {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Client email</label>
-                <input type="email" placeholder="billing@client.com" value={formData.clientEmail}
+                <input aria-label="Client email" type="email" placeholder="billing@client.com" value={formData.clientEmail}
                   onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })} className="easy-inp" />
               </div>
               <div className="easy-field full">
                 <label className="easy-lbl">Billing address</label>
-                <input type="text" placeholder="Full billing address" value={formData.clientAddress}
+                <input aria-label="Billing address" type="text" placeholder="Full billing address" value={formData.clientAddress}
                   onChange={(e) => setFormData({ ...formData, clientAddress: e.target.value })} className="easy-inp" />
               </div>
             </div>
@@ -553,33 +554,33 @@ export default function InvoiceForm() {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Seller GSTIN</label>
-                <input type="text" placeholder="22AAAAA0000A1Z5" value={formData.sellerGSTIN}
+                <input aria-label="Seller GSTIN" type="text" placeholder="22AAAAA0000A1Z5" value={formData.sellerGSTIN}
                   onChange={(e) => setFormData({ ...formData, sellerGSTIN: e.target.value.toUpperCase() })}
                   className="easy-inp" maxLength={15} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Buyer GSTIN</label>
-                <input type="text" placeholder="22AAAAA0000A1Z5" value={formData.buyerGSTIN}
+                <input aria-label="Buyer GSTIN" type="text" placeholder="22AAAAA0000A1Z5" value={formData.buyerGSTIN}
                   onChange={(e) => setFormData({ ...formData, buyerGSTIN: e.target.value.toUpperCase() })}
                   className="easy-inp" maxLength={15} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Seller state</label>
-                <select value={formData.sellerState} onChange={(e) => setFormData({ ...formData, sellerState: e.target.value })} className="easy-inp">
+                <select aria-label="Seller state" value={formData.sellerState} onChange={(e) => setFormData({ ...formData, sellerState: e.target.value })} className="easy-inp">
                   <option value="">Select state</option>
                   {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Buyer state</label>
-                <select value={formData.buyerState} onChange={(e) => setFormData({ ...formData, buyerState: e.target.value })} className="easy-inp">
+                <select aria-label="Buyer state" value={formData.buyerState} onChange={(e) => setFormData({ ...formData, buyerState: e.target.value })} className="easy-inp">
                   <option value="">Select state</option>
                   {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Buyer country</label>
-                <CountrySelect
+                <CountrySelect ariaLabel="Buyer country"
                   value={formData.buyerCountry}
                   placeholder="From customer record"
                   onChange={(code) => setFormData({ ...formData, buyerCountry: code || '' })}
@@ -590,21 +591,22 @@ export default function InvoiceForm() {
                 <div className="easy-chips">
                   {GST_RATES.map(rate => (
                     <button key={rate} type="button" onClick={() => setFormData({ ...formData, gstRate: rate })}
-                      className={`easy-chip ${formData.gstRate === rate ? 'active' : ''}`}>
+                      aria-pressed={formData.gstRate === rate} className={`easy-chip ${formData.gstRate === rate ? 'active' : ''}`}>
                       {rate}%
                     </button>
                   ))}
                 </div>
               </div>
               <div className="easy-field full">
-                <div
+                <button
+                  type="button" role="switch" aria-checked={!!formData.showStamp}
                   className={`easy-switch-row ${formData.showStamp ? 'active' : ''}`}
                   onClick={() => setFormData({ ...formData, showStamp: !formData.showStamp })}
                   style={{ marginTop: '0.5rem' }}
                 >
                   <span className="easy-switch-label">Include company stamp</span>
-                  <div className="easy-switch-dot" />
-                </div>
+                  <span className="easy-switch-dot" aria-hidden="true" />
+                </button>
               </div>
             </div>
           </div>
@@ -628,27 +630,27 @@ export default function InvoiceForm() {
                     />
                   </div>
                   <div className="easy-line-top">
-                    <input type="text" placeholder="Item description..." value={item.description}
+                    <input aria-label="Item description" type="text" placeholder="Item description..." value={item.description}
                       onChange={(e) => handleItemChange(item.id, 'description', e.target.value)} className="easy-inp" />
-                    <input type="text" placeholder="HSN/SAC" value={item.hsnCode}
+                    <input aria-label="HSN/SAC code" type="text" placeholder="HSN/SAC" value={item.hsnCode}
                       onChange={(e) => handleItemChange(item.id, 'hsnCode', e.target.value)} className="easy-inp" />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.625rem' }}>
                     <div>
                       <label className="easy-lbl-sm">Qty</label>
-                      <input type="number" value={item.quantity} min="1"
+                      <input aria-label="Qty" type="number" value={item.quantity} min="1"
                         onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)} className="easy-inp" />
                     </div>
                     <div>
                       <label className="easy-lbl-sm">Unit price</label>
-                      <input type="number" value={item.price} min="0"
+                      <input aria-label="Unit price" type="number" value={item.price} min="0"
                         onChange={(e) => handleItemChange(item.id, 'price', e.target.value)} className="easy-inp" />
                     </div>
                     <div>
-                      <label className="easy-lbl-sm" style={{ color: '#f59e0b' }}>Making cost</label>
-                      <input type="number" value={item.makingCost || ''} min="0" placeholder="0"
+                      <label className="easy-lbl-sm" style={{ color: 'var(--text-primary)' }}>Making cost</label>
+                      <input aria-label="Making cost" type="number" value={item.makingCost || ''} min="0" placeholder="0"
                         onChange={(e) => handleItemChange(item.id, 'makingCost', e.target.value)} className="easy-inp"
-                        style={{ borderColor: 'rgba(245,158,11,0.15)' }} />
+                         />
                     </div>
                     <div>
                       <label className="easy-lbl-sm">Amount</label>
@@ -656,7 +658,7 @@ export default function InvoiceForm() {
                     </div>
                   </div>
                 </div>
-                <button type="button" onClick={() => handleRemoveItem(item.id)} className="easy-delete-btn" title="Remove">
+                <button type="button" onClick={() => handleRemoveItem(item.id)} className="easy-delete-btn" title="Remove" aria-label="Remove">
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -682,7 +684,7 @@ export default function InvoiceForm() {
             <div className="easy-summary-grid">
               <div className="easy-field">
                 <label className="easy-lbl">Notes / payment terms</label>
-                <textarea placeholder="Bank details, payment terms, or thank you note..."
+                <textarea aria-label="Notes / payment terms" placeholder="Bank details, payment terms, or thank you note..."
                   rows={7} value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="easy-inp" style={{ resize: 'none' }} />
               </div>
@@ -696,7 +698,7 @@ export default function InvoiceForm() {
                 <div className="easy-total-row">
                   <span>Discount</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                    <input type="number" value={formData.discountRate} min="0" max="100"
+                    <input aria-label="Discount percent" type="number" value={formData.discountRate} min="0" max="100"
                       onChange={(e) => setFormData({ ...formData, discountRate: Number(e.target.value) })}
                       className="easy-inp" style={{ width: '56px', textAlign: 'center', padding: '0.375rem', fontSize: '0.8125rem' }} />
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>%</span>
@@ -718,19 +720,19 @@ export default function InvoiceForm() {
                 <div className="easy-total-divider" />
 
                 {isInterState ? (
-                  <div className="easy-total-row" style={{ color: 'rgba(59,130,246,0.7)' }}>
+                  <div className="easy-total-row" style={{ color: 'var(--text-secondary)' }}>
                     <span>IGST @ {formData.gstRate}%</span>
-                    <span style={{ color: '#60a5fa', fontWeight: 600 }}>{totals.igst.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totals.igst.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
                   </div>
                 ) : (
                   <>
-                    <div className="easy-total-row" style={{ color: 'rgba(59,130,246,0.7)' }}>
+                    <div className="easy-total-row" style={{ color: 'var(--text-secondary)' }}>
                       <span>CGST @ {formData.gstRate / 2}%</span>
-                      <span style={{ color: '#60a5fa', fontWeight: 600 }}>{totals.cgst.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totals.cgst.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
                     </div>
-                    <div className="easy-total-row" style={{ color: 'rgba(59,130,246,0.7)' }}>
+                    <div className="easy-total-row" style={{ color: 'var(--text-secondary)' }}>
                       <span>SGST @ {formData.gstRate / 2}%</span>
-                      <span style={{ color: '#60a5fa', fontWeight: 600 }}>{totals.sgst.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totals.sgst.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
                     </div>
                   </>
                 )}
@@ -745,7 +747,7 @@ export default function InvoiceForm() {
                 {totalMakingCost > 0 && (
                   <>
                     <div className="easy-total-divider" />
-                    <div className="easy-total-row" style={{ color: '#f59e0b' }}>
+                    <div className="easy-total-row" style={{ color: 'var(--text-primary)' }}>
                       <span>Making cost</span>
                       <span style={{ fontWeight: 600 }}>-{totalMakingCost.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
                     </div>

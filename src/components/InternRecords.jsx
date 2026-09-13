@@ -162,7 +162,7 @@ export default function InternRecords() {
           {TABS.map(tab => (
             <button
               key={tab.id}
-              className={`records-tab ${activeTab === tab.id ? 'active' : ''}`}
+              aria-pressed={activeTab === tab.id} className={`records-tab ${activeTab === tab.id ? 'active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
             >
               {tab.label}
@@ -176,6 +176,7 @@ export default function InternRecords() {
             <input
               type="text"
               placeholder="Search..."
+              aria-label="Search records"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pro-input"
@@ -183,9 +184,11 @@ export default function InternRecords() {
             />
           </div>
           <select
+            aria-label="Sort records"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
             style={{
+              width: 'auto',
               height: '36px', padding: '0 0.625rem',
               borderRadius: '0.5rem',
               border: '1px solid var(--border-default)',
@@ -201,10 +204,10 @@ export default function InternRecords() {
           </select>
           <div className="records-toolbar-actions">
             <div className="records-view-toggle">
-              <button className={`records-view-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')} title="Grid view">
+              <button className={`records-view-btn ${viewMode === 'grid' ? 'active' : ''}`} aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')} title="Grid view" aria-label="Grid view">
                 <LayoutGrid size={16} />
               </button>
-              <button className={`records-view-btn ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')} title="List view">
+              <button className={`records-view-btn ${viewMode === 'list' ? 'active' : ''}`} aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')} title="List view" aria-label="List view">
                 <List size={16} />
               </button>
             </div>
@@ -276,13 +279,13 @@ export default function InternRecords() {
                       className={`records-action-btn notify ${emailStatus?.id === record.id ? (emailStatus.success ? 'sent' : 'failed') : ''}`}
                       title={`Send offer to ${record.data.email}`}
                       disabled={sendingEmail === record.id}
-                    >
+                     aria-label={`Send offer to ${record.data.email}`}>
                       {sendingEmail === record.id ? <><Loader size={13} className="spin-icon" /> Sending</>
                         : emailStatus?.id === record.id && emailStatus.success ? <><CheckCircle size={13} /> Sent</>
                         : <><Send size={13} /> Notify</>}
                     </button>
                   )}
-                  <button onClick={() => handleDelete(record.id)} className="records-action-btn delete" title="Delete">
+                  <button onClick={() => handleDelete(record.id)} className="records-action-btn delete" title="Delete" aria-label="Delete">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -364,7 +367,7 @@ export default function InternRecords() {
                               : <Send size={12} />}
                           </button>
                         )}
-                        <button onClick={() => handleDelete(record.id)} className="pro-delete-btn" title="Delete">
+                        <button onClick={() => handleDelete(record.id)} className="pro-delete-btn" title="Delete" aria-label="Delete">
                           <Trash2 size={13} />
                         </button>
                       </div>
@@ -403,7 +406,7 @@ export default function InternRecords() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                    <button onClick={() => handleDownloadPDF(record)} className="btn btn-outline" style={{ width: '36px', height: '36px', padding: 0, borderRadius: '8px' }}>
+                    <button onClick={() => handleDownloadPDF(record)} aria-label="Download PDF" title="Download PDF" className="btn btn-outline" style={{ width: '36px', height: '36px', padding: 0, borderRadius: '8px' }}>
                       <Download size={14} />
                     </button>
                     {record.type === 'offer' && record.data?.email && (
@@ -418,7 +421,7 @@ export default function InternRecords() {
                           : <Send size={14} />}
                       </button>
                     )}
-                    <button onClick={() => handleDelete(record.id)} className="pro-delete-btn" style={{ width: '36px', height: '36px' }}>
+                    <button onClick={() => handleDelete(record.id)} aria-label="Delete record" title="Delete record" className="pro-delete-btn" style={{ width: '36px', height: '36px' }}>
                       <Trash2 size={14} />
                     </button>
                   </div>

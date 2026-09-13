@@ -123,17 +123,17 @@ export default function Vendors() {
       <div className="prod-stats">
         <Stat icon={<Truck size={15} />} label="Active vendors" value={vendors.filter((v) => !v.archived_at).length} />
         <Stat icon={<FileText size={15} />} label="Total billed" value={money(totals.billed)} />
-        <Stat icon={<IndianRupee size={15} />} label="Payable" value={money(totals.outstanding)} accent="var(--gold)" />
-        <Stat icon={<AlertTriangle size={15} />} label="Overdue payables" value={money(totals.overdue)} accent="#ef4444" />
+        <Stat icon={<IndianRupee size={15} />} label="Payable" value={money(totals.outstanding)} accent="var(--text-primary)" />
+        <Stat icon={<AlertTriangle size={15} />} label="Overdue payables" value={money(totals.overdue)} accent="var(--error)" />
       </div>
 
       <div className="prod-toolbar">
         <div className="prod-search">
           <Search size={14} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search company, contact, GSTIN..." />
-          {search && <button type="button" onClick={() => setSearch('')} className="prod-search-clear"><X size={13} /></button>}
+          <input aria-label="Search vendors" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search company, contact, GSTIN..." />
+          {search && <button type="button" onClick={() => setSearch('')} className="prod-search-clear" aria-label="Clear search" title="Clear search"><X size={13} /></button>}
         </div>
-        <button className={`pro-chip ${showArchived ? 'active' : ''}`} onClick={() => setShowArchived((v) => !v)}>
+        <button aria-pressed={!!showArchived} className={`pro-chip ${showArchived ? 'active' : ''}`} onClick={() => setShowArchived((v) => !v)}>
           <Archive size={12} /> Archived
         </button>
         <button className="prod-add-btn" onClick={() => { setEditing({ ...BLANK }); setFormError(''); }}>
@@ -178,15 +178,15 @@ export default function Vendors() {
                     <td className="prod-perf-date">{v.gstin || '—'}</td>
                     <td className="prod-perf-date">{v.payment_terms_days ? `Net ${v.payment_terms_days}` : 'On receipt'}</td>
                     <td className="num">{money(l.billed)}</td>
-                    <td className="num strong" style={l.overdue > 0 ? { color: '#ef4444' } : undefined}>{money(l.outstanding)}</td>
+                    <td className="num strong" style={l.overdue > 0 ? { color: 'var(--error)' } : undefined}>{money(l.outstanding)}</td>
                     <td className="prod-perf-date">{fmtDate(l.last)}</td>
                     <td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
-                      <button className="fin-list-action-btn" title="Edit" onClick={() => { setEditing({ ...v }); setFormError(''); }}><Pencil size={14} /></button>
+                      <button className="fin-list-action-btn" title="Edit" onClick={() => { setEditing({ ...v }); setFormError(''); }} aria-label="Edit"><Pencil size={14} /></button>
                       <button className="fin-list-action-btn" title={v.archived_at ? 'Restore' : 'Archive'} onClick={() => handleArchive(v)}>
                         {v.archived_at ? <ArchiveRestore size={14} /> : <Archive size={14} />}
                       </button>
                       {!l.count && (
-                        <button className="fin-list-action-btn danger" title="Delete" onClick={() => handleDelete(v)}><Trash2 size={14} /></button>
+                        <button className="fin-list-action-btn danger" title="Delete" onClick={() => handleDelete(v)} aria-label="Delete"><Trash2 size={14} /></button>
                       )}
                     </td>
                   </tr>
@@ -204,41 +204,41 @@ export default function Vendors() {
             <div className="prod-form-grid">
               <div className="prod-field full">
                 <label>Company name *</label>
-                <input value={editing.company_name} onChange={(e) => set('company_name', e.target.value)} autoFocus required />
+                <input aria-label="Company name" value={editing.company_name} onChange={(e) => set('company_name', e.target.value)} autoFocus required />
               </div>
               <div className="prod-field">
                 <label>Contact person</label>
-                <input value={editing.contact_name || ''} onChange={(e) => set('contact_name', e.target.value)} />
+                <input aria-label="Contact person" value={editing.contact_name || ''} onChange={(e) => set('contact_name', e.target.value)} />
               </div>
               <div className="prod-field">
                 <label>Category</label>
-                <input value={editing.category || ''} onChange={(e) => set('category', e.target.value)} placeholder="e.g. Hardware, Cloud, Logistics" />
+                <input aria-label="Category" value={editing.category || ''} onChange={(e) => set('category', e.target.value)} placeholder="e.g. Hardware, Cloud, Logistics" />
               </div>
               <div className="prod-field">
                 <label>Email</label>
-                <input type="email" value={editing.email || ''} onChange={(e) => set('email', e.target.value)} />
+                <input aria-label="Email" type="email" value={editing.email || ''} onChange={(e) => set('email', e.target.value)} />
               </div>
               <div className="prod-field">
                 <label>Phone</label>
-                <input value={editing.phone || ''} onChange={(e) => set('phone', e.target.value)} />
+                <input aria-label="Phone" value={editing.phone || ''} onChange={(e) => set('phone', e.target.value)} />
               </div>
               <div className="prod-field">
                 <label>GSTIN</label>
-                <input value={editing.gstin || ''} onChange={(e) => set('gstin', e.target.value.toUpperCase())} maxLength={15} placeholder="15 characters" />
+                <input aria-label="GSTIN" value={editing.gstin || ''} onChange={(e) => set('gstin', e.target.value.toUpperCase())} maxLength={15} placeholder="15 characters" />
               </div>
               <div className="prod-field">
                 <label>State</label>
-                <input value={editing.state || ''} onChange={(e) => set('state', e.target.value)} />
+                <input aria-label="State" value={editing.state || ''} onChange={(e) => set('state', e.target.value)} />
               </div>
               <div className="prod-field full">
                 <label>Address</label>
-                <textarea rows={2} value={editing.address || ''} onChange={(e) => set('address', e.target.value)} />
+                <textarea aria-label="Address" rows={2} value={editing.address || ''} onChange={(e) => set('address', e.target.value)} />
               </div>
               <div className="prod-field full">
                 <label>Payment terms</label>
                 <div className="prod-rate-chips">
                   {TERMS.map((t) => (
-                    <button key={t} type="button" className={`easy-chip ${Number(editing.payment_terms_days) === t ? 'active' : ''}`} onClick={() => set('payment_terms_days', t)}>
+                    <button key={t} type="button" aria-pressed={!!(Number(editing.payment_terms_days) === t)} className={`easy-chip ${Number(editing.payment_terms_days) === t ? 'active' : ''}`} onClick={() => set('payment_terms_days', t)}>
                       {t === 0 ? 'On receipt' : `Net ${t}`}
                     </button>
                   ))}
@@ -246,7 +246,7 @@ export default function Vendors() {
               </div>
               <div className="prod-field full">
                 <label>Notes</label>
-                <textarea rows={2} value={editing.notes || ''} onChange={(e) => set('notes', e.target.value)} />
+                <textarea aria-label="Notes" rows={2} value={editing.notes || ''} onChange={(e) => set('notes', e.target.value)} />
               </div>
             </div>
             <div className="prod-modal-foot">
@@ -272,7 +272,7 @@ export default function Vendors() {
             <div className="prod-stats" style={{ marginTop: '1rem' }}>
               <Stat icon={<FileText size={15} />} label="Billed" value={money(ledger[viewing.id]?.billed)} />
               <Stat icon={<IndianRupee size={15} />} label="Paid" value={money(ledger[viewing.id]?.paid)} accent="var(--success)" />
-              <Stat icon={<AlertTriangle size={15} />} label="Outstanding" value={money(ledger[viewing.id]?.outstanding)} accent="var(--gold)" />
+              <Stat icon={<AlertTriangle size={15} />} label="Outstanding" value={money(ledger[viewing.id]?.outstanding)} accent="var(--text-primary)" />
             </div>
             <h4 style={{ margin: '1rem 0 0.5rem', fontSize: '0.85rem' }}>Transaction history</h4>
             {history.length === 0 ? (

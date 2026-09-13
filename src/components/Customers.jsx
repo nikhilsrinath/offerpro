@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { DialogSheet } from './ui/edge';
 import {
   Plus, Search, Edit3, Trash2, X, UserPlus,
   Mail, MapPin, Phone, Hash, ArrowLeft, FileText,
@@ -373,49 +374,49 @@ export default function Customers() {
         {/* Edit modal (reused) */}
         {modalOpen && (
           <div className="customer-modal-overlay" onClick={() => setModalOpen(false)}>
-            <div className="customer-modal" onClick={e => e.stopPropagation()}>
+            <DialogSheet className="customer-modal" labelledBy="customer-edit-title" onClose={() => setModalOpen(false)}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>Edit Customer</h3>
-                <button onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '0.25rem' }}>
-                  <X size={20} />
+                <h3 id="customer-edit-title" style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>Edit Customer</h3>
+                <button type="button" aria-label="Close" title="Close (Esc)" onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '0.25rem' }}>
+                  <X aria-hidden="true" size={20} />
                 </button>
               </div>
               <form onSubmit={handleSave}>
                 <div className="easy-row" style={{ gap: '1rem' }}>
                   <div className="easy-field full">
                     <label className="easy-lbl">Client name *</label>
-                    <input required type="text" placeholder="e.g. Acme Corp" value={formData.clientName}
+                    <input aria-label="Client name" required type="text" placeholder="e.g. Acme Corp" value={formData.clientName}
                       onChange={e => setFormData({ ...formData, clientName: e.target.value })} className="easy-inp" />
                   </div>
                   <div className="easy-field">
                     <label className="easy-lbl">Email</label>
-                    <input type="email" placeholder="billing@client.com" value={formData.clientEmail}
+                    <input aria-label="Email" type="email" placeholder="billing@client.com" value={formData.clientEmail}
                       onChange={e => setFormData({ ...formData, clientEmail: e.target.value })} className="easy-inp" />
                   </div>
                   <div className="easy-field">
                     <label className="easy-lbl">Phone</label>
-                    <input type="text" placeholder="+91 ..." value={formData.contactPhone}
+                    <input aria-label="Phone" type="text" placeholder="+91 ..." value={formData.contactPhone}
                       onChange={e => setFormData({ ...formData, contactPhone: e.target.value })} className="easy-inp" />
                   </div>
                   <div className="easy-field full">
                     <label className="easy-lbl">Address</label>
-                    <input type="text" placeholder="Full billing address" value={formData.clientAddress}
+                    <input aria-label="Address" type="text" placeholder="Full billing address" value={formData.clientAddress}
                       onChange={e => setFormData({ ...formData, clientAddress: e.target.value })} className="easy-inp" />
                   </div>
                   <div className="easy-field">
                     <label className="easy-lbl">GSTIN</label>
-                    <input type="text" placeholder="22AAAAA0000A1Z5" value={formData.buyerGSTIN}
+                    <input aria-label="GSTIN" type="text" placeholder="22AAAAA0000A1Z5" value={formData.buyerGSTIN}
                       onChange={e => setFormData({ ...formData, buyerGSTIN: e.target.value.toUpperCase() })}
                       className="easy-inp" maxLength={15} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
                   </div>
                   <div className="easy-field">
                     <label className="easy-lbl">State</label>
-                    <input type="text" placeholder="e.g. Tamil Nadu" value={formData.buyerState}
+                    <input aria-label="State" type="text" placeholder="e.g. Tamil Nadu" value={formData.buyerState}
                       onChange={e => setFormData({ ...formData, buyerState: e.target.value })} className="easy-inp" />
                   </div>
                   <div className="easy-field">
                     <label className="easy-lbl">Country</label>
-                    <CountrySelect
+                    <CountrySelect ariaLabel="Country"
                       value={formData.country_code}
                       onChange={code => setFormData({ ...formData, country_code: code })}
                     />
@@ -430,7 +431,7 @@ export default function Customers() {
                   </button>
                 </div>
               </form>
-            </div>
+            </DialogSheet>
           </div>
         )}
       </>
@@ -445,7 +446,7 @@ export default function Customers() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
           <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input
+          <input aria-label="Search customers"
             type="text"
             placeholder="Search by name, email, or GSTIN..."
             value={searchTerm}
@@ -455,6 +456,7 @@ export default function Customers() {
           />
         </div>
         <select
+          aria-label="Filter customers"
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
           style={{ height: '40px', padding: '0 0.625rem', borderRadius: '0.5rem', border: '1px solid var(--border-default)', background: 'var(--background)', color: 'var(--text-secondary)', fontSize: '0.8rem', cursor: 'pointer', outline: 'none', flexShrink: 0 }}
@@ -465,6 +467,7 @@ export default function Customers() {
           <option value="all">Everyone</option>
         </select>
         <select
+          aria-label="Sort customers"
           value={sortBy}
           onChange={e => setSortBy(e.target.value)}
           style={{ height: '40px', padding: '0 0.625rem', borderRadius: '0.5rem', border: '1px solid var(--border-default)', background: 'var(--background)', color: 'var(--text-secondary)', fontSize: '0.8rem', cursor: 'pointer', outline: 'none', flexShrink: 0 }}
@@ -506,11 +509,11 @@ export default function Customers() {
                   </h4>
                 </div>
                 <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
-                  <button onClick={e => openEdit(customer, e)} className="records-action-btn download" style={{ padding: '0.25rem 0.5rem' }} title="Edit">
-                    <Edit3 size={13} />
+                  <button type="button" onClick={e => openEdit(customer, e)} className="records-action-btn download" style={{ padding: '0.25rem 0.5rem' }} title="Edit" aria-label={`Edit ${customer.clientName}`}>
+                    <Edit3 aria-hidden="true" size={13} />
                   </button>
-                  <button onClick={e => handleDelete(customer, e)} className="records-action-btn delete" style={{ padding: '0.25rem 0.5rem' }} title="Delete">
-                    <Trash2 size={13} />
+                  <button type="button" onClick={e => handleDelete(customer, e)} className="records-action-btn delete" style={{ padding: '0.25rem 0.5rem' }} title="Delete" aria-label={`Delete ${customer.clientName}`}>
+                    <Trash2 aria-hidden="true" size={13} />
                   </button>
                 </div>
               </div>
@@ -542,11 +545,17 @@ export default function Customers() {
                 )}
               </div>
 
-              {/* View history hint */}
-              <div style={{ marginTop: '0.75rem', paddingTop: '0.625rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.73rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                <FileText size={11} />
+              {/* The whole card opens the history for a pointer; this is the
+                  same action as a real button for the keyboard. */}
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); setSelectedCustomer(customer); }}
+                aria-label={`View invoice history for ${customer.clientName}`}
+                style={{ width: '100%', marginTop: '0.75rem', paddingTop: '0.625rem', minHeight: 28, border: 'none', borderTop: '1px solid var(--border-subtle)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.73rem', fontWeight: 500, color: 'var(--text-secondary)', textAlign: 'left' }}
+              >
+                <FileText aria-hidden="true" size={11} />
                 View invoice history
-              </div>
+              </button>
             </div>
           ))}
         </div>
@@ -561,51 +570,51 @@ export default function Customers() {
       {/* Add / Edit Modal */}
       {modalOpen && (
         <div className="customer-modal-overlay" onClick={() => setModalOpen(false)}>
-          <div className="customer-modal" onClick={e => e.stopPropagation()}>
+          <DialogSheet className="customer-modal" labelledBy="customer-form-title" onClose={() => setModalOpen(false)}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>
+              <h3 id="customer-form-title" style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>
                 {editingCustomer ? 'Edit Customer' : 'Add Customer'}
               </h3>
-              <button onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '0.25rem' }}>
-                <X size={20} />
+              <button type="button" aria-label="Close" title="Close (Esc)" onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '0.25rem' }}>
+                <X aria-hidden="true" size={20} />
               </button>
             </div>
             <form onSubmit={handleSave}>
               <div className="easy-row" style={{ gap: '1rem' }}>
                 <div className="easy-field full">
                   <label className="easy-lbl">Client name *</label>
-                  <input required type="text" placeholder="e.g. Acme Corp" value={formData.clientName}
+                  <input aria-label="Client name" required type="text" placeholder="e.g. Acme Corp" value={formData.clientName}
                     onChange={e => setFormData({ ...formData, clientName: e.target.value })} className="easy-inp" />
                 </div>
                 <div className="easy-field">
                   <label className="easy-lbl">Email</label>
-                  <input type="email" placeholder="billing@client.com" value={formData.clientEmail}
+                  <input aria-label="Email" type="email" placeholder="billing@client.com" value={formData.clientEmail}
                     onChange={e => setFormData({ ...formData, clientEmail: e.target.value })} className="easy-inp" />
                 </div>
                 <div className="easy-field">
                   <label className="easy-lbl">Phone</label>
-                  <input type="text" placeholder="+91 ..." value={formData.contactPhone}
+                  <input aria-label="Phone" type="text" placeholder="+91 ..." value={formData.contactPhone}
                     onChange={e => setFormData({ ...formData, contactPhone: e.target.value })} className="easy-inp" />
                 </div>
                 <div className="easy-field full">
                   <label className="easy-lbl">Address</label>
-                  <input type="text" placeholder="Full billing address" value={formData.clientAddress}
+                  <input aria-label="Address" type="text" placeholder="Full billing address" value={formData.clientAddress}
                     onChange={e => setFormData({ ...formData, clientAddress: e.target.value })} className="easy-inp" />
                 </div>
                 <div className="easy-field">
                   <label className="easy-lbl">GSTIN</label>
-                  <input type="text" placeholder="22AAAAA0000A1Z5" value={formData.buyerGSTIN}
+                  <input aria-label="GSTIN" type="text" placeholder="22AAAAA0000A1Z5" value={formData.buyerGSTIN}
                     onChange={e => setFormData({ ...formData, buyerGSTIN: e.target.value.toUpperCase() })}
                     className="easy-inp" maxLength={15} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
                 </div>
                 <div className="easy-field">
                   <label className="easy-lbl">State</label>
-                  <input type="text" placeholder="e.g. Tamil Nadu" value={formData.buyerState}
+                  <input aria-label="State" type="text" placeholder="e.g. Tamil Nadu" value={formData.buyerState}
                     onChange={e => setFormData({ ...formData, buyerState: e.target.value })} className="easy-inp" />
                 </div>
                 <div className="easy-field">
                   <label className="easy-lbl">Country</label>
-                  <CountrySelect
+                  <CountrySelect ariaLabel="Country"
                     value={formData.country_code}
                     onChange={code => setFormData({ ...formData, country_code: code })}
                   />
@@ -620,7 +629,7 @@ export default function Customers() {
                 </button>
               </div>
             </form>
-          </div>
+          </DialogSheet>
         </div>
       )}
     </div>

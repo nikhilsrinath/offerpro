@@ -111,7 +111,7 @@ export default function ProductPlanner() {
             { id: 'completed', label: 'Done' }
           ].map(f => (
             <button key={f.id}
-              className={`pro-chip ${filter === f.id ? 'active' : ''}`}
+              aria-pressed={filter === f.id} className={`pro-chip ${filter === f.id ? 'active' : ''}`}
               onClick={() => setFilter(f.id)}
               style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
               {f.label}
@@ -183,7 +183,7 @@ export default function ProductPlanner() {
                       const cycle = { planned: 'in_progress', in_progress: 'completed', completed: 'planned' };
                       handleStatusChange(item.id, cycle[item.status]);
                     }}
-                    title={`Click to change (${statusCfg.label})`}>
+                    title={`Click to change (${statusCfg.label})`} aria-label={`Status: ${statusCfg.label}. Change status of ${item.name}`}>
                     <StatusIcon size={20} />
                   </button>
 
@@ -208,7 +208,7 @@ export default function ProductPlanner() {
                   </div>
                 </div>
 
-                <button className="billing-delete-btn" onClick={() => handleDelete(item.id)}>
+                <button className="billing-delete-btn" onClick={() => handleDelete(item.id)} aria-label={`Delete ${item.name || 'item'}`} title="Delete">
                   <Trash2 size={14} />
                 </button>
               </div>

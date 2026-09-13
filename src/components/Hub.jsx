@@ -1,36 +1,114 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
-    Users, FileText, PieChart as PieChartIcon, File,
-    ChevronRight, ChevronDown, Receipt, BarChart3, TrendingUp, Layers,
-    Calendar,
+    Users, FileText, Receipt, BarChart3, File, PieChart as PieChartIcon,
+    Search, ChevronRight, Maximize2, Download, Globe,
+    ArrowUp, ArrowDown, Activity,
+    Bell, Sun, Moon, LogOut, LayoutGrid, User as UserIcon, Building2, Check, ChevronDown,
+    IndianRupee, Hourglass,
 } from 'lucide-react';
 import {
-    AreaChart, Area, PieChart as RechartsPie, Pie, Cell,
-    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+    AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 import { useOrg } from '../context/OrgContext';
 import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
+import { salesGeoService, periodRange } from '../services/salesGeoService';
+import { getPlanConfig, DEFAULT_PLAN } from '../services/planConfig';
+import CountryDialog from './CountryDialog';
+import { usePanZoom } from '../hooks/usePanZoom';
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EdgeOS — Terminal Theme
+   Monochrome instrument panel. Hairline borders, monospaced numerals,
+   hatched bars, a choropleth. Colour is reserved for signal (up / down / live),
+   never for decoration. Every surface responds to the pointer.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const MONO = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
+
+function makeTokens(isDark) {
+    return isDark ? {
+        shell:      '#050506',
+        panel:      '#0d0d0f',
+        panelAlt:   '#121215',
+        raised:     '#17171b',
+        line:       '#1d1d21',
+        lineSoft:   '#161619',
+        lineStrong: '#2f2f36',
+        text:       '#f2f2f3',
+        dim:        '#8b8b93',
+        faint:      '#56565e',
+        ghost:      '#34343b',
+        up:         '#4ade80',
+        down:       '#f87171',
+        scale:      ['#1a1a1e', '#3a3a41', '#5e5e67', '#90909a', '#c8c8cf', '#ffffff'],
+        chart:      '#e8e8ea',
+        selBg:      '#292930',
+        selText:    '#ffffff',
+        shadow:     '0 24px 70px -24px rgba(0,0,0,0.9)',
+        mapNull:    '#17171b',
+    } : {
+        shell:      '#d3d9db',
+        panel:      '#ffffff',
+        panelAlt:   '#f7f9f9',
+        raised:     '#eef1f2',
+        line:       '#e3e6e7',
+        lineSoft:   '#eef0f1',
+        lineStrong: '#c2c9cc',
+        text:       '#0e1011',
+        dim:        '#6b7275',
+        faint:      '#959c9f',
+        ghost:      '#c9cfd1',
+        up:         '#15803d',
+        down:       '#b91c1c',
+        scale:      ['#e8ebec', '#c3cacc', '#98a2a5', '#697376', '#3b4245', '#0e1011'],
+        chart:      '#1b1e1f',
+        selBg:      '#0e1011',
+        selText:    '#ffffff',
+        shadow:     '0 24px 60px -28px rgba(20,28,32,0.45)',
+        mapNull:    '#e8ebec',
+    };
+}
 
 const MODULES = [
-    { id: 'team',      label: 'Team',          desc: 'Employee registry, offer tracker & bulk imports.',       icon: Users,        defaultPage: 'team-hierarchy', color: '#8b5cf6' },
-    { id: 'documents', label: 'Documents',      desc: 'Offer letters, NDAs, MoUs, and certificates.',          icon: FileText,     defaultPage: 'new-certificates', color: '#10b981' },
-    { id: 'finance',   label: 'Finance',        desc: 'Invoices, quotations, proformas & financial status.',   icon: Receipt,      defaultPage: 'finance-status', color: '#f59e0b' },
-    { id: 'business',  label: 'Business',       desc: 'CRM pipeline, client database, product catalogue and revenue analytics.', icon: BarChart3,    defaultPage: 'crm',            color: '#d946ef' },
-    { id: 'data',      label: 'Records',        desc: 'Past documents and bulk operation history.',            icon: File,         defaultPage: 'records',        color: '#ef4444' },
-    { id: 'overall',   label: 'Overview',       desc: 'Comprehensive analytics and business stats.',           icon: PieChartIcon, defaultPage: 'dashboard',      color: '#64748b' },
+    { id: 'team',      code: 'TEA', label: 'Team',      desc: 'Registry · hierarchy',  icon: Users,        defaultPage: 'team-hierarchy' },
+    { id: 'documents', code: 'DOC', label: 'Documents', desc: 'Offers · NDAs · certs', icon: FileText,     defaultPage: 'new-certificates' },
+    { id: 'finance',   code: 'FIN', label: 'Finance',   desc: 'Invoices · quotes',     icon: Receipt,      defaultPage: 'finance-status' },
+    { id: 'business',  code: 'BIZ', label: 'Business',  desc: 'CRM · clients',         icon: BarChart3,    defaultPage: 'crm' },
+    { id: 'data',      code: 'REC', label: 'Records',   desc: 'Archive · history',     icon: File,         defaultPage: 'records' },
+    { id: 'overall',   code: 'OVW', label: 'Overview',  desc: 'Full analytics',        icon: PieChartIcon, defaultPage: 'dashboard' },
 ];
 
-const PIE_COLORS = {
-    'Offer Letters': '#fbbf24',
-    'Invoices':      '#f97316',
-    'Quotations':    '#a855f7',
-    'Proformas':     '#6366f1',
+const RANGES = ['7D', '1M', '3M', '1Y'];
+const RANGE_DAYS = { '7D': 7, '1M': 30, '3M': 90, '1Y': 365 };
+const GEO_PERIODS = [
+    { id: '30D', api: '30d' },
+    { id: '3M',  api: '3m' },
+    { id: '6M',  api: '6m' },
+    { id: '12M', api: '12m' },
+];
+
+/* ── helpers ─────────────────────────────────────────────────────────────── */
+
+const fmtCompact = (n) => {
+    const v = Math.round(n || 0);
+    const a = Math.abs(v);
+    if (a >= 10000000) return (v / 10000000).toFixed(2) + 'Cr';
+    if (a >= 100000)   return (v / 100000).toFixed(2) + 'L';
+    if (a >= 1000)     return (v / 1000).toFixed(1) + 'k';
+    return String(v);
 };
 
+const dayKey = (d) => {
+    const x = new Date(d);
+    return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+};
+
+const docValue = (d) => d.grand_total || d.amount || d.subtotal || 0;
+
 function useWindowWidth() {
-    const [w, setW] = useState(() => window.innerWidth);
+    const [w, setW] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1440));
     useEffect(() => {
         const fn = () => setW(window.innerWidth);
         window.addEventListener('resize', fn);
@@ -39,630 +117,1534 @@ function useWindowWidth() {
     return w;
 }
 
-export default function Hub({ user, theme }) {
+function useClock() {
+    const [now, setNow] = useState(() => new Date());
+    useEffect(() => {
+        const id = setInterval(() => setNow(new Date()), 1000);
+        return () => clearInterval(id);
+    }, []);
+    return now;
+}
+
+/* ── primitives ──────────────────────────────────────────────────────────── */
+
+function Panel({ t, children, style }) {
+    return (
+        <div style={{
+            background: t.panel,
+            border: '1px solid ' + t.line,
+            borderRadius: 10,
+            display: 'flex', flexDirection: 'column',
+            minWidth: 0, overflow: 'hidden',
+            ...style,
+        }}>{children}</div>
+    );
+}
+
+function PanelHead({ t, title, sub, right, dense }) {
+    return (
+        <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 12, padding: '0 16px',
+            borderBottom: '1px solid ' + t.line,
+            minHeight: 50, flexShrink: 0,
+        }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, minWidth: 0 }}>
+                <span style={{
+                    fontFamily: MONO, fontSize: 14.5, fontWeight: 700,
+                    letterSpacing: '-0.02em', color: t.text, whiteSpace: 'nowrap',
+                }}>{title}</span>
+                {sub ? <span style={{ fontFamily: MONO, fontSize: 11.5, color: t.dim, whiteSpace: 'nowrap' }}>{sub}</span> : null}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>{right}</div>
+        </div>
+    );
+}
+
+function Seg({ t, value, onChange, options, size = 'md' }) {
+    const h = size === 'sm' ? 24 : 28;
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 1, height: h }}>
+            {options.map((id) => {
+                const active = id === value;
+                return (
+                    <button
+                        key={id} type="button" className="nm-seg"
+                        onClick={() => onChange(id)}
+                        style={{
+                            fontFamily: MONO, fontSize: size === 'sm' ? 11 : 12,
+                            fontWeight: 600, letterSpacing: '0.02em',
+                            padding: size === 'sm' ? '0 8px' : '0 10px', height: h,
+                            border: '1px solid ' + (active ? t.lineStrong : 'transparent'),
+                            background: active ? t.selBg : 'transparent',
+                            color: active ? t.selText : t.dim,
+                            borderRadius: 6, cursor: 'pointer', lineHeight: 1,
+                            transition: 'color .15s, background .15s, border-color .15s',
+                        }}
+                    >{id}</button>
+                );
+            })}
+        </div>
+    );
+}
+
+function IconBtn({ t, children, title, onClick, active, size = 28 }) {
+    return (
+        <button className="nm-icon" title={title} type="button" onClick={onClick} style={{
+            width: size, height: size, display: 'grid', placeItems: 'center',
+            position: 'relative',
+            border: '1px solid ' + (active ? t.lineStrong : 'transparent'),
+            background: active ? t.panelAlt : 'transparent',
+            color: active ? t.text : t.faint,
+            borderRadius: 6, cursor: 'pointer', padding: 0,
+            transition: 'color .15s, border-color .15s, background .15s',
+        }}>{children}</button>
+    );
+}
+
+/* A dropdown surface for the top bar. Anchored to the button that opened it,
+   so the bar reads as a menubar rather than a row of floating cards. */
+function Pop({ t, children, width = 260, align = 'right' }) {
+    return (
+        <div style={{
+            position: 'absolute', top: 'calc(100% + 9px)',
+            [align]: 0, width, zIndex: 90,
+            background: t.panel, border: '1px solid ' + t.lineStrong,
+            borderRadius: 10, boxShadow: t.shadow, overflow: 'hidden',
+            animation: 'nmPop .14s cubic-bezier(.16,1,.3,1)',
+        }}>{children}</div>
+    );
+}
+
+function PopRow({ t, icon, label, note, onClick, danger }) {
+    return (
+        <button type="button" className="nm-lrow" onClick={onClick} style={{
+            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+            padding: '8px 11px', background: 'transparent', border: 'none',
+            borderRadius: 0, cursor: 'pointer', textAlign: 'left',
+            fontFamily: MONO, color: danger ? t.down : t.text,
+        }}>
+            <span style={{ display: 'grid', placeItems: 'center', color: danger ? t.down : t.faint, flexShrink: 0 }}>{icon}</span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: 11.5 }}>{label}</span>
+                {note && <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 1 }}>{note}</span>}
+            </span>
+        </button>
+    );
+}
+
+function Delta({ t, value, size = 11.5 }) {
+    const up = value >= 0;
+    const C = up ? ArrowUp : ArrowDown;
+    return (
+        <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            fontFamily: MONO, fontSize: size, fontWeight: 700,
+            color: up ? t.up : t.down, lineHeight: 1,
+            padding: '4px 7px', borderRadius: 999,
+            background: (up ? t.up : t.down) + '1f',
+        }}>
+            <C size={size - 1} strokeWidth={2.8} />
+            {Math.abs(value).toFixed(1)}%
+        </span>
+    );
+}
+
+/* Sparkline — line + area, brightens when its card is hovered */
+function Spark({ t, values, height = 36, active }) {
+    const n = values.length;
+    if (!n) return <div style={{ height }} />;
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const span = max - min || 1;
+    const pts = values.map((v, i) => [
+        (i / (n - 1 || 1)) * 100,
+        96 - ((v - min) / span) * 88,
+    ]);
+    const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(2) + ' ' + p[1].toFixed(2)).join(' ');
+    const area = line + ' L100 100 L0 100 Z';
+    const last = pts[pts.length - 1];
+    return (
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height, display: 'block', overflow: 'visible' }}>
+            <path d={area} fill={t.chart} opacity={active ? 0.16 : 0.07} />
+            <path
+                d={line} fill="none" stroke={active ? t.text : t.dim}
+                strokeWidth={1.4} vectorEffect="non-scaling-stroke"
+                strokeLinejoin="round" strokeLinecap="round"
+                style={{ transition: 'stroke .18s' }}
+            />
+            {active && <circle cx={last[0]} cy={last[1]} r={2.2} fill={t.text} vectorEffect="non-scaling-stroke" />}
+        </svg>
+    );
+}
+
+/* KPI box — hoverable, with its own sparkline */
+function Kpi({ t, label, icon: Icon, value, delta, note, series, active, onEnter, onLeave, isMobile }) {
+    return (
+        <div
+            onMouseEnter={onEnter} onMouseLeave={onLeave}
+            style={{
+                background: active ? t.panelAlt : t.panel,
+                border: '1px solid ' + (active ? t.lineStrong : t.line),
+                borderRadius: 10, padding: isMobile ? '14px 14px 12px' : '16px 16px 14px',
+                display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0,
+                cursor: 'default',
+                transform: active ? 'translateY(-2px)' : 'none',
+                transition: 'transform .18s cubic-bezier(.16,1,.3,1), border-color .18s, background .18s',
+            }}
+        >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 22 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    {Icon && (
+                        <span style={{
+                            width: 22, height: 22, borderRadius: 6, background: t.raised, color: t.text,
+                            display: 'grid', placeItems: 'center', flexShrink: 0,
+                        }}><Icon size={12} strokeWidth={2.2} /></span>
+                    )}
+                    <span style={{
+                        fontSize: isMobile ? 11.5 : 12.5, fontWeight: 700, color: t.text,
+                        letterSpacing: '0.06em', whiteSpace: 'nowrap',
+                    }}>{label}</span>
+                </span>
+                {delta !== null && delta !== undefined ? <Delta t={t} value={delta} size={11} /> : null}
+            </div>
+            <div style={{
+                fontSize: isMobile ? 24 : 32, fontWeight: 700, color: t.text, letterSpacing: '-0.04em',
+                lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                fontVariantNumeric: 'tabular-nums',
+            }}>{value}</div>
+            <Spark t={t} values={series} active={active} height={isMobile ? 28 : 36} />
+            <div style={{
+                fontSize: 11.5, color: t.dim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                paddingTop: 10, borderTop: '1px solid ' + t.lineSoft,
+            }}>{note}</div>
+        </div>
+    );
+}
+
+/* Measure a box without a synchronous setState — the observer fires on observe */
+function useMeasuredWidth() {
+    const ref = useRef(null);
+    const [w, setW] = useState(0);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el || typeof ResizeObserver === 'undefined') return undefined;
+        const ro = new ResizeObserver((entries) => setW(entries[0].contentRect.width));
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+    return [ref, w];
+}
+
+/* Alternating solid / hatched bars, hoverable per bar.
+   Drawn in real pixels rather than a stretched viewBox, so the 45° hatch
+   stays at 45° instead of shearing into horizontal stripes. */
+function HatchBars({ t, data, height, hover, setHover }) {
+    const [ref, w] = useMeasuredWidth();
+    const max = Math.max(...data.map((d) => d.value), 1);
+    const n = data.length || 1;
+    const slot = w / n;
+    const bw = Math.max(6, Math.min(slot * 0.46, 22));
+    const plot = height - 6;
+    return (
+        <div ref={ref} style={{ width: '100%', height }}>
+            {w > 0 && (
+                <svg width={w} height={height} style={{ display: 'block' }}>
+                    <defs>
+                        <pattern id="nmHatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+                            <line x1="0" y1="0" x2="0" y2="5" stroke={t.chart} strokeWidth="1.5" />
+                        </pattern>
+                    </defs>
+                    {[0, 0.25, 0.5, 0.75, 1].map((f) => (
+                        <line key={f} x1="0" y1={Math.round(height * f) + 0.5} x2={w} y2={Math.round(height * f) + 0.5}
+                              stroke={t.lineSoft} strokeWidth="1" />
+                    ))}
+                    {data.map((d, i) => {
+                        const h = Math.max(2, (d.value / max) * plot);
+                        const x = slot * i + slot / 2;
+                        const solid = i % 2 === 0;
+                        const on = hover === i;
+                        return (
+                            <g key={i} opacity={hover === null || on ? 1 : 0.35} style={{ transition: 'opacity .15s' }}>
+                                {on && <rect x={slot * i} y={0} width={slot} height={height} fill={t.chart} opacity={0.05} />}
+                                <rect
+                                    x={x - bw / 2} y={height - h} width={bw} height={h}
+                                    fill={solid ? t.chart : 'url(#nmHatch)'}
+                                    stroke={solid ? 'none' : t.chart}
+                                    strokeWidth={solid ? 0 : 1}
+                                />
+                                <rect
+                                    x={slot * i} y={0} width={slot} height={height} fill="transparent"
+                                    onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}
+                                    style={{ cursor: 'crosshair' }}
+                                />
+                            </g>
+                        );
+                    })}
+                </svg>
+            )}
+        </div>
+    );
+}
+
+/* Ticked dial */
+function Dial({ t, value, size = 150, label = 'Settled' }) {
+    const ticks = 72;
+    const r = size / 2;
+    const outerR = r - 3;
+    const innerR = r - 13;
+    const arcR = r - 24;
+    const circ = 2 * Math.PI * arcR;
+    const filled = Math.round((value / 100) * ticks);
+    return (
+        <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+            <svg width={size} height={size} style={{ display: 'block' }}>
+                {Array.from({ length: ticks }).map((_, i) => {
+                    const a = (i / ticks) * Math.PI * 2 - Math.PI / 2;
+                    return (
+                        <line
+                            key={i}
+                            x1={r + Math.cos(a) * innerR} y1={r + Math.sin(a) * innerR}
+                            x2={r + Math.cos(a) * outerR} y2={r + Math.sin(a) * outerR}
+                            stroke={i < filled ? t.text : t.ghost}
+                            strokeWidth={1.6}
+                        />
+                    );
+                })}
+                <circle cx={r} cy={r} r={arcR} fill="none" stroke={t.line} strokeWidth={7} />
+                <circle
+                    cx={r} cy={r} r={arcR} fill="none"
+                    stroke={t.text} strokeWidth={7}
+                    strokeDasharray={((value / 100) * circ) + ' ' + circ}
+                    transform={'rotate(-90 ' + r + ' ' + r + ')'}
+                    style={{ transition: 'stroke-dasharray .5s cubic-bezier(.16,1,.3,1)' }}
+                />
+            </svg>
+            <div style={{ position: 'absolute', inset: 0, display: 'grid', placeContent: 'center', textAlign: 'center' }}>
+                <div style={{ fontFamily: MONO, fontSize: 30, fontWeight: 700, color: t.text, letterSpacing: '-0.045em', lineHeight: 1 }}>
+                    {Math.round(value)}<span style={{ fontSize: 15, marginLeft: 1, color: t.dim }}>%</span>
+                </div>
+                <div style={{ fontFamily: MONO, fontSize: 11, fontWeight: 600, color: t.dim, letterSpacing: '0.06em', marginTop: 5 }}>{label}</div>
+            </div>
+        </div>
+    );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+export default function Hub({ user, theme, onToggleTheme, onLogout }) {
     const isDark = theme === 'dark';
+    const t = makeTokens(isDark);
     const { activeOrg } = useOrg();
+    const navigate = useNavigate();
+
     const [records, setRecords] = useState([]);
     const [finDocs, setFinDocs] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [hoveredMod, setHoveredMod] = useState(null);
-    const [revenuePeriod, setRevenuePeriod] = useState('Last 7 Days');
-    const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
-    const winW = useWindowWidth();
+    const [range, setRange] = useState('1M');
+    const [volRange, setVolRange] = useState('1Y');
+    const [hoverKpi, setHoverKpi] = useState(null);
+    const [hoverMod, setHoverMod] = useState(null);
+    const [hoverBar, setHoverBar] = useState(null);
 
-    const isMobile = winW < 768;
-    const isTablet = winW < 1100;
+    // top bar — everything the sidebar used to hold now lives up here
+    const [menu, setMenu] = useState(null);      // 'modules' | 'notifs' | 'account' | null
+    const [rail, setRail] = useState(false);    // module rail widened to labels
+    const [notifs, setNotifs] = useState([]);
+    const barRef = useRef(null);
+
+    // geo
+    const [geoMap, setGeoMap] = useState(null);
+    const [geoRows, setGeoRows] = useState([]);
+    const [geoPeriod, setGeoPeriod] = useState('12M');
+    const [hoverCountry, setHoverCountry] = useState(null);
+    const [openCountry, setOpenCountry] = useState(null);
+    const [cursor, setCursor] = useState({ x: 0, y: 0 });
+    const mapWrapRef = useRef(null);
+    // Antarctica and the polar oceans are 20% of the frame and carry no revenue;
+    // cropping them lets the inhabited world fill the panel.
+    const mapBox = [0, 18, geoMap ? geoMap.MAP_WIDTH : 960, (geoMap ? geoMap.MAP_HEIGHT : 480) - 100];
+    const pz = usePanZoom({ enabled: !!geoMap, box: mapBox });
+    // A drag captures the pointer, so leave events can be skipped; start clean.
+    useEffect(() => { if (pz.dragging) setHoverCountry(null); }, [pz.dragging]);
+
+    const winW = useWindowWidth();
+    const now = useClock();
+    const isMobile = winW < 760;
+    const isTablet = winW < 1180;
 
     useEffect(() => {
-        if (activeOrg) {
-            const loadAll = async () => {
-                try {
-                    const [data] = await Promise.all([storageService.getAll(activeOrg.id)]);
-                    setRecords(data || []);
-                    documentStore.setContext(activeOrg.id);
-                    await documentStore.init();
-                    setFinDocs(documentStore.getAll());
-                } catch { /* ignore */ }
-                setLoading(false);
-            };
-            loadAll();
-        } else {
-            setLoading(false);
-        }
+        if (!activeOrg) { setLoading(false); return undefined; }
+        let alive = true;
+        (async () => {
+            try {
+                const data = await storageService.getAll(activeOrg.id);
+                if (!alive) return;
+                setRecords(data || []);
+                documentStore.setContext(activeOrg.id);
+                await documentStore.init();
+                if (!alive) return;
+                setFinDocs(documentStore.getAll());
+            } catch { /* ignore */ }
+            if (alive) setLoading(false);
+        })();
+        return () => { alive = false; };
     }, [activeOrg]);
 
-    const stats = useMemo(() => {
-        // Records = legacy docs (offers, certs, NDAs, MoUs). Invoices live in fin_docs only.
-        const nonInvoiceRecords = records.filter(r => r.type !== 'invoice');
-        const finInvoices = finDocs.filter(d => d.type === 'invoice');
-        const paidFinInvoices = finInvoices.filter(d => d.status === 'paid');
-        const revenue = paidFinInvoices.reduce((acc, d) => acc + (d.grand_total || d.amount || d.subtotal || 0), 0);
+    // geometry lands in its own chunk; a failure here must not take the page down
+    useEffect(() => {
+        let cancelled = false;
+        import('../data/worldMap.js')
+            .then((m) => { if (!cancelled) setGeoMap(m); })
+            .catch(() => { if (!cancelled) setGeoMap(false); });
+        return () => { cancelled = true; };
+    }, []);
 
-        // Daily revenue — use issue_date (when invoice was issued), not created_at
-        const now = new Date();
-        const dailyRevenue = [];
+    useEffect(() => {
+        if (!activeOrg) return undefined;
+        let cancelled = false;
+        (async () => {
+            const api = GEO_PERIODS.find((p) => p.id === geoPeriod)?.api || '12m';
+            const { from, to } = periodRange(api);
+            const rows = await salesGeoService.byCountry(activeOrg.id, { from, to });
+            if (!cancelled) setGeoRows(rows || []);
+        })();
+        return () => { cancelled = true; };
+    }, [activeOrg, geoPeriod]);
 
-        // Determine number of days based on period selection
-        const periodDays = {
-            'Last 7 Days': 7,
-            'Last 30 Days': 30,
-            'Last 3 Months': 90,
-            'Last 6 Months': 180,
-            'Last 1 Year': 365,
-        }[revenuePeriod] || 7;
+    // Notifications are polled rather than subscribed because documentStore is a
+    // synchronous cache; three seconds matches the interval the shell used.
+    useEffect(() => {
+        const read = () => setNotifs(documentStore.getNotifications() || []);
+        read();
+        const id = setInterval(read, 3000);
+        return () => clearInterval(id);
+    }, [activeOrg]);
 
-        // Create a map of date -> revenue for quick lookup
-        const revenueByDate = new Map();
-        
-        paidFinInvoices.forEach(inv => {
-            const dt = new Date(inv.issue_date || inv.created_at);
-            const dateKey = dt.toISOString().split('T')[0]; // YYYY-MM-DD
-            const amount = inv.grand_total || inv.amount || inv.subtotal || 0;
-            revenueByDate.set(dateKey, (revenueByDate.get(dateKey) || 0) + amount);
+    // One dismiss path for all three top-bar menus: a click outside the bar, or
+    // Escape. Keeps the bar behaving like a menubar rather than three popovers.
+    useEffect(() => {
+        if (!menu) return undefined;
+        const onDown = (e) => { if (barRef.current && !barRef.current.contains(e.target)) setMenu(null); };
+        const onKey = (e) => { if (e.key === 'Escape') setMenu(null); };
+        document.addEventListener('mousedown', onDown);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('mousedown', onDown);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [menu]);
+
+    /* ── derived analytics ───────────────────────────────────────────────── */
+
+    const data = useMemo(() => {
+        const nonInvoiceRecords = records.filter((r) => r.type !== 'invoice');
+        const invoices = finDocs.filter((d) => d.type === 'invoice');
+        const paid = invoices.filter((d) => d.status === 'paid');
+        const revenue = paid.reduce((a, d) => a + docValue(d), 0);
+        const pipeline = invoices.filter((d) => d.status !== 'paid').reduce((a, d) => a + docValue(d), 0);
+
+        const byDay = new Map();
+        paid.forEach((inv) => {
+            const k = dayKey(inv.issue_date || inv.created_at);
+            byDay.set(k, (byDay.get(k) || 0) + docValue(inv));
         });
 
-        // Generate daily data points for the selected period
-        for (let i = periodDays - 1; i >= 0; i--) {
-            const d = new Date(now);
+        const allDocs = [
+            ...nonInvoiceRecords.map((r) => ({ type: r.type, at: r.created_at, value: 0 })),
+            ...finDocs.map((d) => ({ type: d.type, at: d.issue_date || d.created_at, value: docValue(d) })),
+        ].filter((d) => d.at);
+
+        const docsByDay = new Map();
+        allDocs.forEach((d) => {
+            const k = dayKey(d.at);
+            docsByDay.set(k, (docsByDay.get(k) || 0) + 1);
+        });
+
+        const days = RANGE_DAYS[range];
+        const series = [];
+        const today = new Date();
+        for (let i = days - 1; i >= 0; i--) {
+            const d = new Date(today);
             d.setDate(d.getDate() - i);
-            const dateKey = d.toISOString().split('T')[0];
-            const dayRevenue = revenueByDate.get(dateKey) || 0;
-            
-            // Format label based on period density
-            let dayLabel;
-            if (periodDays <= 7) {
-                // For last 7 days: show day name (Mon, Tue, etc.)
-                dayLabel = d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' });
-            } else if (periodDays <= 30) {
-                // For last 30 days: show date (5 Jan)
-                dayLabel = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-            } else {
-                // For longer periods: show date with year (5 Jan 24)
-                dayLabel = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
-            }
-            
-            dailyRevenue.push({ 
-                date: dateKey,
-                day: dayLabel, 
-                revenue: dayRevenue 
+            const k = dayKey(d);
+            series.push({
+                label: days <= 7
+                    ? d.toLocaleDateString('en-IN', { weekday: 'short' })
+                    : days <= 90
+                        ? d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                        : d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }),
+                value: byDay.get(k) || 0,
+            });
+        }
+        const half = Math.floor(series.length / 2) || 1;
+        const firstHalf = series.slice(0, half).reduce((a, s) => a + s.value, 0);
+        const lastHalf = series.slice(half).reduce((a, s) => a + s.value, 0);
+        const trend = firstHalf > 0 ? ((lastHalf - firstHalf) / firstHalf) * 100 : (lastHalf > 0 ? 100 : 0);
+        const peak = series.reduce((m, s) => (s.value > m.value ? s : m), series[0] || { value: 0 });
+        const avg = series.length ? series.reduce((a, s) => a + s.value, 0) / series.length : 0;
+
+        // 30-day sparkline series for the KPI boxes
+        const sparkRev = [];
+        const sparkDocs = [];
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            const k = dayKey(d);
+            sparkRev.push(byDay.get(k) || 0);
+            sparkDocs.push(docsByDay.get(k) || 0);
+        }
+
+        const mStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        const prevMStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const issuedAt = (d) => new Date(d.issue_date || d.created_at);
+        const revMonth = paid.filter((d) => issuedAt(d) >= mStart).reduce((a, d) => a + docValue(d), 0);
+        const prevMonth = paid
+            .filter((d) => issuedAt(d) >= prevMStart && issuedAt(d) < mStart)
+            .reduce((a, d) => a + docValue(d), 0);
+        const monthDelta = prevMonth > 0 ? ((revMonth - prevMonth) / prevMonth) * 100 : (revMonth > 0 ? 100 : 0);
+
+        const docsThisMonth = allDocs.filter((d) => new Date(d.at) >= mStart).length;
+        const docsPrevMonth = allDocs.filter((d) => new Date(d.at) >= prevMStart && new Date(d.at) < mStart).length;
+        const docsDelta = docsPrevMonth > 0
+            ? ((docsThisMonth - docsPrevMonth) / docsPrevMonth) * 100
+            : (docsThisMonth > 0 ? 100 : 0);
+
+        // monthly issuance volume
+        const volMonths = volRange === '1Y' ? 12 : volRange === '6M' ? 6 : 3;
+        const volume = [];
+        for (let i = volMonths - 1; i >= 0; i--) {
+            const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+            const nxt = new Date(today.getFullYear(), today.getMonth() - i + 1, 1);
+            const inM = allDocs.filter((x) => {
+                const dt = new Date(x.at);
+                return dt >= d && dt < nxt;
+            });
+            volume.push({
+                label: d.toLocaleDateString('en-IN', { month: 'short' }),
+                full: d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+                value: inM.length,
+                amount: inM.reduce((a, x) => a + x.value, 0),
             });
         }
 
-        const rawDistribution = [
-            { name: 'Offer Letters', value: records.filter(r => r.type === 'offer').length },
-            { name: 'Invoices',      value: finInvoices.length },
-            { name: 'Quotations',    value: finDocs.filter(d => d.type === 'quotation').length },
-            { name: 'Proformas',     value: finDocs.filter(d => d.type === 'proforma').length },
-        ].filter(d => d.value > 0);
+        const settled = invoices.length ? (paid.length / invoices.length) * 100 : 0;
+        const pipelineSpark = volume.map((v) => v.amount);
 
         return {
-            total:    nonInvoiceRecords.length + finDocs.length,
-            revenue,
-            invoices: finInvoices.length,
-            dailyRevenue,
-            typeDistribution: rawDistribution,
+            totalDocs: nonInvoiceRecords.length + finDocs.length,
+            revenue, pipeline,
+            invoiceCount: invoices.length, paidCount: paid.length,
+            series, trend, peak, avg,
+            sparkRev, sparkDocs, pipelineSpark,
+            monthDelta, docsThisMonth, docsDelta,
+            volume, settled,
         };
-    }, [records, finDocs, revenuePeriod]);
+    }, [records, finDocs, range, volRange]);
+
+    /* ── geo derivation ──────────────────────────────────────────────────── */
+
+    const geo = useMemo(() => {
+        // The RPC is the source of truth. When it has nothing (no storefront
+        // rows yet, or it failed) fall back to the country stamped on each
+        // financial document, so the map still answers the question.
+        let rows = (geoRows || []).filter((r) => r.code && r.revenue > 0);
+        if (rows.length === 0) {
+            const agg = new Map();
+            finDocs.forEach((d) => {
+                const code = d.country_code || d.country;
+                if (!code || String(code).length !== 2) return;
+                const c = String(code).toUpperCase();
+                const prev = agg.get(c) || { code: c, revenue: 0, docCount: 0 };
+                prev.revenue += docValue(d);
+                prev.docCount += 1;
+                agg.set(c, prev);
+            });
+            rows = [...agg.values()].filter((r) => r.revenue > 0);
+        }
+        const ranked = rows.slice().sort((a, b) => b.revenue - a.revenue);
+        const total = ranked.reduce((a, r) => a + r.revenue, 0);
+        const max = ranked[0]?.revenue || 1;
+        const byCode = new Map();
+        ranked.forEach((r) => {
+            // sqrt scale: linear buckets put everything but the leader in level 1
+            const lvl = Math.max(1, Math.min(5, Math.ceil(Math.sqrt(r.revenue / max) * 5)));
+            byCode.set(r.code, { ...r, level: lvl, share: total ? (r.revenue / total) * 100 : 0 });
+        });
+        return { ranked, total, byCode, top: ranked.slice(0, 5) };
+    }, [geoRows, finDocs]);
 
     if (loading) return null;
 
-    const hour = new Date().getHours();
+    const hour = now.getHours();
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-    const name = user?.email?.split('@')[0] || 'User';
-    const displayName = name.charAt(0).toUpperCase() + name.slice(1);
-    const today = new Date().toLocaleDateString('en-IN', {
-        weekday:  isMobile ? undefined : 'long',
-        day:      'numeric',
-        month:    isMobile ? 'short' : 'long',
-        year:     'numeric',
-    });
+    const rawName = user?.email?.split('@')[0] || 'operator';
+    const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+    const orgName = activeOrg?.company_name || activeOrg?.name || 'Workspace';
+    const clock = now.toLocaleTimeString('en-IN', { hour12: false });
+    const dateStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
 
-    // ── Theme tokens ──────────────────────────────────────────────────────────
-    const cardBg         = isDark ? '#0f0f12' : '#ffffff';
-    const cardBorder     = isDark ? 'rgba(255,255,255,0.08)'  : 'rgba(0,0,0,0.08)';
-    const gridLine       = isDark ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.03)';
-    const tooltipBg      = isDark ? '#111113' : '#ffffff';
-    const tooltipText    = isDark ? '#fafafa'  : '#18181b';
-    const axisText       = isDark ? 'rgba(255,255,255,0.35)' : '#71717a';
-    const gridStroke     = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+    const plan = getPlanConfig(activeOrg?.plan || DEFAULT_PLAN);
+    const unread = notifs.filter((n) => !n.read).length;
 
-    const STATS = [
-        { label: 'Total Documents',  value: stats.total.toLocaleString(),          icon: FileText,  color: '#6366f1', sub: 'All time' },
-        { label: 'Revenue',          value: `₹${stats.revenue.toLocaleString()}`, icon: TrendingUp, color: '#10b981', sub: 'Paid invoices' },
-        { label: 'Invoices Issued',  value: stats.invoices.toLocaleString(),        icon: Receipt,   color: '#f59e0b', sub: 'Total issued' },
-        { label: 'Active Modules',   value: '6',                                    icon: Layers,    color: '#8b5cf6', sub: 'Full suite' },
-    ];
-
-    // ── Layout values ─────────────────────────────────────────────────────────
-    const outerPad    = isMobile ? '1.25rem 1rem 4rem'   : isTablet ? '2rem 2rem 4rem'   : '3rem 4rem 5rem';
-    const statsGrid   = isMobile ? 'repeat(2, 1fr)'      : 'repeat(4, 1fr)';
-    const chartsGrid  = isMobile || isTablet ? '1fr'     : 'minmax(0,1.55fr) minmax(0,1fr)';
-    const modulesGrid = isMobile ? 'repeat(2, 1fr)'      : isTablet ? 'repeat(2, 1fr)'    : 'repeat(3, 1fr)';
-    const chartH      = isMobile ? 145 : 175;
-    const h1Size      = isMobile ? '1.6rem' : 'clamp(1.75rem, 3vw, 2.25rem)';
-
-    const hubContainerStyles = {
-        width: isMobile ? '100%' : '75%',
-        margin: '0 auto',
-        height: '100vh',
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none',
+    const clearNotifs = async () => {
+        await documentStore.clearAllNotifications();
+        setNotifs(documentStore.getNotifications() || []);
     };
 
+    // Same routing the shell's notification panel used — the notification is
+    // consumed and the reader is dropped where the event happened.
+    const openNotif = (n) => {
+        documentStore.deleteNotification(n.id);
+        setNotifs(documentStore.getNotifications() || []);
+        setMenu(null);
+        if (n.type === 'quotation_accepted' || n.type === 'quotation_sent' || n.type === 'revision_requested') navigate('/new-quotation');
+        else if (n.type === 'payment_submitted') navigate('/invoices');
+        else navigate('/offer-tracker');
+    };
+
+    const countryNames = geoMap ? geoMap.COUNTRY_NAMES : {};
+    const hoveredGeo = hoverCountry ? geo.byCode.get(hoverCountry) : null;
+
+    const mainGrid = isTablet ? '1fr' : 'minmax(0, 1fr) 340px';
+    const gap = isMobile ? 12 : 16;
+
+    const KPIS = [
+        {
+            k: 'REVENUE', i: IndianRupee, v: '₹' + fmtCompact(data.revenue), d: data.monthDelta,
+            n: data.paidCount + ' invoices settled', s: data.sparkRev,
+        },
+        {
+            k: 'PIPELINE', i: Hourglass, v: '₹' + fmtCompact(data.pipeline), d: null,
+            n: (data.invoiceCount - data.paidCount) + ' awaiting payment', s: data.pipelineSpark,
+        },
+        {
+            k: 'DOCUMENTS', i: FileText, v: data.docsThisMonth.toLocaleString(), d: data.docsDelta,
+            n: data.totalDocs.toLocaleString() + ' all time', s: data.sparkDocs,
+        },
+        {
+            k: 'MARKETS', i: Globe, v: String(geo.ranked.length), d: null,
+            n: geo.top[0] ? 'led by ' + (countryNames[geo.top[0].code] || geo.top[0].code) : 'no country data',
+            s: geo.top.length ? geo.top.map((r) => r.revenue).reverse() : [0, 0, 0],
+        },
+    ];
+
     return (
-        <div style={{
-            display: 'flex',
-            width: '100%',
-            height: '100vh',
-            fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        <div className="nm-root" style={{
+            width: '100%', height: '100vh', overflow: 'hidden', display: 'flex',
+            background: t.shell, fontFamily: MONO, color: t.text,
             WebkitFontSmoothing: 'antialiased',
-            background: isDark ? '#09090b' : '#f8f9fb',
-            overflow: 'hidden', // Root should not scroll
         }}>
-            {/* ── HUB CONTENT AREA ─────────────────────────────────────────── */}
-            <div 
-                className="hub-content-container"
-                style={{
-                    position: 'relative',
-                    display: 'block',
-                    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-                    ...hubContainerStyles,
-                }}>
-                {/* Grid background - use absolute to stay within Hub area */}
-                <div style={{
-                    position: 'absolute', inset: 0,
-                    backgroundImage: `linear-gradient(${gridLine} 1px, transparent 1px), linear-gradient(90deg, ${gridLine} 1px, transparent 1px)`,
-                    backgroundSize: '60px 60px',
-                    maskImage: 'radial-gradient(ellipse 90% 60% at 50% 0%, black 10%, transparent 75%)',
-                    WebkitMaskImage: 'radial-gradient(ellipse 90% 60% at 50% 0%, black 10%, transparent 75%)',
-                    pointerEvents: 'none', zIndex: 0,
-                }} />
-
-                {/* Top radial glow (dark only) - use absolute */}
-                {isDark && (
-                    <div style={{
-                        position: 'absolute', top: -300, left: '50%',
-                        transform: 'translateX(-50%)',
-                        width: '150%', height: 600,
-                        background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.035) 0%, transparent 65%)',
-                        pointerEvents: 'none', zIndex: 0,
-                    }} />
-                )}
-
-                {/* ── Page content ──────────────────────────────────────────────── */}
-                <div style={{
-                    position: 'relative', zIndex: 1,
-                    width: '100%',
-                    padding: outerPad,
-                }}>
-
-                {/* ── HEADER ─────────────────────────────────────────────────── */}
-                <div style={{
-                    display: 'flex',
-                    flexDirection: isMobile ? 'column' : 'row',
-                    alignItems: isMobile ? 'flex-start' : 'flex-start',
-                    justifyContent: 'space-between',
-                    gap: isMobile ? '1rem' : '0',
-                    marginBottom: isMobile ? '1.75rem' : '2.75rem',
-                }}>
-                    <div>
-                        {/* Eyebrow badge */}
-                        <div style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
-                            padding: '0.3rem 0.875rem',
-                            background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-                            border: `1px solid ${cardBorder}`,
-                            borderRadius: '999px',
-                            fontSize: '0.6rem', fontWeight: 700,
-                            color: isDark ? 'rgba(255,255,255,0.4)' : '#71717a',
-                            textTransform: 'uppercase', letterSpacing: '0.08em',
-                            marginBottom: '0.875rem',
-                        }}>
-                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }} />
-                            EdgeOS Dashboard
-                        </div>
-
-                        <h1 style={{
-                            fontSize: h1Size,
-                            fontWeight: 800, letterSpacing: '-0.04em',
-                            lineHeight: 1.1, margin: '0 0 0.5rem',
-                            color: isDark ? '#fafafa' : '#18181b',
-                            ...(isDark ? {
-                                background: 'linear-gradient(135deg, #ffffff 30%, rgba(255,255,255,0.45) 100%)',
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent',
-                                backgroundClip: 'text',
-                            } : {}),
-                        }}>
-                            {greeting}, {displayName}
-                        </h1>
-                        <p style={{
-                            fontSize: isMobile ? '0.8125rem' : '0.9375rem',
-                            color: isDark ? 'rgba(255,255,255,0.35)' : '#71717a',
-                            margin: 0, fontWeight: 400,
-                        }}>
-                            Enterprise overview &amp; analytics
-                        </p>
-                    </div>
-
-                    {/* Date chip */}
-                    <div style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-                        padding: '0.45rem 1rem',
-                        background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
-                        border: `1px solid ${cardBorder}`,
-                        borderRadius: '999px',
-                        fontSize: '0.72rem', fontWeight: 600,
-                        color: isDark ? 'rgba(255,255,255,0.4)' : '#71717a',
-                        letterSpacing: '0.02em',
-                        whiteSpace: 'nowrap',
-                        alignSelf: isMobile ? 'flex-start' : 'flex-start',
-                        marginTop: isMobile ? 0 : '0.25rem',
+            {/* ── MODULE RAIL ──────────────────────────────────────────────
+                A rail rather than a full sidebar: 58px of icons that widen to
+                labels on hover, so navigation is always one click away without
+                spending a fifth of the width on it. Hidden on phones, where the
+                top bar carries the same list as a menu. */}
+            {!isMobile && (
+                <aside
+                    onMouseEnter={() => setRail(true)}
+                    onMouseLeave={() => setRail(false)}
+                    style={{
+                        width: rail ? 214 : 58, flexShrink: 0,
+                        background: t.panel, borderRight: '1px solid ' + t.line,
+                        display: 'flex', flexDirection: 'column',
+                        overflow: 'hidden', zIndex: 60,
+                        transition: 'width .22s cubic-bezier(.16,1,.3,1)',
+                    }}
+                >
+                    <Link to="/hub" style={{
+                        display: 'flex', alignItems: 'center', gap: 11,
+                        height: 53, padding: '0 18px', flexShrink: 0,
+                        borderBottom: '1px solid ' + t.line,
+                        textDecoration: 'none', color: t.text,
                     }}>
-                        <Calendar size={12} style={{ opacity: 0.6 }} />
-                        {today}
-                    </div>
-                </div>
+                        <svg width="21" height="21" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0, marginLeft: -1 }}>
+                            <path d="M10 1v18M1 10h18M3.5 3.5l13 13M16.5 3.5l-13 13" stroke={t.text} strokeWidth="1.3" />
+                            <circle cx="10" cy="10" r="2.6" fill={t.panel} stroke={t.text} strokeWidth="1.3" />
+                        </svg>
+                        <span style={{
+                            fontSize: 14.5, fontWeight: 500, letterSpacing: '-0.02em', whiteSpace: 'nowrap',
+                            opacity: rail ? 1 : 0, transition: 'opacity .16s',
+                        }}>EdgeOS</span>
+                    </Link>
 
-                {/* ── STATS ──────────────────────────────────────────────────── */}
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: statsGrid,
-                    gap: isMobile ? '0.75rem' : '1rem',
-                    marginBottom: isMobile ? '0.875rem' : '1.25rem',
-                }}>
-                    {STATS.map((stat, i) => {
-                        const Icon = stat.icon;
-                        return (
-                            <div key={i} style={{
-                                background: cardBg,
-                                border: `1px solid ${cardBorder}`,
-                                borderRadius: isMobile ? '12px' : '14px',
-                                padding: isMobile ? '1rem' : '1.25rem 1.375rem',
-                                position: 'relative', overflow: 'hidden',
-                            }}>
-                                {/* Accent line */}
-                                <div style={{
-                                    position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
-                                    background: `linear-gradient(90deg, ${stat.color}, transparent)`,
-                                    opacity: 0.7,
-                                }} />
+                    <div style={{
+                        padding: '11px 18px 6px', fontSize: 9, letterSpacing: '0.1em',
+                        color: t.ghost, whiteSpace: 'nowrap',
+                        opacity: rail ? 1 : 0, transition: 'opacity .16s',
+                    }}>WORKSPACE</div>
 
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? '0.625rem' : '0.875rem' }}>
-                                    <span style={{
-                                        fontSize: '0.6rem', fontWeight: 700,
-                                        color: isDark ? 'rgba(255,255,255,0.3)' : '#a1a1aa',
-                                        textTransform: 'uppercase', letterSpacing: '0.07em',
-                                        lineHeight: 1.3,
-                                    }}>
-                                        {stat.label}
-                                    </span>
-                                    <div style={{
-                                        width: isMobile ? 26 : 30, height: isMobile ? 26 : 30,
-                                        borderRadius: '8px',
-                                        background: `${stat.color}18`, border: `1px solid ${stat.color}28`,
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        color: stat.color, flexShrink: 0,
-                                    }}>
-                                        <Icon size={isMobile ? 12 : 14} strokeWidth={2.5} />
-                                    </div>
-                                </div>
-
-                                <div style={{
-                                    fontSize: isMobile ? '1.375rem' : '1.875rem',
-                                    fontWeight: 800, letterSpacing: '-0.04em',
-                                    color: isDark ? '#fafafa' : '#18181b',
-                                    lineHeight: 1, marginBottom: '0.3rem',
-                                    // Truncate if number is long on mobile
-                                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                }}>
-                                    {stat.value}
-                                </div>
-                                <div style={{
-                                    fontSize: '0.6rem',
-                                    color: isDark ? 'rgba(255,255,255,0.25)' : '#a1a1aa',
-                                    fontWeight: 500,
-                                }}>
-                                    {stat.sub}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-
-                {/* ── CHARTS ─────────────────────────────────────────────────── */}
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: chartsGrid,
-                    gap: isMobile ? '0.75rem' : '1rem',
-                    marginBottom: isMobile ? '1.25rem' : '1.5rem',
-                }}>
-                    {/* Revenue Trend */}
-                    <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: isMobile ? '12px' : '14px', padding: isMobile ? '1rem' : '1.5rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: isMobile ? '1rem' : '1.5rem' }}>
-                            <div style={{ position: 'relative' }}>
-                                <h3 style={{ fontSize: isMobile ? '0.8rem' : '0.875rem', fontWeight: 700, color: isDark ? '#fafafa' : '#18181b', margin: '0 0 0.25rem', letterSpacing: '-0.02em' }}>
-                                    Revenue Trend
-                                </h3>
-                                {/* Period Dropdown */}
-                                <div
-                                    style={{ position: 'relative', display: 'inline-block' }}
-                                    onMouseLeave={() => setShowPeriodDropdown(false)}
+                    <nav style={{ display: 'flex', flexDirection: 'column', gap: 1, padding: '0 9px' }}>
+                        {MODULES.map((m) => {
+                            const Icon = m.icon;
+                            const on = hoverMod === m.id;
+                            return (
+                                <Link
+                                    key={m.id} to={'/' + m.defaultPage} title={m.label}
+                                    onMouseEnter={() => setHoverMod(m.id)}
+                                    onMouseLeave={() => setHoverMod(null)}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: 12,
+                                        height: 36, padding: '0 8px', borderRadius: 7,
+                                        textDecoration: 'none', flexShrink: 0,
+                                        color: on ? t.text : t.dim,
+                                        background: on ? t.panelAlt : 'transparent',
+                                        transition: 'color .14s, background .14s',
+                                    }}
                                 >
-                                    <button
-                                        onClick={() => setShowPeriodDropdown(!showPeriodDropdown)}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.25rem',
-                                            fontSize: '0.6rem',
-                                            color: isDark ? 'rgba(255,255,255,0.6)' : '#71717a',
-                                            background: 'transparent',
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            padding: '0.25rem 0',
-                                            fontWeight: 500,
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '0.05em',
-                                        }}
-                                    >
-                                        {revenuePeriod}
-                                        <ChevronDown size={10} />
-                                    </button>
-                                    {showPeriodDropdown && (
-                                        <div style={{
-                                            position: 'absolute',
-                                            top: '100%',
-                                            left: 0,
-                                            zIndex: 100,
-                                            background: isDark ? '#1f2937' : '#ffffff',
-                                            border: `1px solid ${cardBorder}`,
-                                            borderRadius: '6px',
-                                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                            minWidth: '140px',
-                                            padding: '0.25rem 0',
-                                        }}>
-                                            {['Last 7 Days', 'Last 30 Days', 'Last 3 Months', 'Last 6 Months', 'Last 1 Year'].map((period) => (
-                                                <button
-                                                    key={period}
-                                                    onClick={() => {
-                                                        setRevenuePeriod(period);
-                                                        setShowPeriodDropdown(false);
-                                                    }}
+                                    <Icon size={17} strokeWidth={1.7} style={{ flexShrink: 0, marginLeft: 2 }} />
+                                    <span style={{
+                                        fontSize: 11.5, whiteSpace: 'nowrap', flex: 1,
+                                        opacity: rail ? 1 : 0, transition: 'opacity .16s',
+                                    }}>{m.label}</span>
+                                    <span style={{
+                                        fontSize: 9, color: t.ghost, letterSpacing: '0.06em', flexShrink: 0,
+                                        opacity: rail ? 1 : 0, transition: 'opacity .16s',
+                                    }}>{m.code}</span>
+                                </Link>
+                            );
+                        })}
+                    </nav>
+
+                    <div style={{ flex: 1 }} />
+
+                    {/* plan, at the foot of the rail where the shell kept it */}
+                    <Link to="/pricing" style={{
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        height: 34, margin: '0 9px 12px', padding: '0 10px',
+                        borderRadius: 999, flexShrink: 0, textDecoration: 'none',
+                        border: '1px solid ' + t.line, background: t.panelAlt,
+                        fontSize: 10, letterSpacing: '0.04em', color: t.dim,
+                    }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: plan.color, flexShrink: 0, marginLeft: 1 }} />
+                        <span style={{
+                            whiteSpace: 'nowrap', opacity: rail ? 1 : 0, transition: 'opacity .16s',
+                        }}>{plan.displayName.toUpperCase()}</span>
+                    </Link>
+                </aside>
+            )}
+
+            <div className="nm-scroll" style={{
+                flex: 1, minWidth: 0, height: '100%',
+                overflowY: 'auto', overflowX: 'hidden',
+            }}>
+                {/* The hub is the frame, not a card inside one: it runs edge to
+                    edge and owns the only scrollbar on the page. */}
+                <div style={{ background: t.panel, minHeight: '100%' }}>
+
+                    {/* ── TOP BAR ─────────────────────────────────────────────
+                        Navigation lives in the rail; this strip carries search,
+                        the clock, theme, notifications and the account menu. On
+                        phones it also picks up the brand and the module list,
+                        since the rail is hidden there. */}
+                    <div ref={barRef} style={{
+                        display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10,
+                        padding: isMobile ? '9px 12px' : '11px 20px',
+                        borderBottom: '1px solid ' + t.line,
+                        background: t.panel, position: 'sticky', top: 0, zIndex: 40,
+                    }}>
+                        {/* brand — the rail carries it on every other width */}
+                        {isMobile && (
+                            <Link to="/hub" style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                flexShrink: 0, textDecoration: 'none', color: t.text,
+                            }}>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                    <path d="M10 1v18M1 10h18M3.5 3.5l13 13M16.5 3.5l-13 13" stroke={t.text} strokeWidth="1.3" />
+                                    <circle cx="10" cy="10" r="2.6" fill={t.panel} stroke={t.text} strokeWidth="1.3" />
+                                </svg>
+                            </Link>
+                        )}
+
+                        {/* module launcher — stands in for the rail on phones */}
+                        {isMobile && (
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                            <button
+                                type="button" className="nm-nav"
+                                onClick={() => setMenu((m) => (m === 'modules' ? null : 'modules'))}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 7,
+                                    height: 30, padding: '0 10px', cursor: 'pointer',
+                                    fontFamily: MONO, fontSize: 11.5,
+                                    color: menu === 'modules' ? t.text : t.dim,
+                                    background: menu === 'modules' ? t.panelAlt : 'transparent',
+                                    border: '1px solid ' + (menu === 'modules' ? t.lineStrong : 'transparent'),
+                                    borderRadius: 7, transition: 'color .15s, background .15s, border-color .15s',
+                                }}
+                            >
+                                <LayoutGrid size={13} strokeWidth={2} />
+                                {!isMobile && <span>Modules</span>}
+                                <ChevronDown size={12} strokeWidth={2} style={{
+                                    transform: menu === 'modules' ? 'rotate(180deg)' : 'none',
+                                    transition: 'transform .18s',
+                                }} />
+                            </button>
+
+                            {menu === 'modules' && (
+                                <Pop t={t} width={isMobile ? 262 : 440} align="left">
+                                    <div style={{
+                                        padding: '9px 12px', borderBottom: '1px solid ' + t.lineSoft,
+                                        fontSize: 9.5, letterSpacing: '0.1em', color: t.faint,
+                                    }}>WORKSPACE</div>
+                                    <div style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+                                        padding: 6, gap: 2,
+                                    }}>
+                                        {MODULES.map((m) => {
+                                            const Icon = m.icon;
+                                            return (
+                                                <Link
+                                                    key={m.id} to={'/' + m.defaultPage} className="nm-lrow"
+                                                    onClick={() => setMenu(null)}
                                                     style={{
-                                                        display: 'block',
-                                                        width: '100%',
-                                                        padding: '0.5rem 0.75rem',
-                                                        fontSize: '0.7rem',
-                                                        textAlign: 'left',
-                                                        background: revenuePeriod === period ? (isDark ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.1)') : 'transparent',
-                                                        color: revenuePeriod === period ? '#10b981' : (isDark ? '#e5e7eb' : '#374151'),
-                                                        border: 'none',
-                                                        cursor: 'pointer',
+                                                        display: 'flex', alignItems: 'center', gap: 9,
+                                                        padding: '8px 9px', borderRadius: 7,
+                                                        textDecoration: 'none', color: t.text,
                                                     }}
                                                 >
-                                                    {period}
-                                                </button>
+                                                    <span style={{
+                                                        width: 26, height: 26, borderRadius: 6, flexShrink: 0,
+                                                        border: '1px solid ' + t.line, background: t.panelAlt,
+                                                        display: 'grid', placeItems: 'center', color: t.dim,
+                                                    }}><Icon size={13} strokeWidth={1.8} /></span>
+                                                    <span style={{ flex: 1, minWidth: 0 }}>
+                                                        <span style={{ display: 'block', fontSize: 11.5, fontWeight: 500 }}>{m.label}</span>
+                                                        <span style={{
+                                                            display: 'block', fontSize: 9.5, color: t.faint, marginTop: 1,
+                                                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                                        }}>{m.desc}</span>
+                                                    </span>
+                                                    <span style={{ fontSize: 9, color: t.ghost, letterSpacing: '0.06em', flexShrink: 0 }}>{m.code}</span>
+                                                </Link>
+                                            );
+                                        })}
+                                    </div>
+                                </Pop>
+                            )}
+                        </div>
+                        )}
+
+                        {!isMobile && (
+                            <div className="nm-search" style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                flex: '0 1 260px', height: 30, padding: '0 10px',
+                                background: t.panelAlt, border: '1px solid ' + t.line,
+                                borderRadius: 7, color: t.faint,
+                            }}>
+                                <Search size={13} strokeWidth={2} />
+                                <span style={{ fontSize: 11.5, flex: 1 }}>Search…</span>
+                                <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, border: '1px solid ' + t.line }}>/</span>
+                            </div>
+                        )}
+
+                        <div style={{ flex: 1 }} />
+
+                        {/* live clock */}
+                        {!isMobile && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+                                <span className="nm-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: t.up }} />
+                                <span style={{ fontSize: 10.5, color: t.dim, fontVariantNumeric: 'tabular-nums' }}>
+                                    {isTablet ? clock : dateStr + '  ' + clock}
+                                </span>
+                            </div>
+                        )}
+
+                        <span style={{ width: 1, height: 18, background: t.line, flexShrink: 0 }} />
+
+                        <IconBtn t={t} size={28} title={isDark ? 'Light mode' : 'Dark mode'} onClick={onToggleTheme}>
+                            {isDark ? <Sun size={14} strokeWidth={1.9} /> : <Moon size={14} strokeWidth={1.9} />}
+                        </IconBtn>
+
+                        {/* notifications */}
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                            <IconBtn
+                                t={t} size={28} title="Notifications" active={menu === 'notifs'}
+                                onClick={() => setMenu((m) => (m === 'notifs' ? null : 'notifs'))}
+                            >
+                                <Bell size={14} strokeWidth={1.9} />
+                                {unread > 0 && (
+                                    <span style={{
+                                        position: 'absolute', top: 3, right: 3,
+                                        minWidth: 6, height: 6, borderRadius: 999,
+                                        background: t.down, border: '1.5px solid ' + t.panel,
+                                    }} />
+                                )}
+                            </IconBtn>
+
+                            {menu === 'notifs' && (
+                                <Pop t={t} width={318}>
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center', gap: 8,
+                                        padding: '9px 12px', borderBottom: '1px solid ' + t.lineSoft,
+                                    }}>
+                                        <span style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.faint, flex: 1 }}>
+                                            NOTIFICATIONS
+                                        </span>
+                                        {unread > 0 && (
+                                            <span style={{
+                                                fontSize: 9, padding: '1px 5px', borderRadius: 4,
+                                                background: t.selBg, color: t.selText,
+                                            }}>{unread} NEW</span>
+                                        )}
+                                        {notifs.length > 0 && (
+                                            <button type="button" onClick={clearNotifs} style={{
+                                                background: 'none', border: 'none', cursor: 'pointer',
+                                                fontFamily: MONO, fontSize: 9.5, color: t.faint, padding: 0,
+                                            }}>CLEAR</button>
+                                        )}
+                                    </div>
+                                    {notifs.length === 0 ? (
+                                        <div style={{ padding: '22px 12px', textAlign: 'center', fontSize: 10.5, color: t.faint }}>
+                                            Nothing new
+                                        </div>
+                                    ) : (
+                                        <div className="nm-scroll" style={{ maxHeight: 320, overflowY: 'auto' }}>
+                                            {notifs.slice(0, 20).map((n, i) => (
+                                                <div
+                                                    key={n.id || i} className="nm-lrow"
+                                                    onClick={() => openNotif(n)}
+                                                    style={{
+                                                        padding: '9px 12px', cursor: 'pointer',
+                                                        borderBottom: i < Math.min(notifs.length, 20) - 1 ? '1px solid ' + t.lineSoft : 'none',
+                                                        borderLeft: '2px solid ' + (n.read ? 'transparent' : t.text),
+                                                    }}
+                                                >
+                                                    <div style={{ fontSize: 11, color: t.text, marginBottom: 2 }}>{n.title}</div>
+                                                    <div style={{ fontSize: 10, color: t.dim, lineHeight: 1.4 }}>{n.message}</div>
+                                                    <div style={{ fontSize: 9, color: t.ghost, marginTop: 3 }}>
+                                                        {n.created_at ? new Date(n.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : ''}
+                                                    </div>
+                                                </div>
                                             ))}
                                         </div>
                                     )}
-                                </div>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: isMobile ? '1.125rem' : '1.375rem', fontWeight: 800, letterSpacing: '-0.04em', color: isDark ? '#fafafa' : '#18181b' }}>
-                                    ₹{stats.revenue.toLocaleString()}
-                                </div>
-                                <div style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 600, marginTop: '0.125rem' }}>
-                                    {stats.invoices} invoice{stats.invoices !== 1 ? 's' : ''}
-                                </div>
-                            </div>
+                                </Pop>
+                            )}
                         </div>
-                        <div style={{ height: chartH }}>
-                            <ResponsiveContainer>
-                                <AreaChart data={stats.dailyRevenue} margin={{ top: 5, right: 0, left: isMobile ? -30 : -25, bottom: 0 }}>
-                                    <defs>
-                                        <linearGradient id="hubRevGrad" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%"  stopColor="#10b981" stopOpacity={isDark ? 0.3 : 0.18} />
-                                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} />
-                                    <XAxis dataKey="day" tick={{ fill: axisText, fontSize: isMobile ? 10 : 11 }} axisLine={false} tickLine={false} dy={8} />
-                                    <YAxis tick={{ fill: axisText, fontSize: isMobile ? 10 : 11 }} axisLine={false} tickLine={false} />
-                                    <Tooltip
-                                        contentStyle={{ background: tooltipBg, border: `1px solid ${cardBorder}`, borderRadius: 10, fontSize: 12 }}
-                                        formatter={(v) => [`₹${v.toLocaleString()}`, 'Revenue']}
-                                        itemStyle={{ color: tooltipText }}
-                                        labelStyle={{ color: isDark ? 'rgba(255,255,255,0.5)' : '#71717a' }}
-                                    />
-                                    <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} fill="url(#hubRevGrad)" />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
 
-                    <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: isMobile ? '12px' : '14px', padding: isMobile ? '1rem' : '1.5rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? '0.875rem' : '1.125rem' }}>
-                            <div>
-                                <h3 style={{ fontSize: isMobile ? '0.8rem' : '0.875rem', fontWeight: 700, color: isDark ? '#fafafa' : '#18181b', margin: '0 0 0.25rem', letterSpacing: '-0.02em' }}>
-                                    Document Mix
-                                </h3>
-                                <p style={{ fontSize: '0.6rem', color: isDark ? 'rgba(255,255,255,0.3)' : '#a1a1aa', margin: 0, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    By type
-                                </p>
-                            </div>
-                            <span style={{
-                                fontSize: '0.6rem', fontWeight: 700,
-                                padding: '0.3rem 0.75rem',
-                                background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-                                border: `1px solid ${cardBorder}`,
-                                borderRadius: '999px',
-                                color: isDark ? 'rgba(255,255,255,0.4)' : '#71717a',
-                                letterSpacing: '0.04em',
-                            }}>
-                                {stats.total} total
-                            </span>
-                        </div>
-                        {stats.typeDistribution.length === 0 ? (
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: chartH, flexDirection: 'column', gap: '0.5rem' }}>
-                                <FileText size={28} strokeWidth={1} style={{ color: isDark ? 'rgba(255,255,255,0.15)' : '#d4d4d8' }} />
-                                <span style={{ fontSize: '0.75rem', color: isDark ? 'rgba(255,255,255,0.25)' : '#a1a1aa' }}>No documents yet</span>
-                            </div>
-                        ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', height: chartH }}>
-                            <div style={{ width: isMobile ? '48%' : '52%', height: chartH }}>
-                                <ResponsiveContainer>
-                                    <RechartsPie>
-                                        <Pie
-                                            data={stats.typeDistribution}
-                                            cx="50%" cy="50%"
-                                            innerRadius={isMobile ? 32 : 42}
-                                            outerRadius={isMobile ? 55 : 70}
-                                            paddingAngle={3}
-                                            dataKey="value"
-                                            strokeWidth={0}
-                                        >
-                                            {stats.typeDistribution.map((entry, i) => (
-                                                <Cell key={i} fill={PIE_COLORS[entry.name] || '#94a3b8'} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip
-                                            contentStyle={{ background: tooltipBg, border: `1px solid ${cardBorder}`, borderRadius: 10, fontSize: 12 }}
-                                            itemStyle={{ color: tooltipText }}
-                                            labelStyle={{ color: tooltipText }}
-                                        />
-                                    </RechartsPie>
-                                </ResponsiveContainer>
-                            </div>
-                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: isMobile ? '0.5rem' : '0.625rem', paddingLeft: isMobile ? '0.5rem' : '0.75rem' }}>
-                                {stats.typeDistribution.map((d, i) => (
-                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: PIE_COLORS[d.name] || '#94a3b8', flexShrink: 0 }} />
-                                        <span style={{ fontSize: isMobile ? '0.68rem' : '0.75rem', color: isDark ? 'rgba(255,255,255,0.55)' : '#3f3f46', fontWeight: 500, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {d.name}
-                                        </span>
-                                        <span style={{ fontSize: isMobile ? '0.68rem' : '0.75rem', color: isDark ? 'rgba(255,255,255,0.3)' : '#a1a1aa', fontWeight: 700, flexShrink: 0 }}>
-                                            {d.value}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* ── MODULES GRID ─────────────────────────────────────────── */}
-                <h3 style={{ 
-                    fontSize: isMobile ? '0.875rem' : '1.125rem', 
-                    fontWeight: 800, 
-                    color: isDark ? '#fafafa' : '#18181b', 
-                    marginBottom: '1.25rem',
-                    letterSpacing: '-0.02em'
-                }}>
-                    Business Modules
-                </h3>
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: modulesGrid,
-                    gap: isMobile ? '0.875rem' : '1.25rem',
-                }}>
-                    {MODULES.map((mod) => {
-                        const Icon = mod.icon;
-                        const targetPath = mod.id === 'overall' ? '/dashboard' : `/${mod.defaultPage}`;
-                        return (
-                            <Link 
-                                key={mod.id} 
-                                to={targetPath}
-                                onMouseEnter={() => setHoveredMod(mod.id)}
-                                onMouseLeave={() => setHoveredMod(null)}
+                        {/* account — org, profile, plan, log out */}
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                            <button
+                                type="button" className="nm-chip"
+                                onClick={() => setMenu((m) => (m === 'account' ? null : 'account'))}
                                 style={{
-                                    textDecoration: 'none',
-                                    background: cardBg,
-                                    border: `1px solid ${hoveredMod === mod.id ? mod.color : cardBorder}`,
-                                    borderRadius: isMobile ? '14px' : '18px',
-                                    padding: '1.5rem',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '1rem',
-                                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                                    transform: hoveredMod === mod.id ? 'translateY(-4px)' : 'none',
-                                    boxShadow: hoveredMod === mod.id 
-                                        ? `0 12px 24px -8px ${mod.color}25` 
-                                        : 'none',
-                                    position: 'relative',
-                                    overflow: 'hidden',
-                                }}>
-                                {/* Hover Glow */}
-                                {hoveredMod === mod.id && (
-                                    <div style={{
-                                        position: 'absolute', top: 0, left: 0, right: 0, height: '4px',
-                                        background: mod.color,
+                                    display: 'flex', alignItems: 'center', gap: 8,
+                                    padding: '4px 8px 4px 5px', borderRadius: 8, cursor: 'pointer',
+                                    border: '1px solid ' + (menu === 'account' ? t.lineStrong : t.line),
+                                    background: t.panelAlt, fontFamily: MONO,
+                                    transition: 'border-color .15s',
+                                }}
+                            >
+                                {activeOrg?.logo_url ? (
+                                    <img src={activeOrg.logo_url} alt="" style={{
+                                        width: 22, height: 22, borderRadius: 5, objectFit: 'cover', display: 'block',
                                     }} />
+                                ) : (
+                                    <span style={{
+                                        width: 22, height: 22, borderRadius: 5,
+                                        background: t.selBg, color: t.selText,
+                                        display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 600,
+                                    }}>{displayName.slice(0, 2).toUpperCase()}</span>
                                 )}
-                                
-                                <div style={{
-                                    width: 44, height: 44,
-                                    borderRadius: '12px',
-                                    background: `${mod.color}15`,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    color: mod.color,
-                                }}>
-                                    <Icon size={22} strokeWidth={2.5} />
-                                </div>
-                                
-                                <div>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <h4 style={{ 
-                                            margin: 0, fontSize: '1rem', fontWeight: 700, 
-                                            color: hoveredMod === mod.id ? mod.color : (isDark ? '#fafafa' : '#18181b')
+                                {!isTablet && (
+                                    <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25, textAlign: 'left' }}>
+                                        <span style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{displayName}</span>
+                                        <span style={{ fontSize: 9, color: t.faint }}>{orgName.slice(0, 18)}</span>
+                                    </span>
+                                )}
+                                <ChevronDown size={12} strokeWidth={2} style={{
+                                    color: t.faint, flexShrink: 0,
+                                    transform: menu === 'account' ? 'rotate(180deg)' : 'none',
+                                    transition: 'transform .18s',
+                                }} />
+                            </button>
+
+                            {menu === 'account' && (
+                                <Pop t={t} width={252}>
+                                    <div style={{ padding: '11px 12px', borderBottom: '1px solid ' + t.lineSoft }}>
+                                        <div style={{ fontSize: 11.5, color: t.text, fontWeight: 500 }}>{orgName}</div>
+                                        <div style={{ fontSize: 9.5, color: t.faint, marginTop: 2, wordBreak: 'break-all' }}>
+                                            {user?.email || ''}
+                                        </div>
+                                        <div style={{
+                                            display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 8,
+                                            height: 20, padding: '0 8px', borderRadius: 999,
+                                            border: '1px solid ' + t.line, background: t.panelAlt,
+                                            fontSize: 9, letterSpacing: '0.05em', color: t.dim,
                                         }}>
-                                            {mod.label}
-                                        </h4>
-                                        <ChevronRight size={16} style={{ 
-                                            opacity: hoveredMod === mod.id ? 1 : 0.3,
-                                            transform: hoveredMod === mod.id ? 'translateX(0)' : 'translateX(-4px)',
-                                            transition: 'all 0.2s',
-                                            color: mod.color
-                                        }} />
+                                            <span style={{ width: 4, height: 4, borderRadius: '50%', background: plan.color }} />
+                                            {plan.displayName.toUpperCase()}
+                                        </div>
                                     </div>
-                                    <p style={{ 
-                                        margin: '0.4rem 0 0', fontSize: '0.75rem', 
-                                        color: isDark ? 'rgba(255,255,255,0.4)' : '#71717a',
-                                        lineHeight: 1.5
+                                    <div style={{ padding: 4 }}>
+                                        <PopRow t={t} icon={<Building2 size={13} strokeWidth={1.8} />} label="Company profile" note="Logo, signature, details"
+                                            onClick={() => { setMenu(null); navigate('/profile'); }} />
+                                        <PopRow t={t} icon={<UserIcon size={13} strokeWidth={1.8} />} label="My portal" note="Attendance · leave"
+                                            onClick={() => { setMenu(null); navigate('/me'); }} />
+                                        <PopRow t={t} icon={<Check size={13} strokeWidth={1.8} />} label="Plans & billing" note={plan.displayName}
+                                            onClick={() => { setMenu(null); navigate('/pricing'); }} />
+                                        <PopRow t={t} icon={isDark ? <Sun size={13} strokeWidth={1.8} /> : <Moon size={13} strokeWidth={1.8} />}
+                                            label={isDark ? 'Light mode' : 'Dark mode'} onClick={() => { setMenu(null); onToggleTheme?.(); }} />
+                                    </div>
+                                    <div style={{ padding: 4, borderTop: '1px solid ' + t.lineSoft }}>
+                                        <PopRow t={t} danger icon={<LogOut size={13} strokeWidth={1.8} />} label="Log out"
+                                            onClick={() => { setMenu(null); onLogout?.(); }} />
+                                    </div>
+                                </Pop>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* ── BODY ────────────────────────────────────────────── */}
+                    <div style={{ padding: isMobile ? 12 : 24, display: 'grid', gap }}>
+
+                        {/* — greeting — */}
+                        <div style={{ padding: '2px 2px 0' }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: t.dim, letterSpacing: '0.08em', marginBottom: 6 }}>
+                                {greeting.toUpperCase()}
+                            </div>
+                            <h1 style={{
+                                margin: 0, fontSize: isMobile ? 24 : 32, fontWeight: 700,
+                                letterSpacing: '-0.045em', color: t.text, lineHeight: 1.05,
+                            }}>{displayName}</h1>
+                        </div>
+
+                        {/* — KPI ROW — */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))',
+                            gap,
+                        }}>
+                            {KPIS.map((k) => (
+                                <Kpi
+                                    key={k.k} t={t} isMobile={isMobile}
+                                    label={k.k} icon={k.i} value={k.v} delta={k.d} note={k.n} series={k.s}
+                                    active={hoverKpi === k.k}
+                                    onEnter={() => setHoverKpi(k.k)}
+                                    onLeave={() => setHoverKpi(null)}
+                                />
+                            ))}
+                        </div>
+
+                        {/* — REVENUE + SETTLEMENT — */}
+                        <div style={{ display: 'grid', gridTemplateColumns: mainGrid, gap, alignItems: 'stretch' }}>
+                            <Panel t={t}>
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+                                    padding: '10px 16px', minHeight: 50, borderBottom: '1px solid ' + t.line,
+                                }}>
+                                    <span style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: 7,
+                                        padding: '4px 9px 4px 5px', borderRadius: 7,
+                                        border: '1px solid ' + t.line, background: t.panelAlt,
                                     }}>
-                                        {mod.desc}
-                                    </p>
+                                        <span style={{
+                                            width: 22, height: 22, borderRadius: 5, background: t.raised,
+                                            display: 'grid', placeItems: 'center', color: t.text,
+                                        }}><Activity size={12} strokeWidth={2.2} /></span>
+                                        <span style={{ fontSize: 12, color: t.text, fontWeight: 700 }}>REV · INR</span>
+                                    </span>
+                                    <span style={{ fontSize: 14.5, color: t.dim }}>
+                                        <span style={{ color: t.text, fontWeight: 700 }}>Settled revenue</span> / day
+                                    </span>
+                                    <div style={{ flex: 1 }} />
+                                    <Seg t={t} value={range} onChange={setRange} options={RANGES} />
+                                    {!isMobile && (
+                                        <>
+                                            <span style={{ width: 1, height: 18, background: t.line }} />
+                                            <IconBtn t={t} title="Export"><Download size={14} strokeWidth={2} /></IconBtn>
+                                            <IconBtn t={t} title="Expand"><Maximize2 size={14} strokeWidth={2} /></IconBtn>
+                                        </>
+                                    )}
                                 </div>
-                            </Link>
-                        );
-                    })}
-                </div>
 
-                {/* ── FOOTER ────────────────────────────────────────────────── */}
-                <div style={{
-                    marginTop: isMobile ? '2rem' : '3rem',
-                    paddingTop: '1.25rem',
-                    borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                }}>
-                    <span style={{ fontSize: '0.6rem', color: isDark ? 'rgba(255,255,255,0.2)' : '#a1a1aa', fontWeight: 500 }}>
-                        EdgeOS · Enterprise Operating System
-                    </span>
-                    <span style={{ fontSize: '0.6rem', color: isDark ? 'rgba(255,255,255,0.2)' : '#a1a1aa', fontWeight: 500 }}>
-                        {activeOrg?.company_name || activeOrg?.name || 'Workspace'}
-                    </span>
-                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px 16px 0', flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: isMobile ? 26 : 36, fontWeight: 700, letterSpacing: '-0.045em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                                        ₹{data.revenue.toLocaleString('en-IN')}
+                                    </span>
+                                    <Delta t={t} value={data.trend} />
+                                    <div style={{ flex: 1 }} />
+                                    {[['PEAK', data.peak?.value || 0], ['AVG / DAY', data.avg]].map(([k, v]) => (
+                                        <span key={k} style={{
+                                            display: 'inline-flex', flexDirection: 'column', gap: 5,
+                                            padding: '7px 12px', borderRadius: 7,
+                                            border: '1px solid ' + t.line, background: t.panelAlt,
+                                        }}>
+                                            <span style={{ fontSize: 10.5, fontWeight: 600, color: t.dim, letterSpacing: '0.06em' }}>{k}</span>
+                                            <span style={{ fontSize: 15, fontWeight: 700, color: t.text, lineHeight: 1 }}>₹{fmtCompact(v)}</span>
+                                        </span>
+                                    ))}
+                                </div>
 
+                                <div style={{ height: isMobile ? 200 : 270, padding: '8px 8px 8px 0' }}>
+                                    <ResponsiveContainer>
+                                        <AreaChart data={data.series} margin={{ top: 14, right: 12, left: 4, bottom: 0 }}>
+                                            <defs>
+                                                <linearGradient id="nmRev" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor={t.chart} stopOpacity={isDark ? 0.24 : 0.16} />
+                                                    <stop offset="100%" stopColor={t.chart} stopOpacity={0} />
+                                                </linearGradient>
+                                            </defs>
+                                            <XAxis
+                                                dataKey="label" tickLine={false} axisLine={false}
+                                                tick={{ fill: t.dim, fontSize: 11, fontFamily: MONO }}
+                                                minTickGap={36} dy={8}
+                                            />
+                                            <YAxis
+                                                orientation="right" tickLine={false} axisLine={false}
+                                                tick={{ fill: t.dim, fontSize: 11, fontFamily: MONO }}
+                                                tickFormatter={(v) => fmtCompact(v)} width={52}
+                                            />
+                                            <ReferenceLine y={data.avg} stroke={t.lineStrong} strokeDasharray="2 3" />
+                                            <Tooltip
+                                                cursor={{ stroke: t.lineStrong, strokeWidth: 1, strokeDasharray: '2 3' }}
+                                                contentStyle={{
+                                                    background: t.panelAlt, border: '1px solid ' + t.lineStrong,
+                                                    borderRadius: 7, fontFamily: MONO, fontSize: 12.5, fontWeight: 600, padding: '8px 12px',
+                                                    boxShadow: 'none',
+                                                }}
+                                                labelStyle={{ color: t.dim, fontSize: 11, marginBottom: 4 }}
+                                                itemStyle={{ color: t.text }}
+                                                formatter={(v) => ['₹' + Number(v).toLocaleString('en-IN'), 'Revenue']}
+                                            />
+                                            <Area
+                                                type="monotone" dataKey="value"
+                                                stroke={t.chart} strokeWidth={2} fill="url(#nmRev)" dot={false}
+                                                activeDot={{ r: 3, fill: t.panel, stroke: t.chart, strokeWidth: 1.6 }}
+                                            />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </Panel>
+
+                            <Panel t={t}>
+                                <PanelHead t={t} dense title="Settlement" sub="invoices" />
+                                <div style={{
+                                    padding: '20px 8px 12px', display: 'flex',
+                                    flexDirection: isTablet && !isMobile ? 'row' : 'column',
+                                    alignItems: 'center', gap: 18, flex: 1, justifyContent: 'center',
+                                }}>
+                                    <Dial t={t} value={data.settled} size={isMobile ? 150 : 172} label="SETTLED" />
+                                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                        {[
+                                            { sw: t.scale[5], l: 'Settled',   v: data.paidCount + ' inv' },
+                                            { sw: t.scale[3], l: 'Open',      v: (data.invoiceCount - data.paidCount) + ' inv' },
+                                            { sw: t.scale[2], l: 'Received',  v: '₹' + fmtCompact(data.revenue) },
+                                            { sw: t.scale[1], l: 'Pending',   v: '₹' + fmtCompact(data.pipeline) },
+                                        ].map((r) => (
+                                            <div key={r.l} className="nm-lrow" style={{
+                                                display: 'flex', alignItems: 'center', gap: 10,
+                                                padding: '9px 8px', borderRadius: 6,
+                                                transition: 'background .15s',
+                                            }}>
+                                                <span style={{ width: 10, height: 10, background: r.sw, borderRadius: 2, flexShrink: 0 }} />
+                                                <span style={{ fontSize: 13, fontWeight: 600, color: t.text, flex: 1 }}>{r.l}</span>
+                                                <span style={{ fontSize: 13, fontWeight: 700, color: t.text, fontVariantNumeric: 'tabular-nums' }}>{r.v}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </Panel>
+                        </div>
+
+                        {/* — WORLD MAP + TOP MARKETS — */}
+                        <div style={{ display: 'grid', gridTemplateColumns: mainGrid, gap, alignItems: 'stretch' }}>
+                            <Panel t={t}>
+                                <PanelHead
+                                    t={t} dense
+                                    title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                        <Globe size={14} strokeWidth={2.2} /> Revenue by Geography
+                                    </span>}
+                                    right={
+                                        <>
+                                            <span style={{ fontSize: 11.5, color: t.dim, marginRight: 6 }}>
+                                                {geo.ranked.length} {geo.ranked.length === 1 ? 'market' : 'markets'}
+                                            </span>
+                                            <Seg t={t} size="sm" value={geoPeriod} onChange={setGeoPeriod}
+                                                 options={GEO_PERIODS.map((p) => p.id)} />
+                                        </>
+                                    }
+                                />
+                                <div
+                                    ref={mapWrapRef}
+                                    onMouseMove={(e) => {
+                                        if (pz.dragging) return;
+                                        const r = mapWrapRef.current?.getBoundingClientRect();
+                                        if (r) setCursor({ x: e.clientX - r.left, y: e.clientY - r.top });
+                                    }}
+                                    onMouseLeave={() => setHoverCountry(null)}
+                                    style={{ position: 'relative', padding: '12px 16px 14px', flex: 1 }}
+                                >
+                                    {geoMap === null ? (
+                                        <div style={{
+                                            height: isMobile ? 180 : 300, display: 'grid', placeItems: 'center',
+                                            fontSize: 10.5, color: t.faint,
+                                        }}>loading geometry…</div>
+                                    ) : geoMap === false ? (
+                                        <div style={{
+                                            height: isMobile ? 180 : 300, display: 'grid', placeItems: 'center',
+                                            fontSize: 10.5, color: t.faint, gap: 8, textAlign: 'center',
+                                        }}>
+                                            <Globe size={22} strokeWidth={1.5} />
+                                            map geometry unavailable
+                                        </div>
+                                    ) : (
+                                        <div style={{ position: 'relative', borderRadius: 6, overflow: 'hidden' }}>
+                                            <svg
+                                                ref={pz.svgRef}
+                                                viewBox={mapBox.join(' ')}
+                                                role="img" aria-label="Revenue by country — pinch or Ctrl + scroll to zoom, drag to pan"
+                                                style={{
+                                                    width: '100%', height: 'auto', display: 'block',
+                                                    touchAction: 'none', userSelect: 'none',
+                                                    cursor: pz.dragging ? 'grabbing' : pz.zoom > 1.01 ? 'grab' : 'default',
+                                                }}
+                                            >
+                                                {/* strokes are screen pixels (non-scaling), so borders stay hairlines at any zoom */}
+                                                <g ref={pz.gRef}>
+                                                    {geoMap.UNMATCHED_PATHS.map((d, i) => (
+                                                        <path key={'u' + i} d={d} fill={t.mapNull} stroke={t.panel}
+                                                              strokeWidth={0.5} vectorEffect="non-scaling-stroke" />
+                                                    ))}
+                                                    {Object.entries(geoMap.COUNTRY_PATHS).map(([code, d]) => {
+                                                        const hit = geo.byCode.get(code);
+                                                        const on = hoverCountry === code;
+                                                        return (
+                                                            <path
+                                                                key={code} d={d}
+                                                                fill={hit ? t.scale[hit.level] : t.mapNull}
+                                                                stroke={on ? t.text : t.panel}
+                                                                strokeWidth={on ? 1.3 : 0.5}
+                                                                vectorEffect="non-scaling-stroke"
+                                                                strokeLinejoin="round"
+                                                                opacity={hoverCountry && !on ? 0.55 : 1}
+                                                                onMouseEnter={() => { if (!pz.dragging) setHoverCountry(code); }}
+                                                                // functional update: moving straight into a neighbour fires
+                                                                // its enter first, and that must not be wiped by this leave
+                                                                onMouseLeave={() => setHoverCountry((h) => (h === code ? null : h))}
+                                                                onClick={() => { if (!pz.wasDrag()) setOpenCountry(code); }}
+                                                                style={{ cursor: pz.dragging ? 'grabbing' : 'pointer', transition: 'opacity .15s, fill .2s' }}
+                                                            />
+                                                        );
+                                                    })}
+                                                </g>
+                                            </svg>
+
+                                            {/* a plain scroll over the map scrolls the page; say how to zoom instead */}
+                                            <div style={{
+                                                position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
+                                                pointerEvents: 'none', opacity: pz.hint ? 1 : 0, transition: 'opacity .2s',
+                                            }}>
+                                                <span style={{
+                                                    fontSize: 10.5, color: t.text, background: t.panelAlt,
+                                                    border: '1px solid ' + t.lineStrong, borderRadius: 6, padding: '6px 10px',
+                                                    boxShadow: t.shadow,
+                                                }}>
+                                                    {(typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)) ? '⌘' : 'Ctrl'} + scroll or pinch to zoom
+                                                </span>
+                                            </div>
+
+                                            {/* zoom controls */}
+                                            <div style={{
+                                                position: 'absolute', right: 6, bottom: 6, display: 'flex', flexDirection: 'column',
+                                                background: t.panel, border: '1px solid ' + t.line, borderRadius: 7, overflow: 'hidden',
+                                            }}>
+                                                {[
+                                                    ['+', 'Zoom in', () => pz.zoomBy(1.8), pz.zoom >= 13.9],
+                                                    ['−', 'Zoom out', () => pz.zoomBy(1 / 1.8), pz.zoom <= 1.01],
+                                                    ['⤢', 'Reset view', pz.reset, pz.zoom <= 1.01],
+                                                ].map(([label, title, fn, off], i) => (
+                                                    <button
+                                                        key={title} type="button" title={title} aria-label={title}
+                                                        onClick={fn} disabled={off} className="nm-icon"
+                                                        style={{
+                                                            width: 24, height: 24, display: 'grid', placeItems: 'center', padding: 0,
+                                                            fontFamily: MONO, fontSize: 13, lineHeight: 1,
+                                                            border: 'none', borderTop: i ? '1px solid ' + t.line : 'none',
+                                                            background: 'transparent', color: off ? t.ghost : t.dim,
+                                                            cursor: off ? 'default' : 'pointer',
+                                                        }}
+                                                    >{label}</button>
+                                                ))}
+                                            </div>
+                                            {pz.zoom > 1.01 && (
+                                                <span style={{
+                                                    position: 'absolute', left: 6, bottom: 6, fontSize: 9, color: t.faint,
+                                                    background: t.panel, border: '1px solid ' + t.line, borderRadius: 5, padding: '2px 5px',
+                                                    pointerEvents: 'none',
+                                                }}>{pz.zoom.toFixed(1)}×</span>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* hover readout */}
+                                    {hoverCountry && !pz.dragging && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            left: Math.min(cursor.x + 14, (mapWrapRef.current?.clientWidth || 400) - 170),
+                                            top: Math.max(cursor.y - 46, 4),
+                                            pointerEvents: 'none', zIndex: 5,
+                                            background: t.panelAlt, border: '1px solid ' + t.lineStrong,
+                                            borderRadius: 7, padding: '7px 10px', minWidth: 150,
+                                            boxShadow: t.shadow,
+                                        }}>
+                                            <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 4 }}>
+                                                {countryNames[hoverCountry] || hoverCountry}
+                                                <span style={{ color: t.faint, marginLeft: 5 }}>{hoverCountry}</span>
+                                            </div>
+                                            {hoveredGeo ? (
+                                                <>
+                                                    <div style={{ fontSize: 16, fontWeight: 700, color: t.text, letterSpacing: '-0.03em' }}>
+                                                        ₹{Math.round(hoveredGeo.revenue).toLocaleString('en-IN')}
+                                                    </div>
+                                                    <div style={{ fontSize: 11, color: t.dim, marginTop: 4 }}>
+                                                        {hoveredGeo.share.toFixed(1)}% of total
+                                                        {hoveredGeo.docCount ? ' · ' + hoveredGeo.docCount + ' docs' : ''}
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div style={{ fontSize: 11, color: t.dim }}>no revenue recorded</div>
+                                            )}
+                                            <div style={{ fontSize: 8.5, color: t.ghost, marginTop: 4, letterSpacing: '0.04em' }}>CLICK FOR DETAIL</div>
+                                        </div>
+                                    )}
+
+                                    {/* scale legend */}
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center', gap: 8,
+                                        marginTop: 10, paddingTop: 12, borderTop: '1px solid ' + t.lineSoft,
+                                    }}>
+                                        <span style={{ fontSize: 11, fontWeight: 600, color: t.dim }}>LOW</span>
+                                        <span style={{ display: 'flex', gap: 2 }}>
+                                            {t.scale.slice(1).map((c, i) => (
+                                                <span key={i} style={{ width: 22, height: 9, background: c, borderRadius: 2 }} />
+                                            ))}
+                                        </span>
+                                        <span style={{ fontSize: 11, fontWeight: 600, color: t.dim }}>HIGH</span>
+                                        <span style={{ flex: 1 }} />
+                                        <span style={{ fontSize: 11.5, fontWeight: 600, color: t.dim }}>
+                                            TOTAL <span style={{ fontSize: 14, fontWeight: 700, color: t.text, marginLeft: 4 }}>₹{fmtCompact(geo.total)}</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </Panel>
+
+                            <Panel t={t}>
+                                <PanelHead t={t} dense title="Top Markets" sub="by revenue" />
+                                <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                                    {geo.top.length === 0 ? (
+                                        <div style={{ padding: '34px 16px', textAlign: 'center', fontSize: 12, color: t.dim }}>
+                                            No country-tagged revenue yet
+                                        </div>
+                                    ) : geo.top.map((r, i) => {
+                                        const row = geo.byCode.get(r.code);
+                                        const on = hoverCountry === r.code;
+                                        return (
+                                            <div
+                                                key={r.code}
+                                                onMouseEnter={() => setHoverCountry(r.code)}
+                                                onMouseLeave={() => setHoverCountry(null)}
+                                                onClick={() => setOpenCountry(r.code)}
+                                                style={{
+                                                    padding: '13px 16px',
+                                                    borderBottom: i < geo.top.length - 1 ? '1px solid ' + t.lineSoft : 'none',
+                                                    background: on ? t.panelAlt : 'transparent',
+                                                    cursor: 'pointer', transition: 'background .15s',
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                                                    <span style={{ fontSize: 11, fontWeight: 600, color: t.faint, width: 18 }}>{String(i + 1).padStart(2, '0')}</span>
+                                                    <span style={{
+                                                        fontSize: 13, fontWeight: 600, color: t.text, flex: 1, minWidth: 0,
+                                                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                                    }}>{countryNames[r.code] || r.code}</span>
+                                                    <span style={{ fontSize: 13, fontWeight: 700, color: t.text, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
+                                                        ₹{fmtCompact(r.revenue)}
+                                                    </span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 28 }}>
+                                                    <span style={{ flex: 1, height: 6, background: t.scale[0], borderRadius: 3, overflow: 'hidden' }}>
+                                                        <span style={{
+                                                            display: 'block', height: '100%',
+                                                            width: (row?.share || 0) + '%',
+                                                            background: on ? t.text : t.scale[4],
+                                                            transition: 'background .15s, width .4s cubic-bezier(.16,1,.3,1)',
+                                                        }} />
+                                                    </span>
+                                                    <span style={{ fontSize: 11.5, fontWeight: 600, color: t.dim, width: 46, textAlign: 'right' }}>
+                                                        {(row?.share || 0).toFixed(1)}%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </Panel>
+                        </div>
+
+                        {/* — VOLUME + MODULES — */}
+                        <div style={{ display: 'grid', gridTemplateColumns: mainGrid, gap, alignItems: 'stretch' }}>
+                            <Panel t={t}>
+                                <PanelHead
+                                    t={t} dense title="Issuance Volume" sub="documents / month"
+                                    right={<Seg t={t} size="sm" value={volRange} onChange={setVolRange} options={['3M', '6M', '1Y']} />}
+                                />
+                                <div style={{ padding: '16px 16px 14px', position: 'relative' }}>
+                                    <div style={{ display: 'flex', gap: isMobile ? 20 : 36, marginBottom: 16, flexWrap: 'wrap' }}>
+                                        {[
+                                            { k: 'TOTAL', v: data.volume.reduce((a, d) => a + d.value, 0).toLocaleString() },
+                                            { k: 'VALUE', v: '₹' + fmtCompact(data.volume.reduce((a, d) => a + d.amount, 0)) },
+                                            { k: 'PEAK',  v: Math.max(...data.volume.map((d) => d.value), 0).toLocaleString() },
+                                        ].map((s) => (
+                                            <div key={s.k}>
+                                                <div style={{ fontSize: 11, fontWeight: 600, color: t.dim, letterSpacing: '0.06em', marginBottom: 6 }}>{s.k}</div>
+                                                <div style={{ fontSize: 20, fontWeight: 700, color: t.text, letterSpacing: '-0.03em', lineHeight: 1 }}>{s.v}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div style={{ position: 'relative' }}>
+                                        <HatchBars
+                                            t={t} data={data.volume} height={isMobile ? 120 : 150}
+                                            hover={hoverBar} setHover={setHoverBar}
+                                        />
+                                        {hoverBar !== null && data.volume[hoverBar] && (
+                                            <div style={{
+                                                position: 'absolute', top: 0, pointerEvents: 'none',
+                                                left: 'calc(' + (((hoverBar + 0.5) / data.volume.length) * 100) + '% )',
+                                                transform: 'translateX(-50%)',
+                                                background: t.panelAlt, border: '1px solid ' + t.lineStrong,
+                                                borderRadius: 7, padding: '6px 9px', whiteSpace: 'nowrap', zIndex: 4,
+                                            }}>
+                                                <div style={{ fontSize: 11, color: t.dim, marginBottom: 3 }}>
+                                                    {data.volume[hoverBar].full}
+                                                </div>
+                                                <div style={{ fontSize: 13, fontWeight: 700, color: t.text }}>
+                                                    {data.volume[hoverBar].value} docs
+                                                    <span style={{ color: t.faint }}> · ₹{fmtCompact(data.volume[hoverBar].amount)}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div style={{ display: 'flex', fontSize: 11, color: t.dim, marginTop: 10 }}>
+                                        {data.volume.map((v, i) => (
+                                            <span key={i} style={{
+                                                flex: 1, textAlign: 'center',
+                                                color: hoverBar === i ? t.text : t.dim,
+                                                transition: 'color .15s',
+                                            }}>
+                                                {data.volume.length > 8 && i % 2 ? '' : v.label}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            </Panel>
+
+                            <Panel t={t}>
+                                <PanelHead t={t} dense title="Modules" sub="6 active" />
+                                <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                                    {MODULES.map((m, i) => {
+                                        const Icon = m.icon;
+                                        const on = hoverMod === m.id;
+                                        return (
+                                            <Link
+                                                key={m.id} to={'/' + m.defaultPage}
+                                                onMouseEnter={() => setHoverMod(m.id)}
+                                                onMouseLeave={() => setHoverMod(null)}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', gap: 12,
+                                                    padding: '11px 16px', textDecoration: 'none', flex: 1,
+                                                    borderBottom: i < MODULES.length - 1 ? '1px solid ' + t.lineSoft : 'none',
+                                                    background: on ? t.panelAlt : 'transparent',
+                                                    transition: 'background .15s',
+                                                }}
+                                            >
+                                                <span style={{
+                                                    width: 32, height: 32, borderRadius: 7,
+                                                    border: '1px solid ' + (on ? t.lineStrong : t.line),
+                                                    background: on ? t.raised : 'transparent',
+                                                    display: 'grid', placeItems: 'center',
+                                                    color: on ? t.text : t.dim, flexShrink: 0,
+                                                    transition: 'all .15s',
+                                                }}><Icon size={15} strokeWidth={2} /></span>
+                                                <span style={{ minWidth: 0, flex: 1 }}>
+                                                    <span style={{ display: 'block', fontSize: 13.5, color: t.text, fontWeight: 700 }}>{m.label}</span>
+                                                    <span style={{
+                                                        display: 'block', fontSize: 11.5, color: t.dim, marginTop: 3,
+                                                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                                    }}>{m.desc}</span>
+                                                </span>
+                                                <span style={{ fontSize: 11, fontWeight: 600, color: t.faint, flexShrink: 0 }}>{m.code}</span>
+                                                <ChevronRight size={15} style={{
+                                                    color: on ? t.text : t.faint, flexShrink: 0,
+                                                    transform: on ? 'translateX(0)' : 'translateX(-3px)',
+                                                    transition: 'all .15s',
+                                                }} />
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            </Panel>
+                        </div>
+                    </div>
+
+                    {/* ── FOOTER ──────────────────────────────────────────── */}
+                    <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        gap: 10, padding: '12px 24px', borderTop: '1px solid ' + t.line,
+                        fontSize: 11, color: t.dim, flexWrap: 'wrap',
+                    }}>
+                        <span>EdgeOS · ENTERPRISE OPERATING SYSTEM</span>
+                        <span style={{ display: 'flex', gap: 16 }}>
+                            <span>ORG {orgName.toUpperCase()}</span>
+                            <span>REC {data.totalDocs}</span>
+                            <span>{dateStr}</span>
+                        </span>
+                    </div>
                 </div>
             </div>
 
+            {openCountry && (
+                <CountryDialog
+                    t={t} font={MONO} code={openCountry}
+                    name={countryNames[openCountry] || openCountry}
+                    path={geoMap ? geoMap.COUNTRY_PATHS[openCountry] : null}
+                    geoRow={geo.byCode.get(openCountry) || null}
+                    rank={geo.ranked.findIndex((r) => r.code === openCountry) + 1 || null}
+                    marketCount={geo.ranked.length}
+                    period={geoPeriod} periods={GEO_PERIODS} onPeriod={setGeoPeriod}
+                    finDocs={finDocs} clients={documentStore.getSavedClients() || []}
+                    isMobile={isMobile}
+                    onClose={() => setOpenCountry(null)}
+                    onNavigate={navigate}
+                />
+            )}
+
             <style>{`
-                .hub-content-container::-webkit-scrollbar {
-                    display: none;
+                .nm-scroll::-webkit-scrollbar { width: 9px; }
+                .nm-scroll::-webkit-scrollbar-track { background: transparent; }
+                .nm-scroll::-webkit-scrollbar-thumb {
+                    background: ${t.lineStrong}; border-radius: 99px;
+                    border: 3px solid transparent; background-clip: content-box;
                 }
+                .nm-seg:hover { color: ${t.text} !important; }
+                .nm-icon:hover { color: ${t.text} !important; border-color: ${t.line} !important; }
+                .nm-nav:hover { color: ${t.text} !important; background: ${t.panelAlt}; }
+                .nm-chip:hover, .nm-search:hover { border-color: ${t.lineStrong} !important; }
+                .nm-lrow:hover { background: ${t.panelAlt}; }
+                .nm-root ::selection { background: ${t.text}; color: ${t.panel}; }
+                .nm-pulse { animation: nmPulse 2s ease-in-out infinite; }
+                @keyframes nmPulse {
+                    0%, 100% { opacity: 1; }
+                    50%      { opacity: .45; }
+                }
+                @keyframes nmPop {
+                    from { opacity: 0; transform: translateY(-4px); }
+                    to   { opacity: 1; transform: none; }
+                }
+                .nm-root .recharts-surface:focus { outline: none; }
             `}</style>
         </div>
     );

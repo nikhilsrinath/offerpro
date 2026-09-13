@@ -1,125 +1,141 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Upload, CheckCircle, Save, Loader, AlertCircle, Pencil, Sun, Moon, Mail, Zap, XCircle, Key, Download, KeyRound } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef, useContext } from 'react';
+import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
+import {
+  Upload, Check, Loader, AlertCircle, Pencil, Zap, XCircle, Download, KeyRound,
+  Eye, EyeOff, ArrowRight, ExternalLink, Trash2, ChevronDown, Building2,
+} from 'lucide-react';
 import { useOrg } from '../context/OrgContext';
 import { useAuth } from '../context/AuthContext';
 import { emailService } from '../services/emailService';
 import { uploadOrgImage } from '../services/imageUploadService';
+import { getPlanConfig, DEFAULT_PLAN } from '../services/planConfig';
 import { supabase } from '../lib/supabase';
+import { Page, Btn, Seg, Bar, Loading, Empty } from './ui/edge';
+import { useT, MONO } from './ui/edgeUtils';
 
 import StampPreview from './StampPreview';
 import RolePermissions from './settings/RolePermissions';
 import PortalJoinCode from './settings/PortalJoinCode';
 import ImageEditor from './ImageEditor';
+import { RailSlotContext } from './shell/railSlot';
 
-export default function CompanyProfile({ theme, onToggleTheme }) {
+/* ══════════════════════════════════════════════════════════════════════════
+   Company profile, in the hub's terminal theme.
+
+   Laid out as a short checklist rather than one long form: each section says
+   whether it is done, the rail jumps to whatever is still missing, and a live
+   letterhead shows exactly where each value lands on an issued document. Edits
+   collect in one place and are saved from a bar that only appears once there is
+   something to save.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const EMPTY_FORM = {
+  company_name: '', company_tagline: '', company_address: '',
+  owner_full_name: '', document_designation: '',
+  company_email: '', company_phone: '', company_website: '',
+  gstin: '', cin: '',
+  upi_id: '', bank_name: '', bank_account_number: '', bank_ifsc: '', bank_account_type: 'Current',
+  logo_url: '', logo_path: '', signature_url: '', signature_path: '',
+  stamp_type: 'generated', stamp_url: '', stamp_path: '', stamp_city: '',
+  emailjs_service_id: '', emailjs_template_id: '', emailjs_public_key: '',
+  gmail_user: '', gmail_app_password: '',
+  plan: 'free',
+};
+
+const formFromOrg = (org) => Object.fromEntries(
+  Object.entries(EMPTY_FORM).map(([k, def]) => [k, org?.[k] || def]),
+);
+
+// Soft checks. They explain a likely typo next to the field but never block a
+// save — a legitimately unusual value should not lock someone out.
+const CHECKS = {
+  company_email: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'This does not look like an email address.'],
+  gmail_user: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'This does not look like an email address.'],
+  company_phone: [/^\+?[\d\s()-]{7,20}$/, 'Use digits, spaces and an optional leading +.'],
+  company_website: [/^(https?:\/\/)?[\w-]+(\.[\w-]+)+(\/\S*)?$/i, 'Enter a web address like company.com.'],
+  gstin: [/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, 'A GSTIN is 15 characters, e.g. 22AAAAA0000A1Z5.'],
+  cin: [/^[LU]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}$/, 'A CIN is 21 characters, e.g. U12345MH2020PTC123456.'],
+  upi_id: [/^[\w.-]{2,}@[a-z][\w]{1,}$/i, 'A UPI ID looks like name@bank.'],
+  bank_ifsc: [/^[A-Z]{4}0[A-Z0-9]{6}$/, 'An IFSC is 11 characters, e.g. HDFC0001234.'],
+  bank_account_number: [/^\d{6,18}$/, 'Account numbers are 6–18 digits.'],
+};
+const UPPER = new Set(['gstin', 'cin', 'bank_ifsc']);
+
+const warningFor = (name, value) => {
+  const rule = CHECKS[name];
+  if (!rule || !value) return '';
+  return rule[0].test(String(value).trim()) ? '' : rule[1];
+};
+
+const PLAN_ROWS = [
+  ['offerLetters', 'Offer letters'], ['mou', 'MoU / NDA'], ['invoices', 'Invoices'],
+  ['quotations', 'Quotations'], ['aiMessages', 'AI messages'],
+];
+
+function useWindowWidth() {
+  const [w, setW] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1440));
+  useEffect(() => {
+    const fn = () => setW(window.innerWidth);
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
+  }, []);
+  return w;
+}
+
+export default function CompanyProfile() {
+  const t = useT();
+  const navigate = useNavigate();
+  const winW = useWindowWidth();
+  const railSlot = useContext(RailSlotContext);
   const { activeOrg, updateOrganization, loading: orgLoading, fetchOrganizations } = useOrg();
   const { updatePassword, reauthenticate } = useAuth();
+
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [baseline, setBaseline] = useState(EMPTY_FORM);
+  const [touched, setTouched] = useState({});
   const [saving, setSaving] = useState(false);
-  const [showPasswordChange, setShowPasswordChange] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [passwordSuccess, setPasswordSuccess] = useState('');
-  const [changingPassword, setChangingPassword] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
-  const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [uploadingSig, setUploadingSig] = useState(false);
-  const [uploadingStamp, setUploadingStamp] = useState(false);
+  const [uploading, setUploading] = useState({});
   const [editorImage, setEditorImage] = useState(null);
   const [editorField, setEditorField] = useState('');
   const [testingEmail, setTestingEmail] = useState(false);
   const [testResult, setTestResult] = useState(null);
+  const [showAppPassword, setShowAppPassword] = useState(false);
   // org_secrets cannot be read by any client role, so the App Password box is
   // always blank on load and `activeOrg` carries neither field. Without asking
-  // the server, the screen looks unconfigured even when email works — and the
-  // Test button, which used to require both boxes filled, stayed disabled.
+  // the server, the screen looks unconfigured even when email works.
   const [emailStatus, setEmailStatus] = useState({ loading: true, configured: false, gmail_user: '', rotated_at: null });
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState('');
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [pw, setPw] = useState({ open: false, current: '', next: '', confirm: '', error: '', success: '', busy: false });
+  const [activeSection, setActiveSection] = useState('company');
 
+  const dirty = useMemo(
+    () => Object.keys(EMPTY_FORM).some((k) => (form[k] || '') !== (baseline[k] || '')),
+    [form, baseline],
+  );
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+
+  // Reload from the org when switching org, or when nothing local would be
+  // lost. A background refresh must not wipe what someone is halfway through.
+  const loadedOrgId = useRef(null);
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, []);
-
-  const [form, setForm] = useState({
-    company_name: '',
-    company_tagline: '',
-    company_address: '',
-    owner_full_name: '',
-    document_designation: '',
-    company_email: '',
-    company_phone: '',
-    company_website: '',
-    gstin: '',
-    cin: '',
-    upi_id: '',
-    bank_name: '',
-    bank_account_number: '',
-    bank_ifsc: '',
-    bank_account_type: 'Current',
-    logo_url: '',
-    logo_path: '',
-    signature_url: '',
-    signature_path: '',
-    stamp_type: 'generated',
-    stamp_url: '',
-    stamp_path: '',
-    stamp_city: '',
-    emailjs_service_id: '',
-    emailjs_template_id: '',
-    emailjs_public_key: '',
-    gmail_user: '',
-    gmail_app_password: '',
-    plan: 'free',
-  });
-
-  useEffect(() => {
-    if (activeOrg) {
-      const formData = {
-        company_name: activeOrg.company_name || '',
-        company_tagline: activeOrg.company_tagline || '',
-        company_address: activeOrg.company_address || '',
-        owner_full_name: activeOrg.owner_full_name || '',
-        document_designation: activeOrg.document_designation || '',
-        company_email: activeOrg.company_email || '',
-        company_phone: activeOrg.company_phone || '',
-        company_website: activeOrg.company_website || '',
-        gstin: activeOrg.gstin || '',
-        cin: activeOrg.cin || '',
-        upi_id: activeOrg.upi_id || '',
-        bank_name: activeOrg.bank_name || '',
-        bank_account_number: activeOrg.bank_account_number || '',
-        bank_ifsc: activeOrg.bank_ifsc || '',
-        bank_account_type: activeOrg.bank_account_type || 'Current',
-        logo_url: activeOrg.logo_url || '',
-        logo_path: activeOrg.logo_path || '',
-        signature_url: activeOrg.signature_url || '',
-        signature_path: activeOrg.signature_path || '',
-        stamp_type: activeOrg.stamp_type || 'generated',
-        stamp_url: activeOrg.stamp_url || '',
-        stamp_path: activeOrg.stamp_path || '',
-        stamp_city: activeOrg.stamp_city || '',
-        emailjs_service_id: activeOrg.emailjs_service_id || '',
-        emailjs_template_id: activeOrg.emailjs_template_id || '',
-        emailjs_public_key: activeOrg.emailjs_public_key || '',
-        gmail_user: activeOrg.gmail_user || '',
-        gmail_app_password: activeOrg.gmail_app_password || '',
-        plan: activeOrg.plan || 'free',
-      };
-      setForm(formData);
-      // orgStore handles caching — no localStorage write needed
-    }
+    if (!activeOrg) return;
+    if (loadedOrgId.current === activeOrg.id && dirtyRef.current) return;
+    loadedOrgId.current = activeOrg.id;
+    const next = formFromOrg(activeOrg);
+    setForm((prev) => ({ ...next, gmail_user: next.gmail_user || prev.gmail_user }));
+    setBaseline((prev) => ({ ...next, gmail_user: next.gmail_user || prev.gmail_user }));
   }, [activeOrg]);
 
   // Ask the server what email settings exist. The GET reports the address and
   // whether a password is on file; it never returns the password itself.
   const refreshEmailStatus = useCallback(async () => {
     if (!activeOrg?.id) return;
+    const off = { loading: false, configured: false, gmail_user: '', rotated_at: null };
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
@@ -127,96 +143,147 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        // A plain member is not allowed to see this and gets a 403. That is not
-        // an error worth showing them — the fields below are admin-only anyway.
-        setEmailStatus({ loading: false, configured: false, gmail_user: '', rotated_at: null });
-        return;
-      }
+      // A plain member gets a 403. Not an error worth showing — the email
+      // fields are admin-only anyway.
+      if (!res.ok || !data.success) { setEmailStatus(off); return; }
       setEmailStatus({
         loading: false,
         configured: Boolean(data.configured),
         gmail_user: data.gmail_user || '',
         rotated_at: data.rotated_at || null,
       });
-      // Show the stored address rather than an empty box, so an admin can see
-      // which account is connected without retyping it.
-      setForm((prev) => (prev.gmail_user ? prev : { ...prev, gmail_user: data.gmail_user || '' }));
+      // Show the stored address rather than an empty box, and treat it as the
+      // saved value so it does not count as an unsaved edit.
+      const stored = data.gmail_user || '';
+      setForm((prev) => (prev.gmail_user ? prev : { ...prev, gmail_user: stored }));
+      setBaseline((prev) => (prev.gmail_user ? prev : { ...prev, gmail_user: stored }));
     } catch {
-      setEmailStatus({ loading: false, configured: false, gmail_user: '', rotated_at: null });
+      setEmailStatus(off);
     }
   }, [activeOrg?.id]);
 
   useEffect(() => { refreshEmailStatus(); }, [refreshEmailStatus]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+  const setField = (name, value) => {
+    setForm((prev) => ({ ...prev, [name]: UPPER.has(name) ? value.toUpperCase() : value }));
     setSaved(false);
   };
+  const bind = (name) => ({
+    id: `cp-${name}`,
+    name,
+    value: form[name],
+    onChange: (e) => setField(name, e.target.value),
+    onBlur: () => setTouched((p) => ({ ...p, [name]: true })),
+  });
+  const warn = (name) => (touched[name] ? warningFor(name, form[name]) : '');
 
-  // Testable when there is something saved to test, or a complete new pair to
-  // save and then test.
-  const testEmailDisabled = testingEmail || !(
-    emailStatus.configured || (form.gmail_user && form.gmail_app_password)
-  );
+  /* ── progress ──────────────────────────────────────────────────────────── */
 
-  // The export is assembled server-side and handed back as one JSON document.
-  // Fetched rather than linked, because the endpoint needs the access token on an
-  // Authorization header and a plain <a href> cannot send one.
-  const handleExport = async () => {
-    if (!activeOrg?.id) return;
-    setExporting(true);
-    setExportError('');
+  const steps = useMemo(() => [
+    { id: 'company', label: 'Company basics', done: !!(form.company_name && form.company_address), todo: 'Add your registered address' },
+    { id: 'contact', label: 'Contact & tax', done: !!(form.company_email && form.company_phone), todo: 'Add a contact email and phone' },
+    { id: 'signatory', label: 'Signatory', done: !!(form.owner_full_name && form.document_designation), todo: 'Name who signs your documents' },
+    { id: 'branding', label: 'Logo & signature', done: !!(form.logo_url && form.signature_url), todo: form.logo_url ? 'Upload a signature' : 'Upload your logo' },
+    { id: 'stamp', label: 'Company stamp', done: form.stamp_type === 'generated' ? !!form.stamp_city : !!form.stamp_url, todo: 'Finish your company stamp' },
+    { id: 'banking', label: 'Payments', done: !!(form.upi_id || (form.bank_name && form.bank_account_number && form.bank_ifsc)), todo: 'Add UPI or bank details' },
+    { id: 'email', label: 'Email sending', done: emailStatus.configured, todo: 'Connect Gmail to send documents' },
+  ], [form, emailStatus.configured]);
+  const extras = [
+    { id: 'access', label: 'Team access' },
+    { id: 'plan', label: 'Plan' },
+    { id: 'account', label: 'Account & data' },
+  ];
+  const doneCount = steps.filter((s) => s.done).length;
+  const nextStep = steps.find((s) => !s.done);
+
+  const jumpTo = (id, focusField) => {
+    const el = document.getElementById(`cp-sec-${id}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const target = focusField
+      ? document.getElementById(`cp-${focusField}`)
+      : el.querySelector('input:not([type=hidden]):not([type=file]), textarea, button.cp-drop');
+    if (target) setTimeout(() => target.focus({ preventScroll: true }), 350);
+  };
+
+  // Highlight the section in view. The observer clips against the shell's own
+  // scroll area, so the default viewport root is correct here.
+  useEffect(() => {
+    if (!activeOrg || typeof IntersectionObserver === 'undefined') return undefined;
+    const obs = new IntersectionObserver((entries) => {
+      const hit = entries.filter((e) => e.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+      if (hit) setActiveSection(hit.target.id.replace('cp-sec-', ''));
+    }, { rootMargin: '-15% 0px -70% 0px' });
+    document.querySelectorAll('[id^="cp-sec-"]').forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, [activeOrg]);
+
+  /* ── saving ────────────────────────────────────────────────────────────── */
+
+  const handleSave = async () => {
+    if (!activeOrg || saving) return;
+    if (!form.company_name.trim()) { setError('Company name is required.'); jumpTo('company', 'company_name'); return; }
+    if (!form.owner_full_name.trim()) { setError('The signatory’s full name is required.'); jumpTo('signatory', 'owner_full_name'); return; }
+    setSaving(true);
+    setError('');
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Your session has expired. Sign in again.');
-
-      const res = await fetch(`/api/export?org_id=${encodeURIComponent(activeOrg.id)}`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `Export failed (${res.status})`);
-      }
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `edgeos-export-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      // Revoked on the next tick: released synchronously, Safari cancels the
-      // download it has not started yet.
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      await updateOrganization(activeOrg.id, form);
+      const sentPassword = Boolean(form.gmail_app_password);
+      // The password is now in org_secrets and can never be read back, so the
+      // box is cleared rather than left implying it is still held here.
+      const next = { ...form, gmail_app_password: '' };
+      setForm(next);
+      setBaseline(next);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+      if (sentPassword || form.gmail_user !== emailStatus.gmail_user) refreshEmailStatus();
     } catch (err) {
-      setExportError(err.message);
+      setError('Could not save: ' + err.message);
     } finally {
-      setExporting(false);
+      setSaving(false);
     }
   };
 
-  // Which stored image each form field represents.
-  const IMAGE_FIELDS = {
-    logo_url: { kind: 'logo', pathField: 'logo_path', setBusy: setUploadingLogo },
-    signature_url: { kind: 'signature', pathField: 'signature_path', setBusy: setUploadingSig },
-    stamp_url: { kind: 'stamp', pathField: 'stamp_path', setBusy: setUploadingStamp },
+  const handleDiscard = () => {
+    setForm(baseline);
+    setTouched({});
+    setError('');
   };
 
-  const handleImageUpload = (e, field) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    // Read file to base64 and open editor
-    const reader = new FileReader();
-    reader.onload = () => {
-      setEditorImage(reader.result);
-      setEditorField(field);
+  // Ctrl/Cmd+S saves, and leaving the tab with edits pending asks first.
+  const saveRef = useRef(handleSave);
+  saveRef.current = handleSave;
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        if (dirtyRef.current) saveRef.current();
+      }
     };
+    const onUnload = (e) => { if (dirtyRef.current) { e.preventDefault(); e.returnValue = ''; } };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('beforeunload', onUnload);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('beforeunload', onUnload);
+    };
+  }, []);
+
+  /* ── images ────────────────────────────────────────────────────────────── */
+
+  const IMAGE_FIELDS = {
+    logo_url: { kind: 'logo', pathField: 'logo_path' },
+    signature_url: { kind: 'signature', pathField: 'signature_path' },
+    stamp_url: { kind: 'stamp', pathField: 'stamp_path' },
+  };
+
+  const openFile = (file, field) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setError('Choose an image file — PNG, JPG or WebP.'); return; }
+    const reader = new FileReader();
+    reader.onload = () => { setEditorImage(reader.result); setEditorField(field); };
     reader.readAsDataURL(file);
-    // Reset input so the same file can be re-selected
-    e.target.value = '';
   };
 
   // The editor hands back a full-resolution PNG data URL. Compress it to WebP
@@ -229,79 +296,47 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
     setEditorField('');
     if (!spec || !activeOrg) return;
 
-    spec.setBusy(true);
+    setUploading((p) => ({ ...p, [field]: true }));
     setError('');
     try {
-      const { path, url } = await uploadOrgImage({
-        orgId: activeOrg.id,
-        kind: spec.kind,
-        source: editedBase64,
-      });
-      setForm(prev => ({ ...prev, [spec.pathField]: path, [field]: url }));
+      const { path, url } = await uploadOrgImage({ orgId: activeOrg.id, kind: spec.kind, source: editedBase64 });
+      setForm((prev) => ({ ...prev, [spec.pathField]: path, [field]: url }));
       setSaved(false);
-
       // The previous object is deliberately left in place. Every issued
       // document embeds a company_profile snapshot pointing at the image it was
       // signed with, so deleting it would strip the logo and signature off
-      // records that already went out. They are a few KB each after compression.
+      // records that already went out.
     } catch (err) {
       setError(err.message || 'Could not upload that image.');
     } finally {
-      spec.setBusy(false);
+      setUploading((p) => ({ ...p, [field]: false }));
     }
   };
 
-  const handleEditorCancel = () => {
-    setEditorImage(null);
-    setEditorField('');
+  const removeImage = (field) => {
+    setForm((prev) => ({ ...prev, [field]: '', [IMAGE_FIELDS[field].pathField]: '' }));
+    setSaved(false);
   };
 
-  const openEditorForExisting = (field) => {
-    const url = form[field];
-    if (url) {
-      setEditorImage(url);
-      setEditorField(field);
-    }
-  };
+  /* ── email ─────────────────────────────────────────────────────────────── */
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    if (!activeOrg) return;
-    setSaving(true);
-    setError('');
-    try {
-      await updateOrganization(activeOrg.id, form);
-      // orgStore cache is updated via updateOrganization → orgStore.updateProfile
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (err) {
-      setError('Failed to save: ' + err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
+  const testEmailDisabled = testingEmail || !(emailStatus.configured || (form.gmail_user && form.gmail_app_password));
 
   // The server tests the credentials it has stored, never credentials posted
-  // with the request — see api/email.js. So the settings on screen have to be
-  // saved before there is anything to test. Doing that here keeps the button a
-  // single click: the alternative is telling the user to press Save first, which
-  // they would reasonably read as the test not working.
+  // with the request — see api/email.js. So new settings are saved first,
+  // keeping the test a single click.
   const handleTestEmail = async () => {
     if (!activeOrg) return;
-
-    // Something new typed in either box has to be stored before it can be
-    // tested; otherwise this is a test of what is already on file.
+    const flash = (r) => { setTestResult(r); setTimeout(() => setTestResult(null), 8000); };
     const hasUnsaved = Boolean(form.gmail_app_password)
       || (form.gmail_user && form.gmail_user !== emailStatus.gmail_user);
 
     if (!hasUnsaved && !emailStatus.configured) {
-      setTestResult({ success: false, message: 'Enter both your Gmail address and App Password first.' });
-      setTimeout(() => setTestResult(null), 8000);
+      flash({ success: false, message: 'Enter both your Gmail address and App Password first.' });
       return;
     }
     if (hasUnsaved && (!form.gmail_user || !form.gmail_app_password)) {
-      setTestResult({ success: false, message: 'Enter both your Gmail address and App Password to save a new connection.' });
-      setTimeout(() => setTestResult(null), 8000);
+      flash({ success: false, message: 'Enter both your Gmail address and App Password to save a new connection.' });
       return;
     }
 
@@ -311,14 +346,13 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
     if (hasUnsaved) {
       try {
         await updateOrganization(activeOrg.id, form);
-        // The box is cleared because the value is now in org_secrets and can
-        // never be read back — leaving it filled implies otherwise.
-        setForm((prev) => ({ ...prev, gmail_app_password: '' }));
+        const next = { ...form, gmail_app_password: '' };
+        setForm(next);
+        setBaseline(next);
         await refreshEmailStatus();
       } catch (err) {
-        setTestResult({ success: false, message: 'Could not save the email settings: ' + err.message });
+        flash({ success: false, message: 'Could not save the email settings: ' + err.message });
         setTestingEmail(false);
-        setTimeout(() => setTestResult(null), 8000);
         return;
       }
     }
@@ -327,736 +361,816 @@ export default function CompanyProfile({ theme, onToggleTheme }) {
       orgId: activeOrg.id,
       gmailUser: form.gmail_user || emailStatus.gmail_user,
     });
-    setTestResult(result);
+    flash(result);
     setTestingEmail(false);
-    setTimeout(() => setTestResult(null), 8000);
+  };
+
+  /* ── account ───────────────────────────────────────────────────────────── */
+
+  // Fetched rather than linked, because the endpoint needs the access token on
+  // an Authorization header and a plain <a href> cannot send one.
+  const handleExport = async () => {
+    if (!activeOrg?.id) return;
+    setExporting(true);
+    setExportError('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Your session has expired. Sign in again.');
+      const res = await fetch(`/api/export?org_id=${encodeURIComponent(activeOrg.id)}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Export failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `edgeos-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // Revoked later: released synchronously, Safari cancels the download.
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (err) {
+      setExportError(err.message);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
-    setPasswordError('');
-    setPasswordSuccess('');
-
-    if (newPassword.length < 6) {
-      setPasswordError('New password must be at least 6 characters');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setPasswordError('Passwords do not match');
-      return;
-    }
-
-    setChangingPassword(true);
+    const fail = (msg) => setPw((p) => ({ ...p, error: msg, success: '' }));
+    if (pw.next.length < 6) return fail('The new password must be at least 6 characters.');
+    if (pw.next !== pw.confirm) return fail('The two new passwords do not match.');
+    setPw((p) => ({ ...p, busy: true, error: '', success: '' }));
     try {
-      await reauthenticate(currentPassword);
-      await updatePassword(newPassword);
-      setPasswordSuccess('Password updated successfully!');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setTimeout(() => {
-        setShowPasswordChange(false);
-        setPasswordSuccess('');
-      }, 2000);
+      await reauthenticate(pw.current);
+      await updatePassword(pw.next);
+      setPw({ open: true, current: '', next: '', confirm: '', error: '', success: 'Password updated.', busy: false });
+      setTimeout(() => setPw((p) => ({ ...p, open: false, success: '' })), 2000);
     } catch (err) {
-      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setPasswordError('Current password is incorrect');
-      } else {
-        setPasswordError(err.message || 'Failed to update password');
-      }
-    } finally {
-      setChangingPassword(false);
+      const wrong = err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential';
+      setPw((p) => ({ ...p, busy: false, error: wrong ? 'Your current password is incorrect.' : (err.message || 'Could not update the password.') }));
     }
+    return undefined;
   };
+
+  /* ── layout ────────────────────────────────────────────────────────────── */
+
+  // Inside the shell the section list lives in its sidebar; standalone it
+  // falls back to a column of its own, and on a phone to a row of chips.
+  const inShellRail = !!railSlot;
+  const wide = winW >= (inShellRail ? 1280 : 1380);
+  const withRail = inShellRail || winW >= 980;
+  const narrow = winW < 640;
 
   if (!activeOrg) {
     return (
-      <div className="easy-form animate-in" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
-        {orgLoading ? (
-          <>
-            <Loader size={28} className="spin-icon" style={{ marginBottom: '1rem', color: 'var(--accent-primary)' }} />
-            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>Loading profile...</h2>
-            <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>Fetching your organization details.</p>
-          </>
-        ) : (
-          <>
-            <AlertCircle size={28} style={{ marginBottom: '1rem', color: '#f59e0b' }} />
-            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>No organization profile found</h2>
-            <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-              We could not find an organization linked to your account.
-            </p>
-            <button type="button" className="btn-cinematic" onClick={fetchOrganizations} style={{ marginTop: '1rem' }}>
-              Retry
-            </button>
-          </>
+      <Page>
+        {orgLoading ? <Loading>Loading your company profile…</Loading> : (
+          <Empty action={<Btn onClick={fetchOrganizations}>Retry</Btn>}>
+            We could not find an organization linked to your account.
+          </Empty>
         )}
-      </div>
+      </Page>
     );
   }
 
+  const plan = getPlanConfig(form.plan || DEFAULT_PLAN);
+  const pct = Math.round((doneCount / steps.length) * 100);
+  const sectionDone = Object.fromEntries(steps.map((s) => [s.id, s.done]));
+
+  const sp = { t, narrow };
+
+  const sectionNav = (
+          <nav aria-label="Profile sections" style={inShellRail ? { display: 'grid', gap: 2, fontFamily: MONO } : { position: 'sticky', top: 0, display: 'grid', gap: 2 }}>
+            <RailHead t={t}>SET UP · {doneCount}/{steps.length}</RailHead>
+            {steps.map((s, i) => (
+              <RailItem key={s.id} t={t} active={activeSection === s.id} onClick={() => jumpTo(s.id)}
+                marker={s.done ? <Check size={11} strokeWidth={2.6} /> : i + 1} done={s.done}>{s.label}</RailItem>
+            ))}
+            <RailHead t={t} style={{ marginTop: 14 }}>MORE</RailHead>
+            {extras.map((s) => (
+              <RailItem key={s.id} t={t} active={activeSection === s.id} onClick={() => jumpTo(s.id)}
+                marker="·">{s.label}</RailItem>
+            ))}
+          </nav>
+  );
+  const chipNav = (
+          <nav aria-label="Profile sections" className="cp-chips" style={{
+            position: 'sticky', top: 0, zIndex: 25, background: t.panel,
+            display: 'flex', gap: 6, overflowX: 'auto', padding: '8px 0', margin: '-8px 0 0',
+            borderBottom: '1px solid ' + t.lineSoft,
+          }}>
+            {[...steps, ...extras].map((s) => (
+              <button key={s.id} type="button" onClick={() => jumpTo(s.id)} className="cp-chip" style={{
+                flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6,
+                height: 32, padding: '0 11px', borderRadius: 999, cursor: 'pointer', fontFamily: MONO, fontSize: 11.5,
+                border: '1px solid ' + (activeSection === s.id ? t.lineStrong : t.line),
+                background: activeSection === s.id ? t.panelAlt : t.panel,
+                color: activeSection === s.id ? t.text : t.dim,
+              }}>
+                {s.done && <Check size={11} strokeWidth={2.6} style={{ color: t.up }} />}
+                {s.label}
+              </button>
+            ))}
+          </nav>
+  );
+
+
   return (
-    <>
-    <form onSubmit={handleSave} className="easy-form animate-in">
+    <Page>
+      <div style={{
+        display: 'grid', gap: 20, alignItems: 'start', maxWidth: 1480, margin: '0 auto',
+        gridTemplateColumns: [withRail && !inShellRail && '200px', 'minmax(0,1fr)', wide && '340px'].filter(Boolean).join(' '),
+      }}>
 
-      <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '2rem', lineHeight: 1.6 }}>
-        These details are auto-filled into all your documents — offer letters, invoices, MoUs, and certificates.
-      </p>
+        {withRail && !inShellRail && sectionNav}
+        {!withRail && chipNav}
 
-      {error && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '0.5rem',
-          padding: '0.75rem 1rem', background: 'rgba(239,68,68,0.08)',
-          border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px',
-          marginBottom: '1.5rem', fontSize: '0.8125rem', color: '#f87171'
-        }}>
-          <AlertCircle size={16} /> {error}
-        </div>
-      )}
+        {/* ── main column ──────────────────────────────────────────────── */}
+        <main style={{ display: 'grid', gap: 16, minWidth: 0 }}>
 
-      {/* 1. Company */}
-      <div className="easy-section">
-        <div className="easy-section-head">
-          <div className="easy-num">1</div>
-          <span className="easy-section-title">Company information</span>
-        </div>
-        <div className="easy-row">
-          <div className="easy-field full">
-            <label className="easy-lbl">Company name</label>
-            <input name="company_name" value={form.company_name} onChange={handleChange}
-              required placeholder="Acme International Ltd." className="easy-inp" />
-          </div>
-          <div className="easy-field full">
-            <label className="easy-lbl">Company tagline</label>
-            <input name="company_tagline" value={form.company_tagline} onChange={handleChange}
-              placeholder="e.g. Innovation Meets Excellence" className="easy-inp" />
-          </div>
-          <div className="easy-field full">
-            <label className="easy-lbl">Registered address</label>
-            <textarea name="company_address" value={form.company_address} onChange={handleChange}
-              placeholder="Full registered office address" rows={2} className="easy-inp" style={{ resize: 'none' }} />
-          </div>
-          <div className="easy-field">
-            <label className="easy-lbl">Company email</label>
-            <input type="email" name="company_email" value={form.company_email} onChange={handleChange}
-              placeholder="hello@company.com" className="easy-inp" />
-          </div>
-          <div className="easy-field">
-            <label className="easy-lbl">Company phone</label>
-            <input name="company_phone" value={form.company_phone} onChange={handleChange}
-              placeholder="+91 ..." className="easy-inp" />
-          </div>
-          <div className="easy-field">
-            <label className="easy-lbl">Website</label>
-            <input name="company_website" value={form.company_website} onChange={handleChange}
-              placeholder="https://..." className="easy-inp" />
-          </div>
-          <div className="easy-field">
-            <label className="easy-lbl">GSTIN</label>
-            <input name="gstin" value={form.gstin} onChange={handleChange}
-              placeholder="22AAAAA0000A1Z5" maxLength={15} className="easy-inp"
-              style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
-          </div>
-          <div className="easy-field">
-            <label className="easy-lbl">CIN (Corporate Identity Number)</label>
-            <input name="cin" value={form.cin} onChange={handleChange}
-              placeholder="U12345MH2020PTC123456" maxLength={21} className="easy-inp"
-              style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Plan Limits - Read Only */}
-      <div className="easy-section">
-        <div className="easy-section-head">
-          <div className="easy-num">2</div>
-          <span className="easy-section-title">Current Plan: {form.plan === 'free' ? 'Free' : form.plan === 'pro' ? 'Pro' : 'Max'}</span>
-        </div>
-        <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
-          Your current plan limits. Contact admin to upgrade.
-        </p>
-
-        {/* Plan Features Summary */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          gap: '0.75rem',
-          padding: '1rem',
-          background: 'var(--bg-elevated)',
-          borderRadius: '10px',
-          border: '1px solid var(--border-subtle)'
-        }}>
-          {(() => {
-            const planLimits = {
-              free: { offerLetters: 5, mou: 1, nda: 1, invoices: 5, quotations: 5, aiMessages: 10 },
-              pro: { offerLetters: 25, mou: 5, nda: 5, invoices: 20, quotations: 20, aiMessages: 50 },
-              max: { offerLetters: '∞', mou: '∞', nda: '∞', invoices: '∞', quotations: '∞', aiMessages: '∞' }
-            };
-            const limits = planLimits[form.plan] || planLimits.free;
-            const features = [
-              { label: 'Offer Letters', value: limits.offerLetters },
-              { label: 'MoU / NDA', value: limits.mou },
-              { label: 'Invoices', value: limits.invoices },
-              { label: 'Quotations', value: limits.quotations },
-              { label: 'AI Messages', value: limits.aiMessages },
-            ];
-            return features.map((f, i) => (
-              <div key={i} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>{f.label}</div>
-                <div style={{ fontSize: '1.125rem', fontWeight: 700, color: form.plan === 'max' ? '#10b981' : 'var(--text-primary)' }}>{f.value}</div>
+          {/* progress header */}
+          <section style={{
+            border: '1px solid ' + t.line, borderRadius: 12, background: t.panelAlt,
+            padding: narrow ? 14 : '16px 18px', display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap',
+          }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: 11, flexShrink: 0, overflow: 'hidden',
+              border: '1px solid ' + t.line, background: t.panel, display: 'grid', placeItems: 'center',
+            }}>
+              {form.logo_url
+                ? <img src={form.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                : <Building2 size={20} strokeWidth={1.6} color={t.faint} />}
+            </div>
+            <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+              <div style={{ fontSize: 16, fontWeight: 500, letterSpacing: '-0.02em', color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {form.company_name || 'Your company'}
               </div>
-            ));
-          })()}
-        </div>
-      </div>
-
-      {/* 3. Payment & Banking */}
-      <div className="easy-section">
-        <div className="easy-section-head">
-          <div className="easy-num">3</div>
-          <span className="easy-section-title">Payment & Banking</span>
-        </div>
-        <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
-          These details are used to generate UPI QR codes and display bank info on invoices, quotations, and the recipient portal.
-        </p>
-        <div className="easy-row">
-          <div className="easy-field">
-            <label className="easy-lbl">UPI ID</label>
-            <input name="upi_id" value={form.upi_id} onChange={handleChange}
-              placeholder="yourname@upi" className="easy-inp"
-              style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }} />
-          </div>
-          <div className="easy-field">
-            <label className="easy-lbl">Bank name</label>
-            <input name="bank_name" value={form.bank_name} onChange={handleChange}
-              placeholder="e.g. HDFC Bank" className="easy-inp" />
-          </div>
-          <div className="easy-field">
-            <label className="easy-lbl">Account number</label>
-            <input name="bank_account_number" value={form.bank_account_number} onChange={handleChange}
-              placeholder="e.g. 1234567890123" className="easy-inp"
-              style={{ fontFamily: 'monospace', letterSpacing: '0.05em' }} />
-          </div>
-          <div className="easy-field">
-            <label className="easy-lbl">IFSC code</label>
-            <input name="bank_ifsc" value={form.bank_ifsc} onChange={handleChange}
-              placeholder="e.g. HDFC0001234" className="easy-inp"
-              style={{ textTransform: 'uppercase', fontFamily: 'monospace', letterSpacing: '0.05em' }} />
-          </div>
-          <div className="easy-field">
-            <label className="easy-lbl">Account type</label>
-            <select name="bank_account_type" value={form.bank_account_type} onChange={handleChange} className="easy-inp">
-              <option value="Current">Current</option>
-              <option value="Savings">Savings</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* 4. Authorized Person */}
-      <div className="easy-section">
-        <div className="easy-section-head">
-          <div className="easy-num">4</div>
-          <span className="easy-section-title">Authorized person</span>
-        </div>
-        <div className="easy-row">
-          <div className="easy-field">
-            <label className="easy-lbl">Full name</label>
-            <input name="owner_full_name" value={form.owner_full_name} onChange={handleChange}
-              required placeholder="John Doe" className="easy-inp" />
-          </div>
-          <div className="easy-field">
-            <label className="easy-lbl">Designation on documents</label>
-            <input name="document_designation" value={form.document_designation} onChange={handleChange}
-              placeholder="Founder / HR Manager / CEO" className="easy-inp" />
-          </div>
-        </div>
-      </div>
-
-      {/* 5. Branding */}
-      <div className="easy-section">
-        <div className="easy-section-head">
-          <div className="easy-num">5</div>
-          <span className="easy-section-title">Logo & signature</span>
-        </div>
-        <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
-          Upload your company logo and authorized signature. These will be hosted online and auto-filled into every document you create.
-        </p>
-        <div className="easy-row">
-          {/* Logo */}
-          <div className="easy-field">
-            <label className="easy-lbl">Company logo</label>
-            {form.logo_url && (
-              <div className="img-preview-wrap">
-                <img src={form.logo_url} alt="Logo" style={{ maxHeight: '64px', maxWidth: '100%', objectFit: 'contain' }} />
-                <button type="button" className="edit-btn" onClick={() => openEditorForExisting('logo_url')} title="Edit image">
-                  <Pencil size={14} />
-                </button>
+              <div style={{ fontSize: 11.5, color: t.dim, marginTop: 3, lineHeight: 1.5 }}>
+                {doneCount === steps.length
+                  ? 'All set — every document you create is filled in from here.'
+                  : `${doneCount} of ${steps.length} steps done. Everything here is auto-filled into offers, invoices, MoUs and certificates.`}
               </div>
+              <div style={{ marginTop: 10, maxWidth: 420 }} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Profile completion">
+                <Bar value={doneCount} max={steps.length} height={4} tone={doneCount === steps.length ? t.up : t.text} />
+              </div>
+            </div>
+            {nextStep && (
+              <Btn primary onClick={() => jumpTo(nextStep.id)}>
+                {nextStep.todo} <ArrowRight size={13} />
+              </Btn>
             )}
-            <div className="easy-upload-wrap">
-              <input type="file" onChange={(e) => handleImageUpload(e, 'logo_url')} accept="image/*" disabled={uploadingLogo} />
-              <div className={`easy-upload ${form.logo_url ? 'done' : ''}`}>
-                {uploadingLogo ? <><Loader size={16} className="spin-icon" /> Uploading...</>
-                  : form.logo_url ? <><CheckCircle size={16} /> Change logo</>
-                  : <><Upload size={16} /> Upload logo</>}
-              </div>
-            </div>
-          </div>
+          </section>
 
-          {/* Signature */}
-          <div className="easy-field">
-            <label className="easy-lbl">Authorized signature</label>
-            {form.signature_url && (
-              <div className="img-preview-wrap">
-                <img src={form.signature_url} alt="Signature" style={{ maxHeight: '48px', maxWidth: '100%', objectFit: 'contain' }} />
-                <button type="button" className="edit-btn" onClick={() => openEditorForExisting('signature_url')} title="Edit image">
-                  <Pencil size={14} />
-                </button>
+          {error && (
+            <Notice t={t} tone="down" onClose={() => setError('')}>{error}</Notice>
+          )}
+
+          {!wide && (
+            <details className="cp-details" style={{ border: '1px solid ' + t.line, borderRadius: 12, background: t.panel }}>
+              <summary style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', cursor: 'pointer',
+                fontSize: 12, color: t.text, listStyle: 'none',
+              }}>
+                <ChevronDown size={14} className="cp-caret" color={t.faint} />
+                Preview on a document
+                <span style={{ fontSize: 10.5, color: t.faint, marginLeft: 'auto' }}>updates as you type</span>
+              </summary>
+              <div style={{ padding: '0 16px 16px' }}>
+                <Letterhead form={form} onJump={jumpTo} />
               </div>
+            </details>
+          )}
+
+          {/* 1. company */}
+          <Section {...sp} id="company" n={1} done={sectionDone.company} title="Company basics"
+            desc="Your legal name and registered address, as they should read on a signed document.">
+            <Fields narrow={narrow}>
+              <FormField t={t} label="Company name" required htmlFor="cp-company_name" wide>
+                <TextInput t={t} {...bind('company_name')} placeholder="Acme International Pvt. Ltd." autoComplete="organization" required />
+              </FormField>
+              <FormField t={t} label="Tagline" htmlFor="cp-company_tagline" hint="Optional. Shown under your name on the letterhead." wide>
+                <TextInput t={t} {...bind('company_tagline')} placeholder="Innovation meets excellence" />
+              </FormField>
+              <FormField t={t} label="Registered address" htmlFor="cp-company_address" wide>
+                <TextInput t={t} as="textarea" rows={3} {...bind('company_address')} placeholder={'Building, street\nCity, State PIN'} autoComplete="street-address" />
+              </FormField>
+            </Fields>
+          </Section>
+
+          {/* 2. contact */}
+          <Section {...sp} id="contact" n={2} done={sectionDone.contact} title="Contact & tax"
+            desc="How recipients reach you, and the registration numbers invoices must carry.">
+            <Fields narrow={narrow}>
+              <FormField t={t} label="Contact email" htmlFor="cp-company_email" warn={warn('company_email')}>
+                <TextInput t={t} {...bind('company_email')} type="email" inputMode="email" autoComplete="email" placeholder="hello@company.com" />
+              </FormField>
+              <FormField t={t} label="Phone" htmlFor="cp-company_phone" warn={warn('company_phone')}>
+                <TextInput t={t} {...bind('company_phone')} type="tel" inputMode="tel" autoComplete="tel" placeholder="+91 98765 43210" />
+              </FormField>
+              <FormField t={t} label="Website" htmlFor="cp-company_website" hint="Optional" warn={warn('company_website')} wide>
+                <TextInput t={t} {...bind('company_website')} inputMode="url" autoComplete="url" placeholder="company.com" />
+              </FormField>
+              <FormField t={t} label="GSTIN" htmlFor="cp-gstin" hint="Optional · 15 characters" warn={warn('gstin')}>
+                <TextInput t={t} {...bind('gstin')} maxLength={15} placeholder="22AAAAA0000A1Z5" spellCheck={false} mono />
+              </FormField>
+              <FormField t={t} label="CIN" htmlFor="cp-cin" hint="Optional · 21 characters" warn={warn('cin')}>
+                <TextInput t={t} {...bind('cin')} maxLength={21} placeholder="U12345MH2020PTC123456" spellCheck={false} mono />
+              </FormField>
+            </Fields>
+          </Section>
+
+          {/* 3. signatory */}
+          <Section {...sp} id="signatory" n={3} done={sectionDone.signatory} title="Authorised signatory"
+            desc="The person whose name and title appear above the signature line.">
+            <Fields narrow={narrow}>
+              <FormField t={t} label="Full name" required htmlFor="cp-owner_full_name">
+                <TextInput t={t} {...bind('owner_full_name')} placeholder="Priya Sharma" autoComplete="name" required />
+              </FormField>
+              <FormField t={t} label="Title on documents" htmlFor="cp-document_designation">
+                <TextInput t={t} {...bind('document_designation')} placeholder="Founder & CEO" list="cp-designations" autoComplete="organization-title" />
+                <datalist id="cp-designations">
+                  {['Founder', 'Founder & CEO', 'Director', 'Managing Director', 'CEO', 'HR Manager', 'Head of People'].map((d) => <option key={d} value={d} />)}
+                </datalist>
+              </FormField>
+            </Fields>
+          </Section>
+
+          {/* 4. branding */}
+          <Section {...sp} id="branding" n={4} done={sectionDone.branding} title="Logo & signature"
+            desc="Drop an image or click to choose one. You can crop and clean it up before it is saved.">
+            <Fields narrow={narrow}>
+              <Uploader t={t} field="logo_url" label="Company logo" hint="PNG with a transparent background works best."
+                url={form.logo_url} busy={uploading.logo_url} height={72}
+                onFile={openFile} onEdit={() => { setEditorImage(form.logo_url); setEditorField('logo_url'); }} onRemove={removeImage} />
+              <Uploader t={t} field="signature_url" label="Signature" hint="Sign on white paper and photograph it, or sign on a tablet."
+                url={form.signature_url} busy={uploading.signature_url} height={56}
+                onFile={openFile} onEdit={() => { setEditorImage(form.signature_url); setEditorField('signature_url'); }} onRemove={removeImage} />
+            </Fields>
+          </Section>
+
+          {/* 5. stamp */}
+          <Section {...sp} id="stamp" n={5} done={sectionDone.stamp} title="Company stamp"
+            desc="We can draw a round stamp from your company name, or you can upload your own.">
+            <div style={{ marginBottom: 14 }}>
+              <Seg value={form.stamp_type} onChange={(v) => setField('stamp_type', v)}
+                options={[{ id: 'generated', label: 'Generate for me' }, { id: 'uploaded', label: 'Upload my own' }]} />
+            </div>
+            {form.stamp_type === 'generated' ? (
+              <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+                  <FormField t={t} label="City on the stamp" htmlFor="cp-stamp_city" hint="Printed around the bottom edge.">
+                    <TextInput t={t} {...bind('stamp_city')} placeholder="Chennai" autoComplete="address-level2" />
+                  </FormField>
+                </div>
+                <div style={{
+                  width: 150, height: 150, borderRadius: 12, background: '#ffffff',
+                  border: '1px solid ' + t.line, display: 'grid', placeItems: 'center', flexShrink: 0,
+                }} aria-label="Stamp preview">
+                  <StampPreview companyName={form.company_name} city={form.stamp_city} size={128} />
+                </div>
+              </div>
+            ) : (
+              <Fields narrow={narrow}>
+                <Uploader t={t} field="stamp_url" label="Stamp image" hint="A scan of your rubber stamp, cropped close."
+                  url={form.stamp_url} busy={uploading.stamp_url} height={110}
+                  onFile={openFile} onEdit={() => { setEditorImage(form.stamp_url); setEditorField('stamp_url'); }} onRemove={removeImage} />
+              </Fields>
             )}
-            <div className="easy-upload-wrap">
-              <input type="file" onChange={(e) => handleImageUpload(e, 'signature_url')} accept="image/*" disabled={uploadingSig} />
-              <div className={`easy-upload ${form.signature_url ? 'done' : ''}`}>
-                {uploadingSig ? <><Loader size={16} className="spin-icon" /> Uploading...</>
-                  : form.signature_url ? <><CheckCircle size={16} /> Change signature</>
-                  : <><Upload size={16} /> Upload signature</>}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+          </Section>
 
-      {/* 6. Company Stamp */}
-      <div className="easy-section">
-        <div className="easy-section-head">
-          <div className="easy-num">6</div>
-          <span className="easy-section-title">Company stamp</span>
-        </div>
-        <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
-          Add a company stamp to your documents. Auto-generate a circular stamp or upload a custom image.
-        </p>
+          {/* 6. banking */}
+          <Section {...sp} id="banking" n={6} done={sectionDone.banking} title="Payments"
+            desc="Used for the UPI QR code and bank block on invoices, quotations and the client portal. UPI alone is enough.">
+            <Fields narrow={narrow}>
+              <FormField t={t} label="UPI ID" htmlFor="cp-upi_id" warn={warn('upi_id')} wide>
+                <TextInput t={t} {...bind('upi_id')} placeholder="company@okhdfcbank" spellCheck={false} autoCapitalize="none" mono />
+              </FormField>
+              <FormField t={t} label="Bank name" htmlFor="cp-bank_name">
+                <TextInput t={t} {...bind('bank_name')} placeholder="HDFC Bank" />
+              </FormField>
+              <FormField t={t} label="Account type" htmlFor="cp-bank_account_type">
+                <div id="cp-bank_account_type">
+                  <Seg value={form.bank_account_type} onChange={(v) => setField('bank_account_type', v)} options={['Current', 'Savings']} />
+                </div>
+              </FormField>
+              <FormField t={t} label="Account number" htmlFor="cp-bank_account_number" warn={warn('bank_account_number')}>
+                <TextInput t={t} {...bind('bank_account_number')} inputMode="numeric" placeholder="50100123456789" spellCheck={false} mono />
+              </FormField>
+              <FormField t={t} label="IFSC" htmlFor="cp-bank_ifsc" hint="11 characters" warn={warn('bank_ifsc')}>
+                <TextInput t={t} {...bind('bank_ifsc')} maxLength={11} placeholder="HDFC0001234" spellCheck={false} mono />
+              </FormField>
+            </Fields>
+          </Section>
 
-        <div className="stamp-type-toggle" style={{ marginBottom: '1.25rem' }}>
-          <button type="button"
-            className={`stamp-type-toggle-btn ${form.stamp_type === 'generated' ? 'active' : ''}`}
-            onClick={() => { setForm(prev => ({ ...prev, stamp_type: 'generated' })); setSaved(false); }}>
-            Auto-generate
-          </button>
-          <button type="button"
-            className={`stamp-type-toggle-btn ${form.stamp_type === 'uploaded' ? 'active' : ''}`}
-            onClick={() => { setForm(prev => ({ ...prev, stamp_type: 'uploaded' })); setSaved(false); }}>
-            Upload custom
-          </button>
-        </div>
-
-        {form.stamp_type === 'generated' ? (
-          <div className="easy-row">
-            <div className="easy-field">
-              <label className="easy-lbl">City (shown on stamp)</label>
-              <input name="stamp_city" value={form.stamp_city} onChange={handleChange}
-                placeholder="e.g. Chennai" className="easy-inp" />
-            </div>
-            <div className="easy-field full">
-              <label className="easy-lbl">Stamp preview</label>
-              <div className="stamp-preview-box">
-                <StampPreview
-                  companyName={form.company_name}
-                  city={form.stamp_city}
-                  size={160}
-                />
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="easy-row">
-            <div className="easy-field">
-              <label className="easy-lbl">Upload stamp image</label>
-              {form.stamp_url && (
-                <div className="img-preview-wrap">
-                  <img src={form.stamp_url} alt="Stamp" style={{ maxHeight: '100px', maxWidth: '100%', objectFit: 'contain' }} />
-                  <button type="button" className="edit-btn" onClick={() => openEditorForExisting('stamp_url')} title="Edit image">
-                    <Pencil size={14} />
+          {/* 7. email */}
+          <Section {...sp} id="email" n={7} done={sectionDone.email} title="Email sending"
+            desc="Connect a Gmail account so EdgeOS can send offer letters, reminders and follow-ups from your address."
+            status={!emailStatus.loading && (
+              <StatusLine t={t} ok={emailStatus.configured}>
+                {emailStatus.configured
+                  ? `Connected as ${emailStatus.gmail_user}${emailStatus.rotated_at ? ` · saved ${new Date(emailStatus.rotated_at).toLocaleDateString('en-IN')}` : ''}`
+                  : 'Not connected — email features are off'}
+              </StatusLine>
+            )}>
+            <Fields narrow={narrow}>
+              <FormField t={t} label="Gmail address" htmlFor="cp-gmail_user" warn={warn('gmail_user')}>
+                <TextInput t={t} {...bind('gmail_user')} type="email" inputMode="email" autoComplete="off" placeholder="you@gmail.com" />
+              </FormField>
+              <FormField t={t} label="App password" htmlFor="cp-gmail_app_password"
+                hint={emailStatus.configured ? 'Leave blank to keep the saved one. Stored encrypted; never shown again.' : '16 characters from Google. Stored encrypted; never shown again.'}>
+                <div style={{ position: 'relative' }}>
+                  <TextInput t={t} {...bind('gmail_app_password')} type={showAppPassword ? 'text' : 'password'}
+                    autoComplete="new-password" placeholder={emailStatus.configured ? '•••• •••• •••• ••••' : 'xxxx xxxx xxxx xxxx'}
+                    spellCheck={false} mono style={{ paddingRight: 42 }} />
+                  <button type="button" onClick={() => setShowAppPassword((v) => !v)} className="cp-iconbtn"
+                    aria-label={showAppPassword ? 'Hide app password' : 'Show app password'}
+                    style={{
+                      position: 'absolute', right: 4, top: 4, width: 32, height: 32, borderRadius: 6,
+                      border: 'none', background: 'transparent', color: t.faint, cursor: 'pointer', display: 'grid', placeItems: 'center',
+                    }}>
+                    {showAppPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
-              )}
-              <div className="easy-upload-wrap">
-                <input type="file" onChange={(e) => handleImageUpload(e, 'stamp_url')} accept="image/*" disabled={uploadingStamp} />
-                <div className={`easy-upload ${form.stamp_url ? 'done' : ''}`}>
-                  {uploadingStamp ? <><Loader size={16} className="spin-icon" /> Uploading...</>
-                    : form.stamp_url ? <><CheckCircle size={16} /> Change stamp</>
-                    : <><Upload size={16} /> Upload stamp</>}
-                </div>
-              </div>
+              </FormField>
+            </Fields>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
+              <Btn onClick={handleTestEmail} disabled={testEmailDisabled}>
+                {testingEmail ? <><Loader size={13} className="spin-icon" /> Sending test…</> : <><Zap size={13} /> Save & send a test email</>}
+              </Btn>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* 7. Appearance */}
-      <div className="easy-section">
-        <div className="easy-section-head">
-          <div className="easy-num">7</div>
-          <span className="easy-section-title">Appearance</span>
-        </div>
-        <div className="theme-toggle-row">
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Theme</div>
-            <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Switch between light and dark mode</div>
-          </div>
-          <button type="button" className="theme-toggle-btn" onClick={onToggleTheme} aria-label="Toggle theme">
-            <div className={`theme-toggle-track ${theme === 'dark' ? 'dark' : ''}`}>
-              <Sun size={14} className="theme-toggle-icon sun" />
-              <Moon size={14} className="theme-toggle-icon moon" />
-              <div className="theme-toggle-thumb" />
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* 8. Email Configuration (Gmail SMTP) */}
-      <div className="easy-section">
-        <div className="easy-section-head">
-          <div className="easy-num">8</div>
-          <span className="easy-section-title">Email Configuration</span>
-        </div>
-        <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.6 }}>
-          Connect your Gmail to send offer letters, notifications, and follow-ups directly from EdgeOS. All email features in the app use this one connection.
-        </p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)', gap: '1.25rem' }}>
-          {/* Left: form */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', minWidth: 0 }}>
-            <div className="easy-field">
-              <label className="easy-lbl">Gmail Address</label>
-              <input
-                name="gmail_user"
-                type="email"
-                value={form.gmail_user}
-                onChange={handleChange}
-                placeholder="you@gmail.com"
-                className="easy-inp"
-                autoComplete="off"
-              />
-            </div>
-
-            <div className="easy-field">
-              <label className="easy-lbl">
-                App Password
-                <span style={{ fontSize: '0.6875rem', fontWeight: 500, color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
-                  16 characters from Google
-                </span>
-              </label>
-              <input
-                name="gmail_app_password"
-                type="password"
-                value={form.gmail_app_password}
-                onChange={handleChange}
-                placeholder="xxxx xxxx xxxx xxxx"
-                className="easy-inp"
-                autoComplete="new-password"
-                style={{ fontFamily: 'monospace', letterSpacing: '0.05em' }}
-              />
-              <p style={{ margin: '0.375rem 0 0', fontSize: '0.6875rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Encrypted on the server and never sent back to the browser. Leave blank to keep the
-                password already saved.
-              </p>
-            </div>
-
-            {/* What is actually stored. The password box above cannot show it, so
-                without this the screen looks unconfigured even when email works. */}
-            {!emailStatus.loading && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                fontSize: '0.75rem', fontWeight: 600, lineHeight: 1.5,
-                color: emailStatus.configured ? '#10b981' : 'var(--text-muted)',
-              }}>
-                {emailStatus.configured
-                  ? <><CheckCircle size={13} style={{ flexShrink: 0 }} />
-                      <span>
-                        Connected as {emailStatus.gmail_user}
-                        {emailStatus.rotated_at
-                          ? ` · password saved ${new Date(emailStatus.rotated_at).toLocaleDateString()}`
-                          : ''}
-                      </span></>
-                  : <><AlertCircle size={13} style={{ flexShrink: 0 }} />
-                      <span>No Gmail connection saved yet — email features are off.</span></>}
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={handleTestEmail}
-              disabled={testEmailDisabled}
-              style={{
-                padding: '0.625rem 1rem', borderRadius: '10px', border: '1px solid var(--border-default)',
-                background: 'var(--bg-elevated)', color: 'var(--text-primary)', fontWeight: 600,
-                fontSize: '0.8125rem', cursor: testEmailDisabled ? 'not-allowed' : 'pointer',
-                fontFamily: 'var(--font-main)', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', gap: '0.5rem',
-                opacity: testEmailDisabled ? 0.4 : 1,
-              }}
-            >
-              {testingEmail ? <><Loader size={14} className="spin-icon" /> Sending test email…</> : <><Zap size={14} /> Send Test Email</>}
-            </button>
-
             {testResult && (
-              <div style={{
-                display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
-                padding: '0.75rem 1rem',
-                background: testResult.success ? 'rgba(16,185,129,0.06)' : 'rgba(239,68,68,0.06)',
-                border: `1px solid ${testResult.success ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'}`,
-                borderRadius: '8px', fontSize: '0.8125rem',
-                color: testResult.success ? '#10b981' : '#ef4444', fontWeight: 600, lineHeight: 1.5,
-              }}>
-                {testResult.success
-                  ? <CheckCircle size={14} style={{ marginTop: '2px', flexShrink: 0 }} />
-                  : <XCircle    size={14} style={{ marginTop: '2px', flexShrink: 0 }} />}
-                <span>{testResult.message}</span>
+              <div style={{ marginTop: 10 }}>
+                <Notice t={t} tone={testResult.success ? 'up' : 'down'}>{testResult.message}</Notice>
               </div>
             )}
-          </div>
 
-          {/* Right: instructions */}
-          <div style={{
-            background: 'var(--bg-raised)', border: '1px solid var(--border-subtle)',
-            borderRadius: '10px', padding: '1rem 1.25rem',
-            fontSize: '0.8125rem', lineHeight: 1.7, color: 'var(--text-secondary)', minWidth: 0,
-          }}>
-            <strong style={{
-              color: 'var(--text-primary)', display: 'flex', alignItems: 'center',
-              gap: '0.375rem', marginBottom: '0.625rem',
-            }}>
-              <Key size={14} /> How to get an App Password
-            </strong>
-            <ol style={{ margin: '0.5rem 0 0', paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <li>
-                Enable <strong>2-Step Verification</strong> on your Google account (required to generate App Passwords).{' '}
-                <a href="https://myaccount.google.com/signinoptions/two-step-verification" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
-                  Open 2-Step settings
-                </a>
-              </li>
-              <li>
-                Go to <strong>Google Account → Security → App Passwords</strong>.{' '}
-                <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
-                  Open App Passwords
-                </a>
-              </li>
-              <li>
-                Type any app name (e.g. "EdgeOS") and click <strong>Create</strong>.
-              </li>
-              <li>
-                Copy the <strong>16-character password</strong> Google gives you.
-              </li>
-              <li>
-                Paste it into the <strong>App Password</strong> field on the left and hit <strong>Send Test Email</strong>.
-              </li>
-            </ol>
+            <details className="cp-details" style={{ marginTop: 14, border: '1px solid ' + t.lineSoft, borderRadius: 10, background: t.panelAlt }}>
+              <summary style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', cursor: 'pointer', fontSize: 12, color: t.text, listStyle: 'none' }}>
+                <ChevronDown size={14} className="cp-caret" color={t.faint} />
+                How do I get an app password?
+                <span style={{ fontSize: 10.5, color: t.faint, marginLeft: 'auto' }}>about 2 minutes</span>
+              </summary>
+              <ol style={{ margin: 0, padding: '2px 14px 14px 36px', display: 'grid', gap: 8, fontSize: 12, lineHeight: 1.6, color: t.dim }}>
+                <li>Turn on <b style={{ color: t.text, fontWeight: 500 }}>2-Step Verification</b> for your Google account. <ExtLink t={t} href="https://myaccount.google.com/signinoptions/two-step-verification">Open 2-Step settings</ExtLink></li>
+                <li>Open <b style={{ color: t.text, fontWeight: 500 }}>App passwords</b>. <ExtLink t={t} href="https://myaccount.google.com/apppasswords">Open App passwords</ExtLink></li>
+                <li>Name it “EdgeOS” and press <b style={{ color: t.text, fontWeight: 500 }}>Create</b>.</li>
+                <li>Copy the 16-character password, paste it above, and press <b style={{ color: t.text, fontWeight: 500 }}>Save & send a test email</b>.</li>
+                <li style={{ listStyle: 'none', marginLeft: -22, color: t.faint, fontSize: 11 }}>
+                  An app password is not your Google login password, and you can revoke it from the same page at any time.
+                </li>
+              </ol>
+            </details>
+          </Section>
 
+          {/* team access */}
+          <Section {...sp} id="access" title="Team access"
+            desc="What each role can do, and how employees join their self-service portal.">
+            <SubHead t={t}>Roles & permissions</SubHead>
+            <div className="cp-legacy"><RolePermissions orgId={activeOrg.id} /></div>
+            <div style={{ height: 1, background: t.lineSoft, margin: '18px 0' }} />
+            <SubHead t={t} icon={<KeyRound size={13} />}>Employee portal join code</SubHead>
+            <div className="cp-legacy"><PortalJoinCode orgId={activeOrg.id} /></div>
+          </Section>
+
+          {/* plan */}
+          <Section {...sp} id="plan" title="Plan"
+            desc="What your current plan includes."
+            status={<StatusLine t={t} dot={plan.color}>{plan.displayName}</StatusLine>}>
             <div style={{
-              marginTop: '0.875rem', padding: '0.625rem 0.875rem',
-              background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.12)',
-              borderRadius: '8px', fontSize: '0.75rem', lineHeight: 1.55,
+              display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(${narrow ? 120 : 130}px, 1fr))`,
+              border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden',
             }}>
-              <strong style={{ color: '#3b82f6' }}>Note:</strong> App Passwords are different from your Google login password. They can be revoked anytime from the same Google page.
+              {PLAN_ROWS.map(([key, label]) => {
+                const v = plan.limits[key];
+                return (
+                  <div key={key} style={{ padding: '12px 14px', borderRight: '1px solid ' + t.lineSoft, borderBottom: '1px solid ' + t.lineSoft }}>
+                    <div style={{ fontSize: 18, fontWeight: 500, letterSpacing: '-0.03em', color: t.text }}>{v === Infinity ? '∞' : v}</div>
+                    <div style={{ fontSize: 10.5, color: t.faint, marginTop: 4 }}>{label}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <Btn onClick={() => navigate('/pricing')}>Compare plans <ArrowRight size={13} /></Btn>
+            </div>
+          </Section>
+
+          {/* account */}
+          <Section {...sp} id="account" title="Account & data"
+            desc="Your sign-in password, and a full copy of your organization’s data.">
+            <div style={{ display: 'grid', gap: 12 }}>
+              <ActionRow t={t} title="Password" note="Change the password you sign in with."
+                action={!pw.open && <Btn onClick={() => setPw((p) => ({ ...p, open: true }))}><KeyRound size={13} /> Change password</Btn>}>
+                {pw.open && (
+                  <form onSubmit={handleChangePassword} style={{ marginTop: 12 }}>
+                    {pw.error && <div style={{ marginBottom: 10 }}><Notice t={t} tone="down">{pw.error}</Notice></div>}
+                    {pw.success && <div style={{ marginBottom: 10 }}><Notice t={t} tone="up">{pw.success}</Notice></div>}
+                    <Fields narrow={narrow} cols={narrow ? 1 : 3}>
+                      <FormField t={t} label="Current password" htmlFor="cp-pw-current">
+                        <TextInput t={t} id="cp-pw-current" type="password" autoComplete="current-password" required
+                          value={pw.current} onChange={(e) => setPw((p) => ({ ...p, current: e.target.value }))} />
+                      </FormField>
+                      <FormField t={t} label="New password" htmlFor="cp-pw-next" hint="At least 6 characters">
+                        <TextInput t={t} id="cp-pw-next" type="password" autoComplete="new-password" required minLength={6}
+                          value={pw.next} onChange={(e) => setPw((p) => ({ ...p, next: e.target.value }))} />
+                      </FormField>
+                      <FormField t={t} label="Repeat new password" htmlFor="cp-pw-confirm"
+                        warn={pw.confirm && pw.next !== pw.confirm ? 'Does not match yet.' : ''}>
+                        <TextInput t={t} id="cp-pw-confirm" type="password" autoComplete="new-password" required minLength={6}
+                          value={pw.confirm} onChange={(e) => setPw((p) => ({ ...p, confirm: e.target.value }))} />
+                      </FormField>
+                    </Fields>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                      <Btn primary type="submit" disabled={pw.busy}>
+                        {pw.busy ? <><Loader size={13} className="spin-icon" /> Updating…</> : 'Update password'}
+                      </Btn>
+                      <Btn onClick={() => setPw({ open: false, current: '', next: '', confirm: '', error: '', success: '', busy: false })}>Cancel</Btn>
+                    </div>
+                  </form>
+                )}
+              </ActionRow>
+              <ActionRow t={t} title="Export all data"
+                note="One JSON file with every client, employee, document, payment and the activity log, plus 7-day links to your uploads. Email credentials are left out."
+                action={<Btn onClick={handleExport} disabled={exporting}>
+                  {exporting ? <><Loader size={13} className="spin-icon" /> Preparing…</> : <><Download size={13} /> Export</>}
+                </Btn>}>
+                {exportError && <div style={{ marginTop: 10 }}><Notice t={t} tone="down">{exportError}</Notice></div>}
+              </ActionRow>
+            </div>
+          </Section>
+
+          {/* ── save bar ───────────────────────────────────────────────── */}
+          <div aria-live="polite" style={{
+            position: 'sticky', bottom: 0, zIndex: 30, padding: '10px 0 0',
+            background: dirty || saving || saved ? `linear-gradient(to bottom, transparent, ${t.panel} 30%)` : 'transparent',
+            pointerEvents: dirty || saving || saved ? 'auto' : 'none',
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+              padding: '10px 12px 10px 16px', borderRadius: 12,
+              border: '1px solid ' + t.lineStrong, background: t.panel, boxShadow: t.shadow,
+              opacity: dirty || saving || saved ? 1 : 0,
+              transform: dirty || saving || saved ? 'none' : 'translateY(10px)',
+              transition: 'opacity .18s, transform .22s cubic-bezier(.16,1,.3,1)',
+            }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: saved && !dirty ? t.up : t.text }} />
+              <span style={{ fontSize: 12, color: t.text, flex: 1, minWidth: 140 }}>
+                {saved && !dirty ? 'Saved — new documents will use these details.' : 'You have unsaved changes'}
+                {!narrow && dirty && <span style={{ color: t.faint, marginLeft: 8, fontSize: 10.5 }}>Ctrl + S</span>}
+              </span>
+              {dirty && <Btn onClick={handleDiscard} disabled={saving}>Discard</Btn>}
+              {dirty && (
+                <Btn primary onClick={handleSave} disabled={saving}>
+                  {saving ? <><Loader size={13} className="spin-icon" /> Saving…</> : <><Check size={13} /> Save changes</>}
+                </Btn>
+              )}
             </div>
           </div>
-        </div>
-      </div>
+        </main>
 
-      {/* Roles & permissions */}
-      <div className="easy-section">
-        <div className="easy-section-head">
-          <div className="easy-num"><Key size={14} /></div>
-          <span className="easy-section-title">Roles & permissions</span>
-        </div>
-        <RolePermissions orgId={activeOrg?.id} />
-      </div>
-
-      {/* Employee portal access */}
-      <div className="easy-section">
-        <div className="easy-section-head">
-          <div className="easy-num"><KeyRound size={14} /></div>
-          <span className="easy-section-title">Employee portal access</span>
-        </div>
-        <PortalJoinCode orgId={activeOrg?.id} />
-      </div>
-
-      {/* 9. Account Settings */}
-      <div className="easy-section">
-        <div className="easy-section-head">
-          <div className="easy-num">9</div>
-          <span className="easy-section-title">Account Settings</span>
-        </div>
-        {/* Your data, in a file you keep. Admin-only, because the export
-            contains salaries and banking. */}
-        <div style={{ marginBottom: '1rem' }}>
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={exporting}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.75rem 1rem',
-              background: 'var(--bg-raised)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '10px',
-              color: 'var(--text-secondary)',
-              fontSize: '0.875rem',
-              cursor: exporting ? 'not-allowed' : 'pointer',
-              opacity: exporting ? 0.5 : 1,
-              transition: 'all 0.2s',
-            }}
-          >
-            {exporting
-              ? <><Loader size={16} className="spin-icon" /> Preparing your export…</>
-              : <><Download size={16} /> Export all my data</>}
-          </button>
-          <p style={{ margin: '0.5rem 0 0', fontSize: '0.6875rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-            A JSON file with every record in this organization — clients, employees,
-            documents, payments and the activity log — plus download links for your
-            uploaded files, valid for 7 days. Email credentials are not included.
-          </p>
-          {exportError && (
-            <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: '#ef4444', fontWeight: 600 }}>
-              {exportError}
+        {/* ── live preview ─────────────────────────────────────────────── */}
+        {wide && (
+          <aside style={{ position: 'sticky', top: 0 }} aria-label="Document preview">
+            <RailHead t={t}>PREVIEW ON A DOCUMENT</RailHead>
+            <Letterhead form={form} onJump={jumpTo} />
+            <p style={{ fontSize: 10.5, color: t.faint, lineHeight: 1.6, margin: '10px 2px 0' }}>
+              Updates as you type. Click a dashed box to fill it in.
             </p>
-          )}
-        </div>
-
-        {!showPasswordChange ? (
-          <button
-            type="button"
-            onClick={() => setShowPasswordChange(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.75rem 1rem',
-              background: 'var(--bg-raised)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '10px',
-              color: 'var(--text-secondary)',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            <Key size={16} />
-            Change Password
-          </button>
-        ) : (
-          <form onSubmit={handleChangePassword} style={{
-            background: 'var(--bg-raised)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '10px',
-            padding: '1.25rem'
-          }}>
-            {passwordError && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                padding: '0.75rem 1rem', background: 'rgba(239,68,68,0.08)',
-                border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px',
-                marginBottom: '1rem', fontSize: '0.8125rem', color: '#f87171'
-              }}>
-                <AlertCircle size={14} /> {passwordError}
-              </div>
-            )}
-            {passwordSuccess && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                padding: '0.75rem 1rem', background: 'rgba(34,197,94,0.08)',
-                border: '1px solid rgba(34,197,94,0.2)', borderRadius: '8px',
-                marginBottom: '1rem', fontSize: '0.8125rem', color: '#22c55e'
-              }}>
-                <CheckCircle size={14} /> {passwordSuccess}
-              </div>
-            )}
-            <div className="easy-row">
-              <div className="easy-field">
-                <label className="easy-lbl">Current Password</label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  required
-                  placeholder="Enter current password"
-                  className="easy-inp"
-                />
-              </div>
-              <div className="easy-field">
-                <label className="easy-lbl">New Password</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  placeholder="Enter new password"
-                  className="easy-inp"
-                />
-              </div>
-              <div className="easy-field">
-                <label className="easy-lbl">Confirm New Password</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  placeholder="Confirm new password"
-                  className="easy-inp"
-                />
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
-              <button type="submit" className="easy-submit" disabled={changingPassword}>
-                {changingPassword ? <><Loader size={14} className="spin-icon" /> Updating...</> : 'Update Password'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowPasswordChange(false);
-                  setCurrentPassword('');
-                  setNewPassword('');
-                  setConfirmPassword('');
-                  setPasswordError('');
-                }}
-                style={{
-                  padding: '0.625rem 1.25rem',
-                  background: 'var(--bg-elevated)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '10px',
-                  color: 'var(--text-secondary)',
-                  fontSize: '0.875rem',
-                  cursor: 'pointer'
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+          </aside>
         )}
       </div>
 
-      {/* Save */}
-      <button type="submit" className="easy-submit" disabled={saving}>
-        {saving ? <><Loader size={16} className="spin-icon" /> Saving...</>
-          : saved ? <><CheckCircle size={16} /> Saved</>
-          : <><Save size={16} /> Save profile</>}
+      {inShellRail && createPortal(sectionNav, railSlot)}
+
+      {editorImage && (
+        <ImageEditor imageSrc={editorImage} onSave={handleEditorSave}
+          onCancel={() => { setEditorImage(null); setEditorField(''); }} />
+      )}
+
+      <style>{`
+        .edge-page .cp-input { transition: border-color .15s, box-shadow .15s; }
+        .edge-page .cp-input:hover { border-color: ${t.lineStrong}; }
+        .edge-page .cp-input:focus { border-color: ${t.text} !important; box-shadow: 0 0 0 3px ${t.isDark ? 'rgba(255,255,255,.08)' : 'rgba(14,16,17,.08)'}; }
+        .edge-page .cp-input:focus-visible { outline: none; }
+        .edge-page .cp-input::placeholder { color: ${t.faint}; opacity: .7; }
+        .edge-page .cp-input[aria-invalid="true"] { border-color: ${t.down}; }
+        .edge-page .cp-drop:hover, .edge-page .cp-drop.over { border-color: ${t.text} !important; background: ${t.raised} !important; }
+        .edge-page .cp-rail:hover { color: ${t.text} !important; background: ${t.panelAlt} !important; }
+        .edge-page .cp-chip:hover, .edge-page .cp-iconbtn:hover { color: ${t.text} !important; }
+        .edge-page .cp-chips::-webkit-scrollbar { display: none; }
+        .edge-page .cp-details summary::-webkit-details-marker { display: none; }
+        .edge-page .cp-caret { transition: transform .18s; transform: rotate(-90deg); flex-shrink: 0; }
+        .edge-page .cp-details[open] > summary .cp-caret { transform: none; }
+        .edge-page .cp-jump:hover { border-color: #0e1011 !important; color: #0e1011 !important; }
+        .edge-page .cp-legacy { font-family: ${MONO}; }
+        .edge-page .cp-legacy table { font-family: ${MONO}; }
+        .edge-page [id^="cp-sec-"] { scroll-margin-top: ${withRail ? 8 : 60}px; }
+        @media (prefers-reduced-motion: reduce) { .edge-page * { transition: none !important; scroll-behavior: auto !important; } }
+      `}</style>
+    </Page>
+  );
+}
+
+/* ── pieces ──────────────────────────────────────────────────────────────── */
+
+function RailHead({ t, children, style }) {
+  return <div style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.faint, padding: '4px 10px 8px', ...style }}>{children}</div>;
+}
+
+function RailItem({ t, active, done, marker, onClick, children }) {
+  return (
+    <button type="button" onClick={onClick} className="cp-rail edge-navitem" aria-current={active ? 'true' : undefined} style={{
+      display: 'flex', alignItems: 'center', gap: 10, width: '100%', height: 36, padding: '0 10px',
+      borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: MONO, fontSize: 12,
+      background: active ? t.panelAlt : 'transparent', color: active ? t.text : t.dim,
+      boxShadow: active ? 'inset 2px 0 0 ' + t.text : 'none', transition: 'color .14s, background .14s',
+    }}>
+      <span style={{
+        width: 20, height: 20, borderRadius: 999, flexShrink: 0, display: 'grid', placeItems: 'center',
+        fontSize: 10, border: '1px solid ' + (done ? t.up : t.line),
+        background: done ? t.up : 'transparent', color: done ? (t.isDark ? '#050506' : '#fff') : t.faint,
+      }}>{marker}</span>
+      <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>
+      {done && <span className="sr-only" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>complete</span>}
+    </button>
+  );
+}
+
+function Section({ t, narrow, id, n, done, title, desc, status, children }) {
+  return (
+    <section id={`cp-sec-${id}`} aria-labelledby={`cp-sec-${id}-title`} style={{
+      border: '1px solid ' + t.line, borderRadius: 12, background: t.panel, minWidth: 0,
+    }}>
+      <header style={{
+        display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap',
+        padding: narrow ? '14px 14px 12px' : '16px 18px 14px', borderBottom: '1px solid ' + t.lineSoft,
+      }}>
+        {n !== undefined && (
+          <span aria-hidden="true" style={{
+            width: 24, height: 24, borderRadius: 999, flexShrink: 0, marginTop: 1, display: 'grid', placeItems: 'center',
+            fontSize: 11, border: '1px solid ' + (done ? t.up : t.lineStrong),
+            background: done ? t.up : 'transparent', color: done ? (t.isDark ? '#050506' : '#fff') : t.dim,
+          }}>{done ? <Check size={12} strokeWidth={2.6} /> : n}</span>
+        )}
+        <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+          <h2 id={`cp-sec-${id}-title`} style={{ margin: 0, fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em', color: t.text }}>
+            {title}
+            {n !== undefined && <span style={{ fontSize: 10.5, fontWeight: 400, color: done ? t.up : t.faint, marginLeft: 10 }}>{done ? 'Done' : 'To do'}</span>}
+          </h2>
+          {desc && <p style={{ margin: '4px 0 0', fontSize: 11.5, color: t.dim, lineHeight: 1.55 }}>{desc}</p>}
+        </div>
+        {status}
+      </header>
+      <div style={{ padding: narrow ? 14 : 18 }}>{children}</div>
+    </section>
+  );
+}
+
+function Fields({ children, narrow, cols = 2 }) {
+  return (
+    <div style={{ display: 'grid', gap: '14px 16px', gridTemplateColumns: narrow ? 'minmax(0,1fr)' : `repeat(${cols}, minmax(0,1fr))` }}>
+      {children}
+    </div>
+  );
+}
+
+function FormField({ t, label, required, hint, warn, htmlFor, wide, children }) {
+  const hintId = htmlFor ? `${htmlFor}-hint` : undefined;
+  return (
+    <div style={{ minWidth: 0, gridColumn: wide ? '1 / -1' : undefined }}>
+      <label htmlFor={htmlFor} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 11.5, color: t.text, marginBottom: 6 }}>
+        {label}
+        {required && <span style={{ color: t.faint, fontSize: 10.5 }}>required</span>}
+      </label>
+      {children}
+      {(warn || hint) && (
+        <div id={hintId} role={warn ? 'alert' : undefined} style={{
+          display: 'flex', gap: 5, alignItems: 'flex-start', fontSize: 10.5, lineHeight: 1.5, marginTop: 5,
+          color: warn ? t.down : t.faint,
+        }}>
+          {warn && <AlertCircle size={11} style={{ marginTop: 2, flexShrink: 0 }} />}
+          {warn || hint}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TextInput({ t, as, mono, style, ...props }) {
+  const Tag = as || 'input';
+  const warnId = props.id ? `${props.id}-hint` : undefined;
+  return (
+    <Tag
+      {...props}
+      aria-describedby={warnId}
+      className="edge-input cp-input"
+      style={{
+        width: '100%', boxSizing: 'border-box',
+        height: Tag === 'textarea' ? undefined : 40,
+        padding: Tag === 'textarea' ? '10px 12px' : '0 12px',
+        background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 8,
+        color: t.text, fontFamily: MONO, fontSize: 13, outline: 'none',
+        letterSpacing: mono ? '0.04em' : undefined,
+        resize: Tag === 'textarea' ? 'vertical' : undefined, lineHeight: 1.55,
+        ...style,
+      }}
+    />
+  );
+}
+
+function Uploader({ t, field, label, hint, url, busy, height, onFile, onEdit, onRemove }) {
+  const inputRef = useRef(null);
+  const [over, setOver] = useState(false);
+  const pick = () => inputRef.current?.click();
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ fontSize: 11.5, color: t.text, marginBottom: 6 }}>{label}</div>
+      <input ref={inputRef} type="file" accept="image/*" hidden
+        onChange={(e) => { onFile(e.target.files[0], field); e.target.value = ''; }} />
+      <button
+        type="button" onClick={pick} disabled={busy}
+        className={'cp-drop' + (over ? ' over' : '')}
+        aria-label={url ? `Replace ${label.toLowerCase()}` : `Upload ${label.toLowerCase()}`}
+        onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => { e.preventDefault(); setOver(false); onFile(e.dataTransfer.files[0], field); }}
+        style={{
+          width: '100%', minHeight: height + 40, padding: 14, borderRadius: 10, cursor: busy ? 'wait' : 'pointer',
+          border: '1.5px dashed ' + (url ? t.line : t.lineStrong),
+          background: url ? '#ffffff' : t.panelAlt, fontFamily: MONO,
+          display: 'grid', placeItems: 'center', gap: 6, transition: 'border-color .15s, background .15s',
+        }}
+      >
+        {busy ? (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: url ? '#6b7275' : t.dim }}>
+            <Loader size={14} className="spin-icon" /> Uploading…
+          </span>
+        ) : url ? (
+          <img src={url} alt={label} style={{ maxHeight: height, maxWidth: '100%', objectFit: 'contain' }} />
+        ) : (
+          <>
+            <Upload size={18} strokeWidth={1.7} color={t.dim} />
+            <span style={{ fontSize: 12, color: t.text }}>Click to choose, or drop an image</span>
+          </>
+        )}
       </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+        {url ? (
+          <>
+            <Btn size="sm" onClick={onEdit} disabled={busy}><Pencil size={11} /> Crop & adjust</Btn>
+            <Btn size="sm" onClick={pick} disabled={busy}><Upload size={11} /> Replace</Btn>
+            <Btn size="sm" danger onClick={() => onRemove(field)} disabled={busy}><Trash2 size={11} /> Remove</Btn>
+          </>
+        ) : (
+          <span style={{ fontSize: 10.5, color: t.faint, lineHeight: 1.5 }}>{hint}</span>
+        )}
+      </div>
+    </div>
+  );
+}
 
-    </form>
+function StatusLine({ t, ok, dot, children }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11, color: t.dim,
+      padding: '5px 10px', borderRadius: 999, border: '1px solid ' + t.line, background: t.panelAlt,
+      maxWidth: '100%', minWidth: 0,
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: dot || (ok ? t.up : t.ghost) }} />
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{children}</span>
+    </span>
+  );
+}
 
-    {editorImage && (
-      <ImageEditor
-        imageSrc={editorImage}
-        onSave={handleEditorSave}
-        onCancel={handleEditorCancel}
-      />
-    )}
-    </>
+function Notice({ t, tone, children, onClose }) {
+  const color = tone === 'up' ? t.up : t.down;
+  return (
+    <div role={tone === 'down' ? 'alert' : 'status'} style={{
+      display: 'flex', alignItems: 'flex-start', gap: 9, padding: '10px 12px', borderRadius: 9,
+      border: '1px solid ' + t.line, borderLeft: '3px solid ' + color, background: t.panelAlt,
+      fontSize: 12, lineHeight: 1.5, color: t.text,
+    }}>
+      {tone === 'up'
+        ? <Check size={14} color={color} style={{ marginTop: 2, flexShrink: 0 }} />
+        : <XCircle size={14} color={color} style={{ marginTop: 2, flexShrink: 0 }} />}
+      <span style={{ flex: 1, minWidth: 0 }}>{children}</span>
+      {onClose && (
+        <button type="button" onClick={onClose} aria-label="Dismiss" className="cp-iconbtn" style={{
+          border: 'none', background: 'transparent', color: t.faint, cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: '0 2px',
+        }}>×</button>
+      )}
+    </div>
+  );
+}
+
+function SubHead({ t, icon, children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: t.text, marginBottom: 10 }}>
+      {icon && <span style={{ color: t.faint, display: 'grid' }}>{icon}</span>}
+      {children}
+    </div>
+  );
+}
+
+function ActionRow({ t, title, note, action, children }) {
+  return (
+    <div style={{ border: '1px solid ' + t.lineSoft, borderRadius: 10, padding: '12px 14px', background: t.panelAlt }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+          <div style={{ fontSize: 12.5, color: t.text }}>{title}</div>
+          <div style={{ fontSize: 11, color: t.faint, marginTop: 3, lineHeight: 1.55 }}>{note}</div>
+        </div>
+        {action}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function ExtLink({ t, href, children }) {
+  return (
+    <a href={href} target="_blank" rel="noreferrer" style={{
+      color: t.text, textDecoration: 'underline', textUnderlineOffset: 3, textDecorationColor: t.lineStrong,
+      display: 'inline-flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap',
+    }}>
+      {children} <ExternalLink size={10} />
+    </a>
+  );
+}
+
+function Gap({ label, onClick, style }) {
+  return (
+    <button type="button" onClick={onClick} className="cp-jump" style={{
+      border: '1px dashed #c2c9cc', borderRadius: 6, background: 'transparent', color: '#959c9f',
+      fontFamily: MONO, fontSize: 9.5, cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 4, ...style,
+    }}>+ {label}</button>
+  );
+}
+
+/* A miniature of the letterhead and sign-off every document is built from.
+   Always paper-white, because that is what the recipient sees. Anything still
+   missing is a dashed box that jumps to the field that fills it. */
+function Letterhead({ form, onJump }) {
+  const ink = '#0e1011';
+  const soft = '#6b7275';
+  const rule = '#e3e6e7';
+  const contact = [form.company_email, form.company_phone, form.company_website].filter(Boolean).join('  ·  ');
+  const stamp = form.stamp_type === 'uploaded'
+    ? (form.stamp_url ? <img src={form.stamp_url} alt="" style={{ width: 70, height: 70, objectFit: 'contain' }} /> : <Gap label="Stamp" onClick={() => onJump('stamp')} style={{ width: 70, height: 70, borderRadius: 999 }} />)
+    : <div style={{ opacity: 0.9 }}><StampPreview companyName={form.company_name} city={form.stamp_city} size={70} /></div>;
+
+  return (
+    <div style={{
+      background: '#ffffff', color: ink, borderRadius: 10, border: '1px solid ' + rule,
+      padding: 18, fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif",
+      boxShadow: '0 12px 30px -18px rgba(20,28,32,.35)', aspectRatio: '1 / 1.3', display: 'flex', flexDirection: 'column',
+      maxWidth: 420,
+    }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        {form.logo_url
+          ? <img src={form.logo_url} alt="" style={{ width: 48, height: 48, objectFit: 'contain', flexShrink: 0 }} />
+          : <Gap label="Logo" onClick={() => onJump('branding')} style={{ width: 48, height: 48, flexShrink: 0 }} />}
+        <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.25, wordBreak: 'break-word' }}>
+            {form.company_name || <span style={{ color: '#c2c9cc' }}>Company name</span>}
+          </div>
+          {form.company_tagline && <div style={{ fontSize: 9, color: soft, marginTop: 2, fontStyle: 'italic' }}>{form.company_tagline}</div>}
+          <div style={{ fontSize: 8.5, color: soft, marginTop: 5, lineHeight: 1.5, whiteSpace: 'pre-line' }}>
+            {form.company_address || <button type="button" onClick={() => onJump('company', 'company_address')} className="cp-jump" style={{ border: 'none', background: 'none', padding: 0, color: '#959c9f', fontSize: 8.5, cursor: 'pointer', fontFamily: MONO }}>+ Address</button>}
+          </div>
+          {contact && <div style={{ fontSize: 8, color: soft, marginTop: 3, wordBreak: 'break-word' }}>{contact}</div>}
+          {form.gstin && <div style={{ fontSize: 8, color: soft, marginTop: 2 }}>GSTIN {form.gstin}</div>}
+        </div>
+      </div>
+      <div style={{ height: 2, background: ink, margin: '12px 0 14px' }} />
+      <div style={{ display: 'grid', gap: 7, flex: 1, alignContent: 'start' }}>
+        {[62, 100, 94, 100, 78, 0, 100, 88, 55].map((w, i) => (
+          <div key={i} style={{ height: w ? 5 : 4, width: w + '%', borderRadius: 3, background: '#eef0f1' }} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          {form.signature_url
+            ? <img src={form.signature_url} alt="" style={{ height: 34, maxWidth: 130, objectFit: 'contain', display: 'block' }} />
+            : <Gap label="Signature" onClick={() => onJump('branding')} style={{ width: 120, height: 34 }} />}
+          <div style={{ width: 130, height: 1, background: ink, margin: '4px 0 5px' }} />
+          <div style={{ fontSize: 9.5, fontWeight: 600 }}>{form.owner_full_name || <span style={{ color: '#c2c9cc' }}>Signatory name</span>}</div>
+          <div style={{ fontSize: 8.5, color: soft }}>{form.document_designation || 'Title'}</div>
+        </div>
+        {stamp}
+      </div>
+      {form.upi_id && (
+        <div style={{ marginTop: 10, paddingTop: 7, borderTop: '1px solid ' + rule, fontSize: 8, color: soft }}>
+          Pay via UPI · {form.upi_id}
+        </div>
+      )}
+    </div>
   );
 }

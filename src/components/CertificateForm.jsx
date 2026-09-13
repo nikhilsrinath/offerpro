@@ -83,11 +83,11 @@ export default function CertificateForm() {
             <div className="easy-row">
               <div className="easy-field full">
                 <label className="easy-lbl">Full name</label>
-                <input name="recipientName" value={formData.recipientName} onChange={handleChange} required placeholder="Jane Smith" className="easy-inp" />
+                <input aria-label="Full name" name="recipientName" value={formData.recipientName} onChange={handleChange} required placeholder="Jane Smith" className="easy-inp" />
               </div>
               <div className="easy-field full">
                 <label className="easy-lbl">Achievement / certification title</label>
-                <input name="achievementTitle" value={formData.achievementTitle} onChange={handleChange} required placeholder="Certificate of Excellence in React Development" className="easy-inp" />
+                <input aria-label="Achievement / certification title" name="achievementTitle" value={formData.achievementTitle} onChange={handleChange} required placeholder="Certificate of Excellence in React Development" className="easy-inp" />
               </div>
             </div>
           </div>
@@ -101,16 +101,16 @@ export default function CertificateForm() {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Organization name</label>
-                <input name="issuingOrganization" value={formData.issuingOrganization} onChange={handleChange} required placeholder="Acme Academy" className="easy-inp" />
+                <input aria-label="Organization name" name="issuingOrganization" value={formData.issuingOrganization} onChange={handleChange} required placeholder="Acme Academy" className="easy-inp" />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Issue date</label>
-                <input type="date" name="issueDate" value={formData.issueDate} onChange={handleChange} required className="easy-inp" />
+                <input aria-label="Issue date" type="date" name="issueDate" value={formData.issueDate} onChange={handleChange} required className="easy-inp" />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Organization logo</label>
                 <div className="easy-upload-wrap">
-                  <input type="file" onChange={(e) => handleFileUpload(e, 'logo')} accept="image/*" />
+                  <input aria-label="Organization logo" type="file" onChange={(e) => handleFileUpload(e, 'logo')} accept="image/*" />
                   <div className={`easy-upload ${formData.logo ? 'done' : ''}`}>
                     {formData.logo ? <><CheckCircle size={16} /> Logo uploaded</> : <><Upload size={16} /> Choose file</>}
                   </div>
@@ -118,7 +118,7 @@ export default function CertificateForm() {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Description</label>
-                <textarea name="description" value={formData.description} onChange={handleChange} required placeholder="For outstanding performance..." rows="2" className="easy-inp" style={{ resize: 'none' }} />
+                <textarea aria-label="Description" name="description" value={formData.description} onChange={handleChange} required placeholder="For outstanding performance..." rows="2" className="easy-inp" style={{ resize: 'none' }} />
               </div>
             </div>
           </div>
@@ -132,16 +132,16 @@ export default function CertificateForm() {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Signatory name</label>
-                <input name="authorizedSignatory" value={formData.authorizedSignatory} onChange={handleChange} required placeholder="Dr. Robert Johnson" className="easy-inp" />
+                <input aria-label="Signatory name" name="authorizedSignatory" value={formData.authorizedSignatory} onChange={handleChange} required placeholder="Dr. Robert Johnson" className="easy-inp" />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Designation</label>
-                <input name="signatoryDesignation" value={formData.signatoryDesignation} onChange={handleChange} required placeholder="Program Director" className="easy-inp" />
+                <input aria-label="Designation" name="signatoryDesignation" value={formData.signatoryDesignation} onChange={handleChange} required placeholder="Program Director" className="easy-inp" />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Signature</label>
                 <div className="easy-upload-wrap">
-                  <input type="file" onChange={(e) => handleFileUpload(e, 'signature')} accept="image/*" />
+                  <input aria-label="Signature" type="file" onChange={(e) => handleFileUpload(e, 'signature')} accept="image/*" />
                   <div className={`easy-upload ${formData.signature ? 'done' : ''}`}>
                     {formData.signature ? <><CheckCircle size={16} /> Signature uploaded</> : <><Upload size={16} /> Choose file</>}
                   </div>

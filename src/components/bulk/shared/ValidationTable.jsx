@@ -1,183 +1,153 @@
 import React, { useState } from 'react';
-import { CheckCircle2, XCircle, AlertTriangle, Edit3 } from 'lucide-react';
+import { Btn, Seg, Status, Empty } from '../../ui/edge';
+import { MONO, useT } from '../../ui/edgeUtils';
 
+const ROWS_PER_PAGE = 50;
+
+const label = (col) => col.replace(/_/g, ' ');
+
+/* The uploaded rows, checked against the page's rules, with every cell
+   editable in place. A cell is a button until it is being edited, so it can be
+   reached with Tab and opened with Enter; Enter saves, Escape cancels. */
 export default function ValidationTable({ data, columns, onEdit, validationConfig }) {
+    const t = useT();
     const [editingCell, setEditingCell] = useState(null); // { rowIdx, colKey }
     const [editValue, setEditValue] = useState('');
-    const [filter, setFilter] = useState('All'); // 'All', 'Valid', 'Invalid', 'Warnings'
+    const [filter, setFilter] = useState('All');
     const [page, setPage] = useState(0);
-    const rowsPerPage = 50;
 
-    // Run validation on all data
     const validatedData = data.map((row, idx) => {
         const errors = [];
-        const warnings = [];
-
         if (validationConfig) {
-            Object.keys(validationConfig).forEach(col => {
+            Object.keys(validationConfig).forEach((col) => {
                 const val = row[col] || '';
                 const rules = validationConfig[col];
-                if (rules.required && !val.toString().trim()) {
-                    errors.push(`${col} is required`);
-                }
-                if (rules.email && val && !/^\S+@\S+\.\S+$/.test(val)) {
-                    errors.push(`Invalid email format for ${col}`);
-                }
+                if (rules.required && !val.toString().trim()) errors.push(`${label(col)} is required`);
+                if (rules.email && val && !/^\S+@\S+\.\S+$/.test(val)) errors.push(`${label(col)} is not a valid email`);
                 if (rules.validate) {
                     const customError = rules.validate(val, row);
                     if (customError) errors.push(customError);
                 }
             });
         }
-
-        return {
-            ...row,
-            __index: idx,
-            __isValid: errors.length === 0,
-            __errors: errors,
-            __warnings: warnings
-        };
+        return { row, idx, errors, isValid: errors.length === 0 };
     });
 
-    const validCount = validatedData.filter(r => r.__isValid).length;
+    const validCount = validatedData.filter((r) => r.isValid).length;
     const invalidCount = validatedData.length - validCount;
 
-    const filteredData = validatedData.filter(row => {
-        if (filter === 'Valid') return row.__isValid;
-        if (filter === 'Invalid') return !row.__isValid;
-        if (filter === 'Warnings') return row.__warnings.length > 0;
+    const filteredData = validatedData.filter((r) => {
+        if (filter === 'Valid') return r.isValid;
+        if (filter === 'Invalid') return !r.isValid;
         return true;
     });
+    const pageCount = Math.max(1, Math.ceil(filteredData.length / ROWS_PER_PAGE));
+    const paginatedData = filteredData.slice(page * ROWS_PER_PAGE, (page + 1) * ROWS_PER_PAGE);
 
-    const paginatedData = filteredData.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
-
-    const handleEditClick = (rowIdx, colKey, val) => {
+    const startEdit = (rowIdx, colKey, val) => {
         setEditingCell({ rowIdx, colKey });
-        setEditValue(val || '');
+        setEditValue(val ?? '');
     };
 
-    const handleEditSave = () => {
-        if (editingCell) {
-            onEdit(editingCell.rowIdx, editingCell.colKey, editValue);
-            setEditingCell(null);
-        }
+    const saveEdit = () => {
+        if (!editingCell) return;
+        onEdit(editingCell.rowIdx, editingCell.colKey, editValue);
+        setEditingCell(null);
     };
 
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter') handleEditSave();
-        if (e.key === 'Escape') setEditingCell(null);
+    const onEditKey = (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); saveEdit(); }
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setEditingCell(null); }
+    };
+
+    const th = {
+        textAlign: 'left', padding: '9px 12px', fontSize: 9.5, letterSpacing: '0.09em', fontWeight: 400,
+        color: t.faint, borderBottom: '1px solid ' + t.line, whiteSpace: 'nowrap',
+        position: 'sticky', top: 0, background: t.panel, zIndex: 1,
     };
 
     return (
-        <div className="bulk-validation-table-container">
-            {/* Table Header Controls */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {['All', 'Valid', 'Invalid', 'Warnings'].map(f => (
-                        <button
-                            key={f}
-                            onClick={() => { setFilter(f); setPage(0); }}
-                            className={`bulk-filter-btn ${filter === f ? 'active' : ''}`}
-                            style={{
-                                background: filter === f ? 'var(--surface)' : 'transparent',
-                                border: `1px solid ${filter === f ? 'var(--blue)' : 'var(--border)'}`,
-                                color: filter === f ? 'var(--blue)' : 'var(--text-secondary)',
-                                padding: '0.4rem 1rem',
-                                borderRadius: '99px',
-                                fontSize: '0.8125rem',
-                                fontWeight: 600,
-                                cursor: 'pointer'
-                            }}
-                        >
-                            {f}
-                        </button>
-                    ))}
-                </div>
-                <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                    <span style={{ color: 'var(--success)' }}>{validCount} valid</span> &middot;{' '}
-                    <span style={{ color: invalidCount > 0 ? 'var(--error)' : 'inherit' }}>{invalidCount} invalid</span> &middot;{' '}
-                    {data.length} total
-                </div>
+        <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+                <Seg size="sm" label="Show rows" value={filter} onChange={(v) => { setFilter(v); setPage(0); }} options={[
+                    { id: 'All', label: 'All', count: data.length },
+                    { id: 'Valid', label: 'Valid', count: validCount },
+                    { id: 'Invalid', label: 'Invalid', count: invalidCount },
+                ]} />
+                <div style={{ flex: 1 }} />
+                <span role="status" style={{ fontSize: 10.5, color: t.faint }}>
+                    {validCount} valid · {invalidCount} need attention · {data.length} total
+                </span>
             </div>
 
-            {/* Actual Table */}
-            <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--surface)', maxHeight: '600px', overflowY: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-                    <thead style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 10 }}>
+            <div className="edge-scroll" style={{ overflow: 'auto', maxHeight: 520, border: '1px solid ' + t.line, borderRadius: 10 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO }}>
+                    <caption style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
+                        Uploaded rows. Select a cell to edit it.
+                    </caption>
+                    <thead>
                         <tr>
-                            <th style={{ padding: '1rem', borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', fontWeight: 600 }}>Status</th>
-                            {columns.map(col => (
-                                <th key={col} style={{ padding: '1rem', borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                                    {col.replace(/_/g, ' ').toUpperCase()}
-                                </th>
+                            <th scope="col" style={th}>STATUS</th>
+                            {columns.map((col) => (
+                                <th key={col} scope="col" style={th}>{label(col).toUpperCase()}</th>
                             ))}
                         </tr>
                     </thead>
                     <tbody>
-                        {paginatedData.map((row) => (
-                            <tr
-                                key={row.__index}
-                                style={{
-                                    borderBottom: '1px solid var(--border)',
-                                    background: !row.__isValid ? 'rgba(231, 76, 60, 0.05)' : 'transparent'
-                                }}
-                            >
-                                <td style={{ padding: '1rem', whiteSpace: 'nowrap' }}>
-                                    {!row.__isValid ? (
-                                        <div title={row.__errors.join(', ')} style={{ color: 'var(--error)', display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'help' }}>
-                                            <XCircle size={18} fill="rgba(231,76,60,0.1)" /> <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Invalid</span>
-                                        </div>
-                                    ) : row.__warnings.length > 0 ? (
-                                        <div title={row.__warnings.join(', ')} style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'help' }}>
-                                            <AlertTriangle size={18} fill="rgba(245,158,11,0.1)" /> <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Warning</span>
-                                        </div>
-                                    ) : (
-                                        <div style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                            <CheckCircle2 size={18} fill="rgba(46,232,160,0.1)" />
-                                        </div>
-                                    )}
+                        {paginatedData.map(({ row, idx, errors, isValid }) => (
+                            <tr key={idx} style={{ background: isValid ? undefined : t.panelAlt }}>
+                                <td style={{ padding: '8px 12px', borderBottom: '1px solid ' + t.lineSoft, whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                                    {isValid
+                                        ? <Status tone="up">Valid</Status>
+                                        : (
+                                            <span title={errors.join(', ')}>
+                                                <Status tone="down">Invalid</Status>
+                                                <span style={{ display: 'block', fontSize: 9.5, color: t.dim, marginTop: 3, whiteSpace: 'normal', maxWidth: 180 }}>
+                                                    {errors.join('; ')}
+                                                </span>
+                                            </span>
+                                        )}
                                 </td>
-
-                                {columns.map(col => {
-                                    const isEditing = editingCell?.rowIdx === row.__index && editingCell?.colKey === col;
-                                    const hasError = !row.__isValid && row.__errors.some(e => e.includes(col));
-
+                                {columns.map((col) => {
+                                    const isEditing = editingCell?.rowIdx === idx && editingCell?.colKey === col;
+                                    const hasError = errors.some((e) => e.startsWith(label(col)));
+                                    const value = row[col];
                                     return (
-                                        <td
-                                            key={col}
-                                            onClick={() => !isEditing && handleEditClick(row.__index, col, row[col])}
-                                            style={{
-                                                padding: '0.75rem 1rem',
-                                                cursor: 'text',
-                                                position: 'relative',
-                                                color: hasError ? 'var(--error)' : 'var(--text-primary)',
-                                                borderLeft: hasError ? '2px solid var(--error)' : 'none'
-                                            }}
-                                            className="bulk-editable-cell"
-                                        >
+                                        <td key={col} style={{
+                                            padding: 3, borderBottom: '1px solid ' + t.lineSoft,
+                                            boxShadow: hasError ? 'inset 2px 0 0 ' + t.down : 'none',
+                                        }}>
                                             {isEditing ? (
                                                 <input
                                                     autoFocus
+                                                    aria-label={`${label(col)}, row ${idx + 1}`}
                                                     value={editValue}
-                                                    onChange={e => setEditValue(e.target.value)}
-                                                    onBlur={handleEditSave}
-                                                    onKeyDown={handleKeyDown}
+                                                    onChange={(e) => setEditValue(e.target.value)}
+                                                    onBlur={saveEdit}
+                                                    onKeyDown={onEditKey}
+                                                    className="edge-input"
                                                     style={{
-                                                        width: '100%',
-                                                        background: 'var(--background)',
-                                                        border: '1px solid var(--blue)',
-                                                        color: 'var(--text-primary)',
-                                                        padding: '0.25rem 0.5rem',
-                                                        borderRadius: '4px',
-                                                        outline: 'none',
-                                                        fontSize: '0.875rem'
+                                                        width: '100%', minWidth: 120, height: 30, boxSizing: 'border-box', padding: '0 8px',
+                                                        background: t.panel, border: '1px solid ' + t.text, borderRadius: 6,
+                                                        color: t.text, fontFamily: MONO, fontSize: 11.5,
                                                     }}
                                                 />
                                             ) : (
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                    {row[col] || <span style={{ opacity: 0.3 }}>-</span>}
-                                                    <Edit3 size={12} className="edit-icon" style={{ opacity: 0 }} />
-                                                </div>
+                                                <button
+                                                    type="button"
+                                                    className="edge-cell"
+                                                    onClick={() => startEdit(idx, col, value)}
+                                                    aria-label={`${label(col)}, row ${idx + 1}: ${value || 'empty'}${hasError ? ', has an error' : ''}. Edit`}
+                                                    style={{
+                                                        display: 'block', width: '100%', minHeight: 30, maxWidth: 220, textAlign: 'left',
+                                                        padding: '0 9px', border: '1px solid transparent', borderRadius: 6,
+                                                        background: 'transparent', cursor: 'text', fontFamily: MONO, fontSize: 11.5,
+                                                        color: hasError ? t.down : t.text,
+                                                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                                    }}
+                                                >
+                                                    {value || <span style={{ color: t.faint }}>—</span>}
+                                                </button>
                                             )}
                                         </td>
                                     );
@@ -186,44 +156,20 @@ export default function ValidationTable({ data, columns, onEdit, validationConfi
                         ))}
                     </tbody>
                 </table>
-
-                {paginatedData.length === 0 && (
-                    <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                        <p>No records found for the current filter.</p>
-                    </div>
-                )}
+                {paginatedData.length === 0 && <Empty>No rows match this filter.</Empty>}
             </div>
 
-            {/* Pagination */}
-            {filteredData.length > rowsPerPage && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', fontSize: '0.875rem' }}>
-                    <button
-                        disabled={page === 0}
-                        onClick={() => setPage(p => p - 1)}
-                        className="btn-secondary"
-                        style={{ padding: '0.4rem 1rem', borderRadius: '6px' }}
-                    >
-                        Previous
-                    </button>
-                    <span style={{ color: 'var(--text-muted)' }}>
-                        Page {page + 1} of {Math.ceil(filteredData.length / rowsPerPage)}
-                    </span>
-                    <button
-                        disabled={(page + 1) * rowsPerPage >= filteredData.length}
-                        onClick={() => setPage(p => p + 1)}
-                        className="btn-secondary"
-                        style={{ padding: '0.4rem 1rem', borderRadius: '6px' }}
-                    >
-                        Next
-                    </button>
-                </div>
+            {filteredData.length > ROWS_PER_PAGE && (
+                <nav aria-label="Rows pages" style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+                    <Btn size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>Previous</Btn>
+                    <span style={{ fontSize: 10.5, color: t.faint }} aria-live="polite">Page {page + 1} of {pageCount}</span>
+                    <Btn size="sm" disabled={page + 1 >= pageCount} onClick={() => setPage((p) => p + 1)}>Next</Btn>
+                </nav>
             )}
 
-            {/* Minimal CSS for hover states */}
             <style>{`
-        .bulk-editable-cell:hover { background: rgba(255,255,255,0.02); }
-        .bulk-editable-cell:hover .edit-icon { opacity: 0.5 !important; }
-      `}</style>
+                .edge-page .edge-cell:hover { border-color: ${t.line} !important; background: ${t.panel} !important; }
+            `}</style>
         </div>
     );
 }

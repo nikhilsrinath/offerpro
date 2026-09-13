@@ -1,12 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-    Search, UserPlus, Trash2, Mail, Phone, Calendar,
-    Briefcase, LayoutGrid, List, Users, Building,
-    Plus, X, ArrowLeft, Copy, Check, Loader,
-    AlertTriangle, TrendingUp, ExternalLink, Shield,
-    ChevronRight, KeyRound,
-} from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
 import { createPortalLink } from '../services/portalService';
@@ -18,18 +11,38 @@ import EmployeeForm from './EmployeeForm';
 import AccessRolePicker from './settings/AccessRolePicker';
 import { EmployeePhotoFill } from './shared/EmployeeAvatar';
 import { portalAccessService } from '../services/portalAccessService';
+import {
+    Page, Toolbar, Panel, Grid, Row, Btn, Seg, Search, Field, Input, Select, Textarea,
+    Table, Tr, Td, Avatar, Status, Bar, Breakdown, StatBand, Empty, Loading, Modal,
+    ConfirmBtn, Muted, Label,
+} from './ui/edge';
+import { useT, fmtDate, MONO } from './ui/edgeUtils';
+import { Mail, Phone } from 'lucide-react';
+import EmployeeWorkInsights from './people/EmployeeWorkInsights';
+import { PhotoPortrait } from './portal/me/portalKit';
+import { tenureLabel, daysUntilBirthday, useWindowWidth } from './portal/me/portalUtils';
 
-const AVATAR_COLORS = [
-    ['#3b82f6', '#2563eb'], ['#8b5cf6', '#7c3aed'], ['#10b981', '#059669'],
-    ['#f59e0b', '#d97706'], ['#ec4899', '#db2777'], ['#14b8a6', '#0d9488'],
-    ['#ef4444', '#dc2626'], ['#06b6d4', '#0891b2'],
-];
+/* ══════════════════════════════════════════════════════════════════════════
+   Employee registry.
 
-function getAvatarColor(name) {
-    let hash = 0;
-    for (let i = 0; i < (name || '').length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
+   Two views over one list: a table for scanning many people and reading a
+   column, and cards for browsing when you are looking for a face rather than
+   a field. Departments are a filter you click, not a modal you open — and the
+   department editor is a panel beside the list rather than on top of it.
+
+   Everything a single person needs (portal login, role change, exit) is inside
+   that person's sheet, in the order you would actually do it, instead of a row
+   of icon buttons whose meanings have to be learned.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const TYPE_LABEL = {
+    fulltime: 'Full-time',
+    parttime: 'Part-time',
+    internship: 'Intern',
+    intern: 'Intern',
+    contract: 'Contract',
+    collaboration: 'Contract',
+};
 
 function getDisplayName(emp) {
     if (emp.studentName) return emp.studentName;
@@ -39,12 +52,30 @@ function getDisplayName(emp) {
     return '';
 }
 
-// ── Employee Detail Modal ────────────────────────────────────────────────────
-function PortalAccessPanel({ emp, orgId }) {
-    const [row, setRow] = useState(null);        // from employee_portal_state
+function deptColor(name, departments) {
+    if (!name) return null;
+    const fb = departments.find((d) => d.name === name);
+    if (fb?.color) return fb.color;
+    const h = [...name].reduce((a, c) => c.charCodeAt(0) + ((a << 5) - a), 0);
+    return DEPT_PALETTE[Math.abs(h) % DEPT_PALETTE.length];
+}
+
+/* ── portal access ────────────────────────────────────────────────────────── */
+
+const ACCESS_LABEL = {
+    active: 'Can sign in',
+    invited: 'Invitation sent',
+    revoked: 'Access turned off',
+    none: 'No login yet',
+    unknown: 'Checking…',
+};
+
+function PortalAccess({ emp, orgId }) {
+    const t = useT();
+    const [row, setRow] = useState(null);
     const [state, setState] = useState('unknown');
     const [busy, setBusy] = useState(false);
-    const [creds, setCreds] = useState(null);    // { email, password } — in memory only
+    const [creds, setCreds] = useState(null);   // in memory only, never stored
     const [note, setNote] = useState('');
     const [error, setError] = useState('');
     const [copied, setCopied] = useState('');
@@ -57,62 +88,36 @@ function PortalAccessPanel({ emp, orgId }) {
                 setRow(r);
                 setState(r?.state || (emp.user_id ? 'active' : 'none'));
             })
-            // Reading the state needs no special right, but if it fails there is
-            // nothing useful to claim — offer the action and let it speak.
             .catch(() => setState(emp.user_id ? 'active' : 'none'));
     }, [orgId, emp.id, emp.user_id]);
 
     useEffect(load, [load]);
 
-    const create = async () => {
+    const run = async (fn) => {
         setBusy(true); setError(''); setNote('');
-        try {
-            const res = await portalAccessService.createLogin(emp.id);
-            if (res.outcome === 'created') {
-                setCreds({ email: res.email, password: res.password });
-            } else if (res.outcome === 'linked') {
-                setNote(`${res.email} already has an EdgeOS login. They sign in with the password they already use — there is nothing to hand over.`);
-            } else {
-                setNote('They already have portal access.');
-            }
-            load();
-        } catch (err) {
-            setError(err.message || 'Could not create the login.');
-        } finally {
-            setBusy(false);
-        }
+        try { await fn(); load(); }
+        catch (err) { setError(err.message || 'That did not work.'); }
+        finally { setBusy(false); }
     };
 
-    const reset = async () => {
-        if (!window.confirm('Generate a new password? The current one stops working immediately.')) return;
-        setBusy(true); setError(''); setNote('');
-        try {
-            const password = await portalAccessService.resetPassword(emp.id);
-            setCreds({ email: emp.email, password });
-            load();
-        } catch (err) {
-            setError(err.message || 'Could not reset the password.');
-        } finally {
-            setBusy(false);
-        }
-    };
+    const create = () => run(async () => {
+        const res = await portalAccessService.createLogin(emp.id);
+        if (res.outcome === 'created') setCreds({ email: res.email, password: res.password });
+        else if (res.outcome === 'linked') setNote(`${res.email} already has an EdgeOS login — they sign in with the password they already use, so there is nothing to hand over.`);
+        else setNote('They already have portal access.');
+    });
 
-    const revoke = async () => {
-        if (!window.confirm('Turn off this login? They stay on the team; they just cannot sign in.')) return;
-        setBusy(true); setError(''); setNote('');
-        try {
-            await portalAccessService.revokeLogin(emp.id);
-            setCreds(null);
-            load();
-        } catch (err) {
-            setError(err.message || 'Could not turn the login off.');
-        } finally {
-            setBusy(false);
-        }
-    };
+    const reset = () => run(async () => {
+        const password = await portalAccessService.resetPassword(emp.id);
+        setCreds({ email: emp.email, password });
+    });
 
-    // One paste for a chat window: where to go, who to sign in as, what to type.
-    const handoverText = () => [
+    const revoke = () => run(async () => {
+        await portalAccessService.revokeLogin(emp.id);
+        setCreds(null);
+    });
+
+    const handover = () => [
         'Your employee portal is ready.',
         `Sign in at: ${window.location.origin}/login`,
         `Email: ${creds.email}`,
@@ -126,661 +131,470 @@ function PortalAccessPanel({ emp, orgId }) {
         setTimeout(() => setCopied(''), 2000);
     };
 
-    const LABEL = {
-        active:  'Can sign in',
-        invited: 'Invitation sent',
-        revoked: 'Access turned off',
-        none:    'No login yet',
-        unknown: 'Checking…',
-    };
-
     return (
-        <div style={{ padding: '0.6rem 0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.67rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    Employee portal
-                </span>
-                {state !== 'unknown' && (
-                    <span className={`pa-state ${state}`}>
-                        <KeyRound size={11} /> {LABEL[state]}
-                    </span>
-                )}
-            </div>
-
-            {/* Shown once. Nothing stores this password, so this panel is the only
-                place it will ever exist — say so rather than let them find out. */}
+        <Panel title="Portal login" note={state !== 'unknown' ? ACCESS_LABEL[state] : undefined} pad={13}>
             {creds && (
-                <div className="pa-creds">
-                    <div className="pa-creds-row"><span>Email</span><code>{creds.email}</code></div>
-                    <div className="pa-creds-row"><span>Password</span><code>{creds.password}</code></div>
-                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.45rem' }}>
-                        <button type="button" className="prod-btn-primary" onClick={() => copy('all', handoverText())}>
-                            {copied === 'all' ? <Check size={13} /> : <Copy size={13} />}
-                            {copied === 'all' ? 'Copied' : 'Copy message to send'}
-                        </button>
-                        <button type="button" className="prod-btn-ghost" onClick={() => copy('pw', creds.password)}>
-                            {copied === 'pw' ? <Check size={13} /> : <Copy size={13} />} Copy password
-                        </button>
-                        <button type="button" className="prod-btn-ghost" onClick={() => setCreds(null)}>Done</button>
+                <div style={{
+                    border: '1px solid ' + t.lineStrong, borderRadius: 8,
+                    padding: 11, marginBottom: 11, background: t.panelAlt,
+                }}>
+                    <div style={{ display: 'grid', gap: 6, marginBottom: 10 }}>
+                        <Row><span style={{ width: 62, flexShrink: 0 }}><Label>EMAIL</Label></span>
+                            <code style={{ fontSize: 11, color: t.text, wordBreak: 'break-all' }}>{creds.email}</code></Row>
+                        <Row><span style={{ width: 62, flexShrink: 0 }}><Label>PASSWORD</Label></span>
+                            <code style={{ fontSize: 11, color: t.text }}>{creds.password}</code></Row>
                     </div>
-                    <div className="pa-creds-warn">
-                        <AlertTriangle size={12} /> Shown once. Nothing stores this password — if it is
-                        lost, generate a new one.
+                    <Row wrap gap={7}>
+                        <Btn size="sm" primary onClick={() => copy('all', handover())}>
+                            {copied === 'all' ? 'Copied' : 'Copy message to send'}
+                        </Btn>
+                        <Btn size="sm" onClick={() => copy('pw', creds.password)}>
+                            {copied === 'pw' ? 'Copied' : 'Copy password'}
+                        </Btn>
+                        <Btn size="sm" onClick={() => setCreds(null)}>Done</Btn>
+                    </Row>
+                    <div style={{ fontSize: 10, color: t.down, marginTop: 9, lineHeight: 1.6 }}>
+                        Shown once. Nothing stores this password — if it is lost, generate a new one.
                     </div>
                 </div>
             )}
 
             {state === 'unknown' ? null : state === 'active' ? (
                 <>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.4rem', lineHeight: 1.5 }}>
+                    <p style={{ margin: '0 0 10px', fontSize: 10.5, color: t.faint, lineHeight: 1.7 }}>
                         {emp.email} signs in on the normal sign-in page and lands on their own portal —
                         attendance, leave and announcements. Archiving them removes it.
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                    </p>
+                    <Row wrap gap={7}>
                         {row?.can_reset_password && (
-                            <button type="button" className="prod-btn-ghost" onClick={reset} disabled={busy}>
-                                <KeyRound size={13} /> {busy ? 'Working…' : 'New password'}
-                            </button>
+                            <Btn size="sm" onClick={reset} disabled={busy}>{busy ? 'Working…' : 'New password'}</Btn>
                         )}
-                        <button type="button" className="prod-btn-ghost" onClick={revoke} disabled={busy}>
-                            Turn off access
-                        </button>
-                    </div>
+                        <Btn size="sm" onClick={revoke} disabled={busy}>Turn off access</Btn>
+                    </Row>
                 </>
             ) : (
                 <>
-                    <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                        <button type="button" className="prod-btn-primary" onClick={create} disabled={busy || !emp.email}>
-                            <KeyRound size={13} />
-                            {busy ? 'Creating…' : state === 'revoked' ? 'Turn access back on' : 'Create login'}
-                        </button>
-                    </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.4rem', lineHeight: 1.5 }}>
+                    <p style={{ margin: '0 0 10px', fontSize: 10.5, color: t.faint, lineHeight: 1.7 }}>
                         {!emp.email
-                            ? 'Add an email address above first — that is the username.'
-                            : `Creates a login for ${emp.email} and generates a password you hand over. No invitation to accept, no email to wait for.`}
-                    </div>
+                            ? 'Add an email address first — that is the username.'
+                            : `Creates a login for ${emp.email} and a password you hand over. No invitation to accept, no email to wait for.`}
+                    </p>
+                    <Btn size="sm" primary onClick={create} disabled={busy || !emp.email}>
+                        {busy ? 'Creating…' : state === 'revoked' ? 'Turn access back on' : 'Create login'}
+                    </Btn>
                 </>
             )}
 
-            {note && <div className="prod-field-note" style={{ marginTop: '0.35rem' }}>{note}</div>}
-            {error && <div className="prod-form-error" style={{ marginTop: '0.35rem' }}>{error}</div>}
-        </div>
+            {note && <div style={{ fontSize: 10.5, color: t.dim, marginTop: 9, lineHeight: 1.6 }}>{note}</div>}
+            {error && <div style={{ fontSize: 10.5, color: t.down, marginTop: 9 }}>{error}</div>}
+        </Panel>
     );
 }
 
-function EmployeeDetailModal({ emp, orgId, org, departments, onClose, onDelete, currentUserEmail, onEdit }) {
+/* ── person sheet ─────────────────────────────────────────────────────────── */
+
+function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, departments }) {
+    const t = useT();
     const name = getDisplayName(emp);
-    const [c1, c2] = getAvatarColor(name);
-    const [view, setView] = useState('detail'); // 'detail' | 'role_change' | 'termination'
-    const [portalLink, setPortalLink] = useState(null);
-    const [creating, setCreating] = useState(false);
+    const [view, setView] = useState('detail');   // detail | role_change | termination
+    const [link, setLink] = useState(null);
+    const [busy, setBusy] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    // Check if this employee is the current user (can edit own profile)
-    const isOwnProfile = currentUserEmail && (emp.email || '').toLowerCase() === currentUserEmail.toLowerCase();
+    const winW = useWindowWidth();
+    const isSelf = currentUserEmail && (emp.email || '').toLowerCase() === currentUserEmail.toLowerCase();
 
-    const [rcForm, setRcForm] = useState({
-        newRole: emp.role || '',
-        newDepartment: emp.department || '',
-        newSalary: '',
-        salaryFrequency: 'month',
-        effectiveDate: '',
-        message: '',
+    const [rc, setRc] = useState({
+        newRole: emp.role || '', newDepartment: emp.department || '',
+        newSalary: '', salaryFrequency: 'month', effectiveDate: '', message: '',
     });
-    const [termForm, setTermForm] = useState({
-        lastDay: '',
-        message: '',
-    });
+    const [term, setTerm] = useState({ lastDay: '', message: '' });
 
-    const handleCopy = async (text) => {
-        await navigator.clipboard.writeText(text);
+    const back = () => { setView('detail'); setLink(null); setCopied(false); };
+
+    const issue = async (type) => {
+        setBusy(true);
+        documentStore.setContext(orgId);
+        await documentStore.init();
+
+        const company_profile = {
+            company_name: org?.company_name || '', logo_url: org?.logo_url || '',
+            company_email: org?.company_email || '', company_phone: org?.company_phone || '',
+            address: org?.company_address || '',
+        };
+        const common = {
+            status: 'sent', issued_to: name,
+            recipient_email: emp.email || '', recipient_phone: emp.phone || '',
+            current_role: emp.role || '', current_department: emp.department || '',
+            employee_id: emp.id, company_profile,
+            issue_date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
+            created_at: new Date().toISOString(),
+        };
+
+        const doc = type === 'role_change'
+            ? {
+                ...common, type: 'role_change', title: `Role Change – ${name}`,
+                new_role: rc.newRole, new_department: rc.newDepartment || emp.department || '',
+                effective_date: rc.effectiveDate,
+                new_salary: rc.newSalary ? Number(rc.newSalary) : null,
+                salary_frequency: rc.salaryFrequency, message: rc.message,
+            }
+            : {
+                ...common, type: 'termination', title: `Termination Notice – ${name}`,
+                last_day: term.lastDay, message: term.message,
+            };
+
+        const saved = await documentStore.save(doc);
+        const { url } = await createPortalLink({ orgId, documentId: saved.id, recipientEmail: emp.email });
+        setLink(url);
+        setBusy(false);
+    };
+
+    const copyLink = async () => {
+        await navigator.clipboard.writeText(link);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const createPortalDoc = async (type) => {
-        setCreating(true);
-        documentStore.setContext(orgId);
-        await documentStore.init();
-
-        const companyProfile = {
-            company_name: org?.company_name || '',
-            logo_url: org?.logo_url || '',
-            company_email: org?.company_email || '',
-            company_phone: org?.company_phone || '',
-            address: org?.company_address || '',
-        };
-
-        let doc;
-        if (type === 'role_change') {
-            doc = {
-                type: 'role_change',
-                status: 'sent',
-                title: `Role Change – ${name}`,
-                issued_to: name,
-                recipient_email: emp.email || '',
-                recipient_phone: emp.phone || '',
-                current_role: emp.role || '',
-                new_role: rcForm.newRole,
-                current_department: emp.department || '',
-                new_department: rcForm.newDepartment || emp.department || '',
-                effective_date: rcForm.effectiveDate,
-                new_salary: rcForm.newSalary ? Number(rcForm.newSalary) : null,
-                salary_frequency: rcForm.salaryFrequency,
-                message: rcForm.message,
-                employee_id: emp.id,
-                issue_date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
-                company_profile: companyProfile,
-                created_at: new Date().toISOString(),
-            };
-        } else {
-            doc = {
-                type: 'termination',
-                status: 'sent',
-                title: `Termination Notice – ${name}`,
-                issued_to: name,
-                recipient_email: emp.email || '',
-                recipient_phone: emp.phone || '',
-                current_role: emp.role || '',
-                current_department: emp.department || '',
-                last_day: termForm.lastDay,
-                message: termForm.message,
-                employee_id: emp.id,
-                issue_date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
-                company_profile: companyProfile,
-                created_at: new Date().toISOString(),
-            };
-        }
-
-        const saved = await documentStore.save(doc);
-        const { url } = await createPortalLink({
-            orgId,
-            documentId: saved.id,
-            recipientEmail: emp.email,
-        });
-        setPortalLink(url);
-        setCreating(false);
-    };
-
-    const resetAction = () => {
-        setView('detail');
-        setPortalLink(null);
-        setCopied(false);
-    };
-
-    return (
-        <div
-            onClick={onClose}
-            style={{
-                position: 'fixed', inset: 0, zIndex: 1000,
-                background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: '1rem',
-            }}
-        >
-            <div
-                onClick={e => e.stopPropagation()}
-                style={{
-                    background: 'var(--bg-elevated)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: '20px',
-                    width: '100%', maxWidth: 500,
-                    boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
-                    overflow: 'hidden',
-                    display: 'flex', flexDirection: 'column',
-                    maxHeight: '90vh',
-                }}
-            >
-                {/* ── Detail View ── */}
-                {view === 'detail' && (
-                    <>
-                        {/* Header */}
-                        <div style={{ padding: '1.5rem 1.5rem 1.25rem', borderBottom: '1px solid var(--border-subtle)' }}>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                    <div style={{
-                                        width: 56, height: 56, borderRadius: '16px', flexShrink: 0,
-                                        background: `linear-gradient(135deg, ${c1}, ${c2})`,
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: '1.25rem', fontWeight: 800, color: '#fff',
-                                    }}>
-                                        {name?.[0]?.toUpperCase()}
-                                    </div>
-                                    <div>
-                                        <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>{name}</h2>
-                                        <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
-                                            <span className={`emp-type-badge ${emp.offerType === 'fulltime' ? 'fulltime' : emp.offerType === 'collaboration' ? 'collab' : 'intern'}`}>
-                                                {emp.offerType === 'fulltime' ? 'Full-Time' : emp.offerType === 'collaboration' ? 'Collaborator' : 'Intern'}
-                                            </span>
-                                            {emp.department && (
-                                                <span style={{ fontSize: '0.68rem', fontWeight: 600, padding: '0.2rem 0.55rem', borderRadius: '99px', background: 'rgba(255,255,255,0.07)', color: 'var(--text-muted)' }}>
-                                                    {emp.department}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                                <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, borderRadius: 8, flexShrink: 0 }}>
-                                    <X size={18} />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Body */}
-                        <div style={{ padding: '1.25rem 1.5rem', overflowY: 'auto', flex: 1 }}>
-                            {/* Role & Department */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
-                                <InfoField icon={<Briefcase size={13} />} label="Role" value={emp.role || '—'} />
-                                <InfoField icon={<Building size={13} />} label="Department" value={emp.department || '—'} />
-                            </div>
-
-                            {/* Contact */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
-                                <InfoField icon={<Mail size={13} />} label="Email" value={emp.email || '—'} />
-                                <InfoField icon={<Phone size={13} />} label="Phone" value={emp.phone || '—'} />
-                            </div>
-
-                            {/* EdgeOS login role for this employee's email */}
-                            <AccessRolePicker email={emp.email} />
-
-                            {/* Dates */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
-                                <InfoField
-                                    icon={<Calendar size={13} />}
-                                    label="Start Date"
-                                    value={emp.startDate ? new Date(emp.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
-                                />
-                                {emp.endDate && (
-                                    <InfoField
-                                        icon={<Calendar size={13} />}
-                                        label="End Date"
-                                        value={new Date(emp.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                    />
-                                )}
-                            </div>
-
-                            {/* Supervisor */}
-                            {emp.supervisorName && (
-                                <div style={{ marginBottom: '1rem' }}>
-                                    <InfoField icon={<Users size={13} />} label="Reports To" value={emp.supervisorName} />
-                                </div>
-                            )}
-
-                            <PortalAccessPanel emp={emp} orgId={orgId} />
-
-                            {/* Employee ID */}
-                            <div style={{ padding: '0.6rem 0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-                                <span style={{ fontSize: '0.67rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Employee ID</span>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem', fontFamily: 'monospace' }}>{emp.id}</div>
-                            </div>
-                        </div>
-
-                        {/* Footer Actions */}
-                        <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '0.625rem' }}>
-                            <button
-                                onClick={() => { setView('role_change'); setPortalLink(null); }}
-                                style={{
-                                    flex: 1, padding: '0.6rem 0.75rem', borderRadius: '10px',
-                                    background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)',
-                                    color: '#818cf8', fontSize: '0.78rem', fontWeight: 700,
-                                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-                                    transition: 'all 0.15s',
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.18)'; }}
-                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; }}
-                            >
-                                <TrendingUp size={14} /> Role Change
-                            </button>
-                            {isOwnProfile && (
-                                <button
-                                    onClick={onEdit}
-                                    style={{
-                                        flex: 1, padding: '0.6rem 0.75rem', borderRadius: '10px',
-                                        background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)',
-                                        color: '#10b981', fontSize: '0.78rem', fontWeight: 700,
-                                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-                                        transition: 'all 0.15s',
-                                    }}
-                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.18)'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.1)'; }}
-                                >
-                                    Edit Profile
-                                </button>
-                            )}
-                            <button
-                                onClick={() => { setView('termination'); setPortalLink(null); }}
-                                style={{
-                                    flex: 1, padding: '0.6rem 0.75rem', borderRadius: '10px',
-                                    background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
-                                    color: '#f87171', fontSize: '0.78rem', fontWeight: 700,
-                                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-                                    transition: 'all 0.15s',
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.15)'; }}
-                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; }}
-                            >
-                                <AlertTriangle size={14} /> Terminate
-                            </button>
-                            <button
-                                onClick={() => onDelete(emp.id)}
-                                style={{
-                                    padding: '0.6rem 0.75rem', borderRadius: '10px',
-                                    background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-default)',
-                                    color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 600,
-                                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem',
-                                    transition: 'all 0.15s',
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; }}
-                                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-default)'; }}
-                            >
-                                <Trash2 size={14} />
-                            </button>
-                        </div>
-                    </>
-                )}
-
-                {/* ── Role Change View ── */}
-                {view === 'role_change' && (
-                    <>
-                        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <button onClick={resetAction} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px', borderRadius: 8 }}>
-                                <ArrowLeft size={16} />
-                            </button>
-                            <div>
-                                <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>Role Change</h3>
-                                <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>Send a notice to {name}</p>
-                            </div>
-                        </div>
-
-                        <div style={{ padding: '1.25rem 1.5rem', overflowY: 'auto', flex: 1 }}>
-                            {/* Current role callout */}
-                            <div style={{ padding: '0.6rem 0.875rem', background: 'rgba(255,255,255,0.04)', borderRadius: '10px', border: '1px solid var(--border-subtle)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                <div>
-                                    <div style={{ fontSize: '0.67rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Current Role</div>
-                                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.15rem' }}>{emp.role || '—'}</div>
-                                </div>
-                            </div>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-                                <FormField label="New Role *" value={rcForm.newRole} onChange={v => setRcForm(p => ({ ...p, newRole: v }))} placeholder="e.g. Senior Engineer" />
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>New Department</label>
-                                    <select
-                                        value={rcForm.newDepartment}
-                                        onChange={e => setRcForm(p => ({ ...p, newDepartment: e.target.value }))}
-                                        style={{
-                                            width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-default)',
-                                            borderRadius: '8px', padding: '0.55rem 0.75rem', color: 'var(--text-primary)',
-                                            fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box', cursor: 'pointer',
-                                        }}
-                                    >
-                                        <option value="" style={{ background: 'var(--bg-elevated)' }}>Same as current ({emp.department || 'None'})</option>
-                                        {departments.map(d => (
-                                            <option key={d.name} value={d.name} style={{ background: 'var(--bg-elevated)' }}>{d.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.5rem', alignItems: 'end' }}>
-                                    <FormField label="New Salary (optional)" type="number" value={rcForm.newSalary} onChange={v => setRcForm(p => ({ ...p, newSalary: v }))} placeholder="e.g. 75000" />
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Per</label>
-                                        <select
-                                            value={rcForm.salaryFrequency}
-                                            onChange={e => setRcForm(p => ({ ...p, salaryFrequency: e.target.value }))}
-                                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-default)', borderRadius: '8px', padding: '0.55rem 0.5rem', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none', cursor: 'pointer' }}
-                                        >
-                                            <option value="month" style={{ background: 'var(--bg-elevated)' }}>Month</option>
-                                            <option value="year" style={{ background: 'var(--bg-elevated)' }}>Year</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <FormField label="Effective Date *" type="date" value={rcForm.effectiveDate} onChange={v => setRcForm(p => ({ ...p, effectiveDate: v }))} />
-                                <FormField label="Message to Employee" type="textarea" value={rcForm.message} onChange={v => setRcForm(p => ({ ...p, message: v }))} placeholder="Include any relevant details about this role change…" rows={3} />
-                            </div>
-
-                            {portalLink && (
-                                <PortalLinkBox link={portalLink} copied={copied} onCopy={handleCopy} />
-                            )}
-                        </div>
-
-                        <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-subtle)' }}>
-                            {!portalLink ? (
-                                <button
-                                    onClick={() => createPortalDoc('role_change')}
-                                    disabled={creating || !rcForm.newRole || !rcForm.effectiveDate}
-                                    style={{
-                                        width: '100%', padding: '0.7rem', borderRadius: '10px',
-                                        background: (!rcForm.newRole || !rcForm.effectiveDate) ? 'rgba(99,102,241,0.3)' : '#6366f1',
-                                        border: 'none', color: '#fff', fontSize: '0.82rem', fontWeight: 700,
-                                        cursor: (!rcForm.newRole || !rcForm.effectiveDate || creating) ? 'not-allowed' : 'pointer',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                        opacity: (!rcForm.newRole || !rcForm.effectiveDate) ? 0.6 : 1,
-                                        transition: 'all 0.15s',
-                                    }}
-                                >
-                                    {creating ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <ExternalLink size={14} />}
-                                    {creating ? 'Creating Portal…' : 'Generate Portal Link'}
-                                </button>
-                            ) : (
-                                <button onClick={resetAction} style={{ width: '100%', padding: '0.7rem', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>
-                                    Back to Profile
-                                </button>
-                            )}
-                        </div>
-                    </>
-                )}
-
-                {/* ── Termination View ── */}
-                {view === 'termination' && (
-                    <>
-                        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <button onClick={resetAction} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px', borderRadius: 8 }}>
-                                <ArrowLeft size={16} />
-                            </button>
-                            <div>
-                                <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#f87171' }}>Termination Notice</h3>
-                                <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>Issue a notice to {name}</p>
-                            </div>
-                        </div>
-
-                        <div style={{ padding: '1.25rem 1.5rem', overflowY: 'auto', flex: 1 }}>
-                            {/* Warning banner */}
-                            <div style={{ padding: '0.75rem 1rem', background: 'rgba(239,68,68,0.08)', borderRadius: '10px', border: '1px solid rgba(239,68,68,0.2)', marginBottom: '1.25rem', display: 'flex', alignItems: 'flex-start', gap: '0.625rem' }}>
-                                <AlertTriangle size={15} style={{ color: '#f87171', marginTop: '0.1rem', flexShrink: 0 }} />
-                                <div>
-                                    <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#f87171' }}>This action generates a termination notice</div>
-                                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
-                                        The employee will receive a portal link to acknowledge their termination. This cannot be declined.
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-                                <FormField label="Last Working Day *" type="date" value={termForm.lastDay} onChange={v => setTermForm(p => ({ ...p, lastDay: v }))} />
-                                <FormField label="Message / Reason" type="textarea" value={termForm.message} onChange={v => setTermForm(p => ({ ...p, message: v }))} placeholder="Include any relevant context or next steps…" rows={4} />
-                            </div>
-
-                            {portalLink && (
-                                <PortalLinkBox link={portalLink} copied={copied} onCopy={handleCopy} accent="red" />
-                            )}
-                        </div>
-
-                        <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-subtle)' }}>
-                            {!portalLink ? (
-                                <button
-                                    onClick={() => createPortalDoc('termination')}
-                                    disabled={creating || !termForm.lastDay}
-                                    style={{
-                                        width: '100%', padding: '0.7rem', borderRadius: '10px',
-                                        background: !termForm.lastDay ? 'rgba(239,68,68,0.3)' : '#ef4444',
-                                        border: 'none', color: '#fff', fontSize: '0.82rem', fontWeight: 700,
-                                        cursor: (!termForm.lastDay || creating) ? 'not-allowed' : 'pointer',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                        opacity: !termForm.lastDay ? 0.6 : 1,
-                                        transition: 'all 0.15s',
-                                    }}
-                                >
-                                    {creating ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Shield size={14} />}
-                                    {creating ? 'Creating Notice…' : 'Generate Termination Link'}
-                                </button>
-                            ) : (
-                                <button onClick={resetAction} style={{ width: '100%', padding: '0.7rem', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>
-                                    Back to Profile
-                                </button>
-                            )}
-                        </div>
-                    </>
-                )}
-            </div>
-        </div>
-    );
-}
-
-function InfoField({ icon, label, value }) {
-    return (
-        <div style={{ padding: '0.6rem 0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.25rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>{icon}</span>
-                <span style={{ fontSize: '0.63rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
-            </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 500, wordBreak: 'break-word' }}>{value}</div>
-        </div>
-    );
-}
-
-function FormField({ label, value, onChange, placeholder, type = 'text', rows }) {
-    return (
-        <div>
-            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</label>
-            {type === 'textarea' ? (
-                <textarea
-                    value={value}
-                    onChange={e => onChange(e.target.value)}
-                    placeholder={placeholder}
-                    rows={rows || 3}
-                    style={{
-                        width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-default)',
-                        borderRadius: '8px', padding: '0.55rem 0.75rem', color: 'var(--text-primary)',
-                        fontSize: '0.82rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box',
-                        fontFamily: 'inherit', lineHeight: 1.55,
-                    }}
-                />
-            ) : (
-                <input
-                    type={type}
-                    value={value}
-                    onChange={e => onChange(e.target.value)}
-                    placeholder={placeholder}
-                    style={{
-                        width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-default)',
-                        borderRadius: '8px', padding: '0.55rem 0.75rem', color: 'var(--text-primary)',
-                        fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box',
-                    }}
-                />
-            )}
-        </div>
-    );
-}
-
-function PortalLinkBox({ link, copied, onCopy, accent }) {
-    const accentColor = accent === 'red' ? '#f87171' : '#818cf8';
-    return (
-        <div style={{ marginTop: '1.25rem', padding: '1rem', background: accent === 'red' ? 'rgba(239,68,68,0.06)' : 'rgba(99,102,241,0.08)', borderRadius: '12px', border: `1px solid ${accent === 'red' ? 'rgba(239,68,68,0.2)' : 'rgba(99,102,241,0.25)'}` }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: accentColor, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.625rem' }}>
-                Portal Link Generated
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <div style={{ flex: 1, background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '0.5rem 0.75rem', fontSize: '0.72rem', color: 'var(--text-secondary)', wordBreak: 'break-all', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    {link}
-                </div>
-                <button
-                    onClick={() => onCopy(link)}
-                    style={{
-                        flexShrink: 0, padding: '0.5rem 0.75rem', borderRadius: '8px',
-                        background: copied ? 'rgba(16,185,129,0.15)' : `${accentColor}18`,
-                        border: `1px solid ${copied ? 'rgba(16,185,129,0.3)' : `${accentColor}33`}`,
-                        color: copied ? '#10b981' : accentColor,
-                        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem',
-                        fontSize: '0.72rem', fontWeight: 700, whiteSpace: 'nowrap',
-                        transition: 'all 0.15s',
-                    }}
-                >
-                    {copied ? <Check size={13} /> : <Copy size={13} />}
-                    {copied ? 'Copied!' : 'Copy'}
-                </button>
-            </div>
-            <p style={{ margin: '0.625rem 0 0', fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Share this link with the employee. They can open it on any device to acknowledge the notice.
+    const sentBox = (what) => (
+        <div style={{ border: '1px solid ' + t.lineStrong, borderRadius: 8, padding: 13, background: t.panelAlt }}>
+            <div style={{ fontSize: 11.5, color: t.text, marginBottom: 4 }}>{what} is ready</div>
+            <p style={{ margin: '0 0 10px', fontSize: 10.5, color: t.faint, lineHeight: 1.7 }}>
+                Send {name} this link. They read it, and acknowledge it there.
             </p>
+            <code style={{
+                display: 'block', fontSize: 10, color: t.dim, wordBreak: 'break-all',
+                padding: '8px 10px', border: '1px solid ' + t.line, borderRadius: 6, marginBottom: 10,
+            }}>{link}</code>
+            <Row gap={7}>
+                <Btn size="sm" primary onClick={copyLink}>{copied ? 'Copied' : 'Copy link'}</Btn>
+                <Btn size="sm" onClick={back}>Done</Btn>
+            </Row>
         </div>
+    );
+
+    if (view === 'role_change') {
+        return (
+            <Modal open onClose={onClose} title={'Role change — ' + name}
+                note="Issues a notice they acknowledge in their portal"
+                footer={!link && (
+                    <>
+                        <Btn onClick={back}>Back</Btn>
+                        <Btn primary onClick={() => issue('role_change')} disabled={busy || !rc.newRole || !rc.effectiveDate}>
+                            {busy ? 'Preparing…' : 'Create notice'}
+                        </Btn>
+                    </>
+                )}>
+                {link ? sentBox('The role change notice') : (
+                    <Grid min={200} gap={13}>
+                        <Field label="New role"><Input value={rc.newRole} onChange={(e) => setRc({ ...rc, newRole: e.target.value })} placeholder="Senior Engineer" /></Field>
+                        <Field label="New department">
+                            <Select value={rc.newDepartment} onChange={(e) => setRc({ ...rc, newDepartment: e.target.value })}>
+                                <option value="">Unchanged</option>
+                                {departments.map((d) => <option key={d.name} value={d.name}>{d.name}</option>)}
+                            </Select>
+                        </Field>
+                        <Field label="Effective from"><Input type="date" value={rc.effectiveDate} onChange={(e) => setRc({ ...rc, effectiveDate: e.target.value })} /></Field>
+                        <Field label="New salary" hint="Leave blank if pay is unchanged">
+                            <Row gap={6}>
+                                <Input type="number" value={rc.newSalary} onChange={(e) => setRc({ ...rc, newSalary: e.target.value })} placeholder="0" />
+                                <Select value={rc.salaryFrequency} onChange={(e) => setRc({ ...rc, salaryFrequency: e.target.value })} style={{ width: 92 }}>
+                                    <option value="month">per month</option>
+                                    <option value="year">per year</option>
+                                </Select>
+                            </Row>
+                        </Field>
+                        <Field label="Message" wide>
+                            <Textarea value={rc.message} onChange={(e) => setRc({ ...rc, message: e.target.value })}
+                                placeholder="Anything you want them to read alongside the change." />
+                        </Field>
+                    </Grid>
+                )}
+            </Modal>
+        );
+    }
+
+    if (view === 'termination') {
+        return (
+            <Modal open onClose={onClose} title={'End employment — ' + name}
+                note="They move to Ex-Employees once they acknowledge"
+                footer={!link && (
+                    <>
+                        <Btn onClick={back}>Back</Btn>
+                        <Btn primary onClick={() => issue('termination')} disabled={busy || !term.lastDay}>
+                            {busy ? 'Preparing…' : 'Create notice'}
+                        </Btn>
+                    </>
+                )}>
+                {link ? sentBox('The notice') : (
+                    <>
+                        <Field label="Last working day">
+                            <Input type="date" value={term.lastDay} onChange={(e) => setTerm({ ...term, lastDay: e.target.value })} />
+                        </Field>
+                        <div style={{ height: 13 }} />
+                        <Field label="Message" hint="Read by them, and kept on the record">
+                            <Textarea value={term.message} onChange={(e) => setTerm({ ...term, message: e.target.value })} />
+                        </Field>
+                    </>
+                )}
+            </Modal>
+        );
+    }
+
+    const tenure = tenureLabel(emp.startDate);
+    const bdayIn = daysUntilBirthday(emp.date_of_birth);
+    const stacked = winW < 900;
+    const wide = winW >= 1180;
+
+    const facts = [
+        ['Employment', TYPE_LABEL[emp.offerType]],
+        ['Department', emp.department && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: deptColor(emp.department, departments) }} />
+                {emp.department}
+            </span>
+        )],
+        ['Reports to', emp.supervisorName],
+        ['Started', emp.startDate && (
+            <>{fmtDate(emp.startDate)}{tenure && <span style={{ color: t.faint }}> · {tenure}</span>}</>
+        )],
+        ['Ends', emp.endDate ? fmtDate(emp.endDate) : null],
+        ['Birthday', emp.date_of_birth && (
+            <>
+                {fmtDate(emp.date_of_birth)}
+                {bdayIn != null && bdayIn <= 30 && (
+                    <span style={{ color: t.faint }}> · {bdayIn === 0 ? 'today' : `in ${bdayIn}d`}</span>
+                )}
+            </>
+        )],
+        ['Phone', emp.phone],
+        ['Email', emp.email],
+        ['Address', emp.address],
+    ].filter(([, v]) => v);
+
+    return (
+        <Modal open onClose={onClose} width={1120}
+            title={name || 'Employee'} note={[emp.role, emp.department].filter(Boolean).join(' · ') || undefined}
+            footer={
+                <>
+                    {!isSelf && <ConfirmBtn size="md" label="Delete record" confirmLabel="Delete for good" onConfirm={() => onDelete(emp.id)} />}
+                    <div style={{ flex: 1 }} />
+                    <Btn onClick={() => setView('termination')}>End employment</Btn>
+                    <Btn onClick={() => setView('role_change')}>Role change</Btn>
+                    <Btn primary onClick={onEdit}>Edit details</Btn>
+                </>
+            }>
+            <div style={{
+                display: 'grid', gap: 18, alignItems: 'start',
+                gridTemplateColumns: stacked ? '1fr' : 'minmax(250px, 300px) minmax(0, 1fr)',
+            }}>
+                {/* ── left: the person ─────────────────────────────────────── */}
+                <aside style={{ display: 'grid', gap: 12, minWidth: 0 }}>
+                    <div style={{ width: '100%', maxWidth: stacked ? 240 : '100%', margin: stacked ? '0 auto' : 0 }}>
+                        <PhotoPortrait name={name} path={emp.photo_path} />
+                    </div>
+
+                    <div>
+                        <div style={{ fontSize: 18, fontWeight: 500, letterSpacing: '-0.03em', color: t.text }}>{name}</div>
+                        <div style={{ fontSize: 11, color: t.dim, marginTop: 4 }}>{emp.role || 'No role set'}</div>
+                        <Row gap={12} wrap style={{ marginTop: 9 }}>
+                            <Status tone={emp.user_id ? 'up' : 'mute'}>{emp.user_id ? 'Portal active' : 'No portal login'}</Status>
+                            {tenure && <Status tone="neutral">{tenure} here</Status>}
+                        </Row>
+                    </div>
+
+                    {(emp.email || emp.phone) && (
+                        <div style={{ display: 'grid', gap: 6, gridTemplateColumns: emp.email && emp.phone ? '1fr 1fr' : '1fr' }}>
+                            {emp.email && <a href={`mailto:${emp.email}`} className="edge-btn" style={contactBtn(t)}><Mail size={13} /> Email</a>}
+                            {emp.phone && <a href={`tel:${emp.phone}`} className="edge-btn" style={contactBtn(t)}><Phone size={13} /> Call</a>}
+                        </div>
+                    )}
+
+                    <div style={{ border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden' }}>
+                        {facts.map(([k, v], i) => (
+                            <div key={k} style={{
+                                display: 'flex', gap: 10, padding: '8px 12px',
+                                borderTop: i ? '1px solid ' + t.lineSoft : 'none',
+                            }}>
+                                <span style={{ width: 76, flexShrink: 0, fontSize: 9, letterSpacing: '0.09em', color: t.faint, paddingTop: 2 }}>
+                                    {k.toUpperCase()}
+                                </span>
+                                <span style={{ fontSize: 11, color: t.text, minWidth: 0, wordBreak: 'break-word', lineHeight: 1.5 }}>{v}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {emp.bio && (
+                        <div style={{ border: '1px solid ' + t.line, borderRadius: 10, padding: '10px 12px' }}>
+                            <Label>ABOUT</Label>
+                            <p style={{ margin: '6px 0 0', fontSize: 11, lineHeight: 1.65, color: t.dim, whiteSpace: 'pre-wrap' }}>{emp.bio}</p>
+                        </div>
+                    )}
+
+                    {(emp.emergency_contact_name || emp.emergency_contact_phone) && (
+                        <div style={{ border: '1px solid ' + t.line, borderRadius: 10, padding: '10px 12px' }}>
+                            <Label>EMERGENCY CONTACT</Label>
+                            <div style={{ fontSize: 11.5, color: t.text, marginTop: 6 }}>{emp.emergency_contact_name || '—'}</div>
+                            {emp.emergency_contact_phone && (
+                                <a href={`tel:${emp.emergency_contact_phone}`} style={{ fontSize: 10.5, color: t.dim, textDecoration: 'none' }}>
+                                    {emp.emergency_contact_phone}
+                                </a>
+                            )}
+                        </div>
+                    )}
+                </aside>
+
+                {/* ── right: how they are working, then their access ───────── */}
+                <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
+                    <EmployeeWorkInsights emp={emp} orgId={orgId} narrow={!wide} />
+
+                    <div>
+                        <div style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.faint, margin: '4px 0 9px' }}>ACCESS</div>
+                        <div style={{
+                            display: 'grid', gap: 12, alignItems: 'start',
+                            gridTemplateColumns: wide ? 'repeat(2, minmax(0, 1fr))' : '1fr',
+                        }}>
+                            <AccessRolePicker email={emp.email} />
+                            <PortalAccess emp={emp} orgId={orgId} />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Modal>
     );
 }
 
-// ── Main Employees Component ─────────────────────────────────────────────────
+function contactBtn(t) {
+    return {
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 30,
+        borderRadius: 7, border: '1px solid ' + t.line, background: t.panel, color: t.text,
+        fontFamily: MONO, fontSize: 11, textDecoration: 'none',
+    };
+}
+
+/* ── page ─────────────────────────────────────────────────────────────────── */
+
 export default function Employees() {
+    const t = useT();
     const navigate = useNavigate();
     const { activeOrg } = useOrg();
     const { user } = useAuth();
+
     const [employees, setEmployees] = useState([]);
     const [departments, setDepartments] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [query, setQuery] = useState('');
     const [sortBy, setSortBy] = useState('name_asc');
-    const [viewMode, setViewMode] = useState('list');
-    const [filter, setFilter] = useState('all');
+    const [view, setView] = useState('table');
+    const [type, setType] = useState('all');
+    const [dept, setDept] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [showDeptManager, setShowDeptManager] = useState(false);
-    const [newDeptName, setNewDeptName] = useState('');
-    const [newDeptColor, setNewDeptColor] = useState(DEPT_PALETTE[0]);
-    const [deptSaving, setDeptSaving] = useState(false);
-    const [selectedEmp, setSelectedEmp] = useState(null);
+    const [showDepts, setShowDepts] = useState(false);
+    const [newDept, setNewDept] = useState('');
+    const [newColor, setNewColor] = useState(DEPT_PALETTE[0]);
+    const [deptBusy, setDeptBusy] = useState(false);
+    const [selected, setSelected] = useState(null);
     const [addingSelf, setAddingSelf] = useState(false);
-    const [editingEmployee, setEditingEmployee] = useState(null);
+    const [editing, setEditing] = useState(null);
+
+    const ownerEmail = (activeOrg?.company_email || '').toLowerCase();
+    const ownerEmployee = employees.find((e) => (e.email || '').toLowerCase() === ownerEmail);
+    const ownerHasName = ownerEmployee && getDisplayName(ownerEmployee);
+
+    const loadDepartments = useCallback(async () => {
+        setDepartments(await storageService.getDepartments(activeOrg?.id));
+    }, [activeOrg?.id]);
+
+    const loadEmployees = useCallback(async () => {
+        setLoading(true);
+        const orgId = activeOrg?.id;
+
+        const [existing, allRecords] = await Promise.all([
+            storageService.getEmployees(orgId),
+            storageService.getAll(orgId, 'offer'),
+        ]);
+
+        let changed = false;
+
+        // Keep only the newest record per email.
+        const seen = new Map();
+        for (const emp of existing) {
+            const key = (emp.email || '').toLowerCase();
+            if (!key) continue;
+            if (seen.has(key)) {
+                const prev = seen.get(key);
+                const older = new Date(emp.created_at || 0) > new Date(prev.created_at || 0) ? prev : emp;
+                await storageService.deleteEmployee(older.id, orgId, 'Duplicate record — superseded by a newer entry for the same email');
+                if (older === prev) seen.set(key, emp);
+                changed = true;
+            } else {
+                seen.set(key, emp);
+            }
+        }
+
+        // An offer becomes an employee only once it has been accepted; a
+        // draft or merely-sent offer is a candidate, not a colleague.
+        const ACCEPTED = new Set(['signed', 'accepted']);
+        const EMPLOYMENT_TYPE = {
+            internship: 'intern', intern: 'intern',
+            collaboration: 'contract', contract: 'contract',
+            parttime: 'parttime', fulltime: 'fulltime',
+        };
+        try {
+            for (const r of allRecords) {
+                if (!ACCEPTED.has(r.status) || r.employee_synced) continue;
+                const d = r.data || {};
+                const name = r.issued_to || d.studentName || d.name || '';
+                const email = (r.recipient_email || d.email || '').toLowerCase();
+                if (!name || !email || seen.has(email)) continue;
+
+                const empData = {
+                    ...d, studentName: name, email,
+                    phone: r.recipient_phone || d.phone || '',
+                    role: r.role || d.role || '',
+                    department: r.department || d.department || '',
+                    offerType: EMPLOYMENT_TYPE[r.offer_type || d.offerType] || 'fulltime',
+                    startDate: r.start_date || d.startDate || '',
+                    endDate: r.end_date || d.endDate || '',
+                    offer_doc_id: r.id, signed_at: r.signed_at || '',
+                };
+                const employee = await storageService.saveEmployee(empData, orgId);
+                await orgStore.updateItem('records', r.id, {
+                    employee_synced: true,
+                    employee_id: employee?.id || r.employee_id || null,
+                });
+                seen.set(email, empData);
+                changed = true;
+            }
+        } catch (err) {
+            console.warn('[Employees] Failed to sync accepted offers:', err.message);
+        }
+
+        setEmployees(changed ? await storageService.getEmployees(orgId) : existing);
+        setLoading(false);
+    }, [activeOrg?.id]);
 
     useEffect(() => {
         if (activeOrg) { loadEmployees(); loadDepartments(); }
-    }, [activeOrg]);
+    }, [activeOrg, loadEmployees, loadDepartments]);
 
-    const ownerEmail = (activeOrg?.company_email || '').toLowerCase();
-    const ownerEmployee = employees.find(e => (e.email || '').toLowerCase() === ownerEmail);
-    const ownerIsEmployee = !!ownerEmployee;
-    const ownerHasName = ownerIsEmployee && getDisplayName(ownerEmployee);
-
-    const handleAddSelf = async () => {
-        if (!activeOrg || (ownerIsEmployee && ownerHasName)) return;
+    const addSelf = async () => {
+        if (!activeOrg || (ownerEmployee && ownerHasName)) return;
         setAddingSelf(true);
         try {
-            // If owner exists but has no name, update the existing record
-            if (ownerEmployee && !ownerHasName) {
-                const ownerName = activeOrg.owner_full_name || activeOrg.owner_name || 'Owner';
-                await storageService.saveEmployee({
-                    ...ownerEmployee,
-                    studentName: ownerName,
-                    first_name: ownerName.split(' ')[0] || '',
-                    last_name: ownerName.split(' ').slice(1).join(' ') || '',
-                    email: activeOrg.company_email || '',
-                    role: activeOrg.owner_role || 'Founder',
-                    department: "Founder's Office",
-                    offerType: 'fulltime',
-                    is_owner: true,
-                }, activeOrg.id);
-            } else {
-                // Create new owner employee
-                const ownerName = activeOrg.owner_full_name || activeOrg.owner_name || 'Owner';
-                await storageService.saveEmployee({
-                    studentName: ownerName,
-                    first_name: ownerName.split(' ')[0] || '',
-                    last_name: ownerName.split(' ').slice(1).join(' ') || '',
-                    email: activeOrg.company_email || '',
-                    role: activeOrg.owner_role || 'Founder',
-                    department: "Founder's Office",
-                    offerType: 'fulltime',
-                    is_owner: true,
-                }, activeOrg.id);
-            }
-            // Ensure Founder's Office department exists
+            const ownerName = activeOrg.owner_full_name || activeOrg.owner_name || 'Owner';
+            await storageService.saveEmployee({
+                ...(ownerEmployee || {}),
+                studentName: ownerName,
+                first_name: ownerName.split(' ')[0] || '',
+                last_name: ownerName.split(' ').slice(1).join(' ') || '',
+                email: activeOrg.company_email || '',
+                role: activeOrg.owner_role || 'Founder',
+                department: "Founder's Office",
+                offerType: 'fulltime', is_owner: true,
+            }, activeOrg.id);
+
             const depts = await storageService.getDepartments(activeOrg.id);
-            if (!depts.some(d => d.name === "Founder's Office")) {
+            if (!depts.some((d) => d.name === "Founder's Office")) {
                 await storageService.saveDepartment({ name: "Founder's Office" }, activeOrg.id);
                 loadDepartments();
             }
@@ -792,554 +606,287 @@ export default function Employees() {
         }
     };
 
-    const loadDepartments = async () => {
-        const depts = await storageService.getDepartments(activeOrg?.id);
-        setDepartments(depts);
-    };
-
-    const handleAddDept = async () => {
-        if (!newDeptName.trim()) return;
-        setDeptSaving(true);
-        await storageService.saveDepartment({ name: newDeptName.trim(), color: newDeptColor }, activeOrg?.id);
-        setNewDeptName('');
-        setNewDeptColor(DEPT_PALETTE[0]);
-        setDeptSaving(false);
+    const addDept = async () => {
+        if (!newDept.trim()) return;
+        setDeptBusy(true);
+        await storageService.saveDepartment({ name: newDept.trim(), color: newColor }, activeOrg?.id);
+        setNewDept(''); setNewColor(DEPT_PALETTE[0]); setDeptBusy(false);
         loadDepartments();
     };
 
-    const handleDeleteDept = async (id) => {
-        await storageService.deleteDepartment(id, activeOrg?.id);
-        loadDepartments();
-    };
-
-    const loadEmployees = async () => {
-        setLoading(true);
-        const orgId = activeOrg?.id;
-
-        const [existingEmps, allRecords] = await Promise.all([
-            storageService.getEmployees(orgId),
-            storageService.getAll(orgId, 'offer'),
-        ]);
-
-        let changed = false;
-
-        // 1. Remove duplicates — keep only the newest employee per email
-        const seenEmails = new Map();
-        for (const emp of existingEmps) {
-            const key = (emp.email || '').toLowerCase();
-            if (!key) continue;
-            if (seenEmails.has(key)) {
-                const prev = seenEmails.get(key);
-                const prevDate = new Date(prev.created_at || 0);
-                const curDate = new Date(emp.created_at || 0);
-                if (curDate > prevDate) {
-                    await storageService.deleteEmployee(prev.id, orgId, 'Duplicate record — superseded by a newer entry for the same email');
-                    seenEmails.set(key, emp);
-                } else {
-                    await storageService.deleteEmployee(emp.id, orgId, 'Duplicate record — superseded by a newer entry for the same email');
-                }
-                changed = true;
-            } else {
-                seenEmails.set(key, emp);
-            }
-        }
-
-        // 2. Sync employees from ACCEPTED offer letters.
-        //
-        // An offer only becomes an employee once the candidate has responded to
-        // the portal link ('signed'), or when it was issued from this page,
-        // which onboards directly and files the record as 'accepted'. An offer
-        // that is still draft/pending/sent/viewed is a candidate, not a
-        // colleague, and must not appear in the registry.
-        const ACCEPTED = new Set(['signed', 'accepted']);
-        // The offer forms speak in offer types; `employees.employment_type` is
-        // an enum of four values. Anything unmapped falls back to fulltime.
-        const EMPLOYMENT_TYPE = {
-            internship: 'intern', intern: 'intern',
-            collaboration: 'contract', contract: 'contract',
-            parttime: 'parttime', fulltime: 'fulltime',
-        };
+    const remove = async (id) => {
         try {
-            for (const r of allRecords) {
-                if (!ACCEPTED.has(r.status) || r.employee_synced) continue;
-
-                // Two record shapes: the document forms store the whole form
-                // under `data`, OfferTracker promotes the fields to the top.
-                const d = r.data || {};
-                const name = r.issued_to || d.studentName || d.name || '';
-                const email = (r.recipient_email || d.email || '').toLowerCase();
-                if (!name || !email || seenEmails.has(email)) continue;
-
-                const empData = {
-                    ...d,
-                    studentName: name,
-                    email,
-                    phone: r.recipient_phone || d.phone || '',
-                    role: r.role || d.role || '',
-                    department: r.department || d.department || '',
-                    offerType: EMPLOYMENT_TYPE[r.offer_type || d.offerType] || 'fulltime',
-                    startDate: r.start_date || d.startDate || '',
-                    endDate: r.end_date || d.endDate || '',
-                    offer_doc_id: r.id,
-                    signed_at: r.signed_at || '',
-                };
-                const employee = await storageService.saveEmployee(empData, orgId);
-                await orgStore.updateItem('records', r.id, {
-                    employee_synced: true,
-                    employee_id: employee?.id || r.employee_id || null,
-                });
-                seenEmails.set(email, empData);
-                changed = true;
-            }
+            await storageService.deleteEmployee(id, activeOrg?.id, 'Removed from the employee registry');
+            setSelected(null);
+            loadEmployees();
         } catch (err) {
-            console.warn('[Employees] Failed to sync accepted offers:', err.message);
-        }
-
-        const freshData = changed
-            ? await storageService.getEmployees(orgId)
-            : existingEmps;
-
-        // An employee is archived the moment `exited_at` is set — the portal
-        // does it when a termination notice is acknowledged, and the employees
-        // section filters on `exited_at IS NULL`. There is no separate archive
-        // step and no window in which someone is both active and terminated.
-        //
-        // A client-side sweep used to live here, moving anyone with
-        // `status === 'terminated' && termination_date` into ex-employees after
-        // 6 PM on their last day. It could never run: this list only ever
-        // contains active employees, whose status is always 'active', and
-        // `termination_date` was written nowhere in the codebase.
-
-        setEmployees(freshData);
-        setLoading(false);
-    };
-
-    const handleDelete = async (id) => {
-        if (window.confirm('Delete this employee record? This will not delete their issued documents.')) {
-            try {
-                await storageService.deleteEmployee(id, activeOrg?.id, 'Removed from the employee registry');
-                setSelectedEmp(null);
-                loadEmployees();
-            } catch (err) {
-                alert("Error deleting employee: " + err.message);
-            }
+            alert('Error deleting employee: ' + err.message);
         }
     };
 
-    const handleEdit = () => {
-        setEditingEmployee(selectedEmp);
-        setSelectedEmp(null);
-    };
+    const deptRows = useMemo(() => {
+        const names = [...new Set([
+            ...employees.map((e) => e.department).filter(Boolean),
+            ...departments.map((d) => d.name),
+        ])].sort();
+        return names.map((name) => ({
+            name,
+            color: deptColor(name, departments),
+            count: employees.filter((e) => e.department === name).length,
+            id: departments.find((d) => d.name === name)?.id || null,
+        }));
+    }, [employees, departments]);
 
-    const handleEditSuccess = () => {
-        setEditingEmployee(null);
-        loadEmployees();
-    };
-
-    const filteredEmployees = useMemo(() => {
-        let list = employees;
-        if (filter === 'fulltime') list = list.filter(e => e.offerType === 'fulltime');
-        if (filter === 'intern') list = list.filter(e => e.offerType === 'internship');
-        if (searchTerm) {
-            const term = searchTerm.toLowerCase();
-            list = list.filter(emp =>
-                getDisplayName(emp).toLowerCase().includes(term) ||
-                emp.role?.toLowerCase().includes(term) ||
-                emp.department?.toLowerCase().includes(term) ||
-                emp.email?.toLowerCase().includes(term)
-            );
+    const list = useMemo(() => {
+        let l = employees;
+        if (type === 'fulltime') l = l.filter((e) => e.offerType === 'fulltime');
+        if (type === 'intern') l = l.filter((e) => e.offerType === 'internship' || e.offerType === 'intern');
+        if (dept) l = l.filter((e) => e.department === dept);
+        const q = query.trim().toLowerCase();
+        if (q) {
+            l = l.filter((e) => getDisplayName(e).toLowerCase().includes(q)
+                || (e.role || '').toLowerCase().includes(q)
+                || (e.department || '').toLowerCase().includes(q)
+                || (e.email || '').toLowerCase().includes(q));
         }
-        return [...list].sort((a, b) => {
-            if (sortBy === 'name_asc')  return getDisplayName(a).localeCompare(getDisplayName(b));
+        return [...l].sort((a, b) => {
+            if (sortBy === 'name_asc') return getDisplayName(a).localeCompare(getDisplayName(b));
             if (sortBy === 'name_desc') return getDisplayName(b).localeCompare(getDisplayName(a));
-            if (sortBy === 'role')      return (a.role || '').localeCompare(b.role || '');
-            if (sortBy === 'dept')      return (a.department || '').localeCompare(b.department || '');
+            if (sortBy === 'role') return (a.role || '').localeCompare(b.role || '');
+            if (sortBy === 'dept') return (a.department || '').localeCompare(b.department || '');
             if (sortBy === 'date_desc') return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-            if (sortBy === 'date_asc')  return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+            if (sortBy === 'date_asc') return new Date(a.created_at || 0) - new Date(b.created_at || 0);
             return 0;
         });
-    }, [employees, searchTerm, sortBy, filter]);
-
-    const displayDepts = useMemo(() => {
-        const fromEmps = [...new Set(employees.map(e => e.department).filter(Boolean))].sort();
-        const fromFb   = departments.map(d => d.name).filter(n => !fromEmps.includes(n)).sort();
-        return [...fromEmps, ...fromFb].map(name => {
-            const fb = departments.find(d => d.name === name);
-            return { name, color: fb?.color || DEPT_PALETTE[Math.abs([...name].reduce((h, c) => c.charCodeAt(0) + ((h << 5) - h), 0)) % DEPT_PALETTE.length] };
-        });
-    }, [employees, departments]);
+    }, [employees, query, sortBy, type, dept]);
 
     const counts = useMemo(() => ({
         all: employees.length,
-        fulltime: employees.filter(e => e.offerType === 'fulltime').length,
-        intern: employees.filter(e => e.offerType === 'internship').length,
-        departments: displayDepts.length,
-    }), [employees, displayDepts]);
+        fulltime: employees.filter((e) => e.offerType === 'fulltime').length,
+        intern: employees.filter((e) => e.offerType === 'internship' || e.offerType === 'intern').length,
+    }), [employees]);
 
-    if (loading) {
+    if (editing) {
         return (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '8rem 2rem' }}>
-                <div style={{ textAlign: 'center' }}>
-                    <div className="pro-spinner" />
-                    <p style={{ color: 'var(--text-muted)', marginTop: '1rem', fontSize: '0.875rem' }}>Loading employees...</p>
-                </div>
-            </div>
+            <Page>
+                <Toolbar right={<Btn onClick={() => setEditing(null)}>Back to registry</Btn>}>
+                    <span style={{ fontSize: 12 }}>Editing {getDisplayName(editing) || 'employee'}</span>
+                </Toolbar>
+                <EmployeeForm employee={editing} onSuccess={() => { setEditing(null); loadEmployees(); }} onCancel={() => setEditing(null)} />
+            </Page>
         );
     }
 
-
+    if (loading) return <Page><Loading>Loading the registry…</Loading></Page>;
 
     return (
-        <div className="emp-page">
-            {/* Summary Stats */}
+        <Page>
+            <Toolbar right={
+                <Row gap={8}>
+                    <Btn onClick={() => setShowDepts((v) => !v)}>{showDepts ? 'Hide departments' : 'Departments'}</Btn>
+                    <Btn primary onClick={() => navigate('/employees/new')}>Add employee</Btn>
+                </Row>
+            }>
+                <Seg value={type} onChange={setType} options={[
+                    { id: 'all', label: 'Everyone', count: counts.all },
+                    { id: 'fulltime', label: 'Full-time', count: counts.fulltime },
+                    { id: 'intern', label: 'Interns', count: counts.intern },
+                ]} />
+                <Search value={query} onChange={setQuery} placeholder="Search name, role, team, email…" />
+                <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ width: 132, height: 29 }}>
+                    <option value="name_asc">Name A–Z</option>
+                    <option value="name_desc">Name Z–A</option>
+                    <option value="role">Role</option>
+                    <option value="dept">Department</option>
+                    <option value="date_desc">Newest first</option>
+                    <option value="date_asc">Oldest first</option>
+                </Select>
+                <Seg size="sm" value={view} onChange={setView} options={[
+                    { id: 'table', label: 'Table' }, { id: 'cards', label: 'Cards' },
+                ]} />
+            </Toolbar>
+
             {employees.length > 0 && (
-                <div className="emp-summary-row">
-                    {[
-                        { label: 'Total Members', value: counts.all, color: '#3b82f6', icon: Users },
-                        { label: 'Full-Time', value: counts.fulltime, color: '#10b981', icon: Briefcase },
-                        { label: 'Interns', value: counts.intern, color: '#a1a1aa', icon: Calendar },
-                        { label: 'Departments', value: counts.departments, color: '#8b5cf6', icon: Building },
-                    ].map((s, i) => {
-                        const Icon = s.icon;
-                        return (
-                            <div key={i} className="emp-summary-chip">
-                                <div className="emp-summary-icon" style={{ background: `${s.color}12`, color: s.color }}>
-                                    <Icon size={16} />
-                                </div>
-                                <div className="emp-summary-text">
-                                    <span className="emp-summary-value">{s.value}</span>
-                                    <span className="emp-summary-label">{s.label}</span>
-                                </div>
-                            </div>
-                        );
-                    })}
+                <StatBand items={[
+                    { label: 'On the team', value: counts.all },
+                    { label: 'Full-time', value: counts.fulltime, note: counts.all ? Math.round((counts.fulltime / counts.all) * 100) + '% of the team' : undefined },
+                    { label: 'Interns', value: counts.intern },
+                    { label: 'Departments', value: deptRows.length },
+                ]} />
+            )}
+
+            {ownerEmail && !ownerHasName && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+                    border: '1px solid ' + t.lineStrong, borderRadius: 10,
+                    padding: '11px 13px', marginBottom: 14,
+                }}>
+                    <span style={{ fontSize: 11, color: t.dim, flex: 1, minWidth: 200 }}>
+                        You are not in the registry yet. Adding yourself puts you on the org chart and in the team list.
+                    </span>
+                    <Btn onClick={addSelf} disabled={addingSelf}>{addingSelf ? 'Adding…' : 'Add me'}</Btn>
                 </div>
             )}
 
-            {/* Toolbar */}
-            <div className="emp-toolbar">
-                <div className="emp-toolbar-left">
-                    <div className="emp-search-wrap">
-                        <Search size={15} className="emp-search-icon" />
-                        <input
-                            type="text"
-                            placeholder="Search employees..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="emp-search-input"
-                        />
-                    </div>
-                    <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        style={{
-                            height: '36px', padding: '0 0.625rem',
-                            borderRadius: '0.5rem',
-                            border: '1px solid var(--border-default)',
-                            background: 'var(--background)',
-                            color: 'var(--text-secondary)',
-                            fontSize: '0.8rem', cursor: 'pointer', outline: 'none', flexShrink: 0,
-                        }}
-                    >
-                        <option value="name_asc">Name A–Z</option>
-                        <option value="name_desc">Name Z–A</option>
-                        <option value="role">By role</option>
-                        <option value="dept">By department</option>
-                        <option value="date_desc">Newest first</option>
-                        <option value="date_asc">Oldest first</option>
-                    </select>
-                    <div className="emp-filter-tabs">
-                        {[
-                            { id: 'all', label: 'All' },
-                            { id: 'fulltime', label: 'Full-Time' },
-                            { id: 'intern', label: 'Interns' },
-                        ].map(f => (
-                            <button key={f.id}
-                                className={`emp-filter-tab ${filter === f.id ? 'active' : ''}`}
-                                onClick={() => { setFilter(f.id); setShowDeptManager(false); }}
-                            >
-                                {f.label}
-                                <span className="emp-filter-count">{counts[f.id]}</span>
-                            </button>
-                        ))}
-                        <button
-                            className={`emp-filter-tab ${showDeptManager ? 'active' : ''}`}
-                            onClick={() => setShowDeptManager(p => !p)}
-                        >
-                            <Building size={13} />
-                            Departments
-                            <span className="emp-filter-count">{displayDepts.length}</span>
-                        </button>
-                    </div>
-                </div>
-                <div className="emp-toolbar-right">
-                    <div className="records-view-toggle">
-                        <button className={`records-view-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')}>
-                            <LayoutGrid size={18} />
-                        </button>
-                        <button className={`records-view-btn ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')}>
-                            <List size={18} />
-                        </button>
-                    </div>
-                    {(ownerIsEmployee && !ownerHasName) && (
-                        <button
-                            className="btn-cinematic"
-                            onClick={handleAddSelf}
-                            disabled={addingSelf}
-                            style={{ background: 'var(--orange)', color: '#fff' }}
-                        >
-                            <Shield size={16} />
-                            <span>{addingSelf ? 'Saving...' : 'Complete My Profile'}</span>
-                        </button>
+            <div style={{ display: 'grid', gap: 14, gridTemplateColumns: showDepts ? 'minmax(0,1fr) 268px' : '1fr', alignItems: 'start' }}>
+                <div style={{ minWidth: 0 }}>
+                    {dept && (
+                        <Row gap={8} style={{ marginBottom: 10 }}>
+                            <Muted>Filtered to</Muted>
+                            <Btn size="sm" onClick={() => setDept(null)}>{dept} ×</Btn>
+                        </Row>
                     )}
-                    {!ownerIsEmployee && (
-                        <button
-                            className="btn-cinematic"
-                            onClick={handleAddSelf}
-                            disabled={addingSelf}
-                            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                        >
-                            <Shield size={16} />
-                            <span>{addingSelf ? 'Adding...' : 'Add Myself'}</span>
-                        </button>
-                    )}
-                    <button className="btn-cinematic" onClick={() => navigate('/employees/new')}>
-                        <UserPlus size={16} />
-                        <span>Add Employee</span>
-                    </button>
-                </div>
-            </div>
 
-            {/* Department Manager */}
-            {showDeptManager && (
-                <div style={{ margin: '0 0 1.5rem', background: 'var(--bg-elevated)', borderRadius: '14px', border: '1px solid var(--border-default)', padding: '1.25rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                        <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>Manage Departments</h3>
-                        <button onClick={() => setShowDeptManager(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}>
-                            <X size={16} />
-                        </button>
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
-                        {displayDepts.length === 0 && (
-                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No departments found in employee data yet.</span>
-                        )}
-                        {displayDepts.map(d => {
-                            const fbEntry = departments.find(fd => fd.name === d.name);
-                            return (
-                                <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: `${d.color}14`, borderRadius: '99px', padding: '0.3rem 0.75rem 0.3rem 0.5rem' }}>
-                                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: d.color, flexShrink: 0 }} />
-                                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>{d.name}</span>
-                                    {fbEntry && (
-                                        <button onClick={() => handleDeleteDept(fbEntry.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0 0 0 2px', lineHeight: 1, opacity: 0.5 }}
-                                            onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-                                            onMouseLeave={e => e.currentTarget.style.opacity = '0.5'}>
-                                            <X size={12} />
-                                        </button>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                        <div style={{ flex: 1, minWidth: 180 }}>
-                            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Department Name</label>
-                            <input
-                                value={newDeptName} onChange={e => setNewDeptName(e.target.value)}
-                                placeholder="e.g. Engineering"
-                                onKeyDown={e => e.key === 'Enter' && handleAddDept()}
-                                className="easy-inp"
-                                style={{ margin: 0 }}
-                            />
-                        </div>
-                        <div>
-                            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Colour</label>
-                            <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', maxWidth: 220 }}>
-                                {DEPT_PALETTE.map(c => (
-                                    <div key={c} onClick={() => setNewDeptColor(c)} style={{
-                                        width: 22, height: 22, borderRadius: '50%', background: c, cursor: 'pointer',
-                                        boxShadow: newDeptColor === c ? `0 0 0 2px var(--background), 0 0 0 4px ${c}` : 'none',
-                                        transition: 'box-shadow 0.12s',
-                                    }} />
-                                ))}
-                            </div>
-                        </div>
-                        <button
-                            onClick={handleAddDept} disabled={deptSaving || !newDeptName.trim()}
-                            className="btn-cinematic"
-                            style={{ background: newDeptColor, borderColor: newDeptColor, opacity: (!newDeptName.trim() || deptSaving) ? 0.5 : 1, flexShrink: 0 }}
-                        >
-                            <Plus size={15} /> Add Department
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Content */}
-            {employees.length === 0 ? (
-                <div className="emp-empty-state">
-                    <div className="emp-empty-icon">
-                        <Users size={48} strokeWidth={1} />
-                    </div>
-                    <h3>Build Your Team</h3>
-                    <p>Add your first employee to get started. Each onboarding automatically generates a professional offer letter.</p>
-                    <button className="btn-cinematic" onClick={() => navigate('/employees/new')} style={{ marginTop: '0.5rem' }}>
-                        <UserPlus size={16} /> Add First Employee
-                    </button>
-                </div>
-            ) : filteredEmployees.length === 0 ? (
-                <div className="emp-empty-state" style={{ padding: '4rem 2rem' }}>
-                    <Search size={36} strokeWidth={1} style={{ opacity: 0.25, marginBottom: '0.75rem' }} />
-                    <h3>No matches found</h3>
-                    <p>Try adjusting your search or filter.</p>
-                </div>
-            ) : viewMode === 'list' ? (
-                /* List View */
-                <div className="emp-table-card">
-                    <table className="emp-table">
-                        <thead>
-                            <tr>
-                                <th>Employee</th>
-                                <th>Role</th>
-                                <th>Contact</th>
-                                <th>Type</th>
-                                <th>Joined</th>
-                                <th aria-label="Open" />
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredEmployees.map((emp) => {
+                    {list.length === 0 ? (
+                        <Panel>
+                            <Empty action={employees.length === 0 ? <Btn primary onClick={() => navigate('/employees/new')}>Add the first employee</Btn> : undefined}>
+                                {employees.length === 0
+                                    ? 'Nobody is on the team yet. Employees added here appear on the org chart, in attendance and in leave.'
+                                    : 'No one matches those filters.'}
+                            </Empty>
+                        </Panel>
+                    ) : view === 'table' ? (
+                        <Table cols={[
+                            { key: 'n', label: 'Name' },
+                            { key: 'r', label: 'Role' },
+                            { key: 'd', label: 'Department' },
+                            { key: 't', label: 'Type' },
+                            { key: 's', label: 'Started' },
+                            { key: 'a', label: '', align: 'right', width: 74 },
+                        ]}>
+                            {list.map((emp) => {
                                 const name = getDisplayName(emp);
-                                const [c1, c2] = getAvatarColor(name);
-                                const deptColor = displayDepts.find(d => d.name === emp.department)?.color;
+                                const c = deptColor(emp.department, departments);
                                 return (
-                                    <tr
-                                        key={emp.id}
-                                        onClick={() => setSelectedEmp(emp)}
-                                        style={{ cursor: 'pointer' }}
-                                        className="emp-table-row-clickable"
-                                    >
-                                        <td>
-                                            <div className="emp-table-name">
-                                                <div className="emp-avatar" style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
-                                                    {name?.[0]?.toUpperCase()}
-                                                    <EmployeePhotoFill photoPath={emp.photo_path} />
-                                                </div>
-                                                <div className="emp-table-name-text">
-                                                    <span>{name}</span>
-                                                    {emp.email && <span className="emp-table-name-sub">{emp.email}</span>}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div className="emp-table-role">{emp.role || '—'}</div>
-                                            {emp.department && (
-                                                <div className="emp-table-dept">
-                                                    <span className="emp-table-dept-dot" style={deptColor ? { background: deptColor, opacity: 0.85 } : undefined} />
-                                                    {emp.department}
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td>
-                                            {emp.phone ? (
-                                                <div className="emp-table-contact">
-                                                    <Phone size={12} /> {emp.phone}
-                                                </div>
-                                            ) : (
-                                                <span className="emp-table-date" style={{ color: 'var(--text-muted)' }}>—</span>
-                                            )}
-                                        </td>
-                                        <td>
-                                            <span className={`emp-type-badge ${emp.offerType === 'fulltime' ? 'fulltime' : emp.offerType === 'collaboration' ? 'collab' : 'intern'}`}>
-                                                {emp.offerType === 'fulltime' ? 'Full-Time' : emp.offerType === 'collaboration' ? 'Collaborator' : 'Intern'}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span className="emp-table-date">
-                                                {emp.startDate ? new Date(emp.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span className="emp-table-chevron">
-                                                <ChevronRight size={16} />
-                                            </span>
-                                        </td>
-                                    </tr>
+                                    <Tr key={emp.id} onClick={() => setSelected(emp)}>
+                                        <Td>
+                                            <Row gap={9}>
+                                                <Avatar name={name} size={26} photo={<EmployeePhotoFill photoPath={emp.photo_path} />} />
+                                                <span style={{ minWidth: 0 }}>
+                                                    <span style={{ display: 'block' }}>{name || '—'}</span>
+                                                    <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 1 }}>{emp.email}</span>
+                                                </span>
+                                            </Row>
+                                        </Td>
+                                        <Td muted nowrap>{emp.role || '—'}</Td>
+                                        <Td nowrap>
+                                            {emp.department ? (
+                                                <Row gap={7}>
+                                                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: c, flexShrink: 0 }} />
+                                                    <span style={{ color: t.dim, fontSize: 11 }}>{emp.department}</span>
+                                                </Row>
+                                            ) : <span style={{ color: t.ghost }}>—</span>}
+                                        </Td>
+                                        <Td muted nowrap>{TYPE_LABEL[emp.offerType] || '—'}</Td>
+                                        <Td muted nowrap>{emp.startDate ? fmtDate(emp.startDate) : '—'}</Td>
+                                        <Td align="right">
+                                            <Btn size="sm" onClick={() => setSelected(emp)}>Open</Btn>
+                                        </Td>
+                                    </Tr>
                                 );
                             })}
-                        </tbody>
-                    </table>
-                </div>
-            ) : (
-                /* Grid View */
-                <div className="emp-grid">
-                    {filteredEmployees.map((emp) => {
-                        const name = getDisplayName(emp);
-                        const [c1, c2] = getAvatarColor(name);
-                        return (
-                            <div
-                                key={emp.id}
-                                className="emp-grid-card emp-grid-card-clickable"
-                                onClick={() => setSelectedEmp(emp)}
-                                style={{ cursor: 'pointer' }}
-                            >
-                                <div className="emp-grid-card-top">
-                                    <div className="emp-avatar emp-avatar-lg" style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
-                                        {name?.[0]?.toUpperCase()}
-                                        <EmployeePhotoFill photoPath={emp.photo_path} />
-                                    </div>
-                                </div>
-                                <h4 className="emp-card-name">{name}</h4>
-                                <p className="emp-card-role">{emp.role}</p>
-                                <div className="emp-card-badges">
-                                    <span className={`emp-type-badge ${emp.offerType === 'fulltime' ? 'fulltime' : 'intern'}`}>
-                                        {emp.offerType === 'fulltime' ? 'Full-Time' : 'Intern'}
-                                    </span>
-                                    {emp.department && <span className="emp-dept-badge">{emp.department}</span>}
-                                </div>
-                                <div className="emp-card-details">
-                                    <div className="emp-card-detail">
-                                        <Mail size={13} /> <span>{emp.email}</span>
-                                    </div>
-                                    {emp.phone && (
-                                        <div className="emp-card-detail">
-                                            <Phone size={13} /> <span>{emp.phone}</span>
+                        </Table>
+                    ) : (
+                        <Grid min={228}>
+                            {list.map((emp) => {
+                                const name = getDisplayName(emp);
+                                const c = deptColor(emp.department, departments);
+                                return (
+                                    <button key={emp.id} type="button" onClick={() => setSelected(emp)}
+                                        className="edge-tr"
+                                        style={{
+                                            display: 'block', textAlign: 'left', cursor: 'pointer',
+                                            border: '1px solid ' + t.line, borderRadius: 10, padding: 13,
+                                            background: t.panel, fontFamily: MONO, color: t.text,
+                                        }}>
+                                        <Row gap={10} style={{ marginBottom: 11 }}>
+                                            <Avatar name={name} size={34} photo={<EmployeePhotoFill photoPath={emp.photo_path} />} />
+                                            <span style={{ minWidth: 0, flex: 1 }}>
+                                                <span style={{ display: 'block', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name || '—'}</span>
+                                                <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.role || 'No role'}</span>
+                                            </span>
+                                        </Row>
+                                        <div style={{ borderTop: '1px solid ' + t.lineSoft, paddingTop: 9, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            {emp.department ? (
+                                                <>
+                                                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: c, flexShrink: 0 }} />
+                                                    <span style={{ fontSize: 9.5, color: t.faint, letterSpacing: '0.05em', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        {emp.department.toUpperCase()}
+                                                    </span>
+                                                </>
+                                            ) : <span style={{ flex: 1 }} />}
+                                            <span style={{ fontSize: 9.5, color: t.ghost }}>{TYPE_LABEL[emp.offerType] || ''}</span>
                                         </div>
-                                    )}
-                                    <div className="emp-card-detail">
-                                        <Calendar size={13} />
-                                        <span>Joined {emp.startDate ? new Date(emp.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
+                                    </button>
+                                );
+                            })}
+                        </Grid>
+                    )}
                 </div>
-            )}
 
-            {/* Employee Detail Modal */}
-            {selectedEmp && (
-                <EmployeeDetailModal
-                    emp={selectedEmp}
-                    orgId={activeOrg?.id}
-                    org={activeOrg}
-                    departments={displayDepts}
-                    onClose={() => setSelectedEmp(null)}
-                    onDelete={handleDelete}
-                    currentUserEmail={user?.email}
-                    onEdit={handleEdit}
+                {showDepts && (
+                    <Panel title="Departments" note={deptRows.length + ' in use'} pad={13}>
+                        {deptRows.length > 0 && (
+                            <div style={{ marginBottom: 14 }}>
+                                <Breakdown rows={deptRows.map((d) => ({ label: d.name, value: d.count, color: d.color }))}
+                                    total={employees.length} max={8} />
+                            </div>
+                        )}
+
+                        <div style={{ display: 'grid', gap: 2, marginBottom: 13 }}>
+                            {deptRows.map((d) => (
+                                <Row key={d.name} gap={8}>
+                                    <button type="button" onClick={() => setDept(dept === d.name ? null : d.name)}
+                                        className="edge-tr"
+                                        style={{
+                                            flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8,
+                                            padding: '6px 8px', borderRadius: 6, cursor: 'pointer', textAlign: 'left',
+                                            background: dept === d.name ? t.panelAlt : 'transparent',
+                                            border: '1px solid ' + (dept === d.name ? t.line : 'transparent'),
+                                            fontFamily: MONO, color: t.text, fontSize: 11,
+                                        }}>
+                                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: d.color, flexShrink: 0 }} />
+                                        <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
+                                        <span style={{ fontSize: 9.5, color: t.ghost }}>{d.count}</span>
+                                    </button>
+                                    {d.id && (
+                                        <ConfirmBtn label="×" confirmLabel="Sure?"
+                                            onConfirm={() => storageService.deleteDepartment(d.id, activeOrg?.id).then(loadDepartments)} />
+                                    )}
+                                </Row>
+                            ))}
+                        </div>
+
+                        <div style={{ borderTop: '1px solid ' + t.lineSoft, paddingTop: 12 }}>
+                            <Field label="New department">
+                                <Input value={newDept} onChange={(e) => setNewDept(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && addDept()} placeholder="Engineering" />
+                            </Field>
+                            <div role="radiogroup" aria-label="Department colour" style={{ display: 'flex', gap: 5, flexWrap: 'wrap', margin: '10px 0' }}>
+                                {DEPT_PALETTE.map((c) => (
+                                    <button key={c} type="button" role="radio" aria-checked={newColor === c}
+                                        aria-label={'Colour ' + c} onClick={() => setNewColor(c)}
+                                        style={{
+                                            width: 16, height: 16, borderRadius: '50%', background: c, padding: 0, cursor: 'pointer',
+                                            border: '2px solid ' + (newColor === c ? t.text : 'transparent'),
+                                        }} />
+                                ))}
+                            </div>
+                            <Btn full primary onClick={addDept} disabled={deptBusy || !newDept.trim()}>Add department</Btn>
+                        </div>
+                    </Panel>
+                )}
+            </div>
+
+            {selected && (
+                <Detail
+                    emp={selected} orgId={activeOrg?.id} org={activeOrg}
+                    departments={deptRows} currentUserEmail={user?.email}
+                    onClose={() => setSelected(null)}
+                    onDelete={remove}
+                    onEdit={() => { setEditing(selected); setSelected(null); }}
                 />
             )}
-
-            {/* Edit Employee Form */}
-            {editingEmployee && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'var(--bg-primary)', overflowY: 'auto' }}>
-                    <EmployeeForm
-                        employee={editingEmployee}
-                        onBack={() => setEditingEmployee(null)}
-                        onSuccess={handleEditSuccess}
-                    />
-                </div>
-            )}
-        </div>
+        </Page>
     );
 }

@@ -151,23 +151,23 @@ export default function PurchaseInvoices() {
     <div style={{ maxWidth: '100%' }}>
       <div className="prod-stats">
         <Stat icon={<FileInput size={15} />} label="Total billed" value={money(totals.billed)} />
-        <Stat icon={<IndianRupee size={15} />} label="Payable" value={money(totals.payable)} accent="var(--gold)" onClick={() => setFilter('unpaid')} />
-        <Stat icon={<AlertTriangle size={15} />} label="Overdue" value={money(totals.overdue)} accent="#ef4444" onClick={() => setFilter('overdue')} />
+        <Stat icon={<IndianRupee size={15} />} label="Payable" value={money(totals.payable)} accent="var(--text-primary)" onClick={() => setFilter('unpaid')} />
+        <Stat icon={<AlertTriangle size={15} />} label="Overdue" value={money(totals.overdue)} accent="var(--error)" onClick={() => setFilter('overdue')} />
         <Stat icon={<FileInput size={15} />} label="Input GST" value={money(totals.inputGst)} />
       </div>
 
       <div className="prod-toolbar">
         <div className="prod-search">
           <Search size={14} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search bill no., vendor, category..." />
-          {search && <button type="button" onClick={() => setSearch('')} className="prod-search-clear"><X size={13} /></button>}
+          <input aria-label="Search purchase invoices" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search bill no., vendor, category..." />
+          {search && <button type="button" onClick={() => setSearch('')} className="prod-search-clear" aria-label="Clear search" title="Clear search"><X size={13} /></button>}
         </div>
-        <select value={vendorFilter} onChange={(e) => setVendorFilter(e.target.value)} className="prod-select">
+        <select aria-label="Filter by vendor" value={vendorFilter} onChange={(e) => setVendorFilter(e.target.value)} className="prod-select">
           <option value="all">All vendors</option>
           {vendors.map((v) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
         </select>
         {FILTERS.map((f) => (
-          <button key={f} className={`pro-chip ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
+          <button key={f} aria-pressed={filter === f} className={`pro-chip ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
             {f === 'all' ? 'All' : f.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
           </button>
         ))}
@@ -216,7 +216,7 @@ export default function PurchaseInvoices() {
                     </td>
                     <td>{vendorById[b.vendor_id]?.company_name || '—'}</td>
                     <td className="prod-perf-date">{fmtDate(b.bill_date)}</td>
-                    <td className="prod-perf-date" style={late ? { color: '#ef4444', fontWeight: 600 } : undefined}>
+                    <td className="prod-perf-date" style={late ? { color: 'var(--error)', fontWeight: 600 } : undefined}>
                       {fmtDate(b.due_date)}{late ? ' · overdue' : ''}
                     </td>
                     <td className="num">{money(b.total, 2)}</td>
@@ -225,18 +225,18 @@ export default function PurchaseInvoices() {
                     <td style={{ textTransform: 'capitalize', fontSize: '0.75rem' }}>{b.status.replace('_', ' ')}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       {b.receipt_path && (
-                        <button className="fin-list-action-btn" title="View receipt" onClick={() => receiptService.open(b.receipt_path)}><Paperclip size={14} /></button>
+                        <button className="fin-list-action-btn" title="View receipt" onClick={() => receiptService.open(b.receipt_path)} aria-label="View receipt"><Paperclip size={14} /></button>
                       )}
                       {b.status !== 'paid' && b.status !== 'void' && (
-                        <button className="fin-list-action-btn success" title="Record payment" onClick={() => { setPaying(b); setPayAmount(String(balance(b))); }}>
+                        <button className="fin-list-action-btn success" title="Record payment" onClick={() => { setPaying(b); setPayAmount(String(balance(b))); }} aria-label="Record payment">
                           <CheckCircle size={14} />
                         </button>
                       )}
-                      <button className="fin-list-action-btn" title="Edit" onClick={() => { setEditing({ ...b, due_date_touched: true }); setFormError(''); }}><Pencil size={14} /></button>
+                      <button className="fin-list-action-btn" title="Edit" onClick={() => { setEditing({ ...b, due_date_touched: true }); setFormError(''); }} aria-label="Edit"><Pencil size={14} /></button>
                       {b.status !== 'void' && (
-                        <button className="fin-list-action-btn" title="Void" onClick={() => handleVoid(b)}><Ban size={14} /></button>
+                        <button className="fin-list-action-btn" title="Void" onClick={() => handleVoid(b)} aria-label="Void"><Ban size={14} /></button>
                       )}
-                      <button className="fin-list-action-btn danger" title="Delete" onClick={() => handleDelete(b)}><Trash2 size={14} /></button>
+                      <button className="fin-list-action-btn danger" title="Delete" onClick={() => handleDelete(b)} aria-label="Delete"><Trash2 size={14} /></button>
                     </td>
                   </tr>
                 );
@@ -253,38 +253,38 @@ export default function PurchaseInvoices() {
             <div className="prod-form-grid">
               <div className="prod-field full">
                 <label>Vendor *</label>
-                <select value={editing.vendor_id} onChange={(e) => set('vendor_id', e.target.value)} required>
+                <select aria-label="Vendor" value={editing.vendor_id} onChange={(e) => set('vendor_id', e.target.value)} required>
                   <option value="">Select a vendor…</option>
                   {(editing.id ? vendors : activeVendors).map((v) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
                 </select>
               </div>
               <div className="prod-field">
                 <label>Bill number *</label>
-                <input value={editing.bill_number} onChange={(e) => set('bill_number', e.target.value)} required placeholder="As printed on the bill" />
+                <input aria-label="Bill number" value={editing.bill_number} onChange={(e) => set('bill_number', e.target.value)} required placeholder="As printed on the bill" />
               </div>
               <div className="prod-field">
                 <label>Category</label>
-                <select value={editing.category} onChange={(e) => set('category', e.target.value)}>
+                <select aria-label="Category" value={editing.category} onChange={(e) => set('category', e.target.value)}>
                   {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div className="prod-field">
                 <label>Bill date</label>
-                <input type="date" value={editing.bill_date || ''} onChange={(e) => set('bill_date', e.target.value)} />
+                <input aria-label="Bill date" type="date" value={editing.bill_date || ''} onChange={(e) => set('bill_date', e.target.value)} />
               </div>
               <div className="prod-field">
                 <label>Due date</label>
-                <input type="date" value={editing.due_date || ''} onChange={(e) => set('due_date', e.target.value)} />
+                <input aria-label="Due date" type="date" value={editing.due_date || ''} onChange={(e) => set('due_date', e.target.value)} />
               </div>
               <div className="prod-field">
                 <label>Amount before tax (₹) *</label>
-                <input type="number" min="0" step="0.01" value={editing.subtotal} onChange={(e) => set('subtotal', e.target.value)} required />
+                <input aria-label="Amount before tax (₹)" type="number" min="0" step="0.01" value={editing.subtotal} onChange={(e) => set('subtotal', e.target.value)} required />
               </div>
               <div className="prod-field">
                 <label>GST rate</label>
                 <div className="prod-rate-chips">
                   {TAX_RATES.map((r) => (
-                    <button key={r} type="button" className={`easy-chip ${Number(editing.tax_rate) === r ? 'active' : ''}`} onClick={() => set('tax_rate', r)}>{r}%</button>
+                    <button key={r} type="button" aria-pressed={!!(Number(editing.tax_rate) === r)} className={`easy-chip ${Number(editing.tax_rate) === r ? 'active' : ''}`} onClick={() => set('tax_rate', r)}>{r}%</button>
                   ))}
                 </div>
               </div>
@@ -293,7 +293,7 @@ export default function PurchaseInvoices() {
               </p>
               <div className="prod-field full">
                 <label>Description</label>
-                <input value={editing.description || ''} onChange={(e) => set('description', e.target.value)} placeholder="What was bought" />
+                <input aria-label="Description" value={editing.description || ''} onChange={(e) => set('description', e.target.value)} placeholder="What was bought" />
               </div>
               <div className="prod-field full">
                 <label>Receipt / bill copy</label>
@@ -301,7 +301,7 @@ export default function PurchaseInvoices() {
               </div>
               <div className="prod-field full">
                 <label>Notes</label>
-                <textarea rows={2} value={editing.notes || ''} onChange={(e) => set('notes', e.target.value)} />
+                <textarea aria-label="Notes" rows={2} value={editing.notes || ''} onChange={(e) => set('notes', e.target.value)} />
               </div>
             </div>
             <div className="prod-modal-foot">
@@ -322,7 +322,7 @@ export default function PurchaseInvoices() {
             </p>
             <div className="prod-field">
               <label>Amount paid now (₹)</label>
-              <input type="number" min="0.01" step="0.01" max={balance(paying)} value={payAmount} onChange={(e) => setPayAmount(e.target.value)} autoFocus />
+              <input aria-label="Amount paid now (₹)" type="number" min="0.01" step="0.01" max={balance(paying)} value={payAmount} onChange={(e) => setPayAmount(e.target.value)} autoFocus />
             </div>
             <div className="prod-modal-foot">
               <button type="button" onClick={() => setPaying(null)} className="prod-btn-ghost">Cancel</button>

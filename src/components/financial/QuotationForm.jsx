@@ -473,7 +473,7 @@ export default function QuotationForm({ editDocId }) {
             <div className="easy-row">
               <div className="easy-field" ref={clientDropdownRef} style={{ position: 'relative' }}>
                 <label className="easy-lbl">Client name</label>
-                <input
+                <input aria-label="Client name"
                   type="text"
                   placeholder="Search or type client name..."
                   value={clientSearch || formData.clientName}
@@ -501,7 +501,7 @@ export default function QuotationForm({ editDocId }) {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Client company</label>
-                <input
+                <input aria-label="Client company"
                   type="text"
                   placeholder="Company name"
                   value={formData.clientCompany}
@@ -511,7 +511,7 @@ export default function QuotationForm({ editDocId }) {
               </div>
               <div className="easy-field full">
                 <label className="easy-lbl">Client address</label>
-                <input
+                <input aria-label="Client address"
                   type="text"
                   placeholder="Full billing address"
                   value={formData.clientAddress}
@@ -522,6 +522,7 @@ export default function QuotationForm({ editDocId }) {
               <div className="easy-field">
                 <label className="easy-lbl">Client GSTIN <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span></label>
                 <input
+                  aria-label="Client GSTIN (optional)"
                   type="text"
                   placeholder="22AAAAA0000A1Z5"
                   value={formData.clientGstin}
@@ -533,7 +534,7 @@ export default function QuotationForm({ editDocId }) {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Client country</label>
-                <CountrySelect
+                <CountrySelect ariaLabel="Client country"
                   value={formData.clientCountry}
                   placeholder="From customer record"
                   onChange={(code) => setFormData({ ...formData, clientCountry: code || '' })}
@@ -541,7 +542,7 @@ export default function QuotationForm({ editDocId }) {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Client email</label>
-                <input
+                <input aria-label="Client email"
                   type="email"
                   placeholder="client@company.com"
                   value={formData.clientEmail}
@@ -551,7 +552,7 @@ export default function QuotationForm({ editDocId }) {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Client phone (WhatsApp)</label>
-                <input
+                <input aria-label="Client phone (WhatsApp)"
                   type="tel"
                   placeholder="+91 98765 43210"
                   value={formData.clientPhone}
@@ -571,7 +572,7 @@ export default function QuotationForm({ editDocId }) {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Quotation number</label>
-                <input
+                <input aria-label="Quotation number"
                   type="text"
                   value={formData.quotationNumber}
                   onChange={(e) => setFormData({ ...formData, quotationNumber: e.target.value })}
@@ -581,7 +582,7 @@ export default function QuotationForm({ editDocId }) {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Quotation date</label>
-                <input
+                <input aria-label="Quotation date"
                   type="date"
                   value={formData.quotationDate}
                   onChange={(e) => setFormData({ ...formData, quotationDate: e.target.value })}
@@ -590,7 +591,7 @@ export default function QuotationForm({ editDocId }) {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Valid until</label>
-                <input
+                <input aria-label="Valid until"
                   type="date"
                   value={formData.validUntil}
                   onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
@@ -599,7 +600,7 @@ export default function QuotationForm({ editDocId }) {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Revision</label>
-                <input
+                <input aria-label="Revision"
                   type="text"
                   value={formData.revision}
                   onChange={(e) => setFormData({ ...formData, revision: e.target.value })}
@@ -610,6 +611,7 @@ export default function QuotationForm({ editDocId }) {
                 <label className="easy-lbl">Discount</label>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <input
+                    aria-label={formData.discountType === 'percent' ? 'Discount percent' : 'Discount amount'}
                     type="number"
                     value={formData.discountValue}
                     min="0"
@@ -623,14 +625,14 @@ export default function QuotationForm({ editDocId }) {
                     <button
                       type="button"
                       onClick={() => setFormData({ ...formData, discountType: 'percent' })}
-                      className={`easy-chip ${formData.discountType === 'percent' ? 'active' : ''}`}
+                      aria-pressed={formData.discountType === 'percent'} className={`easy-chip ${formData.discountType === 'percent' ? 'active' : ''}`}
                     >
                       %
                     </button>
                     <button
                       type="button"
                       onClick={() => setFormData({ ...formData, discountType: 'flat' })}
-                      className={`easy-chip ${formData.discountType === 'flat' ? 'active' : ''}`}
+                      aria-pressed={formData.discountType === 'flat'} className={`easy-chip ${formData.discountType === 'flat' ? 'active' : ''}`}
                     >
                       Flat
                     </button>
@@ -659,7 +661,7 @@ export default function QuotationForm({ editDocId }) {
                     />
                   </div>
                   <div className="easy-line-top">
-                    <input
+                    <input aria-label="Item description"
                       type="text"
                       placeholder="Item description..."
                       value={item.description}
@@ -667,6 +669,7 @@ export default function QuotationForm({ editDocId }) {
                       className="easy-inp"
                     />
                     <input
+                      aria-label="HSN/SAC code (optional)"
                       type="text"
                       placeholder="HSN/SAC (optional)"
                       value={item.hsnSac}
@@ -678,7 +681,7 @@ export default function QuotationForm({ editDocId }) {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.625rem' }}>
                     <div>
                       <label className="easy-lbl-sm">Qty</label>
-                      <input
+                      <input aria-label="Qty"
                         type="number"
                         value={item.quantity}
                         min="1"
@@ -688,7 +691,7 @@ export default function QuotationForm({ editDocId }) {
                     </div>
                     <div>
                       <label className="easy-lbl-sm">Unit</label>
-                      <select
+                      <select aria-label="Unit"
                         value={item.unit}
                         onChange={(e) => handleItemChange(item.id, 'unit', e.target.value)}
                         className="easy-inp"
@@ -702,7 +705,7 @@ export default function QuotationForm({ editDocId }) {
                     </div>
                     <div>
                       <label className="easy-lbl-sm">Rate</label>
-                      <input
+                      <input aria-label="Rate"
                         type="number"
                         value={item.rate}
                         min="0"
@@ -727,7 +730,7 @@ export default function QuotationForm({ editDocId }) {
                   onClick={() => handleRemoveItem(item.id)}
                   className="easy-delete-btn"
                   title="Remove item"
-                >
+                 aria-label="Remove item">
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -739,13 +742,14 @@ export default function QuotationForm({ editDocId }) {
 
             {/* GST Toggle */}
             <div style={{ marginTop: '1rem' }}>
-              <div
+              <button
+                type="button" role="switch" aria-checked={!!formData.enableGst}
                 className={`easy-switch-row ${formData.enableGst ? 'active' : ''}`}
                 onClick={() => setFormData({ ...formData, enableGst: !formData.enableGst })}
               >
                 <span className="easy-switch-label">Include GST</span>
-                <div className="easy-switch-dot" />
-              </div>
+                <span className="easy-switch-dot" aria-hidden="true" />
+              </button>
               {formData.enableGst && (
                 <div className="easy-field" style={{ marginTop: '0.75rem' }}>
                   <label className="easy-lbl">GST rate</label>
@@ -755,7 +759,7 @@ export default function QuotationForm({ editDocId }) {
                         key={rate}
                         type="button"
                         onClick={() => setFormData({ ...formData, gstRate: rate })}
-                        className={`easy-chip ${formData.gstRate === rate ? 'active' : ''}`}
+                        aria-pressed={formData.gstRate === rate} className={`easy-chip ${formData.gstRate === rate ? 'active' : ''}`}
                       >
                         {rate}%
                       </button>
@@ -799,9 +803,9 @@ export default function QuotationForm({ editDocId }) {
               {formData.enableGst && totals.gstAmount > 0 && (
                 <>
                   <div className="easy-total-divider" />
-                  <div className="easy-total-row" style={{ color: 'rgba(59,130,246,0.7)' }}>
+                  <div className="easy-total-row" style={{ color: 'var(--text-secondary)' }}>
                     <span>GST @ {formData.gstRate}%</span>
-                    <span style={{ color: '#60a5fa', fontWeight: 600 }}>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
                       {formatCurrency(totals.gstAmount)}
                     </span>
                   </div>
@@ -850,7 +854,7 @@ export default function QuotationForm({ editDocId }) {
             <div className="easy-row">
               <div className="easy-field full">
                 <label className="easy-lbl">Payment instructions</label>
-                <textarea
+                <textarea aria-label="Payment instructions"
                   placeholder="Bank details, UPI ID, payment terms..."
                   rows={4}
                   value={formData.paymentInstructions}
@@ -861,7 +865,7 @@ export default function QuotationForm({ editDocId }) {
               </div>
               <div className="easy-field full">
                 <label className="easy-lbl">Terms & conditions</label>
-                <textarea
+                <textarea aria-label="Terms & conditions"
                   placeholder="Delivery timelines, warranty, cancellation policy..."
                   rows={4}
                   value={formData.terms}

@@ -23,16 +23,29 @@ const STATUS_CONFIG = {
   order_confirmed: { label: 'Order Confirmed', color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' },
 };
 
+// What a status means for the reader, independent of hue. Inside the app shell
+// the badge is drawn from this (see edgeBridge.css); the public recipient
+// portal keeps the coloured pill above.
+const TONE = {
+  paid: 'up', signed: 'up', accepted: 'up', fully_signed: 'up', active: 'up', converted: 'up',
+  advance_paid: 'up', order_confirmed: 'up',
+  declined: 'down', overdue: 'down', cancelled: 'down', expired: 'down',
+  pending: 'attention', payment_submitted: 'attention', partially_paid: 'attention',
+  revision_requested: 'attention', party_a_signed: 'attention', paused: 'attention',
+  draft: 'mute', completed: 'mute',
+};
+
 export default function DocumentStatusBadge({ status, size = 'default' }) {
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.draft;
 
   return (
     <span
       className={`doc-status-badge ${size} ${config.pulse ? 'pulse' : ''}`}
+      data-tone={TONE[status] || 'neutral'}
       style={{ color: config.color, background: config.bg }}
       title={`Status: ${config.label}`}
     >
-      {config.pulse && <span className="doc-status-pulse-dot" style={{ background: config.color }} />}
+      {config.pulse && <span className="doc-status-pulse-dot" aria-hidden="true" style={{ background: config.color }} />}
       {config.label}
     </span>
   );

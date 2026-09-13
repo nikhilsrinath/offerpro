@@ -9,6 +9,7 @@ import {
 import { documentStore, docNumber as docNo } from '../../services/documentStore';
 import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
+import { DialogSheet } from '../ui/edge';
 import PortalLinkGenerator from '../shared/PortalLinkGenerator';
 import PaymentPositionCards from './PaymentPositionCards';
 
@@ -185,9 +186,11 @@ export default function FinanceStatus() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="fin-list-search"
+            aria-label="Search documents"
           />
         </div>
         <select
+          aria-label="Sort by"
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
           style={{
@@ -253,7 +256,14 @@ export default function FinanceStatus() {
               >
                 <div
                   className="fin-status-deal-header"
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={expandedClient === group.client}
                   onClick={() => toggleClient(group.client)}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleClient(group.client); }
+                  }}
                 >
                   <div className="fin-status-deal-info">
                     <div className="fin-status-deal-avatar">
@@ -434,7 +444,7 @@ export default function FinanceStatus() {
                           className="fin-list-action-btn"
                           title="Copy Portal Link"
                           onClick={() => setShowPortalLink(doc.id)}
-                        >
+                         aria-label="Copy Portal Link">
                           <Copy size={14} />
                         </button>
                       </td>
@@ -451,18 +461,20 @@ export default function FinanceStatus() {
       <AnimatePresence>
         {showPortalLink && (
           <div className="fin-modal-overlay" onClick={() => setShowPortalLink(null)}>
-            <motion.div
+            <DialogSheet
+              as={motion.div}
+              label="Share portal link"
+              onClose={() => setShowPortalLink(null)}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               className="fin-modal"
-              onClick={(e) => e.stopPropagation()}
             >
               <PortalLinkGenerator documentId={showPortalLink} documentType="Document" />
-              <button className="fin-modal-close" onClick={() => setShowPortalLink(null)}>
-                <XCircle size={18} />
+              <button type="button" className="fin-modal-close" aria-label="Close" title="Close (Esc)" onClick={() => setShowPortalLink(null)}>
+                <XCircle aria-hidden="true" size={18} />
               </button>
-            </motion.div>
+            </DialogSheet>
           </div>
         )}
       </AnimatePresence>

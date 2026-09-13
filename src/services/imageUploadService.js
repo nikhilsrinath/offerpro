@@ -278,7 +278,7 @@ const EXT_FOR_MIME = { 'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': '
  *
  * @returns {Promise<{path: string, url: string, bytes: number, mime: string}>}
  */
-export async function uploadOrgImage({ orgId, kind, source }) {
+export async function uploadOrgImage({ orgId, kind, source, folder = '' }) {
   const spec = IMAGE_KINDS[kind];
   if (!spec) throw new Error(`Unknown image kind: ${kind}`);
   if (!orgId) throw new Error('No organization selected.');
@@ -292,7 +292,10 @@ export async function uploadOrgImage({ orgId, kind, source }) {
   const ext = EXT_FOR_MIME[mime] || 'webp';
   // Unique name per upload. The branding bucket is public and CDN-cached, so a
   // fixed name would keep serving the previous logo after a replacement.
-  const path = `${orgId}/${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  // `folder` sits under the org segment, which the policies still resolve from:
+  // an employee's own photo goes to `{org}/self/{employee_id}/` (0032).
+  const prefix = folder ? `${orgId}/${folder.replace(/^\/+|\/+$/g, '')}` : orgId;
+  const path = `${prefix}/${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
   const { error } = await supabase.storage.from(spec.bucket).upload(path, blob, {
     contentType: mime,

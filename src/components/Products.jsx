@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { DialogSheet } from './ui/edge';
 import {
   Plus, Search, Package, Pencil, Archive, ArchiveRestore, Trash2,
   TrendingUp, X, AlertTriangle, IndianRupee, Boxes, Tag,
@@ -213,10 +214,10 @@ export default function Products() {
 
       {/* Tabs */}
       <div className="prod-tabs">
-        <button className={`pro-chip ${tab === 'catalog' ? 'active' : ''}`} onClick={() => setTab('catalog')}>
+        <button aria-pressed={tab === 'catalog'} className={`pro-chip ${tab === 'catalog' ? 'active' : ''}`} onClick={() => setTab('catalog')}>
           Catalogue
         </button>
-        <button className={`pro-chip ${tab === 'performance' ? 'active' : ''}`} onClick={() => setTab('performance')}>
+        <button aria-pressed={tab === 'performance'} className={`pro-chip ${tab === 'performance' ? 'active' : ''}`} onClick={() => setTab('performance')}>
           Product Performance
         </button>
       </div>
@@ -227,18 +228,19 @@ export default function Products() {
             <div className="prod-search">
               <Search size={14} />
               <input
+                aria-label="Search products"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by name, SKU, category or HSN..."
               />
               {search && (
-                <button type="button" onClick={() => setSearch('')} className="prod-search-clear">
+                <button type="button" onClick={() => setSearch('')} className="prod-search-clear" aria-label="Clear search" title="Clear search">
                   <X size={13} />
                 </button>
               )}
             </div>
 
-            <select
+            <select aria-label="Filter by category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="prod-select"
@@ -248,7 +250,7 @@ export default function Products() {
             </select>
 
             <button
-              className={`pro-chip ${showArchived ? 'active' : ''}`}
+              aria-pressed={!!showArchived} className={`pro-chip ${showArchived ? 'active' : ''}`}
               onClick={() => setShowArchived((v) => !v)}
             >
               <Archive size={12} /> Archived
@@ -337,12 +339,12 @@ function ProductCard({ product: p, onEdit, onArchive, onDelete }) {
           <span>{p.name}</span>
         </div>
         <div className="prod-card-actions">
-          <button onClick={onEdit} title="Edit"><Pencil size={13} /></button>
+          <button onClick={onEdit} title="Edit" aria-label="Edit"><Pencil size={13} /></button>
           <button onClick={onArchive} title={p.archived_at ? 'Restore' : 'Archive'}>
             {p.archived_at ? <ArchiveRestore size={13} /> : <Archive size={13} />}
           </button>
           {neverSold && (
-            <button onClick={onDelete} title="Delete permanently" className="danger">
+            <button onClick={onDelete} title="Delete permanently" className="danger" aria-label="Delete permanently">
               <Trash2 size={13} />
             </button>
           )}
@@ -409,10 +411,10 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
 
   return (
     <div className="prod-modal-backdrop" onClick={onClose}>
-      <div className="prod-modal" onClick={(e) => e.stopPropagation()}>
+      <DialogSheet className="prod-modal" labelledBy="product-form-title" onClose={onClose}>
         <div className="prod-modal-head">
-          <h3>{value.id ? 'Edit product' : 'New product'}</h3>
-          <button type="button" onClick={onClose}><X size={16} /></button>
+          <h3 id="product-form-title">{value.id ? 'Edit product' : 'New product'}</h3>
+          <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)"><X aria-hidden="true" size={16} /></button>
         </div>
 
         <form onSubmit={onSubmit} className="prod-modal-body">
@@ -421,7 +423,7 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
           <div className="prod-form-grid">
             <div className="prod-field full">
               <label>Name *</label>
-              <input
+              <input aria-label="Name"
                 value={value.name}
                 onChange={(e) => set('name', e.target.value)}
                 placeholder="e.g. IoT Gateway Module"
@@ -432,7 +434,7 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
 
             <div className="prod-field">
               <label>SKU / code</label>
-              <input
+              <input aria-label="SKU / code"
                 value={value.sku || ''}
                 onChange={(e) => set('sku', e.target.value)}
                 placeholder="e.g. IOT-GW-01"
@@ -441,7 +443,7 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
 
             <div className="prod-field">
               <label>Category</label>
-              <input
+              <input aria-label="Category"
                 value={value.category || ''}
                 onChange={(e) => set('category', e.target.value)}
                 placeholder="e.g. Hardware"
@@ -454,7 +456,7 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
 
             <div className="prod-field full">
               <label>Description</label>
-              <textarea
+              <textarea aria-label="Description"
                 value={value.description || ''}
                 onChange={(e) => set('description', e.target.value)}
                 rows={2}
@@ -464,7 +466,7 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
 
             <div className="prod-field">
               <label>Unit price (₹)</label>
-              <input
+              <input aria-label="Unit price (₹)"
                 type="number" min="0" step="0.01"
                 value={value.unit_price}
                 onChange={(e) => set('unit_price', e.target.value)}
@@ -474,14 +476,14 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
 
             <div className="prod-field">
               <label>Unit of measurement</label>
-              <select value={value.unit} onChange={(e) => set('unit', e.target.value)}>
+              <select aria-label="Unit of measurement" value={value.unit} onChange={(e) => set('unit', e.target.value)}>
                 {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
 
             <div className="prod-field">
               <label>HSN / SAC code</label>
-              <input
+              <input aria-label="HSN / SAC code"
                 value={value.hsn_sac || ''}
                 onChange={(e) => set('hsn_sac', e.target.value)}
                 placeholder="e.g. 8517"
@@ -495,7 +497,7 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
                   <button
                     key={r}
                     type="button"
-                    className={`easy-chip ${Number(value.tax_rate) === r ? 'active' : ''}`}
+                    aria-pressed={!!(Number(value.tax_rate) === r)} className={`easy-chip ${Number(value.tax_rate) === r ? 'active' : ''}`}
                     onClick={() => set('tax_rate', r)}
                   >
                     {r}%
@@ -521,7 +523,7 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
               <div className="prod-form-grid" style={{ marginTop: '0.75rem' }}>
                 <div className="prod-field">
                   <label>Quantity on hand</label>
-                  <input
+                  <input aria-label="Quantity on hand"
                     type="number" min="0" step="0.001"
                     value={value.stock_qty}
                     onChange={(e) => set('stock_qty', e.target.value)}
@@ -530,7 +532,7 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
                 </div>
                 <div className="prod-field">
                   <label>Low-stock warning at</label>
-                  <input
+                  <input aria-label="Low-stock warning at"
                     type="number" min="0" step="0.001"
                     value={value.low_stock_at ?? ''}
                     onChange={(e) => set('low_stock_at', e.target.value)}
@@ -554,7 +556,7 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
             </button>
           </div>
         </form>
-      </div>
+      </DialogSheet>
     </div>
   );
 }
@@ -576,14 +578,14 @@ function PerformanceView({
         {RANGES.map((r) => (
           <button
             key={r.id}
-            className={`pro-chip ${range === r.id ? 'active' : ''}`}
+            aria-pressed={range === r.id} className={`pro-chip ${range === r.id ? 'active' : ''}`}
             onClick={() => setRange(r.id)}
           >
             {r.label}
           </button>
         ))}
         <button
-          className={`pro-chip ${range === 'custom' ? 'active' : ''}`}
+          aria-pressed={range === 'custom'} className={`pro-chip ${range === 'custom' ? 'active' : ''}`}
           onClick={() => setRange('custom')}
         >
           Custom

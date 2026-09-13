@@ -1,332 +1,361 @@
-// LeaveRequests.jsx — the approval queue, the history, and the leave catalogue.
+// LeaveRequests — the approval queue, the history, and the leave catalogue.
 //
 // Approve / reject is a plain UPDATE: app.guard_leave_decision (0029 §7) refuses
 // a self-approval and stamps who decided, and app.notify_leave_request (0029 §8)
 // writes the notification. So this file never has to ask "may I?" — it shows the
 // database's answer when the write comes back refused.
+//
+// The queue is the page. Approve and Reject sit at the end of each waiting row
+// where the decision is made, and only a rejection stops for a comment — an
+// approval with nothing to add should not cost a dialog. History and the
+// catalogue are the other two tabs, in that order of how often they are opened.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Plane, Check, X, Clock, Plus, Settings2, Loader2, MessageSquare, Scale,
-} from 'lucide-react';
-import { useSection, fmtDate } from '../financial/financeHooks';
+import { useSection } from '../financial/financeHooks';
 import { useToast } from '../shared/Toast';
-import { Stat, Modal } from '../financial/financeUi';
 import { orgStore } from '../../services/orgStore';
 import { leaveService, LEAVE_STATUSES } from '../../services/leaveService';
+import {
+    Page, Toolbar, Panel, Row, Btn, Seg, Search, Field, Input, Select, Textarea,
+    Table, Tr, Td, Avatar, Status, Bar, StatBand, Empty, Loading, Modal, Muted,
+} from '../ui/edge';
+import { useT, fmtDate } from '../ui/edgeUtils';
 
-const BLANK_TYPE = { name: '', code: '', annual_quota: 12, is_paid: true, color: '#3b82f6', is_active: true, sort_order: 0 };
+const BLANK_TYPE = {
+    name: '', code: '', annual_quota: 12, is_paid: true,
+    color: '#3b82f6', is_active: true, sort_order: 0,
+};
 
-function StatusPill({ status }) {
-  const s = LEAVE_STATUSES[status] || { label: status, color: '#94a3b8' };
-  return <span className="prod-tag" style={{ color: s.color, borderColor: s.color }}>{s.label}</span>;
-}
+const TONE = { approved: 'up', rejected: 'down', pending: 'neutral', cancelled: 'mute' };
 
 export default function LeaveRequests() {
-  const toast = useToast();
-  const employees = useSection('employees');
-  const orgId = orgStore.getOrgId();
+    const t = useT();
+    const toast = useToast();
+    const employees = useSection('employees');
+    const orgId = orgStore.getOrgId();
 
-  const [tab, setTab] = useState('pending');
-  const [types, setTypes] = useState([]);
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [deciding, setDeciding] = useState(null);   // { request, action }
-  const [comment, setComment] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [editingType, setEditingType] = useState(null);
-  const [filterEmployee, setFilterEmployee] = useState('');
+    const [tab, setTab] = useState('pending');
+    const [types, setTypes] = useState([]);
+    const [requests, setRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [deciding, setDeciding] = useState(null);   // { request, action }
+    const [comment, setComment] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [editingType, setEditingType] = useState(null);
+    const [who, setWho] = useState('');
 
-  const byId = useMemo(() => Object.fromEntries(employees.map((e) => [e.id, e])), [employees]);
-  const typeById = useMemo(() => Object.fromEntries(types.map((t) => [t.id, t])), [types]);
-  const nameOf = (id) => byId[id]?.name || byId[id]?.full_name || 'Former employee';
+    const byId = useMemo(() => Object.fromEntries(employees.map((e) => [e.id, e])), [employees]);
+    const typeById = useMemo(() => Object.fromEntries(types.map((x) => [x.id, x])), [types]);
+    const nameOf = (id) => byId[id]?.name || byId[id]?.full_name || 'Former employee';
 
-  const load = useCallback(async () => {
-    if (!orgId) return;
-    setLoading(true);
-    try {
-      const [t, r] = await Promise.all([
-        leaveService.listTypes(orgId, { includeInactive: true }),
-        leaveService.listRequests(orgId),
-      ]);
-      setTypes(t);
-      setRequests(r);
-    } catch (err) {
-      toast(err.message || 'Could not load leave.', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [orgId, toast]);
+    const load = useCallback(async () => {
+        if (!orgId) return;
+        setLoading(true);
+        try {
+            const [ts, rs] = await Promise.all([
+                leaveService.listTypes(orgId, { includeInactive: true }),
+                leaveService.listRequests(orgId),
+            ]);
+            setTypes(ts);
+            setRequests(rs);
+        } catch (err) {
+            toast(err.message || 'Could not load leave.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [orgId, toast]);
 
-  useEffect(() => { load(); }, [load]);
+    useEffect(() => { load(); }, [load]);
 
-  const pending = useMemo(() => requests.filter((r) => r.status === 'pending'), [requests]);
-  const history = useMemo(() => requests
-    .filter((r) => r.status !== 'pending')
-    .filter((r) => !filterEmployee || r.employee_id === filterEmployee),
-  [requests, filterEmployee]);
+    const pending = useMemo(() => requests.filter((r) => r.status === 'pending'), [requests]);
+    const history = useMemo(() => requests
+        .filter((r) => r.status !== 'pending')
+        .filter((r) => !who || r.employee_id === who), [requests, who]);
 
-  const totals = useMemo(() => {
-    const year = new Date().getFullYear();
-    const thisYear = requests.filter((r) => Number(r.start_date.slice(0, 4)) === year);
-    return {
-      pending: pending.length,
-      approvedDays: thisYear.filter((r) => r.status === 'approved').reduce((s, r) => s + Number(r.days), 0),
-      rejected: thisYear.filter((r) => r.status === 'rejected').length,
+    const totals = useMemo(() => {
+        const year = new Date().getFullYear();
+        const thisYear = requests.filter((r) => Number(r.start_date.slice(0, 4)) === year);
+        return {
+            pending: pending.length,
+            approvedDays: thisYear.filter((r) => r.status === 'approved').reduce((s, r) => s + Number(r.days), 0),
+            rejected: thisYear.filter((r) => r.status === 'rejected').length,
+            activeTypes: types.filter((x) => x.is_active).length,
+        };
+    }, [requests, pending, types]);
+
+    // Days taken per type this year, so the catalogue shows how each quota is
+    // actually being used rather than only what it is set to.
+    const usage = useMemo(() => {
+        const year = new Date().getFullYear();
+        const m = {};
+        requests
+            .filter((r) => r.status === 'approved' && Number(r.start_date.slice(0, 4)) === year)
+            .forEach((r) => { m[r.leave_type_id] = (m[r.leave_type_id] || 0) + Number(r.days); });
+        return m;
+    }, [requests]);
+
+    const decide = async (request, action, note) => {
+        setBusy(true);
+        try {
+            const updated = await leaveService.decide(request.id, action, note || '');
+            setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+            setDeciding(null);
+            setComment('');
+            toast(`Leave ${action}`, 'success');
+        } catch (err) {
+            toast(err.message || 'Could not record the decision.', 'error');
+        } finally {
+            setBusy(false);
+        }
     };
-  }, [requests, pending]);
 
-  const decide = async () => {
-    const { request, action } = deciding;
-    setBusy(true);
-    try {
-      const updated = await leaveService.decide(request.id, action, comment);
-      setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-      setDeciding(null);
-      setComment('');
-      toast(`Leave ${action}`, 'success');
-    } catch (err) {
-      toast(err.message || 'Could not record the decision.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
+    const saveType = async () => {
+        if (!editingType.name?.trim()) { toast('Give the leave type a name.', 'error'); return; }
+        setBusy(true);
+        try {
+            await leaveService.saveType(orgId, editingType);
+            setEditingType(null);
+            await load();
+            toast('Leave type saved', 'success');
+        } catch (err) {
+            toast(err.message || 'Could not save the leave type.', 'error');
+        } finally {
+            setBusy(false);
+        }
+    };
 
-  const saveType = async (e) => {
-    e.preventDefault();
-    if (!editingType.name?.trim()) { toast('Give the leave type a name.', 'error'); return; }
-    setBusy(true);
-    try {
-      await leaveService.saveType(orgId, editingType);
-      setEditingType(null);
-      await load();
-      toast('Leave type saved', 'success');
-    } catch (err) {
-      toast(err.message || 'Could not save the leave type.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
+    const dateSpan = (r) => (r.end_date !== r.start_date
+        ? fmtDate(r.start_date) + ' → ' + fmtDate(r.end_date)
+        : fmtDate(r.start_date));
 
-  const renderRow = (r, withActions) => (
-    <tr key={r.id}>
-      <td>
-        <div className="prod-perf-name">{nameOf(r.employee_id)}</div>
-        <div className="prod-perf-meta">{byId[r.employee_id]?.role || '—'}</div>
-      </td>
-      <td>
-        <span className="prod-tag" style={{ color: typeById[r.leave_type_id]?.color || undefined }}>
-          {typeById[r.leave_type_id]?.name || 'Leave'}
-        </span>
-      </td>
-      <td>
-        {fmtDate(r.start_date)}
-        {r.end_date !== r.start_date && <> &rarr; {fmtDate(r.end_date)}</>}
-      </td>
-      <td>{r.days}{r.half_day && r.days === 0.5 ? ' (half)' : ''}</td>
-      <td className="prod-perf-note">{r.reason || '—'}</td>
-      {withActions ? (
-        <td>
-          <button
-            type="button" className="prod-btn-primary"
-            onClick={() => { setDeciding({ request: r, action: 'approved' }); setComment(''); }}
-          >
-            <Check size={13} /> Approve
-          </button>
-          <button
-            type="button" className="prod-btn-ghost"
-            onClick={() => { setDeciding({ request: r, action: 'rejected' }); setComment(''); }}
-          >
-            <X size={13} /> Reject
-          </button>
-        </td>
-      ) : (
-        <td>
-          <StatusPill status={r.status} />
-          {r.decision_comment && (
-            <div className="prod-perf-note" style={{ marginTop: '0.25rem' }}>
-              <MessageSquare size={11} /> {r.decision_comment}
-            </div>
-          )}
-        </td>
-      )}
-    </tr>
-  );
+    const who1 = (r) => (
+        <Row gap={9}>
+            <Avatar name={nameOf(r.employee_id)} size={26} />
+            <span style={{ minWidth: 0 }}>
+                <span style={{ display: 'block' }}>{nameOf(r.employee_id)}</span>
+                <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 1 }}>
+                    {byId[r.employee_id]?.role || '—'}
+                </span>
+            </span>
+        </Row>
+    );
 
-  return (
-    <div className="prod-inventory">
-      <div className="prod-stats">
-        <Stat icon={<Clock size={18} />} label="Awaiting decision" value={totals.pending} accent="#f59e0b" />
-        <Stat icon={<Plane size={18} />} label="Days approved this year" value={totals.approvedDays} accent="#10b981" />
-        <Stat icon={<X size={18} />} label="Rejected this year" value={totals.rejected} accent="#ef4444" />
-        <Stat icon={<Scale size={18} />} label="Leave types" value={types.filter((t) => t.is_active).length} />
-      </div>
+    const typeCell = (r) => {
+        const ty = typeById[r.leave_type_id];
+        return ty
+            ? <Row gap={7}><span style={{ width: 5, height: 5, borderRadius: '50%', background: ty.color, flexShrink: 0 }} />
+                <span style={{ color: t.dim, fontSize: 11 }}>{ty.name}</span></Row>
+            : <span style={{ color: t.ghost }}>Leave</span>;
+    };
 
-      <div className="prod-tabs">
-        <button type="button" className={`pro-chip ${tab === 'pending' ? 'active' : ''}`} onClick={() => setTab('pending')}>
-          <Clock size={14} /> Pending{totals.pending ? ` (${totals.pending})` : ''}
-        </button>
-        <button type="button" className={`pro-chip ${tab === 'history' ? 'active' : ''}`} onClick={() => setTab('history')}>
-          <Plane size={14} /> History
-        </button>
-        <button type="button" className={`pro-chip ${tab === 'types' ? 'active' : ''}`} onClick={() => setTab('types')}>
-          <Settings2 size={14} /> Leave types
-        </button>
-      </div>
+    return (
+        <Page>
+            <Toolbar right={tab === 'types' ? <Btn primary onClick={() => setEditingType({ ...BLANK_TYPE })}>New leave type</Btn> : null}>
+                <Seg value={tab} onChange={setTab} options={[
+                    { id: 'pending', label: 'Waiting', count: totals.pending },
+                    { id: 'history', label: 'History', count: requests.length - totals.pending },
+                    { id: 'types', label: 'Leave types', count: totals.activeTypes },
+                ]} />
+                {tab === 'history' && (
+                    <Select value={who} onChange={(e) => setWho(e.target.value)} style={{ width: 180, height: 29 }}>
+                        <option value="">Everyone</option>
+                        {employees.map((e) => <option key={e.id} value={e.id}>{e.name || e.full_name}</option>)}
+                    </Select>
+                )}
+            </Toolbar>
 
-      {loading ? (
-        <div className="prod-empty"><Loader2 className="spin" size={18} /> Loading…</div>
-      ) : tab === 'pending' ? (
-        pending.length ? (
-          <div className="prod-perf-table-wrap">
-            <table className="prod-perf-table">
-              <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th>Days</th><th>Reason</th><th>Decision</th></tr></thead>
-              <tbody>{pending.map((r) => renderRow(r, true))}</tbody>
-            </table>
-          </div>
-        ) : <div className="prod-empty">Nothing waiting on you.</div>
-      ) : tab === 'history' ? (
-        <>
-          <div className="prod-toolbar">
-            <select className="prod-select" value={filterEmployee} onChange={(e) => setFilterEmployee(e.target.value)}>
-              <option value="">Everyone</option>
-              {employees.map((e) => <option key={e.id} value={e.id}>{e.name || e.full_name}</option>)}
-            </select>
-          </div>
-          {history.length ? (
-            <div className="prod-perf-table-wrap">
-              <table className="prod-perf-table">
-                <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th>Days</th><th>Reason</th><th>Outcome</th></tr></thead>
-                <tbody>{history.map((r) => renderRow(r, false))}</tbody>
-              </table>
-            </div>
-          ) : <div className="prod-empty">No decided requests yet.</div>}
-        </>
-      ) : (
-        <>
-          <div className="prod-toolbar">
-            <div style={{ flex: 1 }} />
-            <button type="button" className="prod-btn-primary" onClick={() => setEditingType({ ...BLANK_TYPE })}>
-              <Plus size={14} /> New leave type
-            </button>
-          </div>
-          <div className="prod-perf-table-wrap">
-            <table className="prod-perf-table">
-              <thead><tr><th>Name</th><th>Code</th><th>Annual quota</th><th>Paid</th><th>Status</th><th /></tr></thead>
-              <tbody>
-                {types.map((t) => (
-                  <tr key={t.id} style={t.is_active ? undefined : { opacity: 0.55 }}>
-                    <td>
-                      <span className="prod-tag" style={{ color: t.color || undefined }}>{t.name}</span>
-                    </td>
-                    <td>{t.code || '—'}</td>
-                    <td>{t.annual_quota} days</td>
-                    <td>{t.is_paid ? 'Paid' : 'Unpaid'}</td>
-                    <td>{t.is_active ? 'Active' : 'Retired'}</td>
-                    <td>
-                      <button type="button" className="prod-btn-ghost" onClick={() => setEditingType({ ...t })}>Edit</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="prod-field-note">
-            {/* on delete restrict on leave_requests.leave_type_id — a type that has
-                been used cannot be deleted without erasing the leave taken under it. */}
-            Retiring a type hides it from new applications and keeps the history intact.
-          </div>
-        </>
-      )}
+            <StatBand items={[
+                { label: 'Awaiting a decision', value: totals.pending, tone: totals.pending ? 'down' : undefined },
+                { label: 'Days approved this year', value: totals.approvedDays },
+                { label: 'Rejected this year', value: totals.rejected },
+                { label: 'Leave types', value: totals.activeTypes },
+            ]} />
 
-      {deciding && (
-        <Modal
-          title={`${deciding.action === 'approved' ? 'Approve' : 'Reject'} leave — ${nameOf(deciding.request.employee_id)}`}
-          onClose={() => setDeciding(null)}
-          width="440px"
-        >
-          <div className="prod-modal-body">
-            <p>
-              {typeById[deciding.request.leave_type_id]?.name || 'Leave'},{' '}
-              {fmtDate(deciding.request.start_date)}
-              {deciding.request.end_date !== deciding.request.start_date && <> to {fmtDate(deciding.request.end_date)}</>}
-              {' '}({deciding.request.days} day{deciding.request.days === 1 ? '' : 's'}).
-            </p>
-            {deciding.request.reason && <p className="prod-perf-note">&ldquo;{deciding.request.reason}&rdquo;</p>}
-            <label className="prod-field">
-              <span>Comment {deciding.action === 'rejected' ? '(the applicant will see this)' : '(optional)'}</span>
-              <textarea
-                className="prod-select" rows={3} value={comment} maxLength={500}
-                placeholder={deciding.action === 'rejected' ? 'Why this cannot be approved…' : 'Anything they should know'}
-                onChange={(e) => setComment(e.target.value)}
-              />
-            </label>
-          </div>
-          <div className="prod-modal-foot">
-            <button type="button" className="prod-btn-ghost" onClick={() => setDeciding(null)}>Cancel</button>
-            <button type="button" className="prod-btn-primary" onClick={decide} disabled={busy}>
-              {busy ? 'Saving…' : deciding.action === 'approved' ? 'Approve' : 'Reject'}
-            </button>
-          </div>
-        </Modal>
-      )}
+            {loading ? <Loading /> : tab === 'pending' ? (
+                pending.length === 0 ? (
+                    <Panel><Empty>Nothing is waiting. New applications land here the moment they are submitted.</Empty></Panel>
+                ) : (
+                    <Table cols={[
+                        { key: 'w', label: 'Who' },
+                        { key: 't', label: 'Type' },
+                        { key: 'd', label: 'Dates' },
+                        { key: 'n', label: 'Days', align: 'right', width: 70 },
+                        { key: 'r', label: 'Reason' },
+                        { key: 'a', label: 'Decision', align: 'right', width: 176 },
+                    ]}>
+                        {pending.map((r) => (
+                            <Tr key={r.id}>
+                                <Td>{who1(r)}</Td>
+                                <Td nowrap>{typeCell(r)}</Td>
+                                <Td muted nowrap>{dateSpan(r)}</Td>
+                                <Td align="right" nowrap>{r.days}{r.half_day && r.days === 0.5 ? ' (½)' : ''}</Td>
+                                <Td muted>{r.reason || '—'}</Td>
+                                <Td align="right">
+                                    <Row gap={6} style={{ justifyContent: 'flex-end' }}>
+                                        <Btn size="sm" primary disabled={busy} onClick={() => decide(r, 'approved')}>Approve</Btn>
+                                        <Btn size="sm" onClick={() => { setDeciding({ request: r, action: 'rejected' }); setComment(''); }}>Reject</Btn>
+                                    </Row>
+                                </Td>
+                            </Tr>
+                        ))}
+                    </Table>
+                )
+            ) : tab === 'history' ? (
+                history.length === 0 ? (
+                    <Panel><Empty>No decisions recorded yet.</Empty></Panel>
+                ) : (
+                    <Table cols={[
+                        { key: 'w', label: 'Who' },
+                        { key: 't', label: 'Type' },
+                        { key: 'd', label: 'Dates' },
+                        { key: 'n', label: 'Days', align: 'right', width: 70 },
+                        { key: 's', label: 'Outcome' },
+                    ]}>
+                        {history.map((r) => (
+                            <Tr key={r.id}>
+                                <Td>{who1(r)}</Td>
+                                <Td nowrap>{typeCell(r)}</Td>
+                                <Td muted nowrap>{dateSpan(r)}</Td>
+                                <Td align="right" nowrap>{r.days}</Td>
+                                <Td>
+                                    <Status tone={TONE[r.status] || 'neutral'}>
+                                        {LEAVE_STATUSES[r.status]?.label || r.status}
+                                    </Status>
+                                    {r.decision_comment && (
+                                        <div style={{ fontSize: 9.5, color: t.faint, marginTop: 3, lineHeight: 1.6 }}>
+                                            “{r.decision_comment}”
+                                        </div>
+                                    )}
+                                </Td>
+                            </Tr>
+                        ))}
+                    </Table>
+                )
+            ) : (
+                <>
+                    <Table cols={[
+                        { key: 'n', label: 'Type' },
+                        { key: 'q', label: 'Annual quota', width: 210 },
+                        { key: 'u', label: 'Taken this year', align: 'right', width: 120 },
+                        { key: 'p', label: 'Paid' },
+                        { key: 's', label: 'Status' },
+                        { key: 'a', label: '', align: 'right', width: 70 },
+                    ]}>
+                        {types.map((ty) => {
+                            const taken = usage[ty.id] || 0;
+                            const quota = Number(ty.annual_quota) || 0;
+                            return (
+                                <Tr key={ty.id}>
+                                    <Td>
+                                        <Row gap={8}>
+                                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: ty.color, flexShrink: 0 }} />
+                                            <span>{ty.name}</span>
+                                            {ty.code && <span style={{ fontSize: 9.5, color: t.ghost }}>{ty.code}</span>}
+                                        </Row>
+                                    </Td>
+                                    <Td>
+                                        <div style={{ fontSize: 10.5, color: t.dim, marginBottom: 5 }}>
+                                            {taken} of {quota || '∞'} day{quota === 1 ? '' : 's'}
+                                        </div>
+                                        {quota > 0 && <Bar value={taken} max={quota} tone={taken > quota ? t.down : undefined} />}
+                                    </Td>
+                                    <Td align="right" muted>{taken || '—'}</Td>
+                                    <Td muted>{ty.is_paid === false ? 'Unpaid' : 'Paid'}</Td>
+                                    <Td>
+                                        <Status tone={ty.is_active === false ? 'mute' : 'up'}>
+                                            {ty.is_active === false ? 'Retired' : 'Available'}
+                                        </Status>
+                                    </Td>
+                                    <Td align="right"><Btn size="sm" onClick={() => setEditingType({ ...ty })}>Edit</Btn></Td>
+                                </Tr>
+                            );
+                        })}
+                    </Table>
+                    <p style={{ margin: '10px 2px 0', fontSize: 10, color: t.faint, lineHeight: 1.7 }}>
+                        {/* on delete restrict on leave_requests.leave_type_id — a type that has
+                            been used cannot be deleted without erasing the leave taken under it. */}
+                        Retiring a type hides it from new applications and keeps the history intact.
+                        Types cannot be deleted once leave has been taken under them.
+                    </p>
+                </>
+            )}
 
-      {editingType && (
-        <Modal title={editingType.id ? 'Edit leave type' : 'New leave type'} onClose={() => setEditingType(null)} width="460px">
-          <form onSubmit={saveType}>
-            <div className="prod-modal-body">
-              <div className="prod-form-grid">
-                <label className="prod-field">
-                  <span>Name</span>
-                  <input
-                    className="prod-select" value={editingType.name} maxLength={60} required
-                    onChange={(e) => setEditingType({ ...editingType, name: e.target.value })}
-                  />
-                </label>
-                <label className="prod-field">
-                  <span>Code</span>
-                  <input
-                    className="prod-select" value={editingType.code || ''} maxLength={6}
-                    placeholder="CL" pattern="[A-Za-z]{0,6}"
-                    onChange={(e) => setEditingType({ ...editingType, code: e.target.value.toUpperCase() })}
-                  />
-                </label>
-                <label className="prod-field">
-                  <span>Annual quota (days)</span>
-                  <input
-                    type="number" className="prod-select" min="0" step="0.5" value={editingType.annual_quota}
-                    onChange={(e) => setEditingType({ ...editingType, annual_quota: e.target.value })}
-                  />
-                </label>
-                <label className="prod-field">
-                  <span>Colour</span>
-                  <input
-                    type="color" className="prod-select" value={editingType.color || '#3b82f6'}
-                    onChange={(e) => setEditingType({ ...editingType, color: e.target.value })}
-                  />
-                </label>
-                <label className="prod-field prod-toggle">
-                  <input
-                    type="checkbox" checked={editingType.is_paid !== false}
-                    onChange={(e) => setEditingType({ ...editingType, is_paid: e.target.checked })}
-                  />
-                  <span>Paid leave</span>
-                </label>
-                <label className="prod-field prod-toggle">
-                  <input
-                    type="checkbox" checked={editingType.is_active !== false}
-                    onChange={(e) => setEditingType({ ...editingType, is_active: e.target.checked })}
-                  />
-                  <span>Available for new applications</span>
-                </label>
-              </div>
-            </div>
-            <div className="prod-modal-foot">
-              <button type="button" className="prod-btn-ghost" onClick={() => setEditingType(null)}>Cancel</button>
-              <button type="submit" className="prod-btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
-            </div>
-          </form>
-        </Modal>
-      )}
-    </div>
-  );
+            {deciding && (
+                <Modal open onClose={() => setDeciding(null)} width={460}
+                    title={'Reject leave — ' + nameOf(deciding.request.employee_id)}
+                    note={`${typeById[deciding.request.leave_type_id]?.name || 'Leave'}, ${dateSpan(deciding.request)} · ${deciding.request.days} day${deciding.request.days === 1 ? '' : 's'}`}
+                    footer={
+                        <>
+                            <Btn onClick={() => setDeciding(null)}>Cancel</Btn>
+                            <Btn primary disabled={busy} onClick={() => decide(deciding.request, 'rejected', comment)}>
+                                {busy ? 'Saving…' : 'Reject leave'}
+                            </Btn>
+                        </>
+                    }>
+                    {deciding.request.reason && (
+                        <p style={{ margin: '0 0 13px', fontSize: 11, color: t.dim, lineHeight: 1.7 }}>
+                            They wrote: “{deciding.request.reason}”
+                        </p>
+                    )}
+                    <Field label="Why" hint="The applicant reads this">
+                        <Textarea rows={3} value={comment} maxLength={500}
+                            placeholder="Why this cannot be approved…"
+                            onChange={(e) => setComment(e.target.value)} />
+                    </Field>
+                </Modal>
+            )}
+
+            {editingType && (
+                <Modal open onClose={() => setEditingType(null)} width={470}
+                    title={editingType.id ? 'Edit leave type' : 'New leave type'}
+                    footer={
+                        <>
+                            <Btn onClick={() => setEditingType(null)}>Cancel</Btn>
+                            <Btn primary disabled={busy} onClick={saveType}>{busy ? 'Saving…' : 'Save'}</Btn>
+                        </>
+                    }>
+                    <Row gap={13} wrap align="flex-start">
+                        <div style={{ flex: '2 1 200px' }}>
+                            <Field label="Name">
+                                <Input value={editingType.name} maxLength={60}
+                                    onChange={(e) => setEditingType({ ...editingType, name: e.target.value })} />
+                            </Field>
+                        </div>
+                        <div style={{ flex: '1 1 90px' }}>
+                            <Field label="Code" hint="Short form">
+                                <Input value={editingType.code || ''} maxLength={6} placeholder="CL"
+                                    onChange={(e) => setEditingType({ ...editingType, code: e.target.value.toUpperCase() })} />
+                            </Field>
+                        </div>
+                    </Row>
+                    <div style={{ height: 13 }} />
+                    <Row gap={13} wrap align="flex-start">
+                        <div style={{ flex: '1 1 150px' }}>
+                            <Field label="Annual quota" hint="Days per person, per year">
+                                <Input type="number" min="0" step="0.5" value={editingType.annual_quota}
+                                    onChange={(e) => setEditingType({ ...editingType, annual_quota: e.target.value })} />
+                            </Field>
+                        </div>
+                        <div style={{ flex: '1 1 110px' }}>
+                            <Field label="Colour" hint="Used on the calendar">
+                                <Input type="color" value={editingType.color || '#3b82f6'} style={{ padding: 3, height: 31 }}
+                                    onChange={(e) => setEditingType({ ...editingType, color: e.target.value })} />
+                            </Field>
+                        </div>
+                    </Row>
+                    <div style={{ height: 13 }} />
+                    <Field label="Paid">
+                        <Seg value={editingType.is_paid === false ? 'unpaid' : 'paid'}
+                            onChange={(v) => setEditingType({ ...editingType, is_paid: v === 'paid' })}
+                            options={[{ id: 'paid', label: 'Paid leave' }, { id: 'unpaid', label: 'Unpaid' }]} />
+                    </Field>
+                    <div style={{ height: 13 }} />
+                    <Field label="Availability" hint="Retiring keeps the history intact">
+                        <Seg value={editingType.is_active === false ? 'off' : 'on'}
+                            onChange={(v) => setEditingType({ ...editingType, is_active: v === 'on' })}
+                            options={[{ id: 'on', label: 'Open for applications' }, { id: 'off', label: 'Retired' }]} />
+                    </Field>
+                </Modal>
+            )}
+        </Page>
+    );
 }

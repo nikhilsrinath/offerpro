@@ -58,9 +58,9 @@ export default function TaxSummary() {
       </div>
 
       <div className="prod-toolbar">
-        <button className={`pro-chip ${kind === 'month' ? 'active' : ''}`} onClick={() => { setKind('month'); setPeriodId(null); }}>Monthly</button>
-        <button className={`pro-chip ${kind === 'quarter' ? 'active' : ''}`} onClick={() => { setKind('quarter'); setPeriodId(null); }}>Quarterly</button>
-        <select className="prod-select" value={period.id} onChange={(e) => setPeriodId(e.target.value)}>
+        <button aria-pressed={kind === 'month'} className={`pro-chip ${kind === 'month' ? 'active' : ''}`} onClick={() => { setKind('month'); setPeriodId(null); }}>Monthly</button>
+        <button aria-pressed={kind === 'quarter'} className={`pro-chip ${kind === 'quarter' ? 'active' : ''}`} onClick={() => { setKind('quarter'); setPeriodId(null); }}>Quarterly</button>
+        <select aria-label="Tax period" className="prod-select" value={period.id} onChange={(e) => setPeriodId(e.target.value)}>
           {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
         </select>
         <button className="prod-add-btn" onClick={exportCsv}>
@@ -75,7 +75,7 @@ export default function TaxSummary() {
         <Stat icon={<ArrowDownLeft size={15} />} label={`Input GST · ${summary.input.count} bills & expenses`} value={money(summary.input.gst, 2)}
           sub={`Bills ${money(summary.input.purchases)} · Expenses ${money(summary.input.expenses)}`} accent="var(--success)" />
         <Stat icon={<Scale size={15} />} label={net >= 0 ? 'Net liability (estimated)' : 'Net credit carried forward'}
-          value={money(Math.abs(net), 2)} accent={net > 0 ? '#ef4444' : 'var(--success)'} />
+          value={money(Math.abs(net), 2)} accent={net > 0 ? 'var(--error)' : 'var(--success)'} />
       </div>
 
       <p className="prod-perf-note">
@@ -99,7 +99,7 @@ export default function TaxSummary() {
               {summary.rows.map((r, i) => (
                 <tr key={`${r.ref}-${i}`}>
                   <td className="prod-perf-date">{fmtDate(r.date)}</td>
-                  <td style={{ color: r.kind === 'Output' ? '#ef4444' : 'var(--success)', fontWeight: 600, fontSize: '0.75rem' }}>{r.kind}</td>
+                  <td style={{ color: r.kind === 'Output' ? 'var(--error)' : 'var(--success)', fontWeight: 600, fontSize: '0.75rem' }}>{r.kind}</td>
                   <td>{r.ref}</td>
                   <td>{r.party}</td>
                   <td className="num">{money(r.taxable, 2)}</td>

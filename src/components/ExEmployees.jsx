@@ -1,21 +1,28 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useOrg } from '../context/OrgContext';
 import { orgStore } from '../services/orgStore';
-import { Search, Users, Calendar, Briefcase, Building, UserX, LayoutGrid, List, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { listMembers } from '../services/permissionService';
 import { DEPT_PALETTE } from './TeamHierarchy';
+import {
+    Page, Toolbar, Panel, Row, Btn, Search, Table, Tr, Td, Avatar, Status,
+    StatBand, Breakdown, Empty, Loading, Modal, Muted,
+} from './ui/edge';
+import { useT, fmtDate } from './ui/edgeUtils';
 
-const AVATAR_COLORS = [
-    ['#3b82f6', '#2563eb'], ['#8b5cf6', '#7c3aed'], ['#10b981', '#059669'],
-    ['#f59e0b', '#d97706'], ['#ec4899', '#db2777'], ['#14b8a6', '#0d9488'],
-    ['#ef4444', '#dc2626'], ['#06b6d4', '#0891b2'],
-];
+/* ══════════════════════════════════════════════════════════════════════════
+   Ex-employees.
 
-function getAvatarColor(name) {
-    let hash = 0;
-    for (let i = 0; i < (name || '').length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
+   An archive, so it reads like one: a table sorted by when each person left,
+   with a tenure column that turns two dates into the number people actually
+   want. The one live question — can they still sign in — is a status word on
+   the row rather than a shield icon whose colour you have to interpret.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const TYPE_LABEL = {
+    fulltime: 'Full-time', parttime: 'Part-time',
+    internship: 'Intern', intern: 'Intern',
+    contract: 'Contract', collaboration: 'Collaborator',
+};
 
 function getDisplayName(emp) {
     if (emp.studentName) return emp.studentName;
@@ -25,205 +32,44 @@ function getDisplayName(emp) {
     return emp.name || '';
 }
 
-function fmtDate(d) {
-    if (!d) return '—';
-    try { return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); }
-    catch { return d; }
+const leftOn = (e) => e.terminated_at || e.archived_at || e.exited_at || null;
+
+/** Tenure as a person would say it, not as a date range. */
+function tenure(emp) {
+    const from = emp.startDate || emp.start_date || emp.created_at;
+    const to = leftOn(emp);
+    if (!from || !to) return '—';
+    const months = Math.max(0, Math.round((new Date(to) - new Date(from)) / (1000 * 60 * 60 * 24 * 30.44)));
+    if (months < 1) return 'Under a month';
+    if (months < 12) return months + (months === 1 ? ' month' : ' months');
+    const y = Math.floor(months / 12);
+    const m = months % 12;
+    return y + (y === 1 ? ' year' : ' years') + (m ? ', ' + m + 'mo' : '');
 }
 
-function ExEmpCard({ emp, liveUserIds }) {
-    const name = getDisplayName(emp);
-    const [c1, c2] = getAvatarColor(name);
-    return (
-        <div style={{
-            background: 'var(--surface)',
-            border: '1px solid rgba(239,68,68,0.15)',
-            borderRadius: '14px',
-            padding: '1.25rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
-            position: 'relative',
-            overflow: 'hidden',
-        }}>
-            {/* Red accent bar */}
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg, #ef4444, #f87171)' }} />
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
-                <div style={{
-                    width: 44, height: 44, borderRadius: '12px', flexShrink: 0,
-                    background: `linear-gradient(135deg, ${c1}, ${c2})`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '1.1rem', fontWeight: 800, color: '#fff',
-                    filter: 'grayscale(0.3)',
-                }}>
-                    {name?.[0]?.toUpperCase() || '?'}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
-                        {name || '—'}
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
-                        <span style={{
-                            fontSize: '0.65rem', fontWeight: 700, padding: '0.15rem 0.5rem',
-                            borderRadius: '20px', background: 'rgba(239,68,68,0.1)', color: '#f87171',
-                            border: '1px solid rgba(239,68,68,0.2)',
-                        }}>
-                            Ex-Employee
-                        </span>
-                        {emp.offerType && (
-                            <span style={{
-                                fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.5rem',
-                                borderRadius: '20px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)',
-                            }}>
-                                {emp.offerType === 'fulltime' ? 'Full-Time' : emp.offerType === 'collaboration' ? 'Collaborator' : 'Intern'}
-                            </span>
-                        )}
-                        <AccessBadge emp={emp} liveUserIds={liveUserIds} />
-                    </div>
-                </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                <InfoCell icon={<Briefcase size={11} />} label="Role" value={emp.role || '—'} />
-                <InfoCell icon={<Building size={11} />} label="Dept" value={emp.department || '—'} />
-            </div>
-
-            {emp.email && (
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {emp.email}
-                </div>
-            )}
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                {emp.startDate && (
-                    <InfoCell icon={<Calendar size={11} />} label="Joined" value={fmtDate(emp.startDate)} />
-                )}
-                <InfoCell
-                    icon={<Calendar size={11} />}
-                    label="Last Day"
-                    value={fmtDate(emp.terminated_at || emp.termination_date)}
-                    red
-                />
-            </div>
-
-            {emp.archived_at && (
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.625rem' }}>
-                    Archived {fmtDate(emp.archived_at)}
-                </div>
-            )}
-        </div>
-    );
-}
-
-/**
- * Whether this person can still sign in — checked against the live membership
- * list, not against a flag on the employee row.
- *
- * The brief promised access is revoked on exit and nothing implemented it:
- * before 0029 an exit set `exited_at` and left the membership in place. The
- * trigger now deletes it, but rows archived before that migration still carry
- * a live login, and only comparing against `memberships` can tell them apart.
- * `liveUserIds` is null while the list is still loading, or when the caller is
- * not an admin and cannot read it — in which case nothing is claimed either way.
- */
-function AccessBadge({ emp, liveUserIds }) {
-    if (!emp.user_id) return null;
-    if (!liveUserIds) return null;
-
-    const stillHasLogin = liveUserIds.has(emp.user_id);
-    const style = {
-        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-        fontSize: '0.68rem', fontWeight: 650, padding: '0.2rem 0.5rem',
-        borderRadius: '20px', whiteSpace: 'nowrap',
-        background: stillHasLogin ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.1)',
-        color: stillHasLogin ? '#f87171' : '#10b981',
-        border: `1px solid ${stillHasLogin ? 'rgba(239,68,68,0.25)' : 'rgba(16,185,129,0.22)'}`,
-    };
-
-    return (
-        <span style={style} title={stillHasLogin
-            ? 'This person still has a membership in this organization and can sign in. Remove them from Team access.'
-            : 'No membership row for this person: they cannot sign in to this organization.'}>
-            {stillHasLogin ? <ShieldAlert size={11} /> : <ShieldCheck size={11} />}
-            {stillHasLogin
-                ? 'Login still active'
-                : `Access revoked${emp.access_revoked_at ? ` ${fmtDate(emp.access_revoked_at)}` : ''}`}
-        </span>
-    );
-}
-
-function InfoCell({ icon, label, value, red }) {
-    return (
-        <div style={{ padding: '0.45rem 0.625rem', background: red ? 'rgba(239,68,68,0.05)' : 'rgba(255,255,255,0.03)', borderRadius: '7px', border: `1px solid ${red ? 'rgba(239,68,68,0.15)' : 'var(--border-subtle)'}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.15rem' }}>
-                <span style={{ color: red ? '#f87171' : 'var(--text-muted)' }}>{icon}</span>
-                <span style={{ fontSize: '0.6rem', color: red ? '#f87171' : 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
-            </div>
-            <div style={{ fontSize: '0.78rem', color: red ? '#fca5a5' : 'var(--text-primary)', fontWeight: 500 }}>{value}</div>
-        </div>
-    );
-}
-
-function ExEmpRowCells({ emp, liveUserIds }) {
-    const name = getDisplayName(emp);
-    const [c1, c2] = getAvatarColor(name);
-    return (
-        <>
-            <td style={{ padding: '0.875rem 1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                    <div style={{
-                        width: 34, height: 34, borderRadius: '9px', flexShrink: 0,
-                        background: `linear-gradient(135deg, ${c1}, ${c2})`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '0.875rem', fontWeight: 800, color: '#fff', filter: 'grayscale(0.3)',
-                    }}>
-                        {name?.[0]?.toUpperCase() || '?'}
-                    </div>
-                    <div>
-                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>{name || '—'}</div>
-                        {emp.email && <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>{emp.email}</div>}
-                    </div>
-                </div>
-            </td>
-            <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                <div>{emp.role || '—'}</div>
-                {emp.department && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{emp.department}</div>}
-            </td>
-            <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                {emp.offerType === 'fulltime' ? 'Full-Time' : emp.offerType === 'collaboration' ? 'Collaborator' : emp.offerType === 'internship' ? 'Intern' : '—'}
-            </td>
-            <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                {fmtDate(emp.startDate)}
-            </td>
-            <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', fontWeight: 600, color: '#f87171', whiteSpace: 'nowrap' }}>
-                {fmtDate(emp.terminated_at || emp.termination_date)}
-            </td>
-            <td style={{ padding: '0.875rem 1rem', fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                <div>{fmtDate(emp.archived_at)}</div>
-                <div style={{ marginTop: '0.25rem' }}><AccessBadge emp={emp} liveUserIds={liveUserIds} /></div>
-            </td>
-        </>
-    );
+function deptColor(name) {
+    if (!name) return null;
+    const h = [...name].reduce((a, c) => c.charCodeAt(0) + ((a << 5) - a), 0);
+    return DEPT_PALETTE[Math.abs(h) % DEPT_PALETTE.length];
 }
 
 export default function ExEmployees() {
+    const t = useT();
     const { activeOrg } = useOrg();
-    const [exEmployees, setExEmployees] = useState([]);
-    // The user ids that still hold a membership here. Null means "not known" —
-    // listMembers() is admin-only, so a member viewing this page gets no claim
-    // about anyone's access rather than a wrong one.
+    const [people, setPeople] = useState([]);
+    // Null means "not known": listMembers is admin-only, so a member viewing
+    // this page gets no claim about anyone's access rather than a wrong one.
     const [liveUserIds, setLiveUserIds] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [viewMode, setViewMode] = useState('grid');
+    const [query, setQuery] = useState('');
+    const [selected, setSelected] = useState(null);
 
     useEffect(() => {
-        if (!activeOrg?.id) return;
+        if (!activeOrg?.id) return undefined;
         const unsubscribe = orgStore.listenSection('ex_employees', (data) => {
             const list = Object.values(data || {});
-            list.sort((a, b) => new Date(b.terminated_at || b.archived_at || 0) - new Date(a.terminated_at || a.archived_at || 0));
-            setExEmployees(list);
+            list.sort((a, b) => new Date(leftOn(b) || 0) - new Date(leftOn(a) || 0));
+            setPeople(list);
             setLoading(false);
         });
         return () => unsubscribe();
@@ -240,129 +86,158 @@ export default function ExEmployees() {
         return () => { cancelled = true; };
     }, [activeOrg?.id]);
 
-    const filtered = useMemo(() => {
-        if (!searchTerm) return exEmployees;
-        const t = searchTerm.toLowerCase();
-        return exEmployees.filter(emp =>
-            getDisplayName(emp).toLowerCase().includes(t) ||
-            (emp.email || '').toLowerCase().includes(t) ||
-            (emp.role || '').toLowerCase().includes(t) ||
-            (emp.department || '').toLowerCase().includes(t)
-        );
-    }, [exEmployees, searchTerm]);
+    const list = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!q) return people;
+        return people.filter((e) => getDisplayName(e).toLowerCase().includes(q)
+            || (e.email || '').toLowerCase().includes(q)
+            || (e.role || '').toLowerCase().includes(q)
+            || (e.department || '').toLowerCase().includes(q));
+    }, [people, query]);
 
-    if (loading) {
-        return (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '8rem 2rem' }}>
-                <div style={{ textAlign: 'center' }}>
-                    <div className="pro-spinner" />
-                    <p style={{ color: 'var(--text-secondary)', marginTop: '1rem', fontSize: '0.875rem' }}>Loading ex-employees…</p>
-                </div>
-            </div>
-        );
-    }
+    const stats = useMemo(() => {
+        const now = new Date();
+        const thisYear = people.filter((e) => leftOn(e) && new Date(leftOn(e)).getFullYear() === now.getFullYear()).length;
+        const stillIn = liveUserIds ? people.filter((e) => e.user_id && liveUserIds.has(e.user_id)).length : null;
+        return { total: people.length, thisYear, stillIn };
+    }, [people, liveUserIds]);
+
+    const byDept = useMemo(() => {
+        const m = {};
+        people.forEach((e) => { if (e.department) m[e.department] = (m[e.department] || 0) + 1; });
+        return Object.entries(m).map(([label, value]) => ({ label, value, color: deptColor(label) }));
+    }, [people]);
+
+    const access = (emp) => {
+        if (liveUserIds === null) return null;
+        return emp.user_id && liveUserIds.has(emp.user_id)
+            ? { tone: 'down', label: 'Can still sign in' }
+            : { tone: 'mute', label: 'Access removed' };
+    };
+
+    if (loading) return <Page><Loading>Loading the archive…</Loading></Page>;
 
     return (
-        <div>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
-                <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.375rem' }}>
-                        <div style={{ width: 36, height: 36, borderRadius: '10px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <UserX size={18} style={{ color: '#f87171' }} />
-                        </div>
-                        <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>Ex-Employees</h2>
-                    </div>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        Archive of employees who have left the organization · {exEmployees.length} record{exEmployees.length !== 1 ? 's' : ''}
-                    </p>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                        onClick={() => setViewMode('grid')}
-                        style={{
-                            padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border-default)',
-                            background: viewMode === 'grid' ? 'var(--surface)' : 'none',
-                            color: viewMode === 'grid' ? 'var(--text-primary)' : 'var(--text-muted)',
-                            cursor: 'pointer',
-                        }}
-                    >
-                        <LayoutGrid size={15} />
-                    </button>
-                    <button
-                        onClick={() => setViewMode('list')}
-                        style={{
-                            padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border-default)',
-                            background: viewMode === 'list' ? 'var(--surface)' : 'none',
-                            color: viewMode === 'list' ? 'var(--text-primary)' : 'var(--text-muted)',
-                            cursor: 'pointer',
-                        }}
-                    >
-                        <List size={15} />
-                    </button>
-                </div>
-            </div>
+        <Page>
+            <Toolbar right={<Muted>{people.length} {people.length === 1 ? 'record' : 'records'}</Muted>}>
+                <Search value={query} onChange={setQuery} placeholder="Search name, role, team, email…" width={280} />
+            </Toolbar>
 
-            {/* Search */}
-            <div style={{ position: 'relative', maxWidth: 360, marginBottom: '1.5rem' }}>
-                <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
-                <input
-                    type="text"
-                    placeholder="Search by name, role, department…"
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    style={{
-                        width: '100%', boxSizing: 'border-box',
-                        paddingLeft: '2rem', height: '36px',
-                        borderRadius: '0.5rem',
-                        border: '1px solid var(--border-default)',
-                        background: 'var(--background)',
-                        color: 'var(--text-primary)',
-                        fontSize: '0.8125rem', outline: 'none',
-                    }}
-                />
-            </div>
-
-            {exEmployees.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '5rem 2rem', background: 'var(--surface)', borderRadius: '1rem', border: '2px dashed rgba(239,68,68,0.2)' }}>
-                    <UserX size={44} style={{ color: '#ef4444', opacity: 0.25, marginBottom: '1rem' }} />
-                    <p style={{ color: 'var(--text-primary)', fontWeight: 600, margin: '0 0 0.5rem' }}>No ex-employees yet</p>
-                    <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.8125rem' }}>
-                        Employees are automatically archived here after their last working day at 6 PM.
-                    </p>
-                </div>
-            ) : filtered.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                    No results for "{searchTerm}"
-                </div>
-            ) : viewMode === 'grid' ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
-                    {filtered.map(emp => <ExEmpCard key={emp.id} emp={emp} liveUserIds={liveUserIds} />)}
-                </div>
-            ) : (
-                <div style={{ background: 'var(--surface)', borderRadius: '1rem', border: '1px solid rgba(239,68,68,0.15)', overflow: 'hidden' }}>
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <thead>
-                                <tr style={{ background: 'var(--background)', borderBottom: '1px solid var(--border-default)' }}>
-                                    {['Employee', 'Role', 'Type', 'Joined', 'Last Day', 'Archived'].map(h => (
-                                        <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
-                                            {h}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filtered.map((emp, i) => (
-                                    <tr key={emp.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid var(--border-default)' : 'none' }}>
-                                        <ExEmpRowCells emp={emp} liveUserIds={liveUserIds} />
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+            {people.length > 0 && (
+                <StatBand items={[
+                    { label: 'Left the company', value: stats.total },
+                    { label: 'This year', value: stats.thisYear },
+                    ...(stats.stillIn !== null
+                        ? [{ label: 'Still have a login', value: stats.stillIn, tone: stats.stillIn ? 'down' : undefined }]
+                        : []),
+                ]} />
             )}
-        </div>
+
+            {stats.stillIn ? (
+                <div style={{
+                    border: '1px solid ' + t.lineStrong, borderRadius: 10,
+                    padding: '11px 13px', marginBottom: 14, fontSize: 11, color: t.dim, lineHeight: 1.7,
+                }}>
+                    {stats.stillIn} {stats.stillIn === 1 ? 'person' : 'people'} in this archive still hold a
+                    membership and can sign in. Remove their access from Settings → Members.
+                </div>
+            ) : null}
+
+            <div style={{ display: 'grid', gap: 14, gridTemplateColumns: byDept.length > 1 ? 'minmax(0,1fr) 258px' : '1fr', alignItems: 'start' }}>
+                <div style={{ minWidth: 0 }}>
+                    {list.length === 0 ? (
+                        <Panel>
+                            <Empty>
+                                {people.length === 0
+                                    ? 'Nobody has left yet. People arrive here once a termination notice is acknowledged — nothing is deleted.'
+                                    : 'Nobody matches that search.'}
+                            </Empty>
+                        </Panel>
+                    ) : (
+                        <Table cols={[
+                            { key: 'n', label: 'Name' },
+                            { key: 'r', label: 'Role' },
+                            { key: 'd', label: 'Department' },
+                            { key: 't', label: 'Tenure' },
+                            { key: 'l', label: 'Left' },
+                            { key: 'a', label: 'Access' },
+                            { key: 'x', label: '', align: 'right', width: 74 },
+                        ]}>
+                            {list.map((emp) => {
+                                const name = getDisplayName(emp);
+                                const a = access(emp);
+                                return (
+                                    <Tr key={emp.id} onClick={() => setSelected(emp)}>
+                                        <Td>
+                                            <Row gap={9}>
+                                                <Avatar name={name} size={26} />
+                                                <span style={{ minWidth: 0 }}>
+                                                    <span style={{ display: 'block' }}>{name || '—'}</span>
+                                                    <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 1 }}>{emp.email}</span>
+                                                </span>
+                                            </Row>
+                                        </Td>
+                                        <Td muted nowrap>{emp.role || '—'}</Td>
+                                        <Td nowrap>
+                                            {emp.department ? (
+                                                <Row gap={7}>
+                                                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: deptColor(emp.department), flexShrink: 0 }} />
+                                                    <span style={{ color: t.dim, fontSize: 11 }}>{emp.department}</span>
+                                                </Row>
+                                            ) : <span style={{ color: t.ghost }}>—</span>}
+                                        </Td>
+                                        <Td muted nowrap>{tenure(emp)}</Td>
+                                        <Td muted nowrap>{fmtDate(leftOn(emp))}</Td>
+                                        <Td nowrap>{a ? <Status tone={a.tone}>{a.label}</Status> : <span style={{ color: t.ghost }}>—</span>}</Td>
+                                        <Td align="right"><Btn size="sm" onClick={() => setSelected(emp)}>Open</Btn></Td>
+                                    </Tr>
+                                );
+                            })}
+                        </Table>
+                    )}
+                </div>
+
+                {byDept.length > 1 && (
+                    <Panel title="Where they left from" pad={13}>
+                        <Breakdown rows={byDept} total={people.length} max={8} />
+                    </Panel>
+                )}
+            </div>
+
+            {selected && (
+                <Modal open onClose={() => setSelected(null)}
+                    title={getDisplayName(selected) || 'Former employee'}
+                    note={[selected.role, selected.department].filter(Boolean).join(' · ') || undefined}
+                    footer={<Btn primary onClick={() => setSelected(null)}>Close</Btn>}>
+                    <div style={{ border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden' }}>
+                        {[
+                            ['Email', selected.email],
+                            ['Phone', selected.phone],
+                            ['Employment', TYPE_LABEL[selected.offerType] || null],
+                            ['Started', selected.startDate || selected.start_date ? fmtDate(selected.startDate || selected.start_date) : null],
+                            ['Last day', leftOn(selected) ? fmtDate(leftOn(selected)) : null],
+                            ['Tenure', tenure(selected)],
+                            ['Reported to', selected.supervisorName],
+                            ['Reason', selected.termination_reason || selected.exit_reason],
+                        ].filter(([, v]) => v && v !== '—').map(([k, v], i) => (
+                            <div key={k} style={{
+                                display: 'flex', gap: 12, padding: '9px 13px',
+                                borderTop: i ? '1px solid ' + t.lineSoft : 'none',
+                            }}>
+                                <span style={{ width: 98, flexShrink: 0, fontSize: 9, letterSpacing: '0.09em', color: t.faint, paddingTop: 2 }}>
+                                    {k.toUpperCase()}
+                                </span>
+                                <span style={{ fontSize: 11.5, color: t.text, minWidth: 0, wordBreak: 'break-word' }}>{v}</span>
+                            </div>
+                        ))}
+                    </div>
+                    {access(selected)?.tone === 'down' && (
+                        <p style={{ margin: '13px 0 0', fontSize: 10.5, color: t.down, lineHeight: 1.7 }}>
+                            This person still holds a membership and can sign in. Remove it from Settings → Members.
+                        </p>
+                    )}
+                </Modal>
+            )}
+        </Page>
     );
 }

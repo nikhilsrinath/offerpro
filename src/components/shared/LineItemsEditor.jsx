@@ -157,6 +157,7 @@ export default function LineItemsEditor({
                 type="button"
                 onClick={() => handleRemove(item.id)}
                 className="line-items-delete"
+                aria-label="Remove line item" title="Remove line item"
                 disabled={items.length <= 1}
               >
                 <Trash2 size={14} />

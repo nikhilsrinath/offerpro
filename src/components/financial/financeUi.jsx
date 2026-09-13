@@ -1,7 +1,8 @@
 // Small pieces shared by the Vendors, Purchase Invoices, Tax Summary and P&L
 // pages. They reuse the Products page's prod-* classes so the finance pages
 // look like the rest of the app rather than like a bolt-on.
-import { useRef, useState } from 'react';
+import { useRef, useState, useId } from 'react';
+import { DialogSheet } from '../ui/edge';
 import { X, Paperclip, Eye, Trash2 } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
 import { receiptService, RECEIPT_ACCEPT, validateReceipt } from '../../services/receiptService';
@@ -13,29 +14,30 @@ export function Stat({ icon, label, value, accent, sub, onClick }) {
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => { if (e.key === 'Enter') onClick(); } : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
       style={onClick ? { cursor: 'pointer' } : undefined}
     >
-      <div className="prod-stat-icon" style={accent ? { color: accent } : undefined}>{icon}</div>
+      <div className="prod-stat-icon" aria-hidden="true">{icon}</div>
       <div>
         <div className="prod-stat-value" style={accent ? { color: accent } : undefined}>{value}</div>
         <div className="prod-stat-label">{label}</div>
-        {sub && <div className="prod-stat-label" style={{ opacity: 0.8 }}>{sub}</div>}
+        {sub && <div className="prod-stat-label">{sub}</div>}
       </div>
     </div>
   );
 }
 
 export function Modal({ title, onClose, children, width }) {
+  const titleId = useId();
   return (
     <div className="prod-modal-backdrop" onClick={onClose}>
-      <div className="prod-modal" onClick={(e) => e.stopPropagation()} style={width ? { maxWidth: width } : undefined}>
+      <DialogSheet className="prod-modal" labelledBy={titleId} onClose={onClose} style={width ? { maxWidth: width } : undefined}>
         <div className="prod-modal-head">
-          <h3>{title}</h3>
-          <button type="button" onClick={onClose}><X size={16} /></button>
+          <h3 id={titleId}>{title}</h3>
+          <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)"><X aria-hidden="true" size={16} /></button>
         </div>
         {children}
-      </div>
+      </DialogSheet>
     </div>
   );
 }

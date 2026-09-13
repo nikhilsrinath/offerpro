@@ -7,11 +7,21 @@
 // and what the database will let the caller read are the same answer.
 
 import { supabase } from '../lib/supabase';
+import { uploadOrgImage, deleteOrgImage } from './imageUploadService';
 
 const EMPLOYEE_SELECT = `id, org_id, full_name, email, phone, role, department_id,
                          employment_type, reports_to, supervisor_name, start_date,
                          user_id, photo_path, exited_at, access_revoked_at,
-                         portal_must_change_password`;
+                         portal_must_change_password, address, bio,
+                         date_of_birth, emergency_contact_name,
+                         emergency_contact_phone, employment_type`;
+
+// The same list without 0032's personal-detail columns, so the portal still
+// loads against a database that has not had that migration applied yet.
+const EMPLOYEE_SELECT_LEGACY = `id, org_id, full_name, email, phone, role, department_id,
+                         employment_type, reports_to, supervisor_name, start_date,
+                         user_id, photo_path, exited_at, access_revoked_at,
+                         portal_must_change_password, address`;
 
 export const meService = {
   /**
@@ -24,10 +34,13 @@ export const meService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
-    const { data, error } = await supabase
-      .from('employees').select(EMPLOYEE_SELECT)
+    const query = (select) => supabase
+      .from('employees').select(select)
       .eq('org_id', orgId).eq('user_id', user.id).is('exited_at', null)
       .maybeSingle();
+    let { data, error } = await query(EMPLOYEE_SELECT);
+    // 42703 = undefined column: 0032 has not been applied here yet.
+    if (error?.code === '42703') ({ data, error } = await query(EMPLOYEE_SELECT_LEGACY));
     if (error) throw error;
     if (!data) return null;
 
@@ -57,6 +70,46 @@ export const meService = {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw new Error(error.message);
     await supabase.rpc('clear_password_change_flag');
+  },
+
+  /**
+   * Saves the caller's own personal details (0032 update_my_profile). Only the
+   * keys present in `patch` change; role, department, manager and dates are
+   * the employer's and the function will not touch them whatever is sent.
+   */
+  async updateMyProfile(orgId, patch) {
+    const { data, error } = await supabase.rpc('update_my_profile', { p_org: orgId, p_patch: patch });
+    if (error) {
+      if (error.code === 'PGRST202' || /update_my_profile/.test(error.message || '')) {
+        throw new Error('Profile editing is not enabled on this workspace yet. Ask an admin to apply the latest database update.');
+      }
+      throw new Error(error.message);
+    }
+    return data;
+  },
+
+  /**
+   * Uploads a photo into the caller's own folder of `employee-photos` and
+   * points their record at it. The folder is the one the 0032 storage policies
+   * let an employee write to; the previous self-uploaded photo is removed.
+   */
+  async uploadMyPhoto(orgId, employee, file) {
+    const { path } = await uploadOrgImage({
+      orgId, kind: 'employeePhoto', source: file, folder: `self/${employee.id}`,
+    });
+    const row = await meService.updateMyProfile(orgId, { photo_path: path });
+    if (employee.photo_path?.startsWith(`${orgId}/self/${employee.id}/`)) {
+      await deleteOrgImage(employee.photo_path, 'employee-photos');
+    }
+    return row;
+  },
+
+  async removeMyPhoto(orgId, employee) {
+    const row = await meService.updateMyProfile(orgId, { photo_path: '' });
+    if (employee.photo_path?.startsWith(`${orgId}/self/${employee.id}/`)) {
+      await deleteOrgImage(employee.photo_path, 'employee-photos');
+    }
+    return row;
   },
 
   /** The caller's role in this org — 'employee' is what routes them to /me. */

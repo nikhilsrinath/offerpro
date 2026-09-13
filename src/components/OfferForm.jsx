@@ -273,12 +273,12 @@ export default function OfferForm() {
                 <div style={{
                   height: '100%',
                   borderRadius: '2px',
-                  background: isAtLimit('offerLetters') ? '#ef4444' : getUsagePercent('offerLetters') > 80 ? '#f59e0b' : '#3b82f6',
+                  background: isAtLimit('offerLetters') ? 'var(--error)' : getUsagePercent('offerLetters') > 80 ? 'var(--text-primary)' : 'var(--text-secondary)',
                   transition: 'width 0.3s',
                   width: `${Math.min(getUsagePercent('offerLetters'), 100)}%`
                 }} />
               </div>
-              <span style={{ fontWeight: 700, color: isAtLimit('offerLetters') ? '#ef4444' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              <span style={{ fontWeight: 700, color: isAtLimit('offerLetters') ? 'var(--error)' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                 {usage.offerLetters}/{planConfig.limits.offerLetters === Infinity ? '∞' : planConfig.limits.offerLetters}
               </span>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({getRemainingCount('offerLetters')} remaining)</span>
@@ -314,24 +314,24 @@ export default function OfferForm() {
             <div className="easy-row">
               <div className="easy-field full">
                 <label className="easy-lbl">Company name</label>
-                <input name="companyName" value={formData.companyName} onChange={handleChange} required placeholder="Acme International Ltd." className="easy-inp" />
+                <input aria-label="Company name" name="companyName" value={formData.companyName} onChange={handleChange} required placeholder="Acme International Ltd." className="easy-inp" />
               </div>
               <div className="easy-field full">
                 <label className="easy-lbl">Company address</label>
-                <textarea name="companyAddress" value={formData.companyAddress} onChange={handleChange} required placeholder="Full registered address" rows="2" className="easy-inp" style={{ resize: 'none' }} />
+                <textarea aria-label="Company address" name="companyAddress" value={formData.companyAddress} onChange={handleChange} required placeholder="Full registered address" rows="2" className="easy-inp" style={{ resize: 'none' }} />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Authorized person</label>
-                <input name="authorizedPersonName" value={formData.authorizedPersonName} onChange={handleChange} required placeholder="John Doe" className="easy-inp" />
+                <input aria-label="Authorized person" name="authorizedPersonName" value={formData.authorizedPersonName} onChange={handleChange} required placeholder="John Doe" className="easy-inp" />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Their title</label>
-                <input name="authorizedPersonDesignation" value={formData.authorizedPersonDesignation} onChange={handleChange} required placeholder="CEO / Manager" className="easy-inp" />
+                <input aria-label="Their title" name="authorizedPersonDesignation" value={formData.authorizedPersonDesignation} onChange={handleChange} required placeholder="CEO / Manager" className="easy-inp" />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Company logo</label>
                 <div className="easy-upload-wrap">
-                  <input type="file" onChange={handleLogoUpload} accept="image/*" />
+                  <input aria-label="Company logo" type="file" onChange={handleLogoUpload} accept="image/*" />
                   <div className={`easy-upload ${formData.companyLogo ? 'done' : ''}`}>
                     {formData.companyLogo ? <><CheckCircle size={16} /> Logo uploaded</> : <><Upload size={16} /> Choose file</>}
                   </div>
@@ -340,7 +340,7 @@ export default function OfferForm() {
               <div className="easy-field">
                 <label className="easy-lbl">Digital signature</label>
                 <div className="easy-upload-wrap">
-                  <input type="file" onChange={handleSignatureUpload} accept="image/*" />
+                  <input aria-label="Digital signature" type="file" onChange={handleSignatureUpload} accept="image/*" />
                   <div className={`easy-upload ${formData.signature ? 'done' : ''}`}>
                     {formData.signature ? <><CheckCircle size={16} /> Signature uploaded</> : <><Upload size={16} /> Choose file</>}
                   </div>
@@ -348,14 +348,15 @@ export default function OfferForm() {
                 {formData.signature && <img src={formData.signature} alt="Signature" style={{ height: '28px', marginTop: '0.25rem' }} />}
               </div>
               <div className="easy-field full">
-                <div
+                <button
+                  type="button" role="switch" aria-checked={!!formData.showStamp}
                   className={`easy-switch-row ${formData.showStamp ? 'active' : ''}`}
                   onClick={() => handleChange({ target: { name: 'showStamp', checked: !formData.showStamp, type: 'checkbox' } })}
                   style={{ marginTop: '0.5rem' }}
                 >
                   <span className="easy-switch-label">Include company stamp</span>
-                  <div className="easy-switch-dot" />
-                </div>
+                  <span className="easy-switch-dot" aria-hidden="true" />
+                </button>
               </div>
             </div>
           </div>
@@ -369,19 +370,19 @@ export default function OfferForm() {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Full name</label>
-                <input name="studentName" value={formData.studentName} onChange={handleChange} required placeholder="Full Name" className="easy-inp" />
+                <input aria-label="Full name" name="studentName" value={formData.studentName} onChange={handleChange} required placeholder="Full Name" className="easy-inp" />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Address</label>
-                <input name="studentAddress" value={formData.studentAddress} onChange={handleChange} required placeholder="Street / City" className="easy-inp" />
+                <input aria-label="Address" name="studentAddress" value={formData.studentAddress} onChange={handleChange} required placeholder="Street / City" className="easy-inp" />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Email</label>
-                <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="example@gmail.com" className="easy-inp" />
+                <input aria-label="Email" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="example@gmail.com" className="easy-inp" />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Phone</label>
-                <input name="phone" value={formData.phone} onChange={handleChange} placeholder="+91 ..." className="easy-inp" />
+                <input aria-label="Phone" name="phone" value={formData.phone} onChange={handleChange} placeholder="+91 ..." className="easy-inp" />
               </div>
             </div>
           </div>
@@ -395,35 +396,35 @@ export default function OfferForm() {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Job title / role</label>
-                <input name="role" value={formData.role} onChange={handleChange} required placeholder="e.g. Finance Manager" className="easy-inp" />
+                <input aria-label="Job title / role" name="role" value={formData.role} onChange={handleChange} required placeholder="e.g. Finance Manager" className="easy-inp" />
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Department</label>
                 {deptOptions.length > 0 ? (
-                  <select name="department" value={formData.department} onChange={handleChange} required className="easy-inp">
+                  <select aria-label="Department" name="department" value={formData.department} onChange={handleChange} required className="easy-inp">
                     <option value="">Select department…</option>
                     {deptOptions.map(name => (
                       <option key={name} value={name}>{name}</option>
                     ))}
                   </select>
                 ) : (
-                  <input name="department" value={formData.department} onChange={handleChange} required placeholder="e.g. Operations" className="easy-inp" />
+                  <input aria-label="Department" name="department" value={formData.department} onChange={handleChange} required placeholder="e.g. Operations" className="easy-inp" />
                 )}
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Start date</label>
-                <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required className="easy-inp" />
+                <input aria-label="Start date" type="date" name="startDate" value={formData.startDate} onChange={handleChange} required className="easy-inp" />
               </div>
               {(formData.offerType === 'internship' || formData.offerType === 'collaboration') && (
                 <div className="easy-field">
                   <label className="easy-lbl">End date</label>
-                  <input type="date" name="endDate" value={formData.endDate} onChange={handleChange} required className="easy-inp" />
+                  <input aria-label="End date" type="date" name="endDate" value={formData.endDate} onChange={handleChange} required className="easy-inp" />
                 </div>
               )}
               <div className="easy-field">
                 <label className="easy-lbl">Reporting supervisor</label>
                 {employees.length > 0 ? (
-                  <select name="supervisorName" value={formData.supervisorName} onChange={handleChange} required className="easy-inp">
+                  <select aria-label="Reporting supervisor" name="supervisorName" value={formData.supervisorName} onChange={handleChange} required className="easy-inp">
                     <option value="">Select supervisor…</option>
                     {employees.map(e => {
                       const name = getDisplayName(e);
@@ -431,16 +432,16 @@ export default function OfferForm() {
                     })}
                   </select>
                 ) : (
-                  <input name="supervisorName" value={formData.supervisorName} onChange={handleChange} required placeholder="Reports to..." className="easy-inp" />
+                  <input aria-label="Reporting supervisor" name="supervisorName" value={formData.supervisorName} onChange={handleChange} required placeholder="Reports to..." className="easy-inp" />
                 )}
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Reply deadline</label>
-                <input type="date" name="acceptanceDeadline" value={formData.acceptanceDeadline} onChange={handleChange} required className="easy-inp" />
+                <input aria-label="Reply deadline" type="date" name="acceptanceDeadline" value={formData.acceptanceDeadline} onChange={handleChange} required className="easy-inp" />
               </div>
               <div className="easy-field full">
                 <label className="easy-lbl">Responsibilities</label>
-                <textarea name="responsibilities" value={formData.responsibilities} onChange={handleChange} required placeholder="Key responsibilities and goals..." rows="3" className="easy-inp" style={{ resize: 'none' }} />
+                <textarea aria-label="Responsibilities" name="responsibilities" value={formData.responsibilities} onChange={handleChange} required placeholder="Key responsibilities and goals..." rows="3" className="easy-inp" style={{ resize: 'none' }} />
               </div>
             </div>
           </div>
@@ -452,21 +453,22 @@ export default function OfferForm() {
               <span className="easy-section-title">Compensation</span>
             </div>
 
-            <div
+            <button
+              type="button" role="switch" aria-checked={!!formData.isPaid}
               className={`easy-switch-row ${formData.isPaid ? 'active' : ''}`}
               onClick={() => handleChange({ target: { name: 'isPaid', checked: !formData.isPaid, type: 'checkbox' } })}
             >
               <span className="easy-switch-label">
                 {formData.offerType === 'internship' ? 'Paid internship' : formData.offerType === 'collaboration' ? 'Paid collaboration' : 'Paid position'}
               </span>
-              <div className="easy-switch-dot" />
-            </div>
+              <span className="easy-switch-dot" aria-hidden="true" />
+            </button>
 
             {formData.isPaid && (
               <div className="easy-row animate-in" style={{ marginTop: '1.25rem' }}>
                 <div className="easy-field">
                   <label className="easy-lbl">{formData.offerType === 'internship' ? 'Stipend amount' : formData.offerType === 'collaboration' ? 'Collaboration fee' : 'Salary amount'}</label>
-                  <input type="number" name="stipend" value={formData.stipend} onChange={handleChange} required placeholder="0.00" className="easy-inp" />
+                  <input aria-label={formData.offerType === 'internship' ? 'Stipend amount' : formData.offerType === 'collaboration' ? 'Collaboration fee' : 'Salary amount'} type="number" name="stipend" value={formData.stipend} onChange={handleChange} required placeholder="0.00" className="easy-inp" />
                 </div>
                 <div className="easy-field">
                   <label className="easy-lbl">Currency & frequency</label>
@@ -547,7 +549,7 @@ export default function OfferForm() {
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border-default)', borderRadius: '1rem', padding: '2rem', maxWidth: '480px', width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Recipient Portal Link</h3>
-              <button onClick={() => setShowPortalModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '0.25rem' }}>
+              <button type="button" aria-label="Close" title="Close" onClick={() => setShowPortalModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '0.25rem' }}>
                 <X size={18} />
               </button>
             </div>

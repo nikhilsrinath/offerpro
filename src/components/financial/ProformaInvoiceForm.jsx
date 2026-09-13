@@ -371,7 +371,7 @@ export default function ProformaInvoiceForm() {
             <div className="easy-row">
               <div className="easy-field" ref={clientDropdownRef} style={{ position: 'relative' }}>
                 <label className="easy-lbl">Client name</label>
-                <input
+                <input aria-label="Client name"
                   type="text"
                   placeholder="Search or type client name..."
                   value={clientSearch || formData.clientName}
@@ -395,7 +395,7 @@ export default function ProformaInvoiceForm() {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Client company</label>
-                <input
+                <input aria-label="Client company"
                   type="text"
                   placeholder="Company name"
                   value={formData.clientCompany}
@@ -405,7 +405,7 @@ export default function ProformaInvoiceForm() {
               </div>
               <div className="easy-field full">
                 <label className="easy-lbl">Client address</label>
-                <input
+                <input aria-label="Client address"
                   type="text"
                   placeholder="Full billing address"
                   value={formData.clientAddress}
@@ -415,7 +415,7 @@ export default function ProformaInvoiceForm() {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Client GSTIN</label>
-                <input
+                <input aria-label="Client GSTIN"
                   type="text"
                   placeholder="22AAAAA0000A1Z5"
                   value={formData.clientGSTIN}
@@ -427,7 +427,7 @@ export default function ProformaInvoiceForm() {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Client country</label>
-                <CountrySelect
+                <CountrySelect ariaLabel="Client country"
                   value={formData.clientCountry}
                   placeholder="From customer record"
                   onChange={(code) => setFormData({ ...formData, clientCountry: code || '' })}
@@ -435,7 +435,7 @@ export default function ProformaInvoiceForm() {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Client email</label>
-                <input
+                <input aria-label="Client email"
                   type="email"
                   placeholder="billing@client.com"
                   value={formData.clientEmail}
@@ -445,7 +445,7 @@ export default function ProformaInvoiceForm() {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Client phone (WhatsApp)</label>
-                <input
+                <input aria-label="Client phone (WhatsApp)"
                   type="tel"
                   placeholder="+91 98765 43210"
                   value={formData.clientPhone}
@@ -465,7 +465,7 @@ export default function ProformaInvoiceForm() {
             <div className="easy-row">
               <div className="easy-field">
                 <label className="easy-lbl">Proforma number</label>
-                <input
+                <input aria-label="Proforma number"
                   type="text"
                   value={formData.proformaNumber}
                   onChange={(e) => setFormData({ ...formData, proformaNumber: e.target.value })}
@@ -475,7 +475,7 @@ export default function ProformaInvoiceForm() {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Date</label>
-                <input
+                <input aria-label="Date"
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
@@ -484,7 +484,7 @@ export default function ProformaInvoiceForm() {
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Due date</label>
-                <input
+                <input aria-label="Due date"
                   type="date"
                   value={formData.dueDate}
                   onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
@@ -499,7 +499,7 @@ export default function ProformaInvoiceForm() {
                       key={pct}
                       type="button"
                       onClick={() => handleAdvancePreset(pct)}
-                      className={`easy-chip ${!formData.isCustomAdvance && formData.advancePercent === pct ? 'active' : ''}`}
+                      aria-pressed={!!(!formData.isCustomAdvance && formData.advancePercent === pct)} className={`easy-chip ${!formData.isCustomAdvance && formData.advancePercent === pct ? 'active' : ''}`}
                     >
                       {pct}%
                     </button>
@@ -507,7 +507,7 @@ export default function ProformaInvoiceForm() {
                   <button
                     type="button"
                     onClick={handleCustomAdvance}
-                    className={`easy-chip ${formData.isCustomAdvance ? 'active' : ''}`}
+                    aria-pressed={!!formData.isCustomAdvance} className={`easy-chip ${formData.isCustomAdvance ? 'active' : ''}`}
                   >
                     Custom
                   </button>
@@ -566,14 +566,14 @@ export default function ProformaInvoiceForm() {
                       />
                     </div>
                     <div className="easy-line-top">
-                      <input
+                      <input aria-label="Item description"
                         type="text"
                         placeholder="Item description..."
                         value={item.description}
                         onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
                         className="easy-inp"
                       />
-                      <input
+                      <input aria-label="HSN/SAC code"
                         type="text"
                         placeholder="HSN/SAC"
                         value={item.hsnSac}
@@ -585,7 +585,7 @@ export default function ProformaInvoiceForm() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.625rem' }}>
                       <div>
                         <label className="easy-lbl-sm">Qty</label>
-                        <input
+                        <input aria-label="Qty"
                           type="number"
                           value={item.quantity}
                           min="1"
@@ -595,7 +595,7 @@ export default function ProformaInvoiceForm() {
                       </div>
                       <div>
                         <label className="easy-lbl-sm">Unit</label>
-                        <select
+                        <select aria-label="Unit"
                           value={item.unit}
                           onChange={(e) => handleItemChange(item.id, 'unit', e.target.value)}
                           className="easy-inp"
@@ -609,7 +609,7 @@ export default function ProformaInvoiceForm() {
                       </div>
                       <div>
                         <label className="easy-lbl-sm">Rate</label>
-                        <input
+                        <input aria-label="Rate"
                           type="number"
                           value={item.rate}
                           min="0"
@@ -619,7 +619,7 @@ export default function ProformaInvoiceForm() {
                       </div>
                       <div>
                         <label className="easy-lbl-sm">GST Rate</label>
-                        <select
+                        <select aria-label="GST Rate"
                           value={item.gstRate}
                           onChange={(e) => handleItemChange(item.id, 'gstRate', e.target.value)}
                           className="easy-inp"
@@ -638,16 +638,16 @@ export default function ProformaInvoiceForm() {
                         <div className="easy-line-amount">{fmt(calc.taxable)}</div>
                       </div>
                       <div>
-                        <label className="easy-lbl-sm" style={{ color: 'rgba(59,130,246,0.7)' }}>CGST</label>
-                        <div className="easy-line-amount" style={{ color: '#60a5fa' }}>{fmt(calc.cgst)}</div>
+                        <label className="easy-lbl-sm" style={{ color: 'var(--text-secondary)' }}>CGST</label>
+                        <div className="easy-line-amount" style={{ color: 'var(--text-primary)' }}>{fmt(calc.cgst)}</div>
                       </div>
                       <div>
-                        <label className="easy-lbl-sm" style={{ color: 'rgba(59,130,246,0.7)' }}>SGST</label>
-                        <div className="easy-line-amount" style={{ color: '#60a5fa' }}>{fmt(calc.sgst)}</div>
+                        <label className="easy-lbl-sm" style={{ color: 'var(--text-secondary)' }}>SGST</label>
+                        <div className="easy-line-amount" style={{ color: 'var(--text-primary)' }}>{fmt(calc.sgst)}</div>
                       </div>
                     </div>
                   </div>
-                  <button type="button" onClick={() => handleRemoveItem(item.id)} className="easy-delete-btn" title="Remove">
+                  <button type="button" onClick={() => handleRemoveItem(item.id)} className="easy-delete-btn" title="Remove" aria-label="Remove">
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -674,13 +674,13 @@ export default function ProformaInvoiceForm() {
 
               <div className="easy-total-divider" />
 
-              <div className="easy-total-row" style={{ color: 'rgba(59,130,246,0.7)' }}>
+              <div className="easy-total-row" style={{ color: 'var(--text-secondary)' }}>
                 <span>Total CGST</span>
-                <span style={{ color: '#60a5fa', fontWeight: 600 }}>{fmt(totals.totalCGST)}</span>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{fmt(totals.totalCGST)}</span>
               </div>
-              <div className="easy-total-row" style={{ color: 'rgba(59,130,246,0.7)' }}>
+              <div className="easy-total-row" style={{ color: 'var(--text-secondary)' }}>
                 <span>Total SGST</span>
-                <span style={{ color: '#60a5fa', fontWeight: 600 }}>{fmt(totals.totalSGST)}</span>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{fmt(totals.totalSGST)}</span>
               </div>
 
               <div className="easy-total-divider" />
@@ -694,11 +694,11 @@ export default function ProformaInvoiceForm() {
 
               <div className="easy-total-divider" />
 
-              <div className="easy-total-row" style={{ color: '#10b981' }}>
+              <div className="easy-total-row" style={{ color: 'var(--success)' }}>
                 <span>Advance ({activeAdvancePercent}%)</span>
                 <span style={{ fontWeight: 600 }}>{fmt(totals.advanceAmount)}</span>
               </div>
-              <div className="easy-total-row" style={{ fontWeight: 700, color: '#f59e0b' }}>
+              <div className="easy-total-row" style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
                 <span>Balance due</span>
                 <span>{fmt(totals.balanceDue)}</span>
               </div>
@@ -713,7 +713,7 @@ export default function ProformaInvoiceForm() {
             </div>
             <div className="easy-field">
               <label className="easy-lbl">Notes / terms</label>
-              <textarea
+              <textarea aria-label="Notes / terms"
                 placeholder="Additional notes, payment terms, bank details..."
                 rows={5}
                 value={formData.notes}
