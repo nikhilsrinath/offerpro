@@ -27,6 +27,11 @@ function secret() {
   return raw;
 }
 
+/** Throws unless the signing secret is configured; call before writing a row. */
+export function assertPortalSecret() {
+  secret();
+}
+
 function sign(jti, exp) {
   return createHmac('sha256', secret())
     .update(`${jti}.${exp}`)

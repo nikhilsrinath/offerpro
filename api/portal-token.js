@@ -1,6 +1,6 @@
 import { supabaseAdmin } from './_lib/supabaseAdmin.js';
 import { requireUser, requireOrgRole, sendError, methodIs, readJsonBody, HttpError } from './_lib/auth.js';
-import { buildToken } from './_lib/portalToken.js';
+import { buildToken, assertPortalSecret } from './_lib/portalToken.js';
 
 /**
  * POST /api/portal-token
@@ -20,6 +20,9 @@ export default async function handler(req, res) {
   if (!methodIs(req, res, 'POST')) return;
 
   try {
+    // A missing secret used to surface only after the row was inserted,
+    // leaving a token nobody could ever be handed.
+    assertPortalSecret();
     const user = await requireUser(req);
     const body = await readJsonBody(req);
     const { org_id: orgId, document_id: documentId, scope = 'sign', recipient_email: recipientEmail } = body || {};

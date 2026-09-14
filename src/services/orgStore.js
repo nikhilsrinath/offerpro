@@ -620,7 +620,13 @@ function splitProfileUpdates(updates) {
     // written back to the column.
     if (URL_TO_PATH[rawKey] && updates[URL_TO_PATH[rawKey]] !== undefined) continue;
     const key = URL_TO_PATH[rawKey] || rawKey;
-    if (BANKING_FIELDS.includes(key)) banking[key] = value;
+    // A blank banking field means "not set". org_banking's gstin and bank_ifsc
+    // checks accept NULL but reject '', and the profile form always posts every
+    // field, so an org with no IFSC could not save anything — email settings
+    // included — until the blank became a NULL.
+    if (BANKING_FIELDS.includes(key)) {
+      banking[key] = typeof value === 'string' && value.trim() === '' ? null : value;
+    }
     else if (SECRET_FIELDS.includes(key)) {
       // An empty secret means "the form could not show me what is stored", not
       // "delete what is stored". org_secrets is write-only — the profile form
