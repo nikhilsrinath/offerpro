@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-    Users, FileText, Receipt, BarChart3, File, PieChart as PieChartIcon,
+    FileText,
     Search, ChevronRight, Maximize2, Download, Globe,
     ArrowUp, ArrowDown, Activity,
-    Bell, Sun, Moon, LogOut, LayoutGrid, User as UserIcon, Building2, Check, ChevronDown,
+    Bell, Sun, Moon, LogOut, User as UserIcon, Building2, Check, ChevronDown,
     IndianRupee, Hourglass,
 } from 'lucide-react';
 import {
@@ -17,6 +17,8 @@ import { salesGeoService, periodRange } from '../services/salesGeoService';
 import { getPlanConfig, DEFAULT_PLAN } from '../services/planConfig';
 import CountryDialog from './CountryDialog';
 import { usePanZoom } from '../hooks/usePanZoom';
+import { MODULES } from './shell/modules';
+import MobileNav from './shell/MobileNav';
 
 /* ══════════════════════════════════════════════════════════════════════════
    EdgeOS — Terminal Theme
@@ -25,7 +27,7 @@ import { usePanZoom } from '../hooks/usePanZoom';
    never for decoration. Every surface responds to the pointer.
    ══════════════════════════════════════════════════════════════════════════ */
 
-const MONO = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
+const MONO = "'Helvetica Neue', Helvetica, Arial, sans-serif";
 
 function makeTokens(isDark) {
     return isDark ? {
@@ -71,14 +73,6 @@ function makeTokens(isDark) {
     };
 }
 
-const MODULES = [
-    { id: 'team',      code: 'TEA', label: 'Team',      desc: 'Registry · hierarchy',  icon: Users,        defaultPage: 'team-hierarchy' },
-    { id: 'documents', code: 'DOC', label: 'Documents', desc: 'Offers · NDAs · certs', icon: FileText,     defaultPage: 'new-certificates' },
-    { id: 'finance',   code: 'FIN', label: 'Finance',   desc: 'Invoices · quotes',     icon: Receipt,      defaultPage: 'finance-status' },
-    { id: 'business',  code: 'BIZ', label: 'Business',  desc: 'CRM · clients',         icon: BarChart3,    defaultPage: 'crm' },
-    { id: 'data',      code: 'REC', label: 'Records',   desc: 'Archive · history',     icon: File,         defaultPage: 'records' },
-    { id: 'overall',   code: 'OVW', label: 'Overview',  desc: 'Full analytics',        icon: PieChartIcon, defaultPage: 'dashboard' },
-];
 
 const RANGES = ['7D', '1M', '3M', '1Y'];
 const RANGE_DAYS = { '7D': 7, '1M': 30, '3M': 90, '1Y': 365 };
@@ -732,6 +726,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
     return (
         <div className="nm-root" style={{
             width: '100%', height: '100vh', overflow: 'hidden', display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
             background: t.shell, fontFamily: MONO, color: t.text,
             WebkitFontSmoothing: 'antialiased',
         }}>
@@ -739,7 +734,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                 A rail rather than a full sidebar: 58px of icons that widen to
                 labels on hover, so navigation is always one click away without
                 spending a fifth of the width on it. Hidden on phones, where the
-                top bar carries the same list as a menu. */}
+                bottom bar carries the same list. */}
             {!isMobile && (
                 <aside
                     onMouseEnter={() => setRail(true)}
@@ -825,7 +820,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
             )}
 
             <div className="nm-scroll" style={{
-                flex: 1, minWidth: 0, height: '100%',
+                flex: 1, minWidth: 0, minHeight: 0, height: isMobile ? 'auto' : '100%',
                 overflowY: 'auto', overflowX: 'hidden',
             }}>
                 {/* The hub is the frame, not a card inside one: it runs edge to
@@ -835,8 +830,8 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                     {/* ── TOP BAR ─────────────────────────────────────────────
                         Navigation lives in the rail; this strip carries search,
                         the clock, theme, notifications and the account menu. On
-                        phones it also picks up the brand and the module list,
-                        since the rail is hidden there. */}
+                        phones it also picks up the brand, since the rail is
+                        hidden there. */}
                     <div ref={barRef} style={{
                         display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10,
                         padding: isMobile ? '9px 12px' : '11px 20px',
@@ -854,75 +849,6 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                     <circle cx="10" cy="10" r="2.6" fill={t.panel} stroke={t.text} strokeWidth="1.3" />
                                 </svg>
                             </Link>
-                        )}
-
-                        {/* module launcher — stands in for the rail on phones */}
-                        {isMobile && (
-                        <div style={{ position: 'relative', flexShrink: 0 }}>
-                            <button
-                                type="button" className="nm-nav"
-                                onClick={() => setMenu((m) => (m === 'modules' ? null : 'modules'))}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 7,
-                                    height: 30, padding: '0 10px', cursor: 'pointer',
-                                    fontFamily: MONO, fontSize: 11.5,
-                                    color: menu === 'modules' ? t.text : t.dim,
-                                    background: menu === 'modules' ? t.panelAlt : 'transparent',
-                                    border: '1px solid ' + (menu === 'modules' ? t.lineStrong : 'transparent'),
-                                    borderRadius: 7, transition: 'color .15s, background .15s, border-color .15s',
-                                }}
-                            >
-                                <LayoutGrid size={13} strokeWidth={2} />
-                                {!isMobile && <span>Modules</span>}
-                                <ChevronDown size={12} strokeWidth={2} style={{
-                                    transform: menu === 'modules' ? 'rotate(180deg)' : 'none',
-                                    transition: 'transform .18s',
-                                }} />
-                            </button>
-
-                            {menu === 'modules' && (
-                                <Pop t={t} width={isMobile ? 262 : 440} align="left">
-                                    <div style={{
-                                        padding: '9px 12px', borderBottom: '1px solid ' + t.lineSoft,
-                                        fontSize: 9.5, letterSpacing: '0.1em', color: t.faint,
-                                    }}>WORKSPACE</div>
-                                    <div style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-                                        padding: 6, gap: 2,
-                                    }}>
-                                        {MODULES.map((m) => {
-                                            const Icon = m.icon;
-                                            return (
-                                                <Link
-                                                    key={m.id} to={'/' + m.defaultPage} className="nm-lrow"
-                                                    onClick={() => setMenu(null)}
-                                                    style={{
-                                                        display: 'flex', alignItems: 'center', gap: 9,
-                                                        padding: '8px 9px', borderRadius: 7,
-                                                        textDecoration: 'none', color: t.text,
-                                                    }}
-                                                >
-                                                    <span style={{
-                                                        width: 26, height: 26, borderRadius: 6, flexShrink: 0,
-                                                        border: '1px solid ' + t.line, background: t.panelAlt,
-                                                        display: 'grid', placeItems: 'center', color: t.dim,
-                                                    }}><Icon size={13} strokeWidth={1.8} /></span>
-                                                    <span style={{ flex: 1, minWidth: 0 }}>
-                                                        <span style={{ display: 'block', fontSize: 11.5, fontWeight: 500 }}>{m.label}</span>
-                                                        <span style={{
-                                                            display: 'block', fontSize: 9.5, color: t.faint, marginTop: 1,
-                                                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                                        }}>{m.desc}</span>
-                                                    </span>
-                                                    <span style={{ fontSize: 9, color: t.ghost, letterSpacing: '0.06em', flexShrink: 0 }}>{m.code}</span>
-                                                </Link>
-                                            );
-                                        })}
-                                    </div>
-                                </Pop>
-                            )}
-                        </div>
                         )}
 
                         {!isMobile && (
@@ -1605,6 +1531,8 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                     </div>
                 </div>
             </div>
+
+            {isMobile && <MobileNav t={{ ...t, isDark }} active="hub" />}
 
             {openCountry && (
                 <CountryDialog

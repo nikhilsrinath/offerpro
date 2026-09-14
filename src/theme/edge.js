@@ -11,7 +11,8 @@
    is only for markers and secondary counts. Check a new grey before lowering it.
    ══════════════════════════════════════════════════════════════════════════ */
 
-export const MONO = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
+// Named MONO for history; the UI face is now Helvetica.
+export const MONO = "'Helvetica Neue', Helvetica, Arial, sans-serif";
 
 export function makeTokens(isDark) {
     return isDark ? {

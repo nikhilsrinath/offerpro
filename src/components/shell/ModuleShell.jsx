@@ -10,6 +10,7 @@ import { useOrg } from '../../context/OrgContext';
 import { documentStore } from '../../services/documentStore';
 import { getPlanConfig, DEFAULT_PLAN } from '../../services/planConfig';
 import { RailSlotContext } from './railSlot';
+import MobileNav from './MobileNav';
 import './edgeBridge.css';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -406,6 +407,8 @@ export default function ModuleShell({
                 >
                     {children}
                 </main>
+
+                {isMobile && <MobileNav t={t} active={mod?.id} />}
             </div>
 
             <ShellStyle t={t} />

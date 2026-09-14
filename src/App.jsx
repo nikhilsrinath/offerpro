@@ -94,12 +94,12 @@ const FLUSH_PAGES = new Set([
 ]);
 
 const MODULE_META = {
-  team:      { label: 'Team' },
-  documents: { label: 'Documents' },
-  finance:   { label: 'Finance' },
-  business:  { label: 'Business' },
-  data:      { label: 'Records' },
-  overall:   { label: 'Overview' },
+  team:      { id: 'team', label: 'Team' },
+  documents: { id: 'documents', label: 'Documents' },
+  finance:   { id: 'finance', label: 'Finance' },
+  business:  { id: 'business', label: 'Business' },
+  data:      { id: 'data', label: 'Records' },
+  overall:   { id: 'overall', label: 'Overview' },
 };
 
 const NAV_ITEMS = [

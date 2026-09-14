@@ -4,6 +4,7 @@ import { makeTokens, MONO } from '../../theme/edge';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { callCofounderAI } from '../../services/cofounderAI';
 import Orb from './Orb';
+import { MOBILE_NAV_H } from '../shell/MobileNav';
 
 /* ══════════════════════════════════════════════════════════════════════════
    AI Assistant — a round launcher bottom-right, and a panel with two modes.
@@ -35,9 +36,23 @@ function useIsNarrow() {
     return n;
 }
 
+// Matches the width below which the shell swaps its rail for the bottom bar.
+function useIsPhone() {
+    const [p, setP] = useState(() => typeof window !== 'undefined' && window.innerWidth < 760);
+    useEffect(() => {
+        const fn = () => setP(window.innerWidth < 760);
+        window.addEventListener('resize', fn);
+        return () => window.removeEventListener('resize', fn);
+    }, []);
+    return p;
+}
+
 export default function AIAssistant({ theme = 'dark', edgeContext }) {
     const t = makeTokens(theme === 'dark');
     const narrow = useIsNarrow();
+    const phone = useIsPhone();
+    // On phones the launcher floats just above the bottom bar instead of on it.
+    const fabBottom = phone ? `calc(${MOBILE_NAV_H + 14}px + env(safe-area-inset-bottom))` : 20;
     const [open, setOpen] = useState(false);
     const [mode, setMode] = useState('voice');
 
@@ -93,7 +108,7 @@ export default function AIAssistant({ theme = 'dark', edgeContext }) {
                     aria-label={open ? 'Close AI Assistant' : 'Open AI Assistant'} aria-expanded={open}
                     className="ai-fab"
                     style={{
-                        position: 'fixed', right: 20, bottom: 20, zIndex: 170,
+                        position: 'fixed', right: 16, bottom: fabBottom, zIndex: 170,
                         width: 48, height: 48, borderRadius: '50%', padding: 0,
                         display: 'grid', placeItems: 'center', cursor: 'pointer',
                         background: open ? t.selBg : t.panel, color: open ? t.selText : t.text,
@@ -116,7 +131,7 @@ export default function AIAssistant({ theme = 'dark', edgeContext }) {
                         position: 'fixed', zIndex: 169,
                         ...(narrow
                             ? { inset: 0, borderRadius: 0 }
-                            : { right: 20, bottom: 80, width: 392, height: 'min(620px, calc(100vh - 110px))', borderRadius: 14 }),
+                            : { right: 20, bottom: phone ? `calc(${MOBILE_NAV_H + 74}px + env(safe-area-inset-bottom))` : 80, width: 392, height: phone ? 'min(620px, calc(100vh - 170px))' : 'min(620px, calc(100vh - 110px))', borderRadius: 14 }),
                         background: t.panel, border: narrow ? 'none' : '1px solid ' + t.lineStrong,
                         boxShadow: t.shadow, overflow: 'hidden',
                         display: 'flex', flexDirection: 'column',
