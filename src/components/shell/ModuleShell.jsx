@@ -7,6 +7,7 @@ import {
 import { MONO, makeTokens } from '../../theme/edge';
 import { EdgeThemeContext } from '../../theme/EdgeTheme';
 import { useOrg } from '../../context/OrgContext';
+import { useProfileCompletion } from '../../hooks/useProfileCompletion';
 import { documentStore } from '../../services/documentStore';
 import { getPlanConfig, DEFAULT_PLAN } from '../../services/planConfig';
 import { RailSlotContext } from './railSlot';
@@ -30,7 +31,7 @@ function useWindowWidth() {
     return w;
 }
 
-function PopRow({ t, icon, label, note, onClick, danger }) {
+function PopRow({ t, icon, label, note, onClick, danger, dot }) {
     return (
         <button type="button" role="menuitem" className="edge-row" onClick={onClick} style={{
             display: 'flex', alignItems: 'center', gap: 10, width: '100%',
@@ -41,8 +42,11 @@ function PopRow({ t, icon, label, note, onClick, danger }) {
             <span aria-hidden="true" style={{ display: 'grid', placeItems: 'center', color: danger ? t.down : t.faint, flexShrink: 0 }}>{icon}</span>
             <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontSize: 11.5 }}>{label}</span>
-                {note && <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 1 }}>{note}</span>}
+                {note && <span style={{ display: 'block', fontSize: 9.5, color: dot ? t.down : t.faint, marginTop: 1 }}>{note}</span>}
             </span>
+            {dot && <span aria-hidden="true" style={{
+                width: 6, height: 6, borderRadius: 999, background: t.down, flexShrink: 0,
+            }} />}
         </button>
     );
 }
@@ -54,6 +58,7 @@ export default function ModuleShell({
     const isDark = theme === 'dark';
     const t = makeTokens(isDark);
     const { activeOrg } = useOrg();
+    const profile = useProfileCompletion();
     const navigate = useNavigate();
     const winW = useWindowWidth();
     const isMobile = winW < 760;
@@ -326,10 +331,12 @@ export default function ModuleShell({
 
                     <div style={{ position: 'relative', flexShrink: 0 }}>
                         <button type="button" className="edge-chip" ref={accountBtnRef}
-                            aria-label={`Account: ${displayName}, ${orgName}`}
+                            aria-label={`Account: ${displayName}, ${orgName}`
+                                + (profile.incomplete ? ` — company profile incomplete, ${profile.summary.toLowerCase()}` : '')}
                             aria-expanded={menu === 'account'} aria-haspopup="menu" aria-controls="edge-account-menu"
                             onClick={() => setMenu((m) => (m === 'account' ? null : 'account'))}
                             style={{
+                                position: 'relative',
                                 display: 'flex', alignItems: 'center', gap: 8,
                                 padding: '4px 8px 4px 5px', borderRadius: 8, cursor: 'pointer',
                                 border: '1px solid ' + (menu === 'account' ? t.lineStrong : t.line),
@@ -353,6 +360,13 @@ export default function ModuleShell({
                                 color: t.faint, flexShrink: 0,
                                 transform: menu === 'account' ? 'rotate(180deg)' : 'none', transition: 'transform .18s',
                             }} />
+                            {profile.incomplete && (
+                                <span aria-hidden="true" style={{
+                                    position: 'absolute', top: -2, right: -2,
+                                    width: 8, height: 8, borderRadius: 999,
+                                    background: t.down, border: '1.5px solid ' + t.panel,
+                                }} />
+                            )}
                         </button>
                         {menu === 'account' && (
                             <Pop t={t} width={252} id="edge-account-menu" role="menu" label="Account">
@@ -361,8 +375,15 @@ export default function ModuleShell({
                                     <div style={{ fontSize: 9.5, color: t.faint, marginTop: 2, wordBreak: 'break-all' }}>{user?.email || ''}</div>
                                 </div>
                                 <div style={{ padding: 4 }}>
-                                    <PopRow t={t} icon={<Building2 size={13} strokeWidth={1.8} />} label="Company profile"
-                                        onClick={() => { setMenu(null); navigate('/profile'); }} />
+                                    <PopRow
+                                        t={t} dot={profile.incomplete}
+                                        icon={<Building2 size={13} strokeWidth={1.8} />}
+                                        label={profile.incomplete ? 'Finish your profile' : 'Company profile'}
+                                        note={profile.incomplete ? profile.summary : undefined}
+                                        onClick={() => {
+                                            setMenu(null);
+                                            navigate(profile.next ? `/profile#${profile.next.section}` : '/profile');
+                                        }} />
                                     <PopRow t={t} icon={<UserIcon size={13} strokeWidth={1.8} />} label="My portal"
                                         onClick={() => { setMenu(null); navigate('/me'); }} />
                                     <PopRow t={t} icon={<Check size={13} strokeWidth={1.8} />} label="Plans & billing" note={plan.displayName}

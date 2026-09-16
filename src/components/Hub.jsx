@@ -18,6 +18,7 @@ import { getPlanConfig, DEFAULT_PLAN } from '../services/planConfig';
 import CountryDialog from './CountryDialog';
 import { usePanZoom } from '../hooks/usePanZoom';
 import { MODULES } from './shell/modules';
+import { useProfileCompletion } from '../hooks/useProfileCompletion';
 import MobileNav from './shell/MobileNav';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -210,7 +211,7 @@ function Pop({ t, children, width = 260, align = 'right' }) {
     );
 }
 
-function PopRow({ t, icon, label, note, onClick, danger }) {
+function PopRow({ t, icon, label, note, onClick, danger, dot }) {
     return (
         <button type="button" className="nm-lrow" onClick={onClick} style={{
             display: 'flex', alignItems: 'center', gap: 10, width: '100%',
@@ -221,8 +222,11 @@ function PopRow({ t, icon, label, note, onClick, danger }) {
             <span style={{ display: 'grid', placeItems: 'center', color: danger ? t.down : t.faint, flexShrink: 0 }}>{icon}</span>
             <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontSize: 11.5 }}>{label}</span>
-                {note && <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 1 }}>{note}</span>}
+                {note && <span style={{ display: 'block', fontSize: 9.5, color: dot ? t.down : t.faint, marginTop: 1 }}>{note}</span>}
             </span>
+            {dot && <span aria-hidden="true" style={{
+                width: 6, height: 6, borderRadius: 999, background: t.down, flexShrink: 0,
+            }} />}
         </button>
     );
 }
@@ -443,6 +447,9 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
 
     // top bar — everything the sidebar used to hold now lives up here
     const [menu, setMenu] = useState(null);      // 'modules' | 'notifs' | 'account' | null
+    // Registration now asks six questions; the rest of the company profile is
+    // chased from here, with a red dot that lives until the fields are filled.
+    const profile = useProfileCompletion();
     const [rail, setRail] = useState(false);    // module rail widened to labels
     const [notifs, setNotifs] = useState([]);
     const barRef = useRef(null);
@@ -953,8 +960,12 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                         <div style={{ position: 'relative', flexShrink: 0 }}>
                             <button
                                 type="button" className="nm-chip"
+                                aria-label={`Account: ${displayName}, ${orgName}`
+                                    + (profile.incomplete ? ` — company profile incomplete, ${profile.summary.toLowerCase()}` : '')}
+                                aria-expanded={menu === 'account'} aria-haspopup="menu"
                                 onClick={() => setMenu((m) => (m === 'account' ? null : 'account'))}
                                 style={{
+                                    position: 'relative',
                                     display: 'flex', alignItems: 'center', gap: 8,
                                     padding: '4px 8px 4px 5px', borderRadius: 8, cursor: 'pointer',
                                     border: '1px solid ' + (menu === 'account' ? t.lineStrong : t.line),
@@ -984,6 +995,13 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                     transform: menu === 'account' ? 'rotate(180deg)' : 'none',
                                     transition: 'transform .18s',
                                 }} />
+                                {profile.incomplete && (
+                                    <span aria-hidden="true" style={{
+                                        position: 'absolute', top: -2, right: -2,
+                                        width: 8, height: 8, borderRadius: 999,
+                                        background: t.down, border: '1.5px solid ' + t.panel,
+                                    }} />
+                                )}
                             </button>
 
                             {menu === 'account' && (
@@ -1004,8 +1022,15 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                         </div>
                                     </div>
                                     <div style={{ padding: 4 }}>
-                                        <PopRow t={t} icon={<Building2 size={13} strokeWidth={1.8} />} label="Company profile" note="Logo, signature, details"
-                                            onClick={() => { setMenu(null); navigate('/profile'); }} />
+                                        <PopRow
+                                            t={t} dot={profile.incomplete}
+                                            icon={<Building2 size={13} strokeWidth={1.8} />}
+                                            label={profile.incomplete ? 'Finish your profile' : 'Company profile'}
+                                            note={profile.incomplete ? profile.summary : 'Logo, signature, details'}
+                                            onClick={() => {
+                                                setMenu(null);
+                                                navigate(profile.next ? `/profile#${profile.next.section}` : '/profile');
+                                            }} />
                                         <PopRow t={t} icon={<UserIcon size={13} strokeWidth={1.8} />} label="My portal" note="Attendance · leave"
                                             onClick={() => { setMenu(null); navigate('/me'); }} />
                                         <PopRow t={t} icon={<Check size={13} strokeWidth={1.8} />} label="Plans & billing" note={plan.displayName}

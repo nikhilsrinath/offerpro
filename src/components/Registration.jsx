@@ -1,30 +1,25 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, Check, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { createOrganization } from '../services/orgProvisioning';
 import { authErrorMessage } from '../lib/authErrors';
 import { displayNameOf } from '../lib/user';
 
+// The wizard asks for the six things an organization cannot exist without:
+// credentials, who the company is, who signs for it, and the one line of
+// context the AI co-founder reads. Everything else — address, phone, logo,
+// signature, designation — is prompted for from the hub afterwards, where
+// there is a real form with previews instead of a one-question-at-a-time run.
+// See lib/profileCompletion.js for what the hub then chases.
 const QUESTIONS = [
     { id: 'welcome', type: 'welcome', category: 'Welcome' },
-    { id: 'company_email', type: 'email', label: "What is your official company email address?", subtitle: "This forms your core organizational identity.", category: 'Company email' },
-    { id: 'password', type: 'password', label: "Create a secure administration password.", subtitle: "Required for workspace access. Minimum 6 characters.", category: 'Password' },
-    { id: 'company_name', type: 'text', label: "What is your Organization / Brand Name?", category: 'Company name' },
-    { id: 'company_website', type: 'text', label: "Company website or online presence?", subtitle: "Website / LinkedIn / Portfolio (Optional)", optional: true, category: 'Company website' },
-    { id: 'industry', type: 'multiselect', label: "Which industry categorises you best?", options: ['Technology', 'Finance', 'Healthcare', 'Education', 'E-commerce', 'Agency/Consulting', 'Real Estate', 'Other'], category: 'Industry' },
-    { id: 'company_description', type: 'textarea', label: "Briefly describe your core business.", subtitle: "1-2 lines on what you do.", category: 'Company description' },
-    { id: 'country', type: 'text', label: "Which country is your headquarters located in?", category: 'Country' },
-    { id: 'city', type: 'text', label: "And which city do you operate from?", category: 'City' },
-    { id: 'company_size', type: 'select', label: "What is your organizational scale?", options: ['Solo', '2–10', '11–50', '50+'], category: 'Company size' },
-    { id: 'owner_full_name', type: 'text', label: "What is your full name?", subtitle: "As the primary account administrator.", category: 'Full name' },
-    { id: 'owner_role', type: 'select', label: "What is your operational role?", options: ['Founder', 'HR', 'Admin', 'Manager', 'Other'], category: 'Role' },
-    { id: 'primary_contact_name', type: 'text', label: "Primary Contact Person's Name", subtitle: "Name to appear on generated documents (if different from your name).", optional: true, category: 'Contact name' },
-    { id: 'document_designation', type: 'text', label: "Preferred designation on official documents?", subtitle: "(e.g., Founder, HR Manager, Authorized Signatory)", category: 'Designation' },
-    { id: 'use_cases', type: 'multiselect', label: "Primary platform usage intent?", options: ['Offer Letters', 'Certificates', 'MOUs', 'Reports', 'Team Management'], category: 'Use cases' },
-    { id: 'include_logo', type: 'select_boolean', label: "Include company logo on generated documents?", options: ['Yes', 'No'], category: 'Logo preference' },
-    { id: 'logo_url', type: 'text', label: "Company Logo URL", subtitle: "Provide a link to your asset. You can configure this later in settings.", optional: true, category: 'Logo URL' },
-    { id: 'account_usage', type: 'select', label: "Account Scope:", options: ['Just me', 'Small team', 'Entire organization'], category: 'Account scope' },
-    { id: 'referral_source', type: 'text', label: "How did you discover EdgeOS?", optional: true, category: 'Referral source' }
+    { id: 'company_email', type: 'email', label: "What is your work email?", subtitle: "This becomes your sign-in and your organization's identity.", category: 'Work email' },
+    { id: 'password', type: 'password', label: "Create a password.", subtitle: "Minimum 6 characters.", category: 'Password' },
+    { id: 'company_name', type: 'text', label: "What is your company called?", subtitle: "The name that appears on everything you issue.", category: 'Company name' },
+    { id: 'owner_full_name', type: 'text', label: "What is your full name?", subtitle: "As the primary account administrator.", category: 'Your name' },
+    { id: 'owner_role', type: 'select', label: "What is your role?", options: ['Founder', 'HR', 'Admin', 'Manager', 'Other'], category: 'Your role' },
+    { id: 'industry', type: 'select', label: "Which industry fits you best?", options: ['Technology', 'Finance', 'Healthcare', 'Education', 'E-commerce', 'Agency/Consulting', 'Real Estate', 'Other'], category: 'Industry' }
 ];
 
 // Questions for Google-authenticated users (skip email/password)
@@ -32,6 +27,7 @@ const GOOGLE_QUESTIONS = QUESTIONS.filter(q => q.id !== 'company_email' && q.id 
 
 export default function Registration({ onBack, isGoogleUser }) {
     const { user, signup, completeOnboarding } = useAuth();
+    const navigate = useNavigate();
 
     const questions = isGoogleUser ? GOOGLE_QUESTIONS : QUESTIONS;
 
@@ -42,34 +38,30 @@ export default function Registration({ onBack, isGoogleUser }) {
     });
 
     const [formData, setFormData] = useState(() => {
+        const defaults = {
+            company_email: user?.email || '',
+            password: '',
+            company_name: '',
+            owner_full_name: displayNameOf(user),
+            owner_role: '',
+            industry: '',
+            // Not asked any more, but the organization row still has the
+            // column and `false` here would strip the logo off every issued
+            // document. Opt in; the hub asks for the image itself.
+            include_logo: 'Yes'
+        };
+        // Merged over the defaults rather than used as-is: a run abandoned
+        // before this wizard was shortened is missing keys the questions now
+        // bind to, and `value={undefined}` turns the input uncontrolled.
         const saved = localStorage.getItem('offerpro_reg_data');
         if (saved) {
             try {
-                return JSON.parse(saved);
+                return { ...defaults, ...JSON.parse(saved) };
             } catch {
                 console.error('Error parsing local storage data');
             }
         }
-        return {
-            company_email: user?.email || '',
-            password: '',
-            company_name: '',
-            company_website: '',
-            industry: [],
-            company_description: '',
-            country: '',
-            city: '',
-            company_size: '',
-            owner_full_name: displayNameOf(user),
-            owner_role: '',
-            primary_contact_name: '',
-            document_designation: '',
-            use_cases: [],
-            include_logo: 'No',
-            logo_url: '',
-            account_usage: '',
-            referral_source: ''
-        };
+        return defaults;
     });
 
     useEffect(() => {
@@ -111,12 +103,6 @@ export default function Registration({ onBack, isGoogleUser }) {
             return;
         }
 
-        // Logic for conditional logo display
-        if (currentQ.id === 'include_logo' && formData.include_logo === 'No') {
-            setStep(s => s + 2);
-            return;
-        }
-
         if (step < questions.length - 1) {
             setStep(s => s + 1);
         } else {
@@ -131,12 +117,7 @@ export default function Registration({ onBack, isGoogleUser }) {
             return;
         }
 
-        let prevStep = step - 1;
-        if (questions[step].id === 'account_usage' && formData.include_logo === 'No') {
-            prevStep = step - 2;
-        }
-
-        setStep(prevStep);
+        setStep(step - 1);
     };
 
 
@@ -154,6 +135,7 @@ export default function Registration({ onBack, isGoogleUser }) {
 
                 completeOnboarding();
                 setStep('redirecting');
+                navigate('/hub', { replace: true });
             } else {
                 // Email/Password signup flow
                 // Use the callback pattern to store org data BEFORE React re-renders
@@ -164,6 +146,9 @@ export default function Registration({ onBack, isGoogleUser }) {
                 localStorage.removeItem('offerpro_reg_data');
                 localStorage.removeItem('offerpro_reg_step');
                 setStep('redirecting');
+                // Signup leaves the browser on /signup, which matches no route
+                // inside the app shell. The hub is where a new workspace opens.
+                navigate('/hub', { replace: true });
             }
         } catch (err) {
             console.error('Registration failed:', err);
@@ -330,8 +315,8 @@ export default function Registration({ onBack, isGoogleUser }) {
                                 </h1>
                                 <p className="reg-welcome-subtitle-v2">
                                     {isGoogleUser
-                                        ? "You're almost there. Let's set up your organization to get started."
-                                        : "Let's initialize your corporate workspace. This multi-step process configures your organization's entire document footprint."
+                                        ? "You're almost there. Four quick questions and your workspace is ready."
+                                        : "Six quick questions and your workspace is ready. Everything else — logo, address, signature — you can add later from your company profile."
                                     }
                                 </p>
                                 <button

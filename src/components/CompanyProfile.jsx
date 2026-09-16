@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useContext } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Upload, Check, Loader, AlertCircle, Pencil, Zap, XCircle, Download, KeyRound,
   Eye, EyeOff, ArrowRight, ExternalLink, Trash2, ChevronDown, Building2,
@@ -205,6 +205,16 @@ export default function CompanyProfile() {
       : el.querySelector('input:not([type=hidden]):not([type=file]), textarea, button.cp-drop');
     if (target) setTimeout(() => target.focus({ preventScroll: true }), 350);
   };
+
+  // Arriving from the hub's "Finish your profile" dot, which links to
+  // /profile#<section>. The scroll waits a frame for the sections to exist.
+  const { hash } = useLocation();
+  useEffect(() => {
+    const id = (hash || '').replace('#', '');
+    if (!id || !activeOrg) return undefined;
+    const timer = setTimeout(() => jumpTo(id), 80);
+    return () => clearTimeout(timer);
+  }, [hash, activeOrg]);
 
   // Highlight the section in view. The observer clips against the shell's own
   // scroll area, so the default viewport root is correct here.
