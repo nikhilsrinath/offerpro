@@ -1,0 +1,769 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   The bridge between index.css and the terminal theme.
+
+   The Documents, Finance, Business and Records pages were written against
+   index.css. ModuleShell points index.css's variables at the edge palette
+   (see ShellStyle); this file does the rest of what the palette cannot — the
+   typeface, the radii, the flat buttons, the focus ring — for the class
+   families those pages are built from. Everything is scoped to .edge-shell so
+   the landing page, the auth screens and the hub are untouched.
+
+   Printable output (.a4-sheet and the other preview roots) is paper, not UI,
+   and is deliberately excluded: it keeps its own fonts and colours.
+
+   Accessibility rules this file enforces for every page in the shell:
+   · a visible 2px focus ring on anything reachable by keyboard
+   · click targets at least 28px, icon buttons included (WCAG 2.5.8)
+   · placeholder and muted text on the AA-contrast greys
+   · motion switched off under prefers-reduced-motion (in ShellStyle)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── typeface ─────────────────────────────────────────────────────────────── */
+
+.edge-shell main :where(button, input, select, textarea, optgroup) {
+  font-family: inherit;
+}
+
+.edge-shell main :where(h1, h2, h3, h4, h5, h6):not(:where(.a4-sheet, .certificate-preview-root, .inv-saffron-page) *) {
+  font-family: var(--edge-mono);
+  letter-spacing: -0.02em;
+}
+
+/* Paper keeps its own face. */
+.edge-shell .certificate-preview-root,
+.edge-shell .inv-saffron-page {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ── focus ────────────────────────────────────────────────────────────────── */
+
+.edge-shell main :where(a, button, input, select, textarea, summary, [tabindex], [role="button"]):focus-visible {
+  outline: 2px solid var(--edge-text) !important;
+  outline-offset: 2px !important;
+}
+
+.edge-shell main :where(input, select, textarea):focus-visible {
+  outline-offset: 0 !important;
+}
+
+.edge-shell main ::placeholder {
+  color: var(--edge-faint) !important;
+  opacity: 1;
+}
+
+.edge-shell main ::selection {
+  background: var(--edge-text);
+  color: var(--edge-panel);
+}
+
+/* ── page furniture ───────────────────────────────────────────────────────── */
+
+/* The shell provides the title; pages that also printed one repeat it. */
+.edge-shell main .page-header {
+  display: none;
+}
+
+/* Split editors were sized against the old header. In the shell's flush body
+   they simply fill it. */
+.edge-shell main .mou-split-layout {
+  margin: 0;
+  height: 100%;
+}
+
+.edge-shell main .mou-form-pane {
+  border-right: 1px solid var(--edge-line);
+  scrollbar-color: var(--edge-line-strong) transparent;
+}
+
+.edge-shell main .mou-form-pane::-webkit-scrollbar-thumb,
+.edge-shell main .mou-a4-scroller::-webkit-scrollbar-thumb {
+  background: var(--edge-line-strong);
+}
+
+.edge-shell main .mou-a4-scroller {
+  scrollbar-color: var(--edge-line-strong) transparent;
+}
+
+.edge-shell main .mou-preview-pane {
+  background: var(--edge-shell);
+  min-width: 0;
+}
+
+.edge-shell main .mou-preview-toolbar {
+  background: var(--edge-panel);
+  border-bottom: 1px solid var(--edge-line);
+}
+
+.edge-shell main .mou-preview-toolbar-label {
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--edge-faint);
+  font-weight: 400;
+}
+
+.edge-shell main .bulk-page-container {
+  min-height: 0 !important;
+}
+
+/* ── surfaces ─────────────────────────────────────────────────────────────── */
+
+.edge-shell main :where(
+  .pro-card, .glass-panel, .glass-card, .fin-status-stat-card, .pro-stat-card, .prod-stat,
+  .prod-perf-table-wrap, .fin-list-payment-card, .portal-link-gen, .bulk-side-panel,
+  .crm-column, .crm-card, .customer-card, .billing-card, .records-card, .planner-card,
+  .sbc-card, .payment-conf, .line-items-editor, .easy-upload
+) {
+  border-radius: 10px;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.edge-shell main :where(.glass-panel, .glass-card) {
+  background: var(--edge-panel);
+  border: 1px solid var(--edge-line);
+}
+
+.edge-shell main .pro-card-title-group h3,
+.edge-shell main .pro-card-header h3 {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--edge-text);
+  letter-spacing: 0;
+}
+
+/* Stat tiles: numbers first, the label beneath in the kit's small caps. */
+.edge-shell main :where(.pro-stat-value, .fin-status-stat-value, .prod-stat-value, .sbc-metric-value) {
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--edge-text);
+}
+
+.edge-shell main :where(.pro-stat-label, .fin-status-stat-label, .prod-stat-label, .sbc-metric-label) {
+  font-size: 9.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--edge-faint);
+}
+
+/* Decorative icon wells on stat tiles carried a hue each; in the terminal the
+   number is the signal and the icon stays grey. */
+.edge-shell main :where(.pro-stat-icon, .fin-status-stat-icon, .prod-stat-icon) {
+  background: var(--edge-panel-alt) !important;
+  color: var(--edge-dim) !important;
+  border: 1px solid var(--edge-line);
+  border-radius: 7px;
+  box-shadow: none !important;
+}
+
+/* ── form sections ────────────────────────────────────────────────────────── */
+
+.edge-shell main .easy-section {
+  border-bottom-color: var(--edge-line-soft);
+}
+
+.edge-shell main .easy-section-title {
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.edge-shell main .easy-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 500;
+  background: var(--edge-panel-alt);
+  border: 1px solid var(--edge-line);
+  color: var(--edge-dim);
+}
+
+.edge-shell main :where(.easy-lbl, .easy-lbl-sm, .easy-party-label, .inv-party-label, .prod-field > span, .payment-conf-field > label) {
+  font-size: 9.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--edge-faint);
+}
+
+/* ── inputs ───────────────────────────────────────────────────────────────── */
+
+.edge-shell main :where(
+  .easy-inp, .pro-input, .prod-select, .form-input, .fin-input, .crm-input, .customer-input,
+  .billing-input, .records-search, .bulk-input
+) {
+  background: var(--edge-panel-alt);
+  border: 1px solid var(--edge-line);
+  border-radius: 7px;
+  color: var(--edge-text);
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: none;
+  min-height: 32px;
+  transition: border-color .15s, background .15s;
+}
+
+.edge-shell main :where(.easy-inp, .pro-input) {
+  padding: 8px 10px;
+}
+
+.edge-shell main :where(
+  .easy-inp, .pro-input, .prod-select, .form-input, .fin-input, .crm-input, .customer-input,
+  .billing-input, .records-search, .bulk-input
+):hover:not(:disabled) {
+  border-color: var(--edge-line-strong);
+}
+
+.edge-shell main :where(
+  .easy-inp, .pro-input, .prod-select, .form-input, .fin-input, .crm-input, .customer-input,
+  .billing-input, .records-search, .bulk-input
+):focus {
+  border-color: var(--edge-text);
+  background: var(--edge-panel);
+  box-shadow: none;
+}
+
+.edge-shell main .prod-search {
+  background: var(--edge-panel-alt);
+  border: 1px solid var(--edge-line);
+  border-radius: 7px;
+  height: 32px;
+  color: var(--edge-faint);
+}
+
+.edge-shell main .prod-search:focus-within {
+  border-color: var(--edge-text);
+}
+
+/* The search field inside the wrapper draws its ring on the wrapper instead. */
+.edge-shell main .prod-search input:focus-visible {
+  outline: none !important;
+}
+
+.edge-shell main .prod-search:has(input:focus-visible) {
+  outline: 2px solid var(--edge-text);
+  outline-offset: 2px;
+}
+
+.edge-shell main select:not(:where(.a4-sheet *)) option {
+  background: var(--edge-panel);
+  color: var(--edge-text);
+}
+
+.edge-shell main input[type="date"]:not(:where(.a4-sheet *)),
+.edge-shell main input[type="month"]:not(:where(.a4-sheet *)) {
+  color-scheme: var(--edge-scheme, light);
+}
+
+.edge-shell[data-edge-dark="1"] {
+  --edge-scheme: dark;
+  color-scheme: dark;
+}
+
+.edge-shell main input[type="checkbox"],
+.edge-shell main input[type="radio"] {
+  accent-color: var(--edge-text);
+  min-width: 16px;
+  min-height: 16px;
+}
+
+/* ── buttons ──────────────────────────────────────────────────────────────── */
+
+/* Primary: the one action a view exists for. Solid ink, no lift, no glow. */
+.edge-shell main :where(
+  .btn-cinematic:not(.btn-secondary), .easy-submit, .prod-btn-primary, .prod-add-btn,
+  .fin-list-action-btn.primary, .portal-link-gen-btn.primary, .btn-primary
+) {
+  background: var(--edge-text) !important;
+  color: var(--edge-panel) !important;
+  border: 1px solid var(--edge-text) !important;
+  box-shadow: none !important;
+  transform: none !important;
+  border-radius: 7px;
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0;
+  min-height: 32px;
+  transition: opacity .15s;
+}
+
+.edge-shell main :where(
+  .btn-cinematic:not(.btn-secondary), .easy-submit, .prod-btn-primary, .prod-add-btn,
+  .fin-list-action-btn.primary, .portal-link-gen-btn.primary, .btn-primary
+):hover:not(:disabled) {
+  opacity: .86;
+}
+
+.edge-shell main :where(.btn-cinematic:not(.btn-secondary)) {
+  padding: 0 14px;
+}
+
+.edge-shell main .easy-submit {
+  padding: 10px 14px;
+}
+
+/* Secondary: hairline on the panel. */
+.edge-shell main :where(
+  .btn-secondary, .easy-submit-outline, .prod-btn-ghost, .fin-list-action-btn, .records-action-btn,
+  .portal-link-gen-btn, .sig-capture-clear-btn, .pro-link-btn, .btn-ghost, .btn-outline
+):not(:where(.primary)) {
+  background: var(--edge-panel);
+  color: var(--edge-text);
+  border: 1px solid var(--edge-line);
+  border-radius: 7px;
+  box-shadow: none;
+  backdrop-filter: none;
+  transform: none;
+  font-weight: 400;
+  font-size: 11.5px;
+  min-height: 28px;
+  transition: border-color .15s, background .15s, color .15s;
+}
+
+.edge-shell main :where(
+  .btn-secondary, .easy-submit-outline, .prod-btn-ghost, .fin-list-action-btn, .records-action-btn,
+  .portal-link-gen-btn, .sig-capture-clear-btn, .pro-link-btn, .btn-ghost, .btn-outline
+):not(:where(.primary)):hover:not(:disabled) {
+  background: var(--edge-panel-alt);
+  border-color: var(--edge-line-strong);
+  color: var(--edge-text);
+}
+
+.edge-shell main .fin-list-action-btn {
+  min-width: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Colour on a button is a warning about what it does, not decoration. */
+.edge-shell main :where(.fin-list-action-btn.danger, .records-action-btn.delete, .btn-danger) {
+  color: var(--edge-down) !important;
+}
+
+.edge-shell main :where(.fin-list-action-btn.success, .records-action-btn.notify.sent) {
+  color: var(--edge-up) !important;
+}
+
+.edge-shell main :where(.records-action-btn.download, .records-action-btn.notify):hover:not(:disabled) {
+  color: var(--edge-text) !important;
+  background: var(--edge-panel-alt) !important;
+  border-color: var(--edge-line-strong) !important;
+}
+
+.edge-shell main :where(.records-action-btn.delete):hover:not(:disabled) {
+  background: var(--error-muted) !important;
+  border-color: var(--edge-down) !important;
+}
+
+/* Icon-only removers. */
+.edge-shell main :where(.easy-delete-btn, .billing-delete-btn, .prod-search-clear, .fin-modal-close, .prod-modal-head button) {
+  min-width: 28px;
+  min-height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--edge-faint);
+}
+
+.edge-shell main :where(.easy-delete-btn, .billing-delete-btn):hover {
+  background: var(--error-muted);
+  color: var(--edge-down);
+}
+
+.edge-shell main .easy-add-btn {
+  border: 1px dashed var(--edge-line-strong);
+  border-radius: 7px;
+  color: var(--edge-dim);
+  font-weight: 400;
+  font-size: 11.5px;
+  min-height: 32px;
+}
+
+.edge-shell main .easy-add-btn:hover {
+  border-color: var(--edge-text);
+  color: var(--edge-text);
+  background: var(--edge-panel-alt);
+}
+
+/* Chips behave like the kit's segmented control. */
+.edge-shell main :where(.easy-chip, .pro-chip, .prod-tag, .fin-filter-chip, .crm-filter-chip) {
+  border: 1px solid var(--edge-line);
+  border-radius: 6px;
+  background: var(--edge-panel);
+  color: var(--edge-dim);
+  font-weight: 400;
+  font-size: 11px;
+  min-height: 28px;
+  box-shadow: none;
+}
+
+.edge-shell main :where(.easy-chip, .pro-chip, .fin-filter-chip, .crm-filter-chip):hover {
+  color: var(--edge-text);
+  border-color: var(--edge-line-strong);
+}
+
+.edge-shell main :where(.easy-chip, .pro-chip, .fin-filter-chip, .crm-filter-chip).active {
+  background: var(--edge-sel-bg);
+  border-color: var(--edge-sel-bg);
+  color: var(--edge-sel-text);
+}
+
+.edge-shell main .easy-switch-dot {
+  box-shadow: none;
+}
+
+/* ── tables ───────────────────────────────────────────────────────────────── */
+
+.edge-shell main table:not(:where(.a4-sheet *, .certificate-preview-root *, .inv-saffron-page *)) th {
+  font-size: 9.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--edge-faint);
+  background: transparent;
+}
+
+.edge-shell main table:not(:where(.a4-sheet *, .certificate-preview-root *, .inv-saffron-page *)) td {
+  border-color: var(--edge-line-soft);
+}
+
+/* ── overlays ─────────────────────────────────────────────────────────────── */
+
+.edge-shell main :where(.fin-modal-overlay, .customer-modal-overlay, .prod-modal-backdrop, .modal-overlay) {
+  background: var(--edge-overlay);
+  backdrop-filter: none;
+}
+
+.edge-shell main :where(.fin-modal, .customer-modal, .prod-modal, .modal-content) {
+  background: var(--edge-panel);
+  border: 1px solid var(--edge-line-strong);
+  border-radius: 12px;
+  box-shadow: var(--edge-shadow);
+}
+
+.edge-shell main :where(.customer-dropdown) {
+  background: var(--edge-panel);
+  border: 1px solid var(--edge-line-strong);
+  border-radius: 8px;
+  box-shadow: var(--edge-shadow);
+}
+
+.edge-shell main :where(.customer-dropdown-item):hover {
+  background: var(--edge-panel-alt);
+}
+
+/* ── motion ───────────────────────────────────────────────────────────────── */
+
+.edge-shell main .animate-in {
+  animation-duration: .2s;
+}
+
+/* ── accents ──────────────────────────────────────────────────────────────────
+   index.css hardcodes a blue, a yellow and a violet as highlight colours. In
+   the terminal a highlight is ink; hue is kept for up/down meaning only. Every
+   rule below answers a specific hardcoded rule used by a page in the shell. */
+
+.edge-shell main .fin-list-new-btn {
+  background: var(--edge-text);
+  color: var(--edge-panel);
+  border: 1px solid var(--edge-text);
+  border-radius: 7px;
+  box-shadow: none;
+  font-weight: 500;
+  font-size: 12px;
+  min-height: 32px;
+}
+
+.edge-shell main .fin-list-new-btn:hover { opacity: .86; transform: none; }
+
+.edge-shell main .fin-list-table tbody tr:hover,
+.edge-shell main .fin-list-payment-grid {
+  background: var(--edge-panel-alt);
+}
+
+.edge-shell main :where(.fin-list-id, .fin-list-amount) {
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.edge-shell main .easy-switch-row {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: var(--edge-panel-alt);
+  border: 1px solid var(--edge-line);
+  border-radius: 7px;
+  padding: 9px 12px;
+  min-height: 40px;
+}
+
+.edge-shell main .easy-switch-row:hover { border-color: var(--edge-line-strong); }
+
+.edge-shell main .easy-switch-row.active {
+  border-color: var(--edge-line-strong);
+  background: var(--edge-panel-alt);
+}
+
+.edge-shell main .easy-switch-label,
+.edge-shell main .easy-switch-row.active .easy-switch-label {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--edge-text);
+}
+
+.edge-shell main .easy-switch-dot {
+  display: block;
+  width: 34px;
+  height: 20px;
+  background: var(--edge-raised);
+  border: 1px solid var(--edge-line-strong);
+}
+
+.edge-shell main .easy-switch-dot::after {
+  width: 14px;
+  height: 14px;
+  background: var(--edge-dim);
+}
+
+.edge-shell main .easy-switch-row.active .easy-switch-dot {
+  background: var(--edge-text);
+  border-color: var(--edge-text);
+}
+
+.edge-shell main .easy-switch-row.active .easy-switch-dot::after {
+  background: var(--edge-panel);
+}
+
+.edge-shell main :where(.easy-line-amount, .inv-total-gst) {
+  color: var(--edge-text) !important;
+  font-weight: 500;
+}
+
+.edge-shell main :where(.easy-party-label, .easy-party-label.purple) {
+  color: var(--edge-faint);
+}
+
+.edge-shell main .easy-inp:focus {
+  border-color: var(--edge-text);
+  box-shadow: none;
+}
+
+.edge-shell main .billing-add-btn:hover,
+.edge-shell main .line-items-add:hover,
+.edge-shell main .sig-capture-upload-zone:hover {
+  background: var(--edge-panel-alt);
+  border-color: var(--edge-text);
+}
+
+.edge-shell main .billing-breakdown-fill {
+  background: var(--edge-text);
+}
+
+.edge-shell main .records-tab.active .records-tab-count {
+  background: var(--edge-sel-bg);
+  color: var(--edge-sel-text);
+}
+
+.edge-shell main .offer-notify-btn {
+  color: var(--edge-text);
+  border: 1px solid var(--edge-line);
+  border-radius: 7px;
+}
+
+.edge-shell main .offer-notify-btn:hover:not(:disabled) {
+  background: var(--edge-panel-alt);
+  border-color: var(--edge-line-strong);
+}
+
+.edge-shell main :where(.sig-capture-tab.active, .payment-conf-mode-btn.active) {
+  color: var(--edge-text);
+  border-color: var(--edge-text);
+}
+
+.edge-shell main :where(.sig-capture-type-input, .payment-conf-field input):focus {
+  border-color: var(--edge-text);
+  box-shadow: none;
+}
+
+.edge-shell main .sig-capture-font-btn.active {
+  border-color: var(--edge-text);
+  box-shadow: 0 0 0 1px var(--edge-text);
+}
+
+.edge-shell main .img-editor-toolbar button.active {
+  background: var(--edge-sel-bg);
+  color: var(--edge-sel-text);
+  border-color: var(--edge-sel-bg);
+}
+
+.edge-shell main .crm-column.drag-over {
+  box-shadow: inset 0 0 0 1px var(--edge-text);
+}
+
+.edge-shell .sbc-card {
+  --sbc-active: var(--edge-text);
+  --sbc-active-strong: var(--edge-text);
+}
+
+/* ── document status ─────────────────────────────────────────────────────────
+   The kit's Status: a dot carries the colour, the word carries the meaning,
+   so it reads without colour vision. DocumentStatusBadge sets data-tone. */
+
+.edge-shell main .doc-status-badge {
+  gap: 6px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent !important;
+  color: var(--edge-dim) !important;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.edge-shell main .doc-status-badge .doc-status-pulse-dot { display: none; }
+
+.edge-shell main .doc-status-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--edge-dim);
+}
+
+.edge-shell main .doc-status-badge[data-tone="up"]::before { background: var(--edge-up); }
+.edge-shell main .doc-status-badge[data-tone="down"]::before { background: var(--edge-down); }
+.edge-shell main .doc-status-badge[data-tone="attention"]::before {
+  background: var(--edge-text);
+  box-shadow: 0 0 0 2px var(--edge-panel), 0 0 0 3px var(--edge-line-strong);
+}
+.edge-shell main .doc-status-badge[data-tone="mute"]::before { background: var(--edge-ghost); }
+.edge-shell main .doc-status-badge[data-tone="down"],
+.edge-shell main .doc-status-badge[data-tone="attention"] {
+  color: var(--edge-text) !important;
+}
+
+
+/* ── small targets ──────────────────────────────────────────────────────── */
+
+.edge-shell main .crm-move-btn-desktop {
+  min-height: 28px;
+  padding-inline: 9px;
+  border-radius: 6px;
+}
+
+/* ── records ─────────────────────────────────────────────────────────────── */
+
+.edge-shell main :where(.records-summary-icon, .records-grid-card-icon) {
+  background: var(--edge-panel-alt) !important;
+  color: var(--edge-dim) !important;
+  border: 1px solid var(--edge-line);
+  border-radius: 7px;
+}
+
+.edge-shell main .records-grid-card-type {
+  background: transparent !important;
+  color: var(--edge-faint) !important;
+  font-weight: 400;
+  letter-spacing: 0.09em;
+  padding: 0;
+}
+
+.edge-shell main .records-tab.active {
+  color: var(--edge-text);
+  box-shadow: inset 0 -2px 0 var(--edge-text);
+}
+
+/* ── contrast fixes found by audit ────────────────────────────────────────── */
+
+.edge-shell main .easy-upload.done {
+  color: var(--edge-up);
+  border-color: var(--edge-line-strong);
+  background: var(--edge-panel-alt);
+}
+
+.edge-shell main .easy-party-label,
+.edge-shell main .easy-party-label.purple {
+  color: var(--edge-faint);
+}
+
+.edge-shell main .prod-field > label {
+  font-size: 9.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--edge-faint);
+}
+
+/* Document-type tags: the word is the identity; the hue it came in failed
+   contrast on the light panel. */
+.edge-shell main .fin-status-type-badge {
+  background: transparent !important;
+  color: var(--edge-dim) !important;
+  border: 1px solid var(--edge-line);
+  font-weight: 400;
+}
+
+/* A count inside a selected chip keeps the chip's ink. */
+.edge-shell main :where(.pro-chip, .easy-chip).active span {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+.edge-shell main .crm-empty-col {
+  color: var(--edge-faint);
+}
+
+.edge-shell main .crm-move-btn-desktop {
+  color: var(--edge-dim);
+  border-color: var(--edge-line);
+}
+
+/* Card actions revealed on hover are revealed on keyboard focus too. */
+.edge-shell main .crm-card:focus-within .crm-card-actions,
+.edge-shell main .crm-card:focus-within .crm-move-options-desktop {
+  opacity: 1;
+}
+
+/* Chart chrome: series keep their colour in the marks; the words are ink. */
+.edge-shell main .recharts-legend-item-text {
+  color: var(--edge-dim) !important;
+}
+
+.edge-shell main .recharts-default-tooltip {
+  background: var(--edge-panel) !important;
+  border: 1px solid var(--edge-line-strong) !important;
+  border-radius: 8px;
+  box-shadow: var(--edge-shadow);
+}
+
+.edge-shell main .recharts-tooltip-item,
+.edge-shell main .recharts-tooltip-label {
+  color: var(--edge-text) !important;
+}
+
+.edge-shell main .recharts-cartesian-axis-tick-value {
+  fill: var(--edge-faint);
+}
+
+.edge-shell main .crm-empty-col {
+  opacity: 1;
+}
+
+/* Below 1024px index.css stacks the editor into one column and hides the
+   preview. In the shell's flush body nothing else scrolls, so the stacked
+   editor must — and it needs the gutter the old page padding used to give. */
+@media (max-width: 1024px) {
+  .edge-shell main .mou-split-layout {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .edge-shell main .mou-form-pane {
+    padding: 16px 16px 32px;
+  }
+}

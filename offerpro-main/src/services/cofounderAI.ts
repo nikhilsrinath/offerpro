@@ -1,0 +1,712 @@
+/**
+ * EdgeOS Co-founder AI Service
+ * Powered by Gemini (gemini-3.6-flash) through the /api/nvidia proxy
+ * Optimized for sub-7-second responses
+ */
+
+import type { CompanyMemory, CompanyFacts, OnboardingQuestion } from './companyMemory';
+import { getRelevantMemory, buildOnboardingPrompt, isOnboardingComplete, getCurrentOnboardingQuestion } from './companyMemory';
+import { supabase } from '../lib/supabase';
+import { orgStore } from './orgStore';
+
+// Backend proxy URL - all AI requests go through our backend
+const NVIDIA_API_URL = '/api/nvidia';
+const MODEL = 'gemini-3.6-flash';
+
+export interface EdgeContext {
+  company: string;
+  financials: {
+    totalRevenue: number;
+    pendingRevenue: number;
+    avgMonthlyRevenue: number;
+    lastMonthRevenue: number;
+    growthRate: string;
+    invoicesIssued: number;
+    invoicesPaid: number;
+    invoicesPending: number;
+  };
+  documents: {
+    total: number;
+    offerLetters: number;
+    invoices: number;
+    quotations: number;
+    proformas: number;
+  };
+  trends: {
+    monthlyRevenue: Array<{ month: string; revenue: number }>;
+    documentGrowth: string;
+  };
+  team: {
+    user: string;
+    role: string;
+  };
+  orgId: string | null;
+}
+
+export interface SuggestedPrompt {
+  id: string;
+  text: string;
+}
+
+interface StreamCallbacks {
+  onToken?: (token: string, fullContent: string) => void;
+  onComplete?: (fullContent: string) => void;
+  onError?: (error: string) => void;
+}
+
+/**
+ * Build EdgeOS context from available data
+ */
+export function buildEdgeContext(edgeData: {
+  records?: any[];
+  finDocs?: any[];
+  user?: any;
+  activeOrg?: any;
+} = {}): EdgeContext {
+  const { records = [], finDocs = [], user, activeOrg } = edgeData;
+
+  // Calculate financials
+  const finInvoices = finDocs.filter((d: any) => d.type === 'invoice');
+  const paidInvoices = finInvoices.filter((d: any) => d.status === 'paid');
+  const revenue = paidInvoices.reduce((acc: number, d: any) => acc + (d.grand_total || d.amount || d.subtotal || 0), 0);
+  // Issued but not collected. Mirrors app.catalog_is_sold() minus
+  // app.catalog_is_collected() in 0011_product_catalog.sql — the definition the
+  // rest of the product already uses. The old filter was 'pending' or 'sent'
+  // only, which silently excluded viewed, partially_paid, overdue,
+  // payment_submitted and advance_paid.
+  const UNPAID = new Set([
+    'pending', 'sent', 'viewed', 'partially_paid', 'overdue',
+    'payment_submitted', 'advance_paid',
+  ]);
+  const pendingInvoices = finInvoices.filter((d: any) => UNPAID.has(d.status));
+  const pendingRevenue = pendingInvoices.reduce((acc: number, d: any) => acc + (d.grand_total || d.amount || d.subtotal || 0), 0);
+
+  // Calculate monthly revenue trend
+  const now = new Date();
+  const monthlyRevenue = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthRevenue = paidInvoices
+      .filter((inv: any) => {
+        const dt = new Date(inv.issue_date || inv.created_at);
+        return dt.getMonth() === d.getMonth() && dt.getFullYear() === d.getFullYear();
+      })
+      .reduce((acc: number, inv: any) => acc + (inv.grand_total || inv.amount || inv.subtotal || 0), 0);
+    monthlyRevenue.push({ month: d.toLocaleDateString('en-IN', { month: 'short' }), revenue: monthRevenue });
+  }
+
+  // Document distribution
+  const docTypes = {
+    offerLetters: records.filter((r: any) => r.type === 'offer').length,
+    invoices: finInvoices.length,
+    quotations: finDocs.filter((d: any) => d.type === 'quotation').length,
+    proformas: finDocs.filter((d: any) => d.type === 'proforma').length,
+    total: records.length + finDocs.length,
+  };
+
+  // Business health metrics
+  const avgMonthlyRevenue = monthlyRevenue.reduce((acc, m) => acc + m.revenue, 0) / 6;
+  const lastMonthRevenue = monthlyRevenue[5]?.revenue || 0;
+  const prevMonthRevenue = monthlyRevenue[4]?.revenue || 0;
+  const growthRate = prevMonthRevenue > 0 ? ((lastMonthRevenue - prevMonthRevenue) / prevMonthRevenue * 100).toFixed(1) : 0;
+
+  return {
+    company: activeOrg?.company_name || activeOrg?.name || 'Unknown',
+    financials: {
+      totalRevenue: revenue,
+      pendingRevenue,
+      avgMonthlyRevenue: Math.round(avgMonthlyRevenue),
+      lastMonthRevenue,
+      growthRate: `${growthRate}%`,
+      invoicesIssued: finInvoices.length,
+      invoicesPaid: paidInvoices.length,
+      invoicesPending: pendingInvoices.length,
+    },
+    documents: docTypes,
+    trends: {
+      monthlyRevenue,
+      documentGrowth: 'stable',
+    },
+    team: {
+      user: user?.email || 'Unknown',
+      role: user?.role || 'Admin',
+    },
+    orgId: activeOrg?.id || null,
+  };
+}
+
+/**
+ * Build system prompt with EdgeOS context
+ */
+function buildSystemPrompt(context: EdgeContext, memory?: CompanyMemory | null, rawData?: string): string {
+  // Extract user info from rawData first (fresh from Firebase)
+  const ownerFromData = rawData ? extractOwnerFromRawData(rawData) : { name: '', role: '' };
+
+  // Fallback to memory if raw data doesn't have it
+  const firstName = memory?.onboarding?.firstName || '';
+  const lastName = memory?.onboarding?.lastName || '';
+  const userName = ownerFromData.name || (firstName ? (firstName + ' ' + lastName).trim() : 'Founder');
+  const userRole = ownerFromData.role || memory?.onboarding?.role || 'Founder';
+
+  return `You are the AI Co-founder for ${context.company}.
+
+You are talking directly to ${userName}, the ${userRole}. Address them by name and speak as an insider who knows the business intimately.
+
+Your mission: Help ${firstName || 'the founder'} make sharp decisions, execute fast, and grow the business.
+
+Current Business Context:
+• Revenue: ₹${context.financials.totalRevenue.toLocaleString()} total | ₹${context.financials.lastMonthRevenue.toLocaleString()} last month
+• Growth: ${context.financials.growthRate} month-over-month
+• Invoices: ${context.financials.invoicesPaid} paid | ${context.financials.invoicesPending} pending
+• Pending Revenue: ₹${context.financials.pendingRevenue.toLocaleString()}
+• Documents: ${context.documents.total} total (${context.documents.offerLetters} offers, ${context.documents.invoices} invoices)
+
+6-Month Revenue Trend: ${context.trends.monthlyRevenue.map(m => `${m.month}: ₹${m.revenue.toLocaleString()}`).join(' | ')}
+
+STRICT RULES - NO HALLUCINATION:
+- Address ${userName} by name when appropriate
+- Speak as an insider: "we", "our company", "our team" - never as an outsider
+- Be direct, concise, and actionable. No fluff.
+- Use ONLY the data shown above - NEVER invent employees, invoices, or scenarios
+- DO NOT say things like "customer support receiving queries" or "team working on website" unless that data is explicitly provided
+- If invoices count is 0, say "We have 0 invoices" - don't make up pending invoices
+- If employees count is 0, say "No employees listed" - don't invent team details
+- Answer ONLY based on the financial context provided above
+- If asked about decisions → use format:
+
+DECISION: [clear recommendation]
+WHY: [1-2 sentence rationale using only provided data]
+RISKS: [key risks from provided context only]
+NEXT ACTION: [immediate next step]
+
+- If unclear what user wants → ask 1-2 sharp clarifying questions.
+- Base answers ONLY on the provided business context - never make up data.
+- Keep responses under 100 words unless deep analysis requested.`;
+}
+
+/**
+ * Build system prompt with Company Memory
+ */
+function buildSystemPromptWithMemory(
+  context: EdgeContext,
+  memory: CompanyMemory | null,
+  rawData?: string
+): string {
+  const relevant = getRelevantMemory(memory);
+
+  // Extract user info from rawData first (fresh from Firebase)
+  const ownerFromData = rawData ? extractOwnerFromRawData(rawData) : { name: '', role: '' };
+
+  // Fallback to memory if raw data doesn't have it
+  const firstName = memory?.onboarding?.firstName || '';
+  const lastName = memory?.onboarding?.lastName || '';
+  const userName = ownerFromData.name || (firstName ? (firstName + ' ' + lastName).trim() : 'Founder');
+  const userRole = ownerFromData.role || memory?.onboarding?.role || 'Founder';
+
+  const factsSection = relevant.facts
+    ? 'Facts:\n' +
+      '• Company: ' + relevant.facts.company_name + '\n' +
+      '• Industry: ' + relevant.facts.industry + '\n' +
+      '• Team Size: ' + relevant.facts.team_size + ' people\n' +
+      '• Location: ' + relevant.facts.city + ', ' + relevant.facts.country + '\n' +
+      (relevant.facts.key_metrics?.total_revenue ? '• Total Revenue: ₹' + relevant.facts.key_metrics.total_revenue.toLocaleString() + '\n' : '') +
+      (relevant.facts.key_metrics?.pending_revenue ? '• Pending Revenue: ₹' + relevant.facts.key_metrics.pending_revenue.toLocaleString() + '\n' : '') +
+      (relevant.facts.key_metrics?.invoice_count ? '• Invoices: ' + relevant.facts.key_metrics.invoice_count + '\n' : '') +
+      (relevant.facts.key_metrics?.offer_count ? '• Offers: ' + relevant.facts.key_metrics.offer_count + '\n' : '') +
+      (relevant.facts.key_metrics?.nda_count ? '• NDAs: ' + relevant.facts.key_metrics.nda_count + '\n' : '') +
+      (relevant.facts.key_metrics?.mou_count ? '• MOUs: ' + relevant.facts.key_metrics.mou_count + '\n' : '') +
+      (relevant.facts.key_metrics?.total_documents ? '• Total Documents: ' + relevant.facts.key_metrics.total_documents + '\n' : '') +
+      (relevant.facts.key_metrics?.employee_count ? '• Employees: ' + relevant.facts.key_metrics.employee_count + '\n' : '') +
+      (relevant.facts.key_metrics?.lead_count ? '• Active Leads: ' + relevant.facts.key_metrics.lead_count + '\n' : '') +
+      (relevant.facts.key_metrics?.customer_count ? '• Customers: ' + relevant.facts.key_metrics.customer_count : '')
+    : '';
+
+  const insightsSection = relevant.topInsights.length > 0
+    ? 'Insights:\n' + relevant.topInsights.map(i => '• ' + i).join('\n')
+    : '';
+
+  const opportunitiesSection = relevant.topOpportunities.length > 0
+    ? 'Opportunities:\n' + relevant.topOpportunities.map(o => '• ' + o).join('\n')
+    : '';
+
+  const risksSection = relevant.topRisks.length > 0
+    ? 'Risks:\n' + relevant.topRisks.map(r => '• ' + r).join('\n')
+    : '';
+
+  return `You are the AI Co-founder for ${context.company || 'this company'}.
+
+You are talking directly to ${userName}, the ${userRole} of the company. Address them by name and speak as an insider who knows the business intimately.
+
+Your mission: Provide direct, practical, context-aware advice using the company intelligence below.
+
+${factsSection}
+
+${insightsSection}
+
+${opportunitiesSection}
+
+${risksSection}
+
+⚠️  EXTREMELY IMPORTANT - NO HALLUCINATION ALLOWED:
+1. You are ${userName}, the ${userRole}. Speak as an insider.
+2. Use ONLY the data above. NEVER make up company names, industries, or team details.
+3. DO NOT write creative descriptions about what the company does.
+4. DO NOT make up "NovaTech", "Renewable Energy", "AI startup" or any fictional details.
+5. If data shows "No employees", say exactly that - don't invent team members.
+6. If revenue is 0, say "₹0" - don't make up numbers.
+7. Answer in 1-2 sentences using ONLY the Facts above.
+8. NO FLUFF. NO MARKETING LANGUAGE. ONLY FACTS FROM DATABASE.`;
+}
+
+/**
+ * Extract owner name from raw org data string
+ */
+function extractOwnerFromRawData(rawData: string): { name: string; role: string } {
+  // Look for "Owner/Founder: Name" in the raw data
+  const match = rawData.match(/Owner\/Founder:\s*(.+)/i);
+  if (match) {
+    const fullName = match[1].trim();
+    // Split into first and last name
+    const parts = fullName.split(' ');
+    const firstName = parts[0];
+    const lastName = parts.slice(1).join(' ');
+    return { name: fullName, role: 'Founder' };
+  }
+  return { name: '', role: '' };
+}
+
+/**
+ * Build system prompt with Raw Data (for factual queries)
+ */
+function buildSystemPromptWithRawData(
+  context: EdgeContext,
+  rawData: string,
+  memoryInsights?: { insights: string[]; opportunities: string[]; risks: string[] },
+  memory?: CompanyMemory | null
+): string {
+  // Extract user info from rawData (fresh from Firebase) first
+  const ownerFromData = extractOwnerFromRawData(rawData);
+
+  // Fallback to memory if raw data doesn't have it
+  const firstName = ownerFromData.name || memory?.onboarding?.firstName || '';
+  const lastName = memory?.onboarding?.lastName || '';
+  const userName = ownerFromData.name || (firstName ? (firstName + ' ' + lastName).trim() : 'Founder');
+  const userRole = ownerFromData.role || memory?.onboarding?.role || 'Founder';
+
+  const dataSection = rawData
+    ? 'COMPANY DATA:\n' + rawData
+    : 'No specific company data available.';
+
+  const insightsSection = memoryInsights && memoryInsights.insights.length > 0
+    ? '\n\nINTELLIGENCE:\n' + memoryInsights.insights.map(i => '• ' + i).join('\n')
+    : '';
+
+  const opportunitiesSection = memoryInsights && memoryInsights.opportunities.length > 0
+    ? '\n\nOPPORTUNITIES:\n' + memoryInsights.opportunities.map(o => '• ' + o).join('\n')
+    : '';
+
+  const risksSection = memoryInsights && memoryInsights.risks.length > 0
+    ? '\n\nRISKS:\n' + memoryInsights.risks.map(r => '• ' + r).join('\n')
+    : '';
+
+  return `You are the AI Co-founder for ${context.company || 'this company'}.
+
+You are talking directly to ${userName}, the ${userRole}. Speak as a trusted business insider and strategic partner.
+
+${dataSection}${insightsSection}${opportunitiesSection}${risksSection}
+
+HOW TO ANSWER:
+
+For questions about THIS company's specific data (employees, revenue, invoices, tasks, customers):
+• Use ONLY the data shown above — never invent numbers, names, or facts
+• If data shows company name "Gomma Inc", say "Gomma Inc" — not any other name
+• If revenue is ₹21,797.64, report exactly that — never round or change it
+• If a specific record is missing, say "I don't see that in our records"
+
+For general business, strategy, finance, marketing, operations, or any other topic:
+• Use your expertise as an experienced AI co-founder — answer helpfully and completely
+• Relate advice to the company context where relevant
+• Do NOT say "I can only answer from company data" for general questions
+
+Always:
+• Address ${userName} by name when appropriate
+• Be direct, practical, and concise — no fluff
+• Base company-specific claims only on the data above`;
+}
+
+/**
+ * Format conversation history for API
+ */
+function formatConversation(messages: Array<{ role: string; content: string; id?: string }>): Array<{ role: string; content: string }> {
+  // Keep last 10 messages to stay within context limits
+  return messages.slice(-10).map(m => ({
+    role: m.role,
+    content: m.content,
+  }));
+}
+
+/**
+ * Call Co-founder AI with streaming
+ */
+export async function callCofounderAI(
+  message: string,
+  conversation: Array<{ role: string; content: string }>,
+  edgeContext: EdgeContext | Record<string, never>,
+  callbacks: StreamCallbacks,
+  memory?: CompanyMemory | null,
+  rawData?: string,
+  intent?: 'factual' | 'reasoning' | 'combined',
+  currentQuestion?: OnboardingQuestion | null,
+  isOnboarding?: boolean,
+  systemPromptOverride?: string,
+  maxTokensOverride?: number
+): Promise<void> {
+  const { onToken, onComplete, onError } = callbacks;
+
+  if (!message.trim()) {
+    onError?.('Message cannot be empty');
+    return;
+  }
+
+  // Debug logging
+  console.log('[callCofounderAI] Intent:', intent);
+  console.log('[callCofounderAI] Raw data length:', rawData?.length || 0);
+  console.log('[callCofounderAI] Memory available:', !!memory);
+  console.log('[callCofounderAI] Is onboarding:', isOnboarding);
+  console.log('[callCofounderAI] Current question:', currentQuestion?.text);
+
+  try {
+    const context = edgeContext as EdgeContext;
+
+    // Build prompt based on intent and available data
+    let systemPrompt: string;
+
+    // DECISION MODE: override takes highest priority
+    if (systemPromptOverride) {
+      systemPrompt = systemPromptOverride;
+      console.log('[callCofounderAI] Using DECISION MODE prompt override');
+    } else if (isOnboarding && currentQuestion) {
+      // ONBOARDING MODE
+      systemPrompt = buildOnboardingPrompt(currentQuestion, memory);
+      console.log('[callCofounderAI] Using ONBOARDING prompt');
+    } else if (rawData) {
+      // Always use raw data when available — covers factual, combined, and reasoning.
+      // Using memory-only for reasoning was the root cause of hallucinations.
+      const memoryInsights = memory ? {
+        insights: (memory.insights || []).slice(0, 3),
+        opportunities: (memory.opportunities || []).slice(0, 3),
+        risks: (memory.risks || []).slice(0, 3),
+      } : undefined;
+      systemPrompt = buildSystemPromptWithRawData(context, rawData, memoryInsights, memory);
+      console.log('[callCofounderAI] Using RAW DATA prompt (intent:', intent, ')');
+    } else if (memory) {
+      systemPrompt = buildSystemPromptWithMemory(context, memory);
+      console.log('[callCofounderAI] Using MEMORY prompt (no raw data available)');
+    } else {
+      systemPrompt = buildSystemPrompt(context, memory, rawData);
+      console.log('[callCofounderAI] Using BASIC context prompt');
+    }
+
+    const formattedConversation = formatConversation(conversation);
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...formattedConversation,
+      { role: 'user', content: message },
+    ];
+
+    // /api/nvidia meters each message against the org's plan, so it needs to
+    // know who is asking. Without the token it answers 401 rather than serving
+    // an uncounted request.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      onError?.('Your session has expired. Please sign in again.');
+      return;
+    }
+    const orgId = (edgeContext as EdgeContext)?.orgId || orgStore.getOrgId();
+
+    const response = await fetch(NVIDIA_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages,
+        org_id: orgId,
+        max_tokens: maxTokensOverride ?? 400,
+        temperature: 0.2,
+        top_p: 0.8,
+        stream: true,
+      }),
+    });
+
+    // The plan ceiling. Surfaced as itself so the panel can say so rather than
+    // reporting a generic HTTP failure.
+    if (response.status === 429) {
+      const body = await response.json().catch(() => ({} as any));
+      onError?.(body.error || 'AI message limit reached for your plan');
+      return;
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      console.error('NVIDIA API Error Response:', errorText);
+      let errorMessage = `HTTP ${response.status}: Failed to get AI response`;
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.error?.message || errorData.message || errorMessage;
+      } catch {
+        if (errorText) errorMessage += ` - ${errorText.substring(0, 200)}`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('Failed to get response reader');
+    }
+
+    const decoder = new TextDecoder();
+    let fullContent = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.trim() === '' || line.startsWith(':')) continue;
+        
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          
+          if (data === '[DONE]') {
+            onComplete?.(fullContent);
+            return;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+            const token = parsed.choices?.[0]?.delta?.content || '';
+            
+            if (token) {
+              fullContent += token;
+              onToken?.(token, fullContent);
+            }
+          } catch (e) {
+            // Skip invalid JSON chunks
+          }
+        }
+      }
+    }
+
+    onComplete?.(fullContent);
+
+  } catch (error) {
+    console.error('Co-founder AI Error:', error);
+    
+    // Retry logic for transient errors
+    if ((error as Error).message?.includes('429') || (error as Error).message?.includes('timeout')) {
+      onError?.('Service is busy. Retrying...');
+      setTimeout(() => {
+        callCofounderAI(message, conversation, edgeContext, callbacks, memory);
+      }, 2000);
+      return;
+    }
+
+    onError?.((error as Error).message || 'Something went wrong. Please try again.');
+  }
+}
+
+/**
+ * Non-streaming version for simple queries
+ */
+export async function callCofounderAISimple(
+  message: string,
+  conversation: Array<{ role: string; content: string }>,
+  edgeContext: EdgeContext,
+  memory?: CompanyMemory | null
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let fullResponse = '';
+    
+    callCofounderAI(message, conversation, edgeContext, {
+      onToken: (_token: string, full: string) => {
+        fullResponse = full;
+      },
+      onComplete: (full: string) => {
+        resolve(full);
+      },
+      onError: (error: string) => {
+        reject(new Error(error));
+      },
+    }, memory);
+  });
+}
+
+/**
+ * Suggested prompts based on EdgeOS context
+ */
+export function getSuggestedPrompts(context: EdgeContext): SuggestedPrompt[] {
+  const prompts: SuggestedPrompt[] = [
+    { id: '1', text: 'Analyze business performance' },
+    { id: '2', text: 'Should I hire right now?' },
+    { id: '3', text: 'Identify growth bottlenecks' },
+  ];
+
+  // Add context-specific prompts
+  if (context.financials.invoicesPending > 0) {
+    prompts.push({ 
+      id: '4', 
+      text: `Follow up on ₹${context.financials.pendingRevenue.toLocaleString()} pending revenue` 
+    });
+  }
+
+  if (context.documents.offerLetters === 0 && context.financials.totalRevenue > 0) {
+    prompts.push({ id: '5', text: 'Create offer letter template for hiring' });
+  }
+
+  // Replace last prompt with revenue analysis if significant
+  if (context.financials.lastMonthRevenue > 50000) {
+    prompts[2] = { id: '3', text: 'Plan revenue diversification strategy' };
+  }
+
+  return prompts.slice(0, 4);
+}
+
+// ── Task assignment intent detection ─────────────────────────────────────────
+
+export function detectTaskAssignIntent(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    /\bassign\b/.test(m) ||
+    /\bcreate.{0,10}task\b/.test(m) ||
+    /\badd.{0,10}task\b/.test(m) ||
+    /\bnew task\b/.test(m) ||
+    /\btask.{0,15}(for|to)\b/.test(m) ||
+    (/\b(remind|tell|ask)\b/.test(m) && /\bto\b/.test(m) && /\bby\b/.test(m))
+  );
+}
+
+export function parseDateFromMessage(message: string): string | null {
+  const m = message.toLowerCase();
+  const today = new Date();
+
+  if (/\btoday\b/.test(m)) {
+    return today.toISOString().slice(0, 10);
+  }
+  if (/\btomorrow\b/.test(m)) {
+    const d = new Date(today); d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }
+  if (/\bnext week\b/.test(m)) {
+    const d = new Date(today); d.setDate(d.getDate() + 7);
+    return d.toISOString().slice(0, 10);
+  }
+  // "in X days"
+  const inDays = m.match(/\bin\s+(\d+)\s+days?\b/);
+  if (inDays) {
+    const d = new Date(today); d.setDate(d.getDate() + parseInt(inDays[1]));
+    return d.toISOString().slice(0, 10);
+  }
+  // "by Monday/Tuesday/..." → next occurrence
+  const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+  for (let i = 0; i < dayNames.length; i++) {
+    if (m.includes(dayNames[i])) {
+      const d = new Date(today);
+      const diff = (i - d.getDay() + 7) % 7 || 7;
+      d.setDate(d.getDate() + diff);
+      return d.toISOString().slice(0, 10);
+    }
+  }
+  return null;
+}
+
+export function buildTaskAssignPrompt(
+  userMessage: string,
+  employee: any,
+  companyName: string,
+  userName: string,
+  empName: string,
+): string {
+  return `You are the AI Co-founder for ${companyName}, helping ${userName} create a task.
+
+REQUEST: "${userMessage}"
+
+ASSIGNEE: ${empName} (${employee.role || 'Team Member'}, ${employee.department || 'General'})
+
+Extract the task details from the request and output EXACTLY in this format — nothing else:
+
+TITLE: [clear, action-oriented task title, max 8 words]
+PRIORITY: [low|medium|high — infer from urgency/context]
+DESCRIPTION: [1-2 sentences describing what needs to be done. Be specific.]
+
+RULES:
+- TITLE must be a direct action: "Fix homepage loading bug" not "There is a bug"
+- PRIORITY high = urgent/critical/ASAP, medium = normal, low = nice-to-have
+- DESCRIPTION must be specific to the user's request
+- Output only the 3 lines above, nothing else`;
+}
+
+export function parseTaskAssignResponse(content: string): { title: string; priority: 'low'|'medium'|'high'; description: string } | null {
+  const titleMatch = content.match(/^TITLE:\s*(.+)/im);
+  const priorityMatch = content.match(/^PRIORITY:\s*(low|medium|high)/im);
+  const descMatch = content.match(/^DESCRIPTION:\s*(.+)/im);
+  if (!titleMatch) return null;
+  return {
+    title: titleMatch[1].trim(),
+    priority: (priorityMatch?.[1].trim() as 'low'|'medium'|'high') || 'medium',
+    description: descMatch?.[1].trim() || '',
+  };
+}
+
+/**
+ * Check if a task-assign message contains enough detail to create a task
+ * (i.e., more than just "add a task for [name]")
+ */
+export function hasTaskTitle(message: string, empName: string): boolean {
+  let m = message.toLowerCase();
+  // Remove task command words
+  m = m.replace(/\b(add|create|assign|make|give|set\s*up|schedule|put)\b/g, '');
+  m = m.replace(/\ba\b/g, '');
+  m = m.replace(/\btask\b/g, '');
+  m = m.replace(/\b(for|to|with)\b/g, '');
+  // Remove each part of the employee name
+  const nameParts = empName.toLowerCase().split(/\s+/);
+  for (const part of nameParts) {
+    if (part.length > 1) {
+      m = m.replace(new RegExp(`\\b${part}\\b`, 'g'), '');
+    }
+  }
+  // Count remaining meaningful words (length > 2 chars)
+  const words = m.split(/\s+/).filter(w => w.length > 2);
+  return words.length >= 3;
+}
+
+export function buildTaskAwareFollowUpContext(tasks: any[]): string {
+  if (!tasks || tasks.length === 0) return '';
+  const activeTasks = tasks.filter(t => t.status !== 'done');
+  if (activeTasks.length === 0) return '\nNote: This employee has no active tasks.';
+  const lines = activeTasks.map(t => {
+    const deadline = t.deadline ? ` (deadline: ${t.deadline})` : '';
+    return `• [${t.status.toUpperCase()}] ${t.title}${deadline}${t.priority === 'high' ? ' ⚠️ HIGH PRIORITY' : ''}`;
+  });
+  return `\nACTIVE TASKS ASSIGNED TO THIS EMPLOYEE:\n${lines.join('\n')}`;
+}
+
+export default {
+  callCofounderAI,
+  callCofounderAISimple,
+  buildEdgeContext,
+  getSuggestedPrompts,
+  detectTaskAssignIntent,
+  hasTaskTitle,
+  parseDateFromMessage,
+  buildTaskAssignPrompt,
+  parseTaskAssignResponse,
+  buildTaskAwareFollowUpContext,
+};

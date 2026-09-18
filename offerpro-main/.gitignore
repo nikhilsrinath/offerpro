@@ -1,0 +1,40 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Migration working directory (contains exported customer data)
+.migration/
+
+# Local secrets. .env.example is the tracked template.
+.env
+.env.*
+!.env.example
+
+# Credentials and keys. service-account.json was a full Firebase admin
+# credential read by the old scripts/setup-admin.js; nohup.out was committed and
+# leaked an internal LAN address.
+service-account.json
+*.pem
+*.key
+nohup.out
