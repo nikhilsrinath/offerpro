@@ -77,7 +77,9 @@ export default async function handler(req, res) {
         'Accept': stream ? 'text/event-stream' : 'application/json',
       },
       body: JSON.stringify({
-        model: model || 'meta/llama-3.1-8b-instruct',
+        // Keep in step with MODEL in src/services/cofounderAI.ts. The previous
+        // default, meta/llama-3.1-8b-instruct, is end-of-life upstream (410 Gone).
+        model: model || 'openai/gpt-oss-20b',
         messages,
         // Capped, not just defaulted. `max_tokens` arrives from the request body
         // and every token is billed to the account whose key sits in this

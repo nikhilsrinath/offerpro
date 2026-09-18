@@ -1,6 +1,6 @@
 /**
  * EdgeOS Co-founder AI Service
- * Powered by NVIDIA API - meta/llama-3.1-8b-instruct
+ * Powered by NVIDIA API - openai/gpt-oss-20b
  * Optimized for sub-7-second responses
  */
 
@@ -11,7 +11,12 @@ import { orgStore } from './orgStore';
 
 // Backend proxy URL - all AI requests go through our backend
 const NVIDIA_API_URL = '/api/nvidia';
-const MODEL = 'meta/llama-3.1-8b-instruct';
+// meta/llama-3.1-8b-instruct reached end of life on 2026-08-26 and the endpoint
+// now answers 410 Gone for it, which broke every co-founder reply. gpt-oss-20b is
+// one of the models this account can actually reach (most of the catalogue 404s
+// for it) and keeps its chain-of-thought in a separate `reasoning` delta, so the
+// `delta.content` this file streams stays clean. Keep in step with api/nvidia.js.
+const MODEL = 'openai/gpt-oss-20b';
 
 export interface EdgeContext {
   company: string;
@@ -456,7 +461,17 @@ export async function callCofounderAI(
       let errorMessage = `HTTP ${response.status}: Failed to get AI response`;
       try {
         const errorData = JSON.parse(errorText);
-        errorMessage = errorData.error?.message || errorData.message || errorMessage;
+        // /api/nvidia answers `{ error: '<string>', details?: '<string>' }`. Reading
+        // only `error.message` meant every one of those replies — including the
+        // 410 the endpoint returned for months after the model went end-of-life —
+        // was thrown away and reported as a bare status code, which is why the
+        // panel could not say what had actually gone wrong.
+        const err = errorData.error;
+        errorMessage =
+          (typeof err === 'string' ? err : err?.message) ||
+          errorData.message ||
+          errorMessage;
+        if (errorData.details) errorMessage += ` — ${String(errorData.details).substring(0, 200)}`;
       } catch {
         if (errorText) errorMessage += ` - ${errorText.substring(0, 200)}`;
       }
@@ -518,7 +533,17 @@ export async function callCofounderAI(
       return;
     }
 
-    onError?.((error as Error).message || 'Something went wrong. Please try again.');
+    // fetch() rejects with a bare TypeError('Failed to fetch') when the request
+    // never reached a response at all — dev server restarted mid-request, the
+    // connection dropped, the deployment has no /api function. That string tells
+    // the user nothing, so name the shape of the failure instead.
+    const raw = (error as Error).message || '';
+    if (error instanceof TypeError || /failed to fetch|network|load failed/i.test(raw)) {
+      onError?.('Could not reach the AI service. Check that you are online and that the server is running, then try again.');
+      return;
+    }
+
+    onError?.(raw || 'Something went wrong. Please try again.');
   }
 }
 
