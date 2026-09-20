@@ -25,6 +25,7 @@ import {
   parseTaskAssignResponse,
   buildTaskAwareFollowUpContext,
 } from '../../services/cofounderAI';
+import { getContext as getBrainContext } from '../../services/brainService';
 import { taskStore, Task } from '../../services/taskStore';
 import {
   loadCompanyMemory,
@@ -673,12 +674,24 @@ export default function CopilotPanel({
     let intent: QueryIntent = 'reasoning';
     if (!isOnboarding) intent = detectQueryIntent(trimmedText);
 
-    // ── Fetch fresh org data ─────────────────────────────────────────────
+    // ── Company context ──────────────────────────────────────────────────
+    // EdgeBrain first. It is assembled server-side from the same rows, already
+    // filtered to this user's permissions and stamped with where each fact came
+    // from, in a few indexed queries — where getContextForQuery pulls the whole
+    // org cache into the browser and formats it there on every message.
+    //
+    // The old path stays as the fallback for an organization that has not built
+    // a brain yet, so nothing regresses for them.
     let rawData = '';
     if (orgId) {
       try {
-        const ctx = await getContextForQuery(orgId, trimmedText, updatedMemory);
-        rawData = ctx.rawData;
+        const brain = await getBrainContext(orgId, trimmedText);
+        if (brain.available && brain.context) {
+          rawData = brain.context;
+        } else {
+          const ctx = await getContextForQuery(orgId, trimmedText, updatedMemory);
+          rawData = ctx.rawData;
+        }
       } catch (err) {
         console.error('[CopilotPanel] Failed to load context:', err);
       }

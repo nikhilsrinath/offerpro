@@ -6,7 +6,8 @@ import {
   UploadCloud, FileCheck, FileSignature, History,
   Activity, Receipt, FilePlus, RotateCcw,
   GitBranch, UserX, Kanban, CheckSquare, Package,
-  Truck, FileInput, TrendingUp, CalendarCheck, Plane, Megaphone
+  Truck, FileInput, TrendingUp, CalendarCheck, Plane, Megaphone,
+  BrainCircuit
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
 import subPages from './components/landing/subPageData';
@@ -37,6 +38,7 @@ import ExEmployees from './components/ExEmployees';
 import TeamHierarchy from './components/TeamHierarchy';
 import TasksPage from './components/tasks/TasksPage';
 import AIAssistant from './components/assistant/AIAssistant';
+import EdgeBrain from './components/brain/EdgeBrain';
 import { useTaskDeadlineMonitor } from './hooks/useTaskDeadlineMonitor';
 import { useTheme } from './hooks/useTheme';
 import { PLANS } from './services/planConfig';
@@ -54,6 +56,7 @@ import LeaveRequests from './components/people/LeaveRequests';
 import Announcements from './components/people/Announcements';
 import { meService } from './services/meService';
 import { ToastProvider } from './components/shared/Toast';
+import AdminApp from './components/admin/AdminApp';
 
 // Financial Documents
 import QuotationForm from './components/financial/QuotationForm';
@@ -72,6 +75,7 @@ import { buildEdgeContext } from './services/cofounderAI';
 
 const MODULE_FILTER = {
   overall: ['dashboard'],
+  brain: ['edgebrain'],
   team: ['team-hierarchy', 'employees', 'offer-tracker', 'ex-employees', 'tasks', 'bulk-team',
          'attendance', 'leave', 'announcements'],
   documents: ['offers', 'new-certificates', 'certificates', 'ndas', 'mous', 'bulk-offers', 'bulk-certificates'],
@@ -94,6 +98,7 @@ const FLUSH_PAGES = new Set([
 ]);
 
 const MODULE_META = {
+  brain:     { id: 'brain', label: 'EdgeBrain' },
   team:      { id: 'team', label: 'Team' },
   documents: { id: 'documents', label: 'Documents' },
   finance:   { id: 'finance', label: 'Finance' },
@@ -104,6 +109,8 @@ const MODULE_META = {
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+  { section: 'EDGEBRAIN' },
+  { id: 'edgebrain', label: 'Company Brain', icon: BrainCircuit },
   { section: 'TEAM' },
   { id: 'team-hierarchy', label: 'Team Hierarchy', icon: GitBranch },
   { id: 'employees', label: 'Employees', icon: Users },
@@ -145,6 +152,7 @@ const NAV_ITEMS = [
 ];
 
 const PAGE_META = {
+  edgebrain: { title: 'EdgeBrain', subtitle: 'Your company, organised as one connected context your AI can reason over' },
   dashboard: { title: 'Overview', subtitle: 'The whole organisation, one period — click anything for the analysis behind it' },
   profile: { title: 'Company Profile', subtitle: 'The details every document you issue is signed with' },
   offers: { title: 'Offer Letters', subtitle: 'Generate employment and internship offers' },
@@ -340,6 +348,7 @@ function AppContent() {
             <Route index element={<Navigate to="/hub" replace />} />
             <Route path="hub" element={<Hub user={user} activeOrg={activeOrg} theme={theme} onToggleTheme={toggleTheme} onLogout={logout} />} />
             <Route path="dashboard" element={<Overview />} />
+            <Route path="edgebrain" element={<EdgeBrain />} />
             <Route path="profile" element={<CompanyProfile />} />
             <Route path="offers" element={<OfferForm />} />
             <Route path="new-certificates" element={<CertificateForm />} />
@@ -455,6 +464,10 @@ function App() {
             {/* Outside AppContent: whoever lands here has no membership yet,
                 and the shell would read that as "needs to create a company". */}
             <Route path="/join" element={<JoinPortal />} />
+            {/* The platform console. Outside AppContent because it is scoped to
+                every tenant rather than one, and it gates on its own operator
+                sign-in rather than the workspace session. */}
+            <Route path="/admin/*" element={<AdminApp />} />
             {Object.keys(subPages).map(path => {
               const SubPageComponent = subPages[path];
               return (

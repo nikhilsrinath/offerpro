@@ -1,6 +1,17 @@
 /**
- * NVIDIA API Proxy - Vercel Serverless Function
- * Forwards AI chatbot requests to NVIDIA API with secure API key.
+ * AI Proxy - Vercel Serverless Function
+ * Forwards AI chatbot requests to Gemini with a server-held API key.
+ *
+ * Gemini is reached through its OpenAI-compatible endpoint, not the native
+ * generateContent API, so the request body, the SSE frames and the client
+ * parser in src/services/cofounderAI.ts are all unchanged from the NVIDIA
+ * version. The provider swapped; the wire format did not.
+ *
+ * The route is still called /api/nvidia because renaming it would touch the
+ * dev middleware list in vite.config.js and NVIDIA_API_URL in cofounderAI.ts
+ * for no behavioural gain. The previous provider's model,
+ * meta/llama-3.1-8b-instruct, reached end of life on 2026-08-26 and every
+ * request to it returned HTTP 410.
  *
  * Every accepted request is metered against usage_counters.ai_messages. Before
  * this the endpoint was open to the internet — no token, no org, no count — and
@@ -23,6 +34,18 @@ const AI_MESSAGE_LIMITS = { free: 10, pro: 50, max: Infinity };
 // The largest completion any caller may ask for, whatever the request says.
 const MAX_TOKENS_CEILING = 2048;
 
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+const DEFAULT_MODEL = 'gemini-3.6-flash';
+
+// Gemini 3.x models think before answering, and the thinking is billed against
+// max_tokens. At the 400 the co-founder UI asks for, the entire budget goes to
+// reasoning and the response streams back with finish_reason "length" and no
+// content at all — an empty bubble, not an error. 'none' turns that off and
+// brings a full answer back in ~2s, which is what the sub-7-second target in
+// cofounderAI.ts needs. A caller may ask for more by sending reasoning_effort,
+// but then it must send a max_tokens large enough to pay for it.
+const DEFAULT_REASONING_EFFORT = 'none';
+
 export default async function handler(req, res) {
   // The endpoint now requires a bearer token, so it is same-origin only and
   // there is nothing to open up to other origins.
@@ -37,15 +60,15 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.NVIDIA_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-    console.error('[NVIDIA Proxy] Missing NVIDIA_API_KEY environment variable');
+    console.error('[AI Proxy] Missing GEMINI_API_KEY environment variable');
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
   try {
-    const { model, messages, max_tokens, temperature, top_p, stream, org_id } = req.body;
+    const { model, messages, max_tokens, temperature, top_p, stream, org_id, reasoning_effort } = req.body;
 
     // Validate required fields
     if (!messages || !Array.isArray(messages)) {
@@ -69,7 +92,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+    const response = await fetch(GEMINI_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -77,9 +100,7 @@ export default async function handler(req, res) {
         'Accept': stream ? 'text/event-stream' : 'application/json',
       },
       body: JSON.stringify({
-        // Keep in step with MODEL in src/services/cofounderAI.ts. The previous
-        // default, meta/llama-3.1-8b-instruct, is end-of-life upstream (410 Gone).
-        model: model || 'openai/gpt-oss-20b',
+        model: model || DEFAULT_MODEL,
         messages,
         // Capped, not just defaulted. `max_tokens` arrives from the request body
         // and every token is billed to the account whose key sits in this
@@ -90,14 +111,15 @@ export default async function handler(req, res) {
         temperature: temperature ?? 0.2,
         top_p: top_p ?? 0.8,
         stream: stream ?? true,
+        reasoning_effort: reasoning_effort ?? DEFAULT_REASONING_EFFORT,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '');
-      console.error('[NVIDIA Proxy] API Error:', response.status, errorText);
+      console.error('[AI Proxy] API Error:', response.status, errorText);
       return res.status(response.status).json({
-        error: `NVIDIA API error: ${response.status}`,
+        error: `AI provider error: ${response.status}`,
         details: errorText.substring(0, 500),
       });
     }
@@ -124,9 +146,9 @@ export default async function handler(req, res) {
     if (error instanceof HttpError) {
       return res.status(error.status).json({ error: error.message });
     }
-    console.error('[NVIDIA Proxy] Error:', error.message);
+    console.error('[AI Proxy] Error:', error.message);
     return res.status(500).json({
-      error: 'Failed to proxy request to NVIDIA API',
+      error: 'Failed to proxy request to the AI provider',
       message: error.message,
     });
   }
@@ -146,7 +168,7 @@ export default async function handler(req, res) {
 async function meterMessage(orgId) {
   const { data, error } = await supabaseAdmin().rpc('bump_ai_usage', { p_org: orgId });
   if (error) {
-    console.warn('[NVIDIA Proxy] AI usage not counted:', error.message);
+    console.warn('[AI Proxy] AI usage not counted:', error.message);
     return 0;
   }
   return Number(data) || 0;

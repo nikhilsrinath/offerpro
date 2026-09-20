@@ -1,8 +1,9 @@
-import { Users, FileText, Receipt, BarChart3, File, PieChart } from 'lucide-react';
+import { Users, FileText, Receipt, BarChart3, File, PieChart, BrainCircuit } from 'lucide-react';
 
 /* The workspace's modules, in the order the hub rail and the phone's bottom
    bar list them. `defaultPage` is where opening the module lands. */
 export const MODULES = [
+    { id: 'brain',     code: 'BRN', label: 'EdgeBrain', desc: 'Company intelligence', icon: BrainCircuit, defaultPage: 'edgebrain' },
     { id: 'team',      code: 'TEA', label: 'Team',      desc: 'Registry · hierarchy',  icon: Users,     defaultPage: 'team-hierarchy' },
     { id: 'documents', code: 'DOC', label: 'Documents', desc: 'Offers · NDAs · certs', icon: FileText,  defaultPage: 'new-certificates' },
     { id: 'finance',   code: 'FIN', label: 'Finance',   desc: 'Invoices · quotes',     icon: Receipt,   defaultPage: 'finance-status' },

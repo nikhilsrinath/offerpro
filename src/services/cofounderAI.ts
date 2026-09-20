@@ -1,6 +1,6 @@
 /**
  * EdgeOS Co-founder AI Service
- * Powered by NVIDIA API - openai/gpt-oss-20b
+ * Powered by Gemini (gemini-3.6-flash) through the /api/nvidia proxy
  * Optimized for sub-7-second responses
  */
 
@@ -11,12 +11,8 @@ import { orgStore } from './orgStore';
 
 // Backend proxy URL - all AI requests go through our backend
 const NVIDIA_API_URL = '/api/nvidia';
-// meta/llama-3.1-8b-instruct reached end of life on 2026-08-26 and the endpoint
-// now answers 410 Gone for it, which broke every co-founder reply. gpt-oss-20b is
-// one of the models this account can actually reach (most of the catalogue 404s
-// for it) and keeps its chain-of-thought in a separate `reasoning` delta, so the
-// `delta.content` this file streams stays clean. Keep in step with api/nvidia.js.
-const MODEL = 'openai/gpt-oss-20b';
+// Keep in step with DEFAULT_MODEL in api/nvidia.js.
+const MODEL = 'gemini-3.6-flash';
 
 export interface EdgeContext {
   company: string;
@@ -440,7 +436,13 @@ export async function callCofounderAI(
         model: MODEL,
         messages,
         org_id: orgId,
-        max_tokens: maxTokensOverride ?? 400,
+        // 400 was too small for anything but a one-liner: a reply listing a
+        // few figures ran out of budget mid-number and the stream simply
+        // stopped, which reads as a broken answer rather than a limit. 1200
+        // covers the long-form answers the assistant panel asks for and still
+        // sits under the 2048 ceiling /api/nvidia enforces. Callers that want
+        // a deliberately terse reply pass maxTokensOverride.
+        max_tokens: maxTokensOverride ?? 1200,
         temperature: 0.2,
         top_p: 0.8,
         stream: true,
@@ -485,13 +487,23 @@ export async function callCofounderAI(
 
     const decoder = new TextDecoder();
     let fullContent = '';
+    // An SSE frame is not a network chunk. Gemini's frames are several hundred
+    // bytes each and a read() boundary lands in the middle of one regularly,
+    // so splitting each chunk on '\n' and parsing the pieces threw away the
+    // half-frame at the end AND the half-frame that started the next chunk —
+    // the answer stopped mid-sentence with no error, which is exactly what it
+    // looked like. Hold the trailing partial line here until its rest arrives.
+    let buffer = '';
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n');
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      // The last element is either an incomplete line or '' — either way it is
+      // not ready to parse, so it goes back in the buffer.
+      buffer = lines.pop() ?? '';
 
       for (const line of lines) {
         if (line.trim() === '' || line.startsWith(':')) continue;
@@ -507,7 +519,14 @@ export async function callCofounderAI(
           try {
             const parsed = JSON.parse(data);
             const token = parsed.choices?.[0]?.delta?.content || '';
-            
+
+            // A reply that hits the token budget ends silently — same shape as
+            // a finished one. Say so in the log, or the next truncated answer
+            // looks like a stream that dropped.
+            if (parsed.choices?.[0]?.finish_reason === 'length') {
+              console.warn('[callCofounderAI] Response truncated: max_tokens reached');
+            }
+
             if (token) {
               fullContent += token;
               onToken?.(token, fullContent);
