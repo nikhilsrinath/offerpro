@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Sparkles, X, Mic, Square, ArrowUp, PenSquare, PanelLeft, Phone, Trash2 } from 'lucide-react';
+import {
+    Sparkles, X, Mic, Square, ArrowUp, PenSquare, PanelLeft, Phone, Trash2,
+    Pencil, MoreHorizontal, Share2, Pin, PinOff,
+} from 'lucide-react';
 import { makeTokens, MONO } from '../../theme/edge';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { callCofounderAI } from '../../services/cofounderAI';
@@ -34,6 +37,10 @@ const ACCENT = '#2f6df6';
 
 const STORE_KEY = 'edgeos.ai.chats';
 const SIDEBAR_W = 252;
+// The menu's own size, needed before it renders so it can be placed without
+// first painting off-screen and jumping.
+const MENU_W = 178;
+const MENU_H = 170;
 
 const newChat = () => ({ id: 'c' + Date.now(), title: 'New chat', messages: [], at: Date.now() });
 
@@ -75,6 +82,9 @@ export default function AIAssistant({ theme = 'dark', edgeContext }) {
     const [draft, setDraft] = useState('');
     const [streaming, setStreaming] = useState(false);
     const [callOpen, setCallOpen] = useState(false);
+    // A one-line, self-clearing status for actions with no visible result of
+    // their own — copying a transcript being the one that needs it.
+    const [note, setNote] = useState('');
 
     const speech = useSpeechRecognition();
     const { stop: stopSpeech, listening } = speech;
@@ -85,6 +95,12 @@ export default function AIAssistant({ theme = 'dark', edgeContext }) {
     useEffect(() => {
         try { localStorage.setItem(STORE_KEY, JSON.stringify(chats.slice(0, 40))); } catch { /* quota */ }
     }, [chats]);
+
+    useEffect(() => {
+        if (!note) return undefined;
+        const id = setTimeout(() => setNote(''), 2600);
+        return () => clearTimeout(id);
+    }, [note]);
 
     // The mic never outlives the surface that owns it.
     useEffect(() => {
@@ -125,7 +141,8 @@ export default function AIAssistant({ theme = 'dark', edgeContext }) {
         patchChat(chatId, (c) => ({
             ...c,
             at: Date.now(),
-            title: c.messages.length ? c.title : titleFor(content),
+            // A name the person typed is never replaced by one derived here.
+            title: (c.titled || c.messages.length) ? c.title : titleFor(content),
             messages: [...c.messages, { id: Date.now(), role: 'user', content }, { id: replyId, role: 'assistant', content: '' }],
         }));
         setDraft('');
@@ -178,6 +195,53 @@ export default function AIAssistant({ theme = 'dark', edgeContext }) {
         });
     };
 
+    /**
+     * A name the person chose, which outranks the one derived from their first
+     * message. `titled` is what send() checks: without it, naming a chat before
+     * saying anything would have the first message immediately overwrite the
+     * name, which reads as the rename silently failing.
+     */
+    const renameChat = (id, title) => {
+        const clean = title.replace(/\s+/g, ' ').trim().slice(0, 60);
+        // An empty name is a cancelled rename, not a nameless chat.
+        if (!clean) return;
+        patchChat(id, (c) => ({ ...c, title: clean, titled: true }));
+    };
+
+    const togglePin = (id) => patchChat(id, (c) => ({ ...c, pinned: !c.pinned }));
+
+    /**
+     * Share: the system share sheet where there is one, the clipboard where
+     * there is not.
+     *
+     * Not a link. These chats live in this browser's localStorage and have no
+     * server-side existence, so there is no URL that would open this
+     * conversation for anybody else — a "share link" here would be a promise
+     * the product cannot keep. Handing over the transcript is the honest
+     * version of the same intent, and it is what the person actually wanted to
+     * send.
+     */
+    const shareChat = async (chat) => {
+        const text = (chat.messages || [])
+            .filter((m) => !m.error && m.content)
+            .map((m) => `${m.role === 'user' ? 'You' : 'EdgeOS AI'}: ${m.content}`)
+            .join('\n\n');
+        if (!text) { setNote('That chat is empty — nothing to share yet.'); return; }
+        const payload = `${chat.title}\n\n${text}`;
+        try {
+            if (navigator.share) {
+                await navigator.share({ title: chat.title, text: payload });
+                return;
+            }
+            await navigator.clipboard.writeText(payload);
+            setNote('Conversation copied to your clipboard.');
+        } catch {
+            // AbortError is the person dismissing the share sheet, which is not
+            // a failure. Anything else usually means the clipboard was refused.
+            if (!navigator.share) setNote('Could not copy this conversation.');
+        }
+    };
+
     const endCall = (transcript) => {
         setCallOpen(false);
         stopSpeech();
@@ -220,8 +284,22 @@ export default function AIAssistant({ theme = 'dark', edgeContext }) {
                     <Rail
                         t={t} phone={phone} open={railOpen} chats={chats} activeId={active.id}
                         onPick={(id) => { setActiveId(id); if (phone) setRailOpen(false); }}
-                        onNew={startChat} onRemove={removeChat} onClose={() => setRailOpen(false)}
+                        onNew={startChat} onRemove={removeChat} onRename={renameChat}
+                        onPin={togglePin} onShare={shareChat}
+                        onClose={() => setRailOpen(false)}
                     />
+
+                    {/* Copying a transcript changes nothing on screen, so it
+                        needs saying. role=status announces it without stealing
+                        focus from wherever the person already is. */}
+                    {note && (
+                        <div role="status" style={{
+                            position: 'fixed', left: '50%', bottom: 24, transform: 'translateX(-50%)',
+                            zIndex: 330, padding: '8px 14px', borderRadius: 999,
+                            background: t.raised, color: t.text, border: '1px solid ' + t.line,
+                            boxShadow: t.shadow, fontSize: 11, fontFamily: MONO,
+                        }}>{note}</div>
+                    )}
 
                     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                         <TopBar
@@ -271,7 +349,19 @@ export default function AIAssistant({ theme = 'dark', edgeContext }) {
                 .ai-icon:hover { color: ${t.text} !important; background: ${t.raised} !important; }
                 .ai-chip:hover { border-color: ${t.lineStrong} !important; color: ${t.text} !important; }
                 .ai-row:hover { background: ${t.panelAlt} !important; }
-                .ai-row:hover .ai-row-del { opacity: 1; }
+                /* focus-within as well as hover: the buttons are in the tab
+                   order, and a control you can focus but cannot see is worse
+                   than one that is simply absent. */
+                /* The hidden/revealed state lives entirely here, never as an
+                   inline style. An inline opacity:0 outranks any rule in this
+                   sheet that does not shout !important, so a button styled
+                   hidden in JSX stays hidden on hover — which is exactly how
+                   the row actions ended up unreachable by mouse. */
+                .ai-row-act { opacity: 0; transition: opacity .15s; }
+                .ai-row:hover .ai-row-act,
+                .ai-row:focus-within .ai-row-act,
+                .ai-row-act.is-shown { opacity: 1; }
+                .ai-row-act:hover { color: ${t.text} !important; background: ${t.raised} !important; }
                 .ai-scroll::-webkit-scrollbar { width: 9px; }
                 .ai-scroll::-webkit-scrollbar-thumb { background: ${t.lineStrong}; border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
                 .ai-input::placeholder { color: ${t.faint}; }
@@ -283,8 +373,257 @@ export default function AIAssistant({ theme = 'dark', edgeContext }) {
 
 /* ── rail ───────────────────────────────────────────────────────────────── */
 
-function Rail({ t, phone, open, chats, activeId, onPick, onNew, onRemove, onClose }) {
+/**
+ * The per-chat actions, in a popup anchored to the row's ⋯ button.
+ *
+ * Positioned `fixed` from the button's own rect rather than absolutely inside
+ * the row: the list of chats is a scroll container, and a menu positioned
+ * within it is clipped by its overflow the moment it is taller than the row it
+ * belongs to. Fixed escapes that, at the cost of having to close on scroll —
+ * which is the behaviour people expect from an anchored menu anyway.
+ */
+function ChatMenu({ t, chat, at, onClose, onShare, onRename, onPin, onDelete }) {
+    const ref = useRef(null);
+
+    useEffect(() => {
+        ref.current?.querySelector('button')?.focus();
+    }, []);
+
+    useEffect(() => {
+        const onDown = (e) => { if (!ref.current?.contains(e.target)) onClose(); };
+        const onKey = (e) => {
+            if (e.key !== 'Escape') return;
+            // Same collision as the rename field: Escape here means "close the
+            // menu", not "close the assistant", so it must not reach document.
+            e.stopPropagation();
+            onClose();
+        };
+        // Capture, so a scroll anywhere — including the rail's own list —
+        // dismisses a menu that would otherwise hang detached from its row.
+        const onScroll = () => onClose();
+        document.addEventListener('mousedown', onDown);
+        document.addEventListener('keydown', onKey, true);
+        window.addEventListener('scroll', onScroll, true);
+        window.addEventListener('resize', onScroll);
+        return () => {
+            document.removeEventListener('mousedown', onDown);
+            document.removeEventListener('keydown', onKey, true);
+            window.removeEventListener('scroll', onScroll, true);
+            window.removeEventListener('resize', onScroll);
+        };
+    }, [onClose]);
+
+    const run = (fn) => () => { onClose(); fn(); };
+
+    const item = (danger) => ({
+        display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+        height: 32, padding: '0 12px', border: 'none', borderRadius: 7,
+        background: 'transparent', cursor: 'pointer', textAlign: 'left',
+        fontFamily: MONO, fontSize: 11.5, color: danger ? t.danger || '#e5484d' : t.text,
+    });
+
+    return (
+        <div
+            ref={ref} role="menu" aria-label={`Actions for ${chat.title}`}
+            style={{
+                position: 'fixed', top: at.y, left: at.x, zIndex: 320, width: MENU_W,
+                padding: 6, borderRadius: 12, background: t.panel,
+                border: '1px solid ' + t.line, boxShadow: t.shadow,
+            }}
+        >
+            <button type="button" role="menuitem" className="ai-row" style={item()} onClick={run(() => onShare(chat))}>
+                <Share2 size={13} strokeWidth={1.8} /> Share
+            </button>
+            <button type="button" role="menuitem" className="ai-row" style={item()} onClick={run(() => onRename(chat.id))}>
+                <Pencil size={13} strokeWidth={1.8} /> Rename
+            </button>
+            <button type="button" role="menuitem" className="ai-row" style={item()} onClick={run(() => onPin(chat.id))}>
+                {chat.pinned
+                    ? <><PinOff size={13} strokeWidth={1.8} /> Unpin chat</>
+                    : <><Pin size={13} strokeWidth={1.8} /> Pin chat</>}
+            </button>
+            <div style={{ height: 1, background: t.line, margin: '5px 8px' }} />
+            <button type="button" role="menuitem" className="ai-row" style={item(true)} onClick={run(() => onDelete(chat.id))}>
+                <Trash2 size={13} strokeWidth={1.8} /> Delete
+            </button>
+        </div>
+    );
+}
+
+/**
+ * One chat in the rail.
+ *
+ * Its three appearances — normal, being renamed, confirming a delete — are
+ * driven by the rail rather than by state of its own, because the menu that
+ * triggers two of them is the rail's. One owner means one open menu, one row
+ * being renamed, and no way for a row to be in two states at once.
+ *
+ * Deleting asks first. A chat lives in localStorage and nowhere else, so there
+ * is no undo and nothing to restore it from. The confirm is inline rather than
+ * window.confirm: a browser modal blocks the whole surface, and this one can
+ * have a voice call running in it.
+ */
+function ChatRow({ t, chat, active, phone, renaming, confirming, onPick, onRename, onRemove, onStartRename, onCancel, onMenu, menuOpen }) {
+    const inputRef = useRef(null);
+
+    // Uncontrolled, seeded from the title it is editing. A controlled draft
+    // would need resetting from props every time the field opens, which is a
+    // setState inside an effect — a cascading render to solve a problem the
+    // DOM already solves.
+    useEffect(() => {
+        if (!renaming) return;
+        inputRef.current?.focus();
+        inputRef.current?.select();
+    }, [renaming]);
+
+    const commit = () => onRename(chat.id, inputRef.current?.value ?? '');
+
+    const rowStyle = {
+        display: 'flex', alignItems: 'center', borderRadius: 8, marginBottom: 1,
+        background: active ? t.raised : 'transparent',
+    };
+
+    if (renaming) {
+        return (
+            <div style={rowStyle}>
+                <input
+                    ref={inputRef} defaultValue={chat.title} aria-label="Chat name" maxLength={60}
+                    // Committing on blur means clicking away saves rather than
+                    // discards — the same thing every rename-in-place does.
+                    onBlur={commit}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+                        if (e.key !== 'Escape') return;
+                        // The workspace closes on Escape from a listener on
+                        // document. Without stopping the event here, cancelling
+                        // a rename would also shut the whole assistant — one
+                        // key, two meanings, and the wrong one wins.
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onCancel();
+                    }}
+                    className="ai-input"
+                    style={{
+                        flex: 1, minWidth: 0, height: 32, padding: '0 8px', margin: '0 4px',
+                        borderRadius: 6, border: '1px solid ' + t.lineStrong,
+                        background: t.panel, color: t.text, fontFamily: MONO, fontSize: 11.5,
+                    }}
+                />
+            </div>
+        );
+    }
+
+    if (confirming) {
+        return (
+            <div style={{ ...rowStyle, gap: 6, padding: '0 6px 0 10px', height: 32 }}>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 10.5, color: t.dim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    Delete permanently?
+                </span>
+                <button
+                    type="button" onClick={() => onRemove(chat.id)}
+                    aria-label={`Confirm deleting ${chat.title}`}
+                    style={{
+                        border: 'none', borderRadius: 6, padding: '4px 7px', cursor: 'pointer',
+                        background: t.raised, color: t.danger || '#e5484d', fontFamily: MONO, fontSize: 10.5,
+                    }}
+                >Delete</button>
+                <button
+                    type="button" onClick={onCancel} aria-label="Keep this chat"
+                    style={{
+                        border: 'none', borderRadius: 6, padding: '4px 7px', cursor: 'pointer',
+                        background: 'transparent', color: t.dim, fontFamily: MONO, fontSize: 10.5,
+                    }}
+                >Cancel</button>
+            </div>
+        );
+    }
+
+    // Hover cannot be the only way to reach an action on a touch screen, so on
+    // a phone the button is simply always there — as it is while its own menu
+    // is open, which would otherwise leave the menu anchored to nothing.
+    const showAct = phone || menuOpen;
+
+    return (
+        <div className="ai-row" style={rowStyle}>
+            <button
+                type="button" onClick={() => onPick(chat.id)} aria-current={active}
+                onDoubleClick={() => onStartRename(chat.id)}
+                title={chat.title}
+                style={{
+                    flex: 1, minWidth: 0, textAlign: 'left', height: 32, padding: '0 4px 0 10px',
+                    border: 'none', background: 'transparent', cursor: 'pointer',
+                    fontFamily: MONO, fontSize: 11.5, color: active ? t.text : t.dim,
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}
+            >{chat.title}</button>
+            {chat.pinned && (
+                // Always visible, unlike the ⋯: it is not a control here, it is
+                // the reason this row is sitting up in the pinned group.
+                <Pin aria-hidden="true" size={11} strokeWidth={1.8} style={{ color: t.faint, flexShrink: 0 }} />
+            )}
+            <button
+                type="button"
+                onClick={(e) => onMenu(chat.id, e.currentTarget.getBoundingClientRect())}
+                aria-label={`Actions for ${chat.title}`}
+                aria-haspopup="menu" aria-expanded={menuOpen}
+                className={`ai-row-act${showAct ? ' is-shown' : ''}`}
+                style={{
+                    width: 26, height: 26, marginRight: 4, display: 'grid', placeItems: 'center',
+                    flexShrink: 0, border: 'none', borderRadius: 6, background: 'transparent',
+                    color: t.faint, cursor: 'pointer',
+                }}
+            ><MoreHorizontal size={14} /></button>
+        </div>
+    );
+}
+
+function Rail({ t, phone, open, chats, activeId, onPick, onNew, onRemove, onRename, onPin, onShare, onClose }) {
+    // Every transient row state lives here, so opening one menu closes another
+    // and a row cannot be renaming and confirming a delete at the same time.
+    const [menu, setMenu] = useState(null);      // { id, x, y }
+    const [renamingId, setRenamingId] = useState(null);
+    const [confirmId, setConfirmId] = useState(null);
+
+    const clear = useCallback(() => { setRenamingId(null); setConfirmId(null); }, []);
+
+    const openMenu = useCallback((id, rect) => {
+        // To the right of the rail, like the row it belongs to — unless that
+        // would run off the viewport, in which case it flips to the other side.
+        // Clamped vertically so the last chat in a long list still gets a menu
+        // that is fully on screen.
+        const x = rect.right + 8 + MENU_W > window.innerWidth
+            ? Math.max(8, rect.left - MENU_W - 8)
+            : rect.right + 8;
+        const y = Math.max(8, Math.min(rect.top, window.innerHeight - MENU_H - 8));
+        clear();
+        setMenu({ id, x, y });
+    }, [clear]);
+
+    // Pinned first, and within each group the most recently used first. The
+    // rail is a list of things to come back to; a pin says "this one, always".
+    const pinned = chats.filter((c) => c.pinned);
+    const recents = chats.filter((c) => !c.pinned);
+    const menuChat = menu ? chats.find((c) => c.id === menu.id) : null;
+
     if (!open) return null;
+
+    const rowsFor = (list) => list.map((c) => (
+        <ChatRow
+            key={c.id} t={t} chat={c} phone={phone} active={c.id === activeId}
+            renaming={renamingId === c.id} confirming={confirmId === c.id}
+            menuOpen={menu?.id === c.id}
+            onPick={(id) => { clear(); onPick(id); }}
+            onRename={(id, title) => { onRename(id, title); setRenamingId(null); }}
+            onRemove={(id) => { setConfirmId(null); onRemove(id); }}
+            onStartRename={(id) => { setConfirmId(null); setRenamingId(id); }}
+            onCancel={clear}
+            onMenu={openMenu}
+        />
+    ));
+
+    const groupLabel = (text) => (
+        <div style={{ fontSize: 9.5, color: t.faint, padding: '4px 16px 6px', letterSpacing: '0.04em' }}>{text}</div>
+    );
 
     const panel = (
         <aside
@@ -296,7 +635,6 @@ function Rail({ t, phone, open, chats, activeId, onPick, onNew, onRemove, onClos
             }}
         >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 12px 10px 16px' }}>
-                <Sparkles size={15} strokeWidth={1.8} />
                 <span style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: '-0.01em' }}>EdgeOS AI</span>
                 {phone && (
                     <button type="button" onClick={onClose} aria-label="Close chats" className="ai-icon" style={iconBtn(t, { marginLeft: 'auto' })}>
@@ -315,43 +653,36 @@ function Rail({ t, phone, open, chats, activeId, onPick, onNew, onRemove, onClos
                 </button>
             </div>
 
-            <div style={{ fontSize: 9.5, color: t.faint, padding: '4px 16px 6px', letterSpacing: '0.04em' }}>RECENTS</div>
-
             <div className="ai-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 10px 12px' }}>
-                {chats.map((c) => (
-                    <div key={c.id} className="ai-row" style={{
-                        display: 'flex', alignItems: 'center', borderRadius: 8, marginBottom: 1,
-                        background: c.id === activeId ? t.raised : 'transparent',
-                    }}>
-                        <button
-                            type="button" onClick={() => onPick(c.id)} aria-current={c.id === activeId}
-                            style={{
-                                flex: 1, minWidth: 0, textAlign: 'left', height: 32, padding: '0 4px 0 10px',
-                                border: 'none', background: 'transparent', cursor: 'pointer',
-                                fontFamily: MONO, fontSize: 11.5, color: c.id === activeId ? t.text : t.dim,
-                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                            }}
-                        >{c.title}</button>
-                        <button
-                            type="button" onClick={() => onRemove(c.id)} aria-label={`Delete ${c.title}`}
-                            className="ai-row-del"
-                            style={{
-                                width: 26, height: 26, marginRight: 4, display: 'grid', placeItems: 'center', flexShrink: 0,
-                                border: 'none', borderRadius: 6, background: 'transparent', color: t.faint,
-                                cursor: 'pointer', opacity: 0, transition: 'opacity .15s',
-                            }}
-                        ><Trash2 size={12} /></button>
-                    </div>
-                ))}
+                {/* The headings sit inside the scroller so a long pinned list
+                    does not push the recents out of reach. */}
+                {pinned.length > 0 && groupLabel('PINNED')}
+                {rowsFor(pinned)}
+                {recents.length > 0 && groupLabel('RECENTS')}
+                {rowsFor(recents)}
             </div>
         </aside>
     );
 
-    if (!phone) return panel;
+    // Rendered as a sibling of the rail, not inside the scrolling list, so it is
+    // never clipped by it.
+    const popup = menuChat && (
+        <ChatMenu
+            t={t} chat={menuChat} at={menu}
+            onClose={() => setMenu(null)}
+            onShare={onShare}
+            onRename={(id) => setRenamingId(id)}
+            onPin={onPin}
+            onDelete={(id) => setConfirmId(id)}
+        />
+    );
+
+    if (!phone) return <>{panel}{popup}</>;
     return (
         <>
             <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 1, background: 'rgba(0,0,0,0.45)' }} />
             {panel}
+            {popup}
         </>
     );
 }

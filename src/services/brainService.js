@@ -52,8 +52,18 @@ export const buildBrain = (orgId) => call('build', { org_id: orgId });
 /** Incremental resync: only rows that changed, plus the delete sweep. */
 export const syncBrain = (orgId) => call('sync', { org_id: orgId });
 
-/** Ask a question. Returns the answer with the records it was drawn from. */
-export const ask = (orgId, question) => call('ask', { org_id: orgId, question });
+/**
+ * Ask a question. Returns the answer with the records it was drawn from.
+ *
+ * `history` is the conversation so far, oldest first, as {role, text} where
+ * role is 'user' or 'assistant'. It is not a nicety: without it every question
+ * was answered by a model that could not see its own previous answer, so
+ * "check again?" re-derived from scratch instead of checking, and a follow-up
+ * like "and the second highest?" carried no subject to retrieve on. The server
+ * bounds and validates whatever is sent.
+ */
+export const ask = (orgId, question, history = []) =>
+  call('ask', { org_id: orgId, question, history });
 
 /**
  * The retrieved context for a question, without generating an answer.

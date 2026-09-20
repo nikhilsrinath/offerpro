@@ -236,15 +236,60 @@ Rules:
 1. AUTHORITATIVE AGGREGATES are computed in PostgreSQL. Quote them exactly. Never
    recompute a total by adding up the ENTITIES you were shown — that list is a
    relevant sample, not the whole table.
-2. ENTITIES are verbatim records. Their values are current as of the as_of stamp.
-3. If the context does not contain the answer, say so plainly and name what is
-   missing. Do not estimate, extrapolate or invent a figure.
-4. If you offer an interpretation or a recommendation, mark it clearly as your
+2. A breakdown you were given as an aggregate is the answer to that breakdown.
+   If the question asks for a split — by country, by month, by department — and
+   an aggregate covers it, read the ranking off those buckets. Do not rebuild
+   the same split by joining the ENTITIES yourself: they are a sample, so the
+   ranking you get from them is a ranking of the sample, which is how the same
+   question ends up with a different answer each time it is asked.
+3. Where an aggregate's definition says which field it uses and an entity
+   carries a conflicting value, the definition wins. Say which one you used —
+   "by the country on the invoice" — rather than switching silently.
+4. ENTITIES are verbatim records. Their values are current as of the as_of stamp.
+5. NEVER claim something does not exist, or that a list is everything, unless
+   INVENTORY or an aggregate says so. "We have no other X", "that is all of
+   them", "X has zero" and "there are none" are claims about a whole table, and
+   the ENTITIES block is a selection, so it cannot support one. Where INVENTORY
+   counts more records than you were shown, say what you were given and that
+   more exist — "the three largest of twelve clients", not "our clients".
+6. If the context does not contain the answer, say so plainly and name what is
+   missing, then say what would answer it — an aggregate that is not computed,
+   a field that is empty, records not retrieved. A precise "I cannot tell you
+   that from this, because…" is a correct answer. A confident wrong one is not.
+   Never estimate, extrapolate or invent a figure to avoid saying it.
+7. Do not change your answer between turns unless the records changed or you
+   were wrong. If you were wrong, say which of the two answers was wrong and
+   why — a silently different second answer destroys trust in both. If the user
+   pushes back and the records still say what they said, hold the answer and
+   show the record behind it.
+8. If you offer an interpretation or a recommendation, mark it clearly as your
    reading rather than as something the records state.
-5. Be concise: a direct answer first, then at most a few supporting lines. Give
+9. Be concise: a direct answer first, then at most a few supporting lines. Give
    figures with their units and currency as they appear.
-6. The user cannot see the context block. Refer to records by name or document
-   number, never by node id.`;
+10. The user cannot see the context block. Refer to records by name or document
+    number, never by node id.`;
+
+/**
+ * The conversation so far, bounded and sanitised.
+ *
+ * Until this existed, every question was a fresh call carrying nothing but the
+ * question itself. That is what produced the flip-flopping: asked a follow-up,
+ * the model could not see what it had just said, so it re-derived an answer
+ * from whichever records that particular retrieval happened to surface, and
+ * "check again?" was not a check but a second independent guess.
+ *
+ * Bounded at eight turns and 2000 characters each: enough to hold a thread,
+ * far too little for a long conversation to crowd out the records, which stay
+ * the thing the answer is built from.
+ */
+export function conversationHistory(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string')
+    .slice(-8)
+    .map((m) => ({ role: m.role, content: m.text.trim().slice(0, 2000) }))
+    .filter((m) => m.content);
+}
 
 async function ask(res, { orgId, perms, allowed, body }) {
   requireBrainPermission(perms, 'view');
@@ -252,6 +297,8 @@ async function ask(res, { orgId, perms, allowed, body }) {
   const question = String(body.question || '').trim();
   if (!question) throw new HttpError(400, 'Missing question');
   if (question.length > 2000) throw new HttpError(400, 'Question is too long');
+
+  const history = conversationHistory(body.history);
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -276,7 +323,17 @@ async function ask(res, { orgId, perms, allowed, body }) {
     });
   }
 
-  const pkg = await buildContext(orgId, allowed, question, { syncedAt: state.last_sync_at });
+  // Retrieval reads the thread, not just the sentence.
+  //
+  // "2nd highest and the lowest?" names no entity, no kind and no metric: on
+  // its own it retrieves essentially nothing, and the model then answers a
+  // question about revenue from whatever generic rows came back. Prefixing the
+  // last couple of user turns puts the subject back into the search terms, so a
+  // follow-up retrieves the same records the question it follows did.
+  const priorAsks = history.filter((m) => m.role === 'user').slice(-2).map((m) => m.content);
+  const pkg = await buildContext(orgId, allowed, [...priorAsks, question].join('\n'), {
+    syncedAt: state.last_sync_at,
+  });
 
   const response = await fetch(GEMINI_URL, {
     method: 'POST',
@@ -285,10 +342,20 @@ async function ask(res, { orgId, perms, allowed, body }) {
       model: MODEL,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
+        // The thread, then the records, then the question. The context goes in
+        // the final message rather than the first so it is the freshest thing
+        // in the window: it is retrieved for THIS question, and an older turn's
+        // wording must not outweigh the records this one was given.
+        ...history,
         {
           role: 'user',
           content: `Context retrieved from the company's records ` +
             `(last synchronised ${state.last_sync_at || 'unknown'}):\n\n${pkg.context}\n\n` +
+            (history.length
+              ? 'The turns above are this same conversation. Records in this block supersede ' +
+                'anything said earlier; if they contradict an answer you already gave, correct ' +
+                'it explicitly rather than quietly changing it.\n\n'
+              : '') +
             `Question: ${question}`,
         },
       ],

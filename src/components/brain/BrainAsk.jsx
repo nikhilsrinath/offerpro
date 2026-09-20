@@ -34,9 +34,19 @@ export default function BrainAsk({ orgId, stale, syncedAt }) {
         if (!q || busy) return;
         setQuestion('');
         setBusy(true);
+        // The thread so far, so the answer can build on what was already said
+        // rather than contradicting it. Errors are left out — they are not
+        // something the assistant said about the company. Bounded here as well
+        // as on the server, because the cheapest place to not send a thousand
+        // turns is before the request.
+        const history = turns
+            .filter((x) => x.role === 'user' || x.role === 'answer')
+            .slice(-8)
+            .map((x) => ({ role: x.role === 'user' ? 'user' : 'assistant', text: x.text }));
+
         setTurns((prev) => [...prev, { role: 'user', text: q, id: `q${Date.now()}` }]);
         try {
-            const res = await ask(orgId, q);
+            const res = await ask(orgId, q, history);
             setTurns((prev) => [...prev, {
                 role: 'answer', id: `a${Date.now()}`,
                 text: res.answer, sources: res.sources || [],
