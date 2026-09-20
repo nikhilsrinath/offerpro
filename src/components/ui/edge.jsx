@@ -21,12 +21,18 @@ const SR_ONLY = {
 
 /* ── layout ───────────────────────────────────────────────────────────────── */
 
-export function Page({ children, pad = true }) {
+/** `fill` is for the pages that are one viewport rather than a document: the
+    page takes the exact height of the shell's body and manages its own
+    scrolling inside, instead of growing and handing the scroll upwards. */
+export function Page({ children, pad = true, fill = false }) {
     const t = useT();
     return (
         <div className="edge-page" style={{
             fontFamily: MONO, color: t.text, background: t.panel,
-            minHeight: '100%', padding: pad ? 0 : 0,
+            padding: pad ? 0 : 0,
+            ...(fill
+                ? { height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }
+                : { minHeight: '100%' }),
         }}>
             {children}
             <PageStyle t={t} />

@@ -1,37 +1,36 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Minus, Plus, Maximize2, PanelRight } from 'lucide-react';
 import { useT, MONO } from '../ui/edgeUtils';
-import { Page, Seg, Loading, Empty, Btn } from '../ui/edge';
+import { Page, Loading, Empty, Btn } from '../ui/edge';
 import { useOrg } from '../../context/OrgContext';
 import * as brain from '../../services/brainService';
 import BrainOnboarding from './BrainOnboarding';
-import BrainOverview from './BrainOverview';
-import BrainExplore from './BrainExplore';
-import BrainAsk from './BrainAsk';
-import BrainHealth from './BrainHealth';
+import BrainDock from './BrainDock';
+import KnowledgeGraph from './KnowledgeGraph';
+import {
+    searchEntities, getEntity, DOMAINS, domainOf,
+} from '../../services/brainService';
 
 /* ══════════════════════════════════════════════════════════════════════════
    EdgeBrain.
 
-   One module, four views, and the lifecycle in front of them: no brain yet,
-   building, ready, degraded, or not yours to see. The views are deliberately
-   sections of one page rather than separate routes — the graph, the answer and
-   the health of the thing that produced both are one subject, and paging
-   between them would reload the graph every time.
-   ══════════════════════════════════════════════════════════════════════════ */
+   The page is the graph. It fills the shell edge to edge, and everything else
+   — the figures, the entity list, the inspector, Ask, the health of the thing
+   that produced all of it — sits in one dock on the right behind a rail of
+   icons. Nothing floats over the middle of the canvas, and nothing stacks
+   above it pushing the graph into a letterbox.
 
-const VIEWS = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'explore', label: 'Explore' },
-    { id: 'ask', label: 'Ask' },
-    { id: 'health', label: 'Brain Health' },
-];
+   That is the whole reorganisation: the four tabs this module used to have
+   were four pages that each rebuilt the graph, when they were really one
+   subject seen from one place. Selecting a node now changes the panel beside
+   it rather than navigating away from the picture.
+   ══════════════════════════════════════════════════════════════════════════ */
 
 export default function EdgeBrain() {
     const t = useT();
     const { activeOrg } = useOrg();
     const orgId = activeOrg?.id;
 
-    const [view, setView] = useState('overview');
     const [status, setStatus] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -42,6 +41,20 @@ export default function EdgeBrain() {
     const [graph, setGraph] = useState(null);
     const [dataError, setDataError] = useState('');
     const [dataLoading, setDataLoading] = useState(false);
+
+    /* ── the workspace ────────────────────────────────────────────────────── */
+    const [tab, setTab] = useState('summary');
+    const [dockOpen, setDockOpen] = useState(true);
+    const [query, setQuery] = useState('');
+    const [domain, setDomain] = useState('all');
+    const [selected, setSelected] = useState(null);
+    const [detail, setDetail] = useState(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const [detailError, setDetailError] = useState('');
+    const [hits, setHits] = useState(null);
+    const [searching, setSearching] = useState(false);
+    const [zoom, setZoom] = useState(1);
+    const graphRef = useRef(null);
 
     // Guards every async settle against an org switch mid-flight, so a response
     // for the previous tenant can never paint over the current one.
@@ -95,6 +108,8 @@ export default function EdgeBrain() {
         setStatus(null);
         setGraph(null);
         setMetrics([]);
+        setSelected(null);
+        setDetail(null);
         autoSyncedRef.current = false;
         loadStatus();
     }, [loadStatus]);
@@ -161,7 +176,7 @@ export default function EdgeBrain() {
                 const failed = res.result?.failed_domains || [];
                 setActionError(
                     `Finished with ${failed.length} domain${failed.length === 1 ? '' : 's'} failing `
-                    + `(${failed.join(', ')}). The rest of the brain is up to date — see Brain Health.`,
+                    + `(${failed.join(', ')}). The rest of the brain is up to date — see Health.`,
                 );
             }
             return next;
@@ -176,6 +191,67 @@ export default function EdgeBrain() {
     const build = useCallback(() => run(() => brain.buildBrain(orgId)), [run, orgId]);
     const sync = useCallback(() => run(() => brain.syncBrain(orgId)), [run, orgId]);
     const rebuild = useCallback(() => run(() => brain.buildBrain(orgId)), [run, orgId]);
+
+    /* ── search, selection, filtering ─────────────────────────────────────── */
+
+    /* Search runs against the database rather than the loaded graph: the canvas
+       holds a capped slice, and a record outside that cap must still be findable. */
+    useEffect(() => {
+        const term = query.trim();
+        if (!term || !orgId) { setHits(null); return undefined; }
+        let cancelled = false;
+        setSearching(true);
+        const id = setTimeout(() => {
+            searchEntities(orgId, term, { limit: 60 })
+                .then((rows) => { if (!cancelled) setHits(rows); })
+                .catch(() => { if (!cancelled) setHits([]); })
+                .finally(() => { if (!cancelled) setSearching(false); });
+        }, 220);
+        return () => { cancelled = true; clearTimeout(id); };
+    }, [query, orgId]);
+
+    const openNode = useCallback((node) => {
+        setSelected(node.id);
+        setTab('inspect');
+        setDockOpen(true);
+        setDetail(null);
+        setDetailError('');
+        setDetailLoading(true);
+        graphRef.current?.focusNode(node.id);
+        getEntity(orgId, node.id)
+            .then((d) => {
+                if (!d) { setDetailError('That record is no longer in the brain.'); return; }
+                setDetail(d);
+            })
+            .catch((e) => setDetailError(e.message || 'Could not open that record.'))
+            .finally(() => setDetailLoading(false));
+    }, [orgId]);
+
+    const clearSelection = useCallback(() => {
+        setSelected(null);
+        setDetail(null);
+        setDetailError('');
+    }, []);
+
+    const graphNodes = useMemo(() => {
+        if (!graph) return [];
+        return domain === 'all' ? graph.nodes : graph.nodes.filter((n) => domainOf(n.kind) === domain);
+    }, [graph, domain]);
+
+    // An edge survives the domain filter only when both of its ends did.
+    const graphEdges = useMemo(() => {
+        if (!graph) return [];
+        if (domain === 'all') return graph.edges;
+        const ids = new Set(graphNodes.map((n) => n.id));
+        return graph.edges.filter((e) => ids.has(e.src_id) && ids.has(e.dst_id));
+    }, [graph, domain, graphNodes]);
+
+    const listed = useMemo(() => {
+        const source = hits ?? graphNodes;
+        return domain === 'all' ? source : source.filter((n) => domainOf(n.kind) === domain);
+    }, [hits, graphNodes, domain]);
+
+    /* ── the lifecycle gates ──────────────────────────────────────────────── */
 
     if (!orgId) {
         return <Page><Empty>Select an organisation to open its Company Brain.</Empty></Page>;
@@ -213,80 +289,224 @@ export default function EdgeBrain() {
     // Built once, then every domain failed on a later run: there is a brain, but
     // nothing in it can be trusted, so Health is the only honest place to land.
     const broken = state.status === 'error' && (state.node_count || 0) === 0;
-
     const stale = (status?.pendingChanges || 0) > 0;
 
     return (
-        <Page>
-            <div style={{ fontFamily: MONO }}>
-                <div style={{
-                    display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-                    paddingBottom: 12, marginBottom: 14, borderBottom: `1px solid ${t.line}`,
-                }}>
-                    <Seg
-                        label="EdgeBrain view" value={broken ? 'health' : view}
-                        onChange={setView} options={VIEWS}
-                    />
-                    <div style={{ flex: 1 }} />
-                    <SyncChip
-                        t={t} state={state} busy={building} stale={stale} live={live}
-                        pending={status?.pendingChanges || 0}
-                        failed={(state.failed_domains || []).length}
-                        onClick={() => setView('health')}
-                    />
+        <Page fill>
+            <div className="brain-workspace" style={{
+                flex: 1, minHeight: 0, display: 'flex', fontFamily: MONO, position: 'relative',
+            }}>
+                {/* ── the canvas ───────────────────────────────────────────── */}
+                <div style={{ flex: 1, minWidth: 0, position: 'relative', background: t.panel }}>
+                    {dataLoading && !graph ? (
+                        <Loading>Loading what the brain knows…</Loading>
+                    ) : dataError ? (
+                        <Empty action={<Btn onClick={loadData}>Try again</Btn>}>{dataError}</Empty>
+                    ) : graphNodes.length === 0 ? (
+                        <Empty>
+                            {domain === 'all'
+                                ? 'The graph is empty. Synchronise the brain to populate it.'
+                                : 'Nothing in this domain yet. Clear the filter to see the rest.'}
+                        </Empty>
+                    ) : (
+                        <KnowledgeGraph
+                            ref={graphRef} bare
+                            nodes={graphNodes} edges={graphEdges}
+                            highlight={query} selectedId={selected}
+                            onSelect={openNode} onViewChange={setZoom}
+                            onClear={clearSelection}
+                        />
+                    )}
+
+                    {/* ── the status strip ─────────────────────────────────
+                        Top-left, over the canvas corner rather than in a bar
+                        above it: the one thing that has to be true before any
+                        figure on this page can be trusted, and it costs the
+                        graph nothing. */}
+                    <div style={{
+                        position: 'absolute', left: 12, top: 12, display: 'flex',
+                        alignItems: 'center', gap: 8, flexWrap: 'wrap', maxWidth: 'calc(100% - 24px)',
+                        pointerEvents: 'none',
+                    }}>
+                        <SyncChip
+                            t={t} busy={building} stale={stale} live={live}
+                            pending={status?.pendingChanges || 0}
+                            failed={(state.failed_domains || []).length}
+                            onClick={() => { setTab('health'); setDockOpen(true); }}
+                        />
+                        {graph && (
+                            <Chip t={t} muted>
+                                {graphNodes.length} entities · {graphEdges.length} links
+                            </Chip>
+                        )}
+                        {broken && (
+                            <Chip t={t} tone={t.down}>
+                                Nothing in the brain can be trusted — open Health
+                            </Chip>
+                        )}
+                    </div>
+
+                    {actionError && (
+                        <div role="alert" style={{
+                            position: 'absolute', left: '50%', top: 12, transform: 'translateX(-50%)',
+                            maxWidth: 'min(560px, calc(100% - 24px))', padding: '10px 13px', borderRadius: 9,
+                            border: `1px solid ${t.lineStrong}`, background: t.panel, boxShadow: t.shadow,
+                            fontSize: 10.5, color: t.dim, lineHeight: 1.6, zIndex: 6,
+                        }}>{actionError}</div>
+                    )}
+
+                    {/* ── domain legend, which is also the filter ──────────
+                        The key a reader needs to decode the colours and the
+                        control they reach for next are the same control. */}
+                    <div style={{
+                        position: 'absolute', left: 12, bottom: 12, right: 128,
+                        display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center',
+                    }}>
+                        <FilterChip
+                            t={t} on={domain === 'all'} label="All"
+                            onClick={() => setDomain('all')}
+                        />
+                        {DOMAINS.map((d) => (
+                            <FilterChip
+                                key={d.id} t={t} on={domain === d.id} label={d.label}
+                                dot={DOMAIN_COLOR[t.isDark ? 'dark' : 'light'][d.id]}
+                                onClick={() => setDomain(domain === d.id ? 'all' : d.id)}
+                            />
+                        ))}
+                    </div>
+
+                    {/* ── the camera controls ──────────────────────────────── */}
+                    <div style={{
+                        position: 'absolute', right: 12, bottom: 12, display: 'flex',
+                        alignItems: 'center', gap: 4,
+                        background: t.isDark ? 'rgba(13,13,15,.86)' : 'rgba(255,255,255,.88)',
+                        border: `1px solid ${t.line}`, borderRadius: 8, padding: 3,
+                        backdropFilter: 'blur(8px)',
+                    }}>
+                        <CtlBtn t={t} label="Zoom out" onClick={() => graphRef.current?.zoomBy(1 / 1.35)}>
+                            <Minus aria-hidden="true" size={13} strokeWidth={1.9} />
+                        </CtlBtn>
+                        <span aria-live="off" style={{
+                            minWidth: 42, textAlign: 'center', fontSize: 10, color: t.faint,
+                        }}>{Math.round(zoom * 100)}%</span>
+                        <CtlBtn t={t} label="Zoom in" onClick={() => graphRef.current?.zoomBy(1.35)}>
+                            <Plus aria-hidden="true" size={13} strokeWidth={1.9} />
+                        </CtlBtn>
+                        <span aria-hidden="true" style={{ width: 1, height: 16, background: t.line, margin: '0 2px' }} />
+                        <CtlBtn t={t} label="Fit the whole graph" onClick={() => graphRef.current?.fit()}>
+                            <Maximize2 aria-hidden="true" size={12.5} strokeWidth={1.9} />
+                        </CtlBtn>
+                        {!dockOpen && (
+                            <CtlBtn t={t} label="Show the panel" onClick={() => setDockOpen(true)}>
+                                <PanelRight aria-hidden="true" size={13} strokeWidth={1.9} />
+                            </CtlBtn>
+                        )}
+                    </div>
                 </div>
 
-                {actionError && (
-                    <div role="alert" style={{
-                        marginBottom: 14, padding: '11px 13px', borderRadius: 9,
-                        border: `1px solid ${t.line}`, background: t.panelAlt,
-                        fontSize: 11, color: t.dim, lineHeight: 1.6,
-                    }}>{actionError}</div>
-                )}
-
-                {building && (
-                    <div role="status" aria-live="polite" style={{
-                        marginBottom: 14, padding: '11px 13px', borderRadius: 9,
-                        border: `1px solid ${t.line}`, fontSize: 11, color: t.dim,
-                    }}>Synchronising with your records…</div>
-                )}
-
-                {(broken || view === 'health') && (
-                    <BrainHealth
-                        status={status} syncing={busy} error={actionError}
-                        onSync={sync} onFullRebuild={rebuild}
-                    />
-                )}
-
-                {!broken && view === 'overview' && (
-                    dataLoading && !graph
-                        ? <Loading>Loading what the brain knows…</Loading>
-                        : dataError
-                            ? <Empty action={<Btn onClick={loadData}>Try again</Btn>}>{dataError}</Empty>
-                            : <BrainOverview
-                                status={status} metrics={metrics} graph={graph}
-                                onExplore={() => setView('explore')}
-                                onAsk={() => setView('ask')}
-                              />
-                )}
-
-                {!broken && view === 'explore' && (
-                    <BrainExplore
-                        orgId={orgId} graph={graph} loading={dataLoading && !graph}
-                        error={dataError} onReload={loadData}
-                    />
-                )}
-
-                {!broken && view === 'ask' && (
-                    <BrainAsk orgId={orgId} stale={stale} syncedAt={state.last_sync_at} />
-                )}
+                {/* ── the dock ─────────────────────────────────────────────── */}
+                <BrainDock
+                    tab={broken ? 'health' : tab} onTab={setTab}
+                    open={dockOpen} onOpenChange={setDockOpen}
+                    lockedToHealth={broken}
+                    status={status} metrics={metrics}
+                    query={query} onQuery={setQuery} listed={listed} searching={searching}
+                    selectedId={selected} onOpenNode={openNode}
+                    shownCount={graphNodes.length} hasHits={!!hits}
+                    detail={detail} detailLoading={detailLoading} detailError={detailError}
+                    onLocate={(id) => graphRef.current?.focusNode(id, 1.6)}
+                    orgId={orgId} stale={stale} syncedAt={state.last_sync_at}
+                    syncing={busy} actionError={actionError}
+                    onSync={sync} onFullRebuild={rebuild}
+                />
             </div>
+
+            <style>{`
+                @media (max-width: 860px) {
+                    .brain-workspace .brain-dock-panel {
+                        position: absolute; right: 46px; top: 0; bottom: 0;
+                        width: min(340px, calc(100vw - 58px)) !important;
+                        box-shadow: -14px 0 34px rgba(0,0,0,.24); z-index: 8;
+                    }
+                }
+            `}</style>
         </Page>
     );
 }
 
+/* The domain palette is owned by the canvas; the legend needs the same values,
+   and one of the two having its own copy that drifts is the classic way a key
+   stops matching the picture it explains. */
+const DOMAIN_COLOR = {
+    dark: {
+        organization: '#e8e8ea', people: '#7dd3fc', clients: '#a78bfa',
+        finance: '#4ade80', products: '#fbbf24', spend: '#f87171',
+        documents: '#22d3ee', operations: '#f0abfc',
+    },
+    light: {
+        organization: '#0e1011', people: '#0369a1', clients: '#6d28d9',
+        finance: '#15803d', products: '#b45309', spend: '#b91c1c',
+        documents: '#0e7490', operations: '#a21caf',
+    },
+};
+
+function glass(t) {
+    return {
+        background: t.isDark ? 'rgba(13,13,15,.86)' : 'rgba(255,255,255,.88)',
+        border: `1px solid ${t.line}`,
+        backdropFilter: 'blur(8px)',
+    };
+}
+
+function Chip({ t, children, tone, muted }) {
+    return (
+        <span style={{
+            ...glass(t), display: 'inline-flex', alignItems: 'center', height: 27,
+            padding: '0 10px', borderRadius: 999, fontFamily: MONO, fontSize: 10.5,
+            color: tone || (muted ? t.faint : t.dim), whiteSpace: 'nowrap',
+        }}>{children}</span>
+    );
+}
+
+function FilterChip({ t, on, label, dot, onClick }) {
+    return (
+        <button
+            type="button" onClick={onClick} className="edge-btn" aria-pressed={on}
+            style={{
+                ...glass(t),
+                display: 'inline-flex', alignItems: 'center', gap: 5, height: 24,
+                padding: '0 9px', borderRadius: 999, cursor: 'pointer', fontFamily: MONO,
+                fontSize: 9.5, whiteSpace: 'nowrap',
+                borderColor: on ? t.lineStrong : t.line,
+                color: on ? t.text : t.faint,
+            }}>
+            {dot && (
+                <span aria-hidden="true" style={{
+                    width: 6, height: 6, borderRadius: 999, background: dot, flexShrink: 0,
+                }} />
+            )}
+            {label}
+        </button>
+    );
+}
+
+function CtlBtn({ t, label, onClick, children }) {
+    return (
+        <button
+            type="button" onClick={onClick} className="edge-icon"
+            title={label} aria-label={label}
+            style={{
+                width: 27, height: 27, display: 'grid', placeItems: 'center', borderRadius: 6,
+                cursor: 'pointer', border: '1px solid transparent', background: 'transparent',
+                color: t.dim,
+            }}>
+            {children}
+        </button>
+    );
+}
+
 /** The always-visible answer to "can I trust what I am looking at". */
-function SyncChip({ t, state, busy, stale, pending, failed, live, onClick }) {
+function SyncChip({ t, busy, stale, pending, failed, live, onClick }) {
     const tone = busy ? t.dim : failed > 0 ? t.down : stale ? t.down : t.up;
     const text = busy
         ? 'Syncing'
@@ -298,10 +518,10 @@ function SyncChip({ t, state, busy, stale, pending, failed, live, onClick }) {
 
     return (
         <button type="button" onClick={onClick} className="edge-btn" style={{
+            ...glass(t),
             display: 'inline-flex', alignItems: 'center', gap: 7, height: 27,
             padding: '0 11px', borderRadius: 999, cursor: 'pointer',
-            border: `1px solid ${t.line}`, background: t.panel,
-            color: t.dim, fontFamily: MONO, fontSize: 10.5,
+            color: t.dim, fontFamily: MONO, fontSize: 10.5, pointerEvents: 'auto',
         }} title="Open Brain Health">
             <span aria-hidden="true" style={{
                 width: 6, height: 6, borderRadius: 999, background: tone, flexShrink: 0,
@@ -312,7 +532,6 @@ function SyncChip({ t, state, busy, stale, pending, failed, live, onClick }) {
             {live && !busy && (
                 <span style={{ color: t.ghost }} title="Updating live as your records change">· live</span>
             )}
-            <span style={{ color: t.ghost }}>· {state.node_count ?? 0}</span>
         </button>
     );
 }

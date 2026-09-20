@@ -95,6 +95,7 @@ const MODULE_EXTRA_PAGES = {
 const FLUSH_PAGES = new Set([
   'team-hierarchy', 'offers', 'new-certificates', 'certificates', 'ndas', 'mous',
   'new-invoice', 'new-quotation', 'new-proforma',
+  'edgebrain',
 ]);
 
 const MODULE_META = {
@@ -104,11 +105,11 @@ const MODULE_META = {
   finance:   { id: 'finance', label: 'Finance' },
   business:  { id: 'business', label: 'Business' },
   data:      { id: 'data', label: 'Records' },
-  overall:   { id: 'overall', label: 'Overview' },
+  overall:   { id: 'overall', label: 'Dashboard' },
 };
 
 const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { section: 'EDGEBRAIN' },
   { id: 'edgebrain', label: 'Company Brain', icon: BrainCircuit },
   { section: 'TEAM' },
@@ -153,7 +154,7 @@ const NAV_ITEMS = [
 
 const PAGE_META = {
   edgebrain: { title: 'EdgeBrain', subtitle: 'Your company, organised as one connected context your AI can reason over' },
-  dashboard: { title: 'Overview', subtitle: 'The whole organisation, one period — click anything for the analysis behind it' },
+  dashboard: { title: 'Dashboard', subtitle: 'The whole organisation, one period — click anything for the analysis behind it' },
   profile: { title: 'Company Profile', subtitle: 'The details every document you issue is signed with' },
   offers: { title: 'Offer Letters', subtitle: 'Generate employment and internship offers' },
   'new-certificates': { title: 'Certificates', subtitle: 'Issue professional attainment certificates' },
