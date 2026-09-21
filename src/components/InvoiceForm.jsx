@@ -11,6 +11,7 @@ import ProductPicker from './shared/ProductPicker';
 import CountrySelect from './shared/CountrySelect';
 import { productToLineItem } from '../services/catalogService';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
+import A4Stage from './shared/A4Stage';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -783,9 +784,9 @@ export default function InvoiceForm() {
             <Eye size={14} /> Open PDF
           </button>
         </div>
-        <div className="mou-a4-scroller">
+        <A4Stage>
           <InvoicePreview formData={formData} totals={totals} isInterState={isInterState} />
-        </div>
+        </A4Stage>
       </div >
 
     </div >

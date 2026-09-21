@@ -5266,32 +5266,135 @@ label {
   gap: 0.5rem;
 }
 
-.mou-a4-scroller {
+.a4-stage {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: auto;
-  padding: 2rem 1.5rem;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+}
+
+/* The scroll box. Its padding is mirrored by PAD in A4Stage.jsx — change both. */
+.a4-stage-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 18px;
+  display: flex;
   align-items: flex-start;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  overscroll-behavior: contain;
 }
 
-/* Scale certificates to fit the preview pane */
-.mou-a4-scroller .a4-sheet-landscape {
-  transform: scale(0.52);
-  transform-origin: top center;
-  margin-bottom: -345px;
+/* Holds the space the scaled sheet occupies, so centring and scrolling are
+   measured against what the reader actually sees. */
+/* margin-inline:auto rather than justify-content:center — when the reader
+   zooms past the pane width, centring with justify-content makes the left
+   overflow unreachable, and auto margins do not. */
+.a4-stage-frame {
+  position: relative;
+  flex: 0 0 auto;
+  margin-inline: auto;
 }
 
-.mou-a4-scroller::-webkit-scrollbar {
-  width: 4px;
+.a4-stage-sheet {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+  will-change: transform;
 }
 
-.mou-a4-scroller::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
+.a4-stage-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.a4-stage-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+}
+
+/* A real footer strip rather than a floating overlay: a document longer than
+   one page would otherwise scroll underneath the controls forever. */
+.a4-stage-zoom {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 5px 8px;
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+}
+
+.a4-stage-zoom button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.a4-stage-zoom button:hover:not(:disabled) {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.a4-stage-zoom button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.a4-stage-fit.active {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.a4-stage-zoom-value {
+  min-width: 42px;
+  text-align: center;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.a4-stage-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 6px;
+  background: var(--border-default);
+}
+
+.a4-stage-pages {
+  padding: 0 4px 0 10px;
+  margin-left: 6px;
+  border-left: 1px solid var(--border-subtle);
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .a4-stage-sheet { will-change: auto; }
+}
+
+/* The saffron invoice template sizes itself to its container; inside the
+   shrink-to-fit stage it needs a page width of its own. */
+.a4-stage-sheet .inv-saffron-page {
+  width: 794px;
+  max-width: none;
 }
 
 /* ===========================

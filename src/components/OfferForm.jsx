@@ -11,6 +11,7 @@ import { usePlanStatus } from '../hooks/usePlanStatus';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 import { createPortalLink } from '../services/portalService';
 import OfferPreview from './OfferPreview';
+import A4Stage from './shared/A4Stage';
 
 function getDisplayName(emp) {
   if (emp.studentName) return emp.studentName;
@@ -574,9 +575,9 @@ export default function OfferForm() {
             <Eye size={14} /> Open PDF
           </button>
         </div>
-        <div className="mou-a4-scroller">
+        <A4Stage>
           <OfferPreview formData={formData} />
-        </div>
+        </A4Stage>
       </div>
 
     </div>

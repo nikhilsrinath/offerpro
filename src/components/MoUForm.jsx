@@ -8,6 +8,7 @@ import { useOrg } from '../context/OrgContext';
 import { usePlanStatus } from '../hooks/usePlanStatus';
 import MoUPreview from './MoUPreview';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
+import A4Stage from './shared/A4Stage';
 
 export default function MoUForm() {
   const navigate = useNavigate();
@@ -401,9 +402,9 @@ export default function MoUForm() {
             <Eye size={14} /> Open PDF
           </button>
         </div>
-        <div className="mou-a4-scroller">
+        <A4Stage>
           <MoUPreview formData={formData} />
-        </div>
+        </A4Stage>
       </div>
 
     </div>

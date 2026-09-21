@@ -8,6 +8,7 @@ import { useOrg } from '../context/OrgContext';
 import { resolveFormImages } from '../utils/imageUtils';
 import { CERTIFICATE_TEMPLATES } from '../services/certificateTemplates';
 import CertificatePreview from './CertificatePreview';
+import A4Stage from './shared/A4Stage';
 
 export default function CertificateForm() {
   const navigate = useNavigate();
@@ -172,9 +173,9 @@ export default function CertificateForm() {
             <Eye size={14} /> Open PDF
           </button>
         </div>
-        <div className="mou-a4-scroller">
+        <A4Stage>
           <CertificatePreview formData={formData} />
-        </div>
+        </A4Stage>
       </div>
 
 

@@ -8,6 +8,7 @@ import { useOrg } from '../context/OrgContext';
 import { usePlanStatus } from '../hooks/usePlanStatus';
 import NdaPreview from './NdaPreview';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
+import A4Stage from './shared/A4Stage';
 
 export default function NdaForm() {
   const navigate = useNavigate();
@@ -400,9 +401,9 @@ export default function NdaForm() {
             <Eye size={14} /> Open PDF
           </button>
         </div>
-        <div className="mou-a4-scroller">
+        <A4Stage>
           <NdaPreview formData={formData} />
-        </div>
+        </A4Stage>
       </div>
 
     </div>

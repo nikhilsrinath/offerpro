@@ -76,12 +76,51 @@
 }
 
 .edge-shell main .mou-form-pane::-webkit-scrollbar-thumb,
-.edge-shell main .mou-a4-scroller::-webkit-scrollbar-thumb {
+.edge-shell main .a4-stage-scroll::-webkit-scrollbar-thumb {
   background: var(--edge-line-strong);
 }
 
-.edge-shell main .mou-a4-scroller {
+.edge-shell main .a4-stage-scroll {
   scrollbar-color: var(--edge-line-strong) transparent;
+}
+
+/* ── paper pane: zoom cluster ─────────────────────────────────────────────── */
+
+.edge-shell main .a4-stage-zoom {
+  background: var(--edge-panel);
+  border: 1px solid var(--edge-line);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.edge-shell main .a4-stage-zoom button {
+  border-radius: 5px;
+  color: var(--edge-dim);
+  font-size: 10.5px;
+}
+
+.edge-shell main .a4-stage-zoom button:hover:not(:disabled) {
+  background: var(--edge-panel-alt);
+  color: var(--edge-text);
+}
+
+.edge-shell main .a4-stage-fit.active {
+  background: var(--edge-panel-alt);
+  color: var(--edge-text);
+}
+
+.edge-shell main :where(.a4-stage-zoom-value, .a4-stage-pages) {
+  font-size: 10.5px;
+  color: var(--edge-dim);
+}
+
+.edge-shell main .a4-stage-pages {
+  border-left-color: var(--edge-line);
+  color: var(--edge-faint);
+}
+
+.edge-shell main .a4-stage-sep {
+  background: var(--edge-line);
 }
 
 .edge-shell main .mou-preview-pane {
@@ -765,5 +804,185 @@
 
   .edge-shell main .mou-form-pane {
     padding: 16px 16px 32px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DOCUMENT EDITOR — the form pane
+   ──────────────────────────────────────────────────────────────────────────
+   The eight editors (invoice, quotation, proforma, recurring, offer, NDA,
+   MoU, certificate) all render .easy-* markup into .mou-form-pane. These
+   rules come last in the file on purpose: they restate the section, label and
+   spacing decisions above rather than being patched around them.
+
+   What changed and why:
+   · sections are cards, so the form reads as four or five short steps instead
+     of one unbroken column of inputs
+   · field labels are sentence case at a readable size — the 9.5px uppercase
+     micro-label stays on chrome (pane titles, table heads), not on things a
+     person has to read while typing
+   · the rhythm is roughly half what it was, so a step fits on screen
+   · the primary action sticks to the bottom of the pane, so "save" is never a
+     scroll away
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.edge-shell main .mou-form-pane {
+  flex: 0 0 46%;
+  max-width: 620px;
+  min-width: 400px;
+  padding: 18px 20px 0;
+  background: var(--edge-shell);
+}
+
+.edge-shell main .mou-form-pane .easy-form {
+  max-width: 100%;
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── sections as cards ────────────────────────────────────────────────────── */
+
+.edge-shell main .mou-form-pane .easy-section {
+  margin: 0;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--edge-line);
+  border-radius: 10px;
+  background: var(--edge-panel);
+}
+
+.edge-shell main .mou-form-pane .easy-section:last-of-type {
+  padding: 14px 16px 16px;
+  margin: 0;
+}
+
+.edge-shell main .mou-form-pane .easy-section-head {
+  gap: 9px;
+  margin: 0 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--edge-line-soft);
+}
+
+.edge-shell main .mou-form-pane .easy-num {
+  width: 19px;
+  height: 19px;
+  border-radius: 5px;
+  border: none;
+  background: var(--edge-panel-alt);
+  color: var(--edge-dim);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.edge-shell main .mou-form-pane .easy-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--edge-text);
+  letter-spacing: -0.01em;
+}
+
+/* ── fields ───────────────────────────────────────────────────────────────── */
+
+.edge-shell main .mou-form-pane .easy-row {
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 14px;
+}
+
+.edge-shell main .mou-form-pane .easy-row + .easy-row,
+.edge-shell main .mou-form-pane .easy-row + .easy-field,
+.edge-shell main .mou-form-pane .easy-field + .easy-row {
+  margin-top: 12px;
+}
+
+.edge-shell main .mou-form-pane .easy-field {
+  gap: 5px;
+  min-width: 0;
+}
+
+/* Sentence case, and legible while typing. */
+.edge-shell main :where(.easy-lbl, .easy-lbl-sm, .prod-field > span, .payment-conf-field > label) {
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 500;
+  color: var(--edge-dim);
+}
+
+.edge-shell main :where(.easy-inp, .pro-input) {
+  padding: 0 10px;
+  min-height: 34px;
+  font-size: 12.5px;
+}
+
+.edge-shell main .mou-form-pane textarea.easy-inp {
+  padding: 8px 10px;
+  line-height: 1.55;
+  min-height: 72px;
+}
+
+/* ── line items ───────────────────────────────────────────────────────────── */
+
+.edge-shell main .mou-form-pane .easy-line-item {
+  border-radius: 8px;
+  background: var(--edge-panel-alt);
+  border: 1px solid var(--edge-line-soft);
+}
+
+.edge-shell main .mou-form-pane .easy-add-btn {
+  min-height: 34px;
+  border-radius: 8px;
+}
+
+/* ── the action bar ───────────────────────────────────────────────────────── */
+
+.edge-shell main .mou-form-pane .easy-form > .easy-submit {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  margin: 4px 0 0;
+  min-height: 40px;
+  border-radius: 9px;
+}
+
+/* The gutter around the sticky button is masked with a spread shadow rather
+   than a ::before: the button is its own stacking context, so a negative
+   z-index child would paint over its background, not behind it. */
+.edge-shell main .mou-form-pane .easy-form > .easy-submit {
+  box-shadow: 0 0 0 20px var(--edge-shell);
+}
+
+.edge-shell main .mou-form-pane .easy-form::after {
+  content: '';
+  display: block;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+/* Stacked below 1024px the pane scrolls with the page, so nothing sticks. */
+@media (max-width: 1024px) {
+  .edge-shell main .mou-form-pane {
+    flex: none;
+    max-width: 100%;
+    min-width: 0;
+    padding: 16px 16px 32px;
+  }
+
+  .edge-shell main .mou-form-pane .easy-form > .easy-submit {
+    position: static;
+  }
+
+  .edge-shell main .mou-form-pane .easy-form > .easy-submit {
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .edge-shell main .mou-form-pane .easy-row {
+    grid-template-columns: 1fr;
+  }
+
+  .edge-shell main .mou-form-pane .easy-field.full {
+    grid-column: span 1;
   }
 }

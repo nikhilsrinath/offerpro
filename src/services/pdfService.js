@@ -2,6 +2,26 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
 /**
+ * Rasterise a live preview element at its true size.
+ *
+ * The document editors show the preview inside A4Stage, which scales the sheet
+ * down so a whole page fits the pane. html2canvas sizes its canvas from the
+ * element's getBoundingClientRect, so capturing through that transform would
+ * rasterise a fraction of the page. Drop the stage's transform for the length
+ * of the capture and restore it afterwards.
+ */
+async function captureAtFullSize(element, options) {
+  const stage = element.closest ? element.closest('.a4-stage-sheet') : null;
+  const previous = stage ? stage.style.transform : null;
+  if (stage) stage.style.transform = 'none';
+  try {
+    return await html2canvas(element, options);
+  } finally {
+    if (stage) stage.style.transform = previous;
+  }
+}
+
+/**
  * Render a professional document header in the PDF.
  * Left: logo + tagline. Right: company name, CIN, address, phone, email, website.
  * Returns the new Y position after the header.
@@ -487,7 +507,7 @@ export const pdfService = {
     }
 
     // Capture the exact DOM state as a high-resolution canvas
-    const canvas = await html2canvas(element, {
+    const canvas = await captureAtFullSize(element, {
       scale: 3,
       useCORS: true,
       logging: false,
@@ -1089,7 +1109,7 @@ export const pdfService = {
     }
 
     // Capture the exact DOM state as a high-resolution canvas
-    const canvas = await html2canvas(element, {
+    const canvas = await captureAtFullSize(element, {
       scale: 3, // High scale for crisp text (translates to ~288 DPI)
       useCORS: true,
       logging: false,

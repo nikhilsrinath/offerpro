@@ -5,6 +5,7 @@ import { documentStore } from '../../services/documentStore';
 import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
 import { useToast } from '../shared/Toast';
+import A4Stage from '../shared/A4Stage';
 
 /* ─── Constants ─── */
 const GST_RATES = [0, 5, 12, 18, 28];
@@ -702,9 +703,9 @@ function RecurringInvoiceForm({ editItem }) {
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Recurring</span>
           </div>
         </div>
-        <div className="mou-a4-scroller">
+        <A4Stage>
           <RecurringInvoicePreview formData={formData} totals={totals} dueDatePreview={dueDatePreview} company={company} />
-        </div>
+        </A4Stage>
       </div>
 
     </div>

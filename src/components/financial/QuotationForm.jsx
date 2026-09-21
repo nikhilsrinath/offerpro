@@ -10,6 +10,7 @@ import ProductPicker from '../shared/ProductPicker';
 import { productToLineItem } from '../../services/catalogService';
 import CountrySelect from '../shared/CountrySelect';
 import { useToast } from '../shared/Toast';
+import A4Stage from '../shared/A4Stage';
 
 const UNIT_OPTIONS = ['Hrs', 'Units', 'Nos', 'Kg', 'Ltr'];
 const GST_RATES = [0, 5, 12, 18, 28];
@@ -920,7 +921,7 @@ export default function QuotationForm({ editDocId }) {
             <Eye size={14} /> Preview
           </button>
         </div>
-        <div className="mou-a4-scroller">
+        <A4Stage>
           {/* Inline A4 Quotation Preview */}
           <div className="a4-sheet" id="quotation-preview-area">
             {/* Company Header */}
@@ -1367,7 +1368,7 @@ export default function QuotationForm({ editDocId }) {
               Generated via EdgeOS.
             </div>
           </div>
-        </div>
+        </A4Stage>
       </div>
     </div>
   );

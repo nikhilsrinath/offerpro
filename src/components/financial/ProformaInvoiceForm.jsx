@@ -10,6 +10,7 @@ import ProductPicker from '../shared/ProductPicker';
 import { productToLineItem } from '../../services/catalogService';
 import CountrySelect from '../shared/CountrySelect';
 import { useToast } from '../shared/Toast';
+import A4Stage from '../shared/A4Stage';
 
 const GST_RATES = [0, 5, 12, 18, 28];
 const ADVANCE_PRESETS = [25, 50, 75, 100];
@@ -760,9 +761,9 @@ export default function ProformaInvoiceForm() {
             <Eye size={14} /> Preview
           </button>
         </div>
-        <div className="mou-a4-scroller">
+        <A4Stage>
           <ProformaPreview formData={formData} totals={totals} itemCalcs={itemCalcs} company={company} activeAdvancePercent={activeAdvancePercent} />
-        </div>
+        </A4Stage>
       </div>
     </div>
   );
