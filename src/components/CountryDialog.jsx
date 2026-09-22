@@ -2,6 +2,10 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import { X, ArrowUp, ArrowDown, ArrowUpRight, ChevronRight } from 'lucide-react';
 import { periodRange } from '../services/salesGeoService';
 import { docNumber } from '../services/documentStore';
+import {
+    countsAsIncome, categoryLabel, groupOf, rowTreatment,
+    TREATMENTS, INCOME_TREATMENTS,
+} from '../services/financeCategories';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Country drill-down for the Hub's Revenue by Geography map.
@@ -9,9 +13,14 @@ import { docNumber } from '../services/documentStore';
    Overview, Customers, Documents, Products — so the pane answers a single
    question instead of showing every figure at once.
 
-   Revenue uses the same definition as sales_by_country(): issued invoices in
-   a sold state. The headline revenue prefers the RPC row the map was drawn
-   from, so the dialog can never disagree with the tooltip that led here.
+   Revenue uses the same definition as sales_by_country() after 0042: issued
+   invoices in a sold state PLUS cash-book receipts that were earned and are not
+   the collection of an invoice. The headline prefers the RPC row the map was
+   drawn from, so the dialog can never disagree with the tooltip that led here.
+
+   Money in that was not earned - funding, a loan, a refund - and money out are
+   both shown, in the Cash book tab and summarised on the Overview, but neither
+   is added to revenue.
    ══════════════════════════════════════════════════════════════════════════ */
 
 const SOLD = new Set(['sent', 'viewed', 'partially_paid', 'overdue', 'paid', 'payment_submitted']);
@@ -130,6 +139,7 @@ const Bar = ({ t, pct }) => (
 export default function CountryDialog({
     t, font, code, name, path, geoRow, rank, marketCount,
     period, periods, onPeriod, finDocs, clients, isMobile, onClose, onNavigate,
+    income = [], expenses = [],
 }) {
     const [hoverBar, setHoverBar] = useState(null);
     const [tab, setTab] = useState('overview');
@@ -203,6 +213,7 @@ export default function CountryDialog({
                 trend.push({
                     label: dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
                     value: sold.filter((d) => dateOf(d) === k).reduce((a, d) => a + val(d), 0),
+                    key: k,
                 });
             }
         } else {
@@ -214,6 +225,7 @@ export default function CountryDialog({
                 trend.push({
                     label: dt.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }),
                     value: sold.filter((d) => dateOf(d).slice(0, 7) === k).reduce((a, d) => a + val(d), 0),
+                    key: k,
                 });
             }
         }
@@ -223,15 +235,139 @@ export default function CountryDialog({
 
         return {
             revenue, collected, outstanding, overdue, overdueAmount, pipeline, offers,
-            invoiceCount: sold.length, customers, dormant, products, trend, docs, currencies,
+            invoiceCount: sold.length, customers, dormant, products, trend, docs,
+            currencies, from, to, sold,
         };
     }, [finDocs, clients, code, api]);
 
-    const revenue = geoRow ? geoRow.revenue : m.revenue;
+    /* ── the cash book, for this country and this window ──────────────────────
+       Kept in its own memo rather than folded into the one above: it depends on
+       different inputs, and a country's invoices should not be recomputed
+       because somebody recorded an unrelated expense.
+
+       Everything here is GROSS, matching the document side - a document
+       contributes grand_total, which includes GST - so the two can be added
+       without being wrong by exactly the tax. */
+    const cash = useMemo(() => {
+        const { from, to } = periodRange(api);
+        const here = (r) => String(r.country_code || '').toUpperCase() === code;
+        const within = (d) => { const k = String(d || '').slice(0, 10); return k >= from && k <= to; };
+        const gross = (r) => Number(r.amount) || 0;
+
+        const ins = income.filter((r) => here(r) && within(r.date || r.received_on));
+        // status 'pending' is an expense that has not been paid: no cash has
+        // moved, so it has no place on a cash report.
+        const outs = expenses.filter((r) => here(r) && r.status !== 'pending'
+            && within(r.paid_on || r.date || r.incurred_on));
+
+        const sum = (rows) => rows.reduce((a, r) => a + gross(r), 0);
+        const earned = ins.filter(countsAsIncome);
+
+        // One bucket per treatment, so "₹2L came in" can always be answered
+        // with "and only ₹1.4L of it was a sale".
+        const byTreatment = (rows, dir) => {
+            const map = new Map();
+            rows.forEach((r) => {
+                const key = rowTreatment(r, dir);
+                const b = map.get(key) || {
+                    key, label: TREATMENTS[key]?.label || key, amount: 0, count: 0,
+                };
+                b.amount += gross(r);
+                b.count += 1;
+                map.set(key, b);
+            });
+            return [...map.values()].sort((a, b) => b.amount - a.amount);
+        };
+
+        // And one per category group, which is the layer a person actually
+        // recognises: "People & labour", not "operating".
+        // No direction argument: groupOf() is keyed on the category alone, and
+        // an income key and an expense key can never collide.
+        const byGroup = (rows) => {
+            const map = new Map();
+            rows.forEach((r) => {
+                const key = groupOf(r.category) || 'Other';
+                const b = map.get(key) || { key, amount: 0, count: 0, items: new Map() };
+                b.amount += gross(r);
+                b.count += 1;
+                const label = categoryLabel(r.category) || r.category;
+                b.items.set(label, (b.items.get(label) || 0) + gross(r));
+                map.set(key, b);
+            });
+            return [...map.values()]
+                .map((b) => ({
+                    ...b,
+                    items: [...b.items.entries()]
+                        .map(([label, amount]) => ({ label, amount }))
+                        .sort((a, b2) => b2.amount - a.amount),
+                }))
+                .sort((a, b) => b.amount - a.amount);
+        };
+
+        const byMethod = (rows) => {
+            const map = new Map();
+            rows.forEach((r) => {
+                const key = (r.payment_method || 'other').replace(/_/g, ' ');
+                map.set(key, (map.get(key) || 0) + gross(r));
+            });
+            return [...map.entries()].map(([label, amount]) => ({ label, amount }))
+                .sort((a, b) => b.amount - a.amount);
+        };
+
+        const cashIn = sum(ins);
+        const cashOut = sum(outs);
+        const entries = [
+            ...ins.map((r) => ({ ...r, dir: 'in', on: r.date || r.received_on })),
+            ...outs.map((r) => ({ ...r, dir: 'out', on: r.paid_on || r.date || r.incurred_on })),
+        ].sort((a, b) => String(b.on).localeCompare(String(a.on)));
+
+        return {
+            ins, outs, entries,
+            direct: sum(earned),
+            directCount: earned.length,
+            cashIn, cashOut, netCash: cashIn - cashOut,
+            notEarned: cashIn - sum(earned),
+            taxIn: ins.reduce((a, r) => a + (Number(r.tax_amount) || 0), 0),
+            taxOut: outs.reduce((a, r) => a + (Number(r.tax_amount) || 0), 0),
+            inByTreatment: byTreatment(ins, 'in'),
+            outByGroup: byGroup(outs),
+            inByGroup: byGroup(ins),
+            methodsIn: byMethod(ins),
+            // Only the spend that is actually a cost. capex buys an asset and
+            // financing repays a loan; neither belongs in a margin.
+            operatingOut: outs.filter((r) => rowTreatment(r, 'out') === 'operating')
+                .reduce((a, r) => a + gross(r), 0),
+            currencies: [...new Set([...ins, ...outs].map((r) => r.currency)
+                .filter((c) => c && c !== 'INR'))],
+        };
+    }, [income, expenses, code, api]);
+
+    // The document figures plus the cash book, which is what 0042's `revenue`
+    // means. Computed locally as well so the dialog still adds up when the RPC
+    // is unavailable and the Hub fell back to the client cache.
+    const localRevenue = m.revenue + cash.direct;
+    const revenue = geoRow ? geoRow.revenue : localRevenue;
+    // A direct receipt is money already in hand, so it is collected by
+    // definition - there is nothing left to chase on it.
+    const collected = m.collected + cash.direct;
     const prev = geoRow?.prevRevenue || 0;
     const growth = prev > 0 ? ((revenue - prev) / prev) * 100 : null;
-    const collectedPct = m.revenue > 0 ? Math.min(100, (m.collected / m.revenue) * 100) : 0;
-    const trendMax = Math.max(...m.trend.map((x) => x.value), 1);
+    const collectedPct = localRevenue > 0 ? Math.min(100, (collected / localRevenue) * 100) : 0;
+    // Net margin on the cash that actually moved: earned income less the spend
+    // that is genuinely a cost. Deliberately not "revenue - everything out".
+    const marginBase = localRevenue;
+    const netHere = localRevenue - cash.operatingOut;
+    // The bars are documents + direct receipts, bucketed on the same key the
+    // document side used: a full date for 30D, a year-month otherwise.
+    const trend = useMemo(() => m.trend.map((b) => {
+        const extra = cash.ins.filter(countsAsIncome).reduce((a, r) => {
+            const k = String(r.date || r.received_on || '').slice(0, b.key.length);
+            return k === b.key ? a + (Number(r.amount) || 0) : a;
+        }, 0);
+        return { ...b, value: b.value + extra, direct: extra };
+    }), [m.trend, cash.ins]);
+
+    const trendMax = Math.max(...trend.map((x) => x.value), 1);
     const fill = t.scale[geoRow?.level || 0];
 
     const go = (to) => { onClose(); onNavigate(to); };
@@ -302,6 +438,7 @@ export default function CountryDialog({
                         <div style={{ fontSize: 9.5, color: t.faint, marginTop: 4 }}>
                             {(geoRow?.share || 0).toFixed(1)}% of total revenue
                             {m.currencies.length ? ' · billed in ' + m.currencies.join(', ') : ''}
+                            {cash.currencies.length ? ' · cash in ' + cash.currencies.join(', ') : ''}
                         </div>
                     </div>
                 </div>
@@ -337,6 +474,7 @@ export default function CountryDialog({
                         { id: 'customers', label: 'Customers', count: m.customers.length },
                         { id: 'documents', label: 'Documents', count: m.docs.length },
                         { id: 'products', label: 'Products', count: m.products.length },
+                        { id: 'cash', label: 'Cash book', count: cash.entries.length },
                     ]} />
 
                     {/* flex:1 + minHeight:0 is what lets this pane scroll; without
@@ -349,11 +487,15 @@ export default function CountryDialog({
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                                 {/* billed → collected → outstanding, on one bar */}
                                 <div>
-                                    <Label t={t}>BILLED THIS PERIOD</Label>
+                                    <Label t={t} right={cash.direct > 0
+                                        ? <span style={{ letterSpacing: 0 }}>
+                                            {inr(m.revenue)} invoiced · {inr(cash.direct)} direct
+                                          </span>
+                                        : null}>EARNED THIS PERIOD</Label>
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12 }}>
                                         {[
                                             ['Revenue', revenue, t.text],
-                                            ['Collected', m.collected, t.text],
+                                            ['Collected', collected, t.text],
                                             ['Outstanding', m.outstanding, m.outstanding > 0 ? t.text : t.faint],
                                         ].map(([k, v, c]) => (
                                             <div key={k} style={{ minWidth: 0 }}>
@@ -368,15 +510,60 @@ export default function CountryDialog({
                                     <div style={{ height: 5, background: t.scale[0], borderRadius: 3, overflow: 'hidden', marginTop: 14 }}>
                                         <div style={{ height: '100%', width: collectedPct + '%', background: t.text, transition: 'width .4s cubic-bezier(.16,1,.3,1)' }} />
                                     </div>
-                                    <div style={{ fontSize: 9.5, color: t.faint, marginTop: 6 }}>{collectedPct.toFixed(0)}% collected</div>
+                                    <div style={{ fontSize: 9.5, color: t.faint, marginTop: 6 }}>
+                                        {collectedPct.toFixed(0)}% collected
+                                        {cash.direct > 0 ? ' · direct receipts counted as collected' : ''}
+                                    </div>
                                 </div>
 
+                                {/* CASH MOVED - a different question from "what did
+                                    we earn", and answered separately for that reason.
+                                    Hidden entirely when this country has no cash book,
+                                    so an invoice-only market sees the pane it always
+                                    saw rather than three zeroes. */}
+                                {(cash.cashIn > 0 || cash.cashOut > 0) && (
+                                    <div>
+                                        <Label t={t} right={(cash.ins.length + cash.outs.length)
+                                            + ' entries'}>CASH MOVED HERE</Label>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12 }}>
+                                            {[
+                                                ['In', cash.cashIn, t.text],
+                                                ['Out', cash.cashOut, cash.cashOut > 0 ? t.down : t.faint],
+                                                [cash.netCash >= 0 ? 'Net' : 'Net out', Math.abs(cash.netCash),
+                                                    cash.netCash >= 0 ? t.up : t.down],
+                                            ].map(([k, v, c]) => (
+                                                <div key={k} style={{ minWidth: 0 }}>
+                                                    <div style={{ fontSize: 10, color: t.faint, marginBottom: 5 }}>{k}</div>
+                                                    <div title={inr(v)} style={{
+                                                        fontSize: isMobile ? 16 : 20, letterSpacing: '-0.045em', color: c,
+                                                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                                    }}>₹{fmtCompact(v)}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div style={{ fontSize: 9.5, color: t.faint, marginTop: 8, lineHeight: 1.5 }}>
+                                            {cash.notEarned > 0
+                                                ? inr(cash.notEarned) + ' of the money in was not earned — funding, a refund or an invoice being settled — so it is not in revenue. '
+                                                : ''}
+                                            {cash.operatingOut > 0
+                                                ? inr(cash.operatingOut) + ' of the money out is a running cost; the rest bought an asset, repaid a loan or was tax or a drawing.'
+                                                : ''}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div>
-                                    <Label t={t} right={hoverBar !== null && m.trend[hoverBar]
-                                        ? <span style={{ color: t.text }}>{m.trend[hoverBar].label} · {inr(m.trend[hoverBar].value)}</span>
+                                    <Label t={t} right={hoverBar !== null && trend[hoverBar]
+                                        ? (
+                                            <span style={{ color: t.text }}>
+                                                {trend[hoverBar].label} · {inr(trend[hoverBar].value)}
+                                                {trend[hoverBar].direct > 0
+                                                    ? ' (incl ' + inr(trend[hoverBar].direct) + ' direct)' : ''}
+                                            </span>
+                                        )
                                         : (api === '30d' ? 'daily' : 'monthly')}>REVENUE TREND</Label>
                                     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 96 }}>
-                                        {m.trend.map((b, i) => (
+                                        {trend.map((b, i) => (
                                             <div key={i}
                                                  onMouseEnter={() => setHoverBar(i)} onMouseLeave={() => setHoverBar(null)}
                                                  style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'flex-end', cursor: 'crosshair' }}>
@@ -389,8 +576,8 @@ export default function CountryDialog({
                                         ))}
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: t.faint, marginTop: 6 }}>
-                                        <span>{m.trend[0]?.label}</span>
-                                        <span>{m.trend[m.trend.length - 1]?.label}</span>
+                                        <span>{trend[0]?.label}</span>
+                                        <span>{trend[trend.length - 1]?.label}</span>
                                     </div>
                                 </div>
 
@@ -418,6 +605,27 @@ export default function CountryDialog({
                                         {m.products[0] && (
                                             <Row t={t} label="Top product" value={'₹' + fmtCompact(m.products[0].amount)}
                                                  note={m.products[0].name} onClick={() => setTab('products')} />
+                                        )}
+                                        {cash.directCount > 0 && (
+                                            <Row t={t} label="Direct receipts" value={'₹' + fmtCompact(cash.direct)}
+                                                 note={cash.directCount + (cash.directCount === 1 ? ' entry' : ' entries') + ' · no invoice'}
+                                                 onClick={() => setTab('cash')} />
+                                        )}
+                                        {cash.cashOut > 0 && (
+                                            <Row t={t} label="Spent here" value={'₹' + fmtCompact(cash.cashOut)}
+                                                 note={cash.outs.length + (cash.outs.length === 1 ? ' payment' : ' payments')}
+                                                 tone={t.down} onClick={() => setTab('cash')} />
+                                        )}
+                                        {(cash.cashIn > 0 || cash.cashOut > 0) && marginBase > 0 && (
+                                            <Row t={t} label="Net of running costs"
+                                                 value={(netHere < 0 ? '−₹' : '₹') + fmtCompact(Math.abs(netHere))}
+                                                 note={((netHere / marginBase) * 100).toFixed(0) + '% margin'}
+                                                 tone={netHere < 0 ? t.down : undefined} />
+                                        )}
+                                        {(cash.taxIn > 0 || cash.taxOut > 0) && (
+                                            <Row t={t} label="GST in cash entries"
+                                                 value={'₹' + fmtCompact(cash.taxIn - cash.taxOut)}
+                                                 note={'₹' + fmtCompact(cash.taxIn) + ' out · ₹' + fmtCompact(cash.taxOut) + ' in'} />
                                         )}
                                         <Row t={t} label="Previous period" value={'₹' + fmtCompact(prev)}
                                              note={growth !== null ? (growth >= 0 ? '+' : '') + growth.toFixed(1) + '%' : null} />
@@ -500,6 +708,99 @@ export default function CountryDialog({
                             )
                         )}
 
+                        {tab === 'cash' && (
+                            cash.entries.length === 0
+                                ? <Empty t={t}>No cash recorded against {name} in this period</Empty>
+                                : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                                        {/* Money in, by what it actually was. The treatment
+                                            is the answer to "is this revenue?", so it leads. */}
+                                        {cash.inByTreatment.length > 0 && (
+                                            <div>
+                                                <Label t={t} right={inr(cash.cashIn)}>MONEY IN</Label>
+                                                <div style={{ borderBottom: '1px solid ' + t.lineSoft }}>
+                                                    {cash.inByTreatment.map((b) => (
+                                                        <Row key={b.key} t={t} label={b.label}
+                                                             value={'₹' + fmtCompact(b.amount)}
+                                                             note={b.count + (b.count === 1 ? ' entry' : ' entries')
+                                                                 + (INCOME_TREATMENTS.has(b.key) ? ' · counts as revenue' : ' · not revenue')}
+                                                             tone={INCOME_TREATMENTS.has(b.key) ? undefined : t.dim} />
+                                                    ))}
+                                                </div>
+                                                {/* The categories behind those treatments, which
+                                                    is the layer somebody recognises: "Counter sale",
+                                                    not "revenue". */}
+                                                {cash.inByGroup.length > 0 && (
+                                                    <div style={{ fontSize: 9.5, color: t.faint, marginTop: 8, lineHeight: 1.6 }}>
+                                                        {cash.inByGroup.map((g) => g.key + ': '
+                                                            + g.items.map((it) => it.label + ' ₹' + fmtCompact(it.amount)).join(', ')).join(' · ')}
+                                                    </div>
+                                                )}
+                                                {cash.methodsIn.length > 1 && (
+                                                    <div style={{ fontSize: 9.5, color: t.faint, marginTop: 6 }}>
+                                                        received by {cash.methodsIn.map((x) => x.label + ' ₹' + fmtCompact(x.amount)).join(' · ')}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Money out, by the group a person recognises,
+                                            with the categories underneath it. */}
+                                        {cash.outByGroup.length > 0 && (
+                                            <div>
+                                                <Label t={t} right={inr(cash.cashOut)}>MONEY OUT</Label>
+                                                {cash.outByGroup.map((g) => (
+                                                    <div key={g.key} style={{ borderTop: '1px solid ' + t.lineSoft, padding: '10px 0' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                            <span style={{ flex: 1, minWidth: 0, fontSize: 11.5 }}>{g.key}</span>
+                                                            <span style={{ fontSize: 11.5 }}>₹{fmtCompact(g.amount)}</span>
+                                                        </div>
+                                                        <Bar t={t} pct={(g.amount / (cash.outByGroup[0].amount || 1)) * 100} />
+                                                        <div style={{ fontSize: 9.5, color: t.faint, marginTop: 6, lineHeight: 1.6 }}>
+                                                            {g.items.map((it) => it.label + ' ₹' + fmtCompact(it.amount)).join(' · ')}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        <div>
+                                            <Label t={t} right="newest first">EVERY ENTRY</Label>
+                                            {cash.entries.map((r) => (
+                                                <button key={r.dir + r.id} type="button" className="cd-row"
+                                                        onClick={() => go('/cashbook')} style={listRow(t)}>
+                                                    <span aria-hidden="true" style={{
+                                                        width: 18, flexShrink: 0, fontSize: 12,
+                                                        color: r.dir === 'in' ? t.up : t.down,
+                                                    }}>{r.dir === 'in' ? '+' : '−'}</span>
+                                                    <span style={{ flex: 1, minWidth: 0 }}>
+                                                        <span style={line1}>{r.description}</span>
+                                                        <span style={line2(t)}>
+                                                            {categoryLabel(r.category) || r.category}
+                                                            {' · ' + fmtDate(r.on)}
+                                                            {r.currency && r.currency !== 'INR'
+                                                                ? ' · ' + r.currency + ' ' + (Number(r.original_amount) || 0).toLocaleString('en-IN')
+                                                                : ''}
+                                                            {r.place_of_supply ? ' · ' + r.place_of_supply : ''}
+                                                        </span>
+                                                    </span>
+                                                    <span style={{ textAlign: 'right', flexShrink: 0 }}>
+                                                        <span style={{ ...line1, color: r.dir === 'in' ? t.text : t.down }}>
+                                                            {inr(Number(r.amount) || 0)}
+                                                        </span>
+                                                        <span style={line2(t)}>
+                                                            {TREATMENTS[rowTreatment(r, r.dir)]?.label || rowTreatment(r, r.dir)}
+                                                            {Number(r.tax_amount) > 0 ? ' · GST ₹' + fmtCompact(r.tax_amount) : ''}
+                                                        </span>
+                                                    </span>
+                                                    <ChevronRight size={12} style={{ color: t.faint, flexShrink: 0 }} />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )
+                        )}
+
                         {tab === 'products' && (
                             m.products.length === 0 ? <Empty t={t}>No line items billed to {name}</Empty> : (
                                 <div>
@@ -527,7 +828,7 @@ export default function CountryDialog({
                         padding: '7px 12px', borderTop: '1px solid ' + t.line,
                     }}>
                         <span style={{ fontSize: 9, color: t.faint, letterSpacing: '0.08em', marginRight: 6 }}>OPEN</span>
-                        {[['Customers', '/customers'], ['Invoices', '/invoices'], ['Quotations', '/quotations'], ['Revenue', '/revenue']].map(([label, to]) => (
+                        {[['Customers', '/customers'], ['Invoices', '/invoices'], ['Cash book', '/cashbook'], ['Revenue', '/revenue']].map(([label, to]) => (
                             <button key={to} type="button" className="nm-nav" onClick={() => go(to)} style={{
                                 display: 'inline-flex', alignItems: 'center', gap: 3, fontFamily: font, fontSize: 10.5,
                                 padding: '4px 7px', border: 'none', borderRadius: 5,

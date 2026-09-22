@@ -11,6 +11,7 @@ import { useProfileCompletion } from '../../hooks/useProfileCompletion';
 import { documentStore } from '../../services/documentStore';
 import { getPlanConfig, DEFAULT_PLAN } from '../../services/planConfig';
 import { RailSlotContext } from './railSlot';
+import { useRailPin, RailPinButton } from './railPin';
 import MobileNav from './MobileNav';
 import './edgeBridge.css';
 
@@ -66,7 +67,9 @@ export default function ModuleShell({
     const [hoverRail, setHoverRail] = useState(false);
     // A page that supplies its own rail content keeps the rail open: its
     // sections are the menu, and a menu that hides on mouse-out is not one.
-    const rail = railSlot || hoverRail;
+    // Pinning does the same by choice, and the choice follows you everywhere.
+    const [railPinned, setRailPinned] = useRailPin();
+    const rail = railSlot || railPinned || hoverRail;
     const [slotEl, setSlotEl] = useState(null);
     const [menu, setMenu] = useState(null);
     const [notifs, setNotifs] = useState([]);
@@ -153,18 +156,29 @@ export default function ModuleShell({
                         transition: 'width .22s cubic-bezier(.16,1,.3,1)',
                     }}
                 >
-                    <Link to="/hub" title="Back to hub" aria-label="Back to hub" className="edge-navitem" style={{
+                    <div style={{
                         display: 'flex', alignItems: 'center', gap: 11,
                         height: 53, padding: '0 18px', flexShrink: 0,
                         borderBottom: '1px solid ' + t.line,
-                        textDecoration: 'none', color: t.text,
                     }}>
-                        <ArrowLeft aria-hidden="true" size={17} strokeWidth={1.8} style={{ flexShrink: 0, marginLeft: 1 }} />
-                        <span aria-hidden="true" style={{
-                            fontSize: 11.5, whiteSpace: 'nowrap', color: t.dim,
-                            opacity: rail ? 1 : 0, transition: 'opacity .16s',
-                        }}>Back to hub</span>
-                    </Link>
+                        <Link to="/hub" title="Back to hub" aria-label="Back to hub" className="edge-navitem" style={{
+                            display: 'flex', alignItems: 'center', gap: 11, minWidth: 0, flex: 1,
+                            textDecoration: 'none', color: t.text,
+                        }}>
+                            <ArrowLeft aria-hidden="true" size={17} strokeWidth={1.8} style={{ flexShrink: 0, marginLeft: 1 }} />
+                            <span aria-hidden="true" style={{
+                                fontSize: 11.5, whiteSpace: 'nowrap', color: t.dim,
+                                opacity: rail ? 1 : 0, transition: 'opacity .16s',
+                            }}>Back to hub</span>
+                        </Link>
+                        {/* A page-owned rail is always open, so there is nothing to pin. */}
+                        {!railSlot && (
+                            <RailPinButton
+                                t={t} pinned={railPinned} visible={rail}
+                                onToggle={() => { setRailPinned(!railPinned); setHoverRail(false); }}
+                            />
+                        )}
+                    </div>
 
                     {railSlot ? (
                         <div ref={setSlotEl} className="edge-scroll" style={{

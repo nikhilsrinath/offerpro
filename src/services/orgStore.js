@@ -283,6 +283,8 @@ const SECTIONS = {
     }),
   },
 
+  // Money out. `treatment` and `paid_on` are stamped by app.expense_guard()
+  // (0038); whatever is sent for them is ignored, so toRow does not send them.
   expenses: {
     table: 'expenses',
     order: 'incurred_on',
@@ -291,15 +293,100 @@ const SECTIONS = {
       category: r.category, date: r.incurred_on, incurred_on: r.incurred_on,
       tax_amount: Number(r.tax_amount) || 0, receipt_path: r.receipt_path || null,
       vendor_id: r.vendor_id || null,
-      created_at: r.created_at,
+      treatment: r.treatment || 'operating',
+      payment_method: r.payment_method || 'bank_transfer',
+      reference: r.reference || null,
+      employee_id: r.employee_id || null, product_id: r.product_id || null,
+      status: r.status || 'paid', paid_on: r.paid_on || null,
+      notes: r.notes || null,
+      // 0041 dimensions. `amount` above is the base-currency figure every total
+      // sums; original_amount is what was actually paid, in `currency`.
+      country_code: r.country_code || null, place_of_supply: r.place_of_supply || null,
+      is_inter_state: r.is_inter_state === true,
+      tax_rate: Number(r.tax_rate) || 0,
+      currency: r.currency || 'INR', fx_rate: Number(r.fx_rate) || 1,
+      original_amount: r.original_amount == null ? Number(r.amount) || 0 : Number(r.original_amount),
+      department_id: r.department_id || null, client_id: r.client_id || null,
+      billable: r.billable === true,
+      quantity: r.quantity == null ? null : Number(r.quantity), unit: r.unit || null,
+      created_at: r.created_at, updated_at: r.updated_at,
     }),
+    // `amount` is deliberately NOT sent: app.expense_guard() derives it from
+    // original_amount × fx_rate (0041). Sending both would have the guard
+    // recompute it from the old original on every edit and silently discard the
+    // change.
     toRow: (i) => ({
-      description: i.description || '', amount: num(i.amount, 0),
-      category: i.category || 'Operations',
+      description: i.description || '',
+      original_amount: num(i.original_amount ?? i.amount, 0),
+      currency: (i.currency || 'INR').toUpperCase(),
+      fx_rate: num(i.fx_rate, 1) || 1,
+      category: i.category || 'other_expense',
       incurred_on: date(i.date || i.incurred_on) || date(nowIso()),
-      tax_amount: num(i.tax_amount, 0),
+      tax_amount: num(i.tax_amount, 0), tax_rate: num(i.tax_rate, 0),
       receipt_path: nn(i.receipt_path),
       vendor_id: nn(i.vendor_id),
+      payment_method: i.payment_method || 'bank_transfer',
+      reference: nn(i.reference),
+      employee_id: nn(i.employee_id), product_id: nn(i.product_id),
+      department_id: nn(i.department_id), client_id: nn(i.client_id),
+      billable: bool(i.billable, false),
+      country_code: nn(i.country_code), place_of_supply: nn(i.place_of_supply),
+      is_inter_state: bool(i.is_inter_state, false),
+      quantity: i.quantity === '' || i.quantity == null ? null : num(i.quantity, 0),
+      unit: nn(i.unit),
+      status: i.status === 'pending' ? 'pending' : 'paid',
+      notes: nn(i.notes),
+    }),
+  },
+
+  // Money in that no invoice represents (0038). `treatment`, `net_amount` and
+  // `country_code` are derived by app.income_entry_guard(), so they are read
+  // back but never sent.
+  income_entries: {
+    table: 'income_entries',
+    order: 'received_on',
+    orderDesc: true,
+    fromRow: (r) => ({
+      id: r.id, description: r.description, category: r.category,
+      treatment: r.treatment,
+      amount: Number(r.amount) || 0,
+      tax_amount: Number(r.tax_amount) || 0,
+      net_amount: Number(r.net_amount) || 0,
+      // `date` alongside received_on for the same reason expenses carries both:
+      // the shared period filters read `date` on every kind of entry.
+      date: r.received_on, received_on: r.received_on,
+      client_id: r.client_id || null, document_id: r.document_id || null,
+      payment_method: r.payment_method || 'bank_transfer',
+      reference: r.reference || null, country_code: r.country_code || null,
+      receipt_path: r.receipt_path || null, notes: r.notes || null,
+      place_of_supply: r.place_of_supply || null,
+      is_inter_state: r.is_inter_state === true,
+      tax_rate: Number(r.tax_rate) || 0,
+      currency: r.currency || 'INR', fx_rate: Number(r.fx_rate) || 1,
+      original_amount: r.original_amount == null ? Number(r.amount) || 0 : Number(r.original_amount),
+      catalog_item_id: r.catalog_item_id || null,
+      quantity: r.quantity == null ? null : Number(r.quantity), unit: r.unit || null,
+      created_at: r.created_at, updated_at: r.updated_at,
+    }),
+    // As with expenses: `amount` is derived by the guard from original_amount ×
+    // fx_rate and must not be sent.
+    toRow: (i) => ({
+      description: i.description || '',
+      category: i.category || 'other_income',
+      original_amount: num(i.original_amount ?? i.amount, 0),
+      currency: (i.currency || 'INR').toUpperCase(),
+      fx_rate: num(i.fx_rate, 1) || 1,
+      tax_amount: num(i.tax_amount, 0), tax_rate: num(i.tax_rate, 0),
+      received_on: date(i.date || i.received_on) || date(nowIso()),
+      client_id: nn(i.client_id), document_id: nn(i.document_id),
+      catalog_item_id: nn(i.catalog_item_id),
+      payment_method: i.payment_method || 'bank_transfer',
+      reference: nn(i.reference),
+      country_code: nn(i.country_code), place_of_supply: nn(i.place_of_supply),
+      is_inter_state: bool(i.is_inter_state, false),
+      quantity: i.quantity === '' || i.quantity == null ? null : num(i.quantity, 0),
+      unit: nn(i.unit),
+      receipt_path: nn(i.receipt_path), notes: nn(i.notes),
     }),
   },
 

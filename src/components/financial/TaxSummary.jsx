@@ -14,6 +14,7 @@ export default function TaxSummary() {
   const docs = useSection('fin_docs');
   const purchases = useSection('purchase_invoices');
   const expenses = useSection('expenses');
+  const income = useSection('income_entries');
   const vendors = useSection('vendors');
 
   const [kind, setKind] = useState('month');
@@ -22,8 +23,8 @@ export default function TaxSummary() {
   const period = options.find((o) => o.id === periodId) || options[0];
 
   const summary = useMemo(
-    () => taxSummary({ docs, purchases, expenses, vendors }, period.from, period.to),
-    [docs, purchases, expenses, vendors, period.from, period.to],
+    () => taxSummary({ docs, purchases, expenses, income, vendors }, period.from, period.to),
+    [docs, purchases, expenses, income, vendors, period.from, period.to],
   );
   const net = summary.netPayable;
 
@@ -69,7 +70,7 @@ export default function TaxSummary() {
       </div>
 
       <div className="prod-stats">
-        <Stat icon={<ArrowUpRight size={15} />} label={`Output GST · ${summary.output.count} invoices`} value={money(summary.output.gst, 2)}
+        <Stat icon={<ArrowUpRight size={15} />} label={`Output GST · ${summary.output.count} sales`} value={money(summary.output.gst, 2)}
           sub={summary.output.igst > 0 ? `IGST ${money(summary.output.igst)} · CGST ${money(summary.output.cgst)} · SGST ${money(summary.output.sgst)}`
             : `CGST ${money(summary.output.cgst)} · SGST ${money(summary.output.sgst)}`} />
         <Stat icon={<ArrowDownLeft size={15} />} label={`Input GST · ${summary.input.count} bills & expenses`} value={money(summary.input.gst, 2)}
@@ -80,9 +81,40 @@ export default function TaxSummary() {
 
       <p className="prod-perf-note">
         {period.label}: {fmtDate(period.from)} – {fmtDate(period.to)}. Output GST is taken from issued invoices
-        by issue date; drafts and cancelled invoices are excluded. Input GST is from purchase invoices and from
-        the GST amount entered on expenses.
+        by issue date, plus the GST on cash-book receipts that are not against an invoice; drafts and cancelled
+        invoices are excluded. A cash-book receipt has no place of supply, so its GST is split as CGST and SGST.
+        Input GST is from purchase invoices and from the GST entered on expenses. The rate-wise table
+        is the shape a return asks for: a single total cannot be entered into GSTR-1, which wants the
+        taxable value and the tax at each slab.
       </p>
+
+      {summary.byRate.length > 0 && (
+        <div className="prod-perf-table-wrap" style={{ marginBottom: '1rem' }}>
+          <table className="prod-perf-table">
+            <caption className="sr-only">GST by rate, for the selected period</caption>
+            <thead>
+              <tr>
+                <th scope="col">Rate-wise</th>
+                <th scope="col" className="num">Rate</th>
+                <th scope="col" className="num">Entries</th>
+                <th scope="col" className="num">Taxable value</th>
+                <th scope="col" className="num">GST</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summary.byRate.map((b) => (
+                <tr key={b.key}>
+                  <td style={{ color: b.kind === 'Output' ? 'var(--error)' : 'var(--success)', fontWeight: 600, fontSize: '0.75rem' }}>{b.kind}</td>
+                  <td className="num">{b.rate ? `${Number(b.rate)}%` : 'Nil / exempt'}</td>
+                  <td className="num">{b.count}</td>
+                  <td className="num">{money(b.taxable, 2)}</td>
+                  <td className="num strong">{money(b.gst, 2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {summary.rows.length === 0 ? (
         <div className="prod-empty">
@@ -93,7 +125,7 @@ export default function TaxSummary() {
         <div className="prod-perf-table-wrap">
           <table className="prod-perf-table">
             <thead>
-              <tr><th>Date</th><th>Type</th><th>Reference</th><th>Party</th><th className="num">Taxable value</th><th className="num">GST</th></tr>
+              <tr><th scope="col">Date</th><th scope="col">Type</th><th scope="col">Reference</th><th scope="col">Party</th><th scope="col" className="num">Rate</th><th scope="col">Kind</th><th scope="col" className="num">Taxable value</th><th scope="col" className="num">GST</th></tr>
             </thead>
             <tbody>
               {summary.rows.map((r, i) => (
@@ -102,6 +134,8 @@ export default function TaxSummary() {
                   <td style={{ color: r.kind === 'Output' ? 'var(--error)' : 'var(--success)', fontWeight: 600, fontSize: '0.75rem' }}>{r.kind}</td>
                   <td>{r.ref}</td>
                   <td>{r.party}</td>
+                  <td className="num">{r.rate ? `${Number(r.rate)}%` : '—'}</td>
+                  <td style={{ fontSize: '0.75rem' }}>{r.gst > 0 ? (r.interState ? 'IGST' : 'CGST+SGST') : '—'}</td>
                   <td className="num">{money(r.taxable, 2)}</td>
                   <td className="num strong">{money(r.gst, 2)}</td>
                 </tr>
@@ -109,7 +143,7 @@ export default function TaxSummary() {
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={5}>{net >= 0 ? 'Net payable (output − input)' : 'Net credit (input − output)'}</td>
+                <td colSpan={7}>{net >= 0 ? 'Net payable (output − input)' : 'Net credit (input − output)'}</td>
                 <td className="num strong">{money(Math.abs(net), 2)}</td>
               </tr>
             </tfoot>

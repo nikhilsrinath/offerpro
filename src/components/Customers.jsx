@@ -12,7 +12,7 @@ import CountrySelect from './shared/CountrySelect';
 
 const EMPTY_CUSTOMER = {
   clientName: '', clientEmail: '', clientAddress: '',
-  buyerGSTIN: '', buyerState: '', contactPhone: '',
+  buyerGSTIN: '', buyerState: '', contactPhone: '', notes: '',
   // Optional. Left blank, a document billed to this customer falls back to the
   // GST state (an Indian state implies India) and then to your organisation's
   // own country — so Sales by Countries works without anyone filling this in.
@@ -141,6 +141,14 @@ function CustomerDetail({ customer, orgId, onBack, onEdit }) {
               <MapPin size={12} style={{ opacity: 0.5, flexShrink: 0 }} /> {customer.clientAddress}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Note */}
+      {customer.notes && (
+        <div style={{ padding: '0.75rem 1rem', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: '10px' }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Note</div>
+          <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{customer.notes}</div>
         </div>
       )}
 
@@ -312,6 +320,7 @@ export default function Customers() {
       buyerState:    customer.buyerState    || '',
       country_code:  customer.country_code  || '',
       contactPhone:  customer.contactPhone  || '',
+      notes:         customer.notes         || '',
     });
     setModalOpen(true);
   };
@@ -376,7 +385,7 @@ export default function Customers() {
           <div className="customer-modal-overlay" onClick={() => setModalOpen(false)}>
             <DialogSheet className="customer-modal" labelledBy="customer-edit-title" onClose={() => setModalOpen(false)}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                <h3 id="customer-edit-title" style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>Edit Customer</h3>
+                <h3 id="customer-edit-title" style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>Edit Client</h3>
                 <button type="button" aria-label="Close" title="Close (Esc)" onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '0.25rem' }}>
                   <X aria-hidden="true" size={20} />
                 </button>
@@ -421,10 +430,17 @@ export default function Customers() {
                       onChange={code => setFormData({ ...formData, country_code: code })}
                     />
                   </div>
+                  <div className="easy-field full">
+                    <label className="easy-lbl">Note</label>
+                    <textarea aria-label="Note" placeholder="Anything worth remembering about this client" rows={3}
+                      value={formData.notes}
+                      onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                      className="easy-inp" style={{ resize: 'none' }} />
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
                   <button type="submit" disabled={saving} className="easy-submit" style={{ flex: 1 }}>
-                    {saving ? 'Saving...' : 'Update Customer'}
+                    {saving ? 'Saving...' : 'Update Client'}
                   </button>
                   <button type="button" onClick={() => setModalOpen(false)} className="easy-submit-outline" style={{ flex: 0.5 }}>
                     Cancel
@@ -478,7 +494,7 @@ export default function Customers() {
           <option value="gstin">GSTIN A–Z</option>
         </select>
         <button onClick={openAdd} className="easy-submit" style={{ width: 'auto', padding: '0.625rem 1.25rem', fontSize: '0.8125rem' }}>
-          <Plus size={16} /> Add Customer
+          <Plus size={16} /> Add Client
         </button>
       </div>
 
@@ -573,7 +589,7 @@ export default function Customers() {
           <DialogSheet className="customer-modal" labelledBy="customer-form-title" onClose={() => setModalOpen(false)}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
               <h3 id="customer-form-title" style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>
-                {editingCustomer ? 'Edit Customer' : 'Add Customer'}
+                {editingCustomer ? 'Edit Client' : 'Add Client'}
               </h3>
               <button type="button" aria-label="Close" title="Close (Esc)" onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '0.25rem' }}>
                 <X aria-hidden="true" size={20} />
@@ -619,10 +635,17 @@ export default function Customers() {
                     onChange={code => setFormData({ ...formData, country_code: code })}
                   />
                 </div>
+                <div className="easy-field full">
+                  <label className="easy-lbl">Note</label>
+                  <textarea aria-label="Note" placeholder="Anything worth remembering about this client" rows={3}
+                    value={formData.notes}
+                    onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                    className="easy-inp" style={{ resize: 'none' }} />
+                </div>
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
                 <button type="submit" disabled={saving} className="easy-submit" style={{ flex: 1 }}>
-                  {saving ? 'Saving...' : editingCustomer ? 'Update Customer' : 'Add Customer'}
+                  {saving ? 'Saving...' : editingCustomer ? 'Update Client' : 'Add Client'}
                 </button>
                 <button type="button" onClick={() => setModalOpen(false)} className="easy-submit-outline" style={{ flex: 0.5 }}>
                   Cancel

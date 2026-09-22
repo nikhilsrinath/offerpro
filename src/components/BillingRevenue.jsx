@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   DollarSign, TrendingUp, TrendingDown, Plus, Trash2,
-  Receipt, Wallet, PiggyBank, Package, Paperclip, Upload
+  Receipt, Wallet, PiggyBank, Package, Paperclip, Upload, Banknote
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -11,12 +11,11 @@ import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
 import { orgStore } from '../services/orgStore';
 import { catalogService } from '../services/catalogService';
+import { netOfTax } from '../services/financeAnalytics';
 import { useOrg } from '../context/OrgContext';
 import { useNavigate } from 'react-router-dom';
 import { receiptService, RECEIPT_ACCEPT } from '../services/receiptService';
-import { ReceiptField } from './financial/financeUi';
-
-const EXPENSE_CATEGORIES = ['Operations', 'Marketing', 'Salaries', 'Tools & Software', 'Office', 'Travel', 'Other'];
+import { categoryLabel, countsAsIncome, groupOf, loadFinanceCategories } from '../services/financeCategories';
 
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const chartStyles = () => ({
@@ -32,19 +31,9 @@ export default function BillingRevenue() {
   const [records, setRecords] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showAddExpense, setShowAddExpense] = useState(false);
   const [finDocs, setFinDocs] = useState([]);
   const [catalog, setCatalog] = useState([]);
-  const [newExpense, setNewExpense] = useState({
-    description: '',
-    amount: '',
-    category: 'Operations',
-    date: new Date().toISOString().split('T')[0],
-    tax_amount: '',
-    vendor_id: '',
-    receipt_path: null,
-  });
-  const vendors = orgStore.getSectionAsList('vendors').filter((v) => !v.archived_at);
+  const [income, setIncome] = useState([]);
 
   useEffect(() => {
     if (activeOrg) loadData();
@@ -68,6 +57,13 @@ export default function BillingRevenue() {
       const expList = orgStore.getSectionAsList('expenses');
       expList.sort((a, b) => new Date(b.date) - new Date(a.date));
       setExpenses(expList);
+
+      // Money in that never became an invoice (0038). Revenue on this page used
+      // to mean "invoices", which is why cash sales were invisible here.
+      await loadFinanceCategories();
+      const inList = orgStore.getSectionAsList('income_entries');
+      inList.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setIncome(inList);
     } catch (err) {
       console.error("Error loading billing data:", err);
     } finally {
@@ -85,13 +81,22 @@ export default function BillingRevenue() {
     const paidFinInvoices = finDocs.filter(d => d.type === 'invoice' && d.status === 'paid');
     const finRevenue = paidFinInvoices.reduce((acc, d) => acc + (d.grand_total || d.amount || d.subtotal || 0), 0);
 
-    const totalRevenue = oldRevenue + finRevenue;
+    // Earned, not merely received: funding and refunds are excluded, and so is
+    // anything recorded against an invoice, which the invoice already counts.
+    const directRevenue = income.filter(countsAsIncome)
+      .reduce((acc, e) => acc + netOfTax(e), 0);
+
+    const totalRevenue = oldRevenue + finRevenue + directRevenue;
     const grossProfit = totalRevenue - totalMakingCharges;
     const netProfit = grossProfit - totalExpenses;
 
+    // Grouped by reason rather than by raw category: fifty-odd categories make
+    // a pie chart unreadable, and "where does the money go" is a question about
+    // product, labour, marketing and overhead — not about forty line items.
     const categoryBreakdown = {};
     expenses.forEach(e => {
-      categoryBreakdown[e.category] = (categoryBreakdown[e.category] || 0) + Number(e.amount);
+      const g = groupOf(e.category);
+      categoryBreakdown[g] = (categoryBreakdown[g] || 0) + Number(e.amount);
     });
 
     // Monthly cash flow data (last 6 months)
@@ -104,30 +109,36 @@ export default function BillingRevenue() {
       const mFinRev = paidFinInvoices
         .filter(fd => { const rd = new Date(fd.created_at); return rd.getMonth() === d.getMonth() && rd.getFullYear() === d.getFullYear(); })
         .reduce((acc, fd) => acc + (fd.grand_total || fd.amount || fd.subtotal || 0), 0);
+      const mDirect = income
+        .filter(countsAsIncome)
+        .filter((e) => { const ed = new Date(e.date); return ed.getMonth() === d.getMonth() && ed.getFullYear() === d.getFullYear(); })
+        .reduce((acc, e) => acc + netOfTax(e), 0);
       const mCost = monthInvoices.reduce((acc, r) => acc + (Number(r.data?.makingCharges) || 0), 0);
       const mExp = expenses
         .filter(e => { const ed = new Date(e.date); return ed.getMonth() === d.getMonth() && ed.getFullYear() === d.getFullYear(); })
         .reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
       monthlyCashFlow.push({
         month: d.toLocaleDateString('en-IN', { month: 'short' }),
-        revenue: mRev + mFinRev,
+        revenue: mRev + mFinRev + mDirect,
         makingCharges: mCost,
         expenses: mExp,
-        profit: (mRev + mFinRev) - mCost - mExp
+        profit: (mRev + mFinRev + mDirect) - mCost - mExp
       });
     }
 
     // Expense category pie data
     const CATEGORY_COLORS = {
-      'Operations': '#3b82f6', 'Marketing': '#f59e0b', 'Salaries': '#10b981',
-      'Tools & Software': '#8b5cf6', 'Office': '#ec4899', 'Travel': '#06b6d4', 'Other': '#6b7280'
+      'Product & delivery': '#3b82f6', 'People & labour': '#10b981',
+      'Sales & marketing': '#f59e0b', 'Operations & admin': '#8b5cf6',
+      'Assets & capital': '#06b6d4', 'Financing & tax': '#ec4899',
+      'Legacy': '#6b7280', 'Other': '#6b7280'
     };
     const expensePieData = Object.entries(categoryBreakdown).map(([name, value]) => ({
       name, value, color: CATEGORY_COLORS[name] || '#6b7280'
     }));
 
-    return { totalRevenue, totalMakingCharges, grossProfit, totalExpenses, netProfit, invoiceCount: invoices.length + paidFinInvoices.length, categoryBreakdown, monthlyCashFlow, expensePieData };
-  }, [records, expenses, finDocs]);
+    return { totalRevenue, directRevenue, totalMakingCharges, grossProfit, totalExpenses, netProfit, invoiceCount: invoices.length + paidFinInvoices.length, categoryBreakdown, monthlyCashFlow, expensePieData };
+  }, [records, expenses, finDocs, income]);
 
   // Ranked by what was billed, not what was collected: a product that sold well
   // and has an invoice still outstanding is still the product that sold well.
@@ -139,28 +150,6 @@ export default function BillingRevenue() {
     [catalog]
   );
   const topProductMax = topProducts[0]?.revenue || 0;
-
-  const handleAddExpense = async (e) => {
-    e.preventDefault();
-    if (!newExpense.description || !newExpense.amount) return;
-
-    if (Number(newExpense.tax_amount) > Number(newExpense.amount)) {
-      alert('The GST included cannot be more than the amount.');
-      return;
-    }
-    await orgStore.addItem('expenses', {
-      ...newExpense,
-      amount: Number(newExpense.amount),
-      tax_amount: Number(newExpense.tax_amount) || 0,
-    });
-
-    setNewExpense({
-      description: '', amount: '', category: 'Operations', date: new Date().toISOString().split('T')[0],
-      tax_amount: '', vendor_id: '', receipt_path: null,
-    });
-    setShowAddExpense(false);
-    loadData();
-  };
 
   // Attach a receipt to an expense that was saved without one.
   const handleAttachReceipt = async (exp, file) => {
@@ -209,7 +198,10 @@ export default function BillingRevenue() {
             </div>
           </div>
           <div className="pro-stat-value" style={{ color: 'var(--success)' }}>₹{stats.totalRevenue.toLocaleString()}</div>
-          <div className="pro-stat-label">Revenue · {stats.invoiceCount} invoice{stats.invoiceCount !== 1 ? 's' : ''}</div>
+          <div className="pro-stat-label">
+            Revenue · {stats.invoiceCount} invoice{stats.invoiceCount !== 1 ? 's' : ''}
+            {stats.directRevenue > 0 ? ` + ₹${stats.directRevenue.toLocaleString()} without one` : ''}
+          </div>
         </div>
 
         <div className="pro-stat-card">
@@ -479,6 +471,50 @@ export default function BillingRevenue() {
         </div>
       </div>
 
+      {/* Money in that never became an invoice. It sits beside Expenses rather
+          than inside the invoice card, because the two are different questions:
+          what we billed, and what actually arrived. */}
+      <div className="pro-card">
+        <div className="pro-card-header">
+          <div className="pro-card-title-group">
+            <Banknote size={18} style={{ color: 'var(--success)' }} />
+            <h3>Money In (no invoice)</h3>
+          </div>
+          <button className="billing-add-btn" onClick={() => navigate('/cashbook?new=in')}>
+            <Plus size={16} aria-hidden="true" /> Add revenue
+          </button>
+        </div>
+        <div className="billing-expense-list">
+          {income.length === 0 ? (
+            <div className="pro-empty" style={{ padding: '3rem' }}>
+              <Banknote size={40} strokeWidth={1} aria-hidden="true" />
+              <p>Nothing recorded outside invoices</p>
+              <span>
+                Cash sales, retainers, interest, a grant, money you or an investor put in — record it
+                here and it reaches revenue, the P&amp;L and the Tax Summary straight away.
+              </span>
+            </div>
+          ) : (
+            income.slice(0, 8).map((e) => (
+              <div key={e.id} className="billing-expense-item">
+                <div className="billing-expense-info">
+                  <span className="billing-expense-desc">{e.description}</span>
+                  <span className="billing-expense-meta">
+                    {categoryLabel(e.category)} · {new Date(e.date).toLocaleDateString()}
+                    {countsAsIncome(e) ? '' : ' · cash only, not revenue'}
+                  </span>
+                </div>
+                <div className="billing-expense-right">
+                  <span className="billing-expense-amount" style={{ color: 'var(--success)' }}>
+                    +₹{Number(e.amount).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       {/* Expenses Section */}
       <div className="pro-card">
         <div className="pro-card-header">
@@ -486,50 +522,17 @@ export default function BillingRevenue() {
             <TrendingDown size={18} style={{ color: '#ef4444' }} />
             <h3>Expenses</h3>
           </div>
-          <button className="billing-add-btn" onClick={() => setShowAddExpense(!showAddExpense)}>
-            <Plus size={16} /> Add Expense
+          <button className="billing-add-btn" onClick={() => navigate('/cashbook?new=out')}>
+            <Plus size={16} aria-hidden="true" /> Add expense
           </button>
         </div>
-
-        {showAddExpense && (
-          <form className="billing-expense-form" onSubmit={handleAddExpense}>
-            <input type="text" placeholder="Description" value={newExpense.description}
-              onChange={e => setNewExpense({ ...newExpense, description: e.target.value })} required className="pro-input" />
-            <input type="number" placeholder="Amount (₹)" value={newExpense.amount}
-              onChange={e => setNewExpense({ ...newExpense, amount: e.target.value })} required className="pro-input" />
-            <select value={newExpense.category}
-              onChange={e => setNewExpense({ ...newExpense, category: e.target.value })} className="pro-input">
-              {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <input type="date" value={newExpense.date}
-              onChange={e => setNewExpense({ ...newExpense, date: e.target.value })} className="pro-input" />
-            <input type="number" min="0" step="0.01" placeholder="GST included (₹, optional)" value={newExpense.tax_amount}
-              title="Input GST included in the amount — counted as input credit on the Tax Summary"
-              onChange={e => setNewExpense({ ...newExpense, tax_amount: e.target.value })} className="pro-input" />
-            {vendors.length > 0 && (
-              <select value={newExpense.vendor_id}
-                onChange={e => setNewExpense({ ...newExpense, vendor_id: e.target.value })} className="pro-input">
-                <option value="">No vendor</option>
-                {vendors.map(v => <option key={v.id} value={v.id}>{v.company_name}</option>)}
-              </select>
-            )}
-            <div style={{ gridColumn: '1 / -1' }}>
-              <ReceiptField path={newExpense.receipt_path} kind="expenses"
-                onChange={(p) => setNewExpense((x) => ({ ...x, receipt_path: p }))} />
-            </div>
-            <div className="billing-expense-form-actions">
-              <button type="submit" className="billing-save-btn">Save</button>
-              <button type="button" className="billing-cancel-btn" onClick={() => setShowAddExpense(false)}>Cancel</button>
-            </div>
-          </form>
-        )}
 
         <div className="billing-expense-list">
           {expenses.length === 0 ? (
             <div className="pro-empty" style={{ padding: '3rem' }}>
               <Wallet size={40} strokeWidth={1} />
               <p>No expenses recorded</p>
-              <span>Click "Add Expense" to start tracking</span>
+              <span>Add one in the Cash Book — it asks what the money was for and works out whether it cuts profit or only cash.</span>
             </div>
           ) : (
             expenses.map(exp => (

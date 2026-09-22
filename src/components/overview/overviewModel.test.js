@@ -133,3 +133,42 @@ describe('drill-downs agree with the page', () => {
     expect(bucketDetail(m, m.buckets.length - 1).invoiced).toBe(m.series[m.series.length - 1].invoiced);
   });
 });
+
+// A cash sale is revenue the moment it is taken. The dashboard used to read
+// invoices alone, so an entry recorded in the Cash Book moved nothing on it.
+describe('cash-book revenue reaches the dashboard', () => {
+  const entry = (over) => ({
+    id: 'i1', category: 'product_sales', treatment: 'revenue', description: 'Counter sale',
+    date: '2026-09-05', amount: 1180, tax_amount: 180, payment_method: 'cash', ...over,
+  });
+
+  it('counts an earned receipt in revenue, collected and net', () => {
+    const m = buildOverview({ finDocs: [inv()], income: [entry()] }, '12M', TODAY);
+    // The tile is gross on both sides: grand_total for invoices, amount for cash.
+    expect(m.kpis.revenue.invoiced).toBe(1180);
+    expect(m.kpis.revenue.direct).toBe(1180);
+    expect(m.kpis.revenue.value).toBe(2360);
+    expect(m.kpis.collected.value).toBe(1180);
+    // The P&L is net of GST on both sides, as it must be.
+    expect(m.pl.invoiced).toBe(1000);
+    expect(m.pl.direct).toBe(1000);
+    expect(m.pl.income).toBe(2000);
+  });
+
+  it('keeps funding out of revenue while still showing the cash', () => {
+    const m = buildOverview({
+      income: [entry({ id: 'i2', category: 'loan_received', treatment: 'capital_in', amount: 500000, tax_amount: 0 })],
+    }, '12M', TODAY);
+    expect(m.kpis.revenue.value).toBe(0);
+    expect(m.kpis.collected.value).toBe(0);
+    expect(m.pl.income).toBe(0);
+  });
+
+  it('marks a cash receipt as having no document, so drill-downs can skip it', () => {
+    const m = buildOverview({ finDocs: [inv({ amount_paid: 1180 })], income: [entry()] }, '12M', TODAY);
+    const cash = m.raw.collections.filter((c) => c.cashBook);
+    expect(cash).toHaveLength(1);
+    expect(cash[0].doc).toBeNull();
+    expect(m.raw.collections.filter((c) => c.doc)).toHaveLength(1);
+  });
+});

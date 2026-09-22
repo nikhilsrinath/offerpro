@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, X, ArrowUpRight } from 'lucide-react';
 import { MONO } from '../ui/edgeUtils';
 import { balanceOf, daysOverdue, isOverdue } from '../../services/financeAnalytics';
+import { categoryLabel } from '../../services/financeCategories';
 import {
     fmtInr, fmtShort, fmtDay, invoiceNo, customerKey, invoiceStateOf, daysToPay, INVOICE_STATES,
     customerDetail, bucketDetail, categoryDetail, productDetail, departmentDetail, dayDetail, docGroupDetail,
@@ -217,7 +218,7 @@ function renderView(model, s, push) {
         case 'metric': return metricView(model, s.id, push);
         case 'bucket': return { title: model.buckets[s.index]?.full || 'Period', body: <BucketView model={model} index={s.index} push={push} /> };
         case 'customer': return { title: customerDetail(model, s.key).name, note: 'Customer analysis for the selected period, with lifetime figures where marked.', body: <CustomerView model={model} k={s.key} push={push} /> };
-        case 'category': return { title: s.name, note: 'Expense category — expense lines and purchase bills, net of input GST.', body: <CategoryView model={model} name={s.name} /> };
+        case 'category': return { title: categoryDetail(model, s.name).label, note: 'Expense category — expense lines and purchase bills, net of input GST.', body: <CategoryView model={model} name={s.name} /> };
         case 'product': return { title: productDetail(model, s.key).name, note: 'Line items billed on invoices issued in the period, before tax and discount.', body: <ProductView model={model} k={s.key} push={push} /> };
         case 'aging': return { title: 'Receivables aging', note: 'Every unpaid balance, grouped by how far past its due date it is. As of today.', body: <AgingView model={model} focus={s.id} push={push} /> };
         case 'state': return { title: 'Invoice health', note: `Invoices issued ${model.period.note.toLowerCase()}, by where their payment stands today.`, body: <StateView model={model} focus={s.id} push={push} /> };
@@ -235,7 +236,7 @@ function metricView(model, id, push) {
     const k = model.kpis;
     const note = model.period.note;
     if (id === 'invoiced') return { title: 'Invoiced', note: `Issued sales invoices at grand total, by issue date — ${note.toLowerCase()}. Drafts, cancelled and declined invoices are excluded.`, body: <InvoicedView model={model} push={push} /> };
-    if (id === 'collected') return { title: 'Collected', note: `Confirmed payments on the day they were received — ${note.toLowerCase()}.`, body: <CollectedView model={model} push={push} /> };
+    if (id === 'collected') return { title: 'Collected', note: `Money received on the day it arrived — confirmed invoice payments and cash-book receipts — ${note.toLowerCase()}.`, body: <CollectedView model={model} push={push} /> };
     if (id === 'net') return { title: 'Net profit', note: 'Taxable income from issued invoices minus expenses and purchase bills, all net of GST — the same figures as Profit & Loss.', body: <NetView model={model} push={push} /> };
     if (id === 'outstanding') return { title: 'Receivables', note: `${fmtInr(k.outstanding.value)} owed across open invoices, as of today.`, body: <AgingView model={model} push={push} /> };
     if (id === 'headcount') return { title: 'Headcount', note: 'People on the books at the end of each bucket: joined on or before it and not yet exited.', body: <HeadcountView model={model} push={push} /> };
@@ -293,10 +294,10 @@ function CollectedView({ model, push }) {
                 <RankBars rows={[...methods.entries()].map(([name, value]) => ({ name, value }))} format={fmtShort} />
             </Section>
             <Section title="Payments">
-                <List rows={pays.map((p, i) => ({ id: i, data: p, onClick: () => push({ kind: 'customer', key: customerKey(p.doc) }) }))} cols={[
+                <List rows={pays.map((p, i) => ({ id: i, data: p, onClick: p.doc ? () => push({ kind: 'customer', key: customerKey(p.doc) }) : undefined }))} cols={[
                     { label: 'Received', render: (p) => fmtDay(p.date) },
-                    { label: 'Customer', render: (p) => p.doc.clientName || 'Unnamed' },
-                    { label: 'Invoice', render: (p) => invoiceNo(p.doc) },
+                    { label: 'Customer', render: (p) => (p.doc ? (p.doc.clientName || 'Unnamed') : (p.label || 'Cash book')) },
+                    { label: 'Invoice', render: (p) => (p.doc ? invoiceNo(p.doc) : 'No invoice') },
                     { label: 'Method', render: (p) => p.method || (p.inferred ? 'not recorded' : '—') },
                     { label: 'Amount', align: 'right', render: (p) => fmtInr(p.amount) },
                 ]} />
@@ -318,7 +319,7 @@ function NetView({ model, push }) {
             ]} />
             <Explain>
                 Of every ₹100 earned {pl.income > 0 ? <>you kept <b style={{ color: t.text }}>₹{Math.max(-999, (pl.net / pl.income) * 100).toFixed(0)}</b> after costs</> : 'nothing was earned in this period'}.
-                {pl.byCategory[0] && <> The largest cost was <b style={{ color: t.text }}>{pl.byCategory[0].name}</b> at {fmtShort(pl.byCategory[0].value)}.</>}
+                {pl.byCategory[0] && <> The largest cost was <b style={{ color: t.text }}>{categoryLabel(pl.byCategory[0].name)}</b> at {fmtShort(pl.byCategory[0].value)}.</>}
             </Explain>
             <Section title="Income vs expenses" note="line = net">
                 <Columns data={model.series} series={[{ key: 'income', label: 'Income', color: cat[0] }, { key: 'expenses', label: 'Expenses', color: cat[1] }]}
@@ -326,7 +327,7 @@ function NetView({ model, push }) {
                 <div style={{ marginTop: 8 }}><Legend items={[{ label: 'Income', color: cat[0] }, { label: 'Expenses', color: cat[1] }, { label: 'Net', color: t.text, line: true }]} /></div>
             </Section>
             <Section title="Where the money went" right={<OpenModule to="/profit-loss">Profit & Loss</OpenModule>}>
-                <RankBars rows={model.categories} format={fmtShort} max={10} color={cat[1]} onSelect={(r) => push({ kind: 'category', name: r.name })} />
+                <RankBars rows={model.categories.map((c) => ({ ...c, key: c.name, name: c.label }))} format={fmtShort} max={10} color={cat[1]} onSelect={(r) => push({ kind: 'category', name: r.key })} />
             </Section>
         </>
     );
@@ -355,14 +356,14 @@ function BucketView({ model, index, push }) {
                 <RankBars rows={d.customers} format={fmtShort} onSelect={(r) => push({ kind: 'customer', key: r.key })} empty="No invoices issued" />
             </Section>
             <Section title="Spending by category">
-                <RankBars rows={d.pl.byCategory} format={fmtShort} color={cat[1]} onSelect={(r) => push({ kind: 'category', name: r.name })} empty="No expenses recorded" />
+                <RankBars rows={d.pl.byCategory.map((c) => ({ ...c, key: c.name, name: categoryLabel(c.name) }))} format={fmtShort} color={cat[1]} onSelect={(r) => push({ kind: 'category', name: r.key })} empty="No expenses recorded" />
             </Section>
             <Section title="Invoices issued" note={`${d.invoices.length}`}><List cols={invoiceCols(model)} rows={invoiceRows(model, d.invoices, push)} empty="No invoices issued" /></Section>
             <Section title="Payments received" note={`${d.pays.length}`}>
-                <List rows={d.pays.map((p, i) => ({ id: i, data: p, onClick: () => push({ kind: 'customer', key: customerKey(p.doc) }) }))} empty="No payments received" cols={[
+                <List rows={d.pays.map((p, i) => ({ id: i, data: p, onClick: p.doc ? () => push({ kind: 'customer', key: customerKey(p.doc) }) : undefined }))} empty="No payments received" cols={[
                     { label: 'Date', render: (p) => fmtDay(p.date) },
-                    { label: 'Customer', render: (p) => p.doc.clientName || 'Unnamed' },
-                    { label: 'Invoice', render: (p) => invoiceNo(p.doc) },
+                    { label: 'Customer', render: (p) => (p.doc ? (p.doc.clientName || 'Unnamed') : (p.label || 'Cash book')) },
+                    { label: 'Invoice', render: (p) => (p.doc ? invoiceNo(p.doc) : 'No invoice') },
                     { label: 'Amount', align: 'right', render: (p) => fmtInr(p.amount) },
                 ]} />
             </Section>

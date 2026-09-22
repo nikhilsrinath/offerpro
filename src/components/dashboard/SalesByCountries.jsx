@@ -11,8 +11,10 @@ import { salesGeoService, summarise, PERIODS, periodRange } from '../../services
  * time by scripts/generate-world-map.js) and lazily imported, so its ~150KB
  * lands in its own chunk rather than in everyone's first paint.
  *
- * Every figure comes from the sales_by_country() RPC. Nothing here sums
- * documents; this component picks a window and draws the answer.
+ * Every figure comes from the sales_by_country() RPC, which since 0042 counts
+ * invoiced documents AND cash-book receipts that were earned without one.
+ * Nothing here sums anything; this component picks a window and draws the
+ * answer.
  */
 
 const TOP_OPTIONS = [
@@ -228,6 +230,9 @@ export default function SalesByCountries() {
             </strong>
             <span className="sbc-metric-note">
               {summary.top ? (names[summary.top.code] || summary.top.code) : 'No sales in this period'}
+              {summary.top && summary.top.direct > 0
+                ? ` · incl ${money(summary.top.direct)} direct`
+                : ''}
             </span>
           </div>
 
@@ -328,7 +333,8 @@ export default function SalesByCountries() {
 
               {!loading && ranked.length === 0 && (
                 <div className="sbc-map-empty">
-                  No invoices with a country in this period yet.
+                  Nothing with a country in this period yet — neither an invoice
+                  nor a cash entry.
                 </div>
               )}
             </div>
@@ -336,10 +342,19 @@ export default function SalesByCountries() {
         </div>
       </div>
 
+      {/* The two things a reader of this panel cannot see from the map itself:
+          how much of the total never went through an invoice, and how much is
+          sitting in no country at all. */}
+      {summary.direct > 0 && (
+        <p className="sbc-foot">
+          {money(summary.direct)} of this came in without an invoice — cash-book
+          receipts, attributed to the country on the entry.
+        </p>
+      )}
       {summary.unspecified && summary.unspecified.revenue > 0 && (
         <p className="sbc-foot">
           {money(summary.unspecified.revenue)} is not attributed to any country —
-          those documents have no country on them and none could be inferred from
+          those entries have no country on them and none could be inferred from
           the customer or your organisation profile.
         </p>
       )}

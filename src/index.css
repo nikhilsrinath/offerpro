@@ -45,6 +45,24 @@
   --scrollbar-track: transparent;
 }
 
+/* Visible to a screen reader, to nothing else. For the labels a sighted user
+   reads from an icon or from the column they are in — a table caption, an
+   actions column header, a fieldset legend — and which would otherwise reach
+   assistive technology as nothing at all. Not `display: none`, which hides it
+   from everyone. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ── LIGHT THEME (default) ── */
 :root,
 [data-theme="light"] {
@@ -10530,59 +10548,22 @@ label {
    FINANCE STATUS / PIPELINE TRACKER
    ═══════════════════════════════════════════════════════ */
 
-.fin-status {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.fin-status-stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-}
-
-.fin-status-stat-card {
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-  padding: 1.25rem;
-  background: var(--surface);
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-xs);
-}
-
-.fin-status-stat-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.fin-status-stat-value {
-  display: block;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.2;
-}
-
-.fin-status-stat-label {
-  display: block;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
+/* The page wrapper and its own stat cards are gone: Finance Status now uses
+   the shared `finance-page` / `pro-stat-card` dashboard kit, the same one
+   Billing & Revenue uses, so the two pages cannot drift apart visually.
+   Everything below still belongs to the pipeline tracker on that page. */
 
 .fin-status-toolbar {
   display: flex;
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+/* The toolbar now lives inside the document card, directly above the pipeline
+   or table, and needs the gap the old page-level flex column used to give it. */
+.pro-card>.fin-status-toolbar {
+  margin-bottom: 1rem;
 }
 
 .fin-status-filters {

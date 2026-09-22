@@ -1,9 +1,14 @@
 // salesGeoService.js — revenue by country, for the Sales by Countries widget.
 //
 // Every number here comes from public.sales_by_country(), which aggregates in
-// Postgres over financial_documents.country_code. Nothing is summed in the
-// browser and nothing is hardcoded; this file only picks a date window and
-// reshapes rows.
+// Postgres over three sources' country_code — financial_documents,
+// income_entries and expenses (0042). Nothing is summed in the browser and
+// nothing is hardcoded; this file only picks a date window and reshapes rows.
+//
+// `revenue` is invoiced documents PLUS cash-book receipts whose treatment is
+// 'revenue' and which are not the collection of an invoice. Money in that was
+// never earned - funding, a loan, a refund - comes back in its own columns and
+// is never added to revenue, because a seed round is not a sale in India.
 //
 // The country on each document is frozen at issue time and carries a
 // country_source saying where it came from. Today that is the customer record
@@ -58,6 +63,11 @@ export const salesGeoService = {
       return [];
     }
 
+    // 0042 widened the row: `revenue` is now invoiced + direct, and the cash
+    // book's own figures come back beside it. The pre-0042 columns are read the
+    // same way as before, and the new ones default to 0 — so a database that
+    // has not had 0042 applied yet renders exactly as it used to instead of
+    // showing NaN everywhere.
     return (data || []).map((r) => ({
       code: r.iso2 || null,
       revenue: Number(r.revenue) || 0,
@@ -66,6 +76,31 @@ export const salesGeoService = {
       docCount: Number(r.doc_count) || 0,
       customerCount: Number(r.customer_count) || 0,
       prevRevenue: Number(r.prev_revenue) || 0,
+
+      // the split behind `revenue`
+      invoiced: Number(r.invoiced) || 0,
+      direct: Number(r.direct_revenue) || 0,
+
+      // money in that is NOT revenue, reported separately on purpose
+      otherIncome: Number(r.other_income) || 0,
+      capitalIn: Number(r.capital_in) || 0,
+      costRecovery: Number(r.cost_recovery) || 0,
+
+      // literal cash movement; cashIn includes receipts booked against an
+      // invoice, which is why it can exceed revenue
+      cashIn: Number(r.cash_in) || 0,
+      cashOut: Number(r.cash_out) || 0,
+      netCash: Number(r.net_cash) || 0,
+      incomeCount: Number(r.income_count) || 0,
+      expenseCount: Number(r.expense_count) || 0,
+
+      spendOperating: Number(r.spend_operating) || 0,
+      spendCapex: Number(r.spend_capex) || 0,
+      spendOther: Number(r.spend_other) || 0,
+
+      taxCollected: Number(r.tax_collected) || 0,
+      taxPaid: Number(r.tax_paid) || 0,
+      prevCashOut: Number(r.prev_cash_out) || 0,
     }));
   },
 };
@@ -84,6 +119,11 @@ export function summarise(rows) {
 
   const total = rows.reduce((a, r) => a + r.revenue, 0);
   const prevTotal = rows.reduce((a, r) => a + r.prevRevenue, 0);
+  // How much of the total never went through an invoice. Worth surfacing: a
+  // business running mostly on counter sales should be able to see that on the
+  // same panel that tells it which country it sells to.
+  const direct = rows.reduce((a, r) => a + (r.direct || 0), 0);
+  const cashOut = rows.reduce((a, r) => a + (r.cashOut || 0), 0);
 
   const top = withCountry.reduce(
     (best, r) => (!best || r.revenue > best.revenue ? r : best),
@@ -104,5 +144,5 @@ export function summarise(rows) {
 
   const unspecified = rows.find((r) => !r.code) || null;
 
-  return { total, prevTotal, top, growthPct, drivers, unspecified };
+  return { total, prevTotal, direct, cashOut, top, growthPct, drivers, unspecified };
 }

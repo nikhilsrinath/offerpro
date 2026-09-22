@@ -7,7 +7,7 @@ import {
   Activity, Receipt, FilePlus, RotateCcw,
   GitBranch, UserX, Kanban, CheckSquare, Package,
   Truck, FileInput, TrendingUp, CalendarCheck, Plane, Megaphone,
-  BrainCircuit
+  BrainCircuit, Banknote
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
 import subPages from './components/landing/subPageData';
@@ -64,6 +64,7 @@ import ProformaInvoiceForm from './components/financial/ProformaInvoiceForm';
 import FinanceStatus from './components/financial/FinanceStatus';
 import Vendors from './components/financial/Vendors';
 import PurchaseInvoices from './components/financial/PurchaseInvoices';
+import CashBook from './components/financial/CashBook';
 import TaxSummary from './components/financial/TaxSummary';
 import ProfitLoss from './components/financial/ProfitLoss';
 import InvoiceList from './components/financial/InvoiceList';
@@ -79,7 +80,7 @@ const MODULE_FILTER = {
   team: ['team-hierarchy', 'employees', 'offer-tracker', 'ex-employees', 'tasks', 'bulk-team',
          'attendance', 'leave', 'announcements'],
   documents: ['offers', 'new-certificates', 'certificates', 'ndas', 'mous', 'bulk-offers', 'bulk-certificates'],
-  finance: ['finance-status', 'invoices', 'quotations', 'proforma', 'recurring', 'vendors', 'purchases', 'tax-summary', 'profit-loss'],
+  finance: ['finance-status', 'cashbook', 'invoices', 'quotations', 'proforma', 'recurring', 'vendors', 'purchases', 'tax-summary', 'profit-loss'],
   business: ['crm', 'customers', 'products', 'revenue', 'planner'],
   data: ['records', 'bulk-history']
 };
@@ -103,7 +104,7 @@ const MODULE_META = {
   team:      { id: 'team', label: 'Team' },
   documents: { id: 'documents', label: 'Documents' },
   finance:   { id: 'finance', label: 'Finance' },
-  business:  { id: 'business', label: 'Business' },
+  business:  { id: 'business', label: 'Client Management' },
   data:      { id: 'data', label: 'Records' },
   overall:   { id: 'overall', label: 'Dashboard' },
 };
@@ -129,17 +130,18 @@ const NAV_ITEMS = [
   { id: 'mous', label: 'MoU', icon: Scale },
   { section: 'FINANCE' },
   { id: 'finance-status', label: 'Finance Status', icon: Activity },
+  { id: 'cashbook', label: 'Cash Book', icon: Banknote },
   { id: 'invoices', label: 'Invoices', icon: Receipt },
   { id: 'quotations', label: 'Quotations', icon: FilePlus },
   { id: 'proforma', label: 'Proforma Invoice', icon: FileCheck },
   { id: 'recurring', label: 'Recurring', icon: RotateCcw },
   { id: 'vendors', label: 'Vendors', icon: Truck },
-  { id: 'purchases', label: 'Purchase Invoices', icon: FileInput },
+  { id: 'purchases', label: 'Purchase Bills', icon: FileInput },
   { id: 'tax-summary', label: 'Tax Summary', icon: Scale },
   { id: 'profit-loss', label: 'Profit & Loss', icon: TrendingUp },
   { section: 'BUSINESS' },
   { id: 'crm', label: 'CRM', icon: Kanban },
-  { id: 'customers', label: 'Customers', icon: Users },
+  { id: 'customers', label: 'Client Directory', icon: Users },
   { id: 'products', label: 'Products', icon: Package },
   { id: 'revenue', label: 'Billing & Revenue', icon: DollarSign },
   { id: 'planner', label: 'Product Planner', icon: Layers },
@@ -162,19 +164,20 @@ const PAGE_META = {
   ndas: { title: 'Non-Disclosure Agreements', subtitle: 'Draft legal-grade confidentiality agreements' },
   mous: { title: 'Memorandum of Understanding', subtitle: 'Establish collaboration frameworks and partnerships' },
   'finance-status': { title: 'Finance Status', subtitle: 'Track all financial documents through their lifecycle' },
+  cashbook: { title: 'Cash Book', subtitle: 'Record money in and money out — everything no invoice or vendor bill already covers' },
   invoices: { title: 'Invoices', subtitle: 'View and manage your invoices' },
   quotations: { title: 'Quotations', subtitle: 'View and manage your quotations' },
   proforma: { title: 'Proforma Invoices', subtitle: 'View and manage your proforma invoices' },
   recurring: { title: 'Recurring Invoices', subtitle: 'Set up and manage recurring invoices' },
   vendors: { title: 'Vendors', subtitle: 'Suppliers, payment terms and what you owe each of them' },
-  purchases: { title: 'Purchase Invoices', subtitle: 'Bills received from vendors — money out as a tracked payable' },
+  purchases: { title: 'Purchase Bills', subtitle: 'Bills received from vendors — money out as a tracked payable' },
   'tax-summary': { title: 'Tax Summary', subtitle: 'Output GST against input GST — a preparation aid, not a filing tool' },
   'profit-loss': { title: 'Profit & Loss', subtitle: 'Income, expenses and net profit for any period' },
   'new-invoice': { title: 'New Invoice', subtitle: 'Generate professional business invoices' },
   'new-quotation': { title: 'New Quotation', subtitle: 'Create a quotation for your client' },
   'new-proforma': { title: 'New Proforma Invoice', subtitle: 'Create proforma invoices with advance payment tracking' },
   crm: { title: 'CRM', subtitle: 'Manage your sales pipeline' },
-  customers: { title: 'Customers', subtitle: 'Manage your client database' },
+  customers: { title: 'Client Directory', subtitle: 'Manage your client database' },
   products: { title: 'Products', subtitle: 'Product and service catalogue, and what each one has sold' },
   revenue: { title: 'Billing & Revenue', subtitle: 'Track revenue, expenses, and profitability' },
   planner: { title: 'Product Planner', subtitle: 'Plan and track products and projects' },
@@ -357,6 +360,7 @@ function AppContent() {
             <Route path="ndas" element={<NdaForm />} />
             <Route path="mous" element={<MoUForm />} />
             <Route path="finance-status" element={<FinanceStatus />} />
+            <Route path="cashbook" element={<CashBook />} />
             <Route path="invoices" element={<InvoiceList type="invoice" />} />
             <Route path="quotations" element={<InvoiceList type="quotation" />} />
             <Route path="proforma" element={<InvoiceList type="proforma" />} />

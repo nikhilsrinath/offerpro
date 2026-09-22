@@ -7,6 +7,7 @@ import { MONO, useT } from '../ui/edgeUtils';
 import { useOrg } from '../../context/OrgContext';
 import { documentStore } from '../../services/documentStore';
 import { useSection } from '../financial/financeHooks';
+import { loadFinanceCategories } from '../../services/financeCategories';
 import { todayIso } from '../../services/financeAnalytics';
 import { buildOverview, PERIODS, DOC_GROUPS, fmtShort, fmtInr, fmtDay } from './overviewModel';
 import {
@@ -79,17 +80,24 @@ function OverviewBody() {
     const employees = useSection('employees');
     const exEmployees = useSection('ex_employees');
     const expenses = useSection('expenses');
+    const income = useSection('income_entries');
     const purchases = useSection('purchase_invoices');
     const vendors = useSection('vendors');
     const leads = useSection('crm_leads');
     const tasks = useSection('tasks');
     const catalog = useSection('catalog');
 
+    // Reference data, not tenant data, so it is not in orgStore's cache. Only
+    // the category LABELS need it; every figure is computed from the treatment
+    // already stamped on each row, so a slow fetch cannot move a number.
+    const [, setCatsReady] = useState(false);
+    useEffect(() => { loadFinanceCategories().then(() => setCatsReady(true)); }, []);
+
     const today = todayIso();
     const model = useMemo(() => buildOverview(
-        { finDocs, records, employees, exEmployees, expenses, purchases, vendors, leads, tasks, catalog },
+        { finDocs, records, employees, exEmployees, expenses, income, purchases, vendors, leads, tasks, catalog },
         periodId, today,
-    ), [finDocs, records, employees, exEmployees, expenses, purchases, vendors, leads, tasks, catalog, periodId, today]);
+    ), [finDocs, records, employees, exEmployees, expenses, income, purchases, vendors, leads, tasks, catalog, periodId, today]);
 
     const [stack, setStack] = useState([]);
     const open = useCallback((v) => setStack([v]), []);
@@ -104,7 +112,7 @@ function OverviewBody() {
     const vsLabel = period.prev ? `vs ${fmtDay(period.prev.from)} – ${fmtDay(period.prev.to)}` : 'no comparison for all time';
 
     const cashSeries = cashMode === 'cash'
-        ? [{ key: 'invoiced', label: 'Invoiced', color: cat[0] }, { key: 'collected', label: 'Collected', color: cat[2] }, { key: 'expenses', label: 'Expenses', color: cat[1] }]
+        ? [{ key: 'invoiced', label: 'Invoiced', color: cat[0] }, { key: 'collected', label: 'Collected on invoices', color: cat[2] }, { key: 'expenses', label: 'Expenses', color: cat[1] }]
         : [{ key: 'income', label: 'Income', color: cat[0] }, { key: 'expenses', label: 'Expenses', color: cat[1] }];
 
     const mixSeries = DOC_GROUPS.map((g, i) => ({ key: g.id, label: g.label, color: cat[i] }))
@@ -148,8 +156,16 @@ function OverviewBody() {
 
             {/* ── headline tiles ───────────────────────────────────────────── */}
             <div style={{ display: 'grid', gap: 10, gridTemplateColumns: `repeat(${winW < 620 ? 1 : winW < 1100 ? 2 : winW < 1500 ? 3 : 6}, minmax(0, 1fr))`, marginBottom: 12 }}>
-                <Tile icon={IndianRupee} label="Invoiced" value={fmtShort(k.invoiced.value)} exact={fmtInr(k.invoiced.value)}
-                    delta={<Delta value={k.invoiced.delta} />} foot={`${k.invoiced.count} invoices`} spark={k.invoiced.spark} color={cat[0]}
+                {/* Revenue, not "Invoiced": a counter sale is revenue the moment it
+                    is taken, and a tile that showed only invoices left it out of the
+                    first number anyone reads. The split is in the foot so the
+                    invoice figure is still there. */}
+                <Tile icon={IndianRupee} label="Revenue" value={fmtShort(k.revenue.value)} exact={fmtInr(k.revenue.value)}
+                    delta={<Delta value={k.revenue.delta} />}
+                    foot={k.revenue.direct > 0
+                        ? `${fmtShort(k.revenue.invoiced)} invoiced · ${fmtShort(k.revenue.direct)} without an invoice`
+                        : `${k.invoiced.count} invoices`}
+                    spark={k.revenue.spark} color={cat[0]}
                     onClick={() => open({ kind: 'metric', id: 'invoiced' })} />
                 <Tile icon={Wallet} label="Collected" value={fmtShort(k.collected.value)} exact={fmtInr(k.collected.value)}
                     delta={<Delta value={k.collected.delta} />} foot={model.avgDaysToPay === null ? 'no settled invoices yet' : `paid in ${model.avgDaysToPay.toFixed(0)} days on average`} spark={k.collected.spark} color={cat[2]}
@@ -198,7 +214,7 @@ function OverviewBody() {
             <div style={{ display: 'grid', gap: 12, gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
                 {/* cash flow */}
                 <Card style={grid(2)} title={cashMode === 'cash' ? 'Cash flow' : 'Profit & loss'}
-                    note={cashMode === 'cash' ? 'invoiced · collected · spent, gross' : 'taxable income vs expenses, net of GST · line = net'}
+                    note={cashMode === 'cash' ? 'invoiced · collected on invoices · spent, gross' : 'income (invoiced + cash book) vs expenses, net of GST · line = net'}
                     right={<MiniSeg value={cashMode} onChange={setCashMode} options={[{ id: 'cash', label: 'Cash' }, { id: 'pl', label: 'P&L' }]} />}>
                     <Columns data={model.series} series={cashSeries} height={260} tipFormat={fmtInr}
                         line={cashMode === 'pl' ? { key: 'net', label: 'Net', color: t.text } : undefined}
@@ -241,10 +257,11 @@ function OverviewBody() {
                 <Card title="Spending" note="by category, net of GST" right={<More onClick={() => open({ kind: 'metric', id: 'net' })} />}>
                     <RankBars rows={model.categories.map((c) => ({
                         ...c,
-                        tip: <TipBody title={c.name} rows={[{ label: 'This period', value: fmtInr(c.value), color: cat[1] }, ...(c.prev !== null ? [{ label: 'Previous', value: fmtInr(c.prev) }] : []), { label: 'Entries', value: String(c.count) }]} />,
+                        key: c.name, name: c.label,
+                        tip: <TipBody title={c.label} rows={[{ label: 'This period', value: fmtInr(c.value), color: cat[1] }, ...(c.prev !== null ? [{ label: 'Previous', value: fmtInr(c.prev) }] : []), { label: 'Entries', value: String(c.count) }]} />,
                     }))} format={fmtShort} color={cat[1]} total={model.pl.expenses}
                         sub={(r) => (r.prev !== null && r.prev > 0 ? <Delta invert value={((r.value - r.prev) / r.prev) * 100} /> : null)}
-                        onSelect={(r) => open({ kind: 'category', name: r.name })} empty="No expenses in this period" />
+                        onSelect={(r) => open({ kind: 'category', name: r.key })} empty="No expenses in this period" />
                 </Card>
 
                 {/* products */}

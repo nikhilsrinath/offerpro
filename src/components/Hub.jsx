@@ -5,7 +5,7 @@ import {
     Search, ChevronRight, Maximize2, Download, Globe,
     ArrowUp, ArrowDown, Activity,
     Bell, Sun, Moon, LogOut, User as UserIcon, Building2, Check, ChevronDown,
-    IndianRupee, Hourglass,
+    IndianRupee, TrendingDown, Wallet,
 } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
@@ -15,9 +15,12 @@ import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
 import { salesGeoService, periodRange } from '../services/salesGeoService';
 import { getPlanConfig, DEFAULT_PLAN } from '../services/planConfig';
+import { countsAsIncome, loadFinanceCategories } from '../services/financeCategories';
+import { useSection } from './financial/financeHooks';
 import CountryDialog from './CountryDialog';
 import { usePanZoom } from '../hooks/usePanZoom';
 import { MODULES } from './shell/modules';
+import { useRailPin, RailPinButton } from './shell/railPin';
 import { useProfileCompletion } from '../hooks/useProfileCompletion';
 import MobileNav from './shell/MobileNav';
 
@@ -231,16 +234,20 @@ function PopRow({ t, icon, label, note, onClick, danger, dot }) {
     );
 }
 
-function Delta({ t, value, size = 11.5 }) {
+function Delta({ t, value, size = 11.5, invert = false }) {
     const up = value >= 0;
+    // The arrow always points the way the number moved; only the colour reads
+    // it as good or bad. `invert` is for figures where more is worse - spend
+    // rising 40% is a red arrow up, not a green one.
+    const good = invert ? !up : up;
     const C = up ? ArrowUp : ArrowDown;
     return (
         <span style={{
             display: 'inline-flex', alignItems: 'center', gap: 3,
             fontFamily: MONO, fontSize: size, fontWeight: 700,
-            color: up ? t.up : t.down, lineHeight: 1,
+            color: good ? t.up : t.down, lineHeight: 1,
             padding: '4px 7px', borderRadius: 999,
-            background: (up ? t.up : t.down) + '1f',
+            background: (good ? t.up : t.down) + '1f',
         }}>
             <C size={size - 1} strokeWidth={2.8} />
             {Math.abs(value).toFixed(1)}%
@@ -277,7 +284,7 @@ function Spark({ t, values, height = 36, active }) {
 }
 
 /* KPI box — hoverable, with its own sparkline */
-function Kpi({ t, label, icon: Icon, value, delta, note, series, active, onEnter, onLeave, isMobile }) {
+function Kpi({ t, label, icon: Icon, value, delta, note, series, active, onEnter, onLeave, isMobile, tone, deltaDown }) {
     return (
         <div
             onMouseEnter={onEnter} onMouseLeave={onLeave}
@@ -304,13 +311,14 @@ function Kpi({ t, label, icon: Icon, value, delta, note, series, active, onEnter
                         letterSpacing: '0.06em', whiteSpace: 'nowrap',
                     }}>{label}</span>
                 </span>
-                {delta !== null && delta !== undefined ? <Delta t={t} value={delta} size={11} /> : null}
+                {delta !== null && delta !== undefined ? <Delta t={t} value={delta} size={11} invert={deltaDown} /> : null}
             </div>
             <div style={{
-                fontSize: isMobile ? 24 : 32, fontWeight: 700, color: t.text, letterSpacing: '-0.04em',
+                fontSize: isMobile ? 24 : 32, fontWeight: 700,
+                color: tone === 'down' ? t.down : t.text, letterSpacing: '-0.04em',
                 lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 fontVariantNumeric: 'tabular-nums',
-            }}>{value}</div>
+            }}>{tone === 'down' ? '−' : ''}{value}</div>
             <Spark t={t} values={series} active={active} height={isMobile ? 28 : 36} />
             <div style={{
                 fontSize: 11.5, color: t.dim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -438,6 +446,17 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
 
     const [records, setRecords] = useState([]);
     const [finDocs, setFinDocs] = useState([]);
+    // Money earned without an invoice. Revenue here used to mean settled
+    // invoices alone, so a counter sale left this whole screen reading zero.
+    //
+    // Subscribed rather than read once: the Hub's loader runs on activeOrg, and
+    // a plain cache read there would come back empty whenever orgStore had not
+    // finished hydrating — intermittently, and only on a cold load.
+    const income = useSection('income_entries');
+    // The other half of the ledger. Expense entries plus what has actually been
+    // paid against vendor bills — money out, on the day it left.
+    const expenses = useSection('expenses');
+    const purchases = useSection('purchase_invoices');
     const [loading, setLoading] = useState(true);
     const [range, setRange] = useState('1M');
     const [volRange, setVolRange] = useState('1Y');
@@ -450,7 +469,11 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
     // Registration now asks six questions; the rest of the company profile is
     // chased from here, with a red dot that lives until the fields are filled.
     const profile = useProfileCompletion();
-    const [rail, setRail] = useState(false);    // module rail widened to labels
+    // The rail widens on hover, and stays wide when pinned — the choice is
+    // remembered across the app, so the hub and the modules agree.
+    const [railPinned, setRailPinned] = useRailPin();
+    const [hoverRail, setHoverRail] = useState(false);
+    const rail = railPinned || hoverRail;
     const [notifs, setNotifs] = useState([]);
     const barRef = useRef(null);
 
@@ -486,11 +509,17 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                 await documentStore.init();
                 if (!alive) return;
                 setFinDocs(documentStore.getAll());
+
             } catch { /* ignore */ }
             if (alive) setLoading(false);
         })();
         return () => { alive = false; };
     }, [activeOrg]);
+
+    // Category treatments, for countsAsIncome. Rows carry their own treatment so
+    // the totals are right either way; this is the fallback for anything written
+    // before 0038 stamped one.
+    useEffect(() => { loadFinanceCategories(); }, []);
 
     // geometry lands in its own chunk; a failure here must not take the page down
     useEffect(() => {
@@ -542,13 +571,42 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
         const nonInvoiceRecords = records.filter((r) => r.type !== 'invoice');
         const invoices = finDocs.filter((d) => d.type === 'invoice');
         const paid = invoices.filter((d) => d.status === 'paid');
-        const revenue = paid.reduce((a, d) => a + docValue(d), 0);
+        // Earned and in hand: a settled invoice and a cash sale are the same
+        // thing to this screen. Funding and refunds are excluded — they are cash
+        // but not takings, and countsAsIncome is the one test for that.
+        const earned = income.filter(countsAsIncome);
+        const directRevenue = earned.reduce((a, e) => a + (Number(e.amount) || 0), 0);
+        const revenue = paid.reduce((a, d) => a + docValue(d), 0) + directRevenue;
         const pipeline = invoices.filter((d) => d.status !== 'paid').reduce((a, d) => a + docValue(d), 0);
 
         const byDay = new Map();
         paid.forEach((inv) => {
             const k = dayKey(inv.issue_date || inv.created_at);
             byDay.set(k, (byDay.get(k) || 0) + docValue(inv));
+        });
+        earned.forEach((e) => {
+            const k = dayKey(e.date || e.received_on);
+            byDay.set(k, (byDay.get(k) || 0) + (Number(e.amount) || 0));
+        });
+
+        // Money out, gross and on the day it left. Spend still marked pending has
+        // not left yet, so it is not on a cash chart; a vendor bill contributes
+        // what has been paid against it, mirroring how a part-paid sales invoice
+        // contributes its amount_paid on the revenue side.
+        const spendEvents = [
+            ...expenses
+                .filter((e) => e.status !== 'pending')
+                .map((e) => ({ at: e.paid_on || e.date || e.incurred_on, amount: Number(e.amount) || 0 })),
+            ...purchases
+                .filter((b) => b.status !== 'void' && Number(b.amount_paid) > 0)
+                .map((b) => ({ at: b.paid_on || b.bill_date, amount: Number(b.amount_paid) || 0 })),
+        ].filter((x) => x.at);
+        const spend = spendEvents.reduce((a, x) => a + x.amount, 0);
+
+        const spendByDay = new Map();
+        spendEvents.forEach((x) => {
+            const k = dayKey(x.at);
+            spendByDay.set(k, (spendByDay.get(k) || 0) + x.amount);
         });
 
         const allDocs = [
@@ -576,6 +634,8 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                         ? d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
                         : d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }),
                 value: byDay.get(k) || 0,
+                spend: spendByDay.get(k) || 0,
+                net: (byDay.get(k) || 0) - (spendByDay.get(k) || 0),
             });
         }
         const half = Math.floor(series.length / 2) || 1;
@@ -584,26 +644,51 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
         const trend = firstHalf > 0 ? ((lastHalf - firstHalf) / firstHalf) * 100 : (lastHalf > 0 ? 100 : 0);
         const peak = series.reduce((m, s) => (s.value > m.value ? s : m), series[0] || { value: 0 });
         const avg = series.length ? series.reduce((a, s) => a + s.value, 0) / series.length : 0;
+        // Totals for the window on screen, not all time: the figures beside the
+        // chart have to describe the chart.
+        const windowIn = series.reduce((a, x) => a + x.value, 0);
+        const windowOut = series.reduce((a, x) => a + x.spend, 0);
 
         // 30-day sparkline series for the KPI boxes
         const sparkRev = [];
         const sparkDocs = [];
+        const sparkSpend = [];
+        const sparkNet = [];
         for (let i = 29; i >= 0; i--) {
             const d = new Date(today);
             d.setDate(d.getDate() - i);
             const k = dayKey(d);
             sparkRev.push(byDay.get(k) || 0);
             sparkDocs.push(docsByDay.get(k) || 0);
+            sparkSpend.push(spendByDay.get(k) || 0);
+            sparkNet.push((byDay.get(k) || 0) - (spendByDay.get(k) || 0));
         }
 
         const mStart = new Date(today.getFullYear(), today.getMonth(), 1);
         const prevMStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
         const issuedAt = (d) => new Date(d.issue_date || d.created_at);
-        const revMonth = paid.filter((d) => issuedAt(d) >= mStart).reduce((a, d) => a + docValue(d), 0);
+        const receivedAt = (e) => new Date(e.date || e.received_on);
+        const revMonth = paid.filter((d) => issuedAt(d) >= mStart).reduce((a, d) => a + docValue(d), 0)
+            + earned.filter((e) => receivedAt(e) >= mStart).reduce((a, e) => a + (Number(e.amount) || 0), 0);
         const prevMonth = paid
             .filter((d) => issuedAt(d) >= prevMStart && issuedAt(d) < mStart)
-            .reduce((a, d) => a + docValue(d), 0);
+            .reduce((a, d) => a + docValue(d), 0)
+            + earned
+                .filter((e) => receivedAt(e) >= prevMStart && receivedAt(e) < mStart)
+                .reduce((a, e) => a + (Number(e.amount) || 0), 0);
         const monthDelta = prevMonth > 0 ? ((revMonth - prevMonth) / prevMonth) * 100 : (revMonth > 0 ? 100 : 0);
+
+        const spendMonth = spendEvents
+            .filter((x) => new Date(x.at) >= mStart)
+            .reduce((a, x) => a + x.amount, 0);
+        const spendPrevMonth = spendEvents
+            .filter((x) => new Date(x.at) >= prevMStart && new Date(x.at) < mStart)
+            .reduce((a, x) => a + x.amount, 0);
+        // Inverted against the revenue delta on purpose: spending more is not an
+        // improvement, and <Delta> colours a rise green unless told otherwise.
+        const spendDelta = spendPrevMonth > 0
+            ? ((spendMonth - spendPrevMonth) / spendPrevMonth) * 100
+            : (spendMonth > 0 ? 100 : 0);
 
         const docsThisMonth = allDocs.filter((d) => new Date(d.at) >= mStart).length;
         const docsPrevMonth = allDocs.filter((d) => new Date(d.at) >= prevMStart && new Date(d.at) < mStart).length;
@@ -630,38 +715,68 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
         }
 
         const settled = invoices.length ? (paid.length / invoices.length) * 100 : 0;
-        const pipelineSpark = volume.map((v) => v.amount);
 
         return {
             totalDocs: nonInvoiceRecords.length + finDocs.length,
-            revenue, pipeline,
+            revenue, pipeline, directRevenue, directCount: earned.length,
+            spend, windowIn, windowOut, windowNet: windowIn - windowOut,
+            netCash: revenue - spend, spendDelta,
             invoiceCount: invoices.length, paidCount: paid.length,
             series, trend, peak, avg,
-            sparkRev, sparkDocs, pipelineSpark,
+            sparkRev, sparkDocs, sparkSpend, sparkNet,
+            spendCount: spendEvents.length,
             monthDelta, docsThisMonth, docsDelta,
             volume, settled,
         };
-    }, [records, finDocs, range, volRange]);
+    }, [records, finDocs, income, expenses, purchases, range, volRange]);
 
     /* ── geo derivation ──────────────────────────────────────────────────── */
 
     const geo = useMemo(() => {
-        // The RPC is the source of truth. When it has nothing (no storefront
-        // rows yet, or it failed) fall back to the country stamped on each
-        // financial document, so the map still answers the question.
-        let rows = (geoRows || []).filter((r) => r.code && r.revenue > 0);
+        // The RPC is the source of truth: since 0042 it aggregates documents,
+        // cash-book receipts and cash-book spend in one pass.
+        //
+        // The fallback below runs when the RPC returns nothing at all - it
+        // failed, or 0042 has not been applied to this database yet. It reads
+        // the same three sources out of the client cache on the same terms, so
+        // the map answers the question either way instead of showing zero for a
+        // business that sells over a counter.
+        let rows = (geoRows || []).filter((r) => r.code && (r.revenue > 0 || r.cashOut > 0));
         if (rows.length === 0) {
             const agg = new Map();
+            const at = (code) => {
+                const c = String(code || '').toUpperCase();
+                if (c.length !== 2) return null;
+                if (!agg.has(c)) agg.set(c, {
+                    code: c, revenue: 0, invoiced: 0, direct: 0, docCount: 0,
+                    cashIn: 0, cashOut: 0, incomeCount: 0, expenseCount: 0,
+                });
+                return agg.get(c);
+            };
             finDocs.forEach((d) => {
-                const code = d.country_code || d.country;
-                if (!code || String(code).length !== 2) return;
-                const c = String(code).toUpperCase();
-                const prev = agg.get(c) || { code: c, revenue: 0, docCount: 0 };
-                prev.revenue += docValue(d);
-                prev.docCount += 1;
-                agg.set(c, prev);
+                const row = at(d.country_code || d.country);
+                if (!row) return;
+                row.revenue += docValue(d);
+                row.invoiced += docValue(d);
+                row.docCount += 1;
             });
-            rows = [...agg.values()].filter((r) => r.revenue > 0);
+            // countsAsIncome already excludes a receipt booked against an
+            // invoice, so nothing here double-counts what finDocs contributed.
+            income.forEach((e) => {
+                const row = at(e.country_code);
+                if (!row) return;
+                const gross = Number(e.amount) || 0;
+                row.cashIn += gross;
+                row.incomeCount += 1;
+                if (countsAsIncome(e)) { row.revenue += gross; row.direct += gross; }
+            });
+            expenses.filter((e) => e.status !== 'pending').forEach((e) => {
+                const row = at(e.country_code);
+                if (!row) return;
+                row.cashOut += Number(e.amount) || 0;
+                row.expenseCount += 1;
+            });
+            rows = [...agg.values()].filter((r) => r.revenue > 0 || r.cashOut > 0);
         }
         const ranked = rows.slice().sort((a, b) => b.revenue - a.revenue);
         const total = ranked.reduce((a, r) => a + r.revenue, 0);
@@ -669,11 +784,22 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
         const byCode = new Map();
         ranked.forEach((r) => {
             // sqrt scale: linear buckets put everything but the leader in level 1
-            const lvl = Math.max(1, Math.min(5, Math.ceil(Math.sqrt(r.revenue / max) * 5)));
+            // Math.max(0, …) because a market can now appear with spend and no
+            // revenue; it lands at level 1 rather than producing NaN and
+            // rendering as empty land.
+            const lvl = Math.max(1, Math.min(5, Math.ceil(Math.sqrt(Math.max(0, r.revenue) / max) * 5)));
             byCode.set(r.code, { ...r, level: lvl, share: total ? (r.revenue / total) * 100 : 0 });
         });
-        return { ranked, total, byCode, top: ranked.slice(0, 5) };
-    }, [geoRows, finDocs]);
+        return {
+            ranked, total, byCode, top: ranked.slice(0, 5),
+            // Reported beside the total, never inside it: the map colours
+            // countries by revenue, and spend is a separate fact about the same
+            // country. The two together are the only honest way to say whether
+            // a market is actually making money.
+            direct: ranked.reduce((a, r) => a + (r.direct || 0), 0),
+            cashOut: ranked.reduce((a, r) => a + (r.cashOut || 0), 0),
+        };
+    }, [geoRows, finDocs, income, expenses]);
 
     if (loading) return null;
 
@@ -713,11 +839,29 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
     const KPIS = [
         {
             k: 'REVENUE', i: IndianRupee, v: '₹' + fmtCompact(data.revenue), d: data.monthDelta,
-            n: data.paidCount + ' invoices settled', s: data.sparkRev,
+            n: data.directCount > 0
+                ? `${data.paidCount} invoices settled + ${data.directCount} direct`
+                : data.paidCount + ' invoices settled',
+            s: data.sparkRev,
         },
         {
-            k: 'PIPELINE', i: Hourglass, v: '₹' + fmtCompact(data.pipeline), d: null,
-            n: (data.invoiceCount - data.paidCount) + ' awaiting payment', s: data.pipelineSpark,
+            k: 'EXPENSES', i: TrendingDown, v: '₹' + fmtCompact(data.spend), d: data.spendDelta,
+            dDown: true,
+            n: data.spendCount
+                ? data.spendCount + (data.spendCount === 1 ? ' payment out' : ' payments out')
+                : 'nothing recorded yet',
+            s: data.sparkSpend,
+        },
+        {
+            // What is actually left: everything received less everything paid.
+            // Not profit - it includes money in that was never earned (funding)
+            // and money out that is not a cost (an asset, a loan repayment).
+            k: 'NET CASH', i: Wallet, v: '₹' + fmtCompact(Math.abs(data.netCash)), d: null,
+            tone: data.netCash < 0 ? 'down' : null,
+            n: data.netCash >= 0
+                ? '₹' + fmtCompact(data.revenue) + ' in − ₹' + fmtCompact(data.spend) + ' out'
+                : 'spent ₹' + fmtCompact(Math.abs(data.netCash)) + ' more than came in',
+            s: data.sparkNet,
         },
         {
             k: 'DOCUMENTS', i: FileText, v: data.docsThisMonth.toLocaleString(), d: data.docsDelta,
@@ -744,8 +888,8 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                 bottom bar carries the same list. */}
             {!isMobile && (
                 <aside
-                    onMouseEnter={() => setRail(true)}
-                    onMouseLeave={() => setRail(false)}
+                    onMouseEnter={() => setHoverRail(true)}
+                    onMouseLeave={() => setHoverRail(false)}
                     style={{
                         width: rail ? 214 : 58, flexShrink: 0,
                         background: t.panel, borderRight: '1px solid ' + t.line,
@@ -754,21 +898,29 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                         transition: 'width .22s cubic-bezier(.16,1,.3,1)',
                     }}
                 >
-                    <Link to="/hub" style={{
+                    <div style={{
                         display: 'flex', alignItems: 'center', gap: 11,
                         height: 53, padding: '0 18px', flexShrink: 0,
                         borderBottom: '1px solid ' + t.line,
-                        textDecoration: 'none', color: t.text,
                     }}>
-                        <svg width="21" height="21" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0, marginLeft: -1 }}>
-                            <path d="M10 1v18M1 10h18M3.5 3.5l13 13M16.5 3.5l-13 13" stroke={t.text} strokeWidth="1.3" />
-                            <circle cx="10" cy="10" r="2.6" fill={t.panel} stroke={t.text} strokeWidth="1.3" />
-                        </svg>
-                        <span style={{
-                            fontSize: 14.5, fontWeight: 500, letterSpacing: '-0.02em', whiteSpace: 'nowrap',
-                            opacity: rail ? 1 : 0, transition: 'opacity .16s',
-                        }}>EdgeOS</span>
-                    </Link>
+                        <Link to="/hub" style={{
+                            display: 'flex', alignItems: 'center', gap: 11, minWidth: 0, flex: 1,
+                            textDecoration: 'none', color: t.text,
+                        }}>
+                            <svg width="21" height="21" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0, marginLeft: -1 }}>
+                                <path d="M10 1v18M1 10h18M3.5 3.5l13 13M16.5 3.5l-13 13" stroke={t.text} strokeWidth="1.3" />
+                                <circle cx="10" cy="10" r="2.6" fill={t.panel} stroke={t.text} strokeWidth="1.3" />
+                            </svg>
+                            <span style={{
+                                fontSize: 14.5, fontWeight: 500, letterSpacing: '-0.02em', whiteSpace: 'nowrap',
+                                opacity: rail ? 1 : 0, transition: 'opacity .16s',
+                            }}>EdgeOS</span>
+                        </Link>
+                        <RailPinButton
+                            t={t} pinned={railPinned} visible={rail}
+                            onToggle={() => { setRailPinned(!railPinned); setHoverRail(false); }}
+                        />
+                    </div>
 
                     <div style={{
                         padding: '11px 18px 6px', fontSize: 9, letterSpacing: '0.1em',
@@ -1064,13 +1216,16 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                         {/* — KPI ROW — */}
                         <div style={{
                             display: 'grid',
-                            gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))',
+                            gridTemplateColumns: isMobile
+                                ? 'repeat(2, minmax(0,1fr))'
+                                : isTablet ? 'repeat(3, minmax(0,1fr))' : 'repeat(5, minmax(0,1fr))',
                             gap,
                         }}>
                             {KPIS.map((k) => (
                                 <Kpi
                                     key={k.k} t={t} isMobile={isMobile}
                                     label={k.k} icon={k.i} value={k.v} delta={k.d} note={k.n} series={k.s}
+                                    tone={k.tone} deltaDown={k.dDown}
                                     active={hoverKpi === k.k}
                                     onEnter={() => setHoverKpi(k.k)}
                                     onLeave={() => setHoverKpi(null)}
@@ -1078,7 +1233,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                             ))}
                         </div>
 
-                        {/* — REVENUE + SETTLEMENT — */}
+                        {/* — CASH FLOW + SETTLEMENT — */}
                         <div style={{ display: 'grid', gridTemplateColumns: mainGrid, gap, alignItems: 'stretch' }}>
                             <Panel t={t}>
                                 <div style={{
@@ -1094,10 +1249,19 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                             width: 22, height: 22, borderRadius: 5, background: t.raised,
                                             display: 'grid', placeItems: 'center', color: t.text,
                                         }}><Activity size={12} strokeWidth={2.2} /></span>
-                                        <span style={{ fontSize: 12, color: t.text, fontWeight: 700 }}>REV · INR</span>
+                                        <span style={{ fontSize: 12, color: t.text, fontWeight: 700 }}>CASH · INR</span>
                                     </span>
                                     <span style={{ fontSize: 14.5, color: t.dim }}>
-                                        <span style={{ color: t.text, fontWeight: 700 }}>Settled revenue</span> / day
+                                        <span style={{ color: t.text, fontWeight: 700 }}>Money in and out</span> / day
+                                    </span>
+                                    {/* Legend, spelled out rather than left to colour alone. */}
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12, fontSize: 11, color: t.dim }}>
+                                        {[['In', t.chart], ['Out', t.down]].map(([l, c]) => (
+                                            <span key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                                                <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 2, background: c }} />
+                                                {l}
+                                            </span>
+                                        ))}
                                     </span>
                                     <div style={{ flex: 1 }} />
                                     <Seg t={t} value={range} onChange={setRange} options={RANGES} />
@@ -1116,14 +1280,21 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                     </span>
                                     <Delta t={t} value={data.trend} />
                                     <div style={{ flex: 1 }} />
-                                    {[['PEAK', data.peak?.value || 0], ['AVG / DAY', data.avg]].map(([k, v]) => (
+                                    {/* These describe the window on screen, so they move with the
+                                        range buttons - unlike the all-time headline beside them. */}
+                                    {[
+                                        ['IN', data.windowIn, t.text],
+                                        ['OUT', data.windowOut, t.down],
+                                        [data.windowNet >= 0 ? 'NET' : 'NET OUT', Math.abs(data.windowNet),
+                                            data.windowNet >= 0 ? t.up : t.down],
+                                    ].map(([k, v, c]) => (
                                         <span key={k} style={{
                                             display: 'inline-flex', flexDirection: 'column', gap: 5,
                                             padding: '7px 12px', borderRadius: 7,
                                             border: '1px solid ' + t.line, background: t.panelAlt,
                                         }}>
                                             <span style={{ fontSize: 10.5, fontWeight: 600, color: t.dim, letterSpacing: '0.06em' }}>{k}</span>
-                                            <span style={{ fontSize: 15, fontWeight: 700, color: t.text, lineHeight: 1 }}>₹{fmtCompact(v)}</span>
+                                            <span style={{ fontSize: 15, fontWeight: 700, color: c, lineHeight: 1 }}>₹{fmtCompact(v)}</span>
                                         </span>
                                     ))}
                                 </div>
@@ -1136,6 +1307,10 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                                     <stop offset="0%" stopColor={t.chart} stopOpacity={isDark ? 0.24 : 0.16} />
                                                     <stop offset="100%" stopColor={t.chart} stopOpacity={0} />
                                                 </linearGradient>
+                                                <linearGradient id="nmSpend" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor={t.down} stopOpacity={isDark ? 0.20 : 0.14} />
+                                                    <stop offset="100%" stopColor={t.down} stopOpacity={0} />
+                                                </linearGradient>
                                             </defs>
                                             <XAxis
                                                 dataKey="label" tickLine={false} axisLine={false}
@@ -1147,7 +1322,8 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                                 tick={{ fill: t.dim, fontSize: 11, fontFamily: MONO }}
                                                 tickFormatter={(v) => fmtCompact(v)} width={52}
                                             />
-                                            <ReferenceLine y={data.avg} stroke={t.lineStrong} strokeDasharray="2 3" />
+                                            <ReferenceLine y={data.avg} stroke={t.lineStrong} strokeDasharray="2 3"
+                                                label={{ value: 'avg in', position: 'insideTopLeft', fill: t.dim, fontSize: 10, fontFamily: MONO }} />
                                             <Tooltip
                                                 cursor={{ stroke: t.lineStrong, strokeWidth: 1, strokeDasharray: '2 3' }}
                                                 contentStyle={{
@@ -1157,10 +1333,18 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                                 }}
                                                 labelStyle={{ color: t.dim, fontSize: 11, marginBottom: 4 }}
                                                 itemStyle={{ color: t.text }}
-                                                formatter={(v) => ['₹' + Number(v).toLocaleString('en-IN'), 'Revenue']}
+                                                formatter={(v, name) => [
+                                                    '₹' + Number(v).toLocaleString('en-IN'),
+                                                    name === 'spend' ? 'Money out' : 'Money in',
+                                                ]}
                                             />
                                             <Area
-                                                type="monotone" dataKey="value"
+                                                type="monotone" dataKey="spend" name="spend"
+                                                stroke={t.down} strokeWidth={1.75} fill="url(#nmSpend)" dot={false}
+                                                activeDot={{ r: 3, fill: t.panel, stroke: t.down, strokeWidth: 1.6 }}
+                                            />
+                                            <Area
+                                                type="monotone" dataKey="value" name="value"
                                                 stroke={t.chart} strokeWidth={2} fill="url(#nmRev)" dot={false}
                                                 activeDot={{ r: 3, fill: t.panel, stroke: t.chart, strokeWidth: 1.6 }}
                                             />
@@ -1182,6 +1366,9 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                             { sw: t.scale[5], l: 'Settled',   v: data.paidCount + ' inv' },
                                             { sw: t.scale[3], l: 'Open',      v: (data.invoiceCount - data.paidCount) + ' inv' },
                                             { sw: t.scale[2], l: 'Received',  v: '₹' + fmtCompact(data.revenue) },
+                                            ...(data.directRevenue > 0
+                                                ? [{ sw: t.scale[3], l: 'No invoice', v: '₹' + fmtCompact(data.directRevenue) }]
+                                                : []),
                                             { sw: t.scale[1], l: 'Pending',   v: '₹' + fmtCompact(data.pipeline) },
                                         ].map((r) => (
                                             <div key={r.l} className="nm-lrow" style={{
@@ -1352,10 +1539,22 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                                     <div style={{ fontSize: 11, color: t.dim, marginTop: 4 }}>
                                                         {hoveredGeo.share.toFixed(1)}% of total
                                                         {hoveredGeo.docCount ? ' · ' + hoveredGeo.docCount + ' docs' : ''}
+                                                        {hoveredGeo.incomeCount ? ' · ' + hoveredGeo.incomeCount + ' cash in' : ''}
                                                     </div>
+                                                    {/* The split, only when there is one to show. */}
+                                                    {hoveredGeo.direct > 0 && hoveredGeo.invoiced > 0 && (
+                                                        <div style={{ fontSize: 10.5, color: t.faint, marginTop: 3 }}>
+                                                            ₹{fmtCompact(hoveredGeo.invoiced)} invoiced · ₹{fmtCompact(hoveredGeo.direct)} direct
+                                                        </div>
+                                                    )}
+                                                    {hoveredGeo.cashOut > 0 && (
+                                                        <div style={{ fontSize: 10.5, color: t.down, marginTop: 3 }}>
+                                                            ₹{fmtCompact(hoveredGeo.cashOut)} spent here
+                                                        </div>
+                                                    )}
                                                 </>
                                             ) : (
-                                                <div style={{ fontSize: 11, color: t.dim }}>no revenue recorded</div>
+                                                <div style={{ fontSize: 11, color: t.dim }}>nothing recorded</div>
                                             )}
                                             <div style={{ fontSize: 8.5, color: t.ghost, marginTop: 4, letterSpacing: '0.04em' }}>CLICK FOR DETAIL</div>
                                         </div>
@@ -1376,17 +1575,27 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                         <span style={{ flex: 1 }} />
                                         <span style={{ fontSize: 11.5, fontWeight: 600, color: t.dim }}>
                                             TOTAL <span style={{ fontSize: 14, fontWeight: 700, color: t.text, marginLeft: 4 }}>₹{fmtCompact(geo.total)}</span>
+                                            {geo.direct > 0 && (
+                                                <span style={{ fontWeight: 500, color: t.faint, marginLeft: 6 }}>
+                                                    incl ₹{fmtCompact(geo.direct)} direct
+                                                </span>
+                                            )}
+                                            {geo.cashOut > 0 && (
+                                                <span style={{ fontWeight: 500, color: t.down, marginLeft: 6 }}>
+                                                    · ₹{fmtCompact(geo.cashOut)} out
+                                                </span>
+                                            )}
                                         </span>
                                     </div>
                                 </div>
                             </Panel>
 
                             <Panel t={t}>
-                                <PanelHead t={t} dense title="Top Markets" sub="by revenue" />
+                                <PanelHead t={t} dense title="Top Markets" sub="invoiced + direct" />
                                 <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                                     {geo.top.length === 0 ? (
                                         <div style={{ padding: '34px 16px', textAlign: 'center', fontSize: 12, color: t.dim }}>
-                                            No country-tagged revenue yet
+                                            No country on any invoice or cash entry yet
                                         </div>
                                     ) : geo.top.map((r, i) => {
                                         const row = geo.byCode.get(r.code);
@@ -1427,6 +1636,25 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                                         {(row?.share || 0).toFixed(1)}%
                                                     </span>
                                                 </div>
+                                                {/* What is behind the bar. Silent when there is
+                                                    nothing extra to say, so an invoice-only market
+                                                    keeps the compact row it always had. */}
+                                                {(row?.direct > 0 || row?.cashOut > 0) && (
+                                                    <div style={{
+                                                        display: 'flex', gap: 10, paddingLeft: 28, marginTop: 7,
+                                                        fontSize: 10.5, color: t.faint, flexWrap: 'wrap',
+                                                    }}>
+                                                        {row.direct > 0 && (
+                                                            <span>
+                                                                ₹{fmtCompact(row.direct)} direct
+                                                                {row.invoiced > 0 ? ' · ₹' + fmtCompact(row.invoiced) + ' invoiced' : ''}
+                                                            </span>
+                                                        )}
+                                                        {row.cashOut > 0 && (
+                                                            <span style={{ color: t.down }}>₹{fmtCompact(row.cashOut)} out</span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -1569,6 +1797,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                     marketCount={geo.ranked.length}
                     period={geoPeriod} periods={GEO_PERIODS} onPeriod={setGeoPeriod}
                     finDocs={finDocs} clients={documentStore.getSavedClients() || []}
+                    income={income} expenses={expenses}
                     isMobile={isMobile}
                     onClose={() => setOpenCountry(null)}
                     onNavigate={navigate}

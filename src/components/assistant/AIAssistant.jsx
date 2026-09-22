@@ -3,10 +3,18 @@ import {
     Sparkles, X, Mic, Square, ArrowUp, PenSquare, PanelLeft, Phone, Trash2,
     Pencil, MoreHorizontal, Share2, Pin, PinOff,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { makeTokens, MONO } from '../../theme/edge';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { callCofounderAI } from '../../services/cofounderAI';
 import { getContext as getBrainContext } from '../../services/brainService';
+import { orgStore } from '../../services/orgStore';
+import {
+    detectCashIntent, startDraft, nextQuestion, applyAnswer, validateDraft, toEntry,
+    baseAmount, isCancel, amountHints,
+} from '../../services/cashIntent';
+import { categoryLabel, loadFinanceCategories } from '../../services/financeCategories';
+import CashEntryCard from './CashEntryCard';
 import Orb from './Orb';
 import Markdown from './Markdown';
 import { MOBILE_NAV_H } from '../shell/MobileNav';
@@ -28,8 +36,17 @@ import { MOBILE_NAV_H } from '../shell/MobileNav';
 const SUGGESTIONS = [
     'How is revenue trending this quarter?',
     'Which invoices are still unpaid?',
-    'Summarise our top customers',
+    'We spent 4,500 on office chairs yesterday',
 ];
+
+const RUPEES = (v) => (Number(v) || 0).toLocaleString('en-IN', {
+    style: 'currency', currency: 'INR', maximumFractionDigits: 2,
+});
+
+/** What the thread shows in place of a card that is no longer live. */
+const recordedLine = (entry, direction) => `Recorded ${direction === 'in' ? 'money in' : 'money out'} · `
+    + `${RUPEES(baseAmount(entry))} — ${entry.description} `
+    + `(${categoryLabel(entry.category)}) on ${entry.date}.`;
 
 // The one saturated colour in the product, reserved for the voice call button
 // so it reads as a live action rather than another grey control.
@@ -86,6 +103,23 @@ export default function AIAssistant({ theme = 'dark', edgeContext }) {
     // their own — copying a transcript being the one that needs it.
     const [note, setNote] = useState('');
 
+    /* Recording a cash entry, in two parts.
+       `ask` is the question being answered right now — which slot, and which
+       message asked it, so the chips render under that message and nowhere
+       else. `card` is a filled draft waiting to be confirmed; it outlives the
+       questioning, because the card stays usable while the conversation moves
+       on around it. Both are held here rather than in the stored chat: a draft
+       is not a message, and a half-finished entry has no business surviving a
+       reload in localStorage where nothing can act on it. */
+    const [ask, setAsk] = useState(null);
+    const [card, setCard] = useState(null);
+
+    const navigate = useNavigate();
+
+    // The taxonomy backs the category names shown in the card and in the line
+    // the thread keeps once a card is gone. Fetched once, cached for the session.
+    useEffect(() => { if (open) loadFinanceCategories(); }, [open]);
+
     const speech = useSpeechRecognition();
     const { stop: stopSpeech, listening } = speech;
 
@@ -130,11 +164,164 @@ export default function AIAssistant({ theme = 'dark', edgeContext }) {
         setChats((cs) => cs.map((c) => (c.id === id ? fn(c) : c)));
     }, []);
 
+    /** Messages onto the end of a chat, naming the chat if this is its first. */
+    const appendTo = useCallback((chatId, msgs, firstText) => {
+        patchChat(chatId, (c) => ({
+            ...c,
+            at: Date.now(),
+            // A name the person typed is never replaced by one derived here.
+            title: (c.titled || c.messages.length) ? c.title : titleFor(firstText || msgs[0]?.content || ''),
+            messages: [...c.messages, ...msgs],
+        }));
+    }, [patchChat]);
+
+    /** Rewrites one message in place — a card turning into the line it leaves behind. */
+    const patchMessage = useCallback((chatId, messageId, fields) => {
+        patchChat(chatId, (c) => ({
+            ...c,
+            messages: c.messages.map((m) => (m.id === messageId ? { ...m, ...fields } : m)),
+        }));
+    }, [patchChat]);
+
+    /* ── recording a cash entry ───────────────────────────────────────────
+       Deliberately never reaches the model. The questions come from
+       cashIntent's slot machine and the write happens only on the card's own
+       button, so what lands in the ledger is exactly what was on screen when
+       it was pressed — and the whole exchange costs no AI quota. */
+
+    /** Either the next question, or the card, depending on what is still missing. */
+    const presentCash = useCallback((chatId, entry, leading, firstText) => {
+        const q = nextQuestion(entry);
+        const id = Date.now() + 1;
+
+        if (q) {
+            // The amount is the one question the conversation itself usually
+            // already answers — the figure was named a few lines up, in the
+            // reply that prompted "we should log these". Offering it back is
+            // what makes this feel like the same conversation rather than a
+            // wizard that opened on top of one.
+            const fromThread = q.slot === 'amount'
+                ? amountHints(messages.filter((m) => !m.error).slice(-6).map((m) => m.content))
+                : [];
+
+            appendTo(chatId, [...leading, {
+                id, role: 'assistant', kind: 'ask',
+                content: q.text, hint: q.hint || null,
+                choices: [...fromThread, ...(q.options || [])].slice(0, 8),
+            }], firstText);
+            setAsk({ chatId, draft: entry, slot: q.slot, messageId: id });
+            return;
+        }
+
+        appendTo(chatId, [...leading, {
+            id, role: 'assistant', kind: 'card',
+            // Read when the card is no longer live — after a reload, or in a
+            // shared transcript. A card nobody can act on must still say what
+            // it was and that nothing was written.
+            content: 'I put this entry together from what you said. It was not recorded.',
+        }], firstText);
+        setAsk(null);
+        setCard({ chatId, messageId: id, draft: entry, saving: false, error: '', saved: null });
+    }, [appendTo, messages]);
+
+    /**
+     * A tapped chip. `shown` goes into the thread, `value` gets parsed: the
+     * person sees "Bank transfer" and the machine is handed `bank_transfer`.
+     *
+     * Chips carry values the parser produced in the first place, so there is
+     * no failure path here — a typed answer that does not parse is handled in
+     * send(), where it can be passed to the model instead.
+     */
+    const answerCash = useCallback((value, shown) => {
+        if (!ask) return;
+        const res = applyAnswer(ask.draft, ask.slot, value);
+        if (!res.draft) return;
+        presentCash(ask.chatId, res.draft, [{ id: Date.now(), role: 'user', content: shown }]);
+    }, [ask, presentCash]);
+
+    /** Backing out of a half-finished entry, from the pill or from the sentence. */
+    const dropAsk = useCallback((chatId, leading = []) => {
+        appendTo(chatId, [...leading, {
+            id: Date.now() + 1, role: 'assistant',
+            content: 'Left it there — nothing was recorded.',
+        }]);
+        setAsk(null);
+    }, [appendTo]);
+
+    /** The card's own button. Nothing else in this file writes to the ledger. */
+    const saveCard = useCallback(async () => {
+        if (!card || card.saving) return;
+        const problems = validateDraft(card.draft);
+        if (problems.length) { setCard((c) => ({ ...c, error: problems[0] })); return; }
+
+        setCard((c) => ({ ...c, saving: true, error: '' }));
+        try {
+            const { section, data } = toEntry(card.draft);
+            await orgStore.addItem(section, data);
+            setCard((c) => ({ ...c, saving: false, saved: c.draft }));
+            patchMessage(card.chatId, card.messageId, {
+                content: recordedLine(card.draft, card.draft.direction),
+            });
+        } catch (err) {
+            // The row is not written, so the card stays exactly as it was and
+            // says why. Reporting a save that did not happen is the one failure
+            // a ledger cannot absorb.
+            setCard((c) => ({ ...c, saving: false, error: err?.message || 'Could not record this entry.' }));
+        }
+    }, [card, patchMessage]);
+
+    const cancelCard = useCallback(() => {
+        if (!card) return;
+        patchMessage(card.chatId, card.messageId, {
+            content: 'Entry discarded — nothing was recorded.',
+        });
+        setCard(null);
+    }, [card, patchMessage]);
+
     const send = useCallback((text) => {
         const content = (text ?? draft).trim();
         if (!content || streaming) return;
 
         const chatId = active.id;
+
+        /* A pending question gets first refusal on the message — otherwise
+           "4500", a perfectly good answer to "how much?", would reach the
+           model as though it were a new topic.
+
+           But only first refusal. Somebody halfway through an entry can back
+           out of it, or ask something else entirely, and both used to be met
+           with the same parse error repeated word for word. Now: a sentence
+           that says to leave it, leaves it; a sentence that answers the
+           question, answers it; and anything else goes to the model, with the
+           entry left parked and the composer saying so. Nothing is repeated at
+           anyone. */
+        if (ask && ask.chatId === chatId) {
+            if (isCancel(content)) {
+                setDraft('');
+                dropAsk(chatId, [{ id: Date.now(), role: 'user', content }]);
+                return;
+            }
+            const res = applyAnswer(ask.draft, ask.slot, content);
+            if (res.draft) {
+                setDraft('');
+                presentCash(chatId, res.draft, [{ id: Date.now(), role: 'user', content }]);
+                return;
+            }
+            // Not an answer. Fall through to the model and keep the draft.
+        }
+
+        // "We spent 4,500 on office chairs yesterday" is an instruction, not a
+        // question. detectCashIntent refuses anything phrased as a question, so
+        // "how much did we spend on chairs?" still goes to the model below.
+        const intent = detectCashIntent(content);
+        if (intent) {
+            setDraft('');
+            presentCash(chatId, startDraft(content, intent.direction), [
+                { id: Date.now(), role: 'user', content },
+            ], content);
+            return;
+        }
+
         const history = messages.filter((m) => !m.error).map((m) => ({ role: m.role, content: m.content }));
         const replyId = Date.now() + 1;
 
@@ -171,7 +358,55 @@ export default function AIAssistant({ theme = 'dark', edgeContext }) {
             patch({ content: err?.message || 'Something went wrong.', error: true });
             setStreaming(false);
         });
-    }, [draft, streaming, messages, edgeContext, active, patchChat]);
+    }, [draft, streaming, messages, edgeContext, active, patchChat, ask, dropAsk, presentCash]);
+
+    /**
+     * What a message renders instead of, or underneath, its text.
+     *
+     * A card belongs to exactly one message, and only while the draft behind
+     * it is live: after a reload there is no draft, so the message falls back
+     * to the line it stored and the thread reads as a record of what happened
+     * rather than as a form that no longer does anything.
+     */
+    const messageExtra = useCallback((m) => {
+        if (card && card.chatId === active.id && card.messageId === m.id) {
+            return {
+                replace: true,
+                node: (
+                    <CashEntryCard
+                        t={t} draft={card.draft} saving={card.saving} error={card.error} saved={card.saved}
+                        onChange={(patch) => setCard((c) => ({ ...c, draft: { ...c.draft, ...patch }, error: '' }))}
+                        onSave={saveCard} onCancel={cancelCard}
+                        onOpenCashBook={() => { setOpen(false); navigate('/cashbook'); }}
+                    />
+                ),
+            };
+        }
+
+        // Chips belong to the question being answered right now. An older
+        // question's chips would answer a slot that has already moved on.
+        if (ask && ask.chatId === active.id && ask.messageId === m.id && m.choices?.length) {
+            return {
+                replace: false,
+                node: (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                        {m.choices.map((o) => (
+                            <button
+                                key={o.value} type="button" className="ai-chip"
+                                onClick={() => answerCash(o.value, o.label)}
+                                style={{
+                                    height: 28, padding: '0 12px', borderRadius: 999, cursor: 'pointer',
+                                    border: `1px solid ${t.line}`, background: t.panelAlt,
+                                    color: t.dim, fontFamily: MONO, fontSize: 11,
+                                }}
+                            >{o.label}</button>
+                        ))}
+                    </div>
+                ),
+            };
+        }
+        return null;
+    }, [card, ask, active.id, t, saveCard, cancelCard, answerCash, navigate]);
 
     const startChat = () => {
         // An untouched blank chat is not worth a second row in the rail.
@@ -316,9 +551,38 @@ export default function AIAssistant({ theme = 'dark', edgeContext }) {
                             </Welcome>
                         ) : (
                             <>
-                                <Thread t={t} messages={messages} streaming={streaming} />
+                                <Thread t={t} messages={messages} streaming={streaming} extra={messageExtra} />
                                 <div style={{ flexShrink: 0, padding: '0 16px 14px' }}>
                                     <div style={{ maxWidth: 760, margin: '0 auto' }}>
+                                        {/* A half-finished entry is state, and
+                                            state the person cannot see is state
+                                            that ambushes them later. It sits
+                                            here, above the composer, with the
+                                            way out attached — rather than being
+                                            asserted again in the thread every
+                                            time they say something else. */}
+                                        {ask && ask.chatId === active.id && (
+                                            <div style={{
+                                                display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
+                                                padding: '6px 10px', borderRadius: 999, width: 'fit-content',
+                                                border: `1px solid ${t.line}`, background: t.panelAlt,
+                                                fontSize: 10.5, color: t.dim,
+                                            }}>
+                                                <span>
+                                                    Still recording {ask.draft.direction === 'in' ? 'money in' : 'money out'}
+                                                    {ask.draft.description ? ` · ${ask.draft.description}` : ''}
+                                                </span>
+                                                <button
+                                                    type="button" className="ai-chip"
+                                                    onClick={() => dropAsk(active.id)}
+                                                    style={{
+                                                        border: 'none', background: 'transparent', cursor: 'pointer',
+                                                        color: t.faint, fontFamily: MONO, fontSize: 10.5, padding: 0,
+                                                        textDecoration: 'underline',
+                                                    }}
+                                                >cancel</button>
+                                            </div>
+                                        )}
                                         <Composer
                                             t={t} draft={draft} setDraft={setDraft} send={send} streaming={streaming}
                                             speech={speech} onCall={() => setCallOpen(true)} autoFocus
@@ -761,7 +1025,14 @@ function Welcome({ t, onPick, children }) {
 
 /* ── thread ─────────────────────────────────────────────────────────────── */
 
-function Thread({ t, messages, streaming }) {
+/**
+ * The conversation.
+ *
+ * `extra` lets the assistant put something other than prose in the thread —
+ * the cash-entry card, and the chips under a question it asked. It returns
+ * `{ node, replace }`: a card replaces the message's text, chips sit under it.
+ */
+function Thread({ t, messages, streaming, extra }) {
     const scrollRef = useRef(null);
 
     useEffect(() => {
@@ -772,8 +1043,9 @@ function Thread({ t, messages, streaming }) {
     return (
         <div ref={scrollRef} className="ai-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '8px 16px 20px' }}>
             <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 26 }}>
-                {messages.map((m) => (
-                    m.role === 'user' ? (
+                {messages.map((m) => {
+                    const side = m.role === 'user' ? null : extra?.(m);
+                    return m.role === 'user' ? (
                         <div key={m.id} style={{ display: 'flex', justifyContent: 'flex-end' }}>
                             <div style={{
                                 maxWidth: '78%', padding: '10px 15px', borderRadius: 18,
@@ -786,19 +1058,33 @@ function Thread({ t, messages, streaming }) {
                             fontSize: 13.5, lineHeight: 1.7, wordBreak: 'break-word',
                             color: m.error ? t.down : t.text, padding: '0 2px',
                         }}>
-                            {m.content ? <Markdown text={m.content} t={t} /> : (
-                                <span style={{ display: 'inline-flex', gap: 4 }}>
-                                    {[0, 1, 2].map((i) => (
-                                        <span key={i} style={{
-                                            width: 5, height: 5, borderRadius: '50%', background: t.dim,
-                                            animation: `aiDot 1.2s ${i * 0.15}s infinite`,
-                                        }} />
-                                    ))}
-                                </span>
+                            {side?.replace ? side.node : (
+                                <>
+                                    {m.content ? <Markdown text={m.content} t={t} /> : (
+                                        <span style={{ display: 'inline-flex', gap: 4 }}>
+                                            {[0, 1, 2].map((i) => (
+                                                <span key={i} style={{
+                                                    width: 5, height: 5, borderRadius: '50%', background: t.dim,
+                                                    animation: `aiDot 1.2s ${i * 0.15}s infinite`,
+                                                }} />
+                                            ))}
+                                        </span>
+                                    )}
+                                    {/* The hint is a quieter second line, not a
+                                        second paragraph: stacked equally, a
+                                        question and its example read like a
+                                        form's validation text. */}
+                                    {m.hint && (
+                                        <div style={{ fontSize: 11.5, color: t.faint, marginTop: 4, lineHeight: 1.6 }}>
+                                            {m.hint}
+                                        </div>
+                                    )}
+                                    {side?.node}
+                                </>
                             )}
                         </div>
-                    )
-                ))}
+                    );
+                })}
             </div>
         </div>
     );

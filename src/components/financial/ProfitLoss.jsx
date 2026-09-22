@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { TrendingUp, TrendingDown, Wallet, Percent, Download } from 'lucide-react';
 import { profitAndLoss, sixMonthSeries, periodBounds, downloadCsv } from '../../services/financeAnalytics';
+import { categoryLabel, loadFinanceCategories } from '../../services/financeCategories';
 import { Stat } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
 
@@ -22,7 +23,13 @@ export default function ProfitLoss() {
   const docs = useSection('fin_docs');
   const purchases = useSection('purchase_invoices');
   const expenses = useSection('expenses');
-  const data = useMemo(() => ({ docs, purchases, expenses }), [docs, purchases, expenses]);
+  const income = useSection('income_entries');
+  const data = useMemo(() => ({ docs, purchases, expenses, income }), [docs, purchases, expenses, income]);
+
+  // Only the category LABELS need the taxonomy; the arithmetic runs off the
+  // treatment stamped on each row, so a slow fetch cannot change a figure.
+  const [, setCatsReady] = useState(false);
+  useEffect(() => { loadFinanceCategories().then(() => setCatsReady(true)); }, []);
 
   const [preset, setPreset] = useState('month');
   const [from, setFrom] = useState('');
@@ -37,8 +44,10 @@ export default function ProfitLoss() {
 
   const exportCsv = () => {
     const rows = [
-      ['Income (invoiced, before GST)', pl.income.toFixed(2)],
-      ...pl.byCategory.map((c) => [`Expense: ${c.name}`, (-c.value).toFixed(2)]),
+      ['Income — invoiced (before GST)', pl.invoiced.toFixed(2)],
+      ['Income — cash book (before GST)', pl.direct.toFixed(2)],
+      ['Total income', pl.income.toFixed(2)],
+      ...pl.byCategory.map((c) => [`Expense: ${categoryLabel(c.name)}`, (-c.value).toFixed(2)]),
       ['Total expenses', (-pl.expenses).toFixed(2)],
       ['Net profit', pl.net.toFixed(2)],
     ];
@@ -71,8 +80,10 @@ export default function ProfitLoss() {
 
       <p className="prod-perf-note">
         {range.from ? `${fmtDate(range.from)} – ${fmtDate(range.to)}` : 'All time'}. Income is issued invoices at
-        taxable value (GST collected is not income). Expenses are expense entries and purchase invoices, net of input GST.
-        Drafts, cancelled invoices and voided bills are excluded.
+        taxable value plus cash-book receipts at net value (GST collected is not income). Expenses are expense entries
+        and purchase invoices, net of input GST. Drafts, cancelled invoices and voided bills are excluded — and so is
+        anything that moves cash without changing profit: funding taken in, assets bought, loan principal repaid,
+        owner drawings and tax remitted. Those are on the Cash Book.
       </p>
 
       <div className="pro-card" style={{ marginBottom: '1rem' }}>
@@ -101,8 +112,15 @@ export default function ProfitLoss() {
           <thead><tr><th>Statement</th><th className="num">Amount</th></tr></thead>
           <tbody>
             <tr><td className="prod-perf-name">Income</td><td className="num strong">{money(pl.income, 2)}</td></tr>
+            <tr><td style={{ paddingLeft: '1.5rem' }}>Invoiced</td><td className="num">{money(pl.invoiced, 2)}</td></tr>
+            {pl.direct > 0 && (
+              <tr><td style={{ paddingLeft: '1.5rem' }}>Received without an invoice</td><td className="num">{money(pl.direct, 2)}</td></tr>
+            )}
             {pl.byCategory.map((c) => (
-              <tr key={c.name}><td style={{ paddingLeft: '1.5rem' }}>{c.name}</td><td className="num">−{money(c.value, 2)}</td></tr>
+              <tr key={c.name}>
+                <td style={{ paddingLeft: '1.5rem' }}>{c.name === 'Recoveries' ? 'Refunds & reimbursements received' : categoryLabel(c.name)}</td>
+                <td className="num">{c.value < 0 ? `+${money(-c.value, 2)}` : `−${money(c.value, 2)}`}</td>
+              </tr>
             ))}
             <tr><td className="prod-perf-name">Total expenses</td><td className="num strong">−{money(pl.expenses, 2)}</td></tr>
           </tbody>

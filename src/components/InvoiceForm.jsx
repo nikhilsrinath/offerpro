@@ -9,20 +9,12 @@ import { usePlanStatus } from '../hooks/usePlanStatus';
 import InvoicePreview from './InvoicePreview';
 import ProductPicker from './shared/ProductPicker';
 import CountrySelect from './shared/CountrySelect';
+import { INDIAN_STATES } from '../data/indianStates';
 import { productToLineItem } from '../services/catalogService';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 import A4Stage from './shared/A4Stage';
 
-const INDIAN_STATES = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
-  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
-  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
-  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
-  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
-  'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
-  'Delhi', 'Jammu & Kashmir', 'Ladakh', 'Puducherry',
-  'Chandigarh', 'Dadra & Nagar Haveli', 'Lakshadweep', 'Andaman & Nicobar'
-];
+
 
 const GST_RATES = [0, 5, 12, 18, 28];
 

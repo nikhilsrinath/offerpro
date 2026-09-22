@@ -11,12 +11,17 @@
 //                  whose ledger was not joined falls back to amount_paid on its
 //                  issue date, which is the only date it has.
 //   · Income / Expenses / Net — exactly profitAndLoss(): taxable value in,
-//                  expenses and purchase bills net of input GST out.
+//                  plus cash-book receipts that were earned, against expenses
+//                  and purchase bills net of input GST. Cash-book entries that
+//                  only move cash — funding in, assets bought, loan principal
+//                  repaid, drawings, tax remitted — are in neither, which is
+//                  what keeps this page's "Net" a profit figure.
 //   · Outstanding / Overdue — balances as of today, whatever the period.
 
 import {
-  issuedInvoices, balanceOf, isOverdue, daysOverdue, profitAndLoss, inRange, periodBounds,
+  issuedInvoices, balanceOf, isOverdue, daysOverdue, profitAndLoss, inRange, periodBounds, netOfTax,
 } from '../../services/financeAnalytics';
+import { categoryLabel, countsAsExpense, countsAsIncome } from '../../services/financeCategories';
 
 const n = (v) => Number(v) || 0;
 export const dayOf = (d) => (d ? String(d).slice(0, 10) : '');
@@ -128,8 +133,17 @@ const bucketOf = (buckets, day) => {
 export const customerKey = (d) => d.customer_id || `name:${(d.clientName || 'Unnamed').trim().toLowerCase()}`;
 export const invoiceNo = (d) => d.doc_number || d.invoiceNumber || '—';
 
-/** One row per rupee received: confirmed payments, or the amount_paid fallback. */
-export function collectionEvents(docs) {
+/**
+ * One row per rupee received: confirmed payments against invoices, the
+ * amount_paid fallback for a document whose ledger was not joined, and — since
+ * the cash book exists — money earned and received without an invoice at all.
+ *
+ * A cash-book event carries `doc: null`, because there is no document behind it.
+ * Every reader must check before dereferencing it; leaving these out instead
+ * would make "Collected" quietly exclude a counter sale, which is the whole
+ * reason the cash book was built.
+ */
+export function collectionEvents(docs, income) {
   const out = [];
   issuedInvoices(docs).forEach((doc) => {
     const confirmed = (doc.payments || []).filter((p) => p.confirmed_at);
@@ -139,14 +153,25 @@ export function collectionEvents(docs) {
       out.push({ date: dayOf(doc.issue_date || doc.created_at), amount: n(doc.amount_paid), doc, method: '', inferred: true });
     }
   });
+  // Gross, like every other collection event: what arrived in the bank. Only
+  // entries that were EARNED — funding and refunds are cash but not takings.
+  (income || []).filter(countsAsIncome).forEach((e) => out.push({
+    date: dayOf(e.date || e.received_on), amount: n(e.amount), doc: null,
+    method: e.payment_method || '', cashBook: true, label: e.description || 'Cash book',
+  }));
   return out;
 }
 
-/** Money out, net of input GST, as profitAndLoss counts it. */
+/**
+ * Money out, net of input GST, as profitAndLoss counts it — so the same filter
+ * it applies: an asset purchase, a loan repayment, a drawing and a tax
+ * remittance are cash leaving, not costs, and belong on the Cash Book rather
+ * than in a spend total that feeds a profit figure.
+ */
 export function expenseEvents({ expenses, purchases, vendors = [] }) {
   const vendorName = (id) => vendors.find((v) => v.id === id)?.company_name || '';
   return [
-    ...(expenses || []).map((e) => ({
+    ...(expenses || []).filter(countsAsExpense).map((e) => ({
       date: dayOf(e.date || e.incurred_on), amount: n(e.amount) - n(e.tax_amount),
       category: e.category || 'Other', label: e.description || 'Expense',
       party: vendorName(e.vendor_id), kind: 'Expense', id: e.id,
@@ -241,11 +266,12 @@ const pctChange = (cur, prev) => (prev > 0 ? ((cur - prev) / prev) * 100 : null)
 
 /* ── the page model ───────────────────────────────────────────────────────── */
 
-export function earliestActivity({ finDocs, records, expenses }) {
+export function earliestActivity({ finDocs, records, expenses, income }) {
   const days = [
     ...(finDocs || []).map((d) => dayOf(d.issue_date || d.created_at)),
     ...(records || []).map((r) => dayOf(r.created_at)),
     ...(expenses || []).map((e) => dayOf(e.date || e.incurred_on)),
+    ...(income || []).map((e) => dayOf(e.date || e.received_on)),
   ].filter(Boolean).sort();
   return days[0] || null;
 }
@@ -254,6 +280,7 @@ export function buildOverview(src, periodId, today) {
   const data = {
     finDocs: src.finDocs || [], records: src.records || [], employees: src.employees || [],
     exEmployees: src.exEmployees || [], expenses: src.expenses || [], purchases: src.purchases || [],
+    income: src.income || [],
     vendors: src.vendors || [], leads: src.leads || [], tasks: src.tasks || [], catalog: src.catalog || [],
   };
   const period = resolvePeriod(periodId, today, earliestActivity(data));
@@ -264,13 +291,16 @@ export function buildOverview(src, periodId, today) {
 
   const invoices = issuedInvoices(data.finDocs);
   const pInvoices = invoices.filter((d) => inPeriod(d.issue_date));
-  const collections = collectionEvents(data.finDocs);
+  const collections = collectionEvents(data.finDocs, data.income);
   const spend = expenseEvents(data);
   const docsTimeline = documentEvents(data);
   const people = [...data.employees, ...data.exEmployees];
 
-  const pl = profitAndLoss({ docs: data.finDocs, purchases: data.purchases, expenses: data.expenses }, from, to);
-  const plPrev = prev ? profitAndLoss({ docs: data.finDocs, purchases: data.purchases, expenses: data.expenses }, prev.from, prev.to) : null;
+  const plArgs = {
+    docs: data.finDocs, purchases: data.purchases, expenses: data.expenses, income: data.income,
+  };
+  const pl = profitAndLoss(plArgs, from, to);
+  const plPrev = prev ? profitAndLoss(plArgs, prev.from, prev.to) : null;
 
   /* series per bucket */
   const series = buckets.map((b) => ({
@@ -282,6 +312,13 @@ export function buildOverview(src, periodId, today) {
     if (i >= 0) { series[i].invoiced += n(d.grand_total); series[i].income += n(d.taxable_amount); }
   });
   collections.forEach((c) => { const i = bucketOf(buckets, c.date); if (i >= 0) series[i].collected += c.amount; });
+  // Earned without an invoice: part of income, and part of the cash that came
+  // in. `collected` stays invoice-only — the drill-downs behind it read each
+  // event's document — so the cash view names it "Collected on invoices".
+  data.income.filter(countsAsIncome).forEach((e) => {
+    const i = bucketOf(buckets, dayOf(e.date || e.received_on));
+    if (i >= 0) series[i].income += netOfTax(e);
+  });
   spend.forEach((e) => { const i = bucketOf(buckets, e.date); if (i >= 0) series[i].expenses += e.amount; });
   docsTimeline.forEach((e) => {
     const i = bucketOf(buckets, e.date);
@@ -334,9 +371,11 @@ export function buildOverview(src, periodId, today) {
   });
   const customers = [...custMap.values()].sort((a, b) => b.invoiced - a.invoiced);
 
-  /* expense categories */
+  /* expense categories. `name` stays the stored key, because every drill-down
+     matches back on it; `label` is what a reader should see. */
   const categories = pl.byCategory.map((c) => ({
     ...c,
+    label: c.name === 'Recoveries' ? 'Refunds & reimbursements' : categoryLabel(c.name),
     count: spend.filter((e) => inPeriod(e.date) && e.category === c.name).length,
     prev: plPrev ? (plPrev.byCategory.find((p) => p.name === c.name)?.value || 0) : null,
   }));
@@ -429,7 +468,28 @@ export function buildOverview(src, periodId, today) {
   const pDocs = docsTimeline.filter((e) => inPeriod(e.date));
   const docGroups = DOC_GROUPS.map((g) => ({ ...g, count: pDocs.filter((e) => docGroupOf(e.type) === g.id).length }));
 
+  // The top line as a business reads it: billed on invoices PLUS earned without
+  // one. `invoiced` stays exactly what its name says, because the invoice
+  // drill-downs behind it are invoice detail — the two are reported side by side
+  // rather than one quietly standing in for the other.
+  //
+  // GROSS on both sides, and that is the whole care needed here. `invoiced` is
+  // grand_total, tax included, as this tile has always been; pl.direct is NET of
+  // GST because a P&L must be. Adding those two would have produced a number
+  // that was neither, off by the GST on the cash-book half.
+  const directGross = (day) => data.income
+    .filter(countsAsIncome)
+    .filter((e) => day(dayOf(e.date || e.received_on)))
+    .reduce((acc, e) => acc + n(e.amount), 0);
+  const direct = directGross(inPeriod);
+  const revenue = invoiced + direct;
+  const revenuePrev = prev ? invoicedPrev + directGross(inPrev) : null;
+
   const kpis = {
+    revenue: {
+      value: revenue, prev: revenuePrev, delta: pctChange(revenue, revenuePrev),
+      spark: series.map((s) => s.invoiced), invoiced, direct,
+    },
     invoiced: { value: invoiced, prev: invoicedPrev, delta: pctChange(invoiced, invoicedPrev), spark: series.map((s) => s.invoiced), count: pInvoices.length },
     collected: { value: collected, prev: collectedPrev, delta: pctChange(collected, collectedPrev), spark: series.map((s) => s.collected) },
     net: { value: pl.net, prev: plPrev?.net ?? null, delta: plPrev && plPrev.net !== 0 ? ((pl.net - plPrev.net) / Math.abs(plPrev.net)) * 100 : null, spark: series.map((s) => s.net), margin: pl.margin, income: pl.income, expenses: pl.expenses },
@@ -508,7 +568,9 @@ export function customerDetail(model, key) {
   const all = raw.invoices.filter((d) => customerKey(d) === key);
   const inP = all.filter((d) => inRange(d.issue_date, period.from, period.to));
   const name = all[0]?.clientName || 'Customer';
-  const pays = raw.collections.filter((c) => customerKey(c.doc) === key);
+  // Cash-book receipts have no document, so they cannot be attributed to a
+  // customer through one. An entry naming a client is still theirs.
+  const pays = raw.collections.filter((c) => c.doc && customerKey(c.doc) === key);
   const settle = all.map(daysToPay).filter((x) => x !== null);
   return {
     name,
@@ -533,7 +595,7 @@ export function bucketDetail(model, index) {
   const invoices = raw.invoices.filter((d) => within(d.issue_date));
   const pays = raw.collections.filter((c) => within(c.date)).sort((a, z) => z.amount - a.amount);
   const spend = raw.spend.filter((e) => within(e.date)).sort((a, z) => z.amount - a.amount);
-  const pl = profitAndLoss({ docs: raw.finDocs, purchases: raw.purchases, expenses: raw.expenses }, b.from, b.to);
+  const pl = profitAndLoss({ docs: raw.finDocs, purchases: raw.purchases, expenses: raw.expenses, income: raw.income }, b.from, b.to);
   const custs = new Map();
   invoices.forEach((d) => {
     const k = customerKey(d);
@@ -558,7 +620,7 @@ export function categoryDetail(model, name) {
   inP.forEach((e) => { const k = e.party || (e.kind === 'Purchase' ? 'Unknown vendor' : 'No vendor'); parties.set(k, (parties.get(k) || 0) + e.amount); });
   const total = inP.reduce((s, e) => s + e.amount, 0);
   return {
-    name, total, rows: inP, series: seriesOf(buckets, rows),
+    name, label: categoryLabel(name), total, rows: inP, series: seriesOf(buckets, rows),
     share: model.pl.expenses > 0 ? (total / model.pl.expenses) * 100 : 0,
     largest: inP.slice().sort((a, z) => z.amount - a.amount)[0] || null,
     parties: [...parties.entries()].map(([label, value]) => ({ name: label, value })).sort((a, z) => z.value - a.value),

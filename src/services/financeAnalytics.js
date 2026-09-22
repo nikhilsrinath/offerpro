@@ -1,11 +1,33 @@
-// financeAnalytics.js — Tax Summary, P&L, payment position and overdue logic.
+// financeAnalytics.js — Tax Summary, P&L, cash flow, payment position and
+// overdue logic.
 //
-// Everything here is derived from documents that already exist — issued
-// invoices, purchase invoices, expenses. Nothing is entered twice and nothing
-// here writes: pure functions over orgStore's cached lists, cheap to recompute
-// on each render.
+// Everything here is derived from what has already been recorded — issued
+// invoices, purchase invoices, expense entries and income entries. Nothing is
+// entered twice and nothing here writes: pure functions over orgStore's cached
+// lists, cheap to recompute on each render.
+//
+// The one idea worth holding on to: an entry's TREATMENT decides whether it
+// touches profit, and every entry touches cash. Buying a laptop, repaying a
+// loan, taking a drawing and remitting GST all move money without costing
+// anything; a loan received and a vendor refund both arrive without being
+// earned. P&L reads treatments; cash flow reads everything. The treatments
+// themselves are stamped on each row by the database (0038), so this file and
+// EdgeBrain's aggregates cannot drift apart.
+import { countsAsIncome, countsAsExpense, isCostRecovery, groupOf } from './financeCategories';
 
 const n = (v) => Number(v) || 0;
+
+/**
+ * What a cash-book entry is worth once the GST inside it is set aside.
+ *
+ * Computed here rather than read from the stored `net_amount`, deliberately. The
+ * column is derived by a trigger, and a row written while that trigger was not
+ * attached keeps the column default of zero — which made the entry show its full
+ * value under "Money in" and contribute nothing at all to revenue or profit. A
+ * figure that can be silently zero is worse than one recomputed on every render,
+ * and the subtraction is the same definition the trigger uses.
+ */
+const net = (e) => n(e.amount) - n(e.tax_amount);
 const dayKey = (d) => (d ? String(d).slice(0, 10) : '');
 const iso = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
 export const todayIso = () => iso(new Date());
@@ -78,14 +100,18 @@ export function periodOptions(kind, count = 12) {
 // ── Tax Summary ──────────────────────────────────────────────────────────────
 
 /**
- * Output GST on issued invoices against input GST on purchase invoices and
- * expenses, for [from, to]. Positive netPayable is tax owed; negative is a
- * credit carried forward. A preparation aid only — it knows nothing about
- * reverse charge, blocked credits, credit notes or amendments.
+ * Output GST on issued invoices and on income entries, against input GST on
+ * purchase invoices and expenses, for [from, to]. Positive netPayable is tax
+ * owed; negative is a credit carried forward. A preparation aid only — it knows
+ * nothing about reverse charge, blocked credits, credit notes or amendments.
  */
-export function taxSummary({ docs, purchases, expenses, vendors = [] }, from, to) {
+export function taxSummary({ docs, purchases, expenses, income, vendors = [] }, from, to) {
   const vendorName = (id) => vendors.find((v) => v.id === id)?.company_name || '';
   const outRows = issuedInvoices(docs).filter((d) => inRange(d.issue_date, from, to));
+  // Cash sales collect output GST exactly as an invoice does. Entries against a
+  // document are skipped: the invoice already carries that GST.
+  const iRows = (income || []).filter((e) => !e.document_id && n(e.tax_amount) > 0
+    && inRange(e.date || e.received_on, from, to));
   const output = outRows.reduce((acc, d) => {
     const gst = d.gst_enabled === false ? 0 : n(d.gst_amount);
     acc.taxable += n(d.taxable_amount);
@@ -94,6 +120,16 @@ export function taxSummary({ docs, purchases, expenses, vendors = [] }, from, to
     else { acc.cgst += gst / 2; acc.sgst += gst / 2; }
     return acc;
   }, { taxable: 0, gst: 0, igst: 0, cgst: 0, sgst: 0, count: outRows.length });
+  // A cash-book entry carries its own place of supply since 0041. Before that it
+  // was assumed intra-state, which charged CGST+SGST on every export.
+  iRows.forEach((e) => {
+    const gst = n(e.tax_amount);
+    output.taxable += net(e);
+    output.gst += gst;
+    if (e.is_inter_state) output.igst += gst;
+    else { output.cgst += gst / 2; output.sgst += gst / 2; }
+    output.count += 1;
+  });
 
   const pRows = (purchases || []).filter((p) => p.status !== 'void' && inRange(p.bill_date, from, to));
   const eRows = (expenses || []).filter((e) => n(e.tax_amount) > 0 && inRange(e.date || e.incurred_on, from, to));
@@ -111,47 +147,151 @@ export function taxSummary({ docs, purchases, expenses, vendors = [] }, from, to
       kind: 'Output', date: dayKey(d.issue_date), ref: d.doc_number || d.invoiceNumber || '',
       party: d.clientName || '', taxable: n(d.taxable_amount),
       gst: d.gst_enabled === false ? 0 : n(d.gst_amount),
+      rate: d.gst_enabled === false ? 0 : n(d.gst_rate), interState: !!d.is_inter_state,
+    })),
+    ...iRows.map((e) => ({
+      kind: 'Output', date: dayKey(e.date || e.received_on), ref: e.reference || 'Cash book',
+      party: e.description || '', taxable: net(e), gst: n(e.tax_amount),
+      rate: n(e.tax_rate), interState: !!e.is_inter_state,
     })),
     ...pRows.map((p) => ({
       kind: 'Input', date: dayKey(p.bill_date), ref: p.bill_number,
       party: vendorName(p.vendor_id), taxable: n(p.subtotal), gst: n(p.tax_amount),
+      rate: n(p.tax_rate), interState: false,
     })),
     ...eRows.map((e) => ({
       kind: 'Input', date: dayKey(e.date || e.incurred_on), ref: 'Expense',
-      party: e.description || '', taxable: n(e.amount) - n(e.tax_amount), gst: n(e.tax_amount),
+      party: e.description || '', taxable: net(e), gst: n(e.tax_amount),
+      rate: n(e.tax_rate), interState: !!e.is_inter_state,
     })),
   ].sort((a, b) => a.date.localeCompare(b.date));
 
-  return { output, input, netPayable: output.gst - input.gst, rows };
+  // Rate-wise, because that is how a return is filed. A single output total
+  // cannot be entered into GSTR-1, which asks for the taxable value and the tax
+  // at each slab.
+  const byRate = [];
+  rows.forEach((r) => {
+    const key = `${r.kind}:${r.rate}`;
+    let bucket = byRate.find((b) => b.key === key);
+    if (!bucket) {
+      bucket = { key, kind: r.kind, rate: r.rate, taxable: 0, gst: 0, count: 0 };
+      byRate.push(bucket);
+    }
+    bucket.taxable += r.taxable;
+    bucket.gst += r.gst;
+    bucket.count += 1;
+  });
+  byRate.sort((a, b) => a.kind.localeCompare(b.kind) || b.rate - a.rate);
+
+  return { output, input, netPayable: output.gst - input.gst, rows, byRate };
 }
 
 // ── Profit & Loss ────────────────────────────────────────────────────────────
 
 /**
- * Income is issued invoices at taxable value — GST collected is owed to the
- * government, not earned. Expenses are expense lines plus purchase invoices,
- * each net of input GST for the same reason.
+ * Income is issued invoices at taxable value plus income entries at net value —
+ * GST collected is owed to the government, not earned. Expenses are expense
+ * entries plus purchase invoices, each net of input GST for the same reason.
+ *
+ * What is deliberately LEFT OUT is the part that makes the number trustworthy:
+ *
+ *   · income entries linked to an invoice, which the invoice already counts;
+ *   · funding and loans received, which are cash and not earnings;
+ *   · asset purchases, loan repayments, owner drawings and tax remittances,
+ *     which are cash leaving and not costs.
+ *
+ * Refunds and reimbursements received come back as a negative expense rather
+ * than as income, which is where they belong: money returned on something you
+ * paid for reduces what that thing cost you.
+ *
+ * `invoiced` and `direct` are reported alongside `income` so a caller can say
+ * where the top line came from without recomputing either.
  */
-export function profitAndLoss({ docs, purchases, expenses }, from, to) {
-  const income = issuedInvoices(docs)
+export function profitAndLoss({ docs, purchases, expenses, income: incomeRows }, from, to) {
+  const invoiced = issuedInvoices(docs)
     .filter((d) => inRange(d.issue_date, from, to))
     .reduce((s, d) => s + n(d.taxable_amount), 0);
 
+  const inPeriod = (incomeRows || []).filter((e) => inRange(e.date || e.received_on, from, to));
+  const direct = inPeriod.filter(countsAsIncome).reduce((s, e) => s + net(e), 0);
+  const income = invoiced + direct;
+
+  // Kept keyed on the raw category, not on its label or its group: the
+  // Overview's category drill-down matches these names back against the spend
+  // rows, and a pretty name here would break that link. `byGroup` is the
+  // rolled-up view, offered alongside rather than instead.
   const byCategory = {};
-  const add = (cat, amt) => { byCategory[cat || 'Other'] = (byCategory[cat || 'Other'] || 0) + amt; };
+  const byGroup = {};
+  const add = (cat, amt) => {
+    byCategory[cat || 'Other'] = (byCategory[cat || 'Other'] || 0) + amt;
+    const g = groupOf(cat);
+    byGroup[g] = (byGroup[g] || 0) + amt;
+  };
   (expenses || []).filter((e) => inRange(e.date || e.incurred_on, from, to))
+    .filter(countsAsExpense)
     .forEach((e) => add(e.category, n(e.amount) - n(e.tax_amount)));
+  // A purchase invoice has no treatment of its own: a bill from a vendor is a
+  // cost of running, and every category it can carry is an operating one.
   (purchases || []).filter((p) => p.status !== 'void' && inRange(p.bill_date, from, to))
     .forEach((p) => add(p.category, n(p.subtotal)));
 
+  const recovered = inPeriod.filter(isCostRecovery).reduce((s, e) => s + net(e), 0);
+  if (recovered > 0) add('Recoveries', -recovered);
+
   const expenseTotal = Object.values(byCategory).reduce((s, v) => s + v, 0);
+  const rank = (obj) => Object.entries(obj).map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
   return {
     income,
+    invoiced,
+    direct,
+    recovered,
     expenses: expenseTotal,
     net: income - expenseTotal,
     margin: income > 0 ? ((income - expenseTotal) / income) * 100 : null,
-    byCategory: Object.entries(byCategory).map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value),
+    byCategory: rank(byCategory),
+    byGroup: rank(byGroup),
+  };
+}
+
+// ── Cash flow ────────────────────────────────────────────────────────────────
+
+/**
+ * Every rupee in and out over [from, to], whatever its treatment — the question
+ * "did the bank balance go up" as opposed to "did we make money". They differ
+ * by the funding, the asset purchases, the loan repayments, the drawings and
+ * the tax remittances, which is exactly why both are worth showing.
+ *
+ * Gross, not net of GST: cash flow is about what moved, and the GST moved too.
+ * Spend still marked pending has not left yet, so it is reported separately
+ * rather than counted.
+ */
+export { net as netOfTax };
+
+export function cashFlow({ expenses, income: incomeRows }, from, to) {
+  const ins = (incomeRows || []).filter((e) => inRange(e.date || e.received_on, from, to));
+  const outsAll = (expenses || []).filter((e) => inRange(e.date || e.incurred_on, from, to));
+  const outs = outsAll.filter((e) => e.status !== 'pending');
+
+  const tally = (rows, key, amount) => {
+    const map = {};
+    rows.forEach((r) => { const k = key(r) || 'Other'; map[k] = (map[k] || 0) + amount(r); });
+    return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  };
+
+  const cashIn = ins.reduce((s, e) => s + n(e.amount), 0);
+  const cashOut = outs.reduce((s, e) => s + n(e.amount), 0);
+  return {
+    cashIn,
+    cashOut,
+    net: cashIn - cashOut,
+    inCount: ins.length,
+    outCount: outs.length,
+    pending: outsAll.filter((e) => e.status === 'pending').reduce((s, e) => s + n(e.amount), 0),
+    pendingCount: outsAll.filter((e) => e.status === 'pending').length,
+    inByCategory: tally(ins, (e) => e.category, (e) => n(e.amount)),
+    outByGroup: tally(outs, (e) => groupOf(e.category), (e) => n(e.amount)),
+    byMethod: tally([...ins, ...outs], (e) => e.payment_method, (e) => n(e.amount)),
   };
 }
 
