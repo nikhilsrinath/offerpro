@@ -890,6 +890,39 @@ export const orgStore = {
     return item;
   },
 
+  /**
+   * Inserts many items in chunked batch requests and notifies listeners once.
+   * For plain sections only: no doc numbers, no compensation side-table.
+   */
+  async addItems(section, list, { chunkSize = 500, onProgress } = {}) {
+    if (!_orgId) throw new Error('[orgStore] No orgId set');
+    const def = SECTIONS[section];
+    if (!def) throw new Error(`[orgStore] Unknown section: ${section}`);
+    if (def.needsDocNumber) throw new Error(`[orgStore] addItems does not support '${section}'`);
+
+    const added = [];
+    if (!_cache[section]) _cache[section] = {};
+    for (let i = 0; i < list.length; i += chunkSize) {
+      const rows = list.slice(i, i + chunkSize)
+        .map(data => stripNulls({ ...def.toRow(data), org_id: _orgId }));
+      const { data: inserted, error } = await supabase.from(def.table).insert(rows).select();
+      if (error) {
+        // Keep what already landed visible before surfacing the failure.
+        if (added.length) { persistToLS(); notifySection(section); }
+        throw error;
+      }
+      for (const r of inserted) {
+        const item = def.fromRow(r);
+        _cache[section][item.id] = item;
+        added.push(item);
+      }
+      onProgress?.(added.length, list.length);
+    }
+    persistToLS();
+    notifySection(section);
+    return added;
+  },
+
   async setItem(section, id, data) {
     if (!_orgId) return;
     const def = SECTIONS[section];

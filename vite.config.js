@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => {
         // exists in production is quota enforcement nobody has tested.
         name: 'dev-api-routes',
         configureServer(server) {
-          const routes = ['email', 'org-secrets', 'portal', 'portal-token', 'admin', 'nvidia', 'export']
+          const routes = ['email', 'org-secrets', 'portal', 'portal-token', 'admin', 'nvidia', 'export', 'sheet-import']
           for (const route of routes) {
             server.middlewares.use(`/api/${route}`, async (req, res) => {
               let body = ''
