@@ -2,10 +2,12 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { DialogSheet } from './ui/edge';
 import {
   Plus, X, Edit3, Trash2, Search, GripVertical,
-  User, Phone, Mail, Building2, StickyNote, ChevronRight,
+  User, Phone, Mail, Building2, StickyNote, ChevronRight, FileSpreadsheet, Link2, Upload,
 } from 'lucide-react';
 import { orgStore } from '../services/orgStore';
 import { useOrg } from '../context/OrgContext';
+import { supabase } from '../lib/supabase';
+import { rowsToLeads } from '../lib/leadImport';
 
 const COLUMNS = [
   { id: 'lead',      label: 'Lead',      color: '#6366f1' },
@@ -19,6 +21,20 @@ const EMPTY_LEAD = {
 };
 
 const STAGE_IDS = new Set(COLUMNS.map(c => c.id));
+
+const FIELD_LABELS = {
+  company_name: 'Company', person_name: 'Contact', first_name: 'First name', last_name: 'Last name',
+  email: 'Email', phone: 'Phone', stage: 'Stage', value: 'Value', notes: 'Notes',
+};
+
+// The last sheet link is remembered per org so "Fetch again" is one click.
+const sheetUrlKey = (orgId) => `crm_sheet_url_${orgId}`;
+function readSavedSheetUrl(orgId) {
+  try { return localStorage.getItem(sheetUrlKey(orgId)) || ''; } catch { return ''; }
+}
+function saveSheetUrl(orgId, url) {
+  try { localStorage.setItem(sheetUrlKey(orgId), url); } catch { /* storage unavailable */ }
+}
 
 // The pipeline column lives in crm_leads.stage. Leads written before this
 // component used the column carry it as `status` inside the jsonb `extra`
@@ -53,6 +69,13 @@ export default function CRM() {
   const [dragOverCol, setDragOverCol] = useState(null);
   const [mobileTab, setMobileTab] = useState('lead');
   const [moveMenuId, setMoveMenuId] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importUrl, setImportUrl] = useState('');
+  const [importState, setImportState] = useState({ phase: 'idle' });
+  const [importMode, setImportMode] = useState('link');
+  const [importFileName, setImportFileName] = useState('');
+  const [fileDragOver, setFileDragOver] = useState(false);
+  const fileInputRef = useRef(null);
   const dragItem = useRef(null);
   const winW = useWindowWidth();
   const isMobile = winW < 768;
@@ -159,6 +182,88 @@ export default function CRM() {
       });
     } catch (err) {
       alert('Error moving lead: ' + err.message);
+    }
+  };
+
+  // ── Import from a spreadsheet link or a local file ─────────────────────────────
+  const openImport = () => {
+    setImportUrl(readSavedSheetUrl(activeOrg?.id));
+    setImportState({ phase: 'idle' });
+    setImportFileName('');
+    setImportOpen(true);
+  };
+
+  const switchImportMode = (mode) => {
+    if (importState.phase === 'fetching' || importState.phase === 'importing') return;
+    setImportMode(mode);
+    setImportState({ phase: 'idle' });
+  };
+
+  // A file from the user's machine is parsed in the browser; only the resulting
+  // leads are saved, the file itself never leaves the device.
+  const readSheetFile = async (file) => {
+    if (!file) return;
+    setImportFileName(file.name);
+    if (!/\.(xlsx|xls|csv)$/i.test(file.name)) {
+      setImportState({ phase: 'error', error: 'Please choose an .xlsx, .xls or .csv file.' });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setImportState({ phase: 'error', error: 'The file is larger than 10 MB.' });
+      return;
+    }
+    setImportState({ phase: 'fetching' });
+    try {
+      const XLSX = await import('xlsx');
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const sheet = workbook.SheetNames[0];
+      if (!sheet) throw new Error('The file has no sheets.');
+      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheet], { defval: '', raw: false });
+      setImportState({
+        phase: 'preview', sheet, total: rows.length, truncated: rows.length > 5000,
+        ...rowsToLeads(rows.slice(0, 5000), leads),
+      });
+    } catch (err) {
+      setImportState({ phase: 'error', error: err.message || 'The file could not be read as a spreadsheet.' });
+    }
+  };
+
+  const fetchSheet = async (e) => {
+    e?.preventDefault();
+    const url = importUrl.trim();
+    if (!url) return;
+    setImportState({ phase: 'fetching' });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Your session has expired. Please sign in again.');
+      const res = await fetch('/api/sheet-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ org_id: activeOrg.id, url }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body.success) throw new Error(body.error || `Request failed (${res.status})`);
+      saveSheetUrl(activeOrg.id, url);
+      setImportState({
+        phase: 'preview', sheet: body.sheet, total: body.total, truncated: body.truncated,
+        ...rowsToLeads(body.rows, leads),
+      });
+    } catch (err) {
+      setImportState({ phase: 'error', error: err.message });
+    }
+  };
+
+  const runImport = async () => {
+    const now = new Date().toISOString();
+    const toAdd = importState.leads.map(l => ({ ...l, created_at: now, updated_at: now }));
+    setImportState(s => ({ ...s, phase: 'importing', done: 0 }));
+    try {
+      const added = await orgStore.addItems('crm_leads', toAdd, {
+        onProgress: (done) => setImportState(s => ({ ...s, done })),
+      });
+      setImportState(s => ({ ...s, phase: 'done', added: added.length }));
+    } catch (err) {
+      setImportState(s => ({ ...s, phase: 'error', error: 'Import failed: ' + err.message }));
     }
   };
 
@@ -325,6 +430,9 @@ export default function CRM() {
               style={{ paddingLeft: '2rem', height: '36px', fontSize: '0.8rem' }}
             />
           </div>
+          <button onClick={openImport} className="easy-submit-outline" title="Import Excel" aria-label="Import Excel" style={{ width: 'auto', padding: '0.45rem 0.6rem', fontSize: '0.78rem' }}>
+            <FileSpreadsheet size={15} />
+          </button>
           <button onClick={() => openAdd(mobileTab)} className="easy-submit" style={{ width: 'auto', padding: '0.45rem 0.875rem', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
             <Plus size={15} /> Add
           </button>
@@ -364,6 +472,7 @@ export default function CRM() {
 
         {/* Modal */}
         {modalOpen && renderModal()}
+        {importOpen && renderImportModal()}
       </div>
     );
   }
@@ -430,6 +539,154 @@ export default function CRM() {
     );
   }
 
+  function renderImportModal() {
+    const st = importState;
+    const busy = st.phase === 'fetching' || st.phase === 'importing';
+    const close = () => { if (!busy) setImportOpen(false); };
+    const hasPreview = st.leads && ['preview', 'importing', 'done'].includes(st.phase);
+    const muted = { color: 'var(--text-muted)', fontSize: '0.8125rem' };
+    const cell = { padding: '0.4rem 0.6rem', whiteSpace: 'nowrap' };
+    return (
+      <div className="customer-modal-overlay" onClick={close}>
+        <DialogSheet className="customer-modal" labelledBy="lead-import-title" onClose={close} style={{ maxWidth: 640 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <h3 id="lead-import-title" style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>Import leads from Excel</h3>
+            <button type="button" aria-label="Close" title="Close (Esc)" onClick={close} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '0.25rem' }}>
+              <X aria-hidden="true" size={20} />
+            </button>
+          </div>
+
+          <div className="crm-tabs" role="tablist" aria-label="Import source" style={{ marginBottom: '1rem' }}>
+            {[{ id: 'link', label: 'Paste link', Icon: Link2 }, { id: 'file', label: 'Upload file', Icon: Upload }].map(({ id, label, Icon }) => (
+              <button key={id} type="button" role="tab" aria-selected={importMode === id} disabled={busy}
+                className={`crm-tab${importMode === id ? ' active' : ''}`}
+                style={{ '--tab-color': '#6366f1' }}
+                onClick={() => switchImportMode(id)}>
+                <Icon size={14} aria-hidden="true" />
+                <span className="crm-tab-label">{label}</span>
+              </button>
+            ))}
+          </div>
+
+          {importMode === 'file' ? (
+            <div>
+              <input ref={fileInputRef} type="file" hidden
+                accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                onChange={e => { readSheetFile(e.target.files?.[0]); e.target.value = ''; }} />
+              <button type="button" disabled={busy}
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={e => { e.preventDefault(); setFileDragOver(true); }}
+                onDragLeave={() => setFileDragOver(false)}
+                onDrop={e => { e.preventDefault(); setFileDragOver(false); readSheetFile(e.dataTransfer.files?.[0]); }}
+                style={{
+                  width: '100%', padding: '1.5rem 1rem', borderRadius: 10, cursor: busy ? 'default' : 'pointer',
+                  border: `2px dashed ${fileDragOver ? '#6366f1' : 'var(--border-color, rgba(128,128,128,0.35))'}`,
+                  background: fileDragOver ? 'rgba(99,102,241,0.08)' : 'transparent', color: 'inherit',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem',
+                }}>
+                <Upload size={22} aria-hidden="true" style={{ color: '#6366f1' }} />
+                <strong style={{ fontSize: '0.875rem' }}>
+                  {st.phase === 'fetching' ? 'Reading file…' : importFileName || 'Choose an Excel file'}
+                </strong>
+                <span style={muted}>
+                  {importFileName && st.phase !== 'fetching' ? 'Click to choose a different file' : 'or drag and drop it here · .xlsx, .xls, .csv up to 10 MB'}
+                </span>
+              </button>
+              <p style={{ ...muted, margin: '0.5rem 0 0', lineHeight: 1.5 }}>
+                The first sheet is read and its first row must be headers (e.g. Name, Company, Email, Phone, Status, Notes).
+                Leads already on the board are skipped.
+              </p>
+            </div>
+          ) : (
+          <form onSubmit={fetchSheet}>
+            <label className="easy-lbl" htmlFor="lead-import-url">Excel / Google Sheets link</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input id="lead-import-url" type="url" required className="easy-inp" style={{ flex: 1, minWidth: 0 }}
+                placeholder="https://docs.google.com/spreadsheets/d/…"
+                value={importUrl} disabled={busy}
+                onChange={e => setImportUrl(e.target.value)} />
+              <button type="submit" disabled={busy || !importUrl.trim()} className="easy-submit" style={{ width: 'auto', padding: '0.5rem 1rem', whiteSpace: 'nowrap' }}>
+                {st.phase === 'fetching' ? 'Fetching…' : st.phase === 'idle' ? 'Fetch' : 'Fetch again'}
+              </button>
+            </div>
+            <p style={{ ...muted, margin: '0.5rem 0 0', lineHeight: 1.5 }}>
+              Works with Google Sheets, OneDrive/SharePoint, Dropbox, or any direct .xlsx/.csv link shared
+              as &ldquo;Anyone with the link can view&rdquo;. The first sheet is read and its first row must be headers
+              (e.g. Name, Company, Email, Phone, Status, Notes). Leads already on the board are skipped, so fetching again is safe.
+            </p>
+          </form>
+          )}
+
+          {st.phase === 'error' && (
+            <div role="alert" style={{ marginTop: '1rem', padding: '0.75rem', borderRadius: 8, background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '0.8125rem' }}>
+              {st.error}
+            </div>
+          )}
+
+          {hasPreview && (
+            <div style={{ marginTop: '1.25rem' }}>
+              <div style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                Sheet <strong>{st.sheet}</strong>: {st.total} rows → <strong>{st.leads.length} new leads</strong>
+                {st.skippedDuplicate > 0 && <>, {st.skippedDuplicate} already exist</>}
+                {st.skippedEmpty > 0 && <>, {st.skippedEmpty} empty</>}
+                {st.truncated && <> (only the first 5000 rows were read)</>}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBottom: '0.75rem' }}>
+                {Object.entries(st.mapping).filter(([h]) => !h.startsWith('__EMPTY')).map(([h, f]) => (
+                  <span key={h} className="crm-summary-pill">
+                    {h} → <strong>{f ? FIELD_LABELS[f] : 'Notes'}</strong>
+                  </span>
+                ))}
+              </div>
+              {st.leads.length > 0 && (
+                <div style={{ overflow: 'auto', maxHeight: 220, border: '1px solid var(--border-color, rgba(128,128,128,0.2))', borderRadius: 8 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                    <thead>
+                      <tr>{['Company', 'Contact', 'Email', 'Phone', 'Stage'].map(h => (
+                        <th key={h} style={{ ...cell, ...muted, textAlign: 'left', fontSize: '0.72rem' }}>{h}</th>
+                      ))}</tr>
+                    </thead>
+                    <tbody>
+                      {st.leads.slice(0, 8).map((l, i) => (
+                        <tr key={i} style={{ borderTop: '1px solid var(--border-color, rgba(128,128,128,0.15))' }}>
+                          <td style={cell}>{l.company_name || '—'}</td>
+                          <td style={cell}>{l.person_name || '—'}</td>
+                          <td style={cell}>{l.email || '—'}</td>
+                          <td style={cell}>{l.phone || '—'}</td>
+                          <td style={cell}>{COLUMNS.find(c => c.id === l.stage)?.label}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {st.leads.length > 8 && <div style={{ ...muted, padding: '0.4rem 0.6rem' }}>…and {st.leads.length - 8} more</div>}
+                </div>
+              )}
+
+              {st.phase === 'done' && (
+                <div role="status" style={{ marginTop: '1rem', padding: '0.75rem', borderRadius: 8, background: 'rgba(16,185,129,0.1)', color: '#10b981', fontSize: '0.875rem' }}>
+                  Imported {st.added} leads.
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
+                {st.phase !== 'done' && (
+                  <button type="button" onClick={runImport} disabled={busy || st.leads.length === 0} className="easy-submit" style={{ flex: 1 }}>
+                    {st.phase === 'importing'
+                      ? `Importing… ${st.done || 0}/${st.leads.length}`
+                      : st.leads.length === 0 ? 'Nothing new to import' : `Import ${st.leads.length} leads`}
+                  </button>
+                )}
+                <button type="button" onClick={close} disabled={busy} className="easy-submit-outline" style={{ flex: st.phase === 'done' ? 1 : 0.5 }}>
+                  {st.phase === 'done' ? 'Done' : 'Cancel'}
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogSheet>
+      </div>
+    );
+  }
+
   return (
     <div className="crm-page">
       {/* Desktop Toolbar */}
@@ -455,6 +712,9 @@ export default function CRM() {
             </div>
           ))}
         </div>
+        <button onClick={openImport} className="easy-submit-outline" style={{ width: 'auto', padding: '0.5rem 1rem', fontSize: '0.8125rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+          <FileSpreadsheet size={16} /> Import Excel
+        </button>
         <button onClick={() => openAdd('lead')} className="easy-submit" style={{ width: 'auto', padding: '0.5rem 1.125rem', fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
           <Plus size={16} /> Add Lead
         </button>
@@ -502,6 +762,7 @@ export default function CRM() {
       </div>
 
       {modalOpen && renderModal()}
+      {importOpen && renderImportModal()}
     </div>
   );
 }
