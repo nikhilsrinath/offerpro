@@ -12,6 +12,20 @@ public.ai_company_memory | platform_admin | foreign                    | S=0 I=0
 public.ai_company_memory | platform_admin | own                        | S=0 I=0 U=0 D=0
 public.ai_company_memory | viewer         | foreign                    | S=0 I=0 U=0 D=0
 public.ai_company_memory | viewer         | own                        | S=1 I=0 U=0 D=0
+public.ai_usage_events | admin          | foreign                    | S=0 I=0 U=0 D=0
+public.ai_usage_events | admin          | own                        | S=1 I=0 U=0 D=0
+public.ai_usage_events | foreign_owner  | foreign                    | S=1 I=0 U=0 D=0
+public.ai_usage_events | foreign_owner  | own                        | S=0 I=0 U=0 D=0
+public.ai_usage_events | member         | foreign                    | S=0 I=0 U=0 D=0
+public.ai_usage_events | member         | own                        | S=1 I=0 U=0 D=0
+public.ai_usage_events | outsider       | foreign                    | S=0 I=0 U=0 D=0
+public.ai_usage_events | outsider       | own                        | S=0 I=0 U=0 D=0
+public.ai_usage_events | owner          | foreign                    | S=0 I=0 U=0 D=0
+public.ai_usage_events | owner          | own                        | S=1 I=0 U=0 D=0
+public.ai_usage_events | platform_admin | foreign                    | S=0 I=0 U=0 D=0
+public.ai_usage_events | platform_admin | own                        | S=0 I=0 U=0 D=0
+public.ai_usage_events | viewer         | foreign                    | S=0 I=0 U=0 D=0
+public.ai_usage_events | viewer         | own                        | S=1 I=0 U=0 D=0
 public.announcement_reads | admin          | (no probe)                 | rls=1 policies=1
 public.announcement_reads | foreign_owner  | (no probe)                 | rls=1 policies=1
 public.announcement_reads | member         | (no probe)                 | rls=1 policies=1

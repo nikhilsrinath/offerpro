@@ -24,6 +24,7 @@
  */
 import { requireUser, requireOrgRole, HttpError } from './_lib/auth.js';
 import { supabaseAdmin } from './_lib/supabaseAdmin.js';
+import { logAiUsage } from './_lib/aiUsage.js';
 
 // Mirrors `limits.aiMessages` in src/services/planConfig.js. Duplicated rather
 // than imported for the same reason api/_lib/docShape.js duplicates the row
@@ -85,6 +86,7 @@ export default async function handler(req, res) {
     const used = await meterMessage(org_id);
     const limit = await limitFor(org_id);
     if (used > limit) {
+      await logAiUsage({ orgId: org_id, user, surface: 'copilot', outcome: 'blocked' });
       return res.status(429).json({
         error: 'AI message limit reached for your plan',
         used: used - 1,
@@ -118,6 +120,7 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errorText = await response.text().catch(() => '');
       console.error('[AI Proxy] API Error:', response.status, errorText);
+      await logAiUsage({ orgId: org_id, user, surface: 'copilot', outcome: 'failed', model: model || DEFAULT_MODEL });
       return res.status(response.status).json({
         error: `AI provider error: ${response.status}`,
         details: errorText.substring(0, 500),
@@ -140,6 +143,9 @@ export default async function handler(req, res) {
       res.write(value);
     }
 
+    // Logged before end(): a serverless function may be frozen the moment its
+    // response is complete, and an un-awaited insert would be lost with it.
+    await logAiUsage({ orgId: org_id, user, surface: 'copilot', model: model || DEFAULT_MODEL });
     res.end();
 
   } catch (error) {

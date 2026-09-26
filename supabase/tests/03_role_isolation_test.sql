@@ -162,6 +162,9 @@ begin
     insert into timesheet_entries (org_id, employee_id, project_id, work_date, minutes)
       values (o, e, pj, current_date, 60);
 
+    -- AI call log (0067), written by the API.
+    insert into ai_usage_events (org_id, surface) values (o, 'copilot');
+
     -- Document library (0063): a stored file and one passage read from it.
     insert into library_documents (org_id, title, file_name, mime_type, size_bytes, storage_path)
       values (o, 'Handbook ' || s, 'handbook.pdf', 'application/pdf', 1024, o || '/handbook-' || s || '.pdf')
@@ -269,6 +272,7 @@ select c.table_name as tbl,
                                 when 'project_code_counters' then 'projects'
                                 when 'timesheet_entries' then 'timesheets'
                                 when 'library_chunks'  then 'library_documents'
+                                when 'ai_usage_events' then 'usage_counters'
                                 when 'document_negotiation_events' then 'document_negotiation'
                                 when 'brain_nodes'     then 'edgebrain'
                                 when 'brain_edges'     then 'edgebrain'

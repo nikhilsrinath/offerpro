@@ -15,6 +15,7 @@
  */
 import { requireUser, requireOrgRole, HttpError, sendError, methodIs, readJsonBody } from './_lib/auth.js';
 import { supabaseAdmin } from './_lib/supabaseAdmin.js';
+import { logAiUsage } from './_lib/aiUsage.js';
 import { allowedResources } from './_lib/brainRetrieval.js';
 import { extractDocument, chunkMarkdown, leadSummary } from './_lib/libraryExtract.js';
 
@@ -42,13 +43,13 @@ export default async function handler(req, res) {
     const p = perms?.library_documents;
     if (!p?.create && !p?.edit) throw new HttpError(403, 'Your role cannot add documents to the library');
 
-    return res.status(200).json(await processDocument(orgId, docId));
+    return res.status(200).json(await processDocument(orgId, docId, user));
   } catch (err) {
     return sendError(res, err, 'library');
   }
 }
 
-async function processDocument(orgId, docId) {
+async function processDocument(orgId, docId, user) {
   const db = supabaseAdmin();
   const { data: doc, error } = await db.from('library_documents')
     .select('id, org_id, title, file_name, mime_type, size_bytes, storage_path')
@@ -67,7 +68,7 @@ async function processDocument(orgId, docId) {
 
     outcome = await extractDocument(
       { buffer, fileName: doc.file_name, mimeType: doc.mime_type, title: doc.title },
-      { ocr: process.env.GEMINI_API_KEY ? (bytes, mime, hint) => ocr(orgId, bytes, mime, hint) : null },
+      { ocr: process.env.GEMINI_API_KEY ? (bytes, mime, hint) => ocr(orgId, bytes, mime, hint, user) : null },
     );
   } catch (err) {
     outcome = { status: 'failed', method: null, markdown: '', pages: null, error: err?.message || String(err) };
@@ -117,7 +118,7 @@ async function processDocument(orgId, docId) {
 
 /* ── AI reading, for files with no text to parse ──────────────────────────── */
 
-async function ocr(orgId, bytes, mimeType, hint) {
+async function ocr(orgId, bytes, mimeType, hint, user) {
   if (bytes.byteLength > OCR_MAX_BYTES) {
     throw new Error(`Files over ${OCR_MAX_BYTES / 1048576} MB cannot be read by AI; upload a smaller scan or a PDF with a text layer.`);
   }
@@ -129,6 +130,7 @@ async function ocr(orgId, bytes, mimeType, hint) {
     .from('subscriptions').select('plan').eq('org_id', orgId).maybeSingle();
   const limit = AI_MESSAGE_LIMITS[sub?.plan || 'free'] ?? AI_MESSAGE_LIMITS.free;
   if (Number(used) > limit) {
+    await logAiUsage({ orgId, user, surface: 'library', outcome: 'blocked' });
     throw new Error('Your plan\'s AI message limit is reached, so this file could not be read. Text documents are unaffected.');
   }
 
@@ -158,9 +160,15 @@ async function ocr(orgId, bytes, mimeType, hint) {
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
     console.error('[library] AI provider error', response.status, detail.slice(0, 400));
+    await logAiUsage({ orgId, user, surface: 'library', outcome: 'failed', model: MODEL });
     throw new Error(`AI reading failed (${response.status}).`);
   }
   const json = await response.json();
+  await logAiUsage({
+    orgId, user, surface: 'library', model: MODEL,
+    promptTokens: json?.usageMetadata?.promptTokenCount,
+    completionTokens: json?.usageMetadata?.candidatesTokenCount,
+  });
   const text = (json?.candidates?.[0]?.content?.parts || [])
     .filter((p) => !p.thought).map((p) => p.text || '').join('').trim()
     .replace(/^```(?:markdown|md)?\n([\s\S]*?)\n```$/, '$1');

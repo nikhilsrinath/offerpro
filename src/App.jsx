@@ -7,7 +7,8 @@ import {
   Activity, Receipt, FilePlus, RotateCcw,
   GitBranch, UserX, Kanban, Package,
   Truck, FileInput, TrendingUp, CalendarCheck, Plane, Megaphone,
-  BrainCircuit, Banknote, FolderKanban, ListChecks, PieChart, Clock, FolderOpen
+  BrainCircuit, Banknote, FolderKanban, ListChecks, PieChart, Clock, FolderOpen,
+  Wallet, BarChart3, UsersRound, FileStack, Gauge
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
 import subPages from './components/landing/subPageData';
@@ -21,6 +22,12 @@ import NdaForm from './components/NdaForm';
 import MoUForm from './components/MoUForm';
 import InvoiceForm from './components/InvoiceForm';
 import Overview from './components/overview/Overview';
+import FinanceDash from './components/overview/FinanceDash';
+import SalesDash from './components/overview/SalesDash';
+import TeamDash from './components/overview/TeamDash';
+import ProjectsDash from './components/overview/ProjectsDash';
+import DocumentsDash from './components/overview/DocumentsDash';
+import UsageDash from './components/overview/UsageDash';
 import Hub from './components/Hub';
 import ModuleShell from './components/shell/ModuleShell';
 import Customers from './components/Customers';
@@ -84,7 +91,8 @@ import { portfolio as projectPortfolio } from './services/projectService';
 
 
 const MODULE_FILTER = {
-  overall: ['dashboard'],
+  overall: ['dashboard', 'dashboard/finance', 'dashboard/sales', 'dashboard/team', 'dashboard/projects',
+            'dashboard/documents', 'dashboard/usage'],
   brain: ['edgebrain'],
   team: ['team-hierarchy', 'employees', 'offer-tracker', 'ex-employees', 'bulk-team',
          'attendance', 'leave', 'announcements'],
@@ -122,7 +130,14 @@ const MODULE_META = {
 };
 
 const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  // `end`: /dashboard must not also light up on /dashboard/finance.
+  { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
+  { id: 'dashboard/finance', label: 'Finance', icon: Wallet },
+  { id: 'dashboard/sales', label: 'Sales & Clients', icon: BarChart3 },
+  { id: 'dashboard/team', label: 'Team', icon: UsersRound },
+  { id: 'dashboard/projects', label: 'Projects', icon: FolderKanban },
+  { id: 'dashboard/documents', label: 'Documents', icon: FileStack },
+  { id: 'dashboard/usage', label: 'Usage', icon: Gauge },
   { section: 'EDGEBRAIN' },
   { id: 'edgebrain', label: 'Company Brain', icon: BrainCircuit },
   { section: 'TEAM' },
@@ -172,6 +187,12 @@ const NAV_ITEMS = [
 const PAGE_META = {
   edgebrain: { title: 'EdgeBrain', subtitle: 'Your company, organised as one connected context your AI can reason over' },
   dashboard: { title: 'Dashboard', subtitle: 'The whole organisation, one period — click anything for the analysis behind it' },
+  'dashboard/finance': { title: 'Finance dashboard', subtitle: 'Money in, money out, and who owes whom' },
+  'dashboard/sales': { title: 'Sales & clients', subtitle: 'Pipeline, quotations, customers, products and markets' },
+  'dashboard/team': { title: 'Team dashboard', subtitle: 'Headcount, attendance, leave and who is carrying the work' },
+  'dashboard/projects': { title: 'Projects dashboard', subtitle: 'What is being delivered, what is late, and whether it pays' },
+  'dashboard/documents': { title: 'Documents dashboard', subtitle: 'Everything issued, every reply, and the library EdgeBrain reads' },
+  'dashboard/usage': { title: 'Usage', subtitle: 'AI messages and plan limits — how much you have used and what is left' },
   profile: { title: 'Company Profile', subtitle: 'The details every document you issue is signed with' },
   offers: { title: 'Offer Letters', subtitle: 'Generate employment and internship offers' },
   'new-certificates': { title: 'Certificates', subtitle: 'Issue professional attainment certificates' },
@@ -234,6 +255,7 @@ function AppContent() {
   else if (activePage === 'bulk-team') activePage = 'bulk-team';
   else if (activePage === 'bulk-history') activePage = 'bulk-history';
   else if (activePage === 'projects/new') activePage = 'new-project';
+  else if (activePage.startsWith('dashboard/')) activePage = activePage.replace(/\/+$/, '');
   else if (activePage.startsWith('projects/')) activePage = 'project-detail';
   else if (activePage.includes('/')) activePage = activePage.split('/')[0];
 
@@ -406,6 +428,12 @@ function AppContent() {
             <Route index element={<Navigate to="/hub" replace />} />
             <Route path="hub" element={<Hub user={user} activeOrg={activeOrg} theme={theme} onToggleTheme={toggleTheme} onLogout={logout} />} />
             <Route path="dashboard" element={<Overview />} />
+            <Route path="dashboard/finance" element={<FinanceDash />} />
+            <Route path="dashboard/sales" element={<SalesDash />} />
+            <Route path="dashboard/team" element={<TeamDash />} />
+            <Route path="dashboard/projects" element={<ProjectsDash />} />
+            <Route path="dashboard/documents" element={<DocumentsDash />} />
+            <Route path="dashboard/usage" element={<UsageDash />} />
             <Route path="edgebrain" element={<EdgeBrain />} />
             <Route path="profile" element={<CompanyProfile />} />
             <Route path="offers" element={<OfferForm />} />

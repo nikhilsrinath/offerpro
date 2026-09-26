@@ -16,9 +16,21 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * The level meter is a separate getUserMedia + AnalyserNode. SpeechRecognition
  * exposes no audio, and the orb needs something to breathe with. If the level
  * stream is refused, recognition still works; the orb just idles.
+ *
+ * Mobile: Android Chrome and iOS Safari hand the microphone to one consumer at
+ * a time. A second getUserMedia stream takes it from the recogniser, which then
+ * hears silence — the orb moves but no words arrive. There the meter is faked
+ * from the recogniser's own events instead. Android also repeats earlier text
+ * in every result of a continuous session, so there each session is one
+ * utterance and the restart loop in onend provides the continuity.
  */
 
 const SR = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
+
+const MOBILE = typeof navigator !== 'undefined' && (
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)   // iPadOS reports as a Mac
+);
 
 const ERRORS = {
     'not-allowed': 'Microphone access was blocked. Allow it in the browser’s site settings.',
@@ -53,11 +65,25 @@ export function useSpeechRecognition({ lang } = {}) {
         levelRef.current = 0;
         if (!a) return;
         cancelAnimationFrame(a.raf);
-        a.stream.getTracks().forEach((tr) => tr.stop());
-        a.ctx.close().catch(() => {});
+        a.stream?.getTracks().forEach((tr) => tr.stop());
+        a.ctx?.close().catch(() => {});
+    }, []);
+
+    // Mobile stand-in for the meter: the recogniser bumps levelRef when it
+    // hears something, and this lets it fall back so the orb still breathes.
+    const startFakeMeter = useCallback(() => {
+        if (audioRef.current) return;
+        const a = { ctx: null, stream: null, raf: 0 };
+        const loop = () => {
+            levelRef.current *= 0.9;
+            a.raf = requestAnimationFrame(loop);
+        };
+        loop();
+        audioRef.current = a;
     }, []);
 
     const startMeter = useCallback(async () => {
+        if (MOBILE) { startFakeMeter(); return; }
         if (audioRef.current || !navigator.mediaDevices?.getUserMedia) return;
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
@@ -80,11 +106,11 @@ export function useSpeechRecognition({ lang } = {}) {
             loop();
             audioRef.current = a;
         } catch { /* recognition can still run without a meter */ }
-    }, []);
+    }, [startFakeMeter]);
 
     const startSession = useCallback(() => {
         const rec = new SR();
-        rec.continuous = true;
+        rec.continuous = !MOBILE;
         rec.interimResults = true;
         rec.maxAlternatives = 1;
         // Indian English unless told otherwise. The browser's own language is
@@ -99,6 +125,7 @@ export function useSpeechRecognition({ lang } = {}) {
             if (recRef.current !== rec) return;
             heardAtRef.current = Date.now();
             heardAnyRef.current = true;
+            if (MOBILE) levelRef.current = Math.max(levelRef.current, 0.7);
             let fin = '';
             let tmp = '';
             for (let i = 0; i < e.results.length; i++) {
@@ -110,6 +137,7 @@ export function useSpeechRecognition({ lang } = {}) {
             setFinalText(join(bankRef.current, fin));
             setInterim(tmp);
         };
+        rec.onsoundstart = () => { if (MOBILE) levelRef.current = Math.max(levelRef.current, 0.4); };
         rec.onerror = (e) => {
             if (e.error === 'no-speech' || e.error === 'aborted') return;   // restart handles these
             setError(ERRORS[e.error] || 'Speech recognition stopped: ' + e.error);

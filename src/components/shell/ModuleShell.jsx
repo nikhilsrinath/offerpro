@@ -201,7 +201,7 @@ export default function ModuleShell({
                             const Icon = it.icon;
                             return (
                                 <NavLink
-                                    key={it.id} to={'/' + it.id} title={it.label}
+                                    key={it.id} to={'/' + it.id} end={!!it.end} title={it.label}
                                     className="edge-navitem"
                                     style={({ isActive }) => ({
                                         display: 'flex', alignItems: 'center', gap: 12,
@@ -420,7 +420,7 @@ export default function ModuleShell({
                         borderBottom: '1px solid ' + t.line, background: t.panel,
                     }}>
                         {items.map((it) => (
-                            <NavLink key={it.id} to={'/' + it.id} className="edge-navitem" style={({ isActive }) => ({
+                            <NavLink key={it.id} to={'/' + it.id} end={!!it.end} className="edge-navitem" style={({ isActive }) => ({
                                 display: 'inline-flex', alignItems: 'center', height: 32, padding: '0 11px',
                                 borderRadius: 7, whiteSpace: 'nowrap', textDecoration: 'none', fontSize: 11.5,
                                 color: isActive ? t.text : t.dim,

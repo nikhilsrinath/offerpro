@@ -18,6 +18,7 @@
  */
 import { requireUser, requireOrgRole, HttpError, sendError, methodIs, readJsonBody } from './_lib/auth.js';
 import { supabaseAdmin } from './_lib/supabaseAdmin.js';
+import { logAiUsage } from './_lib/aiUsage.js';
 import {
   allowedResources, requireBrainPermission, searchNodes, getNode,
   neighbors, getMetrics, buildContext, libraryContext,
@@ -87,7 +88,7 @@ export default async function handler(req, res) {
         });
       }
       case 'context':  return await context(res, { orgId, perms, allowed, body });
-      case 'ask':      return await ask(res, { orgId, perms, allowed, body });
+      case 'ask':      return await ask(res, { orgId, user, perms, allowed, body });
       default:         throw new HttpError(400, `Unknown action: ${action}`);
     }
   } catch (err) {
@@ -306,7 +307,7 @@ export function conversationHistory(raw) {
     .filter((m) => m.content);
 }
 
-async function ask(res, { orgId, perms, allowed, body }) {
+async function ask(res, { orgId, user, perms, allowed, body }) {
   requireBrainPermission(perms, 'view');
 
   const question = String(body.question || '').trim();
@@ -333,6 +334,7 @@ async function ask(res, { orgId, perms, allowed, body }) {
   const used = await meterMessage(orgId);
   const limit = await limitFor(orgId);
   if (used > limit) {
+    await logAiUsage({ orgId, user, surface: 'brain', outcome: 'blocked' });
     return res.status(429).json({
       success: false, error: 'AI message limit reached for your plan', used: used - 1, limit,
     });
@@ -387,10 +389,15 @@ async function ask(res, { orgId, perms, allowed, body }) {
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
     console.error('[brain] AI provider error', response.status, detail.slice(0, 400));
+    await logAiUsage({ orgId, user, surface: 'brain', outcome: 'failed', model: MODEL });
     throw new HttpError(502, `AI provider error (${response.status})`);
   }
 
   const json = await response.json();
+  await logAiUsage({
+    orgId, user, surface: 'brain', model: MODEL,
+    promptTokens: json?.usage?.prompt_tokens, completionTokens: json?.usage?.completion_tokens,
+  });
   const answer = json?.choices?.[0]?.message?.content?.trim() || '';
   if (!answer) throw new HttpError(502, 'The AI returned an empty answer');
 

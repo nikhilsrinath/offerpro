@@ -51,3 +51,17 @@ export function niceMax(v) {
     return step * p;
 }
 
+
+/** The window's width, kept current — the dashboards pick column counts from it. */
+export function useWinW() {
+    const [w, setW] = useState(() => window.innerWidth);
+    useEffect(() => {
+        const fn = () => setW(window.innerWidth);
+        window.addEventListener('resize', fn);
+        return () => window.removeEventListener('resize', fn);
+    }, []);
+    return w;
+}
+
+/** A button with no chrome, for wrapping a chart that is itself the control. */
+export const plainBtn = { background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', color: 'inherit' };
