@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EdgeOS · Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#09090b;
+  --panel:#0c0c0e;
+  --card:#111113;
+  --card-2:#161619;
+  --line:#1f1f23;
+  --line-2:#2a2a2f;
+  --text:#fafafa;
+  --text-2:#d4d4d8;
+  --muted:#8b8b93;
+  --dim:#56565e;
+  --pos:#4ade80;
+  --neg:#f87171;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  background:var(--bg);color:var(--text);
+  --nav-w:260px;
+  display:grid;grid-template-columns:var(--nav-w) minmax(0,1fr) minmax(420px,36vw);
+  transition:grid-template-columns .25s ease;
+  overflow:hidden;-webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid #a1a1aa;outline-offset:2px}
+
+/* ============ Sidebar ============ */
+.sidebar{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;height:100%}
+.brand{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 18px}
+.brand-left{display:flex;align-items:center;gap:12px;font-size:17px;font-weight:600;letter-spacing:-.2px}
+.icon-btn{width:30px;height:30px;display:grid;place-items:center;border-radius:8px;color:var(--muted)}
+.icon-btn:hover{background:var(--card-2);color:var(--text)}
+.nav-label{font-size:12px;color:var(--dim);padding:14px 22px 8px}
+.nav{display:flex;flex-direction:column;gap:2px;padding:0 10px}
+.nav a{display:flex;align-items:center;gap:14px;padding:10px 12px;border-radius:9px;color:var(--muted);text-decoration:none;font-size:14px}
+.nav a:hover{color:var(--text);background:var(--card)}
+.nav a.active{color:var(--text);background:var(--card-2)}
+.nav .code{margin-left:auto;font-size:10px;font-style:normal;color:var(--dim);letter-spacing:.5px}
+.sidebar-foot{margin-top:auto;padding:14px}
+.plan{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:13px;color:var(--text-2)}
+.plan .dot{width:6px;height:6px;border-radius:50%;background:var(--pos)}
+.plan em{margin-left:auto;font-style:normal;font-size:12px;color:var(--dim)}
+
+/* ============ Main ============ */
+main{overflow-y:auto;height:100%;padding:52px 40px 64px;scrollbar-width:thin;scrollbar-color:#27272a transparent}
+.main-inner{max-width:720px;margin:0 auto}
+h1{font-size:30px;font-weight:600;letter-spacing:-.7px;line-height:1.15}
+.sub{font-size:15px;color:var(--muted);margin-top:6px}
+
+.section-bar{display:flex;align-items:center;justify-content:space-between;margin:40px 0 14px}
+.section-bar h2{font-size:14px;font-weight:500;color:var(--text-2)}
+.section-bar .actions{display:flex;gap:6px}
+.btn{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:9px;font-size:13px;font-weight:500}
+.btn-primary{background:var(--text);color:#09090b}
+.btn-primary:hover{background:#e4e4e7}
+.btn-ghost{border:1px solid var(--line-2);color:var(--text-2)}
+.btn-ghost:hover{border-color:#3f3f46;color:var(--text)}
+.btn-text{color:var(--muted);padding:0 10px}
+.btn-text:hover{color:var(--text)}
+
+/* Empty dashboard */
+.empty-dash{
+  border:1px dashed var(--line-2);border-radius:20px;padding:56px 32px;
+  display:flex;flex-direction:column;align-items:center;text-align:center
+}
+.ghost-grid{display:grid;grid-template-columns:repeat(2,64px);grid-auto-rows:40px;gap:6px;margin-bottom:28px}
+.ghost-grid span{border:1px solid var(--line-2);border-radius:8px;background:var(--card)}
+.ghost-grid span:nth-child(3){grid-column:1/-1}
+.ghost-grid span.plus{border-style:dashed;background:none;display:grid;place-items:center;color:var(--muted);font-size:16px}
+.empty-dash h3{font-size:18px;font-weight:600;letter-spacing:-.3px}
+.empty-dash p{font-size:14px;color:var(--muted);margin-top:8px;max-width:340px;line-height:1.55}
+.empty-dash .row{display:flex;gap:8px;margin-top:24px;flex-wrap:wrap;justify-content:center}
+
+/* Widgets */
+.widgets{display:none;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+body.has-widgets .widgets{display:grid}
+body.has-widgets .empty-dash{display:none}
+.w{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;position:relative;min-width:0}
+.w.span-2{grid-column:1/-1}
+.w-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.w-label{font-size:13px;color:var(--muted)}
+.w-meta{font-size:12px;color:var(--dim)}
+.w-value{font-size:30px;font-weight:600;letter-spacing:-1px;margin-top:14px;font-variant-numeric:tabular-nums}
+.w-delta{font-size:12px;color:var(--muted);margin-top:4px}
+.w-delta b{font-weight:500}
+.w-delta .up{color:var(--pos)}.w-delta .down{color:var(--neg)}
+.w-spark{display:block;width:100%;height:48px;margin-top:18px}
+.w .grip{position:absolute;top:16px;right:14px;opacity:0;transition:opacity .15s}
+.w:hover .grip{opacity:1}
+.w:hover .w-meta{opacity:0}
+
+/* Cash flow */
+.cf-top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:14px}
+.cf-top .w-value{margin-top:0}
+.cf-legend{display:flex;gap:18px}
+.cf-legend div{font-size:12px;color:var(--muted)}
+.cf-legend strong{display:block;font-size:15px;color:var(--text);font-weight:500;margin-top:2px;font-variant-numeric:tabular-nums}
+.cf-legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:0}
+.tabs{display:flex;gap:2px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:2px}
+.tabs button{font-size:11px;color:var(--muted);padding:4px 9px;border-radius:6px}
+.tabs button.on{background:var(--card-2);color:var(--text)}
+.bars{display:block;width:100%;height:auto;margin-top:20px}
+
+/* Receivables */
+.list{margin-top:10px}
+.li{display:grid;grid-template-columns:32px 1fr auto auto;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.li:first-child{border-top:0}
+.avatar{width:32px;height:32px;border-radius:9px;background:var(--card-2);border:1px solid var(--line-2);display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--text-2)}
+.li-name{font-size:14px}
+.li-sub{font-size:12px;color:var(--dim);margin-top:2px}
+.li-amt{font-size:14px;font-variant-numeric:tabular-nums}
+.status{font-size:11px;color:var(--muted);border:1px solid var(--line-2);border-radius:999px;padding:3px 9px;min-width:62px;text-align:center}
+.status.late{color:var(--neg);border-color:rgba(248,113,113,.3)}
+
+.add-tile{
+  grid-column:1/-1;height:56px;border:1px dashed var(--line-2);border-radius:16px;
+  display:flex;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:13px
+}
+.add-tile:hover{color:var(--text);border-color:#3f3f46}
+
+/* ============ Chat ============ */
+.ai{border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;height:100%;min-height:0}
+.ai-head{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.ai-title{font-size:15px;font-weight:600}
+.ai-sub{font-size:12px;color:var(--dim);margin-left:2px}
+.ai-head .tabs{margin-left:auto}
+.dot-orb{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0%,#a1a1aa 45%,#27272a 90%)}
+
+.thread{flex:1;min-height:0;overflow-y:auto;padding:28px 24px;display:flex;flex-direction:column;gap:22px;scrollbar-width:thin;scrollbar-color:#27272a transparent}
+.msg{font-size:14px;line-height:1.65;color:var(--text-2);max-width:92%}
+.msg.user{align-self:flex-end;background:var(--card-2);color:var(--text);padding:10px 14px;border-radius:14px}
+.msg .src{display:block;margin-top:8px;font-size:12px;color:var(--dim)}
+.msg strong{color:var(--text);font-weight:500}
+.typing{display:flex;gap:4px}
+.typing span{width:5px;height:5px;border-radius:50%;background:var(--dim);animation:dot 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}
+@keyframes dot{30%{background:var(--text-2)}}
+
+.welcome{flex:1;min-height:0;overflow-y:auto;display:none;flex-direction:column;justify-content:center;padding:32px 28px}
+.ai.is-new .thread{display:none}
+.ai.is-new .welcome{display:flex}
+.big-orb{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0%,#a1a1aa 42%,#18181b 90%);box-shadow:0 0 32px rgba(255,255,255,.12);margin-bottom:22px;animation:breathe 5s ease-in-out infinite}
+@keyframes breathe{50%{box-shadow:0 0 48px rgba(255,255,255,.22)}}
+.welcome h2{font-size:22px;font-weight:600;letter-spacing:-.4px}
+.welcome p{font-size:14px;color:var(--muted);margin-top:6px}
+.prompts{margin-top:28px;border-top:1px solid var(--line)}
+.prompts button{display:flex;width:100%;justify-content:space-between;align-items:center;text-align:left;padding:14px 2px;border-bottom:1px solid var(--line);font-size:14px;color:var(--text-2)}
+.prompts button:hover{color:var(--text)}
+.prompts button svg{color:var(--dim)}
+.prompts button:hover svg{color:var(--text)}
+
+.composer{margin:0 18px 18px;display:flex;align-items:center;gap:8px;border:1px solid var(--line-2);border-radius:14px;background:var(--card);padding:6px 6px 6px 16px}
+.composer:focus-within{border-color:#3f3f46}
+.composer input{flex:1;min-width:0;background:none;border:0;outline:none;color:var(--text);font:inherit;font-size:14px;padding:8px 0}
+.composer input::placeholder{color:var(--dim)}
+.send{width:34px;height:34px;border-radius:10px;background:var(--text);color:#09090b;display:grid;place-items:center;flex:none}
+.hint{font-size:11px;color:var(--dim);text-align:center;margin:-8px 0 14px}
+
+
+/* ============ Collapsed nav ============ */
+.sidebar{overflow:hidden}
+.nav a,.plan,.brand-left{white-space:nowrap}
+.nav a svg,.brand-left svg{flex:none}
+.brand .icon-btn svg{transition:transform .25s ease}
+body.nav-collapsed{--nav-w:72px}
+body.nav-collapsed .brand{flex-direction:column;gap:14px;padding:20px 0 12px}
+body.nav-collapsed .brand .icon-btn svg{transform:scaleX(-1)}
+body.nav-collapsed .brand-left span,
+body.nav-collapsed .nav a span,
+body.nav-collapsed .nav .code,
+body.nav-collapsed .plan span,
+body.nav-collapsed .plan em{display:none}
+body.nav-collapsed .nav-label{visibility:hidden;height:0;padding:6px 0}
+body.nav-collapsed .nav a{justify-content:center;padding:11px 0}
+body.nav-collapsed .sidebar-foot{padding:14px 12px}
+body.nav-collapsed .plan{justify-content:center;padding:12px 0}
+body.nav-collapsed .main-inner{max-width:820px}
+.main-inner{transition:max-width .25s ease}
+
+/* ============ Responsive ============ */
+@media (max-width:1200px){
+  body{grid-template-columns:var(--nav-w) minmax(0,1fr) 380px}
+}
+@media (max-width:880px){
+  html,body{height:auto}
+  body{grid-template-columns:1fr;overflow:auto}
+  .sidebar{display:none}
+  main{padding:32px 18px;overflow:visible}
+  .ai{border-left:0;border-top:1px solid var(--line);height:620px}
+  .widgets{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-left">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5M4.9 4.9l3.5 3.5M15.6 15.6l3.5 3.5M4.9 19.1l3.5-3.5M15.6 8.4l3.5-3.5"/></svg>
+      <span>EdgeOS</span>
+    </div>
+    <button class="icon-btn" id="nav-toggle" aria-label="Collapse sidebar" aria-expanded="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18M16 10l-2 2 2 2"/></svg></button>
+  </div>
+  <div class="nav-label">Workspace</div>
+  <nav class="nav">
+    <a href="#" class="active" title="Dashboard"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg><span>Dashboard</span><em class="code">DSH</em></a>
+    <a href="#" title="Finance"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M14.5 8.5h-3.5a1.5 1.5 0 0 0 0 3h2a1.5 1.5 0 0 1 0 3H9.5M12 7v1.5M12 14.5V16"/></svg><span>Finance</span><em class="code">FIN</em></a>
+    <a href="#" title="Client Management"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3v18h18M8 17V11M12 17V7M16 17v-4M20 17V9"/></svg><span>Client Management</span><em class="code">CLM</em></a>
+    <a href="#" title="Team"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a5 5 0 0 1 3.5 6"/></svg><span>Team</span><em class="code">TEA</em></a>
+    <a href="#" title="Documents"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg><span>Documents</span><em class="code">DOC</em></a>
+    <a href="#" title="Records"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><span>Records</span><em class="code">REC</em></a>
+    <a href="#" title="EdgeBrain"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5a3 3 0 0 0-5.8 1A3 3 0 0 0 4 11a3 3 0 0 0 1.5 5A3 3 0 0 0 10 19.5 2.5 2.5 0 0 0 12 18zM12 5a3 3 0 0 1 5.8 1A3 3 0 0 1 20 11a3 3 0 0 1-1.5 5 3 3 0 0 1-4.5 3.5A2.5 2.5 0 0 1 12 18"/></svg><span>EdgeBrain</span><em class="code">BRN</em></a>
+  </nav>
+  <div class="sidebar-foot"><div class="plan"><i class="dot"></i><span>Max plan</span><em>68% used</em></div></div>
+</aside>
+
+<!-- Main -->
+<main>
+  <div class="main-inner">
+    <h1>Good Morning Nikhil,</h1>
+    <p class="sub">View your business widgets here</p>
+
+    <div class="section-bar">
+      <h2>Widgets</h2>
+      <div class="actions">
+        <button class="btn btn-text" id="clear">Clear</button>
+        <button class="btn btn-ghost" id="add-top"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add widget</button>
+      </div>
+    </div>
+
+    <!-- Empty state -->
+    <section class="empty-dash">
+      <div class="ghost-grid" aria-hidden="true"><span></span><span></span><span></span><span></span><span class="plus">+</span></div>
+      <h3>No widgets yet</h3>
+      <p>Add widgets to keep revenue, cash and clients in one view.</p>
+      <div class="row">
+        <button class="btn btn-primary" id="add-empty"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>Add widget</button>
+        <button class="btn btn-ghost" id="defaults">Use default layout</button>
+      </div>
+    </section>
+
+    <!-- Default widgets -->
+    <section class="widgets" aria-label="Widgets">
+      <article class="w">
+        <div class="w-head"><span class="w-label">Revenue</span><span class="w-meta">Sept</span></div>
+        <button class="icon-btn grip" aria-label="Widget options"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+        <div class="w-value">₹98,000</div>
+        <div class="w-delta"><b class="up">+100%</b> vs August</div>
+        <svg class="w-spark" viewBox="0 0 200 48" preserveAspectRatio="none">
+          <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+          <path d="M0 42 L30 40 L60 41 L90 36 L110 38 L130 20 L150 24 L175 12 L200 8 V48 H0Z" fill="url(#g1)"/>
+          <path d="M0 42 L30 40 L60 41 L90 36 L110 38 L130 20 L150 24 L175 12 L200 8" fill="none" stroke="#e4e4e7" stroke-width="1.5"/>
+        </svg>
+      </article>
+
+      <article class="w">
+        <div class="w-head"><span class="w-label">Expenses</span><span class="w-meta">Sept</span></div>
+        <button class="icon-btn grip" aria-label="Widget options"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+        <div class="w-value">₹81,500</div>
+        <div class="w-delta"><b class="down">+24%</b> vs August</div>
+        <svg class="w-spark" viewBox="0 0 200 48" preserveAspectRatio="none">
+          <defs><linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a1a1aa" stop-opacity=".14"/><stop offset="1" stop-color="#a1a1aa" stop-opacity="0"/></linearGradient></defs>
+          <path d="M0 30 L30 28 L60 32 L90 26 L120 29 L150 18 L175 22 L200 16 V48 H0Z" fill="url(#g2)"/>
+          <path d="M0 30 L30 28 L60 32 L90 26 L120 29 L150 18 L175 22 L200 16" fill="none" stroke="#71717a" stroke-width="1.5"/>
+        </svg>
+      </article>
+
+      <article class="w span-2">
+        <div class="w-head"><span class="w-label">Cash flow</span>
+          <div class="tabs"><button>7D</button><button class="on">1M</button><button>3M</button><button>1Y</button></div>
+        </div>
+        <div class="cf-top">
+          <div><div class="w-value">₹16,400</div><div class="w-delta">Net this month</div></div>
+          <div class="cf-legend">
+            <div><i style="background:#fafafa"></i>In<strong>₹98.0k</strong></div>
+            <div><i style="background:#52525b"></i>Out<strong>₹81.5k</strong></div>
+          </div>
+        </div>
+        <svg class="bars" viewBox="0 0 640 150" aria-label="Weekly money in and out">
+          <g stroke="#1f1f23"><line x1="0" y1="10" x2="640" y2="10"/><line x1="0" y1="55" x2="640" y2="55"/><line x1="0" y1="100" x2="640" y2="100"/></g>
+          <line x1="0" y1="130" x2="640" y2="130" stroke="#2a2a2f"/>
+          <!-- pairs: in (white), out (grey) -->
+          <g fill="#fafafa">
+            <rect x="40" y="118" width="18" height="12" rx="3"/>
+            <rect x="200" y="112" width="18" height="18" rx="3"/>
+            <rect x="360" y="14" width="18" height="116" rx="3"/>
+            <rect x="520" y="116" width="18" height="14" rx="3"/>
+          </g>
+          <g fill="#52525b">
+            <rect x="62" y="110" width="18" height="20" rx="3"/>
+            <rect x="222" y="104" width="18" height="26" rx="3"/>
+            <rect x="382" y="60" width="18" height="70" rx="3"/>
+            <rect x="542" y="102" width="18" height="28" rx="3"/>
+          </g>
+          <g fill="#56565e" font-size="11" font-family="Inter,sans-serif">
+            <text x="42" y="147">Aug 26</text><text x="204" y="147">Sept 2</text><text x="364" y="147">Sept 9</text><text x="522" y="147">Sept 16</text>
+          </g>
+        </svg>
+      </article>
+
+      <article class="w span-2">
+        <div class="w-head"><span class="w-label">Awaiting payment</span><span class="w-meta">₹1,42,000 total</span></div>
+        <button class="icon-btn grip" aria-label="Widget options"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+        <div class="list">
+          <div class="li"><span class="avatar">AR</span><div><div class="li-name">Acme Retail</div><div class="li-sub">INV-0042 · due 12 Sept</div></div><span class="li-amt">₹54,000</span><span class="status late">11 days late</span></div>
+          <div class="li"><span class="avatar">NS</span><div><div class="li-name">Northstar Labs</div><div class="li-sub">INV-0045 · due 28 Sept</div></div><span class="li-amt">₹38,000</span><span class="status">In 5 days</span></div>
+          <div class="li"><span class="avatar">KT</span><div><div class="li-name">Kite Travel</div><div class="li-sub">INV-0047 · due 4 Oct</div></div><span class="li-amt">₹50,000</span><span class="status">In 11 days</span></div>
+        </div>
+      </article>
+
+      <button class="add-tile" id="add-bottom"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add widget</button>
+    </section>
+  </div>
+</main>
+
+<!-- EdgeAI -->
+<aside class="ai" aria-label="EdgeAI">
+  <div class="ai-head">
+    <span class="dot-orb" aria-hidden="true"></span>
+    <span class="ai-title">EdgeAI</span>
+    <div class="tabs" role="group" aria-label="Chat view">
+      <button class="on" id="v-chat">Chat</button>
+      <button id="v-new">New</button>
+    </div>
+  </div>
+
+  <div class="thread">
+    <div class="msg">Morning Nikhil. September so far: ₹98,000 in, ₹81,500 out, leaving you <strong>₹16,400</strong> net.</div>
+    <div class="msg user">Who paid the ₹98k on 10 Sept?</div>
+    <div class="msg">A direct transfer from <strong>Acme Retail</strong> for the Q3 retainer. It isn't matched to an invoice yet. Want me to link it to INV‑0042?
+      <span class="src">From Acme contract.pdf and the Sept bank statement</span></div>
+    <div class="msg user">Yes. And what's still pending?</div>
+    <div class="msg"><div class="typing"><span></span><span></span><span></span></div></div>
+  </div>
+
+  <div class="welcome">
+    <div class="big-orb" aria-hidden="true"></div>
+    <h2>Ask EdgeAI</h2>
+    <p>Answers come from everything in EdgeBrain.</p>
+    <div class="prompts">
+      <button>How much runway do we have?<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg></button>
+      <button>Which clients are overdue?<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg></button>
+      <button>Summarise this week<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg></button>
+    </div>
+  </div>
+
+  <div class="composer">
+    <input type="text" placeholder="Ask anything about your company" aria-label="Message EdgeAI">
+    <button class="send" aria-label="Send"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+  </div>
+</aside>
+
+<script>
+(function(){
+  var t=document.getElementById('nav-toggle');
+  function setNav(c){document.body.classList.toggle('nav-collapsed',c);t.setAttribute('aria-expanded',!c);t.setAttribute('aria-label',c?'Expand sidebar':'Collapse sidebar');}
+  t.onclick=function(){setNav(!document.body.classList.contains('nav-collapsed'))};
+  if(window.innerWidth<1200)setNav(true);
+})();
+(function(){
+  var b=document.body, show=function(){b.classList.add('has-widgets')};
+  ['add-empty','defaults','add-top'].forEach(function(id){document.getElementById(id).onclick=show});
+  document.getElementById('clear').onclick=function(){b.classList.remove('has-widgets')};
+  var ai=document.querySelector('.ai'),c=document.getElementById('v-chat'),n=document.getElementById('v-new');
+  c.onclick=function(){ai.classList.remove('is-new');c.classList.add('on');n.classList.remove('on')};
+  n.onclick=function(){ai.classList.add('is-new');n.classList.add('on');c.classList.remove('on')};
+})();
+</script>
+</body>
+</html>

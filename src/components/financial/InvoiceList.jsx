@@ -1,18 +1,28 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, Edit3, Copy, CheckCircle, Bell, Search, Filter, Plus, ChevronDown, ChevronUp, X, Download, MessageSquare, RotateCcw, XCircle } from 'lucide-react';
+import { Eye, Edit3, Copy, CheckCircle, Bell, Search, Filter, Plus, X, Download, Trash2, Ban } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { documentStore, docNumber as docNo } from '../../services/documentStore';
 import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
-import { DialogSheet } from '../ui/edge';
-import PortalLinkGenerator from '../shared/PortalLinkGenerator';
+import { DialogSheet, Btn, Status, Modal, Field, Textarea } from '../ui/edge';
+import { useT } from '../ui/edgeUtils';
+import { ShareLinkModal } from '../shared/PortalLinkGenerator';
 import { useToast } from '../shared/Toast';
 import { esc, safeImageUrl } from '../../utils/htmlEscape';
 import { isOverdue, balanceOf, daysOverdue } from '../../services/financeAnalytics';
 import { invoiceReminderService } from '../../services/invoiceReminderService';
+import { useSection } from './financeHooks';
+import ProjectBadge from '../projects/ProjectBadge';
+import { canCreateProjects } from '../../services/projectService';
+import { advanceOf } from '../../services/proformaAdvance';
+import { conversionTargets, buildConversion, carriedAdvance, existingConversion } from '../../services/documentConversion';
+import ConvertDialog from './ConvertDialog';
+import { lifecycleOf, revertedStatusOf, isCarriedAdvance } from '../../services/documentLifecycle';
+import { orgStore } from '../../services/orgStore';
+import { confirmDialog } from '../../services/confirm';
 
 export default function InvoiceList({ type = 'invoice' }) {
   const navigate = useNavigate();
@@ -25,13 +35,32 @@ export default function InvoiceList({ type = 'invoice' }) {
   // initial filter comes from the URL when there is one.
   const [searchParams] = useSearchParams();
   const [statusFilter, setStatusFilter] = useState(searchParams.get('filter') || 'all');
+  const [projectFilter, setProjectFilter] = useState(searchParams.get('project') || 'all');
+  const projects = useSection('projects');
+  const allocations = useSection('project_allocations');
+  const projectLinks = useSection('project_documents');
+  // Which project(s) a document belongs to. An invoice through its money
+  // links (visible only with Project financials); a quotation or proforma
+  // through the project started from it or linked to it.
+  const projectsOf = useMemo(() => {
+    const byId = Object.fromEntries(projects.map((p) => [p.id, p]));
+    const map = {};
+    const add = (docId, pid) => { if (byId[pid]) (map[docId] = map[docId] || new Set()).add(pid); };
+    allocations.filter((a) => a.source_type === 'invoice').forEach((a) => add(a.source_id, a.project_id));
+    projects.filter((p) => p.source_quotation_id).forEach((p) => add(p.source_quotation_id, p.id));
+    projectLinks.filter((l) => l.financial_document_id).forEach((l) => add(l.financial_document_id, l.project_id));
+    return (docId) => [...(map[docId] || [])].map((id) => byId[id]);
+  }, [projects, allocations, projectLinks]);
+  const showProjects = projects.length > 0 && (type !== 'invoice' || allocations.length > 0);
   const [showPortalLink, setShowPortalLink] = useState(null);
-  const [expandedPayment, setExpandedPayment] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(null);
   const [downloadingId, setDownloadingId] = useState(null);
-  const [expandedRevision, setExpandedRevision] = useState(null);
-  const [expandedDecline, setExpandedDecline] = useState(null);
+  const [convertSource, setConvertSource] = useState(null);
+  const [convertingId, setConvertingId] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [lifecycleBusy, setLifecycleBusy] = useState(null);
 
   const typeLabel = {
     invoice: 'Invoice',
@@ -67,7 +96,9 @@ export default function InvoiceList({ type = 'invoice' }) {
           && !['draft', 'cancelled', 'paid'].includes(d.status) && balanceOf(d) > 0.009)
         || (statusFilter === 'collected' && Number(d.amount_paid) > 0)
         || d.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      const matchesProject = projectFilter === 'all'
+        || (projectFilter === 'none' ? projectsOf(d.id).length === 0 : projectsOf(d.id).some((p) => p.id === projectFilter));
+      return matchesSearch && matchesStatus && matchesProject;
     });
     return [...filtered].sort((a, b) => {
       const dateA = new Date(a.issue_date || a.created_at || 0);
@@ -81,7 +112,7 @@ export default function InvoiceList({ type = 'invoice' }) {
       if (sortBy === 'client')      return (a.issued_to || a.client?.name || '').localeCompare(b.issued_to || b.client?.name || '');
       return 0;
     });
-  }, [documents, search, statusFilter, sortBy]);
+  }, [documents, search, statusFilter, sortBy, projectFilter, projectsOf]);
 
   // Auto-detect overdue invoices
   useEffect(() => {
@@ -161,7 +192,16 @@ export default function InvoiceList({ type = 'invoice' }) {
           bySubmitter: true,
         });
       }
-      toast('Payment verified and recorded', 'success');
+      // The payments trigger speaks invoice: money short of the total reads
+      // `partially_paid`. On a proforma that money is the advance, and
+      // `advance_paid` is what unlocks the tax invoice.
+      if (doc?.type === 'proforma') {
+        const after = documentStore.getById(id);
+        if (after && after.status !== 'paid' && after.status !== 'advance_paid') {
+          await documentStore.updateStatus(id, 'advance_paid');
+        }
+      }
+      toast(doc?.type === 'proforma' ? 'Advance verified and recorded' : 'Payment verified and recorded', 'success');
     } catch (err) {
       toast(`Could not verify the payment: ${err.message}`, 'error');
     }
@@ -175,7 +215,8 @@ export default function InvoiceList({ type = 'invoice' }) {
       const pending = documentStore.getPendingPayment(id);
       if (pending) await documentStore.deletePayment(pending.id, id);
 
-      await documentStore.updateStatus(id, 'sent', {
+      const doc = documents.find((d) => d.id === id);
+      await documentStore.updateStatus(id, doc?.type === 'proforma' ? 'order_confirmed' : 'sent', {
         payment_rejected: true,
         rejection_reason: rejectReason,
       });
@@ -209,8 +250,8 @@ export default function InvoiceList({ type = 'invoice' }) {
 
     // Compute totals from stored data
     const subtotal = doc.subtotal || 0;
-    const gstRate = doc.gstRate || 0;
-    const gstAmount = doc.gst || 0;
+    const gstRate = Number(doc.gst_rate ?? doc.gstRate) || 0;
+    const gstAmount = Number(doc.gst_amount ?? doc.gst) || 0;
     const halfRate = gstRate / 2;
     const cgst = gstAmount / 2;
     const sgst = gstAmount / 2;
@@ -218,6 +259,7 @@ export default function InvoiceList({ type = 'invoice' }) {
     const discountAmt = doc.discount?.amount || 0;
     const taxableAmount = subtotal - discountAmt;
     const isPaid = doc.status === 'paid';
+    const advance = doc.type === 'proforma' ? advanceOf(doc) : null;
 
     // Build offscreen A4 using the InvoicePreview template (doc-header + inv-* classes)
     //
@@ -253,7 +295,7 @@ export default function InvoiceList({ type = 'invoice' }) {
 
         <!-- Title -->
         <div class="inv-header">
-          <div class="inv-header-title">${esc(titleText)}</div>
+          <div class="inv-header-title">${esc(titleText)}${doc.status === 'cancelled' ? ' <span style="color:#dc2626">— CANCELLED</span>' : ''}</div>
           <div class="inv-header-number">${esc(docNo(doc))}</div>
         </div>
 
@@ -319,8 +361,13 @@ export default function InvoiceList({ type = 'invoice' }) {
             <div class="inv-total-row inv-total-gst"><span>SGST @ ${halfRate}%:</span><span>\u20B9${sgst.toLocaleString('en-IN')}</span></div>
           ` : ''}
           <div class="inv-total-divider inv-total-divider-bold"></div>
-          <div class="inv-total-row inv-total-grand"><span>TOTAL AMOUNT:</span><span>\u20B9${grandTotal.toLocaleString('en-IN')}</span></div>
+          <div class="inv-total-row inv-total-grand"><span>${doc.type === 'proforma' ? 'ORDER VALUE' : 'TOTAL AMOUNT'}:</span><span>\u20B9${grandTotal.toLocaleString('en-IN')}</span></div>
+          ${advance && advance.percent > 0 ? `
+            <div class="inv-total-row"><span>Advance payable now (${advance.percent}%):</span><span>\u20B9${advance.advance.toLocaleString('en-IN')}</span></div>
+            <div class="inv-total-row"><span>Balance on delivery:</span><span>\u20B9${advance.balance.toLocaleString('en-IN')}</span></div>
+          ` : ''}
         </div>
+        ${doc.type === 'proforma' ? '<div class="inv-notes"><div class="inv-notes-text">This is a proforma invoice issued to confirm the order. It is not a tax invoice and cannot be used to claim input tax credit.</div></div>' : ''}
 
         ${doc.terms || doc.payment_instructions ? `
           <div class="inv-notes">
@@ -392,72 +439,130 @@ export default function InvoiceList({ type = 'invoice' }) {
     }
   };
 
-  const handleReviseQuotation = (id) => {
-    documentStore.updateStatus(id, 'draft', { revision_notes: null });
-    toast('Quotation moved to draft for revision', 'success');
-    setExpandedRevision(null);
-    if (type === 'quotation') {
-      navigate(`/new-quotation/${id}`);
-    } else {
+  // A sent quotation is not pulled back to draft to be revised: the database
+  // only lets its content change as a new version (0064). The editor opens on
+  // the same document with the client's note in view, and sending publishes v2
+  // of THIS quotation — it used to save a brand-new quotation instead.
+  const handleReviseQuotation = (id) => navigate(`/new-quotation/${id}`);
+  const handleRedraftDeclined = (id) => navigate(`/new-quotation/${id}`);
+
+  // Quotation → proforma, quotation → tax invoice, proforma → tax invoice.
+  // What the new document carries is decided in documentConversion.js; this
+  // does the writes, in an order that survives a failure halfway:
+  //   1. a document already built from this source is reused, never duplicated
+  //      (a retry after step 3 failed would otherwise issue a second one);
+  //   2. a proforma's advance becomes a payment on its invoice, so the client
+  //      is not billed twice and the money is counted as collected;
+  //   3. only then is the source marked converted, pointing at the new one.
+  const runConversion = async (source, target, opts = {}) => {
+    if (convertingId) return;
+    setConvertingId(source.id);
+    try {
+      let built = existingConversion(source, documentStore.getAll());
+      const resumed = !!built;
+      if (!built) built = await documentStore.save(buildConversion(source, target, opts));
+
+      const advance = source.type === 'proforma' ? carriedAdvance(source) : null;
+      if (advance && !(built.payments || []).some((p) => p.method === advance.method && p.reference === advance.reference)) {
+        await documentStore.recordPayment(built.id, advance);
+      }
+
+      await documentStore.updateStatus(source.id, 'converted', { converted_to: built.id });
+      const label = built.type === 'proforma' ? 'proforma' : 'invoice';
+      toast(resumed
+        ? `${docNo(source)} was already converted to ${label} ${docNo(built)} — marked converted`
+        : `Converted to ${label} ${docNo(built)}${advance ? ` with ₹${advance.amount.toLocaleString('en-IN')} advance applied` : ''}`,
+      'success');
+      setConvertSource(null);
+      loadDocuments();
+      navigate(built.type === 'proforma' ? '/proforma' : '/invoices');
+    } catch (err) {
+      const msg = /SOURCE_NOT_LOCKED/.test(err.message || '')
+        ? 'The client has not accepted this version yet, so it cannot be converted.'
+        : err.message;
+      toast(`Could not convert: ${msg}`, 'error');
+      loadDocuments();
+    } finally {
+      setConvertingId(null);
+    }
+  };
+
+  // ── Delete a draft / cancel an issued document ──────────────────────────────
+  // Which of the two applies, and why not, is documentLifecycle.js. These do
+  // the writes and put back anything the document had changed elsewhere.
+  const canDeleteDocs = orgStore.can('financial_documents', 'delete');
+  const canEditDocs = orgStore.can('financial_documents', 'edit');
+
+  // The document this one was converted from goes back to where it was, so it
+  // can be converted again: deleting a wrong proforma draft, or cancelling a
+  // wrong invoice, must not strand the accepted quotation behind it.
+  const releaseParent = async (doc) => {
+    if (!doc.converted_from) return null;
+    const parent = documentStore.getById(doc.converted_from);
+    const status = revertedStatusOf(parent);
+    if (!status) return null;
+    await documentStore.updateStatus(parent.id, status, { converted_to: null });
+    return parent;
+  };
+
+  const handleDelete = async (doc) => {
+    const rule = lifecycleOf(doc, documentStore.getAll()).delete;
+    if (!rule.allowed) { toast(rule.reason, 'info'); return; }
+    const ok = await confirmDialog({
+      title: `Delete ${docNo(doc) || typeLabel.toLowerCase()}`,
+      message: 'This draft was never sent, so it is removed completely. This cannot be undone.',
+    });
+    if (!ok) return;
+    setLifecycleBusy(doc.id);
+    try {
+      await documentStore.delete(doc.id);
+      const parent = await releaseParent(doc);
+      toast(parent ? `Deleted — ${docNo(parent)} can be converted again` : `${docNo(doc)} deleted`, 'success');
+    } catch (err) {
+      toast(`Could not delete: ${err.message}`, 'error');
+    } finally {
+      setLifecycleBusy(null);
       loadDocuments();
     }
   };
 
-  const handleRedraftDeclined = (id) => {
-    documentStore.updateStatus(id, 'draft', { decline_reason: null });
-    toast('Declined quotation moved to draft', 'success');
-    setExpandedDecline(null);
-    if (type === 'quotation') {
-      navigate(`/new-quotation/${id}`);
-    } else {
+  const openCancel = (doc) => {
+    const rule = lifecycleOf(doc, documentStore.getAll()).cancel;
+    if (!rule.allowed) { toast(rule.reason, 'info'); return; }
+    setCancelReason('');
+    setCancelTarget(doc);
+  };
+
+  const handleCancel = async () => {
+    const doc = cancelTarget;
+    if (!doc || lifecycleBusy) return;
+    setLifecycleBusy(doc.id);
+    try {
+      // A proforma's advance copied onto its invoice goes with the invoice;
+      // the money itself stays recorded on the proforma.
+      const parent = doc.converted_from ? documentStore.getById(doc.converted_from) : null;
+      for (const p of (doc.payments || []).filter((row) => isCarriedAdvance(row, parent))) {
+        await documentStore.deletePayment(p.id, doc.id);
+      }
+      await documentStore.updateStatus(doc.id, 'cancelled');
+      const released = await releaseParent(doc);
+      // The reason is kept as a notification, not on the document: a sent
+      // quotation's content is frozen, and the reason is not part of it.
+      const reason = cancelReason.trim();
+      Promise.resolve(documentStore.addNotification({
+        type: 'document_cancelled',
+        title: `${typeLabel} Cancelled`,
+        message: `${docNo(doc)} for ${doc.issued_to || doc.clientName || 'client'} cancelled${reason ? ` — ${reason}` : ''}`,
+        documentId: doc.id,
+      })).catch(() => {});
+      toast(released ? `${docNo(doc)} cancelled — ${docNo(released)} can be converted again` : `${docNo(doc)} cancelled`, 'success');
+      setCancelTarget(null);
+    } catch (err) {
+      toast(`Could not cancel: ${err.message}`, 'error');
+    } finally {
+      setLifecycleBusy(null);
       loadDocuments();
     }
-  };
-
-  const handleConvertToProforma = async (doc) => {
-    const newProforma = {
-      ...doc,
-      id: undefined,
-      // The spread above carries the SOURCE document's number. Reusing it
-      // violates unique(org_id, doc_number); leaving it unset makes
-      // saveFinDoc() draw a fresh one from next_document_number().
-      doc_number: undefined,
-      invoiceNumber: undefined,
-      quotationNumber: undefined,
-      proformaNumber: undefined,
-      type: 'proforma',
-      status: 'draft',
-      title: 'Proforma Invoice',
-      converted_from: doc.id,
-      created_at: new Date().toISOString(),
-    };
-    const saved = await documentStore.save(newProforma);
-    await documentStore.updateStatus(doc.id, 'converted');
-    toast(`Converted to proforma ${saved.doc_number}`, 'success');
-    loadDocuments();
-  };
-
-  const handleConvertToInvoice = async (doc) => {
-    const newInvoice = {
-      ...doc,
-      id: undefined,
-      // The spread above carries the SOURCE document's number. Reusing it
-      // violates unique(org_id, doc_number); leaving it unset makes
-      // saveFinDoc() draw a fresh one from next_document_number().
-      doc_number: undefined,
-      invoiceNumber: undefined,
-      quotationNumber: undefined,
-      proformaNumber: undefined,
-      type: 'invoice',
-      status: 'draft',
-      title: 'Tax Invoice',
-      converted_from: doc.id,
-      created_at: new Date().toISOString(),
-    };
-    const saved = await documentStore.save(newInvoice);
-    await documentStore.updateStatus(doc.id, 'converted');
-    toast(`Converted to invoice ${saved.doc_number}`, 'success');
-    loadDocuments();
   };
 
   let statuses = ['all', 'draft', 'sent', 'viewed', 'payment_submitted', 'paid', 'overdue', 'partially_paid', 'outstanding', 'collected'];
@@ -467,6 +572,7 @@ export default function InvoiceList({ type = 'invoice' }) {
   if (type === 'proforma') {
     statuses.push('order_confirmed', 'advance_paid', 'converted');
   }
+  statuses.push('cancelled');
 
   return (
     <div className="fin-list animate-in">
@@ -483,6 +589,15 @@ export default function InvoiceList({ type = 'invoice' }) {
             aria-label="Search documents"
           />
         </div>
+        {showProjects && (
+          <select aria-label="Project" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}
+            style={{ height: '36px', padding: '0 0.625rem', borderRadius: '0.5rem', border: '1px solid var(--border-default)',
+              background: 'var(--background)', color: 'var(--text-secondary)', fontSize: '0.8rem', flexShrink: 0 }}>
+            <option value="all">Every project</option>
+            <option value="none">No project</option>
+            {projects.map((p) => <option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}
+          </select>
+        )}
         <select
           aria-label="Sort by"
           value={sortBy}
@@ -518,6 +633,16 @@ export default function InvoiceList({ type = 'invoice' }) {
         </button>
       </div>
 
+      <AttentionPanel
+        docs={filteredDocs}
+        type={type}
+        onVerify={handleVerifyPayment}
+        onReject={(id) => setShowRejectModal(id)}
+        onRevise={handleReviseQuotation}
+        onRedraft={handleRedraftDeclined}
+        onConvert={setConvertSource}
+      />
+
       {/* Table */}
       <div className="fin-list-table-wrap">
         <table className="fin-list-table">
@@ -530,13 +655,14 @@ export default function InvoiceList({ type = 'invoice' }) {
               <th>Issue Date</th>
               <th>{type === 'quotation' ? 'Valid Until' : 'Due Date'}</th>
               <th>Status</th>
+              {showProjects && <th>Project</th>}
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredDocs.length === 0 ? (
               <tr>
-                <td colSpan={type === 'invoice' ? 8 : 7} className="fin-list-empty">
+                <td colSpan={(type === 'invoice' ? 8 : 7) + (showProjects ? 1 : 0)} className="fin-list-empty">
                   No {typeLabel.toLowerCase()}s found
                 </td>
               </tr>
@@ -558,6 +684,13 @@ export default function InvoiceList({ type = 'invoice' }) {
                     )}
                   </td>
                   <td><DocumentStatusBadge status={doc.status} size="small" /></td>
+                  {showProjects && (
+                    <td style={{ fontSize: '0.75rem' }}>
+                      {projectsOf(doc.id).length === 0 ? '—' : projectsOf(doc.id).map((p) => (
+                        <div key={p.id}><ProjectBadge project={p} /></div>
+                      ))}
+                    </td>
+                  )}
                   <td>
                     <div className="fin-list-actions">
                       <button className="fin-list-action-btn" title="Copy Portal Link" onClick={() => handleCopyLink(doc)} aria-label="Copy Portal Link">
@@ -585,7 +718,7 @@ export default function InvoiceList({ type = 'invoice' }) {
                           <Bell size={14} />
                         </button>
                       )}
-                      {type === 'invoice' && doc.status !== 'paid' && (
+                      {type === 'invoice' && !['paid', 'cancelled'].includes(doc.status) && (
                         <button className="fin-list-action-btn success" title="Mark Paid" onClick={() => handleMarkPaid(doc.id)} aria-label="Mark Paid">
                           <CheckCircle size={14} />
                         </button>
@@ -600,31 +733,58 @@ export default function InvoiceList({ type = 'invoice' }) {
                           </button>
                         </>
                       )}
-                      {type === 'quotation' && (doc.status === 'draft' || doc.status === 'sent' || doc.status === 'viewed') && (
+                      {type === 'quotation' && ['draft', 'sent', 'viewed'].includes(doc.status) && (
                         <button
                           className="fin-list-action-btn"
-                          title={doc.status === 'draft' ? 'Edit Quotation' : 'Pull Back & Edit'}
-                          onClick={() => {
-                            if (doc.status !== 'draft') {
-                              documentStore.updateStatus(doc.id, 'draft');
-                              toast('Quotation pulled back to draft', 'success');
-                            }
-                            navigate(`/new-quotation/${doc.id}`);
-                          }}
-                         aria-label={doc.status === 'draft' ? 'Edit Quotation' : 'Pull Back & Edit'}>
+                          title={doc.status === 'draft' ? 'Edit quotation' : 'Revise — sends the client a new version'}
+                          aria-label={doc.status === 'draft' ? 'Edit quotation' : 'Revise quotation'}
+                          onClick={() => navigate(`/new-quotation/${doc.id}`)}
+                        >
                           <Edit3 size={14} />
                         </button>
                       )}
-                      {type === 'quotation' && doc.status === 'accepted' && (
-                        <button className="fin-list-action-btn primary" title="Convert to Proforma" onClick={() => handleConvertToProforma(doc)}>
+                      {type === 'quotation' && conversionTargets(doc).length > 0 && (
+                        <button className="fin-list-action-btn primary" title="Convert to a proforma or a tax invoice"
+                          disabled={convertingId === doc.id} onClick={() => setConvertSource(doc)}>
                           Convert
                         </button>
                       )}
-                      {type === 'proforma' && doc.status === 'advance_paid' && (
-                        <button className="fin-list-action-btn primary" title="Convert to Tax Invoice" onClick={() => handleConvertToInvoice(doc)}>
-                          Convert
+                      {type === 'quotation' && doc.status === 'accepted' && canCreateProjects() && projectsOf(doc.id).length === 0 && (
+                        <button className="fin-list-action-btn primary" title="Start a project from this quotation"
+                          onClick={() => navigate(`/projects/new?fromQuotation=${doc.id}`)}>
+                          Start project
                         </button>
                       )}
+                      {type === 'proforma' && conversionTargets(doc).includes('invoice') && (
+                        <button className="fin-list-action-btn primary"
+                          title={Number(doc.amount_paid) > 0
+                            ? `Convert to Tax Invoice — the ₹${Number(doc.amount_paid).toLocaleString('en-IN')} advance is applied`
+                            : 'Convert to Tax Invoice'}
+                          disabled={convertingId === doc.id} onClick={() => runConversion(doc, 'invoice')}>
+                          {convertingId === doc.id ? 'Converting…' : 'Convert'}
+                        </button>
+                      )}
+                      {doc.status !== 'cancelled' && (() => {
+                        const rule = lifecycleOf(doc, documents);
+                        if (rule.delete.allowed) {
+                          return canDeleteDocs && (
+                            <button className="fin-list-action-btn danger" title="Delete draft" aria-label={`Delete ${docNo(doc)}`}
+                              disabled={lifecycleBusy === doc.id} onClick={() => handleDelete(doc)}>
+                              <Trash2 size={14} />
+                            </button>
+                          );
+                        }
+                        // Shown even when it cannot be used yet: clicking says why.
+                        return canEditDocs && (
+                          <button className="fin-list-action-btn danger"
+                            title={rule.cancel.allowed ? `Cancel ${typeLabel.toLowerCase()}` : rule.cancel.reason}
+                            aria-label={`Cancel ${docNo(doc)}`} aria-disabled={!rule.cancel.allowed}
+                            style={rule.cancel.allowed ? undefined : { opacity: 0.4 }}
+                            disabled={lifecycleBusy === doc.id} onClick={() => openCancel(doc)}>
+                            <Ban size={14} />
+                          </button>
+                        );
+                      })()}
                     </div>
                   </td>
                 </tr>
@@ -634,155 +794,47 @@ export default function InvoiceList({ type = 'invoice' }) {
         </table>
       </div>
 
-      {/* Payment detail panel */}
-      {filteredDocs.filter((d) => d.status === 'payment_submitted').map((doc) => (
-        <motion.div
-          key={`pay-${doc.id}`}
-          className="fin-list-payment-card"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="fin-list-payment-header" onClick={() => setExpandedPayment(expandedPayment === doc.id ? null : doc.id)}>
-            <div className="fin-list-payment-icon">💰</div>
-            <div>
-              <strong>Payment confirmation received — {docNo(doc)}</strong>
-              <p>{doc.issued_to || doc.client?.name}: ₹{(doc.payment_confirmation?.amountPaid || doc.amount || 0).toLocaleString('en-IN')}</p>
-            </div>
-            {expandedPayment === doc.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </div>
-          <AnimatePresence>
-            {expandedPayment === doc.id && doc.payment_confirmation && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="fin-list-payment-details"
-              >
-                <div className="fin-list-payment-grid">
-                  <div><span>Transaction ID / UTR</span><strong>{doc.payment_confirmation.transactionId}</strong></div>
-                  <div><span>Payment Date</span><strong>{doc.payment_confirmation.paymentDate}</strong></div>
-                  <div><span>Amount</span><strong>₹{doc.payment_confirmation.amountPaid?.toLocaleString('en-IN')}</strong></div>
-                  <div><span>Mode</span><strong>{doc.payment_confirmation.paymentMode}</strong></div>
-                </div>
-                <div className="fin-list-payment-actions">
-                  <button className="fin-list-verify-btn" onClick={() => handleVerifyPayment(doc.id)}>
-                    <CheckCircle size={14} /> Verify & Mark as Paid
-                  </button>
-                  <button className="fin-list-reject-btn" onClick={() => setShowRejectModal(doc.id)}>
-                    <X size={14} /> Reject Confirmation
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      ))}
+      <ConvertDialog
+        source={convertSource}
+        docs={documentStore.getAll()}
+        busy={!!convertSource && convertingId === convertSource.id}
+        onClose={() => setConvertSource(null)}
+        onConvert={(target, opts) => runConversion(convertSource, target, opts)}
+      />
 
-      {/* Revision request panels */}
-      {filteredDocs.filter((d) => d.status === 'revision_requested').map((doc) => (
-        <motion.div
-          key={`rev-${doc.id}`}
-          className="fin-list-payment-card"
-          style={{ borderLeft: '3px solid #6366f1' }}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="fin-list-payment-header" onClick={() => setExpandedRevision(expandedRevision === doc.id ? null : doc.id)}>
-            <div className="fin-list-payment-icon"><MessageSquare size={18} style={{ color: '#6366f1' }} /></div>
-            <div>
-              <strong>Revision requested — {docNo(doc)}</strong>
-              <p>{doc.issued_to || doc.client?.name} wants changes to this quotation</p>
-            </div>
-            {expandedRevision === doc.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </div>
-          <AnimatePresence>
-            {expandedRevision === doc.id && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="fin-list-payment-details"
-              >
-                <div style={{ padding: '0.25rem 0 0.75rem' }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)' }}>Revision Notes</span>
-                  <p style={{ margin: '0.5rem 0 0', fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
-                    {doc.revision_notes || 'No details provided.'}
-                  </p>
-                </div>
-                <div className="fin-list-payment-actions">
-                  <button className="fin-list-verify-btn" onClick={() => handleReviseQuotation(doc.id)}>
-                    <RotateCcw size={14} /> Move to Draft & Revise
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      ))}
-
-      {/* Declined quotation panels */}
-      {filteredDocs.filter((d) => d.status === 'declined' && type === 'quotation').map((doc) => (
-        <motion.div
-          key={`dec-${doc.id}`}
-          className="fin-list-payment-card"
-          style={{ borderLeft: '3px solid #ef4444' }}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="fin-list-payment-header" onClick={() => setExpandedDecline(expandedDecline === doc.id ? null : doc.id)}>
-            <div className="fin-list-payment-icon"><XCircle size={18} style={{ color: '#ef4444' }} /></div>
-            <div>
-              <strong>Quotation declined — {docNo(doc)}</strong>
-              <p>{doc.issued_to || doc.client?.name} has declined this quotation</p>
-            </div>
-            {expandedDecline === doc.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </div>
-          <AnimatePresence>
-            {expandedDecline === doc.id && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="fin-list-payment-details"
-              >
-                <div style={{ padding: '0.25rem 0 0.75rem' }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)' }}>Decline Reason</span>
-                  <p style={{ margin: '0.5rem 0 0', fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
-                    {doc.decline_reason || 'No reason provided.'}
-                  </p>
-                </div>
-                <div className="fin-list-payment-actions">
-                  <button className="fin-list-verify-btn" onClick={() => handleRedraftDeclined(doc.id)}>
-                    <RotateCcw size={14} /> Re-draft & Revise
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      ))}
+      <Modal
+        open={!!cancelTarget}
+        onClose={lifecycleBusy ? undefined : () => setCancelTarget(null)}
+        title={`Cancel ${docNo(cancelTarget) || typeLabel.toLowerCase()}`}
+        note={cancelTarget ? `${cancelTarget.issued_to || cancelTarget.clientName || 'Client'} · ₹${(cancelTarget.grand_total || cancelTarget.amount || 0).toLocaleString('en-IN')}` : ''}
+        footer={(
+          <>
+            <Btn onClick={() => setCancelTarget(null)} disabled={!!lifecycleBusy}>Keep it</Btn>
+            <Btn danger onClick={handleCancel} disabled={!!lifecycleBusy}>
+              {lifecycleBusy ? 'Cancelling…' : `Cancel ${typeLabel.toLowerCase()}`}
+            </Btn>
+          </>
+        )}
+      >
+        <p style={{ margin: '0 0 12px', fontSize: 12, lineHeight: 1.6 }}>
+          {cancelTarget?.type === 'invoice'
+            ? 'The invoice keeps its number and is marked cancelled. It stops counting towards revenue, receivables and GST from now on.'
+            : `The ${typeLabel.toLowerCase()} is marked cancelled and the client can no longer act on it from their link.`}
+          {cancelTarget?.converted_from ? ' The document it was converted from can be converted again.' : ''}
+        </p>
+        <Field label="Reason (optional)">
+          <Textarea rows={3} value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}
+            placeholder="e.g. Client dropped the order, wrong amount, duplicate" />
+        </Field>
+      </Modal>
 
       {/* Portal Link Modal */}
-      <AnimatePresence>
-        {showPortalLink && (
-          <div className="fin-modal-overlay" onClick={() => setShowPortalLink(null)}>
-            <DialogSheet
-              as={motion.div}
-              label={`Share ${typeLabel.toLowerCase()} portal link`}
-              onClose={() => setShowPortalLink(null)}
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="fin-modal"
-            >
-              <PortalLinkGenerator documentId={showPortalLink} documentType={typeLabel} />
-              <button type="button" className="fin-modal-close" aria-label="Close" title="Close (Esc)" onClick={() => setShowPortalLink(null)}>
-                <X aria-hidden="true" size={18} />
-              </button>
-            </DialogSheet>
-          </div>
-        )}
-      </AnimatePresence>
+      <ShareLinkModal
+        open={!!showPortalLink}
+        onClose={() => setShowPortalLink(null)}
+        documentId={showPortalLink}
+        title={`Share ${docNo(documents.find((d) => d.id === showPortalLink)) || typeLabel}`}
+      />
 
       {/* Reject Modal */}
       <AnimatePresence>
@@ -807,7 +859,7 @@ export default function InvoiceList({ type = 'invoice' }) {
                 rows={4}
                 style={{ width: '100%', resize: 'none' }}
               />
-              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+              <div className="form-actions" style={{ marginTop: '1rem' }}>
                 <button className="easy-submit-outline" onClick={() => setShowRejectModal(null)} style={{ flex: 1 }}>Cancel</button>
                 <button className="easy-submit" onClick={() => handleRejectPayment(showRejectModal)} style={{ flex: 1, background: 'var(--error)', borderColor: 'var(--error)' }}>Reject</button>
               </div>
@@ -816,5 +868,106 @@ export default function InvoiceList({ type = 'invoice' }) {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+/* Documents waiting on the issuer — a client submitted a payment, asked for a
+   revision, or declined. One quiet panel above the table instead of a card per
+   document: the row says what happened and carries the action that answers it. */
+function AttentionPanel({ docs, type, onVerify, onReject, onRevise, onRedraft, onConvert }) {
+  const t = useT();
+  const money = (n) => '₹' + (Number(n) || 0).toLocaleString('en-IN');
+  const client = (doc) => doc.issued_to || doc.client?.name || 'Client';
+
+  const items = docs.flatMap((doc) => {
+    if (doc.status === 'payment_submitted') {
+      const pc = doc.payment_confirmation || {};
+      const mode = pc.paymentMode || pc.paymentMethod;
+      const facts = [mode, pc.transactionId && `UTR ${pc.transactionId}`, pc.paymentDate].filter(Boolean);
+      const isAdvance = doc.type === 'proforma';
+      if (isAdvance) {
+        const a = advanceOf(doc);
+        facts.push(`advance asked ${money(a.advance)} (${a.percent}%)`);
+      }
+      return [{
+        doc, tone: 'up', label: isAdvance ? 'Advance submitted' : 'Payment submitted',
+        headline: `${client(doc)} paid ${money(pc.amountPaid ?? (isAdvance ? advanceOf(doc).advanceDue : doc.grand_total ?? doc.amount))}${isAdvance ? ' as advance' : ''}`,
+        detail: facts.join(' · '),
+        actions: (
+          <>
+            <Btn size="sm" onClick={() => onReject(doc.id)} danger>Reject</Btn>
+            <Btn size="sm" primary onClick={() => onVerify(doc.id)}>{isAdvance ? 'Verify advance' : 'Verify & mark paid'}</Btn>
+          </>
+        ),
+      }];
+    }
+    if (doc.status === 'revision_requested') {
+      return [{
+        doc, tone: 'neutral', label: 'Revision requested',
+        headline: `${client(doc)} asked for changes`,
+        note: doc.revision_notes,
+        actions: <Btn size="sm" primary onClick={() => onRevise(doc.id)}>Revise quotation</Btn>,
+      }];
+    }
+    if (doc.type === 'quotation' && conversionTargets(doc).length > 0) {
+      return [{
+        doc, tone: 'up', label: 'Accepted',
+        headline: `${client(doc)} accepted ${money(doc.grand_total ?? doc.amount)} — ready to bill`,
+        detail: 'Convert to a proforma to collect an advance first, or straight to a tax invoice.',
+        actions: <Btn size="sm" primary onClick={() => onConvert(doc)}>Convert</Btn>,
+      }];
+    }
+    if (doc.status === 'declined' && type === 'quotation') {
+      return [{
+        doc, tone: 'down', label: 'Declined',
+        headline: `${client(doc)} declined`,
+        note: doc.decline_reason,
+        actions: <Btn size="sm" onClick={() => onRedraft(doc.id)}>Re-draft</Btn>,
+      }];
+    }
+    return [];
+  });
+
+  if (items.length === 0) return null;
+
+  return (
+    <section
+      aria-label="Needs your attention"
+      style={{ border: '1px solid ' + t.line, borderRadius: 10, background: t.panel, marginBottom: 14, overflow: 'hidden' }}
+    >
+      <header style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '9px 14px', borderBottom: '1px solid ' + t.lineSoft }}>
+        <span style={{ fontSize: 12, fontWeight: 500, color: t.text }}>Needs your attention</span>
+        <span style={{ fontSize: 10.5, color: t.faint }}>{items.length}</span>
+      </header>
+      {items.map(({ doc, tone, label, headline, detail, note, actions }, i) => (
+        <div
+          key={doc.id}
+          style={{
+            display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap',
+            padding: '12px 14px', borderTop: i ? '1px solid ' + t.lineSoft : 'none',
+          }}
+        >
+          <div style={{ flex: '1 1 320px', minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <Status tone={tone}>{label}</Status>
+              <span style={{ fontSize: 10.5, color: t.faint }}>{docNo(doc)}</span>
+            </div>
+            <div style={{ fontSize: 12.5, color: t.text, marginTop: 5 }}>{headline}</div>
+            {detail && <div style={{ fontSize: 11, color: t.dim, marginTop: 3 }}>{detail}</div>}
+            {note !== undefined && (
+              <p style={{
+                margin: '8px 0 0', padding: '8px 11px', borderRadius: 7,
+                background: t.panelAlt, border: '1px solid ' + t.lineSoft,
+                fontSize: 11.5, lineHeight: 1.55, whiteSpace: 'pre-wrap',
+                color: note ? t.text : t.faint,
+              }}>
+                {note || 'No details given.'}
+              </p>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>{actions}</div>
+        </div>
+      ))}
+    </section>
   );
 }

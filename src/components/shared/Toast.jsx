@@ -21,9 +21,11 @@ const COLORS = {
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
-  const addToast = useCallback((message, type = 'success', duration = 3000) => {
+  // `action` ({ label, onClick }) adds one button — e.g. "Start project" after
+  // a CRM deal is won. A toast with an action stays long enough to use it.
+  const addToast = useCallback((message, type = 'success', duration = 3000, action = null) => {
     const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => [...prev, { id, message, type, action }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, duration);
@@ -50,6 +52,12 @@ export function ToastProvider({ children }) {
               >
                 <Icon aria-hidden="true" size={16} style={{ color: colors.icon, flexShrink: 0 }} />
                 <span>{toast.message}</span>
+                {toast.action && (
+                  <button type="button" className="toast-close" style={{ width: 'auto', padding: '0 8px', fontWeight: 600 }}
+                    onClick={() => { toast.action.onClick(); setToasts((prev) => prev.filter((t) => t.id !== toast.id)); }}>
+                    {toast.action.label}
+                  </button>
+                )}
                 <button
                   onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
                   type="button"

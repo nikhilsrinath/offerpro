@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Plus, Trash2, ChevronRight, Eye, Lock, UserPlus } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { customerService } from '../services/customerService';
@@ -13,6 +13,9 @@ import { INDIAN_STATES } from '../data/indianStates';
 import { productToLineItem } from '../services/catalogService';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 import A4Stage from './shared/A4Stage';
+import ProjectPicker from './shared/ProjectPicker';
+import { pickerFor, saveSplitFromPicker } from '../services/projectService';
+import { orgStore } from '../services/orgStore';
 
 
 
@@ -20,6 +23,17 @@ const GST_RATES = [0, 5, 12, 18, 28];
 
 export default function InvoiceForm() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [params] = useSearchParams();
+  // Opened from a project (its page, or later a milestone) the invoice starts
+  // allocated to it; otherwise the picker starts empty and, untouched, saves
+  // nothing at all.
+  const [projectPicker, setProjectPicker] = useState(() =>
+    pickerFor(location.state?.projectId || params.get('project') || ''));
+  // A milestone's "Create invoice" (ProjectMilestones.jsx) sends the milestone,
+  // the client and one line. The milestone rides in the document's payload,
+  // and the database links it and allocates the invoice on insert (0054).
+  const fromMilestone = location.state?.milestoneId ? location.state : null;
   const { activeOrg } = useOrg();
   const { currentPlan, planConfig, usage, canCreate, getRemainingCount, getUsagePercent, isAtLimit, refreshUsage } = usePlanStatus();
   const [loading, setLoading] = useState(false);
@@ -47,7 +61,15 @@ export default function InvoiceForm() {
     // customer record does not already place correctly.
     buyerCountry: '',
     gstRate: 18,
-    items: [{ id: 1, description: '', hsnCode: '', quantity: 1, price: 0, makingCost: 0 }],
+    items: Array.isArray(location.state?.lines) && location.state.lines.length
+      ? location.state.lines.map((l, i) => ({
+        id: i + 1, description: l.description || '', hsnCode: '', quantity: Number(l.quantity) || 1,
+        price: Number(l.rate) || 0, makingCost: 0,
+      }))
+      : [{
+        id: 1, description: location.state?.line?.description || '', hsnCode: '', quantity: 1,
+        price: Number(location.state?.line?.amount) || 0, makingCost: 0,
+      }],
     discountRate: 0,
     notes: '',
     orgName: org.company_name || org.name || '',
@@ -171,6 +193,14 @@ export default function InvoiceForm() {
     }));
   };
 
+  // Opened from a project milestone: select the project's client once.
+  const prefillClientId = location.state?.clientId || null;
+  useEffect(() => {
+    if (!prefillClientId) return;
+    const c = orgStore.getItem('customers', prefillClientId);
+    if (c) handleSelectCustomer(c);
+  }, [prefillClientId]);
+
   const handleCustomerSearchChange = (value) => {
     setCustomerSearch(value);
     setSelectedCustomerId(null);
@@ -293,7 +323,7 @@ export default function InvoiceForm() {
       // Awaited. Previously this was fire-and-forget, so a rejected insert
       // became an unhandled promise rejection: the catch below never ran, no
       // error was shown, and navigate() left for the list as if it had worked.
-      await documentStore.save({
+      const saved = await documentStore.save({
         customer_id: customerId,
         // doc_number, not id. `id` is a uuid column; the invoice number is the
         // human number printed on the PDF above, and the two must agree.
@@ -363,9 +393,20 @@ export default function InvoiceForm() {
         amount: totals.grandTotal,
         issue_date: formData.invoiceDate,
         due_date: formData.dueDate,
+        ...(fromMilestone ? { milestone_id: fromMilestone.milestoneId } : {}),
+        // Billed hours (0060): the database stamps these entries with this invoice.
+        ...(Array.isArray(location.state?.timesheetIds) ? { timesheet_ids: location.state.timesheetIds } : {}),
       });
 
       // (The customer upsert moved above documentStore.save — see the note there.)
+      // The project split is saved after the invoice. A failure there leaves
+      // the invoice saved — it is said out loud, and the split can be made from
+      // the project's Finance tab.
+      try {
+        await saveSplitFromPicker('invoice', saved?.id, projectPicker);
+      } catch (allocErr) {
+        alert(`Invoice saved, but the project split was not: ${allocErr.message}`);
+      }
       await refreshUsage();
       navigate('/invoices');
     } catch (err) {
@@ -673,6 +714,14 @@ export default function InvoiceForm() {
               <div className="easy-num">5</div>
               <span className="easy-section-title">Summary</span>
             </div>
+
+            <ProjectPicker
+              value={projectPicker}
+              onChange={setProjectPicker}
+              net={totals.taxableAmount}
+              clientId={selectedCustomerId}
+              label="Project (optional)"
+            />
 
             <div className="easy-summary-grid">
               <div className="easy-field">

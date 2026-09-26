@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, ChevronDown, ChevronUp,
   FileText, FilePlus, FileCheck, Receipt, CheckCircle,
-  Copy, Building, XCircle, Filter, Hourglass, Users, TrendingUp,
+  Copy, Building, Filter, Hourglass, Users, TrendingUp,
 } from 'lucide-react';
 import {
   BarChart, Bar, PieChart, Pie, Cell,
@@ -12,8 +12,7 @@ import {
 import { documentStore, docNumber as docNo } from '../../services/documentStore';
 import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
-import { DialogSheet } from '../ui/edge';
-import PortalLinkGenerator from '../shared/PortalLinkGenerator';
+import { ShareLinkModal } from '../shared/PortalLinkGenerator';
 import PaymentPositionCards from './PaymentPositionCards';
 import {
   issuedInvoices, balanceOf, isOverdue, daysOverdue, todayIso,
@@ -745,26 +744,12 @@ export default function FinanceStatus() {
       </div>
 
       {/* Portal Link Modal */}
-      <AnimatePresence>
-        {showPortalLink && (
-          <div className="fin-modal-overlay" onClick={() => setShowPortalLink(null)}>
-            <DialogSheet
-              as={motion.div}
-              label="Share portal link"
-              onClose={() => setShowPortalLink(null)}
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="fin-modal"
-            >
-              <PortalLinkGenerator documentId={showPortalLink} documentType="Document" />
-              <button type="button" className="fin-modal-close" aria-label="Close" title="Close (Esc)" onClick={() => setShowPortalLink(null)}>
-                <XCircle aria-hidden="true" size={18} />
-              </button>
-            </DialogSheet>
-          </div>
-        )}
-      </AnimatePresence>
+      <ShareLinkModal
+        open={!!showPortalLink}
+        onClose={() => setShowPortalLink(null)}
+        documentId={showPortalLink}
+        title={'Share link'}
+      />
     </div>
   );
 }

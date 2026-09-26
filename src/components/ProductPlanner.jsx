@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useOrg } from '../context/OrgContext';
 import { orgStore } from '../services/orgStore';
+import { confirmDialog } from '../services/confirm';
 
 const STATUS_CONFIG = {
   planned: { label: 'Planned', color: '#94a3b8', icon: Circle, bg: '#94a3b810' },
@@ -70,7 +71,7 @@ export default function ProductPlanner() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this item?')) return;
+    if (!(await confirmDialog({ title: 'Delete item', message: 'Are you sure you want to delete this item? This cannot be undone.' }))) return;
     try {
       await orgStore.removeItem('products', id);
     } catch (err) {

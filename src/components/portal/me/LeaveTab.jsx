@@ -185,7 +185,7 @@ export default function LeaveTab({ orgId, me, types, balances, requests, setRequ
                     </div>
                   )}
                 </div>
-                {r.status === 'pending' && <ConfirmBtn label="Withdraw" confirmLabel="Yes, withdraw" onConfirm={() => cancel(r)} />}
+                {r.status === 'pending' && <ConfirmBtn label="Withdraw" title="Withdraw leave request" message="Withdraw this request? Your manager will no longer see it." onConfirm={() => cancel(r)} />}
               </div>
             );
           }) : <Empty>{filter === 'all' ? 'You have not requested any leave yet.' : `No ${filter} requests.`}</Empty>}

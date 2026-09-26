@@ -482,7 +482,8 @@ function PlanTab({ t, data, toast, deletedAt, onSaved, onLifecycle }) {
             <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
               <Trash2 size={12} aria-hidden="true" style={{ color: t.down }} />
               <ConfirmBtn
-                size="md" label="Delete organisation" confirmLabel="Confirm delete"
+                size="md" label="Delete organisation" confirmLabel="Delete" title="Delete organisation"
+                message="The organisation is closed to its members. Nothing is erased, and it can be restored from this panel."
                 onConfirm={() => lifecycle(false)}
               />
             </span>

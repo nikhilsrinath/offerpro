@@ -10,6 +10,7 @@ import { useOrg } from '../context/OrgContext';
 import { MONO, makeTokens } from '../theme/edge';
 import { useEdgeTheme } from '../theme/EdgeTheme';
 import { EmployeePhotoFill } from './shared/EmployeeAvatar';
+import { confirmDialog } from '../services/confirm';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Org chart.
@@ -419,7 +420,13 @@ function DeptDrawer({ t, departments, employees, orgId, onClose, onChange }) {
             <span style={{ fontSize: 9.5, color: t.ghost, flexShrink: 0 }}>{counts[d.name] || 0}</span>
             <button
               type="button" className="th-btn"
-              onClick={() => storageService.deleteDepartment(d.id, orgId).then(onChange)}
+              onClick={async () => {
+                const ok = await confirmDialog({
+                  title: 'Delete department',
+                  message: `Are you sure you want to delete the ${d.name} department? People in it keep their records.`,
+                });
+                if (ok) storageService.deleteDepartment(d.id, orgId).then(onChange);
+              }}
               aria-label={'Delete ' + d.name}
               style={{
                 width: 20, flexShrink: 0, borderRadius: 5, cursor: 'pointer',
@@ -819,11 +826,8 @@ export default function TeamHierarchy() {
         .th-root .th-person:hover:not(:disabled) { background: ${t.panelAlt}; border-color: ${t.line} !important; }
         .th-root .th-row:hover { background: ${t.panelAlt}; }
         .th-root :focus-visible { outline: 2px solid ${t.text}; outline-offset: 2px; border-radius: 4px; }
-        .th-root .edge-scroll::-webkit-scrollbar { width: 9px; }
-        .th-root .edge-scroll::-webkit-scrollbar-track { background: transparent; }
         .th-root .edge-scroll::-webkit-scrollbar-thumb {
-          background: ${t.lineStrong}; border-radius: 99px;
-          border: 3px solid transparent; background-clip: content-box;
+          background: ${t.lineStrong}; background-clip: content-box;
         }
         .th-root .react-flow__attribution { display: none; }
         .th-root .react-flow__edge.selected .react-flow__edge-path { stroke: ${t.text} !important; stroke-width: 2 !important; }

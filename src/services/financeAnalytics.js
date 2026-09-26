@@ -349,3 +349,56 @@ export function downloadCsv(filename, header, rows) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/**
+ * Net cash, all time — the dashboard's Net cash tile, on the same rules as
+ * EdgeBrain's cash.* aggregates (0066), so the tile and the assistant cannot
+ * disagree. Every rupee once:
+ *
+ *   received = confirmed payments on documents (invoice receipts and proforma
+ *              advances), except the advance COPIED onto a tax invoice at
+ *              conversion, which is the proforma's money
+ *            + cash-book receipts not tied to a document, and those tied to a
+ *              document that has no confirmed payment — any reason: sales,
+ *              funding, refunds. It is cash.
+ *   paidOut  = expenses actually paid (not 'pending') + payments on vendor bills
+ *
+ * Returns dated events too, so the tile's sparkline sums the same rows.
+ */
+export function cashPosition({ finDocs = [], income = [], expenses = [], purchases = [] } = {}) {
+  const inEvents = [];
+  const outEvents = [];
+  const paidDocs = new Set();
+
+  for (const d of finDocs) {
+    for (const p of d.payments || []) {
+      if (!p.confirmed_at) continue;
+      paidDocs.add(d.id);
+      const carried = d.type === 'invoice' && p.method === 'Advance' && !!d.converted_from
+        && String(p.note || '').startsWith('Advance received against proforma ');
+      if (carried) continue;
+      inEvents.push({ at: p.paid_on, amount: n(p.amount), source: d.type === 'proforma' ? 'proforma_advances' : 'invoice_payments' });
+    }
+  }
+  for (const e of income) {
+    if (e.document_id && paidDocs.has(e.document_id)) continue;
+    const source = e.treatment === 'capital_in' ? 'cash_book_funding'
+      : (e.treatment === 'revenue' || e.treatment === 'other_income') ? 'cash_book_revenue' : 'cash_book_other';
+    inEvents.push({ at: e.received_on || e.date, amount: n(e.amount), source });
+  }
+  for (const e of expenses) {
+    if ((e.status || 'paid') === 'pending') continue;
+    outEvents.push({ at: e.paid_on || e.date || e.incurred_on, amount: n(e.amount), source: 'expenses' });
+  }
+  for (const b of purchases) {
+    if (b.status === 'void' || n(b.amount_paid) <= 0) continue;
+    outEvents.push({ at: b.paid_on || b.bill_date, amount: n(b.amount_paid), source: 'vendor_bills' });
+  }
+
+  const sum = (evs) => Math.round(evs.reduce((s, x) => s + x.amount, 0) * 100) / 100;
+  const bySource = {};
+  for (const x of [...inEvents, ...outEvents]) bySource[x.source] = (bySource[x.source] || 0) + x.amount;
+  const received = sum(inEvents);
+  const paidOut = sum(outEvents);
+  return { received, paidOut, net: Math.round((received - paidOut) * 100) / 100, inEvents, outEvents, bySource };
+}

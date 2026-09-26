@@ -40,6 +40,16 @@ const ORG_TABLES = [
   'expenses', 'records', 'financial_documents', 'payments',
   'recurring_invoices', 'document_signatures', 'notifications', 'invitations',
   'audit_log', 'document_counters', 'ai_company_memory',
+  // Projects (0044–0052). Allocations are the project ↔ money links; the
+  // money itself is already in the finance tables above.
+  'projects', 'project_members', 'project_milestones', 'project_documents',
+  'project_allocations', 'project_code_counters', 'timesheet_entries',
+  // The document library (0063). Its passages (library_chunks) are derived
+  // from content_md and are rebuilt by reading the file again, so not exported.
+  'library_documents',
+  // Document versions and the negotiation thread (0064). Versions are the
+  // evidence of what was sent and signed, so they are exported whole.
+  'document_versions', 'document_negotiation_events',
   // The legacy pair. Still present until M9 drops them, and a customer's export
   // should not silently omit rows that are still in the database.
   'customers', 'crm_leads',
@@ -51,7 +61,7 @@ const CHILD_TABLES = {
 };
 
 const SIGNED_URL_TTL = 7 * 24 * 60 * 60;
-const BUCKETS = ['org-branding', 'signatures', 'uploads'];
+const BUCKETS = ['org-branding', 'signatures', 'uploads', 'library'];
 
 export default async function handler(req, res) {
   if (!methodIs(req, res, 'GET')) return;

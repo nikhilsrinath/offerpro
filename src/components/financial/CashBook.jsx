@@ -17,7 +17,10 @@ import { useToast } from '../shared/Toast';
 import CountrySelect from '../shared/CountrySelect';
 import { INDIAN_STATES } from '../../data/indianStates';
 import { Modal, ReceiptField, Stat } from './financeUi';
+import ProjectPicker from '../shared/ProjectPicker';
+import { pickerFromAllocations, saveSplitFromPicker, friendlyError } from '../../services/projectService';
 import { fmtDate, money, useSection } from './financeHooks';
+import { confirmDialog } from '../../services/confirm';
 
 const PRESETS = [
   { id: 'month',   label: 'This month' },
@@ -258,21 +261,34 @@ export default function CashBook() {
     // it merges the two tables into one ledger, not columns. orgStore's toRow
     // would drop them anyway; they are stripped here so the optimistic cache
     // write does not carry them either.
-    const { direction: _d, day: _day, party: _party, treatment: _t, ...data } = editing;
+    const { direction: _d, day: _day, party: _party, treatment: _t, _picker: picker, ...data } = editing;
     try {
-      if (editing.id) await orgStore.updateItem(section, editing.id, data);
-      else await orgStore.addItem(section, data);
+      let id = editing.id;
+      if (id) await orgStore.updateItem(section, id, data);
+      else id = (await orgStore.addItem(section, data)).id;
+      // The project split follows the entry in the same click. If it fails the
+      // entry stays saved and the sheet stays open on it, so a retry edits
+      // rather than duplicates.
+      try {
+        await saveSplitFromPicker(editing.direction === 'in' ? 'income_entry' : 'expense', id, picker);
+      } catch (allocErr) {
+        setEditing((x) => ({ ...x, id }));
+        setFormError(`Entry saved, but the project split was not: ${allocErr.message}`);
+        return;
+      }
       toast(editing.id ? 'Entry updated' : 'Entry recorded', 'success');
       setEditing(null);
     } catch (err) {
-      setFormError(err.message || 'Could not save this entry.');
+      // An edit that would leave the entry worth less than its project split
+      // is refused by the database (ALLOCATION_EXCEEDS_SOURCE).
+      setFormError(friendlyError(err).message || 'Could not save this entry.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (r) => {
-    if (!window.confirm(`Delete "${r.description}"? This cannot be undone.`)) return;
+    if (!(await confirmDialog({ title: 'Delete entry', message: `Are you sure you want to delete “${r.description}”? This cannot be undone.` }))) return;
     try {
       await orgStore.removeItem(SECTION[r.direction], r.id);
       if (r.receipt_path) receiptService.remove(r.receipt_path);
@@ -743,6 +759,14 @@ export default function CashBook() {
                   With the amount, this is what makes a cost per unit or a rate per hour readable.
                 </p>
               </div>
+
+              <ProjectPicker
+                value={editing._picker || pickerFromAllocations(
+                  editing.direction === 'in' ? 'income_entry' : 'expense', editing.id)}
+                onChange={(p) => set('_picker', p)}
+                net={Math.max(0, baseAmount - (Number(editing.tax_amount) || 0))}
+                clientId={editing.client_id || null}
+              />
 
               <div className="prod-field full">
                 <label>Receipt or proof</label>

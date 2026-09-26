@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { KeyRound, Copy, Check, RefreshCw, Loader2 } from 'lucide-react';
 import { portalAccessService, joinUrl } from '../../services/portalAccessService';
 import { useToast } from '../shared/Toast';
+import { confirmDialog } from '../../services/confirm';
 
 const fmtDate = (d) => (d
   ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -36,7 +37,7 @@ export default function PortalJoinCode({ orgId }) {
   useEffect(() => { load(); }, [load]);
 
   const rotate = async (firstTime) => {
-    if (!firstTime && !window.confirm('Issue a new code? The current one stops working immediately.')) return;
+    if (!firstTime && !(await confirmDialog({ title: 'Issue a new code', message: 'The current code stops working immediately.', confirmLabel: 'Issue new code' }))) return;
     setBusy(true);
     try {
       await portalAccessService.rotateJoinCode(orgId, true);

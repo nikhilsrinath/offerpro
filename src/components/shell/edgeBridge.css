@@ -72,16 +72,12 @@
 
 .edge-shell main .mou-form-pane {
   border-right: 1px solid var(--edge-line);
-  scrollbar-color: var(--edge-line-strong) transparent;
 }
 
 .edge-shell main .mou-form-pane::-webkit-scrollbar-thumb,
 .edge-shell main .a4-stage-scroll::-webkit-scrollbar-thumb {
   background: var(--edge-line-strong);
-}
-
-.edge-shell main .a4-stage-scroll {
-  scrollbar-color: var(--edge-line-strong) transparent;
+  background-clip: content-box;
 }
 
 /* ── paper pane: zoom cluster ─────────────────────────────────────────────── */
@@ -149,7 +145,7 @@
 
 .edge-shell main :where(
   .pro-card, .glass-panel, .glass-card, .fin-status-stat-card, .pro-stat-card, .prod-stat,
-  .prod-perf-table-wrap, .fin-list-payment-card, .portal-link-gen, .bulk-side-panel,
+  .prod-perf-table-wrap, .portal-link-gen, .bulk-side-panel,
   .crm-column, .crm-card, .customer-card, .billing-card, .records-card, .planner-card,
   .sbc-card, .payment-conf, .line-items-editor, .easy-upload
 ) {
@@ -343,6 +339,36 @@
   padding: 10px 14px;
 }
 
+/* A row of form actions — Save Draft beside Send, Cancel beside Save. The
+   primary .easy-submit was drawn as a lone full-width button with a 2rem top
+   margin and its own padding, so next to a secondary it sat lower and stood
+   taller. In a row both are one height, one radius, one type size, and the
+   primary takes the larger share. */
+.edge-shell main .form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.edge-shell main .form-actions > :is(.easy-submit, .easy-submit-outline) {
+  flex: 1 1 140px;
+  width: auto;
+  min-width: 0;
+  height: 40px;
+  min-height: 40px;
+  margin: 0;
+  padding: 0 16px;
+  gap: 8px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+.edge-shell main .form-actions > .easy-submit {
+  flex: 2 1 200px;
+}
+
 /* Secondary: hairline on the panel. */
 .edge-shell main :where(
   .btn-secondary, .easy-submit-outline, .prod-btn-ghost, .fin-list-action-btn, .records-action-btn,
@@ -518,8 +544,7 @@
 
 .edge-shell main .fin-list-new-btn:hover { opacity: .86; transform: none; }
 
-.edge-shell main .fin-list-table tbody tr:hover,
-.edge-shell main .fin-list-payment-grid {
+.edge-shell main .fin-list-table tbody tr:hover {
   background: var(--edge-panel-alt);
 }
 

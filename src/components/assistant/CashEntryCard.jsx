@@ -8,6 +8,8 @@ import {
   CURRENCIES, baseAmount, draftTreatment, methodOptions, taxFromRate, validateDraft,
 } from '../../services/cashIntent';
 import { useSection } from '../financial/financeHooks';
+import { canAllocate } from '../../services/projectService';
+import { isOpen } from '../../services/projectAnalytics';
 
 /* ══════════════════════════════════════════════════════════════════════════
    The confirmation card.
@@ -40,6 +42,7 @@ export default function CashEntryCard({
 
   const clients = useSection('customers');
   const vendors = useSection('vendors');
+  const projects = useSection('projects');
 
   const base = baseAmount(draft);
   const treatment = TREATMENTS[draftTreatment(draft)];
@@ -208,6 +211,18 @@ export default function CashEntryCard({
             </select>
           </Field>
         </div>
+
+        {canAllocate() && (
+          <Field t={t} label="Project (optional)" wide>
+            <select style={input(t)} value={draft.project_id || ''} aria-label="Project"
+              onChange={(e) => set({ project_id: e.target.value, project_candidates: [] })}>
+              <option value="">None — overhead</option>
+              {projects.filter((p) => isOpen(p) || p.id === draft.project_id).map((p) => (
+                <option key={p.id} value={p.id}>{p.code} · {p.name}</option>
+              ))}
+            </select>
+          </Field>
+        )}
 
         <Field t={t} label="Reference (optional)" wide>
           <input

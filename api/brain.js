@@ -20,7 +20,7 @@ import { requireUser, requireOrgRole, HttpError, sendError, methodIs, readJsonBo
 import { supabaseAdmin } from './_lib/supabaseAdmin.js';
 import {
   allowedResources, requireBrainPermission, searchNodes, getNode,
-  neighbors, getMetrics, buildContext,
+  neighbors, getMetrics, buildContext, libraryContext,
 } from './_lib/brainRetrieval.js';
 
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -205,8 +205,17 @@ async function context(res, { orgId, perms, allowed, body }) {
     .select('status, last_sync_at').eq('org_id', orgId).maybeSingle();
 
   // No brain yet is not an error — the caller falls back to its own context.
+  // The document library does not depend on a build (it is read at upload),
+  // so its passages are still offered on their own.
   if (!state || state.status === 'absent') {
-    return res.status(200).json({ success: true, available: false, context: '', sources: [] });
+    const library = await libraryContext(orgId, allowed, question).catch(() => null);
+    if (!library) {
+      return res.status(200).json({ success: true, available: false, context: '', sources: [] });
+    }
+    return res.status(200).json({
+      success: true, available: true, context: library.text, sources: library.sources,
+      retrieval: { libraryDocuments: library.total, libraryPassages: library.passages }, synced_at: null,
+    });
   }
 
   const pkg = await buildContext(orgId, allowed, question, {
@@ -267,7 +276,13 @@ Rules:
 9. Be concise: a direct answer first, then at most a few supporting lines. Give
    figures with their units and currency as they appear.
 10. The user cannot see the context block. Refer to records by name or document
-    number, never by node id.`;
+    number, never by node id.
+11. DOCUMENT LIBRARY passages are the company's own uploaded files, quoted
+    verbatim. Answer from them when the question is about what a document says,
+    and name the document and the page, slide or section you used. A passage is
+    part of a file, not the whole of it: if it does not contain the answer, say
+    so and name the document that probably does. Never supply what such a
+    document "usually" says.`;
 
 /**
  * The conversation so far, bounded and sanitised.

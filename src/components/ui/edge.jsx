@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef, useId } from 'react';
+import React, { useRef, useId } from 'react';
 import { MONO, useT, useDialog } from './edgeUtils';
+import { confirmDialog } from '../../services/confirm';
 
 /* ══════════════════════════════════════════════════════════════════════════
    The kit every converted page is built from.
@@ -12,12 +13,6 @@ import { MONO, useT, useDialog } from './edgeUtils';
      never floating over content, never as a bare icon without a label.
    · Quantities get a bar, not just a number, wherever a reader would compare.
    ══════════════════════════════════════════════════════════════════════════ */
-
-/** Visually hidden, still read aloud. */
-const SR_ONLY = {
-    position: 'absolute', width: 1, height: 1, padding: 0, margin: -1,
-    overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0,
-};
 
 /* ── layout ───────────────────────────────────────────────────────────────── */
 
@@ -524,26 +519,20 @@ export function Modal({ open, onClose, title, note, children, footer, width = 52
     );
 }
 
-/** Destructive actions confirm in place rather than through window.confirm. */
-export function ConfirmBtn({ label = 'Delete', confirmLabel = 'Confirm', onConfirm, size = 'sm' }) {
-    const [armed, setArmed] = useState(false);
-    useEffect(() => {
-        if (!armed) return undefined;
-        const id = setTimeout(() => setArmed(false), 4000);
-        return () => clearTimeout(id);
-    }, [armed]);
-    // The swap happens under the pointer, so it is announced for anyone who
-    // cannot see the label change.
-    return (
-        <>
-            {armed
-                ? <Btn size={size} danger autoFocus onClick={() => { setArmed(false); onConfirm(); }}>{confirmLabel}</Btn>
-                : <Btn size={size} onClick={() => setArmed(true)}>{label}</Btn>}
-            <span role="status" aria-live="polite" style={SR_ONLY}>
-                {armed ? `Press ${confirmLabel} to ${String(label).toLowerCase()} — cancels in 4 seconds` : ''}
-            </span>
-        </>
-    );
+/** A destructive action that asks first, through the app's one confirmation
+    dialog (services/confirm.js). `title` and `message` word that dialog;
+    `confirmLabel` is its red button. */
+export function ConfirmBtn({ label = 'Delete', confirmLabel, title, message, onConfirm, size = 'sm', tone = 'danger' }) {
+    const ask = async () => {
+        const ok = await confirmDialog({
+            title: title || `${label}?`,
+            message: message || 'Are you sure? This cannot be undone.',
+            confirmLabel: confirmLabel || label,
+            tone,
+        });
+        if (ok) onConfirm();
+    };
+    return <Btn size={size} onClick={ask}>{label}</Btn>;
 }
 
 function PageStyle({ t }) {
@@ -560,11 +549,8 @@ function PageStyle({ t }) {
             .edge-page .edge-tr:hover { background: ${t.panelAlt}; }
             .edge-page .edge-tr:focus-visible { outline-offset: -2px; background: ${t.panelAlt}; }
             .edge-page tbody tr:last-child td { border-bottom: none; }
-            .edge-page .edge-scroll::-webkit-scrollbar { width: 9px; height: 9px; }
-            .edge-page .edge-scroll::-webkit-scrollbar-track { background: transparent; }
             .edge-page .edge-scroll::-webkit-scrollbar-thumb {
-                background: ${t.lineStrong}; border-radius: 99px;
-                border: 3px solid transparent; background-clip: content-box;
+                background: ${t.lineStrong}; background-clip: content-box;
             }
             .edge-page :focus-visible { outline: 2px solid ${t.text}; outline-offset: 2px; }
             .edge-page .edge-input:focus-visible { outline-offset: 0; }

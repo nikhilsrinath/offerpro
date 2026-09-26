@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useOrg } from '../context/OrgContext';
 import { catalogService, UNIT_OPTIONS, TAX_RATES } from '../services/catalogService';
+import { confirmDialog } from '../services/confirm';
 
 const money = (n, digits = 0) => (Number(n) || 0).toLocaleString('en-IN', {
   style: 'currency', currency: 'INR', maximumFractionDigits: digits,
@@ -180,9 +181,10 @@ export default function Products() {
   };
 
   const handleDelete = async (p) => {
-    if (!window.confirm(
-      `Permanently delete "${p.name}"?\n\nThis cannot be undone. Archive it instead if you may want the record back.`
-    )) return;
+    if (!(await confirmDialog({
+      title: 'Delete product',
+      message: `Permanently delete “${p.name}”? This cannot be undone — archive it instead if you may want the record back.`,
+    }))) return;
     try { await catalogService.destroy(p.id); reload(); }
     catch (err) { alert(`Could not delete: ${err.message}`); }
   };

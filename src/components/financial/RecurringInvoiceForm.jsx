@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useSection } from './financeHooks';
+import { isOpen } from '../../services/projectAnalytics';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, ChevronRight, Pause, Play, X as XIcon, Calendar, RotateCcw } from 'lucide-react';
 import { documentStore } from '../../services/documentStore';
@@ -129,6 +131,8 @@ function RecurringInvoiceForm({ editItem }) {
 
   const [customDueDays, setCustomDueDays] = useState('');
   const [saving, setSaving] = useState(false);
+  const allProjects = useSection('projects');
+  const openProjects = allProjects.filter((p) => isOpen(p) || p.id === editItem?.project_id);
 
   const [formData, setFormData] = useState(() => {
     if (editItem) {
@@ -297,6 +301,8 @@ function RecurringInvoiceForm({ editItem }) {
         noEndDate: formData.noEndDate,
         autoAction: formData.autoAction,
         notes: formData.notes,
+        // 0054: every invoice generated from this template is allocated to it.
+        project_id: formData.project_id || null,
         subtotal: totals.subtotal,
         gst: totals.gst,
         grandTotal: totals.grandTotal,
@@ -673,6 +679,14 @@ function RecurringInvoiceForm({ editItem }) {
             <div className="easy-section-head">
               <div className="easy-num">6</div>
               <span className="easy-section-title">Notes</span>
+            </div>
+            <div className="easy-field">
+              <label className="easy-lbl" htmlFor="rec-project">Project (optional)</label>
+              <select id="rec-project" className="easy-inp" value={formData.project_id || ''}
+                onChange={(e) => set('project_id', e.target.value)}>
+                <option value="">No project</option>
+                {openProjects.map((p) => <option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}
+              </select>
             </div>
             <div className="easy-field">
               <label className="easy-lbl">Notes / payment terms</label>

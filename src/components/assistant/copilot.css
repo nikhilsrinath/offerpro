@@ -1,0 +1,189 @@
+/* EdgeAI copilot — the docked panel in the hub and the full-screen workspace.
+   Drawn in the EdgeOS terminal theme (tokens from theme/surface.css, which
+   mirror theme/edge.js): Helvetica, hairlines, the kit's 7px buttons and
+   segmented control, colour only for signal. */
+
+.cp { display: flex; min-height: 0; min-width: 0; background: var(--panel); color: var(--text); position: relative; }
+.cp-col { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+
+/* ── head ─────────────────────────────────────────────────────────────── */
+.cp-head { display: flex; align-items: center; gap: 10px; padding: 0 12px 0 16px; border-bottom: 1px solid var(--line); flex: none; height: 53px; }
+.cp-title { font-size: 14.5px; font-weight: 700; letter-spacing: -.02em; white-space: nowrap; }
+.cp-sub { font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.cp-head-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; flex: none; }
+.cp-orb { width: 20px; height: 20px; border-radius: 50%; background: var(--orb); flex: none; display: inline-block; }
+.cp-orb.is-live { animation: cpBreathe 2.2s ease-in-out infinite; }
+
+/* segmented control — the kit's Seg */
+.cp-tabs { display: flex; gap: 1px; flex: none; }
+.cp-tabs button { font-size: 11.5px; font-weight: 600; letter-spacing: .02em; color: var(--dim); height: 26px; padding: 0 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent !important; transition: color .15s, background .15s; }
+.cp-tabs button:hover { color: var(--text); }
+.cp-tabs button[aria-selected="true"] { background: var(--sel-bg) !important; color: var(--sel-text); border-color: var(--line-2) !important; }
+.cp-count { font-size: 10px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.cp-tabs button[aria-selected="true"] .cp-count { color: inherit; opacity: .7; }
+
+.cp-icon { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 6px; color: var(--dim); flex: none; border: 1px solid transparent !important; transition: color .15s, border-color .15s; }
+.cp-icon:hover { color: var(--text); border-color: var(--line) !important; }
+
+/* ── thread ───────────────────────────────────────────────────────────── */
+.cp-thread { flex: 1; min-height: 0; overflow-y: auto; padding: 22px 18px 16px; }
+.cp-thread-inner { display: flex; flex-direction: column; gap: 22px; max-width: 760px; margin: 0 auto; }
+.cp-msg { font-size: 13px; line-height: 1.7; color: var(--text); max-width: 100%; word-break: break-word; min-width: 0; }
+.cp-msg strong { font-weight: 700; }
+.cp-msg.is-user { align-self: flex-end; max-width: 86%; background: var(--card-3); padding: 9px 13px; border-radius: 10px; white-space: pre-wrap; }
+.cp-msg.is-error { color: var(--neg); }
+.cp-hint { font-size: 11.5px; color: var(--dim); margin-top: 4px; line-height: 1.55; }
+
+/* Copy · read aloud · regenerate, under each answer. Quiet until hovered, and
+   always full strength on touch screens, where there is no hover. */
+.cp-actions { display: flex; gap: 2px; margin-top: 6px; margin-left: -6px; opacity: .55; transition: opacity .15s; }
+.cp-msg:hover .cp-actions, .cp-actions:focus-within { opacity: 1; }
+@media (hover: none) { .cp-actions { opacity: 1; } }
+.cp-act {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: 7px; background: transparent; color: var(--dim); cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.cp-act:hover { background: var(--card-3); color: var(--text); }
+.cp-act:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+.cp-act.is-on { color: var(--text); background: var(--card-3); }
+.cp-typing { display: inline-flex; gap: 4px; padding: 6px 0; }
+.cp-typing span { width: 5px; height: 5px; border-radius: 50%; background: var(--dim); animation: cpDot 1.2s infinite; }
+.cp-typing span:nth-child(2) { animation-delay: .15s; }
+.cp-typing span:nth-child(3) { animation-delay: .3s; }
+.cp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.cp-chip { height: 28px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line) !important; background: var(--card-2) !important; color: var(--muted) !important; font-size: 11.5px; font-weight: 600; }
+.cp-chip:hover { border-color: var(--line-2) !important; color: var(--text) !important; }
+
+/* ── welcome ──────────────────────────────────────────────────────────── */
+.cp-welcome { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; padding: 24px 20px; }
+.cp-welcome-inner { margin: auto 0; width: 100%; max-width: 620px; align-self: center; }
+.cp-big-orb { width: 40px; height: 40px; border-radius: 50%; background: var(--orb); box-shadow: 0 0 32px var(--orb-glow); margin-bottom: 20px; animation: cpGlow 5s ease-in-out infinite; }
+.cp-welcome h2 { font-size: 22px; font-weight: 700; letter-spacing: -.04em; margin: 0; }
+.cp-welcome p { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; }
+.cp-prompts { margin-top: 24px; border-top: 1px solid var(--line); }
+.cp-prompts button { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 12px; text-align: left; padding: 12px 4px; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--text); transition: background .15s, padding .15s; }
+.cp-prompts button:hover:not(:disabled) { background: var(--card-2); padding-left: 10px; }
+.cp-prompts button:disabled { color: var(--dim); cursor: default; }
+.cp-prompts button svg { color: var(--dim); flex: none; }
+.cp-prompts button:hover svg { color: var(--text); }
+.cp-recent-label { font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin: 26px 0 6px; display: flex; justify-content: space-between; align-items: center; }
+.cp-recent-label button { font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); min-height: 24px; }
+.cp-recent-label button:hover { color: var(--text); }
+.cp-recent button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 6px; text-align: left; font-size: 12.5px; color: var(--text); border-radius: 6px; }
+.cp-recent button:hover { background: var(--card-2); }
+.cp-recent svg { color: var(--dim); }
+.cp-recent .cp-when { margin-left: auto; font-size: 11px; color: var(--dim); flex: none; }
+.cp-recent .cp-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* ── composer ─────────────────────────────────────────────────────────── */
+.cp-foot { flex: none; padding: 0 14px 12px; }
+.cp-foot-inner { max-width: 760px; margin: 0 auto; }
+.cp-composer { display: flex; align-items: flex-end; gap: 4px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--card-2); padding: 5px 5px 5px 13px; transition: border-color .15s; }
+.cp-composer:focus-within { border-color: var(--text); }
+.cp-composer textarea { flex: 1; min-width: 0; resize: none; background: none; border: 0; outline: none; color: var(--text); font: inherit; font-size: 13px; line-height: 1.5; padding: 5px 0; max-height: 160px; overflow-y: auto; scrollbar-width: none; }
+.cp-composer textarea::-webkit-scrollbar { display: none; }
+.cp-composer textarea::placeholder { color: var(--dim); }
+.cp-send, .cp-call, .cp-mic, .cp-spin { width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; flex: none; }
+.cp-send { background: var(--text) !important; color: var(--panel) !important; }
+.cp-send:disabled { background: var(--card-3) !important; color: var(--dim) !important; cursor: default; }
+.cp-call { background: var(--accent) !important; color: #fff !important; }
+.cp-mic { color: var(--dim); }
+.cp-mic:hover { background: var(--card-3); color: var(--text); }
+.cp-mic[aria-pressed="true"] { background: var(--card-3); color: var(--text); }
+.cp-mic:disabled { opacity: .4; cursor: not-allowed; }
+.cp-spin { background: var(--card-3); }
+.cp-spin span { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line-2); border-top-color: var(--text); animation: cpSpin .7s linear infinite; }
+.cp-disclaimer { font-size: 10px; color: var(--dim); text-align: center; margin-top: 7px; }
+.cp-pending { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--card-2); font-size: 11px; color: var(--muted); max-width: 100%; }
+.cp-pending span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.cp-pending button { color: var(--text); text-decoration: underline; font-size: 11px; flex: none; }
+
+/* ── history ──────────────────────────────────────────────────────────── */
+.cp-history { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.cp-hist-top { padding: 12px 12px 6px; display: flex; gap: 6px; flex: none; }
+.cp-search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--card-2); color: var(--dim); transition: border-color .15s; }
+.cp-search:hover { border-color: var(--line-2); }
+.cp-search:focus-within { border-color: var(--text); }
+.cp-search input { flex: 1; min-width: 0; background: none; border: 0; outline: none; color: var(--text); font: inherit; font-size: 11.5px; }
+.cp-search input::placeholder { color: var(--dim); }
+.cp-newbtn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 7px; background: var(--text) !important; color: var(--panel) !important; font-size: 11.5px; font-weight: 600; flex: none; }
+.cp-newbtn:hover { opacity: .88; }
+.cp-hist-list { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 8px 10px; }
+.cp-group { font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); padding: 14px 10px 6px; }
+.cp-row { display: flex; align-items: center; border-radius: 7px; position: relative; margin-bottom: 1px; }
+.cp-row:hover, .cp-row:focus-within { background: var(--card-2); }
+.cp-row.is-active { background: var(--card-3); box-shadow: inset 2px 0 0 var(--text); }
+.cp-row-main { flex: 1; min-width: 0; text-align: left; padding: 8px 4px 8px 10px; display: block; }
+.cp-row-title { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--text); }
+.cp-row-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.cp-row-title svg { color: var(--dim); flex: none; }
+.cp-row-sub { display: flex; gap: 8px; font-size: 11px; color: var(--dim); margin-top: 3px; min-width: 0; }
+.cp-row-sub .cp-prev { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.cp-row-sub .cp-when { flex: none; }
+.cp-row-act { width: 26px; height: 26px; margin-right: 4px; display: grid; place-items: center; border-radius: 6px; color: var(--dim); flex: none; opacity: 0; transition: opacity .15s; border: 1px solid transparent !important; }
+.cp-row:hover .cp-row-act, .cp-row:focus-within .cp-row-act, .cp-row-act.is-shown { opacity: 1; }
+.cp-row-act:hover, .cp-row-act[aria-expanded="true"] { color: var(--text); border-color: var(--line-2) !important; background: var(--panel) !important; }
+@media (hover: none) { .cp-row-act { opacity: 1; } }
+.cp-rename { flex: 1; min-width: 0; height: 30px; margin: 4px; padding: 0 9px; border-radius: 6px; border: 1px solid var(--text); background: var(--panel); color: var(--text); font: inherit; font-size: 12px; outline: none; }
+.cp-hist-empty { padding: 40px 18px; text-align: center; font-size: 12px; color: var(--dim); line-height: 1.6; }
+.cp-hist-foot { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px 8px 14px; border-top: 1px solid var(--line); font-size: 10.5px; color: var(--dim); min-height: 42px; }
+.cp-hist-foot > span:last-child { display: flex; gap: 2px; }
+.cp-hist-foot button { font-size: 11px; font-weight: 600; color: var(--muted); padding: 4px 8px; border-radius: 6px; min-height: 24px; }
+.cp-hist-foot button:hover { color: var(--text); background: var(--card-2); }
+.cp-hist-foot .is-danger { color: var(--neg) !important; }
+
+/* ── row menu ─────────────────────────────────────────────────────────── */
+.cp-menu { position: fixed; z-index: 400; width: 184px; padding: 4px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line-2); box-shadow: var(--shadow); animation: cpPop .14s cubic-bezier(.16, 1, .3, 1); }
+.cp-menu button { display: flex; align-items: center; gap: 10px; width: 100%; height: 32px; padding: 0 10px; border-radius: 6px; font-size: 11.5px; color: var(--text); text-align: left; }
+.cp-menu button svg { color: var(--dim); }
+.cp-menu button:hover, .cp-menu button:focus-visible { background: var(--card-2); }
+.cp-menu .is-danger, .cp-menu .is-danger svg { color: var(--neg) !important; }
+.cp-menu hr { border: 0; height: 1px; background: var(--line); margin: 4px 6px; }
+
+/* ── toast ────────────────────────────────────────────────────────────── */
+.cp-note { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 20; padding: 7px 13px; border-radius: 999px; background: var(--card-3); border: 1px solid var(--line-2); box-shadow: var(--shadow); font-size: 11px; color: var(--text); white-space: nowrap; }
+
+
+/* ── dock variant ─────────────────────────────────────────────────────── */
+.cp-dock { flex-direction: column; height: 100%; border-left: 1px solid var(--line); width: clamp(360px, 30vw, 460px); flex: none; }
+
+/* Splitter on the dock's left edge: a 9px hit area over the hairline border.
+   The 2px accent rule and grip only appear on hover, focus or drag. */
+.cp-resize { position: absolute; top: 0; bottom: 0; left: -5px; width: 9px; z-index: 5; cursor: col-resize; touch-action: none; outline: none; }
+.cp-resize::before { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: var(--accent); opacity: 0; transition: opacity .15s .1s; }
+.cp-resize::after { content: ''; position: absolute; top: 50%; left: 2px; width: 4px; height: 28px; margin-top: -14px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line-2); box-shadow: var(--shadow); opacity: 0; transition: opacity .15s .1s; }
+.cp-resize:hover::before, .cp-resize:hover::after,
+.cp-resize:focus-visible::before, .cp-resize:focus-visible::after,
+.cp-resize.is-dragging::before, .cp-resize.is-dragging::after { opacity: 1; }
+.cp-resize.is-dragging::before, .cp-resize:focus-visible::before { transition-delay: 0s; }
+.cp-resize:focus-visible::after, .cp-resize.is-dragging::after { transition-delay: 0s; border-color: var(--accent); }
+/* Keep the col-resize cursor and stop text selection for the whole drag. */
+html.cp-resizing, html.cp-resizing * { cursor: col-resize !important; user-select: none !important; }
+html.cp-resizing iframe { pointer-events: none; }
+
+/* ── full-screen variant ──────────────────────────────────────────────── */
+.cp-full { position: fixed; inset: 0; z-index: 200; animation: cpIn .18s ease-out; }
+.cp-full .cp-side { width: 280px; flex: none; display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--card-2); min-height: 0; }
+.cp-full .cp-side .cp-row.is-active { background: var(--panel); }
+.cp-full .cp-side .cp-search { background: var(--panel); }
+.cp-full .cp-side-head { display: flex; align-items: center; gap: 10px; padding: 0 12px 0 16px; height: 53px; border-bottom: 1px solid var(--line); flex: none; }
+.cp-full .cp-thread { padding-left: 24px; padding-right: 24px; }
+.cp-scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 1; }
+@media (max-width: 760px) {
+  .cp-full .cp-side { position: fixed; inset: 0 auto 0 0; z-index: 2; width: min(320px, 86vw); box-shadow: var(--shadow); }
+  .cp-thread, .cp-full .cp-thread { padding: 18px 14px 12px; }
+  .cp-foot { padding: 0 10px 10px; }
+}
+
+/* ── launcher ─────────────────────────────────────────────────────────── */
+.cp-fab { position: fixed; right: 16px; z-index: 170; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--panel) !important; border: 1px solid var(--line-2) !important; box-shadow: var(--shadow); transition: transform .2s cubic-bezier(.16, 1, .3, 1); }
+.cp-fab:hover { transform: translateY(-2px) scale(1.04); }
+.cp-fab .cp-orb { width: 24px; height: 24px; box-shadow: 0 0 18px var(--orb-glow-2); }
+
+@keyframes cpDot { 30% { background: var(--text); } }
+@keyframes cpSpin { to { transform: rotate(360deg); } }
+@keyframes cpIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cpPop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes cpGlow { 50% { box-shadow: 0 0 48px var(--orb-glow-2); } }
+@keyframes cpBreathe { 50% { transform: scale(.86); } }

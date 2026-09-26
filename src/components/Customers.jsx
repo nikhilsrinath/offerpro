@@ -9,9 +9,14 @@ import { documentStore, docNumber as docNo } from '../services/documentStore';
 import { useOrg } from '../context/OrgContext';
 import DocumentStatusBadge from './shared/DocumentStatusBadge';
 import CountrySelect from './shared/CountrySelect';
+import RelatedProjects from './projects/RelatedProjects';
+import { confirmDialog } from '../services/confirm';
+import { useToast } from './shared/Toast';
 
 const EMPTY_CUSTOMER = {
-  clientName: '', clientEmail: '', clientAddress: '',
+  // clientName is the billing name — the company, or the person when the
+  // client is an individual. person_name is who you deal with there.
+  clientName: '', person_name: '', clientEmail: '', clientAddress: '',
   buyerGSTIN: '', buyerState: '', contactPhone: '', notes: '',
   // Optional. Left blank, a document billed to this customer falls back to the
   // GST state (an Indian state implies India) and then to your organisation's
@@ -19,6 +24,10 @@ const EMPTY_CUSTOMER = {
   // It is here for the cases inference gets wrong.
   country_code: '',
 };
+
+// A contact worth showing under the billing name: an individual client has
+// their own name in both places, and repeating it adds nothing.
+const hasContact = (c) => !!c.person_name && c.person_name !== c.clientName;
 
 function fmt(n) {
   return '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
@@ -104,8 +113,10 @@ function CustomerDetail({ customer, orgId, onBack, onEdit }) {
             <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {customer.clientName}
             </h2>
-            {customer.clientEmail && (
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{customer.clientEmail}</div>
+            {(hasContact(customer) || customer.clientEmail) && (
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                {[hasContact(customer) && customer.person_name, customer.clientEmail].filter(Boolean).join(' · ')}
+              </div>
             )}
           </div>
         </div>
@@ -170,6 +181,8 @@ function CustomerDetail({ customer, orgId, onBack, onEdit }) {
           </div>
         ))}
       </div>
+
+      <RelatedProjects clientId={customer.id} />
 
       {/* Documents section */}
       <div>
@@ -257,6 +270,7 @@ function CustomerDetail({ customer, orgId, onBack, onEdit }) {
 // ── Main Customers page ────────────────────────────────────────────────────────
 export default function Customers() {
   const { activeOrg } = useOrg();
+  const toast = useToast();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -313,7 +327,10 @@ export default function Customers() {
     if (e) e.stopPropagation();
     setEditingCustomer(customer);
     setFormData({
-      clientName:    customer.clientName    || '',
+      // An individual is stored with their own name in both columns; the form
+      // shows them as a contact with no company rather than repeating it.
+      clientName:    customer.clientName && customer.clientName !== customer.person_name ? customer.clientName : '',
+      person_name:   customer.person_name   || '',
       clientEmail:   customer.clientEmail   || '',
       clientAddress: customer.clientAddress || '',
       buyerGSTIN:    customer.buyerGSTIN    || '',
@@ -327,16 +344,24 @@ export default function Customers() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    const company = formData.clientName.trim();
+    const contact = formData.person_name.trim();
+    if (!company && !contact) {
+      toast('Enter a company name or a contact person', 'error');
+      return;
+    }
+    // Billed under the company; an individual is billed under their own name.
+    const data = { ...formData, clientName: company || contact, person_name: contact };
     setSaving(true);
     try {
       if (editingCustomer) {
-        await customerService.update(activeOrg.id, editingCustomer.id, formData);
+        await customerService.update(activeOrg.id, editingCustomer.id, data);
         // If we're in detail view, refresh selectedCustomer data
         if (selectedCustomer?.id === editingCustomer.id) {
-          setSelectedCustomer({ ...editingCustomer, ...formData });
+          setSelectedCustomer({ ...editingCustomer, ...data, name: data.clientName });
         }
       } else {
-        await customerService.create(activeOrg.id, formData);
+        await customerService.create(activeOrg.id, data);
       }
       setModalOpen(false);
       await loadCustomers();
@@ -349,7 +374,7 @@ export default function Customers() {
 
   const handleDelete = async (customer, e) => {
     if (e) e.stopPropagation();
-    if (!window.confirm(`Delete "${customer.clientName}"? This cannot be undone.`)) return;
+    if (!(await confirmDialog({ title: 'Delete client', message: `Are you sure you want to delete “${customer.clientName}”? This cannot be undone.` }))) return;
     try {
       await customerService.delete(activeOrg.id, customer.id);
       if (selectedCustomer?.id === customer.id) setSelectedCustomer(null);
@@ -392,11 +417,19 @@ export default function Customers() {
               </div>
               <form onSubmit={handleSave}>
                 <div className="easy-row" style={{ gap: '1rem' }}>
-                  <div className="easy-field full">
-                    <label className="easy-lbl">Client name *</label>
-                    <input aria-label="Client name" required type="text" placeholder="e.g. Acme Corp" value={formData.clientName}
+                  <div className="easy-field">
+                    <label className="easy-lbl">Company name</label>
+                    <input aria-label="Company name" type="text" placeholder="e.g. Acme Corp" value={formData.clientName}
                       onChange={e => setFormData({ ...formData, clientName: e.target.value })} className="easy-inp" />
                   </div>
+                  <div className="easy-field">
+                    <label className="easy-lbl">Contact person</label>
+                    <input aria-label="Contact person" type="text" placeholder="e.g. Rajesh Kumar" value={formData.person_name}
+                      onChange={e => setFormData({ ...formData, person_name: e.target.value })} className="easy-inp" />
+                  </div>
+                  <p className="easy-field full" style={{ margin: '-0.5rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Fill in at least one. Leave the company blank when billing an individual.
+                  </p>
                   <div className="easy-field">
                     <label className="easy-lbl">Email</label>
                     <input aria-label="Email" type="email" placeholder="billing@client.com" value={formData.clientEmail}
@@ -438,12 +471,12 @@ export default function Customers() {
                       className="easy-inp" style={{ resize: 'none' }} />
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
-                  <button type="submit" disabled={saving} className="easy-submit" style={{ flex: 1 }}>
-                    {saving ? 'Saving...' : 'Update Client'}
-                  </button>
-                  <button type="button" onClick={() => setModalOpen(false)} className="easy-submit-outline" style={{ flex: 0.5 }}>
+                <div className="form-actions" style={{ marginTop: '1.5rem' }}>
+                  <button type="button" onClick={() => setModalOpen(false)} className="easy-submit-outline">
                     Cancel
+                  </button>
+                  <button type="submit" disabled={saving} className="easy-submit">
+                    {saving ? 'Saving...' : 'Update Client'}
                   </button>
                 </div>
               </form>
@@ -523,6 +556,11 @@ export default function Customers() {
                   <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {customer.clientName}
                   </h4>
+                  {hasContact(customer) && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {customer.person_name}
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
                   <button type="button" onClick={e => openEdit(customer, e)} className="records-action-btn download" style={{ padding: '0.25rem 0.5rem' }} title="Edit" aria-label={`Edit ${customer.clientName}`}>
@@ -597,11 +635,19 @@ export default function Customers() {
             </div>
             <form onSubmit={handleSave}>
               <div className="easy-row" style={{ gap: '1rem' }}>
-                <div className="easy-field full">
-                  <label className="easy-lbl">Client name *</label>
-                  <input aria-label="Client name" required type="text" placeholder="e.g. Acme Corp" value={formData.clientName}
+                <div className="easy-field">
+                  <label className="easy-lbl">Company name</label>
+                  <input aria-label="Company name" type="text" placeholder="e.g. Acme Corp" value={formData.clientName}
                     onChange={e => setFormData({ ...formData, clientName: e.target.value })} className="easy-inp" />
                 </div>
+                <div className="easy-field">
+                  <label className="easy-lbl">Contact person</label>
+                  <input aria-label="Contact person" type="text" placeholder="e.g. Rajesh Kumar" value={formData.person_name}
+                    onChange={e => setFormData({ ...formData, person_name: e.target.value })} className="easy-inp" />
+                </div>
+                <p className="easy-field full" style={{ margin: '-0.5rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Fill in at least one. Leave the company blank when billing an individual.
+                </p>
                 <div className="easy-field">
                   <label className="easy-lbl">Email</label>
                   <input aria-label="Email" type="email" placeholder="billing@client.com" value={formData.clientEmail}
@@ -643,12 +689,12 @@ export default function Customers() {
                     className="easy-inp" style={{ resize: 'none' }} />
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
-                <button type="submit" disabled={saving} className="easy-submit" style={{ flex: 1 }}>
-                  {saving ? 'Saving...' : editingCustomer ? 'Update Client' : 'Add Client'}
-                </button>
-                <button type="button" onClick={() => setModalOpen(false)} className="easy-submit-outline" style={{ flex: 0.5 }}>
+              <div className="form-actions" style={{ marginTop: '1.5rem' }}>
+                <button type="button" onClick={() => setModalOpen(false)} className="easy-submit-outline">
                   Cancel
+                </button>
+                <button type="submit" disabled={saving} className="easy-submit">
+                  {saving ? 'Saving...' : editingCustomer ? 'Update Client' : 'Add Client'}
                 </button>
               </div>
             </form>

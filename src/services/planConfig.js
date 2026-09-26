@@ -20,7 +20,9 @@ export const PLANS = {
       prioritySupport: false,
       recipientPortal: true,
       teamFollowUp: false,
-    }
+      activeProjects: 3,
+    },
+    features: { projectLabourCost: false, projectPortfolio: false, timesheets: false },
   },
   pro: {
     id: 'pro',
@@ -38,7 +40,9 @@ export const PLANS = {
       prioritySupport: true,
       recipientPortal: true,
       teamFollowUp: false,
-    }
+      activeProjects: 25,
+    },
+    features: { projectLabourCost: true, projectPortfolio: true, timesheets: false },
   },
   max: {
     id: 'max',
@@ -56,9 +60,17 @@ export const PLANS = {
       prioritySupport: true,
       recipientPortal: true,
       teamFollowUp: true,
-    }
+      activeProjects: Infinity,
+    },
+    features: { projectLabourCost: true, projectPortfolio: true, timesheets: true },
   }
 };
+
+/** Does the plan include a feature (planConfig `features`)? The database
+    enforces the ones that matter (the project quota, 0055). */
+export function hasFeature(planId, feature) {
+  return getPlanConfig(planId).features?.[feature] === true;
+}
 
 export const DEFAULT_PLAN = 'free';
 
@@ -94,4 +106,5 @@ export const PLAN_FEATURES = {
   invoices: { label: 'Invoices', icon: 'Receipt' },
   quotations: { label: 'Quotations', icon: 'FileText' },
   aiMessages: { label: 'AI Co-founder Messages', icon: 'Zap' },
+  activeProjects: { label: 'Active projects', icon: 'FolderKanban' },
 };

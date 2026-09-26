@@ -15,7 +15,6 @@ import { Page, Btn, Seg, Bar, Loading, Empty } from './ui/edge';
 import { useT, MONO } from './ui/edgeUtils';
 
 import StampPreview from './StampPreview';
-import RolePermissions from './settings/RolePermissions';
 import PortalJoinCode from './settings/PortalJoinCode';
 import ImageEditor from './ImageEditor';
 import { RailSlotContext } from './shell/railSlot';
@@ -741,9 +740,10 @@ export default function CompanyProfile() {
 
           {/* team access */}
           <Section {...sp} id="access" title="Team access"
-            desc="What each role can do, and how employees join their self-service portal.">
-            <SubHead t={t}>Roles & permissions</SubHead>
-            <div className="cp-legacy"><RolePermissions orgId={activeOrg.id} /></div>
+            desc="How employees join their self-service portal.">
+            <ActionRow t={t} title="Roles & permissions"
+              note="Set on each person: open them in Employees to change their role, or what they alone can do."
+              action={<Btn onClick={() => navigate('/employees')}>Open Employees <ArrowRight size={13} /></Btn>} />
             <div style={{ height: 1, background: t.lineSoft, margin: '18px 0' }} />
             <SubHead t={t} icon={<KeyRound size={13} />}>Employee portal join code</SubHead>
             <div className="cp-legacy"><PortalJoinCode orgId={activeOrg.id} /></div>

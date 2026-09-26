@@ -6,6 +6,7 @@ import { DialogSheet } from '../ui/edge';
 import { X, Paperclip, Eye, Trash2 } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
 import { receiptService, RECEIPT_ACCEPT, validateReceipt } from '../../services/receiptService';
+import { confirmDialog } from '../../services/confirm';
 
 export function Stat({ icon, label, value, accent, sub, onClick }) {
   return (
@@ -85,7 +86,10 @@ export function ReceiptField({ path, onChange, kind }) {
             <button
               type="button"
               className="prod-btn-ghost"
-              onClick={() => { receiptService.remove(path); onChange(null); }}
+              onClick={async () => {
+                const ok = await confirmDialog({ title: 'Remove receipt', message: 'Remove the attached receipt? The file is deleted.', confirmLabel: 'Remove' });
+                if (ok) { receiptService.remove(path); onChange(null); }
+              }}
             >
               <Trash2 size={13} /> Remove
             </button>

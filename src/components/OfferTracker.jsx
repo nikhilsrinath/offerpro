@@ -541,7 +541,7 @@ export default function OfferTracker() {
                                         </Btn>
                                         <Btn size="sm" onClick={() => whatsApp(doc)}>WhatsApp</Btn>
                                         {editable && <Btn size="sm" onClick={() => { linkCache.current.delete(doc.id); setEditOffer(doc); }}>Edit</Btn>}
-                                        <ConfirmBtn label="Delete" confirmLabel="Delete for good" onConfirm={() => remove(doc)} />
+                                        <ConfirmBtn label="Delete" title="Delete document" message="Are you sure you want to delete this document? Its share link stops working. This cannot be undone." onConfirm={() => remove(doc)} />
                                     </Row>
                                 </Td>
                             </Tr>

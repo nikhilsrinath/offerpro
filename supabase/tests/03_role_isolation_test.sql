@@ -77,6 +77,7 @@ insert into memberships (org_id, user_id, role) values
 
 do $$
 declare o uuid; s text; d uuid; e uuid; f uuid; r uuid; n uuid; l uuid; v uuid;
+        ie uuid; pj uuid; bn1 uuid; bn2 uuid; ld uuid;
 begin
   foreach o in array array['c0000000-0000-0000-0000-00000000000a',
                            'c0000000-0000-0000-0000-00000000000b']::uuid[] loop
@@ -133,6 +134,55 @@ begin
     insert into leave_adjustments (org_id, employee_id, leave_type_id, year, delta)
       values (o, e, l, extract(year from current_date)::int, 1);
     insert into announcements (org_id, title, body) values (o, 'Notice ' || s, 'Body ' || s);
+
+    -- Cash book (0038).
+    insert into income_entries (org_id, description, original_amount)
+      values (o, 'Income ' || s, 10) returning id into ie;
+
+    -- EdgeBrain (0033–0036). brain_state and brain_dirty may already hold the
+    -- org from the sync triggers above.
+    insert into brain_state (org_id) values (o) on conflict do nothing;
+    insert into brain_dirty (org_id) values (o) on conflict do nothing;
+    insert into brain_sync_runs (org_id, mode) values (o, 'full');
+    insert into brain_nodes (org_id, kind, entity_id, source_table, label)
+      values (o, 'client', gen_random_uuid(), 'clients', 'Node 1 ' || s) returning id into bn1;
+    insert into brain_nodes (org_id, kind, entity_id, source_table, label)
+      values (o, 'client', gen_random_uuid(), 'clients', 'Node 2 ' || s) returning id into bn2;
+    insert into brain_edges (org_id, src_id, dst_id, rel) values (o, bn1, bn2, 'related');
+    insert into brain_metrics (org_id, key) values (o, 'fixture.metric');
+    insert into brain_insights (org_id, title, body) values (o, 'Insight ' || s, 'Body ' || s);
+
+    -- Projects (0044–0052). project_code_counters is filled by the insert.
+    insert into projects (org_id, name) values (o, 'Project ' || s) returning id into pj;
+    insert into project_members (org_id, project_id, employee_id) values (o, pj, e);
+    insert into project_milestones (org_id, project_id, title) values (o, pj, 'Milestone ' || s);
+    insert into project_documents (org_id, project_id, record_id) values (o, pj, r);
+    insert into project_allocations (org_id, project_id, source_type, source_id, mode)
+      values (o, pj, 'income_entry', ie, 'full');
+    insert into timesheet_entries (org_id, employee_id, project_id, work_date, minutes)
+      values (o, e, pj, current_date, 60);
+
+    -- Document library (0063): a stored file and one passage read from it.
+    insert into library_documents (org_id, title, file_name, mime_type, size_bytes, storage_path)
+      values (o, 'Handbook ' || s, 'handbook.pdf', 'application/pdf', 1024, o || '/handbook-' || s || '.pdf')
+      returning id into ld;
+    insert into library_chunks (org_id, document_id, seq, heading, content)
+      values (o, ld, 0, 'Page 1', 'Leave policy for ' || s);
+
+    -- Document versions (0064): issuing a link sends the offer, which takes
+    -- its v1 and opens the thread; the recipient comments on it.
+    insert into portal_tokens (org_id, scope, record_id, expires_at)
+      values (o, 'sign', r, now() + interval '1 day');
+    insert into document_negotiation_events (version_id, kind, actor_type, body)
+      select current_version_id, 'comment', 'recipient', 'Comment ' || s from records where id = r;
+
+    -- Per-person exceptions (0062): one for the org's member-role login, equal
+    -- to its role's row so the matrix expectations below still hold.
+    insert into member_permissions (org_id, membership_id, resource, can_view, can_create, can_edit, can_delete)
+    select o, m.id, rp.resource, rp.can_view, rp.can_create, rp.can_edit, rp.can_delete
+      from memberships m
+      join role_permissions rp on rp.org_id = m.org_id and rp.role = m.role and rp.resource = 'clients'
+     where m.org_id = o and m.role = 'member';
 
     insert into storage.objects (bucket_id, name) values ('employee-photos', o || '/' || e || '.jpg');
 
@@ -213,7 +263,20 @@ end $$;
 -- ─── Tables, their resource, and a sample row per org ────────────────────────
 create temp table _tables as
 select c.table_name as tbl,
-       coalesce((select key from permission_resources where key = c.table_name), '') as resource,
+       -- Tables whose permission key is not their own name.
+       coalesce((select key from permission_resources
+                  where key = case c.table_name
+                                when 'project_code_counters' then 'projects'
+                                when 'timesheet_entries' then 'timesheets'
+                                when 'library_chunks'  then 'library_documents'
+                                when 'document_negotiation_events' then 'document_negotiation'
+                                when 'brain_nodes'     then 'edgebrain'
+                                when 'brain_edges'     then 'edgebrain'
+                                when 'brain_metrics'   then 'edgebrain'
+                                when 'brain_insights'  then 'edgebrain'
+                                when 'brain_state'     then 'edgebrain'
+                                when 'brain_sync_runs' then 'edgebrain'
+                                else c.table_name end), '') as resource,
        -- A column the client may UPDATE, if any; SET col = col changes nothing.
        coalesce(
          (select a.column_name from information_schema.columns a
@@ -255,6 +318,23 @@ begin
       if t.tbl = 'attendance_days' then
         j := jsonb_set(j, '{work_date}', to_jsonb((current_date - 400)::text));
       end if;
+      -- A membership copy overlaps the original's dates, and an allocation
+      -- copy collides with the original's claim on its source; both are
+      -- refused by a guard after RLS has let an allowed caller through. Give
+      -- each a range / a source of its own, as attendance_days does above.
+      if t.tbl = 'project_members' then
+        j := jsonb_set(jsonb_set(j, '{start_date}', to_jsonb((current_date - 400)::text)),
+                       '{end_date}', to_jsonb((current_date - 399)::text));
+      end if;
+      if t.tbl = 'project_allocations' then
+        insert into income_entries (org_id, description, original_amount) values (o, 'Alloc probe', 10)
+          returning jsonb_set(j, '{source_id}', to_jsonb(id)) into j;
+      end if;
+      -- The fixture thread also holds the database's own entries; a copy must
+      -- be something a member may write, or the probe measures the guard.
+      if t.tbl = 'document_negotiation_events' then
+        j := jsonb_set(jsonb_set(j, '{kind}', '"comment"'), '{actor_type}', '"recipient"');
+      end if;
       if t.tbl = 'employee_compensation' then
         -- keyed by employee_id; point the copy at a fresh employee of the same org
         insert into employees (org_id, full_name) values (o, 'Comp probe') returning jsonb_set(j, '{employee_id}', to_jsonb(id)) into j;
@@ -281,6 +361,16 @@ begin
   -- NON-NEGOTIABLE: pay and banking are owner/admin, whatever the matrix holds.
   if p_tbl in ('employee_compensation', 'org_banking') then
     return p_role in ('owner', 'admin');
+  end if;
+  -- 0049: every allocation policy also requires project_financials.view.
+  if p_tbl = 'project_allocations' and not coalesce((
+       select can_view from role_permissions
+        where org_id = p_org and role = p_role and resource = 'project_financials'), false) then
+    return false;
+  end if;
+  -- EdgeBrain (0033–0036) is written only by its sync functions; clients read.
+  if p_tbl like 'brain\_%' and p_verb <> 'S' then
+    return false;
   end if;
   -- NON-NEGOTIABLE: server-only.
   if p_tbl in ('org_secrets', 'email_events') then
@@ -319,9 +409,10 @@ begin
 
       for t in select * from _tables order by tbl loop
         -- Own-org behaviour of these is not "the matrix" and is asserted
-        -- directly in 04_role_smoke_test.sql. Cross-tenant, they are probed
+        -- directly in 04_role_smoke_test.sql (member_permissions in
+        -- 09_member_permissions_test.sql). Cross-tenant, they are probed
         -- like everything else.
-        if v_side = 'own' and t.tbl in ('memberships', 'audit_log', 'role_permissions') then
+        if v_side = 'own' and t.tbl in ('memberships', 'audit_log', 'role_permissions', 'member_permissions') then
           continue;
         end if;
 

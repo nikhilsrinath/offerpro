@@ -34,7 +34,7 @@ done
 
 status=0
 total_pass=0
-for t in supabase/tests/0[1-9]*.sql; do
+for t in supabase/tests/0[1-9]*.sql supabase/tests/[1-9][0-9]*.sql; do
   name=$(basename "$t")
   if [ "$name" = "02_access_matrix.sql" ]; then
     if psql_c -d "$DB" < "$t" > /tmp/access_matrix.out 2>/tmp/access_matrix.err; then

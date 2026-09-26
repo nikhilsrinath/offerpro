@@ -261,7 +261,7 @@ export const DOMAINS = [
   { id: 'finance',      label: 'Finance',      kinds: ['financial_document', 'payment', 'recurring_invoice'] },
   { id: 'products',     label: 'Products',     kinds: ['product'] },
   { id: 'spend',        label: 'Spend',        kinds: ['vendor', 'purchase_invoice', 'expense'] },
-  { id: 'documents',    label: 'Documents',    kinds: ['record'] },
+  { id: 'documents',    label: 'Documents',    kinds: ['record', 'library_document'] },
   { id: 'operations',   label: 'Operations',   kinds: ['task', 'leave_request', 'announcement', 'notification'] },
 ];
 
@@ -276,7 +276,8 @@ export const KIND_LABEL = {
   client: 'Client', customer: 'Customer',
   financial_document: 'Invoice / quote', payment: 'Payment', recurring_invoice: 'Recurring invoice',
   product: 'Product', vendor: 'Vendor', purchase_invoice: 'Purchase invoice', expense: 'Expense',
-  record: 'HR document', task: 'Task', leave_request: 'Leave request',
+  record: 'HR document', library_document: 'Library document', library_passage: 'Document passage',
+  task: 'Task', leave_request: 'Leave request',
   announcement: 'Announcement', notification: 'Notification',
 };
 

@@ -6,6 +6,10 @@ import {
 } from 'lucide-react';
 import { orgStore } from '../services/orgStore';
 import { useOrg } from '../context/OrgContext';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from './shared/Toast';
+import { canCreateProjects } from '../services/projectService';
+import { confirmDialog } from '../services/confirm';
 
 const COLUMNS = [
   { id: 'lead',      label: 'Lead',      color: '#6366f1' },
@@ -42,6 +46,10 @@ function useWindowWidth() {
 }
 
 export default function CRM() {
+  const navigate = useNavigate();
+  const toast = useToast();
+  // A won deal's next step is usually a project; offered, never automatic.
+  const startProject = (lead) => navigate(`/projects/new?client=${lead.id}`);
   const { activeOrg } = useOrg();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -131,7 +139,7 @@ export default function CRM() {
   };
 
   const handleDelete = async (lead) => {
-    if (!window.confirm(`Delete lead "${lead.company_name || lead.person_name}"?`)) return;
+    if (!(await confirmDialog({ title: 'Delete lead', message: `Are you sure you want to delete “${lead.company_name || lead.person_name}”? This cannot be undone.` }))) return;
     try {
       await orgStore.removeItem('crm_leads', lead.id);
     } catch (err) {
@@ -157,6 +165,10 @@ export default function CRM() {
         stage: newStage,
         updated_at: new Date().toISOString(),
       });
+      if (newStage === 'deal' && canCreateProjects()) {
+        toast(`${lead.company_name || lead.name || 'The client'} won`, 'success', 9000,
+          { label: 'Start project', onClick: () => startProject(lead) });
+      }
     } catch (err) {
       alert('Error moving lead: ' + err.message);
     }
@@ -416,12 +428,18 @@ export default function CRM() {
                 />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
-              <button type="submit" disabled={saving} className="easy-submit" style={{ flex: 1 }}>
-                {saving ? 'Saving...' : editingLead ? 'Update Lead' : 'Add Lead'}
-              </button>
-              <button type="button" onClick={() => setModalOpen(false)} className="easy-submit-outline" style={{ flex: 0.5 }}>
+            <div className="form-actions" style={{ marginTop: '1.5rem' }}>
+              <button type="button" onClick={() => setModalOpen(false)} className="easy-submit-outline">
                 Cancel
+              </button>
+              {editingLead && canCreateProjects() && (
+                <button type="button" onClick={() => { setModalOpen(false); startProject(editingLead); }}
+                  className="easy-submit-outline">
+                  Start project
+                </button>
+              )}
+              <button type="submit" disabled={saving} className="easy-submit">
+                {saving ? 'Saving...' : editingLead ? 'Update Lead' : 'Add Lead'}
               </button>
             </div>
           </form>

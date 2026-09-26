@@ -29,6 +29,9 @@ const COMMON = (today) => ({
   payment_method: '', reference: '',
   country_code: '', place_of_supply: '', is_inter_state: false,
   quantity: '', unit: '', receipt_path: null, notes: '',
+  // Projects (Phase 3): the project this money belongs to, and the candidates
+  // when the sentence named one ambiguously (which is the only time it is asked).
+  project_id: '', project_candidates: [],
 });
 
 /**
@@ -599,6 +602,67 @@ export function categoryChoices(direction, limit = 8) {
   return picked.slice(0, limit).map((c) => ({ value: c.key, label: c.label }));
 }
 
+/* ── projects ─────────────────────────────────────────────────────────────── */
+
+const PROJECT_CODE = /\bPRJ-\d{4}-\d{3}\b/i;
+const PROJECT_CUE = /\b(?:for|on)\s+(?:the\s+)?(?:project\s+)?|\bproject\s+/i;
+const NAME_STOP = new Set(['the', 'a', 'an', 'and', 'of', 'for', 'on', 'project', 'website', 'app', 'work', 'job',
+  'ltd', 'limited', 'pvt', 'private', 'inc', 'llc', 'llp', 'co', 'corp', 'company', 'group']);
+const tokens = (s) => String(s || '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+
+/**
+ * Which project a sentence names, from the open projects the caller passes
+ * ([{ id, code, name, client }]). Deterministic:
+ *
+ *   · a code (PRJ-2026-014) wins outright;
+ *   · otherwise, after "for", "on" or "project", the projects whose name's
+ *     distinctive words all appear in the sentence — "for the Acme website"
+ *     finds "Acme website"; "on project Apollo" finds "Apollo";
+ *   · a client name alone counts too, when that client has exactly one open
+ *     project.
+ *
+ * Returns { project, match } for one clear answer, { candidates } when several
+ * fit (asked as a question), or null when no project is mentioned at all.
+ */
+export function parseProject(text, projects = []) {
+  const raw = String(text || '');
+  if (!projects.length) return null;
+  const code = raw.match(PROJECT_CODE);
+  if (code) {
+    const p = projects.find((x) => String(x.code).toLowerCase() === code[0].toLowerCase());
+    return p ? { project: p, match: code[0] } : null;
+  }
+  const said = new Set(tokens(raw));
+  const cued = PROJECT_CUE.test(raw);
+  const fits = (ws) => ws.length > 0 && ws.every((w) => said.has(w));
+  const scored = [];
+  for (const p of projects) {
+    const name = tokens(p.name).filter((w) => !NAME_STOP.has(w));
+    const client = tokens(p.client).filter((w) => !NAME_STOP.has(w));
+    // "Acme website" for client Acme reduces to "acme": that is a mention of
+    // the client, not of this project, and scores like one.
+    const full = tokens(p.name);
+    const onlyClientWords = name.length > 0 && name.every((w) => client.includes(w));
+    if (fits(full)) scored.push({ p, score: 20 + full.length });
+    else if (fits(name) && !onlyClientWords) scored.push({ p, score: 10 + name.length });
+    else if (fits(client)) scored.push({ p, score: 1 + client.length, byClient: true });
+  }
+  if (!scored.length) return null;
+  const best = Math.max(...scored.map((x) => x.score));
+  const top = scored.filter((x) => x.score === best);
+  if (top.length === 1 && (cued || !top[0].byClient)) {
+    const source = top[0].byClient ? top[0].p.client : top[0].p.name;
+    // Take the whole name out of the description when it is written out in
+    // full ("for the Acme website"); otherwise just its distinctive words.
+    const phrase = (ws) => new RegExp(
+      `(?:\\b(?:for|on)\\s+(?:the\\s+)?(?:project\\s+)?)?${ws.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[^\\p{L}\\p{N}]+')}`, 'iu');
+    const m = raw.match(phrase(tokens(source)))
+      || raw.match(phrase(tokens(source).filter((w) => !NAME_STOP.has(w))));
+    return { project: top[0].p, match: m ? m[0] : '' };
+  }
+  return { candidates: top.map((x) => x.p) };
+}
+
 /* ── reading a whole sentence ─────────────────────────────────────────────── */
 
 const LEAD = /^\s*(?:please\s+)?(?:can\s+you\s+)?(?:record|log|enter|add|note(?:\s+down)?|book|create)?\s*(?:an?|the)?\s*(?:new\s+)?(?:cash\s*(?:in|out)|money\s*(?:in|out)|expense|income|entry|payment|receipt)?\s*(?:of|for|:)?\s*/i;
@@ -626,9 +690,17 @@ export function cleanDescription(rest) {
  * payment of five rupees, and how the description ends up as "rent" rather
  * than as the whole sentence over again.
  */
-export function parseCashSentence(text, direction, today = todayIso()) {
+export function parseCashSentence(text, direction, today = todayIso(), projects = []) {
   let rest = String(text || '');
   const patch = {};
+
+  const proj = parseProject(rest, projects);
+  if (proj?.project) {
+    patch.project_id = proj.project.id;
+    if (proj.match) rest = rest.replace(proj.match, ' ');
+  } else if (proj?.candidates) {
+    patch.project_candidates = proj.candidates.map((p) => ({ id: p.id, code: p.code, name: p.name }));
+  }
 
   const when = parseDate(rest, today);
   if (when) {
@@ -668,9 +740,9 @@ export function parseCashSentence(text, direction, today = todayIso()) {
 }
 
 /** A first draft, from the message that started it all. */
-export function startDraft(text, direction, today = todayIso()) {
+export function startDraft(text, direction, today = todayIso(), projects = []) {
   const draft = blankDraft(direction, today);
-  const next = { ...draft, ...parseCashSentence(text, direction, today) };
+  const next = { ...draft, ...parseCashSentence(text, direction, today, projects) };
   if (Number(next.tax_rate) > 0) {
     next.tax_amount = String(taxFromRate(baseAmount(next), next.tax_rate));
   }
@@ -740,6 +812,18 @@ export function nextQuestion(draft) {
       text: draft.direction === 'in' ? 'How was it received?' : 'How was it paid?',
       options: methodOptions(),
       free: true,
+    };
+  }
+
+  // Asked only when the sentence named a project (or its client) ambiguously.
+  if (!has(draft.project_id) && (draft.project_candidates || []).length > 0) {
+    return {
+      slot: 'project',
+      text: 'Which project? (or none)',
+      options: [
+        ...draft.project_candidates.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}` })),
+        { value: 'none', label: 'None' },
+      ],
     };
   }
 
@@ -832,6 +916,17 @@ export function applyAnswer(draft, slot, text, today = todayIso()) {
       return { draft: { ...draft, date: when.date } };
     }
 
+    case 'project': {
+      if (/^(none|no|nope|overhead|no project|n\/a)$/i.test(answer)) {
+        return { draft: { ...draft, project_id: '', project_candidates: [] } };
+      }
+      const cands = draft.project_candidates || [];
+      const pick = cands.find((p) => p.id === answer)
+        || parseProject(answer, cands.map((p) => ({ ...p, client: '' })))?.project;
+      if (!pick) return { error: 'Pick one of the projects, or say “none”.' };
+      return { draft: { ...draft, project_id: pick.id, project_candidates: [] } };
+    }
+
     case 'payment_method': {
       const lower = answer.toLowerCase();
       const known = PAYMENT_METHODS.find((m) => m.key === lower || m.label.toLowerCase() === lower);
@@ -879,9 +974,13 @@ export function validateDraft(draft) {
  * this code decides which table to write, not a column in either of them.
  */
 export function toEntry(draft) {
-  const { direction, ...data } = draft;
+  const { direction, project_id: projectId, project_candidates: _pc, ...data } = draft;
   return {
     section: SECTION_OF[direction],
+    // Saved after the row, as a whole-entry allocation (projectService.allocate).
+    allocation: projectId
+      ? { source_type: direction === 'in' ? 'income_entry' : 'expense', project_id: projectId }
+      : null,
     data: {
       ...data,
       original_amount: Number(draft.original_amount) || 0,
@@ -895,7 +994,7 @@ export function toEntry(draft) {
 export default {
   detectCashIntent, isCancel, isQuestion, amountHints,
   parseDirection, startDraft, blankDraft, nextQuestion, applyAnswer,
-  parseCashSentence, parseAmount, parseDate, parseMethod, parseGstRate, cleanDescription,
+  parseCashSentence, parseAmount, parseDate, parseMethod, parseGstRate, cleanDescription, parseProject,
   guessCategory, categoryChoices, methodOptions, taxFromRate,
   baseAmount, draftTreatment, validateDraft, toEntry, SECTION_OF, CURRENCIES,
 };

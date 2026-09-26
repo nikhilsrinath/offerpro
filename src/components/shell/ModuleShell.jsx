@@ -14,6 +14,7 @@ import { RailSlotContext } from './railSlot';
 import { useRailPin, RailPinButton } from './railPin';
 import MobileNav from './MobileNav';
 import './edgeBridge.css';
+import { confirmDialog } from '../../services/confirm';
 
 /* ══════════════════════════════════════════════════════════════════════════
    The frame a module's pages sit inside: the same rail and top bar the hub
@@ -112,7 +113,8 @@ export default function ModuleShell({
         const to = notifTarget(n);
         if (to) navigate(to);
     };
-    const clearNotifs = () => {
+    const clearNotifs = async () => {
+        if (!(await confirmDialog({ title: 'Clear notifications', message: 'Delete all notifications? This cannot be undone.', confirmLabel: 'Clear all' }))) return;
         documentStore.clearAllNotifications();
         setNotifs([]);
         notifBtnRef.current?.focus();
@@ -455,6 +457,10 @@ export default function ModuleShell({
 
 /** Where a notification leads. */
 function notifTarget(n) {
+    if (n.type === 'quotation_accepted' && n.financial_doc_id) {
+        return `/projects/new?fromQuotation=${n.financial_doc_id}`;
+    }
+    if (n.project_id) return `/projects/${n.project_id}`;
     switch (n.type) {
         case 'offer_signed':
         case 'role_change_acknowledged':
@@ -468,6 +474,9 @@ function notifTarget(n) {
             return '/new-quotation';
         case 'payment_submitted':
             return '/invoices';
+        case 'order_confirmed':
+        case 'advance_submitted':
+            return '/proforma';
         default:
             return null;
     }
@@ -561,11 +570,8 @@ function ShellStyle({ t }) {
                 --error: ${t.down}; --error-muted: ${t.isDark ? 'rgba(248,113,113,.10)' : 'rgba(185,28,28,.07)'};
                 --scrollbar-thumb: ${t.lineStrong}; --scrollbar-thumb-hover: ${t.ghost};
             }
-            .edge-shell .edge-scroll::-webkit-scrollbar { width: 9px; height: 9px; }
-            .edge-shell .edge-scroll::-webkit-scrollbar-track { background: transparent; }
             .edge-shell .edge-scroll::-webkit-scrollbar-thumb {
-                background: ${t.lineStrong}; border-radius: 99px;
-                border: 3px solid transparent; background-clip: content-box;
+                background: ${t.lineStrong}; background-clip: content-box;
             }
             .edge-shell .edge-icon:hover { color: ${t.text} !important; border-color: ${t.line} !important; }
             .edge-shell .edge-chip:hover { border-color: ${t.lineStrong} !important; }

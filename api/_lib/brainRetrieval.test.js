@@ -149,3 +149,51 @@ describe('question routing', () => {
     expect(terms).not.toContain('the');
   });
 });
+
+describe('project vocabulary', () => {
+  it('routes project questions to project nodes', () => {
+    expect(hintedKinds('Which projects are at risk?')).toContain('project');
+    expect(hintedKinds('Is Apollo profitable?')).toContain('project');
+    expect(hintedKinds('Who is over-allocated?')).toContain('project');
+    expect(hintedKinds('What milestones are due next week?')).toEqual(expect.arrayContaining(['milestone', 'project']));
+  });
+
+  it('keeps a project node\'s code and health ahead of the rest', () => {
+    const keys = Object.keys(compactFacts({
+      tags: ['a'], start_date: '2026-01-01', health: 'at_risk', code: 'PRJ-2026-001',
+      name: 'Apollo', client: 'Orbit', manager: 'Kai',
+    }));
+    expect(keys.slice(0, 5)).toEqual(['name', 'code', 'health', 'client', 'manager']);
+  });
+});
+
+describe('headline totals (0066)', () => {
+  it('hides a combined total from anyone who cannot read every table behind it', async () => {
+    const { metricVisible } = await import('./brainRetrieval.js');
+    const net = { key: 'cash.net', dims: { requires: ['financial_documents', 'income_entries', 'expenses', 'purchase_invoices'] } };
+    expect(metricVisible(net, new Set(['financial_documents', 'income_entries', 'expenses', 'purchase_invoices']))).toBe(true);
+    expect(metricVisible(net, new Set(['financial_documents', 'income_entries', 'purchase_invoices']))).toBe(false);
+    expect(metricVisible({ key: 'revenue.billed', dims: {} }, new Set())).toBe(true);
+  });
+
+  it('puts net cash first, in rupees, with the parts it is made of', async () => {
+    const { headlineSection } = await import('./brainRetrieval.js');
+    const text = headlineSection([
+      { key: 'cash.net', bucket: '', value: 16450, dims: { received: 98000, paid_out: 81550 } },
+      { key: 'revenue.total', bucket: '', value: 102000, dims: { invoiced_net: 4000, direct_net: 98000 } },
+      { key: 'cash.received_by_source', bucket: 'cash_book_revenue', value: 98000, dims: {} },
+    ]);
+    expect(text).toMatch(/^## HEADLINE FIGURES/);
+    expect(text).toMatch(/Net cash .*: ₹16,450 \(received ₹98,000 − paid out ₹81,550\)/);
+    expect(text).toMatch(/Total revenue .*: ₹1,02,000 \(invoices ₹4,000 \+ direct ₹98,000\)/);
+    expect(text.indexOf('cash.net')).toBeLessThan(text.indexOf('revenue.total'));
+    expect(text).not.toMatch(/cash_book_revenue/);
+  });
+
+  it('writes a negative position as a minus, and says nothing when no headline is visible', async () => {
+    const { headlineSection } = await import('./brainRetrieval.js');
+    expect(headlineSection([{ key: 'cash.net', bucket: '', value: -81550, dims: { received: 0, paid_out: 81550 } }]))
+      .toMatch(/−₹81,550/);
+    expect(headlineSection([])).toBe('');
+  });
+});

@@ -8,6 +8,7 @@ import { useToast } from '../shared/Toast';
 import { Stat, Modal } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
 import { todayIso } from '../../services/financeAnalytics';
+import { confirmDialog } from '../../services/confirm';
 
 const BLANK = {
   company_name: '', contact_name: '', email: '', phone: '', address: '', state: '',
@@ -98,7 +99,7 @@ export default function Vendors() {
   };
 
   const handleDelete = async (v) => {
-    if (!window.confirm(`Delete ${v.company_name}? This cannot be undone.`)) return;
+    if (!(await confirmDialog({ title: 'Delete vendor', message: `Are you sure you want to delete ${v.company_name}? This cannot be undone.` }))) return;
     try {
       await orgStore.removeItem('vendors', v.id);
       toast('Vendor deleted', 'success');

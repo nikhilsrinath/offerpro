@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   detectCashIntent, parseAmount, parseDate, parseMethod, parseGstRate,
-  parseCashSentence, startDraft, nextQuestion, applyAnswer, validateDraft,
+  parseCashSentence, parseProject, startDraft, nextQuestion, applyAnswer, validateDraft,
   toEntry, taxFromRate, baseAmount, guessCategory, isCancel, isQuestion, amountHints,
 } from './cashIntent';
 
@@ -325,5 +325,53 @@ describe('validateDraft and toEntry', () => {
   it('converts a foreign amount at the rate that was entered', () => {
     const draft = { ...ready(), original_amount: '1200', currency: 'USD', fx_rate: 83.5 };
     expect(baseAmount(draft)).toBe(100200);
+  });
+});
+
+describe('projects in a cash sentence', () => {
+  const projects = [
+    { id: 'p1', code: 'PRJ-2026-014', name: 'Acme website', client: 'Acme Ltd' },
+    { id: 'p2', code: 'PRJ-2026-015', name: 'Apollo', client: 'Orbit' },
+    { id: 'p3', code: 'PRJ-2026-016', name: 'Acme mobile app', client: 'Acme Ltd' },
+  ];
+
+  it('reads a project code outright', () => {
+    expect(parseProject('paid 4000 for hosting PRJ-2026-015', projects).project.id).toBe('p2');
+  });
+
+  it('finds a project by name after "for" / "on project"', () => {
+    expect(parseProject('spent 12000 on freelancers for the Acme website', projects).project.id).toBe('p1');
+    expect(parseProject('paid 3000 on project Apollo', projects).project.id).toBe('p2');
+  });
+
+  it('turns an ambiguous client mention into candidates, not a guess', () => {
+    const r = parseProject('received 50000 from Acme for the work', projects);
+    expect(r.project).toBeUndefined();
+    expect(r.candidates.map((p) => p.id).sort()).toEqual(['p1', 'p3']);
+  });
+
+  it('says nothing when no project is named', () => {
+    expect(parseProject('paid 500 for tea', projects)).toBeNull();
+    expect(parseProject('anything', [])).toBeNull();
+  });
+
+  it('carries the project into the draft and out as an allocation', () => {
+    const d = startDraft('spent 12000 on freelancers for the Acme website via UPI', 'out', '2026-09-25', projects);
+    expect(d.project_id).toBe('p1');
+    expect(d.description.toLowerCase()).not.toContain('acme');
+    const e = toEntry({ ...d, category: 'contractors' });
+    expect(e.allocation).toEqual({ source_type: 'expense', project_id: 'p1' });
+    expect(e.data.project_id).toBeUndefined();
+  });
+
+  it('asks "Which project?" only for an ambiguous mention, and accepts "none"', () => {
+    const d = startDraft('received 50000 from Acme by bank transfer', 'in', '2026-09-25', projects);
+    const ready = { ...d, category: 'service_income', description: 'Fees' };
+    const q = nextQuestion(ready);
+    expect(q.slot).toBe('project');
+    expect(q.options.at(-1).value).toBe('none');
+    expect(applyAnswer(ready, 'project', 'none').draft.project_candidates).toEqual([]);
+    expect(applyAnswer(ready, 'project', 'p3').draft.project_id).toBe('p3');
+    expect(nextQuestion(startDraft('paid 500 for tea by cash', 'out', '2026-09-25', projects))?.slot).not.toBe('project');
   });
 });

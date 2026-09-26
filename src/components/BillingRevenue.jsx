@@ -16,6 +16,7 @@ import { useOrg } from '../context/OrgContext';
 import { useNavigate } from 'react-router-dom';
 import { receiptService, RECEIPT_ACCEPT } from '../services/receiptService';
 import { categoryLabel, countsAsIncome, groupOf, loadFinanceCategories } from '../services/financeCategories';
+import { confirmDialog } from '../services/confirm';
 
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const chartStyles = () => ({
@@ -165,7 +166,7 @@ export default function BillingRevenue() {
   };
 
   const handleDeleteExpense = async (id) => {
-    if (!window.confirm('Delete this expense?')) return;
+    if (!(await confirmDialog({ title: 'Delete expense', message: 'Are you sure you want to delete this expense? Its receipt is removed too.' }))) return;
     try {
       const exp = expenses.find((x) => x.id === id);
       await orgStore.removeItem('expenses', id);

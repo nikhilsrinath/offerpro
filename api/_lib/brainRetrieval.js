@@ -49,10 +49,15 @@ export async function allowedResources(orgId, userId) {
   if (mErr) throw new HttpError(500, mErr.message);
   if (!member) throw new HttpError(403, 'Not a member of this organization');
 
-  const { data: rows, error } = await db
-    .from('role_permissions')
-    .select('resource, can_view, can_create, can_edit')
-    .eq('org_id', orgId).eq('role', member.role);
+  // The role's matrix with this person's own exceptions applied (0062). A
+  // database without 0062 has no exceptions to apply: read the role alone.
+  let { data: rows, error } = await db.rpc('user_permissions', { p_org: orgId, p_user: userId });
+  if (error) {
+    ({ data: rows, error } = await db
+      .from('role_permissions')
+      .select('resource, can_view, can_create, can_edit')
+      .eq('org_id', orgId).eq('role', member.role));
+  }
   if (error) throw new HttpError(500, error.message);
 
   const view = new Set();
@@ -119,9 +124,16 @@ const KIND_HINTS = [
   [/\b(vendor|vendors|supplier|suppliers)\b/, ['vendor']],
   [/\b(expense|expenses|spend|spending|cost|costs|purchase|purchases)\b/, ['expense', 'purchase_invoice']],
   [/\b(task|tasks|todo|todos|to-do|assignment|assignments|backlog)\b/, ['task']],
+  // Projects (0061). "Which projects are at risk", "is Apollo profitable",
+  // "who is over-allocated" name no table, but they are all project questions.
+  [/\b(project|projects|engagement|engagements|delivery|portfolio|at risk|off track|on track|over-?allocated|overbooked|utili[sz]ation|allocation|margin|margins|profitable|profitability)\b/, ['project']],
+  [/\b(milestone|milestones|deliverable|deliverables|phase|phases|stage|stages)\b/, ['milestone', 'project']],
+  [/\b(timesheet|timesheets|hours logged|billable hours|billed hours)\b/, ['project', 'employee']],
   [/\b(leave|leaves|time off|holiday|holidays|absence|absences)\b/, ['leave_request']],
   [/\b(announcement|announcements|notice|notices)\b/, ['announcement']],
-  [/\b(document|documents|record|records|offer letter|offer letters|certificate|certificates)\b/, ['record']],
+  [/\b(document|documents|record|records|offer letter|offer letters|certificate|certificates)\b/, ['record', 'library_document']],
+  // The document library (0063): what was uploaded, as opposed to what EdgeOS issued.
+  [/\b(file|files|upload|uploaded|uploads|pdf|pdfs|deck|decks|presentation|presentations|slides|spreadsheet|spreadsheets|policy|policies|handbook|manual|manuals|guideline|guidelines|sop|sops|contract|contracts|agreement|agreements|brochure|library)\b/, ['library_document']],
 ];
 
 /** The entity kinds a question is asking about, if it names any. */
@@ -345,8 +357,78 @@ export async function getMetrics(orgId, allowed, { keys = null } = {}) {
   if (keys?.length) q = q.in('key', keys);
   const { data, error } = await resourceFilter(q, allowed).limit(400);
   if (error) throw new HttpError(500, error.message);
-  return data || [];
+  return (data || []).filter((m) => metricVisible(m, allowed));
 }
+
+/**
+ * A total built from several tables (0066) names them all in dims.requires,
+ * and is shown only to someone who may read every one: net cash minus money in
+ * is the spend total, so a user who cannot see expenses must not get net cash.
+ * The row's own `resource` has already been checked by resourceFilter.
+ */
+export function metricVisible(m, allowed) {
+  const needs = m?.dims?.requires;
+  if (!Array.isArray(needs) || needs.length === 0) return true;
+  return needs.every((r) => allowed.has(r));
+}
+
+/* ── Headline figures ─────────────────────────────────────────────────────
+   The questions people ask most, each mapped to the ONE aggregate that
+   answers it. Without this the model met "what is the net cash?" with forty
+   aggregates and no net cash among them, and built its own from the wrong
+   parts. Listed first, formatted in rupees, with the parts beside the whole
+   so a follow-up ("how did you get that?") is answered from the same row. */
+const HEADLINES = [
+  { key: 'cash.net', label: 'Net cash (all money received − all money paid out, all time)',
+    asks: '"net cash", "cash position", "are we up or down", "how much money do we have"',
+    parts: (m) => m.dims && `received ${inr(m.dims.received)} − paid out ${inr(m.dims.paid_out)}` },
+  { key: 'cash.received', label: 'Money received, all time', asks: '"money in", "cash received", "collections"' },
+  { key: 'cash.paid_out', label: 'Money paid out, all time', asks: '"money out", "cash spent", "outflow"' },
+  { key: 'revenue.total', label: 'Total revenue (earned, net of GST, all time)',
+    asks: '"total revenue", "sales", "how much have we earned"',
+    parts: (m) => m.dims && `invoices ${inr(m.dims.invoiced_net)} + direct ${inr(m.dims.direct_net)}` },
+  { key: 'revenue.billed', label: 'Invoiced (issued invoices, incl. GST)', asks: '"how much have we billed / invoiced"' },
+  { key: 'revenue.outstanding', label: 'Receivable (owed to us on issued invoices)', asks: '"who owes us", "receivables", "outstanding"' },
+  { key: 'revenue.overdue', label: 'Overdue receivables', asks: '"overdue", "late payments"' },
+  { key: 'payables.outstanding', label: 'Payable (we owe vendors)', asks: '"what do we owe", "payables"' },
+  { key: 'expenses.total', label: 'Expenses recorded (all, incl. unpaid)', asks: '"total expenses"' },
+];
+
+function inr(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return String(v ?? '');
+  return `${n < 0 ? '−' : ''}₹${Math.abs(n).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+}
+
+/** The headline block for the aggregates this caller may see. Empty when none. */
+export function headlineSection(metrics) {
+  const byKey = new Map(metrics.filter((m) => !m.bucket).map((m) => [m.key, m]));
+  const lines = HEADLINES
+    .filter((h) => byKey.has(h.key))
+    .map((h) => {
+      const m = byKey.get(h.key);
+      const parts = h.parts?.(m);
+      return `- ${h.label}: ${inr(m.value)}${parts ? ` (${parts})` : ''} — key ${h.key}; answers ${h.asks}`;
+    });
+  if (!lines.length) return '';
+  return '## HEADLINE FIGURES\n' +
+    'The exact answers to the questions people ask most, computed in PostgreSQL on the same rules as ' +
+    'the dashboard tiles. When a question matches one of these, the answer IS this figure: quote it as ' +
+    'written, then give its parts if useful. Do not rebuild it from other aggregates or from records — ' +
+    'a total assembled by hand leaves something out.\n' + lines.join('\n');
+}
+
+/** How to read the context — sent with it, so every caller's model gets the rules. */
+export const CONTEXT_RULES = '## HOW TO ANSWER FROM THIS CONTEXT\n' +
+  '1. For a figure, use HEADLINE FIGURES first, then AUTHORITATIVE AGGREGATES. Quote them exactly.\n' +
+  '2. Never compute a total, difference or ratio yourself when an aggregate already states it. Only ' +
+  'combine aggregates when none answers the question, and then name each one you used and show the ' +
+  'arithmetic.\n' +
+  '3. Never add up ENTITIES to get a total: they are a sample chosen for this question, not the table.\n' +
+  '4. Keep the bases straight: revenue is not cash, invoiced is not collected, funding is not revenue, ' +
+  'and figures with GST are not added to figures without it.\n' +
+  '5. Never say something is zero, missing or does not exist unless INVENTORY or an aggregate says so.\n' +
+  '6. If the context cannot answer, say what is missing. Never estimate a company figure.';
 
 /* ── The aggregate cache ──────────────────────────────────────────────────
    Every aggregate is recomputed by the same sync that moves brain_state's
@@ -446,6 +528,98 @@ async function inventoryCached(orgId, allowed, syncedAt) {
   return inv;
 }
 
+/* ── Capability 6 · the document library ──────────────────────────────────── */
+
+/**
+ * The question as a ranked full-text query over library passages.
+ *
+ * OR, not AND: a question's words are rarely all in one passage, and the rank
+ * (ts_rank_cd in library_search) already puts the passages holding most of
+ * them first. Prefix-matched, and trimmed by two letters when long, because
+ * the `simple` config does not stem — "policies" has to find "policy" and
+ * "refunds" has to find "refund".
+ */
+export function libraryQuery(question) {
+  const words = queryTerms(question)
+    .map((t) => t.replace(/[^\p{L}\p{N}]/gu, ''))
+    .filter((t) => t.length >= 2);
+  const stems = [...new Set(words.map((t) => (t.length >= 6 ? t.slice(0, -2) : t)))];
+  return stems.map((t) => `${t}:*`).join(' | ');
+}
+
+const PASSAGE_CHARS = 1500;
+
+/**
+ * The library's part of the context: how many documents exist, a catalogue of
+ * them, and the passages that best match the question.
+ *
+ * Null when the caller may not view the library or it is empty — nothing is
+ * said about a library the user cannot see, not even its size.
+ */
+export async function libraryContext(orgId, allowed, question, { passages = 6, catalogue = 40 } = {}) {
+  if (!allowed.has('library_documents')) return null;
+  const db = supabaseAdmin();
+
+  const tsq = libraryQuery(question);
+  const [docsRes, hitsRes] = await Promise.all([
+    db.from('library_documents')
+      .select('id, title, file_name, category, extraction_status, page_count, chunk_count, summary', { count: 'exact' })
+      .eq('org_id', orgId).order('updated_at', { ascending: false }).limit(catalogue),
+    tsq
+      ? db.rpc('library_search', { p_org: orgId, p_query: tsq, p_limit: passages })
+      : Promise.resolve({ data: [] }),
+  ]);
+  if (docsRes.error) throw new HttpError(500, docsRes.error.message);
+  const total = docsRes.count ?? (docsRes.data || []).length;
+  if (!total) return null;
+
+  // A failed search narrows the context; it must not fail the answer.
+  const hits = hitsRes.error ? [] : (hitsRes.data || []);
+  const docs = docsRes.data || [];
+  const readable = docs.filter((d) => d.chunk_count > 0).length;
+
+  const lines = [
+    '## DOCUMENT LIBRARY',
+    'Files the company uploaded to Documents → General Documents, read into text by EdgeBrain. ' +
+    `The library holds ${total} document(s); ${readable} of the ${docs.length} listed below are readable. ` +
+    'PASSAGES are quoted verbatim from the file named, at the page, slide or section given. ' +
+    'When you use one, name the document and where in it ("HR Policy.pdf, page 3"). They are the ' +
+    'best matches for this question, not whole files: if the answer is not in them, say which ' +
+    'document looks relevant and that the passage retrieved does not contain it — never fill the ' +
+    'gap with what such a document usually says.',
+    `Catalogue (${docs.length} of ${total}, most recently changed first):`,
+    ...docs.map((d) => {
+      const bits = [d.file_name, d.category];
+      if (d.page_count) bits.push(`${d.page_count} page(s)/slide(s)/sheet(s)`);
+      bits.push(d.chunk_count > 0 ? 'readable' : `not readable (${d.extraction_status})`);
+      return `- "${d.title}" (${bits.join(' · ')})` +
+             (d.summary ? ` — ${String(d.summary).slice(0, 160)}` : '');
+    }),
+  ];
+  if (hits.length) {
+    lines.push('Passages matching this question, best first:');
+    for (const h of hits) {
+      const where = h.heading ? ` · ${h.heading}` : '';
+      const text = h.content.length > PASSAGE_CHARS ? `${h.content.slice(0, PASSAGE_CHARS)}…` : h.content;
+      // One line per passage, so the budget trim can only ever drop a whole one.
+      lines.push(`- [${h.title} · ${h.file_name}${where}] ${text.replace(/\s*\n\s*/g, ' ↵ ')}`);
+    }
+  } else {
+    lines.push('- (no passage in the library matched this question\'s words)');
+  }
+
+  return {
+    text: lines.join('\n'),
+    total,
+    passages: hits.length,
+    sources: hits.map((h) => ({
+      node_id: `library:${h.chunk_id}`, kind: 'library_passage',
+      label: `${h.title}${h.heading ? ` · ${h.heading}` : ''}`,
+      source_table: 'library_documents', entity_id: h.document_id, as_of: h.extracted_at,
+    })),
+  };
+}
+
 /* ── Assembly ─────────────────────────────────────────────────────────────── */
 
 /**
@@ -464,12 +638,12 @@ async function inventoryCached(orgId, allowed, syncedAt) {
  * something is called, what it was worth, who it was for, where and when.
  */
 const PRIORITY_FACT_KEYS = [
-  'name', 'doc_number', 'type', 'status', 'title',
+  'name', 'code', 'doc_number', 'type', 'status', 'health', 'title', 'client', 'manager', 'project',
   'grand_total', 'amount_paid', 'total', 'amount', 'value', 'pipeline_value',
   'currency', 'subtotal', 'outstanding',
   'bill_to_name', 'customer_id', 'person_name', 'email', 'phone',
   'country_code', 'country_source', 'state', 'address', 'city',
-  'issue_date', 'due_date', 'paid_on', 'created_at', 'start_date',
+  'issue_date', 'due_date', 'paid_on', 'created_at', 'start_date', 'target_end_date',
 ];
 
 /**
@@ -548,7 +722,7 @@ export async function buildContext(orgId, allowed, question, { maxEntities = 14,
 
   const kinds = hintedKinds(question);
 
-  const [metrics, inv, matches, roster, orgNode] = await Promise.all([
+  const [metrics, inv, matches, roster, orgNode, library] = await Promise.all([
     getMetricsCached(orgId, allowed, syncedAt),
     // Always fetched, like the aggregates and for the same reason: the question
     // that needs it is precisely the one nobody routed to it. Cached per sync,
@@ -567,6 +741,9 @@ export async function buildContext(orgId, allowed, question, { maxEntities = 14,
       .maybeSingle()
       .then((r) => r.data)
       .catch(() => null),
+    // The uploaded documents' own words. A failure here costs the library
+    // section, never the answer.
+    libraryContext(orgId, allowed, question).catch(() => null),
   ]);
 
   // One hop out from the strongest few matches, so a question that names an
@@ -622,6 +799,11 @@ export async function buildContext(orgId, allowed, question, { maxEntities = 14,
     'this context is not the same as absent from the company.',
   );
 
+  // Ahead of everything the budget trim could reach: the trim cuts from the end.
+  sections.push(CONTEXT_RULES);
+  const headlines = headlineSection(metrics);
+  if (headlines) sections.push(headlines);
+
   if (inv) {
     const lines = Object.entries(inv.byKind).map(([k, n]) => `- ${k}: ${n}`);
     sections.push(
@@ -655,6 +837,10 @@ export async function buildContext(orgId, allowed, question, { maxEntities = 14,
         }).join('\n')
       : '- (none visible to this user)'),
   );
+
+  // Before ENTITIES on purpose: the budget trim drops trailing lines, and a
+  // passage quoted from a document is worth more than the weakest entity match.
+  if (library) sections.push(library.text);
 
   // "Showing 3 of 12 client" per kind, so the model can see the edge of what it
   // was given. This is the line that makes "no other clients have paid" an
@@ -725,16 +911,20 @@ export async function buildContext(orgId, allowed, question, { maxEntities = 14,
 
   return {
     context,
-    sources: entities.slice(0, 20).map((n) => ({
-      node_id: n.id, kind: n.kind, label: n.label,
-      source_table: n.source_table, entity_id: n.entity_id,
-      as_of: n.source_updated_at,
-    })),
+    sources: [
+      ...(library?.sources || []),
+      ...entities.slice(0, 20).map((n) => ({
+        node_id: n.id, kind: n.kind, label: n.label,
+        source_table: n.source_table, entity_id: n.entity_id,
+        as_of: n.source_updated_at,
+      })),
+    ],
     metricKeys: [...new Set(metrics.map((m) => m.key))],
     counts: {
       metrics: metrics.length, entities: entities.length,
       relationships: relEdges.length, matched: matches.length, roster: roster.length, kinds,
       inventory: inv?.total ?? null, droppedLines: dropped,
+      libraryDocuments: library?.total ?? 0, libraryPassages: library?.passages ?? 0,
     },
   };
 }

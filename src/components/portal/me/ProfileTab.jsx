@@ -12,6 +12,7 @@ import { todayKey } from '../../../services/attendanceService';
 import { meService } from '../../../services/meService';
 import { PhotoAvatar } from './portalKit';
 import { fmtLongDay, profileCompleteness } from './portalUtils';
+import { confirmDialog } from '../../../services/confirm';
 
 const TYPE_LABEL = { fulltime: 'Full-time', parttime: 'Part-time', intern: 'Intern', contract: 'Contract' };
 const EDITABLE = ['full_name', 'phone', 'date_of_birth', 'address', 'bio', 'emergency_contact_name', 'emergency_contact_phone'];
@@ -70,6 +71,7 @@ export default function ProfileTab({ orgId, me, setMe, email, narrow }) {
   };
 
   const removePhoto = async () => {
+    if (!(await confirmDialog({ title: 'Remove photo', message: 'Remove your profile photo?', confirmLabel: 'Remove' }))) return;
     setPhotoBusy(true);
     try {
       absorb(await meService.removeMyPhoto(orgId, me));

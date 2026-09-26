@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, Plane, Megaphone, UserRound, LogIn, LogOut, Sun, Moon,
-  ArrowLeft, UserCircle,
+  ArrowLeft, UserCircle, FolderKanban, Clock,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useOrg } from '../../context/OrgContext';
@@ -34,11 +34,15 @@ import OverviewTab from './me/OverviewTab';
 import AttendanceTab from './me/AttendanceTab';
 import LeaveTab from './me/LeaveTab';
 import AnnouncementsTab from './me/AnnouncementsTab';
+import ProjectsTab from './me/ProjectsTab';
+import TimesheetTab from './me/TimesheetTab';
 import ProfileTab, { ChangePassword } from './me/ProfileTab';
 
 const TABS = [
   { id: 'overview',      label: 'Overview',      short: 'Home',    icon: LayoutDashboard, sub: 'Your day and your month at a glance' },
   { id: 'attendance',    label: 'Attendance',    short: 'Days',    icon: CalendarDays,    sub: 'Every day you have checked in' },
+  { id: 'projects',      label: 'My projects',   short: 'Work',    icon: FolderKanban,    sub: 'Your projects, what is due and your tasks' },
+  { id: 'timesheet',     label: 'Timesheet',     short: 'Hours',   icon: Clock,           sub: 'The hours you worked on each project' },
   { id: 'leave',         label: 'Leave',         short: 'Leave',   icon: Plane,           sub: 'Balances, requests and decisions' },
   { id: 'announcements', label: 'Announcements', short: 'News',    icon: Megaphone,       sub: 'What your workplace wants you to know' },
   { id: 'profile',       label: 'My profile',    short: 'Profile', icon: UserRound,       sub: 'Your photo, details and password' },
@@ -359,6 +363,8 @@ export default function EmployeePortal() {
                   setRequests={setRequests} toast={toast} onChanged={refreshBalances} narrow={narrow}
                 />
               )}
+              {tab === 'projects' && <ProjectsTab orgId={orgId} />}
+              {tab === 'timesheet' && <TimesheetTab orgId={orgId} me={me} />}
               {tab === 'announcements' && <AnnouncementsTab notices={notices} readIds={readIds} onOpen={markRead} />}
               {tab === 'profile' && <ProfileTab orgId={orgId} me={me} setMe={setMe} email={user?.email} narrow={narrow} />}
             </div>

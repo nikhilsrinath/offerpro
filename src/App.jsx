@@ -2,18 +2,19 @@ import { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate, useParams } from 'react-router-dom';
 import {
   LayoutDashboard, Briefcase, Award, Scale, ShieldCheck,
-  DollarSign, Layers, Archive, Users,
+  Layers, Archive, Users,
   UploadCloud, FileCheck, FileSignature, History,
   Activity, Receipt, FilePlus, RotateCcw,
-  GitBranch, UserX, Kanban, CheckSquare, Package,
+  GitBranch, UserX, Kanban, Package,
   Truck, FileInput, TrendingUp, CalendarCheck, Plane, Megaphone,
-  BrainCircuit, Banknote
+  BrainCircuit, Banknote, FolderKanban, ListChecks, PieChart, Clock, FolderOpen
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
 import subPages from './components/landing/subPageData';
 
 import OfferForm from './components/OfferForm';
 import InternRecords from './components/InternRecords';
+import DocumentLibrary from './components/library/DocumentLibrary';
 import LandingPage from './components/LandingPage';
 import CertificateForm from './components/CertificateForm';
 import NdaForm from './components/NdaForm';
@@ -37,7 +38,13 @@ import EmployeeForm from './components/EmployeeForm';
 import ExEmployees from './components/ExEmployees';
 import TeamHierarchy from './components/TeamHierarchy';
 import TasksPage from './components/tasks/TasksPage';
+import ProjectsPage from './components/projects/ProjectsPage';
+import ProjectForm from './components/projects/ProjectForm';
+import ProjectDetail from './components/projects/ProjectDetail';
+import Portfolio from './components/projects/Portfolio';
+import Timesheets from './components/projects/Timesheets';
 import AIAssistant from './components/assistant/AIAssistant';
+import { AssistantProvider } from './components/assistant/AssistantContext';
 import EdgeBrain from './components/brain/EdgeBrain';
 import { useTaskDeadlineMonitor } from './hooks/useTaskDeadlineMonitor';
 import { useTheme } from './hooks/useTheme';
@@ -56,6 +63,7 @@ import LeaveRequests from './components/people/LeaveRequests';
 import Announcements from './components/people/Announcements';
 import { meService } from './services/meService';
 import { ToastProvider } from './components/shared/Toast';
+import ConfirmHost from './components/shared/ConfirmHost';
 import AdminApp from './components/admin/AdminApp';
 
 // Financial Documents
@@ -69,26 +77,30 @@ import TaxSummary from './components/financial/TaxSummary';
 import ProfitLoss from './components/financial/ProfitLoss';
 import InvoiceList from './components/financial/InvoiceList';
 import { RecurringInvoiceForm, RecurringInvoiceList } from './components/financial/RecurringInvoiceForm';
-import { documentStore } from './services/documentStore';
+import { documentStore, docNumber } from './services/documentStore';
 import { orgStore } from './services/orgStore';
 import { buildEdgeContext } from './services/cofounderAI';
+import { portfolio as projectPortfolio } from './services/projectService';
 
 
 const MODULE_FILTER = {
   overall: ['dashboard'],
   brain: ['edgebrain'],
-  team: ['team-hierarchy', 'employees', 'offer-tracker', 'ex-employees', 'tasks', 'bulk-team',
+  team: ['team-hierarchy', 'employees', 'offer-tracker', 'ex-employees', 'bulk-team',
          'attendance', 'leave', 'announcements'],
-  documents: ['offers', 'new-certificates', 'certificates', 'ndas', 'mous', 'bulk-offers', 'bulk-certificates'],
+  // Tasks moved here from Team: work belongs to the thing being delivered.
+  // Portfolio (Phase 2) and Timesheets (Phase 3) join the rail when they ship.
+  projects: ['projects', 'tasks', 'portfolio', 'timesheets'],
+  documents: ['records', 'library', 'offers', 'new-certificates', 'certificates', 'ndas', 'mous', 'bulk-offers', 'bulk-certificates', 'bulk-history'],
   finance: ['finance-status', 'cashbook', 'invoices', 'quotations', 'proforma', 'recurring', 'vendors', 'purchases', 'tax-summary', 'profit-loss'],
-  business: ['crm', 'customers', 'products', 'revenue', 'planner'],
-  data: ['records', 'bulk-history']
+  business: ['crm', 'customers', 'products', 'planner'],
 };
 
 // Pages that belong to a module without having a place in its rail — the
 // editors reached from a list. They still wear that module's frame.
 const MODULE_EXTRA_PAGES = {
   finance: ['new-invoice', 'new-quotation', 'new-proforma'],
+  projects: ['project-detail', 'new-project'],
 };
 
 // Pages whose content manages its own scrolling edge to edge: the org chart's
@@ -105,7 +117,7 @@ const MODULE_META = {
   documents: { id: 'documents', label: 'Documents' },
   finance:   { id: 'finance', label: 'Finance' },
   business:  { id: 'business', label: 'Client Management' },
-  data:      { id: 'data', label: 'Records' },
+  projects:  { id: 'projects', label: 'Projects' },
   overall:   { id: 'overall', label: 'Dashboard' },
 };
 
@@ -116,14 +128,15 @@ const NAV_ITEMS = [
   { section: 'TEAM' },
   { id: 'team-hierarchy', label: 'Team Hierarchy', icon: GitBranch },
   { id: 'employees', label: 'Employees', icon: Users },
-  { id: 'offer-tracker', label: 'Offer Tracker', icon: Activity },
+  { id: 'offer-tracker', label: 'Recruitment Tracker', icon: Activity },
   { id: 'ex-employees', label: 'Ex-Employees', icon: UserX },
-  { id: 'tasks', label: 'Task Board', icon: CheckSquare },
   { section: 'PEOPLE OPS' },
   { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
   { id: 'leave', label: 'Leave', icon: Plane },
   { id: 'announcements', label: 'Announcements', icon: Megaphone },
   { section: 'DOCUMENTS' },
+  { id: 'records', label: 'Records', icon: Archive },
+  { id: 'library', label: 'General Documents', icon: FolderOpen },
   { id: 'offers', label: 'Offer Letters', icon: Briefcase },
   { id: 'new-certificates', label: 'Certificates', icon: Award },
   { id: 'ndas', label: 'NDA', icon: ShieldCheck },
@@ -143,10 +156,12 @@ const NAV_ITEMS = [
   { id: 'crm', label: 'CRM', icon: Kanban },
   { id: 'customers', label: 'Client Directory', icon: Users },
   { id: 'products', label: 'Products', icon: Package },
-  { id: 'revenue', label: 'Billing & Revenue', icon: DollarSign },
   { id: 'planner', label: 'Product Planner', icon: Layers },
-  { section: 'DATA' },
-  { id: 'records', label: 'Records', icon: Archive },
+  { section: 'PROJECTS' },
+  { id: 'projects', label: 'Projects', icon: FolderKanban },
+  { id: 'tasks', label: 'Tasks', icon: ListChecks },
+  { id: 'portfolio', label: 'Portfolio', icon: PieChart },
+  { id: 'timesheets', label: 'Timesheets', icon: Clock },
   { section: 'BULK OPERATIONS' },
   { id: 'bulk-offers', label: 'Bulk Offers', icon: UploadCloud },
   { id: 'bulk-certificates', label: 'Bulk Certificates', icon: FileCheck },
@@ -182,6 +197,7 @@ const PAGE_META = {
   revenue: { title: 'Billing & Revenue', subtitle: 'Track revenue, expenses, and profitability' },
   planner: { title: 'Product Planner', subtitle: 'Plan and track products and projects' },
   records: { title: 'Records', subtitle: 'Manage and download issued documents' },
+  library: { title: 'General Documents', subtitle: 'Any file the company keeps — read by EdgeBrain so the AI can answer from it' },
   employees: { title: 'Employee Registry', subtitle: 'Manage your internal team and onboarding' },
   'ex-employees': { title: 'Ex-Employees', subtitle: 'Archive of employees who have left the organization' },
   me: { title: 'My Portal', subtitle: 'Your attendance, leave and announcements' },
@@ -189,12 +205,17 @@ const PAGE_META = {
   leave: { title: 'Leave', subtitle: 'Approve requests, track balances and set quotas' },
   announcements: { title: 'Announcements', subtitle: 'Broadcast to the whole team or one department' },
   'team-hierarchy': { title: 'Team Hierarchy', subtitle: 'Visual org chart — drag nodes and connect reporting lines' },
-  'offer-tracker': { title: 'Offer Tracker', subtitle: 'Real-time acceptance status for all sent offer letters' },
+  'offer-tracker': { title: 'Recruitment Tracker', subtitle: 'Real-time acceptance status for all sent offer letters' },
   'bulk-offers': { title: 'Bulk Offer Letters', subtitle: 'Generate and distribute multiple offer letters at once' },
   'bulk-certificates': { title: 'Bulk Certificates', subtitle: 'Issue batches of certificates efficiently' },
   'bulk-team': { title: 'Bulk Team Members', subtitle: 'Import your team registry from a CSV file' },
   'bulk-history': { title: 'Bulk History', subtitle: 'Track and review past bulk generation jobs' },
-  tasks: { title: 'Task Board', subtitle: 'Assign and track tasks across your team' },
+  tasks: { title: 'Tasks', subtitle: 'Assign and track work — by project, or General' },
+  projects: { title: 'Projects', subtitle: 'What the company is delivering, for whom, and whether it pays' },
+  'new-project': { title: 'New project', subtitle: 'Client or internal work, its team, budget and plan' },
+  'project-detail': { title: 'Project', subtitle: 'Money in, money out, people, plan and work' },
+  portfolio: { title: 'Portfolio', subtitle: 'Every project: health, margin and team load' },
+  timesheets: { title: 'Timesheets', subtitle: 'Hours by person and project — submitted, approved, billed' },
 };
 
 function AppContent() {
@@ -212,6 +233,8 @@ function AppContent() {
   else if (activePage === 'bulk-certificates') activePage = 'bulk-certificates';
   else if (activePage === 'bulk-team') activePage = 'bulk-team';
   else if (activePage === 'bulk-history') activePage = 'bulk-history';
+  else if (activePage === 'projects/new') activePage = 'new-project';
+  else if (activePage.startsWith('projects/')) activePage = 'project-detail';
   else if (activePage.includes('/')) activePage = activePage.split('/')[0];
 
   let activeModule = null;
@@ -246,6 +269,24 @@ function AppContent() {
       documentStore.setContext(activeOrg.id);
       await documentStore.init();
       if (cancelled) return;
+      // Open projects for the AI: health for anyone who can see projects,
+      // net margin only when project_portfolio returned it (Project financials).
+      let projects;
+      if (orgStore.can('projects', 'view')) {
+        try {
+          const clients = Object.fromEntries(orgStore.getSectionAsList('customers').map((c) => [c.id, c.name]));
+          const rows = (await projectPortfolio()).filter((r) => !r.archived && !['completed', 'cancelled'].includes(r.status));
+          projects = {
+            active: rows.length,
+            atRisk: rows.filter((r) => r.health && r.health !== 'on_track').length,
+            list: rows.sort((a, b) => (Number(b.contract_value) || 0) - (Number(a.contract_value) || 0)).map((r) => ({
+              code: r.code, name: r.name, client: clients[r.client_id] || '', status: r.status,
+              health: r.health, netMargin: r.net_margin == null ? null : Number(r.net_margin),
+            })),
+          };
+        } catch { /* the AI works without it */ }
+      }
+      if (cancelled) return;
       setBuiltContext({
         orgId: activeOrg.id,
         ctx: buildEdgeContext({
@@ -253,6 +294,7 @@ function AppContent() {
           finDocs: documentStore.getAll(),
           user,
           activeOrg,
+          projects,
         }),
       });
     })();
@@ -321,7 +363,7 @@ function AppContent() {
   if (myRole === 'employee') return <EmployeePortal />;
 
   const meta = activePage === 'new-quotation' && editingDocId
-    ? { title: 'Edit Quotation', subtitle: `Revising ${editingDocId}` }
+    ? { title: 'Edit Quotation', subtitle: `Revising ${docNumber(documentStore.getById(editingDocId)) || 'quotation'}` }
     : (PAGE_META[activePage] || PAGE_META.dashboard);
 
   // The company profile belongs to no module but is reached from the hub's
@@ -334,7 +376,19 @@ function AppContent() {
     : [];
   const flush = FLUSH_PAGES.has(activePage) || /^\/recurring\/(new|edit)/.test(location.pathname);
 
+  // Until the first build completes, or when there is no active org. Shaped
+  // identically so the assistant never reads undefined.
+  const assistantContext = edgeContext || {
+    company: activeOrg?.company_name || activeOrg?.name || 'Company',
+    financials: { totalRevenue: 0, pendingRevenue: 0, avgMonthlyRevenue: 0, lastMonthRevenue: 0, growthRate: '0%', invoicesIssued: 0, invoicesPaid: 0, invoicesPending: 0 },
+    documents: { total: 0, offerLetters: 0, invoices: 0, quotations: 0, proformas: 0 },
+    trends: { monthlyRevenue: [], documentGrowth: 'stable' },
+    team: { user: user?.email || 'Founder', role: 'Admin' },
+    orgId: activeOrg?.id || null,
+  };
+
   return (
+    <AssistantProvider edgeContext={assistantContext}>
     <div className="app-layout no-sidebar">
       <div className="main-content">
         <div className="page-content page-content-canvas">
@@ -381,6 +435,7 @@ function AppContent() {
             <Route path="revenue" element={<BillingRevenue />} />
             <Route path="planner" element={<ProductPlanner />} />
             <Route path="records" element={<InternRecords />} />
+            <Route path="library" element={<DocumentLibrary />} />
             <Route path="employees" element={<Employees />} />
             <Route path="employees/new" element={<EmployeeForm />} />
             <Route path="ex-employees" element={<ExEmployees />} />
@@ -391,6 +446,11 @@ function AppContent() {
             <Route path="team-hierarchy" element={<TeamHierarchy />} />
             <Route path="offer-tracker" element={<OfferTracker onNavigate={routerNavigate} />} />
             <Route path="tasks" element={<TasksPage />} />
+            <Route path="projects" element={<ProjectsPage />} />
+            <Route path="projects/new" element={<ProjectForm />} />
+            <Route path="projects/:projectId" element={<ProjectDetail />} />
+            <Route path="portfolio" element={<Portfolio />} />
+            <Route path="timesheets" element={<Timesheets />} />
             <Route path="bulk-offers" element={<BulkOfferLetters />} />
             <Route path="bulk-certificates" element={<BulkCertificates />} />
             <Route path="bulk-team" element={<BulkTeamMembers />} />
@@ -401,22 +461,13 @@ function AppContent() {
         </div>
       </div>
 
-      {/* AI Assistant — lives here so the conversation survives navigation */}
-      <AIAssistant
-        theme={theme}
-        edgeContext={edgeContext || {
-          // Only until the first build completes, or when there is no active
-          // org. Shaped identically so CopilotPanel never reads undefined.
-          company: activeOrg?.company_name || activeOrg?.name || 'Company',
-          financials: { totalRevenue: 0, pendingRevenue: 0, avgMonthlyRevenue: 0, lastMonthRevenue: 0, growthRate: '0%', invoicesIssued: 0, invoicesPaid: 0, invoicesPending: 0 },
-          documents: { total: 0, offerLetters: 0, invoices: 0, quotations: 0, proformas: 0 },
-          trends: { monthlyRevenue: [], documentGrowth: 'stable' },
-          team: { user: user?.email || 'Founder', role: 'Admin' },
-          orgId: activeOrg?.id || null,
-        }}
-      />
+      {/* EdgeAI launcher + full-screen copilot. The conversation state is in
+          AssistantProvider above, so it survives navigation and is shared
+          with the panel docked into the hub. */}
+      <AIAssistant theme={theme} />
 
     </div>
+    </AssistantProvider>
   );
 }
 
@@ -481,6 +532,8 @@ function App() {
             })}
             <Route path="/*" element={<AppContent />} />
           </Routes>
+          {/* Every delete in the app confirms through this one dialog. */}
+          <ConfirmHost />
         </ToastProvider>
       </OrgProvider>
     </AuthProvider>

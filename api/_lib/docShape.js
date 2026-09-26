@@ -69,6 +69,19 @@ export function financialDocFromRow(r) {
     issued_to: r.bill_to_name,
     recipient_email: r.bill_to_email,
     created_at: r.created_at, updated_at: r.updated_at,
+    // The forms and the PDF builder read the camelCase names they wrote.
+    // finDocToRow() maps those onto columns and keeps them out of `payload`,
+    // so without these a reloaded document looked GST-free and undiscounted,
+    // and re-saving it from the edit form actually dropped the GST.
+    enableGst: r.gst_enabled, gstRate: Number(r.gst_rate) || 0,
+    discount: {
+      type: r.discount_type,
+      value: Number(r.discount_value) || 0,
+      amount: Number(r.discount_amount) || 0,
+    },
     ...(r.payload || {}),
+    // The column is computed by the totals trigger; the form's copy in
+    // payload is whatever it was at the last save.
+    gst: Number(r.gst_amount) || 0,
   };
 }

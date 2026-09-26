@@ -110,7 +110,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                 // registry immediately and the offer letter is filed as a
                 // record they can download. It is not a portal offer awaiting a
                 // signature, so it is stored as already accepted and linked to
-                // the employee — that keeps it out of the Offer Tracker's
+                // the employee — that keeps it out of the Recruitment Tracker's
                 // pending list and stops the acceptance sync creating the same
                 // person twice.
                 const saved = await storageService.saveEmployee(form, activeOrg?.id);
@@ -256,7 +256,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                         <p style={{ margin: '14px 0 0', fontSize: 10.5, color: t.faint, lineHeight: 1.75 }}>
                             Adding someone here puts them on the team straight away — no offer to accept. An
                             offer letter is filed alongside them for download. To send an offer someone has to
-                            sign first, use the Offer Tracker instead.
+                            sign first, use the Recruitment Tracker instead.
                         </p>
                     )}
                 </Panel>

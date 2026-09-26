@@ -8,6 +8,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * that happens while the user still wants to listen, we bank the committed
  * text and start a new session, so the transcript never resets mid-thought.
  *
+ * Ending: a voice call listens until it is hung up, but dictation into a text
+ * box should end the way a person does — by stopping talking. start({ autoStop })
+ * ends the session after a short silence once something was heard, or after a
+ * longer wait when nothing was said at all.
+ *
  * The level meter is a separate getUserMedia + AnalyserNode. SpeechRecognition
  * exposes no audio, and the orb needs something to breathe with. If the level
  * stream is refused, recognition still works; the orb just idles.
@@ -36,6 +41,9 @@ export function useSpeechRecognition({ lang } = {}) {
     const bankRef = useRef('');           // text committed by earlier sessions
     const sessionRef = useRef('');        // text committed by the current session
     const audioRef = useRef(null);        // { ctx, stream, raf }
+    const heardAtRef = useRef(0);         // last time the recogniser reported anything
+    const heardAnyRef = useRef(false);    // whether anything was heard this time
+    const watchRef = useRef(null);        // the auto-stop interval, when on
 
     const join = (a, b) => (a && b ? a.replace(/\s+$/, '') + ' ' + b.replace(/^\s+/, '') : a || b);
 
@@ -79,10 +87,18 @@ export function useSpeechRecognition({ lang } = {}) {
         rec.continuous = true;
         rec.interimResults = true;
         rec.maxAlternatives = 1;
-        rec.lang = lang || navigator.language || 'en-IN';
+        // Indian English unless told otherwise. The browser's own language is
+        // usually en-US even here, and the Indian model hears Indian names,
+        // "lakh" and "crore" and the accent markedly better.
+        rec.lang = lang || 'en-IN';
         sessionRef.current = '';
 
         rec.onresult = (e) => {
+            // A session that has been replaced keeps delivering its last words;
+            // they belong to a turn that is over.
+            if (recRef.current !== rec) return;
+            heardAtRef.current = Date.now();
+            heardAnyRef.current = true;
             let fin = '';
             let tmp = '';
             for (let i = 0; i < e.results.length; i++) {
@@ -100,6 +116,9 @@ export function useSpeechRecognition({ lang } = {}) {
             if (ERRORS[e.error]) wantRef.current = false;
         };
         rec.onend = () => {
+            // Stopped and already replaced by a new session: restarting this one
+            // would leave two recognisers writing into one transcript.
+            if (recRef.current !== rec) return;
             bankRef.current = join(bankRef.current, sessionRef.current);
             sessionRef.current = '';
             setInterim('');
@@ -116,11 +135,32 @@ export function useSpeechRecognition({ lang } = {}) {
         rec.start();
     }, [lang, stopMeter]);
 
-    const start = useCallback(() => {
+    const stopWatch = useCallback(() => {
+        clearInterval(watchRef.current);
+        watchRef.current = null;
+    }, []);
+
+    const stop = useCallback(() => {
+        wantRef.current = false;
+        stopWatch();
+        // stop() (not abort()) lets the recogniser commit what it has heard
+        if (recRef.current) recRef.current.stop();
+        else setListening(false);
+        stopMeter();
+    }, [stopMeter, stopWatch]);
+
+    /**
+     * @param {{ autoStop?: boolean, silenceMs?: number, idleMs?: number }} [opts]
+     *   autoStop   end by itself: `silenceMs` after the last word heard, or
+     *              `idleMs` after starting when nothing is said at all
+     */
+    const start = useCallback((opts = {}) => {
         if (!SR || wantRef.current) return;
         setError(null);
         wantRef.current = true;
         setListening(true);
+        heardAtRef.current = Date.now();
+        heardAnyRef.current = false;
         try { startSession(); } catch (err) {
             wantRef.current = false;
             setListening(false);
@@ -128,15 +168,18 @@ export function useSpeechRecognition({ lang } = {}) {
             return;
         }
         startMeter();
-    }, [startSession, startMeter]);
 
-    const stop = useCallback(() => {
-        wantRef.current = false;
-        // stop() (not abort()) lets the recogniser commit what it has heard
-        if (recRef.current) recRef.current.stop();
-        else setListening(false);
-        stopMeter();
-    }, [stopMeter]);
+        stopWatch();
+        if (opts.autoStop) {
+            const silence = opts.silenceMs ?? 2500;
+            const idle = opts.idleMs ?? 8000;
+            watchRef.current = setInterval(() => {
+                if (!wantRef.current) { stopWatch(); return; }
+                const quiet = Date.now() - heardAtRef.current;
+                if (quiet > (heardAnyRef.current ? silence : idle)) stop();
+            }, 250);
+        }
+    }, [startSession, startMeter, stop, stopWatch]);
 
     const reset = useCallback(() => {
         bankRef.current = '';
@@ -150,9 +193,10 @@ export function useSpeechRecognition({ lang } = {}) {
 
     useEffect(() => () => {
         wantRef.current = false;
+        clearInterval(watchRef.current);
         if (recRef.current) { recRef.current.onend = null; recRef.current.abort(); }
         stopMeter();
     }, [stopMeter]);
 
-    return { supported, listening, finalText, interim, error, levelRef, start, stop, reset };
+    return { supported, listening, finalText, interim, error, levelRef, heardAtRef, start, stop, reset };
 }

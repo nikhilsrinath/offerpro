@@ -81,6 +81,43 @@ export const documentStore = {
       : await orgStore.saveFinDoc(data);
   },
 
+  /** { status, revision, published, locked } for a financial document, fresh from the database. */
+  versionState: (id) => orgStore.finDocVersionState(id),
+
+  /**
+   * Save an edit to an existing quotation or proforma, the way its lifecycle
+   * allows. Never sent: updated in place (and sent now, if `send`). Already
+   * sent: published as the next version, which goes back to the client — the
+   * database refuses any other write to a sent document's content.
+   *
+   * @returns {Promise<{doc: object, published: boolean}>}
+   * @throws  when the version is locked (accepted), or when a publish would
+   *          change nothing.
+   */
+  async saveEdit(id, docData, { send = false, summary } = {}) {
+    const state = await orgStore.finDocVersionState(id);
+    if (!state) throw new Error('This document no longer exists.');
+    if (state.locked) {
+      throw new Error('The client has already accepted this version, so it can no longer be changed.');
+    }
+    const data = { ...docData, id, type: normalizeType(docData.type) };
+
+    if (!state.published) {
+      const doc = await orgStore.updateFinDoc(id, { ...data, status: send ? 'sent' : 'draft' });
+      return { doc, published: false };
+    }
+
+    try {
+      const doc = await orgStore.publishFinDocVersion(id, data, summary);
+      return { doc, published: true };
+    } catch (err) {
+      if (/NO_CHANGES/.test(err.message || '')) {
+        throw new Error(`Nothing has changed since ${state.revision || 'the version the client has'}.`);
+      }
+      throw err;
+    }
+  },
+
   async updateStatus(id, status, extra = {}) {
     // An undefined status would be written as 'draft' by the row mappers, so a
     // caller that only means to attach metadata gets the status left alone.

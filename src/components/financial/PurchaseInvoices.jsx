@@ -10,6 +10,9 @@ import { TAX_RATES } from '../../services/catalogService';
 import { useToast } from '../shared/Toast';
 import { Stat, Modal, ReceiptField } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
+import ProjectPicker from '../shared/ProjectPicker';
+import { pickerFromAllocations, saveSplitFromPicker, friendlyError } from '../../services/projectService';
+import { confirmDialog } from '../../services/confirm';
 
 const CATEGORIES = ['Operations', 'Inventory', 'Software', 'Hardware', 'Marketing', 'Travel', 'Utilities', 'Professional fees', 'Rent', 'Other'];
 const FILTERS = ['all', 'unpaid', 'partially_paid', 'overdue', 'paid', 'void'];
@@ -100,15 +103,26 @@ export default function PurchaseInvoices() {
     setSaving(true);
     setFormError('');
     try {
-      const { due_date_touched: _touched, ...data } = editing;
-      if (editing.id) await orgStore.updateItem('purchase_invoices', editing.id, data);
-      else await orgStore.addItem('purchase_invoices', data);
+      const { due_date_touched: _touched, _picker: picker, ...data } = editing;
+      let id = editing.id;
+      if (id) await orgStore.updateItem('purchase_invoices', id, data);
+      else id = (await orgStore.addItem('purchase_invoices', data)).id;
+      // The project split is saved after the bill, in the same click. If it
+      // fails the bill stays saved: keep the sheet open on the saved bill so a
+      // retry edits it rather than recording it twice.
+      try {
+        await saveSplitFromPicker('purchase_invoice', id, picker);
+      } catch (allocErr) {
+        setEditing((x) => ({ ...x, id }));
+        setFormError(`Bill saved, but the project split was not: ${allocErr.message}`);
+        return;
+      }
       toast(editing.id ? 'Bill updated' : 'Bill recorded', 'success');
       setEditing(null);
     } catch (err) {
       setFormError(err.code === '23505'
         ? 'This vendor already has a bill with that number.'
-        : (err.message || 'Could not save the bill.'));
+        : (friendlyError(err).message || 'Could not save the bill.'));
     } finally {
       setSaving(false);
     }
@@ -129,13 +143,13 @@ export default function PurchaseInvoices() {
   };
 
   const handleVoid = async (b) => {
-    if (!window.confirm(`Void bill ${b.bill_number}? It will be excluded from payables, P&L and tax.`)) return;
+    if (!(await confirmDialog({ title: 'Void bill', message: `Void bill ${b.bill_number}? It will be excluded from payables, P&L and tax.`, confirmLabel: 'Void' }))) return;
     await orgStore.updateItem('purchase_invoices', b.id, { status: 'void' });
     toast('Bill voided', 'success');
   };
 
   const handleDelete = async (b) => {
-    if (!window.confirm(`Delete bill ${b.bill_number}? This cannot be undone.`)) return;
+    if (!(await confirmDialog({ title: 'Delete bill', message: `Are you sure you want to delete bill ${b.bill_number}? This cannot be undone.` }))) return;
     try {
       await orgStore.removeItem('purchase_invoices', b.id);
       receiptService.remove(b.receipt_path);
@@ -295,6 +309,11 @@ export default function PurchaseInvoices() {
                 <label>Description</label>
                 <input aria-label="Description" value={editing.description || ''} onChange={(e) => set('description', e.target.value)} placeholder="What was bought" />
               </div>
+              <ProjectPicker
+                value={editing._picker || pickerFromAllocations('purchase_invoice', editing.id)}
+                onChange={(p) => set('_picker', p)}
+                net={Number(editing.subtotal) || 0}
+              />
               <div className="prod-field full">
                 <label>Receipt / bill copy</label>
                 <ReceiptField path={editing.receipt_path} kind="purchases" onChange={(p) => set('receipt_path', p)} />

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Eye, Send, Save, MessageCircle, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Eye, Send, Save, ArrowLeft } from 'lucide-react';
 import { documentStore } from '../../services/documentStore';
 import { createPortalLink } from '../../services/portalService';
 import { customerService } from '../../services/customerService';
@@ -96,23 +96,27 @@ export default function ProformaInvoiceForm() {
     const q = clientSearch.toLowerCase();
     return savedClients.filter(
       (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.company.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q)
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.person_name || '').toLowerCase().includes(q) ||
+        (c.email || '').toLowerCase().includes(q)
     );
   }, [clientSearch, savedClients]);
 
   const handleSelectClient = (client) => {
-    setClientSearch(client.name);
+    // A saved client's name is the billing name (the company); person_name is
+    // the contact. An individual carries their name in both.
+    const contact = client.person_name || client.name || '';
+    const billedCompany = client.person_name && client.person_name !== client.name ? client.name : '';
+    setClientSearch(contact);
     setShowClientDropdown(false);
     setFormData((prev) => ({
       ...prev,
-      clientName: client.name,
-      clientCompany: client.company,
-      clientAddress: client.address,
-      clientGSTIN: client.gstin,
+      clientName: contact,
+      clientCompany: billedCompany,
+      clientAddress: client.address || '',
+      clientGSTIN: client.gstin || '',
       clientCountry: client.country_code || '',
-      clientEmail: client.email,
+      clientEmail: client.email || '',
     }));
   };
 
@@ -281,6 +285,7 @@ export default function ProformaInvoiceForm() {
     try {
       const row = await customerService.upsert(activeOrg.id, {
         clientName: formData.clientCompany || formData.clientName,
+        person_name: formData.clientName || '',
         clientEmail: formData.clientEmail || '',
         clientAddress: formData.clientAddress || '',
         buyerGSTIN: formData.clientGSTIN || '',
@@ -387,7 +392,7 @@ export default function ProformaInvoiceForm() {
                       <div key={c.id} className="customer-dropdown-item" onClick={() => handleSelectClient(c)}>
                         <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{c.name}</span>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-                          {[c.company, c.email].filter(Boolean).join(' · ')}
+                          {[c.person_name !== c.name && c.person_name, c.email].filter(Boolean).join(' · ')}
                         </span>
                       </div>
                     ))}
@@ -729,17 +734,16 @@ export default function ProformaInvoiceForm() {
           </div>
 
           {/* 6. Actions */}
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-            <button type="button" onClick={handleSaveDraft} className="easy-submit-outline" style={{ flex: '1 1 140px', minWidth: 0 }}>
+          <div className="form-actions">
+            <button type="button" onClick={handleSaveDraft} className="easy-submit-outline">
               <Save size={16} /> Save Draft
             </button>
             <button
               type="button"
               onClick={handleSendToClient}
               className="easy-submit"
-              style={{ flex: '2 1 200px', minWidth: 0, background: '#25D366', gap: '0.5rem' }}
             >
-              <MessageCircle size={16} /> Send via WhatsApp
+              <Send size={16} /> Send to client
             </button>
           </div>
 

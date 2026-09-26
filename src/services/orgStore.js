@@ -16,11 +16,17 @@
 // boundary. The mappings are lifted from scripts/migrate/02-transform.js.
 import { supabase } from '../lib/supabase';
 import { IMAGE_KINDS, resolveImageUrl } from './imageUploadService';
+import { loadMyPermissions as loadEffectivePermissions } from './permissionService';
 
 let _orgId = null;
 let _cache = {};
 let _loaded = false;
 let _channels = [];
+// Every listener gets its own channel. supabase.channel(name) returns the
+// existing channel when the name is taken, and adding postgres_changes to an
+// already-subscribed channel throws — which is what two components listening
+// to the same section on one page (ProjectDetail + a tab) used to hit.
+let _channelSeq = 0;
 
 const LS_KEY = (orgId) => `edgeos_org_${orgId}`;
 
@@ -97,24 +103,176 @@ const SECTIONS = {
     }),
   },
 
+  // The UI has always spelled the middle state 'in-progress'; the task_status
+  // enum spells it 'in_progress'. Without the translation every move to
+  // "In progress" was refused by the database.
+  //
+  // projectId / milestoneId (0050): null is a "General" task, which is every
+  // task that existed before Projects.
   tasks: {
     table: 'tasks',
     order: 'position',
     fromRow: (r) => ({
       id: r.id, title: r.title, description: r.description,
-      status: r.status, priority: r.priority,
+      status: r.status === 'in_progress' ? 'in-progress' : r.status, priority: r.priority,
       assignedTo: r.assignee_id, assignedName: r.assignee_label,
       deadline: r.deadline, notes: r.notes,
       follow_up_sent_at: r.follow_up_sent_at, position: r.position,
-      created_at: r.created_at,
+      projectId: r.project_id || null, milestoneId: r.milestone_id || null,
+      created_at: r.created_at, createdAt: r.created_at,
     }),
     toRow: (i) => ({
       title: i.title || 'Untitled', description: nn(i.description),
-      status: i.status || 'pending', priority: i.priority || 'medium',
+      status: i.status === 'in-progress' ? 'in_progress' : (i.status || 'pending'),
+      priority: i.priority || 'medium',
       assignee_id: nn(i.assignedTo), assignee_label: nn(i.assignedName),
       deadline: date(i.deadline), notes: nn(i.notes),
       follow_up_sent_at: nn(i.follow_up_sent_at),
       position: num(i.position, 0),
+      project_id: nn(i.projectId), milestone_id: nn(i.milestoneId),
+    }),
+  },
+
+  // ── Projects (0044–0052) ──────────────────────────────────────────────────
+  // code, closed_at/closed_by and manager_employee_id are owned by the
+  // database (numbered, stamped on close, derived from the manager
+  // membership), so toRow never sends them.
+  projects: {
+    table: 'projects',
+    order: 'created_at',
+    orderDesc: true,
+    fromRow: (r) => ({
+      id: r.id, code: r.code, name: r.name, description: r.description || '',
+      client_id: r.client_id || null, status: r.status, billing_type: r.billing_type,
+      currency: r.currency || 'INR',
+      contract_value: Number(r.contract_value) || 0,
+      budget_labour: Number(r.budget_labour) || 0,
+      budget_vendor: Number(r.budget_vendor) || 0,
+      budget_other: Number(r.budget_other) || 0,
+      start_date: r.start_date, target_end_date: r.target_end_date, actual_end_date: r.actual_end_date,
+      manager_employee_id: r.manager_employee_id || null,
+      source_quotation_id: r.source_quotation_id || null,
+      source_client_stage: r.source_client_stage || null,
+      tags: r.tags || [],
+      cost_method: r.cost_method || 'allocation',
+      closed_at: r.closed_at, closed_by: r.closed_by, archived_at: r.archived_at,
+      created_by: r.created_by, created_at: r.created_at, updated_at: r.updated_at,
+    }),
+    toRow: (i) => ({
+      name: (i.name || '').trim() || 'Untitled project',
+      description: nn(i.description),
+      client_id: nn(i.client_id),
+      status: i.status || 'planned',
+      billing_type: i.billing_type || 'fixed_price',
+      currency: (i.currency || 'INR').slice(0, 3).toUpperCase(),
+      contract_value: num(i.contract_value, 0),
+      budget_labour: num(i.budget_labour, 0),
+      budget_vendor: num(i.budget_vendor, 0),
+      budget_other: num(i.budget_other, 0),
+      start_date: date(i.start_date), target_end_date: date(i.target_end_date),
+      actual_end_date: date(i.actual_end_date),
+      source_quotation_id: nn(i.source_quotation_id),
+      source_client_stage: nn(i.source_client_stage),
+      tags: Array.isArray(i.tags) ? i.tags.filter(Boolean) : [],
+      cost_method: i.cost_method === 'timesheet' ? 'timesheet' : 'allocation',
+      archived_at: nn(i.archived_at),
+    }),
+  },
+
+  // Hours (0059). RLS returns the caller's own rows, their projects' rows if
+  // they manage them, or everyone's with timesheets.view. approved/rejected
+  // are written only by decide_timesheets(), so toRow never sends them.
+  timesheet_entries: {
+    table: 'timesheet_entries',
+    order: 'work_date',
+    fromRow: (r) => ({
+      id: r.id, employee_id: r.employee_id, project_id: r.project_id, task_id: r.task_id || null,
+      work_date: r.work_date, minutes: Number(r.minutes) || 0, note: r.note || '',
+      billable: r.billable !== false, status: r.status, approved_by: r.approved_by,
+      approved_at: r.approved_at, decision_note: r.decision_note || '', invoice_id: r.invoice_id || null,
+      created_at: r.created_at,
+    }),
+    toRow: (i) => ({
+      employee_id: i.employee_id, project_id: i.project_id, task_id: nn(i.task_id),
+      work_date: date(i.work_date), minutes: Math.round(num(i.minutes, 0)), note: nn(i.note),
+      billable: bool(i.billable, true),
+      status: i.status === 'submitted' ? 'submitted' : 'draft',
+    }),
+  },
+
+  project_members: {
+    table: 'project_members',
+    order: 'start_date',
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, employee_id: r.employee_id, role: r.role,
+      allocation_pct: Number(r.allocation_pct) || 0,
+      start_date: r.start_date, end_date: r.end_date,
+      bill_rate: r.bill_rate == null ? null : Number(r.bill_rate),
+      created_at: r.created_at,
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, employee_id: i.employee_id, role: i.role || 'member',
+      allocation_pct: num(i.allocation_pct, 100),
+      start_date: date(i.start_date) || date(nowIso()), end_date: date(i.end_date),
+      bill_rate: i.bill_rate === '' || i.bill_rate == null ? null : num(i.bill_rate),
+    }),
+  },
+
+  // billing_amount is derived from billing_pct × contract value when a
+  // percentage is set, and status 'invoiced' only arrives with an invoice_id
+  // (0047). Both are still sent: the guard recomputes one and checks the other.
+  project_milestones: {
+    table: 'project_milestones',
+    order: 'sort_order',
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, title: r.title, description: r.description || '',
+      due_date: r.due_date, sort_order: r.sort_order, status: r.status,
+      billing_pct: r.billing_pct == null ? null : Number(r.billing_pct),
+      billing_amount: r.billing_amount == null ? null : Number(r.billing_amount),
+      invoice_id: r.invoice_id || null, completed_at: r.completed_at, created_at: r.created_at,
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, title: (i.title || '').trim() || 'Milestone',
+      description: nn(i.description), due_date: date(i.due_date),
+      sort_order: num(i.sort_order, 0), status: i.status || 'pending',
+      billing_pct: i.billing_pct === '' || i.billing_pct == null ? null : num(i.billing_pct),
+      billing_amount: i.billing_amount === '' || i.billing_amount == null ? null : num(i.billing_amount),
+      invoice_id: nn(i.invoice_id),
+    }),
+  },
+
+  project_documents: {
+    table: 'project_documents',
+    order: 'created_at',
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, record_id: r.record_id || null,
+      financial_document_id: r.financial_document_id || null, created_at: r.created_at,
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, record_id: nn(i.record_id),
+      financial_document_id: nn(i.financial_document_id),
+    }),
+  },
+
+  // The money links. Loaded only for a viewer holding project_financials.view
+  // (see `requires`): for anyone else RLS would return nothing anyway, and not
+  // asking is what keeps the section empty rather than "empty after a 200".
+  // Written through projectService.allocate(), which saves a whole split in
+  // one transaction; the generic add/update here is for single edits.
+  project_allocations: {
+    table: 'project_allocations',
+    order: 'created_at',
+    requires: ['project_financials', 'view'],
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, source_type: r.source_type, source_id: r.source_id,
+      mode: r.mode, amount: r.amount == null ? null : Number(r.amount),
+      note: r.note || '', created_by: r.created_by, created_at: r.created_at,
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, source_type: i.source_type, source_id: i.source_id,
+      mode: i.mode || 'full',
+      amount: (i.mode || 'full') === 'full' ? null : num(i.amount),
+      note: nn(i.note),
     }),
   },
 
@@ -507,6 +665,7 @@ const SECTIONS = {
     fromRow: (r) => ({
       id: r.id, type: r.type, title: r.title, message: r.message,
       record_id: r.record_id, financial_doc_id: r.financial_doc_id,
+      project_id: r.project_id || null,
       document_id: r.financial_doc_id || r.record_id,
       created_at: r.created_at,
       // Read state is per-user now (notification_reads), merged in on load.
@@ -539,6 +698,9 @@ const SECTIONS = {
       gst_amount: num(i.gst_amount, 0), grand_total: num(i.grand_total, 0),
       items: Array.isArray(i.items) ? i.items : [],
       notes: nn(i.notes), active: bool(i.active, true),
+      // 0054: the template's project; every invoice generated from it is
+      // allocated to that project by the database.
+      project_id: nn(i.project_id),
     }),
   },
 };
@@ -733,7 +895,7 @@ function splitProfileUpdates(updates) {
 }
 
 function createEmptyCache(profile = {}) {
-  const cache = { _profile: profile || {}, _usage: {} };
+  const cache = { _profile: profile || {}, _usage: {}, _role: null, _perms: {} };
   Object.keys(SECTIONS).forEach((s) => { cache[s] = {}; });
   Object.entries(SINGLETONS).forEach(([s, def]) => { cache[s] = def.empty(); });
   return cache;
@@ -787,6 +949,28 @@ function readFromLS(orgId) {
   } catch { return null; }
 }
 
+// ─── The caller's own permissions ─────────────────────────────────────────────
+//
+// A snapshot of the caller's permissions — their role's, with their own
+// exceptions (0062) applied — so screens can decide what to SHOW. It decides
+// nothing else: RLS reads the same rows on every request, and a stale snapshot
+// can only ever hide a control that would have worked or show one the
+// database then refuses.
+async function loadMyPermissions(orgId) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { role: null, perms: {} };
+  const { data: m } = await supabase.from('memberships')
+    .select('role').eq('org_id', orgId).eq('user_id', user.id).maybeSingle();
+  if (!m?.role) return { role: null, perms: {} };
+  return { role: m.role, perms: await loadEffectivePermissions(orgId, m.role) };
+}
+
+const canDo = (resource, action) => _cache._perms?.[resource]?.[action] === true;
+
+/** A section with `requires: [resource, action]` is not requested at all
+    unless the caller holds that permission. */
+const sectionAllowed = (def) => !def?.requires || canDo(def.requires[0], def.requires[1]);
+
 function keyById(rows, fromRow) {
   const out = {};
   for (const row of rows || []) {
@@ -812,7 +996,7 @@ export const orgStore = {
       _cache = createEmptyCache();
     }
 
-    const [orgRes, bankingRes, subRes, settingsRes, usageRes] = await Promise.all([
+    const [orgRes, bankingRes, subRes, settingsRes, usageRes, mine] = await Promise.all([
       supabase.from('organizations').select('*').eq('id', orgId).maybeSingle(),
       // Admin-only: a plain member gets null here, not an error.
       supabase.from('org_banking').select('*').eq('org_id', orgId).maybeSingle(),
@@ -820,6 +1004,7 @@ export const orgStore = {
       supabase.from('org_settings').select('*').eq('org_id', orgId).maybeSingle(),
       // Read-only for every client role; the server and the triggers write it.
       supabase.from('usage_counters').select('*').eq('org_id', orgId).maybeSingle(),
+      loadMyPermissions(orgId).catch(() => ({ role: null, perms: {} })),
     ]);
 
     if (orgRes.error) throw orgRes.error;
@@ -845,6 +1030,8 @@ export const orgStore = {
     profile.is_premium = profile.plan !== 'free';
     _cache._profile = profile;
     _cache._usage = usageRes.data || {};
+    _cache._role = mine.role;
+    _cache._perms = mine.perms;
 
     _cache.hierarchy = settingsRes.data?.hierarchy || SINGLETONS.hierarchy.empty();
 
@@ -856,6 +1043,7 @@ export const orgStore = {
     const names = Object.keys(SECTIONS).filter((s) => s !== 'departments');
     const results = await Promise.all(names.map(async (name) => {
       const def = SECTIONS[name];
+      if (!sectionAllowed(def)) return [name, {}];
       const select = def.table === 'employees' ? '*, employee_compensation(*)' : '*';
       let q = supabase.from(def.table).select(select).eq('org_id', orgId);
       if (def.filter) q = def.filter(q);
@@ -878,6 +1066,29 @@ export const orgStore = {
   },
 
   getOrgId: () => _orgId,
+
+  /** The caller's role in the active org ('owner', 'member', …), or null. */
+  getRole: () => _cache._role || null,
+
+  /** Whether the caller's role holds `action` on `resource` — for showing and
+      hiding controls only; the database decides. */
+  can: (resource, action = 'view') => canDo(resource, action),
+
+  /** Re-read one section from the server and tell its listeners. */
+  async refreshSection(section) {
+    const def = SECTIONS[section];
+    if (!_orgId || !def) return {};
+    if (!sectionAllowed(def)) { _cache[section] = {}; notifySection(section); return {}; }
+    let q = supabase.from(def.table).select('*').eq('org_id', _orgId);
+    if (def.filter) q = def.filter(q);
+    if (def.order) q = q.order(def.order, { ascending: !def.orderDesc, nullsFirst: false });
+    const { data, error } = await q;
+    if (error) throw error;
+    _cache[section] = keyById(data, def.fromRow);
+    persistToLS();
+    notifySection(section);
+    return _cache[section];
+  },
   isLoaded: () => _loaded,
   getCache: () => _cache,
   getProfile: () => _cache._profile || {},
@@ -1090,6 +1301,13 @@ export const orgStore = {
       return () => {};
     }
 
+    // A section the caller may not read is answered once, empty, and never
+    // requested or subscribed to.
+    if (def && !sectionAllowed(def)) {
+      callback({});
+      return () => {};
+    }
+
     let stopped = false;
     const emit = (value) => { if (!stopped) callback(value); };
     // Local mutations push straight to this listener, so the tab that made the
@@ -1138,7 +1356,7 @@ export const orgStore = {
     refresh();
 
     const channel = supabase
-      .channel(`org:${_orgId}:${section}`)
+      .channel(`org:${_orgId}:${section}:${++_channelSeq}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table, filter: `org_id=eq.${_orgId}` },
         () => { refresh(); })
@@ -1176,6 +1394,21 @@ export const orgStore = {
     if (!_orgId) return null;
     const existing = _cache.fin_docs?.[id] || {};
     const merged = { ...existing, ...updates };
+    // finDocToRow() prefers the column name over the form's alias. The cached
+    // document carries both, so a form edit (enableGst: false) would lose to
+    // the stale cached column (gst_enabled: true) unless the column goes.
+    const ALIASES = [['enableGst', 'gst_enabled'], ['gstRate', 'gst_rate'],
+      ['isInterState', 'is_inter_state'], ['discountType', 'discount_type'],
+      ['discountValue', 'discount_value']];
+    for (const [alias, column] of ALIASES) {
+      if (alias in updates && !(column in updates)) delete merged[column];
+    }
+    if ('discount' in updates) {
+      if (!('discount_type' in updates)) delete merged.discount_type;
+      if (!('discount_value' in updates)) delete merged.discount_value;
+      if (!('discountType' in updates)) delete merged.discountType;
+      if (!('discountValue' in updates)) delete merged.discountValue;
+    }
 
     // doc_number is frozen by a trigger after insert; never send it back.
     const row = stripNulls(finDocToRow(merged));
@@ -1186,6 +1419,47 @@ export const orgStore = {
     if (error) throw error;
 
     if (updates.items) await replaceLineItems(id, updates.items);
+    return await refreshFinDoc(id);
+  },
+
+  // Where a document stands in the versioning lifecycle (0064), read fresh:
+  // the cache may predate the send. A document that was never sent is edited
+  // in place; one that was sent can only change by publishing a new version.
+  async finDocVersionState(id) {
+    const { data, error } = await supabase
+      .from('financial_documents')
+      .select('status, revision, current_version_id, locked_version_id')
+      .eq('id', id).maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    return {
+      status: data.status,
+      revision: data.revision,
+      published: !!data.current_version_id,
+      locked: !!data.locked_version_id,
+    };
+  },
+
+  // Publish an edit to a sent quotation or proforma as its next version, in
+  // one transaction: document_publish_version() applies the change, snapshots
+  // it as v(N+1), and puts the document back in front of the client as 'sent'.
+  // Writing the row directly is refused by the database (DOCUMENT_VERSIONED).
+  async publishFinDocVersion(id, data, summary) {
+    if (!_orgId) throw new Error('[orgStore] No orgId set');
+    const changes = stripNulls(finDocToRow(data));
+    // Identity and lifecycle are the database's; the RPC ignores them anyway.
+    for (const key of ['type', 'status', 'revision', 'doc_number']) delete changes[key];
+    // A failed client lookup leaves customer_id null; that must not unlink
+    // the client the document already has.
+    if (changes.customer_id == null) delete changes.customer_id;
+
+    const { error } = await supabase.rpc('document_publish_version', {
+      p_document_id: id,
+      p_changes: changes,
+      p_line_items: Array.isArray(data.items) ? lineItemRows(data.items) : null,
+      p_summary: summary || null,
+    });
+    if (error) throw error;
     return await refreshFinDoc(id);
   },
 
@@ -1378,7 +1652,21 @@ export function financialDocFromRow(r) {
     payments: (r.payments || [])
       .slice()
       .sort((a, b) => new Date(a.paid_on) - new Date(b.paid_on)),
+    // Set once the document has been sent (0064). From then on its content
+    // changes only by publishing a new version; see publishFinDocVersion().
+    current_version_id: r.current_version_id || null,
+    locked_version_id: r.locked_version_id || null,
     created_at: r.created_at, updated_at: r.updated_at,
+    // The forms and the PDF builder read the camelCase names they wrote.
+    // finDocToRow() maps those onto columns and keeps them out of `payload`,
+    // so without these a reloaded document looked GST-free and undiscounted,
+    // and re-saving it from the edit form actually dropped the GST.
+    enableGst: r.gst_enabled, gstRate: Number(r.gst_rate) || 0,
+    discount: {
+      type: r.discount_type,
+      value: Number(r.discount_value) || 0,
+      amount: Number(r.discount_amount) || 0,
+    },
     ...(r.payload || {}),
   };
 }
@@ -1456,12 +1744,32 @@ function finDocToRow(i) {
     // `payments` is a joined child table, not a form field. Without it here the
     // whole ledger would be copied into payload on every save and then shadow
     // the real join when read back.
-    'amount_paid', 'payments', 'created_at', 'updated_at', 'org_id', 'payload']);
+    'amount_paid', 'payments', 'created_at', 'updated_at', 'org_id', 'payload',
+    'current_version_id', 'locked_version_id']);
   const payload = {};
   for (const [k, v] of Object.entries(i)) if (!MAPPED.has(k)) payload[k] = v;
   known.payload = payload;
 
   return known;
+}
+
+// The form's line items as document_line_items columns. The forms spell the
+// HSN and catalogue fields several ways depending on which one saved the
+// document; accept all of them, because a line that arrives without its
+// catalogue id is a sale that never reaches Product Performance.
+// line_total is trigger-computed and never sent.
+function lineItemRows(items) {
+  return (items || [])
+    .filter((it) => it && (it.description || it.rate || it.quantity))
+    .map((it) => ({
+      description: it.description || '',
+      hsn_sac: nn(it.hsn || it.hsn_sac || it.hsnSac || it.hsnCode),
+      quantity: num(it.quantity, 1),
+      unit: it.unit || 'Nos',
+      rate: num(it.rate, 0),
+      gst_rate: num(it.gst_rate),
+      catalog_item_id: nn(it.catalog_item_id || it.catalogItemId || it.productId),
+    }));
 }
 
 // Line items are replaced wholesale: the forms hand back the entire array, and
@@ -1474,24 +1782,9 @@ async function replaceLineItems(documentId, items) {
     .from('document_line_items').delete().eq('document_id', documentId);
   if (delErr) throw delErr;
 
-  const rows = items
-    .filter((it) => it && (it.description || it.rate || it.quantity))
-    .map((it, position) => ({
-      document_id: documentId,
-      org_id: _orgId,
-      position,
-      description: it.description || '',
-      hsn_sac: nn(it.hsn || it.hsn_sac || it.hsnSac || it.hsnCode),
-      quantity: num(it.quantity, 1),
-      unit: it.unit || 'Nos',
-      rate: num(it.rate, 0),
-      gst_rate: num(it.gst_rate),
-      // The catalogue attribution. The forms spell it several ways depending on
-      // which one saved the document; accept all of them, because a line that
-      // arrives without it is a sale that never reaches Product Performance.
-      catalog_item_id: nn(it.catalog_item_id || it.catalogItemId || it.productId),
-      // line_total is trigger-computed; not sent.
-    }));
+  const rows = lineItemRows(items).map((row, position) => ({
+    ...row, document_id: documentId, org_id: _orgId, position,
+  }));
 
   if (rows.length === 0) return;
   const { error } = await supabase.from('document_line_items').insert(rows);

@@ -15,6 +15,7 @@ import SignatureCapture from '../shared/SignatureCapture';
 import UPIQRGenerator from '../shared/UPIQRGenerator';
 import PaymentConfirmationForm from '../shared/PaymentConfirmationForm';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
+import { advanceOf } from '../../services/proformaAdvance';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -127,6 +128,7 @@ export default function RecipientPortal({ documentId }) {
         setCompany(liveCompany);
         setReadOnly(scope !== 'sign');
         setStatus(loaded.status);
+        setOrderConfirmed(loaded.status === 'order_confirmed');
         const recipient = loaded.issued_to || loaded.studentName || loaded.recipientName || loaded.name;
         if (recipient) setCandidateName(recipient);
       } catch (err) {
@@ -215,7 +217,7 @@ export default function RecipientPortal({ documentId }) {
   };
 
   const handleProformaPayment = async (data) => {
-    const ok = await respond('proforma_payment', { payment: data }, 'advance_paid');
+    const ok = await respond('proforma_payment', { payment: data }, 'payment_submitted');
     if (ok) setPaymentSubmitted(true);
   };
   const handleCopy = async (text, label) => {
@@ -425,6 +427,9 @@ export default function RecipientPortal({ documentId }) {
     );
   }
 
+  // A cancelled quotation, proforma or invoice is shown, marked, with nothing to
+  // act on. The server refuses every action on it anyway (api/portal.js).
+  const isCancelled = status === 'cancelled' && ['invoice', 'quotation', 'proforma'].includes(docData?.type);
   const isActionTaken = ['signed', 'declined', 'paid', 'payment_submitted', 'accepted', 'fully_signed', 'advance_paid', 'revision_requested', 'acknowledged'].includes(status);
 
   // ── HR Notice acknowledge (role_change / termination) ──
@@ -553,7 +558,9 @@ export default function RecipientPortal({ documentId }) {
             {/* A4 Document Preview */}
             <div className="rp-a4-wrapper">
               <div ref={a4Ref} className="rp-a4" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}>
-                {!isActionTaken && <div className="rp-watermark">PREVIEW</div>}
+                {isCancelled
+                  ? <div className="rp-watermark" style={{ color: 'rgba(239,68,68,0.16)' }}>CANCELLED</div>
+                  : !isActionTaken && <div className="rp-watermark">PREVIEW</div>}
 
                 <div className="rp-doc-content">
                   {/* Letterhead */}
@@ -841,9 +848,11 @@ export default function RecipientPortal({ documentId }) {
                   )}
 
                   {/* ── Invoice / Proforma ── */}
-                  {(docData.type === 'invoice' || docData.type === 'proforma') && (
+                  {docData.type === 'proforma' && <ProformaDocument doc={docData} company={company} />}
+
+                  {docData.type === 'invoice' && (
                     <div className="rp-doc-body">
-                      <h3 className="rp-doc-title">{docData.type === 'proforma' ? 'PROFORMA INVOICE' : 'TAX INVOICE'}</h3>
+                      <h3 className="rp-doc-title">TAX INVOICE</h3>
                       <div className="rp-doc-invoice-meta">
                         <div>
                           <p className="rp-doc-meta-label">Bill To</p>
@@ -852,9 +861,9 @@ export default function RecipientPortal({ documentId }) {
                           {docData.client?.gstin && <p className="rp-letterhead-gstin">GSTIN: {docData.client.gstin}</p>}
                         </div>
                         <div className="rp-doc-invoice-ids">
-                          <p><strong>{docData.id}</strong></p>
+                          <p><strong>{docData.doc_number || docData.id}</strong></p>
                           <p>Date: {docData.issue_date}</p>
-                          <p>Due: {docData.due_date}</p>
+                          {docData.due_date && <p>Due: {docData.due_date}</p>}
                         </div>
                       </div>
                       <table className="rp-doc-table">
@@ -877,14 +886,7 @@ export default function RecipientPortal({ documentId }) {
                           ))}
                         </tbody>
                       </table>
-                      <div className="rp-doc-totals">
-                        <div className="rp-doc-total-row"><span>Subtotal</span><span>₹{(docData.subtotal || 0).toLocaleString('en-IN')}</span></div>
-                        {docData.gst > 0 && <div className="rp-doc-total-row"><span>GST</span><span>₹{docData.gst.toLocaleString('en-IN')}</span></div>}
-                        <div className="rp-doc-total-row rp-doc-grand-total">
-                          <span>Total Due</span>
-                          <span>₹{(docData.grand_total || docData.amount || 0).toLocaleString('en-IN')}</span>
-                        </div>
-                      </div>
+                      <DocTotals doc={docData} totalLabel="Total Due" splitGst />
                       {docData.accepted_signature && (
                         <div className="rp-doc-sig-section">
                           <h4>SIGNATURES</h4>
@@ -902,13 +904,10 @@ export default function RecipientPortal({ documentId }) {
                               <img src={docData.accepted_signature} alt="Accepted Signature" className="rp-doc-sig-img" />
                               <p>{docData.accepted_by || docData.issued_to}</p>
                               <p>Date: {docData.accepted_at ? new Date(docData.accepted_at).toLocaleDateString() : ''}</p>
-                              {docData.converted_from && <p style={{ fontSize: '7pt', color: '#999', marginTop: '0.5em' }}>Ref: {docData.converted_from}</p>}
+                              {docData.converted_from && <p style={{ fontSize: '7pt', color: '#999', marginTop: '0.5em' }}>Ref: {docData.converted_from_number || docData.converted_from}</p>}
                             </div>
                           </div>
                         </div>
-                      )}
-                      {docData.type === 'proforma' && (
-                        <p className="rp-doc-disclaimer">This is a proforma invoice and is not valid for GST input tax credit.</p>
                       )}
                     </div>
                   )}
@@ -923,7 +922,7 @@ export default function RecipientPortal({ documentId }) {
                           <p className="rp-doc-meta-value">{docData.issued_to || docData.client?.name}</p>
                         </div>
                         <div className="rp-doc-invoice-ids">
-                          <p><strong>{docData.id}</strong></p>
+                          <p><strong>{docData.doc_number || docData.id}</strong></p>
                           <p>Date: {docData.issue_date}</p>
                           <p>Valid Until: {docData.valid_until}</p>
                         </div>
@@ -948,12 +947,7 @@ export default function RecipientPortal({ documentId }) {
                           ))}
                         </tbody>
                       </table>
-                      <div className="rp-doc-totals">
-                        <div className="rp-doc-total-row rp-doc-grand-total">
-                          <span>Total</span>
-                          <span>₹{(docData.subtotal || docData.amount || 0).toLocaleString('en-IN')}</span>
-                        </div>
-                      </div>
+                      <DocTotals doc={docData} totalLabel="Total" />
                       {(docData.accepted_signature || (status === 'accepted' && signature)) && (
                         <div className="rp-doc-sig-section">
                           <h4>SIGNATURES</h4>
@@ -1106,8 +1100,14 @@ export default function RecipientPortal({ documentId }) {
               <SuccessCard title="Agreement Fully Signed" subtitle="Both parties have signed the document." />
             )}
 
+            {isCancelled && (
+              <StatusCard icon={<AlertCircle size={28} />} color="#ef4444"
+                title={`${docData.type === 'invoice' ? 'Invoice' : docData.type === 'proforma' ? 'Proforma invoice' : 'Quotation'} cancelled`}
+                subtitle={`${company?.company_name || 'The issuer'} has cancelled this document. No action or payment is needed — contact them if you have questions.`} />
+            )}
+
             {/* ════════ INVOICE ════════ */}
-            {docData.type === 'invoice' && !paymentSubmitted && status !== 'paid' && status !== 'payment_submitted' && (
+            {docData.type === 'invoice' && !isCancelled && !paymentSubmitted && status !== 'paid' && status !== 'payment_submitted' && (
               <div className="rp-card">
                 <div className="rp-card-header">
                   <CreditCard size={18} />
@@ -1116,10 +1116,10 @@ export default function RecipientPortal({ documentId }) {
 
                 <div className="rp-amount-hero">
                   <span className="rp-amount-label">Amount Due</span>
-                  <span className="rp-amount-value">₹{(docData.grand_total || docData.amount || 0).toLocaleString('en-IN')}</span>
+                  <span className="rp-amount-value">{inr(grandTotalOf(docData))}</span>
                   <div className="rp-amount-meta-row">
                     <span><Calendar size={12} /> Due: {docData.due_date}</span>
-                    <span><Hash size={12} /> {docData.id}</span>
+                    <span><Hash size={12} /> {docData.doc_number || docData.id}</span>
                   </div>
                 </div>
 
@@ -1179,7 +1179,7 @@ export default function RecipientPortal({ documentId }) {
             )}
 
             {/* ════════ QUOTATION ════════ */}
-            {docData.type === 'quotation' && status !== 'accepted' && status !== 'declined' && status !== 'revision_requested' && status !== 'converted' && (
+            {docData.type === 'quotation' && !isCancelled && status !== 'accepted' && status !== 'declined' && status !== 'revision_requested' && status !== 'converted' && (
               <div className="rp-card">
                 <div className="rp-card-header">
                   <FileText size={18} />
@@ -1188,10 +1188,10 @@ export default function RecipientPortal({ documentId }) {
 
                 <div className="rp-amount-hero">
                   <span className="rp-amount-label">Quoted Amount</span>
-                  <span className="rp-amount-value">₹{(docData.subtotal || docData.amount || 0).toLocaleString('en-IN')}</span>
+                  <span className="rp-amount-value">{inr(grandTotalOf(docData))}</span>
                   <div className="rp-amount-meta-row">
                     <span><Calendar size={12} /> Valid until: {docData.valid_until}</span>
-                    <span><Hash size={12} /> {docData.id}</span>
+                    <span><Hash size={12} /> {docData.doc_number || docData.id}</span>
                   </div>
                 </div>
 
@@ -1243,96 +1243,27 @@ export default function RecipientPortal({ documentId }) {
             )}
 
             {docData.type === 'quotation' && status === 'converted' && (
-              <SuccessCard title="Quotation Converted" subtitle="This quotation has been converted to a proforma invoice. No further action is needed." />
+              <SuccessCard title="Quotation Converted" subtitle="This quotation has moved to billing. You will receive the invoice separately — no further action is needed here." />
             )}
 
             {/* ════════ PROFORMA ════════ */}
-            {docData.type === 'proforma' && !paymentSubmitted && status !== 'advance_paid' && (
-              <div className="rp-card">
-                <div className="rp-card-header">
-                  <CreditCard size={18} />
-                  <h3>Confirm & Pay Advance</h3>
-                </div>
-
-                <div className="rp-amount-breakdown">
-                  <div className="rp-amount-break-row">
-                    <span>Total Value</span>
-                    <strong>₹{(docData.grand_total || docData.amount || 0).toLocaleString('en-IN')}</strong>
-                  </div>
-                  <div className="rp-amount-break-row rp-amount-highlight">
-                    <span>Advance ({docData.advance_percent || 50}%)</span>
-                    <strong>₹{(docData.advance_amount || 0).toLocaleString('en-IN')}</strong>
-                    <span className="rp-amount-badge">Pay now</span>
-                  </div>
-                  <div className="rp-amount-break-row">
-                    <span>Balance Due</span>
-                    <strong>₹{(docData.balance_due || 0).toLocaleString('en-IN')}</strong>
-                    <span className="rp-amount-badge rp-amount-badge-muted">On delivery</span>
-                  </div>
-                </div>
-
-                {!orderConfirmed ? (
-                  <div className="rp-step">
-                    <div className="rp-step-num">1</div>
-                    <div className="rp-step-body">
-                      <label className="rp-agree">
-                        <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-                        <span>I confirm the order details in this proforma invoice.</span>
-                      </label>
-                      <button className="rp-btn rp-btn-primary" disabled={!agreed || readOnly || !!submitting} onClick={handleConfirmOrder}>
-                        Confirm Order
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="rp-step rp-step-done">
-                      <div className="rp-step-num rp-step-check"><Check size={12} /></div>
-                      <span>Order Confirmed</span>
-                    </div>
-
-                    <div className="rp-step">
-                      <div className="rp-step-num">2</div>
-                      <div className="rp-step-body">
-                        <h4 className="rp-step-title">Pay Advance — ₹{(docData.advance_amount || 0).toLocaleString('en-IN')}</h4>
-                        <UPIQRGenerator
-                          upiId={docData.upi_id || company.upi_id}
-                          payeeName={company.company_name || docData.issued_by}
-                          amount={docData.advance_amount}
-                          transactionNote={`${docData.id} Advance`}
-                        />
-                        <button className="rp-bank-toggle" onClick={() => setShowBankDetails(!showBankDetails)}>
-                          <Banknote size={15} />
-                          <span>Bank Transfer</span>
-                          <span className="rp-bank-arrow">{showBankDetails ? '−' : '+'}</span>
-                        </button>
-                        {showBankDetails && (
-                          <div className="rp-bank-details" style={{ marginTop: '0.5rem' }}>
-                            <BankRow label="Bank" value={company.bank_name} />
-                            <BankRow label="A/C" value={company.bank_account_number} />
-                            <BankRow label="IFSC" value={company.bank_ifsc} />
-                          </div>
-                        )}
-                        {!showPaymentForm ? (
-                          <button className="rp-btn rp-btn-primary" onClick={() => setShowPaymentForm(true)}>
-                            <Check size={16} /> I Have Paid the Advance
-                          </button>
-                        ) : (
-                          <PaymentConfirmationForm
-                            amount={docData.advance_amount}
-                            invoiceId={docData.id}
-                            onSubmit={handleProformaPayment}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {docData.type === 'proforma' && (paymentSubmitted || status === 'advance_paid') && (
-              <SuccessCard title="Advance Payment Submitted" subtitle="Order confirmed. A tax invoice will be issued upon delivery." />
+            {docData.type === 'proforma' && !isCancelled && (
+              <ProformaActions
+                doc={docData}
+                company={company}
+                status={paymentSubmitted ? 'payment_submitted' : status}
+                orderConfirmed={orderConfirmed}
+                agreed={agreed}
+                setAgreed={setAgreed}
+                readOnly={readOnly}
+                submitting={submitting}
+                onConfirm={handleConfirmOrder}
+                onPay={handleProformaPayment}
+                showPaymentForm={showPaymentForm}
+                setShowPaymentForm={setShowPaymentForm}
+                showBankDetails={showBankDetails}
+                setShowBankDetails={setShowBankDetails}
+              />
             )}
 
             {/* ════════ ROLE CHANGE ════════ */}
@@ -1585,6 +1516,266 @@ function BankRow({ label, value, copyable, onCopy, copied }) {
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+const inr = (n) => '₹' + (Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+
+/** grand_total is written by the totals trigger and already includes GST. */
+function grandTotalOf(doc) {
+  return Number(doc.grand_total ?? doc.total ?? doc.amount) || 0;
+}
+
+/* Subtotal → discount → GST → total, from the trigger-computed columns. The
+   quotation used to print `subtotal` as its total, so every quotation with GST
+   showed the client the pre-tax figure. A quotation shows one GST line, as
+   its editor does; an invoice splits it the way the tax invoice must. */
+function DocTotals({ doc, totalLabel, splitGst }) {
+  const subtotal = Number(doc.subtotal) || 0;
+  const discount = Number(doc.discount_amount) || 0;
+  const gst = doc.gst_enabled === false ? 0 : Number(doc.gst_amount ?? doc.gst) || 0;
+  const rate = Number(doc.gst_rate) || 0;
+  const interState = !!doc.is_inter_state;
+  return (
+    <div className="rp-doc-totals">
+      {(discount > 0 || gst > 0) && (
+        <div className="rp-doc-total-row"><span>Subtotal</span><span>{inr(subtotal)}</span></div>
+      )}
+      {discount > 0 && (
+        <div className="rp-doc-total-row"><span>Discount</span><span>−{inr(discount)}</span></div>
+      )}
+      {gst > 0 && !splitGst && (
+        <div className="rp-doc-total-row"><span>GST @ {rate}%</span><span>{inr(gst)}</span></div>
+      )}
+      {gst > 0 && splitGst && (interState ? (
+        <div className="rp-doc-total-row"><span>IGST @ {rate}%</span><span>{inr(gst)}</span></div>
+      ) : (
+        <>
+          <div className="rp-doc-total-row"><span>CGST @ {rate / 2}%</span><span>{inr(gst / 2)}</span></div>
+          <div className="rp-doc-total-row"><span>SGST @ {rate / 2}%</span><span>{inr(gst / 2)}</span></div>
+        </>
+      ))}
+      <div className="rp-doc-total-row rp-doc-grand-total">
+        <span>{totalLabel}</span>
+        <span>{inr(grandTotalOf(doc))}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Proforma — its own document and its own flow, not an invoice's.
+
+   A proforma is an offer to supply at a price, sent so the client can commit:
+   confirm the order, then pay the advance it asks for. It is not a demand for
+   the full amount and not a tax document. The balance is billed on the tax
+   invoice at delivery, and that invoice is what the client pays in full.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function ProformaDocument({ doc }) {
+  const a = advanceOf(doc);
+  const subtotal = Number(doc.subtotal) || 0;
+  const discount = Number(doc.discount_amount) || 0;
+  const gst = doc.gst_enabled === false ? 0 : Number(doc.gst_amount ?? doc.gst) || 0;
+  const rate = Number(doc.gst_rate) || 0;
+  const validUntil = doc.valid_until || doc.due_date;
+  return (
+    <div className="rp-doc-body">
+      <h3 className="rp-doc-title">PROFORMA INVOICE</h3>
+      <div className="rp-doc-invoice-meta">
+        <div>
+          <p className="rp-doc-meta-label">Proforma for</p>
+          <p className="rp-doc-meta-value">{doc.issued_to || doc.client?.name}</p>
+          {doc.client?.address && <p>{doc.client.address}</p>}
+          {doc.client?.gstin && <p className="rp-letterhead-gstin">GSTIN: {doc.client.gstin}</p>}
+        </div>
+        <div className="rp-doc-invoice-ids">
+          <p><strong>{doc.doc_number || doc.id}</strong></p>
+          <p>Date: {doc.issue_date}</p>
+          {validUntil && <p>Valid until: {validUntil}</p>}
+        </div>
+      </div>
+      <table className="rp-doc-table">
+        <thead>
+          <tr><th>Description</th><th>Qty</th><th>Rate</th><th>Amount</th></tr>
+        </thead>
+        <tbody>
+          {(doc.items || []).map((item, i) => (
+            <tr key={i}>
+              <td>{item.description}</td>
+              <td className="rp-doc-table-center">{item.quantity} {item.unit || ''}</td>
+              <td className="rp-doc-table-right">{inr(item.rate)}</td>
+              <td className="rp-doc-table-right">{inr((item.quantity || 0) * (item.rate || 0))}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="rp-doc-totals">
+        {(discount > 0 || gst > 0) && (
+          <div className="rp-doc-total-row"><span>Subtotal</span><span>{inr(subtotal)}</span></div>
+        )}
+        {discount > 0 && <div className="rp-doc-total-row"><span>Discount</span><span>−{inr(discount)}</span></div>}
+        {gst > 0 && <div className="rp-doc-total-row"><span>GST @ {rate}%</span><span>{inr(gst)}</span></div>}
+        <div className="rp-doc-total-row rp-doc-grand-total">
+          <span>Order value</span>
+          <span>{inr(a.total)}</span>
+        </div>
+        {a.percent > 0 && (
+          <>
+            <div className="rp-doc-total-row"><span>Advance payable now ({a.percent}%)</span><span>{inr(a.advance)}</span></div>
+            {a.balance > 0 && (
+              <div className="rp-doc-total-row"><span>Balance on delivery</span><span>{inr(a.balance)}</span></div>
+            )}
+          </>
+        )}
+      </div>
+      <p className="rp-doc-disclaimer">
+        This is a proforma invoice issued to confirm the order. It is not a tax invoice and
+        cannot be used to claim input tax credit; the tax invoice is issued on delivery.
+      </p>
+    </div>
+  );
+}
+
+function ProformaActions({
+  doc, company, status, orderConfirmed, agreed, setAgreed, readOnly, submitting,
+  onConfirm, onPay, showPaymentForm, setShowPaymentForm, showBankDetails, setShowBankDetails,
+}) {
+  const a = advanceOf(doc);
+  const number = doc.doc_number || doc.id;
+
+  if (status === 'converted') {
+    return <SuccessCard title="Tax invoice issued" subtitle="This order has moved to its tax invoice. Nothing more is needed here." />;
+  }
+  if (['advance_paid', 'partially_paid', 'paid'].includes(status)) {
+    return (
+      <SuccessCard
+        title="Advance received"
+        subtitle={`Your order is confirmed and ${inr(a.paid || a.advance)} has been received. The tax invoice for the balance follows on delivery.`}
+      />
+    );
+  }
+  if (status === 'payment_submitted') {
+    return (
+      <StatusCard
+        icon={<Clock size={28} />}
+        color="#b45309"
+        title="Advance submitted — being verified"
+        subtitle={`${company.company_name || 'The issuer'} is checking your payment against ${number}. You'll hear from them once it's confirmed.`}
+      />
+    );
+  }
+  if (['declined', 'cancelled', 'expired'].includes(status)) return null;
+
+  const confirmed = orderConfirmed || status === 'order_confirmed';
+  const needsAdvance = a.advanceDue > 0;
+
+  return (
+    <div className="rp-card">
+      <div className="rp-card-header">
+        <CreditCard size={18} />
+        <h3>{needsAdvance ? 'Confirm order & pay advance' : 'Confirm order'}</h3>
+      </div>
+
+      <div className="rp-amount-breakdown">
+        <div className="rp-amount-break-row">
+          <span>Order value</span>
+          <strong>{inr(a.total)}</strong>
+        </div>
+        {a.percent > 0 && (
+          <div className="rp-amount-break-row rp-amount-highlight">
+            <span>Advance ({a.percent}%)</span>
+            <strong>{inr(a.advance)}</strong>
+            <span className="rp-amount-badge">Now</span>
+          </div>
+        )}
+        {a.balance > 0 && (
+          <div className="rp-amount-break-row">
+            <span>Balance</span>
+            <strong>{inr(a.balance)}</strong>
+            <span className="rp-amount-badge rp-amount-badge-muted">On delivery</span>
+          </div>
+        )}
+      </div>
+
+      {doc.payment_rejected && confirmed && (
+        <p role="alert" style={{
+          margin: '0 0 1rem', padding: '0.625rem 0.75rem', borderRadius: 8,
+          background: '#fef2f2', color: '#b91c1c', fontSize: '0.8125rem', lineHeight: 1.5,
+        }}>
+          Your last payment could not be verified{doc.rejection_reason ? `: ${doc.rejection_reason}` : '.'} Please check the details and submit it again.
+        </p>
+      )}
+
+      {/* Step 1 — commit to the order. */}
+      {!confirmed ? (
+        <div className="rp-step">
+          <div className="rp-step-num">1</div>
+          <div className="rp-step-body">
+            <h4 className="rp-step-title">Confirm the order</h4>
+            <label className="rp-agree">
+              <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+              <span>I confirm the items, quantities and prices in this proforma invoice.</span>
+            </label>
+            <button className="rp-btn rp-btn-primary" disabled={!agreed || readOnly || !!submitting} onClick={onConfirm}>
+              {submitting === 'confirm_order' ? 'Confirming…' : 'Confirm order'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="rp-step rp-step-done">
+          <div className="rp-step-num rp-step-check"><Check size={12} /></div>
+          <span>Order confirmed</span>
+        </div>
+      )}
+
+      {/* Step 2 — the advance, only once the order stands. */}
+      {needsAdvance && (
+        <div className="rp-step" style={confirmed ? undefined : { opacity: 0.5 }}>
+          <div className="rp-step-num">2</div>
+          <div className="rp-step-body">
+            <h4 className="rp-step-title">Pay the advance — {inr(a.advanceDue)}</h4>
+            {!confirmed ? (
+              <p style={{ margin: 0, fontSize: '0.8125rem', color: '#71717a' }}>Payment details appear once the order is confirmed.</p>
+            ) : (
+              <>
+                <UPIQRGenerator
+                  upiId={doc.upi_id || company.upi_id}
+                  payeeName={company.company_name || doc.issued_by}
+                  amount={a.advanceDue}
+                  transactionNote={`${number} advance`}
+                />
+                <button className="rp-bank-toggle" onClick={() => setShowBankDetails(!showBankDetails)}>
+                  <Banknote size={15} />
+                  <span>Bank transfer</span>
+                  <span className="rp-bank-arrow">{showBankDetails ? '−' : '+'}</span>
+                </button>
+                {showBankDetails && (
+                  <div className="rp-bank-details" style={{ marginTop: '0.5rem' }}>
+                    <BankRow label="Bank" value={company.bank_name} />
+                    <BankRow label="A/C" value={company.bank_account_number} />
+                    <BankRow label="IFSC" value={company.bank_ifsc} />
+                  </div>
+                )}
+                {!showPaymentForm ? (
+                  <button className="rp-btn rp-btn-primary" disabled={readOnly} onClick={() => setShowPaymentForm(true)}>
+                    <Check size={16} /> I have paid the advance
+                  </button>
+                ) : (
+                  <PaymentConfirmationForm amount={a.advanceDue} invoiceId={number} onSubmit={onPay} />
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {confirmed && !needsAdvance && (
+        <p style={{ margin: 0, fontSize: '0.8125rem', color: '#52525b', lineHeight: 1.55 }}>
+          No advance is needed. The tax invoice will be issued on delivery.
+        </p>
+      )}
     </div>
   );
 }

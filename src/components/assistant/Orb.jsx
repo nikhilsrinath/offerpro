@@ -11,6 +11,10 @@ import React, { useEffect, useRef, useState } from 'react';
    `levelRef.current` (0‥1) is read every frame without re-rendering React, so
    the microphone can drive the orb at 60fps: it swells, spins faster and
    brightens while you speak.
+
+   tone="blue" is the voice call's orb: a navy glass ball with a teal wave of
+   light across it, a violet edge on the wave and a thin blue rim. Everywhere
+   else the orb stays monochrome, like the rest of EdgeOS.
    ══════════════════════════════════════════════════════════════════════════ */
 
 const VERT = `
@@ -24,6 +28,7 @@ uniform vec2  uRes;
 uniform float uTime;
 uniform float uLevel;
 uniform float uDark;
+uniform float uBlue;
 
 float hash(vec3 p) {
     p = fract(p * 0.3183099 + 0.1);
@@ -72,7 +77,9 @@ void main() {
     float sweep = 0.75 + 0.25 * sin(ang * 2.0 + t * 0.6);
     float halo  = exp(-max(r - 1.0, 0.0) * (5.5 - 1.5 * uLevel)) * (0.30 + 0.45 * uLevel) * sweep;
     halo *= mix(0.35, 1.0, uDark);
-    vec4 outC = vec4(ink * halo, halo);
+    vec3 haloC = mix(ink, vec3(0.16, 0.38, 1.0), uBlue);
+    halo *= mix(1.0, 0.45, uBlue);
+    vec4 outC = vec4(haloC * halo, halo);
 
     // ── sphere ──
     if (r < 1.0 + aa) {
@@ -102,6 +109,31 @@ void main() {
         float spec = pow(max(dot(normalize(n), normalize(vec3(-0.45, 0.55, 0.7))), 0.0), 40.0);
         col = mix(col, mix(vec3(0.0), vec3(1.0), uDark), spec * mix(0.12, 0.3, uDark));
 
+        // ── the blue glass ──
+        vec3 navy   = vec3(0.008, 0.02, 0.09);
+        vec3 deep   = vec3(0.03, 0.12, 0.52);
+        vec3 blue   = vec3(0.10, 0.42, 0.98);
+        vec3 teal   = vec3(0.36, 0.93, 0.88);
+        vec3 violet = vec3(0.58, 0.36, 1.0);
+        // lit from above: the top half glows blue, the underside falls to navy
+        vec3 bc = mix(navy, deep, smoothstep(-0.9, 0.7, n.y + 0.25));
+        bc = mix(bc, blue, clamp(smoke * 0.5, 0.0, 1.0) * smoothstep(-0.6, 0.6, n.y));
+        // a slow, smooth wave of light across the middle — glossy, not smoky
+        float wave = n.y + 0.06 + 0.17 * sin(n.x * 2.2 + t * 0.5) + 0.05 * sin(n.x * 4.1 - t * 0.8) + (w.x - 0.5) * 0.06;
+        float band = exp(-pow((wave + 0.12) / 0.2, 2.0));           // soft gaussian body
+        float below = smoothstep(0.1, -0.35, wave) * 0.35;           // light spilling under it
+        bc = mix(bc, teal, clamp(band * (0.78 + 0.35 * uLevel) + below * band, 0.0, 1.0));
+        bc += teal * below * 0.18;
+        bc += violet * exp(-pow((wave - 0.06) / 0.035, 2.0)) * 0.5;   // the thin violet crest
+        // glass: darker towards the edge, then a fine rim
+        bc *= mix(0.3, 1.0, pow(z, 0.5));
+        bc += vec3(0.25, 0.5, 1.0) * smoothstep(0.94, 1.0, rr) * 0.35;
+        // broad soft sheen, upper left, plus the specular point
+        float sheen = pow(max(dot(normalize(n), normalize(vec3(-0.35, 0.6, 0.72))), 0.0), 6.0);
+        bc += vec3(0.35, 0.55, 1.0) * sheen * 0.12;
+        bc = mix(bc, vec3(1.0), spec * 0.25);
+        col = mix(col, bc, uBlue);
+
         float edge = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, r);
         outC = vec4(col * edge, edge) + outC * (1.0 - edge);
     }
@@ -122,7 +154,7 @@ function compile(gl, type, src) {
     return s;
 }
 
-export default function Orb({ size = 220, levelRef, dark = true, active = false }) {
+export default function Orb({ size = 220, levelRef, dark = true, active = false, tone = 'mono' }) {
     const canvasRef = useRef(null);
     const [failed, setFailed] = useState(false);
 
@@ -153,6 +185,7 @@ export default function Orb({ size = 220, levelRef, dark = true, active = false 
         const uTime = gl.getUniformLocation(prog, 'uTime');
         const uLevel = gl.getUniformLocation(prog, 'uLevel');
         const uDark = gl.getUniformLocation(prog, 'uDark');
+        const uBlue = gl.getUniformLocation(prog, 'uBlue');
 
         const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -176,6 +209,7 @@ export default function Orb({ size = 220, levelRef, dark = true, active = false 
             gl.uniform1f(uTime, clock);
             gl.uniform1f(uLevel, level);
             gl.uniform1f(uDark, dark ? 1 : 0);
+            gl.uniform1f(uBlue, tone === 'blue' ? 1 : 0);
             gl.clearColor(0, 0, 0, 0);
             gl.clear(gl.COLOR_BUFFER_BIT);
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -190,7 +224,7 @@ export default function Orb({ size = 220, levelRef, dark = true, active = false 
             gl.deleteShader(vs);
             gl.deleteShader(fs);
         };
-    }, [size, dark, levelRef]);
+    }, [size, dark, levelRef, tone]);
 
     if (failed) {
         // No WebGL: a still gradient in the same colours, so the panel keeps its shape.
@@ -198,7 +232,9 @@ export default function Orb({ size = 220, levelRef, dark = true, active = false 
             <div style={{ width: size, height: size, display: 'grid', placeItems: 'center' }}>
                 <div style={{
                     width: size * 0.68, height: size * 0.68, borderRadius: '50%',
-                    background: dark
+                    background: tone === 'blue'
+                        ? 'radial-gradient(circle at 50% 58%, #5eead4 0%, #1d4ed8 38%, #0b1a5e 70%, #020617 100%)'
+                        : dark
                         ? 'radial-gradient(circle at 35% 30%, #3a3a41 0%, #121215 55%, #050506 100%)'
                         : 'radial-gradient(circle at 35% 30%, #ffffff 0%, #d3d9db 55%, #697376 100%)',
                     boxShadow: dark ? '0 0 0 1px #f2f2f3 inset, 0 0 36px rgba(255,255,255,0.18)' : '0 0 0 1px #0e1011 inset',

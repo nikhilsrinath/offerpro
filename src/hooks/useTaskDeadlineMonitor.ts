@@ -3,6 +3,7 @@ import { taskStore } from '../services/taskStore';
 import { orgStore } from '../services/orgStore';
 import { emailService } from '../services/emailService';
 import { invoiceReminderService } from '../services/invoiceReminderService';
+import { runProjectReminders } from '../services/projectService';
 
 function formatDeadline(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -53,11 +54,14 @@ async function runCheck() {
   }
 }
 
-// One scheduler for the app: task deadlines, then overdue invoices and their
-// payment reminders (invoiceReminderService). Neither pass may stop the other.
+// One scheduler for the app: task deadlines, overdue invoices and their
+// payment reminders (invoiceReminderService), then project reminders (the
+// database's project_reminders_run, which sends each threshold once). No pass
+// may stop another.
 async function runAll() {
   try { await runCheck(); } catch (err) { console.warn('[TaskDeadlineMonitor] task pass failed:', err); }
   try { await invoiceReminderService.runCheck(); } catch (err) { console.warn('[TaskDeadlineMonitor] invoice pass failed:', err); }
+  try { await runProjectReminders(); } catch (err) { console.warn('[TaskDeadlineMonitor] project pass failed:', err); }
 }
 
 export function useTaskDeadlineMonitor() {

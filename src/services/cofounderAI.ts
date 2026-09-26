@@ -42,6 +42,13 @@ export interface EdgeContext {
     role: string;
   };
   orgId: string | null;
+  // Open projects, for "which projects are at risk". Money only when the
+  // viewer may see project financials (the caller decides; see App.jsx).
+  projects?: {
+    active: number;
+    atRisk: number;
+    list: Array<{ code: string; name: string; client: string; status: string; health?: string | null; netMargin?: number | null }>;
+  };
 }
 
 export interface SuggestedPrompt {
@@ -63,8 +70,9 @@ export function buildEdgeContext(edgeData: {
   finDocs?: any[];
   user?: any;
   activeOrg?: any;
+  projects?: EdgeContext['projects'];
 } = {}): EdgeContext {
-  const { records = [], finDocs = [], user, activeOrg } = edgeData;
+  const { records = [], finDocs = [], user, activeOrg, projects } = edgeData;
 
   // Calculate financials
   const finInvoices = finDocs.filter((d: any) => d.type === 'invoice');
@@ -133,6 +141,7 @@ export function buildEdgeContext(edgeData: {
       role: user?.role || 'Admin',
     },
     orgId: activeOrg?.id || null,
+    ...(projects ? { projects } : {}),
   };
 }
 
@@ -163,7 +172,9 @@ Current Business Context:
 • Documents: ${context.documents.total} total (${context.documents.offerLetters} offers, ${context.documents.invoices} invoices)
 
 6-Month Revenue Trend: ${context.trends.monthlyRevenue.map(m => `${m.month}: ₹${m.revenue.toLocaleString()}`).join(' | ')}
-
+${context.projects ? `Projects: ${context.projects.active} open, ${context.projects.atRisk} at risk or off track
+${context.projects.list.slice(0, 12).map((p) => `  - ${p.code} ${p.name} (${p.client || 'internal'}) · ${p.status}${p.health ? ` · ${p.health.replace('_', ' ')}` : ''}${p.netMargin != null ? ` · net margin ₹${Math.round(p.netMargin).toLocaleString()}` : ''}`).join('\n')}
+` : ''}
 STRICT RULES - NO HALLUCINATION:
 - Address ${userName} by name when appropriate
 - Speak as an insider: "we", "our company", "our team" - never as an outsider
@@ -320,9 +331,12 @@ HOW TO ANSWER:
 
 For questions about THIS company's specific data (employees, revenue, invoices, tasks, customers):
 • Use ONLY the data shown above — never invent numbers, names, or facts
+• Follow "HOW TO ANSWER FROM THIS CONTEXT" in the data. When a HEADLINE FIGURE answers the question (net cash, total revenue, receivables, payables…), that figure IS the answer: quote it exactly and never build your own total from other numbers — a hand-made total leaves something out
+• Keep bases apart: revenue is not cash, invoiced is not collected, funding is not revenue
 • If data shows company name "Gomma Inc", say "Gomma Inc" — not any other name
 • If revenue is ₹21,797.64, report exactly that — never round or change it
 • If a specific record is missing, say "I don't see that in our records"
+• DOCUMENT LIBRARY passages are quoted from the company's uploaded files. When you use one, name the document and its page/slide/section. If the passages don't contain the answer, say so and name the document that likely does — never fill in what such a document "usually" says
 
 For general business, strategy, finance, marketing, operations, or any other topic:
 • Use your expertise as an experienced AI co-founder — answer helpfully and completely
@@ -612,6 +626,13 @@ export function getSuggestedPrompts(context: EdgeContext): SuggestedPrompt[] {
 
   if (context.documents.offerLetters === 0 && context.financials.totalRevenue > 0) {
     prompts.push({ id: '5', text: 'Create offer letter template for hiring' });
+  }
+
+  if (context.projects && context.projects.active > 0) {
+    prompts.unshift({ id: 'p1', text: 'Which projects are at risk?' });
+    const top = context.projects.list[0];
+    if (top) prompts.splice(1, 0, { id: 'p2', text: `Is ${top.name} profitable?` });
+    prompts.splice(2, 0, { id: 'p3', text: 'Who is over-allocated?' });
   }
 
   // Replace last prompt with revenue analysis if significant

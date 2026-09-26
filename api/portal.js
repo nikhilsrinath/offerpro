@@ -153,17 +153,26 @@ async function signIfPresent(path) {
  * Every action the portal can take, and the single status each one may set.
  * A recipient cannot name a status: they name an action, and the mapping
  * decides. `signs` marks the actions that capture a signature image.
+ *
+ * `types` is which documents an action belongs to. A quotation is accepted, a
+ * proforma is confirmed and its advance paid, an invoice is paid — and a link
+ * to one can never perform the others' actions. `from` is the status an action
+ * must start from, where order matters: the advance comes after the order.
+ *
+ * An advance claim lands on `payment_submitted`, exactly like an invoice
+ * payment: it is the client's word until the org verifies it. It used to jump
+ * straight to `advance_paid`, so an unverified claim read as money received.
  */
 const ACTIONS = {
   accept_offer:         { status: 'signed',             outcome: 'accepted',     signs: true },
   acknowledge:          { status: 'acknowledged',       outcome: 'acknowledged', signs: true },
   mou_sign:             { status: 'fully_signed',       outcome: 'accepted',     signs: true },
-  accept_quotation:     { status: 'accepted',           outcome: 'accepted',     signs: true },
-  decline:              { status: 'declined',           outcome: 'declined' },
-  request_revision:     { status: 'revision_requested' },
-  confirm_order:        { status: 'order_confirmed' },
-  payment_confirmation: { status: 'payment_submitted' },
-  proforma_payment:     { status: 'advance_paid' },
+  accept_quotation:     { status: 'accepted',           outcome: 'accepted',     signs: true, types: ['quotation'] },
+  decline:              { status: 'declined',           outcome: 'declined',     notTypes: ['invoice', 'proforma'] },
+  request_revision:     { status: 'revision_requested', types: ['quotation'] },
+  confirm_order:        { status: 'order_confirmed',    types: ['proforma'] },
+  payment_confirmation: { status: 'payment_submitted',  types: ['invoice'] },
+  proforma_payment:     { status: 'payment_submitted',  types: ['proforma'], from: ['order_confirmed'] },
 };
 
 // Once a recipient has responded, the link stops being a way to respond again.
@@ -180,8 +189,15 @@ async function postAction(req, res) {
   const grant = await verifyToken(token, { requireScope: 'sign' });
   const { document, table } = await loadDocument(grant);
 
+  if ((spec.types && !spec.types.includes(document.type))
+      || (spec.notTypes && spec.notTypes.includes(document.type))) {
+    throw new HttpError(400, `That action does not apply to a ${String(document.type).replace(/_/g, ' ')}.`);
+  }
   if (TERMINAL.has(document.status)) {
     throw new HttpError(409, 'A response has already been recorded for this document.');
+  }
+  if (spec.from && !spec.from.includes(document.status)) {
+    throw new HttpError(409, 'Confirm the order before paying the advance.');
   }
   if (spec.signs && !payload.signature) {
     throw new HttpError(400, 'A signature is required.');
@@ -196,7 +212,7 @@ async function postAction(req, res) {
   // warned about, so the second response still merged itself into the payload and
   // sent a second notification. This UPDATE carries the terminal check in its own
   // WHERE clause, so exactly one of the two can win.
-  const claimed = await claimDocument(grant, table, spec.status);
+  const claimed = await claimDocument(grant, table, spec.status, spec.from);
   if (!claimed) {
     throw new HttpError(409, 'A response has already been recorded for this document.');
   }
@@ -305,15 +321,17 @@ function sanitizePayment(payment = {}) {
  * check and the write are one statement and one row lock — which is what makes
  * this a claim rather than a check followed by a hope.
  */
-async function claimDocument(grant, table, newStatus) {
+async function claimDocument(grant, table, newStatus, fromStatuses) {
   const id = table === 'records' ? grant.record_id : grant.financial_doc_id;
 
-  const { data, error } = await supabaseAdmin()
+  let query = supabaseAdmin()
     .from(table)
     .update({ status: newStatus })
     .eq('id', id)
-    .not('status', 'in', `(${[...TERMINAL].join(',')})`)
-    .select('id');
+    .not('status', 'in', `(${[...TERMINAL].join(',')})`);
+  // The ordering rule belongs in the same WHERE clause as the terminal check.
+  if (fromStatuses) query = query.in('status', fromStatuses);
+  const { data, error } = await query.select('id');
 
   if (error) throw new HttpError(500, error.message);
   return Array.isArray(data) && data.length > 0;
@@ -598,12 +616,16 @@ const NOTIFICATION_COPY = {
   accept_offer:         (who, doc) => ['offer_signed', `Offer accepted by ${who}`, `${who} has signed offer ${doc.doc_number || doc.id}`],
   acknowledge:          (who, doc) => [`${doc.type}_acknowledged`, `${labelFor(doc.type)} acknowledged by ${who}`, `${who} has acknowledged the ${labelFor(doc.type).toLowerCase()}.`],
   mou_sign:             (who, doc) => ['mou_fully_signed', 'MoU fully signed', `Both parties have signed ${doc.doc_number || doc.id}`],
-  accept_quotation:     (who, doc) => ['quotation_accepted', 'Quotation accepted', `${who} accepted ${doc.doc_number || doc.id}`],
+  // The org's next step is usually a project; the notification deep-links to
+  // /projects/new?fromQuotation=<financial_doc_id> (see notificationLink()).
+  // Nothing is created automatically.
+  accept_quotation:     (who, doc) => ['quotation_accepted', `Quotation ${doc.doc_number || doc.id} accepted: start a project?`, `${who} accepted ${doc.doc_number || doc.id}. Open to start a project from it.`],
   decline:              (who, doc, p) => ['document_declined', 'Document declined', `${who} declined ${doc.doc_number || doc.id}. Reason: ${p.reason || 'Not specified'}`],
   request_revision:     (who, doc, p) => ['revision_requested', `Revision requested for ${doc.doc_number || doc.id}`, p.notes || ''],
   confirm_order:        (who, doc) => ['order_confirmed', `Order confirmed for ${doc.doc_number || doc.id}`, `${who} confirmed the order.`],
   payment_confirmation: (who, doc, p) => ['payment_submitted', `Payment submitted for ${doc.doc_number || doc.id}`, `${formatAmount(p.payment)} — UTR: ${p.payment?.transactionId || '—'}`],
-  proforma_payment:     (who, doc, p) => ['advance_paid', `Advance payment received for ${doc.doc_number || doc.id}`, `${formatAmount(p.payment)} advance paid`],
+  // Submitted, not received: the org has not verified it yet.
+  proforma_payment:     (who, doc, p) => ['advance_submitted', `Advance submitted for ${doc.doc_number || doc.id}`, `${formatAmount(p.payment)} — UTR: ${p.payment?.transactionId || '—'}. Verify it on Proforma Invoices.`],
 };
 
 function labelFor(type) {

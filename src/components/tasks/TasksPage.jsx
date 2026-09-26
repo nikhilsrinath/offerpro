@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { taskStore } from '../../services/taskStore';
 import { orgStore } from '../../services/orgStore';
+import { useAuth } from '../../context/AuthContext';
+import { useSection } from '../financial/financeHooks';
+import ProjectBadge from '../projects/ProjectBadge';
 import TaskModal from './TaskModal';
 import {
     Page, Toolbar, Panel, Row, Btn, Seg, Search, Select, Table, Tr, Td,
@@ -19,6 +23,11 @@ import { useT, MONO } from '../ui/edgeUtils';
    done is one click rather than open-edit-save. Priority is a word, not a
    coloured chip, and only High and Overdue are allowed to use colour — if
    everything is highlighted, nothing is.
+
+   Tasks belong to a project or to nobody ("General"). With `projectId` the
+   board is that project's and the project filter is fixed — that is how the
+   project page's Tasks tab uses it; on its own route it also honours
+   ?project=<id>.
    ══════════════════════════════════════════════════════════════════════════ */
 
 const COLUMNS = [
@@ -51,13 +60,20 @@ function deadlineOf(dateStr) {
     return { text: d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }), tone: 'mute' };
 }
 
-export default function TasksPage() {
+export default function TasksPage({ projectId = null, embedded = false }) {
     const t = useT();
+    const { user } = useAuth();
+    const [params] = useSearchParams();
+    const projects = useSection('projects');
+    const milestones = useSection('project_milestones');
     const [tasks, setTasks] = useState([]);
     const [employees, setEmployees] = useState([]);
     const [view, setView] = useState('board');
     const [status, setStatus] = useState('all');
     const [who, setWho] = useState('all');
+    const [project, setProject] = useState(projectId || params.get('project') || 'all');
+    const [milestone, setMilestone] = useState('all');
+    const [mine, setMine] = useState(false);
     const [query, setQuery] = useState('');
     const [sortBy, setSortBy] = useState('deadline');
     const [showModal, setShowModal] = useState(false);
@@ -82,25 +98,41 @@ export default function TasksPage() {
     );
 
     const byId = useMemo(() => Object.fromEntries(employees.map((e) => [e.id, e])), [employees]);
+    const projectById = useMemo(() => Object.fromEntries(projects.map((p) => [p.id, p])), [projects]);
+    const myEmployeeId = useMemo(() => employees.find((e) => e.user_id && e.user_id === user?.id)?.id || null, [employees, user]);
+    const projectMilestones = useMemo(() => (project !== 'all' && project !== 'general'
+        ? milestones.filter((m) => m.project_id === project).sort((a, b) => a.sort_order - b.sort_order)
+        : []), [milestones, project]);
+
+    // The project scope applies before everything else, stats included: on a
+    // project's page, "3 overdue" means that project's.
+    const scoped = useMemo(() => tasks.filter((x) => {
+        if (project === 'general') return !x.projectId;
+        if (project !== 'all' && x.projectId !== project) return false;
+        if (milestone === 'none' && x.milestoneId) return false;
+        if (milestone !== 'all' && milestone !== 'none' && x.milestoneId !== milestone) return false;
+        if (mine && x.assignedTo !== myEmployeeId) return false;
+        return true;
+    }), [tasks, project, milestone, mine, myEmployeeId]);
 
     const stats = useMemo(() => ({
-        total: tasks.length,
-        pending: tasks.filter((x) => x.status === 'pending').length,
-        progress: tasks.filter((x) => x.status === 'in-progress').length,
-        done: tasks.filter((x) => x.status === 'done').length,
-        overdue: tasks.filter(isOverdue).length,
-    }), [tasks, isOverdue]);
+        total: scoped.length,
+        pending: scoped.filter((x) => x.status === 'pending').length,
+        progress: scoped.filter((x) => x.status === 'in-progress').length,
+        done: scoped.filter((x) => x.status === 'done').length,
+        overdue: scoped.filter(isOverdue).length,
+    }), [scoped, isOverdue]);
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
-        return tasks.filter((x) => {
+        return scoped.filter((x) => {
             if (status === 'overdue' ? !isOverdue(x) : status !== 'all' && x.status !== status) return false;
             if (who !== 'all' && x.assignedTo !== who) return false;
             if (q && !(x.title || '').toLowerCase().includes(q)
                 && !(x.description || '').toLowerCase().includes(q)) return false;
             return true;
         });
-    }, [tasks, status, who, query, isOverdue]);
+    }, [scoped, status, who, query, isOverdue]);
 
     const sorted = useMemo(() => [...filtered].sort((a, b) => {
         if (sortBy === 'deadline') {
@@ -116,12 +148,12 @@ export default function TasksPage() {
     // Load per person, so it is obvious who is carrying the open work.
     const load = useMemo(() => {
         const m = {};
-        tasks.filter((x) => x.status !== 'done').forEach((x) => {
+        scoped.filter((x) => x.status !== 'done').forEach((x) => {
             const n = empName(byId[x.assignedTo]) || 'Unassigned';
             m[n] = (m[n] || 0) + 1;
         });
         return Object.entries(m).map(([label, value]) => ({ label, value }));
-    }, [tasks, byId]);
+    }, [scoped, byId]);
 
     const move = async (task, next) => {
         try {
@@ -155,6 +187,10 @@ export default function TasksPage() {
                     {task.title}
                 </button>
 
+                {!projectId && task.projectId && (
+                    <div style={{ fontSize: 10, marginBottom: 7 }}><ProjectBadge project={projectById[task.projectId]} /></div>
+                )}
+
                 {task.description && (
                     <p style={{
                         margin: '0 0 9px', fontSize: 10, color: t.faint, lineHeight: 1.6,
@@ -186,17 +222,38 @@ export default function TasksPage() {
         );
     };
 
+    const Frame = embedded ? 'div' : Page;
     return (
-        <Page>
+        <Frame>
             <Toolbar right={<Btn primary onClick={openCreate}>New task</Btn>}>
                 <Seg value={view} onChange={setView} options={[
                     { id: 'board', label: 'Board' }, { id: 'list', label: 'List' },
                 ]} />
                 <Search value={query} onChange={setQuery} placeholder="Search tasks…" width={210} />
-                <Select value={who} onChange={(e) => setWho(e.target.value)} style={{ width: 168, height: 29 }}>
+                <Select aria-label="Assigned to" value={who} onChange={(e) => setWho(e.target.value)} style={{ width: 168, height: 29 }}>
                     <option value="all">Everyone</option>
                     {employees.map((e) => <option key={e.id} value={e.id}>{empName(e)}</option>)}
                 </Select>
+                {!projectId && (
+                    <Select aria-label="Project" value={project}
+                        onChange={(e) => { setProject(e.target.value); setMilestone('all'); }} style={{ width: 190, height: 29 }}>
+                        <option value="all">Every project</option>
+                        <option value="general">General (no project)</option>
+                        {projects.filter((p) => !p.archived_at || p.id === project).map((p) => (
+                            <option key={p.id} value={p.id}>{p.code} · {p.name}</option>
+                        ))}
+                    </Select>
+                )}
+                {projectMilestones.length > 0 && (
+                    <Select aria-label="Milestone" value={milestone} onChange={(e) => setMilestone(e.target.value)} style={{ width: 170, height: 29 }}>
+                        <option value="all">Every milestone</option>
+                        <option value="none">No milestone</option>
+                        {projectMilestones.map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}
+                    </Select>
+                )}
+                {myEmployeeId && (
+                    <Btn size="sm" aria-pressed={mine} onClick={() => setMine((v) => !v)}>{mine ? '\u2713 ' : ''}My tasks</Btn>
+                )}
                 {view === 'list' && (
                     <>
                         <Seg size="sm" value={status} onChange={setStatus} options={[
@@ -238,7 +295,7 @@ export default function TasksPage() {
                 </div>
             )}
 
-            {tasks.length === 0 ? (
+            {scoped.length === 0 ? (
                 <Panel>
                     <Empty action={<Btn primary onClick={openCreate}>Create the first task</Btn>}>
                         No tasks yet. Assign work here and the person sees it — with its deadline — in their portal.
@@ -280,6 +337,7 @@ export default function TasksPage() {
             ) : (
                 <Table cols={[
                     { key: 't', label: 'Task' },
+                    ...(projectId ? [] : [{ key: 'j', label: 'Project' }]),
                     { key: 'w', label: 'Assigned to' },
                     { key: 's', label: 'Status' },
                     { key: 'p', label: 'Priority' },
@@ -302,6 +360,7 @@ export default function TasksPage() {
                                         }}>{task.description}</span>
                                     )}
                                 </Td>
+                                {!projectId && <Td nowrap><ProjectBadge project={projectById[task.projectId]} /></Td>}
                                 <Td nowrap>
                                     <Row gap={8}>
                                         <Avatar name={empName(person) || '?'} size={22} />
@@ -331,10 +390,13 @@ export default function TasksPage() {
             {showModal && (
                 <TaskModal
                     task={editing}
+                    defaultProjectId={projectId || (project !== 'all' && project !== 'general' ? project : null)}
+                    defaultMilestoneId={milestone !== 'all' && milestone !== 'none' ? milestone : null}
+                    lockProject={!!projectId}
                     onClose={() => { setShowModal(false); setEditing(null); }}
                     onSaved={reload}
                 />
             )}
-        </Page>
+        </Frame>
     );
 }

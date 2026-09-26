@@ -1,0 +1,141 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   EdgeOS surface tokens — the hub and the EdgeAI copilot.
+
+   Set by `data-theme` on the element carrying `.eo-surface`, so a surface
+   themes itself without depending on the document root. Greys are chosen to
+   clear WCAG AA (4.5:1) on --card for --muted and --dim, since both carry
+   readable text; --ghost is for dividers and markers only.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Values are theme/edge.js makeTokens(), one-for-one, so the hub and the
+   copilot read as the same terminal theme as every module:
+     --bg panel · --card panel · --card-2 panelAlt · --card-3 raised
+     --line line · --line-2 lineStrong · --text text · --muted dim
+     --dim faint · --ghost ghost · --pos up · --neg down · --chart-a chart */
+.eo-surface[data-theme="dark"] {
+  --shell: #050506;
+  --bg: #0d0d0f;
+  --panel: #0d0d0f;
+  --card: #0d0d0f;
+  --card-2: #121215;
+  --card-3: #17171b;
+  --line: #1d1d21;
+  --line-soft: #161619;
+  --line-2: #2f2f36;
+  --line-3: #3f3f47;
+  --text: #f2f2f3;
+  --text-2: #f2f2f3;
+  --muted: #9a9aa3;
+  --dim: #7d7d86;
+  --ghost: #65656e;
+  --pos: #4ade80;
+  --neg: #f87171;
+  --accent: #2f6df6;
+  --sel-bg: #292930;
+  --sel-text: #ffffff;
+  --on-text: #0d0d0f;
+  --chart-a: #e8e8ea;
+  --chart-b: #5e5e67;
+  --map-null: #17171b;
+  --scale-1: #3a3a41;
+  --scale-2: #5e5e67;
+  --scale-3: #90909a;
+  --scale-4: #c8c8cf;
+  --scale-5: #ffffff;
+  --shadow: 0 24px 70px -24px rgba(0, 0, 0, .9);
+  --scrim: rgba(0, 0, 0, .5);
+  --orb: radial-gradient(circle at 35% 30%, #fff 0%, #a1a1aa 45%, #27272a 90%);
+  --orb-glow: rgba(255, 255, 255, .12);
+  --orb-glow-2: rgba(255, 255, 255, .22);
+  color-scheme: dark;
+}
+
+.eo-surface[data-theme="light"] {
+  --shell: #d3d9db;
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --card: #ffffff;
+  --card-2: #f7f9f9;
+  --card-3: #eef1f2;
+  --line: #e3e6e7;
+  --line-soft: #eef0f1;
+  --line-2: #c2c9cc;
+  --line-3: #a9b2b5;
+  --text: #0e1011;
+  --text-2: #0e1011;
+  --muted: #585f62;
+  --dim: #6c7376;
+  --ghost: #858c8f;
+  --pos: #15803d;
+  --neg: #b91c1c;
+  --accent: #2f6df6;
+  --sel-bg: #0e1011;
+  --sel-text: #ffffff;
+  --on-text: #ffffff;
+  --chart-a: #1b1e1f;
+  --chart-b: #98a2a5;
+  --map-null: #e8ebec;
+  --scale-1: #c3cacc;
+  --scale-2: #98a2a5;
+  --scale-3: #697376;
+  --scale-4: #3b4245;
+  --scale-5: #0e1011;
+  --shadow: 0 24px 60px -28px rgba(20, 28, 32, .45);
+  --scrim: rgba(20, 28, 32, .25);
+  --orb: radial-gradient(circle at 35% 30%, #ffffff 0%, #9aa3a6 40%, #1b1e1f 92%);
+  --orb-glow: rgba(14, 16, 17, .10);
+  --orb-glow-2: rgba(14, 16, 17, .18);
+  color-scheme: light;
+}
+
+.eo-surface {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* :where() keeps the reset at zero specificity, so any component class
+   (.hx-btn, .cp-send…) wins over it without !important. */
+:where(.eo-surface) :where(button) {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+
+.eo-surface :focus-visible {
+  outline: 2px solid var(--muted);
+  outline-offset: 2px;
+}
+
+.eo-surface ::selection {
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* Size and shape come from the global scrollbar in index.css. The standard
+   scrollbar-color/width properties are deliberately not set here: Chromium
+   drops ::-webkit-scrollbar styling on any element that uses them. */
+.eo-scroll { --scrollbar-thumb: var(--line-2); }
+
+.eo-scroll::-webkit-scrollbar-thumb {
+  background: var(--line-2);
+  background-clip: content-box;
+}
+
+.eo-sr {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0);
+  white-space: nowrap; border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eo-surface *, .eo-surface *::before, .eo-surface *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

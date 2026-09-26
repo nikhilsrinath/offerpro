@@ -153,7 +153,7 @@ export default function Announcements() {
                                             {a.is_pinned ? 'Unpin' : 'Pin'}
                                         </Btn>
                                         <Btn size="sm" onClick={() => openEditor(a)}>Edit</Btn>
-                                        <ConfirmBtn label="Delete" confirmLabel="Delete for everyone" onConfirm={() => remove(a)} />
+                                        <ConfirmBtn label="Delete" title="Delete announcement" message="It will be removed for everyone in the organisation. This cannot be undone." onConfirm={() => remove(a)} />
                                     </Row>
                                 </Row>
 

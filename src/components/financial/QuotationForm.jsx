@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Eye, Send, Save, MessageCircle, ArrowLeft } from 'lucide-react';
-import { documentStore } from '../../services/documentStore';
+import { Plus, Trash2, Eye, Send, Save, ArrowLeft } from 'lucide-react';
+import { documentStore, docNumber } from '../../services/documentStore';
 import { createPortalLink } from '../../services/portalService';
 import { customerService } from '../../services/customerService';
 import { useOrg } from '../../context/OrgContext';
-import PortalLinkGenerator from '../shared/PortalLinkGenerator';
+import { emailService } from '../../services/emailService';
 import ProductPicker from '../shared/ProductPicker';
 import { productToLineItem } from '../../services/catalogService';
 import CountrySelect from '../shared/CountrySelect';
@@ -80,10 +80,14 @@ export default function QuotationForm({ editDocId }) {
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const clientDropdownRef = useRef(null);
 
-  const [portalDoc, setPortalDoc] = useState(null);
-  const [portalLink, setPortalLink] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [originalCreatedAt, setOriginalCreatedAt] = useState(null);
+  // Where the document being edited stands: never sent (edited in place) or
+  // sent (every change goes to the client as the next version). Read fresh
+  // from the database, not the cache, because that decides how it saves.
+  const [version, setVersion] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const isRevision = isEditing && !!version?.published;
 
   const [formData, setFormData] = useState(() => ({
     clientName: '',
@@ -118,53 +122,82 @@ export default function QuotationForm({ editDocId }) {
     }
   }, [activeOrg]);
 
-  // Load existing document for editing
+  // Load existing document for editing. Waits for the store: opened directly
+  // (a refresh, a pasted link) the cache is still empty on the first render,
+  // and the form used to come up blank. Loads once per document, so an org
+  // context re-render cannot wipe edits in progress.
+  const loadedDocRef = useRef(null);
   useEffect(() => {
-    if (!editDocId) return;
-    const doc = documentStore.getById(editDocId);
-    if (!doc) return;
+    if (!editDocId || loadedDocRef.current === editDocId) return;
+    let cancelled = false;
+    (async () => {
+      if (activeOrg?.id) {
+        documentStore.setContext(activeOrg.id);
+        await documentStore.init().catch(() => { });
+      }
+      const doc = documentStore.getById(editDocId);
+      if (cancelled || !doc) return;
+      loadedDocRef.current = editDocId;
 
-    setIsEditing(true);
-    setOriginalCreatedAt(doc.created_at);
+      setIsEditing(true);
+      setOriginalCreatedAt(doc.created_at);
 
-    // Bump revision: v1 → v2, v2 → v3, etc.
-    const currentRev = doc.revision || 'v1';
-    const revNum = parseInt(currentRev.replace(/\D/g, ''), 10) || 1;
-    const nextRevision = `v${revNum + 1}`;
+      const currentRev = doc.revision || 'v1';
+      const revNum = parseInt(currentRev.replace(/\D/g, ''), 10) || 1;
 
-    setFormData({
-      clientName: doc.client?.name || doc.issued_to || '',
-      clientCompany: doc.client?.company || '',
-      clientAddress: doc.client?.address || '',
-      clientGstin: doc.client?.gstin || '',
-      // Read from the document, not the customer: this is the copy that was
-      // frozen when the quotation was raised.
-      clientCountry: doc.country_code || '',
-      clientEmail: doc.client?.email || '',
-      quotationNumber: doc.id,
-      quotationDate: doc.issue_date || new Date().toISOString().split('T')[0],
-      validUntil: doc.valid_until || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      revision: nextRevision,
-      discountType: doc.discount?.type || 'percent',
-      discountValue: doc.discount?.value || 0,
-      enableGst: doc.enableGst || false,
-      gstRate: doc.gstRate || 18,
-      items: (doc.items || []).map((item, i) => ({
-        id: Date.now() + i,
-        description: item.description || '',
-        quantity: item.quantity || 1,
-        unit: item.unit || 'Nos',
-        rate: item.rate || item.price || 0,
-        hsnSac: item.hsnSac || item.hsnCode || '',
-        // Without this, re-saving a quotation would drop its catalogue
-        // attribution and the product would lose the sale on conversion.
-        catalog_item_id: item.catalog_item_id || null,
-      })),
-      paymentInstructions: doc.payment_instructions || '',
-      terms: doc.terms || '',
-    });
-    setClientSearch(doc.client?.name || doc.issued_to || '');
-  }, [editDocId]);
+      setFormData({
+        clientName: doc.client?.name || doc.issued_to || '',
+        clientCompany: doc.client?.company || '',
+        clientAddress: doc.client?.address || '',
+        clientGstin: doc.client?.gstin || '',
+        // Read from the document, not the customer: this is the copy that was
+        // frozen when the quotation was raised.
+        clientCountry: doc.country_code || '',
+        clientEmail: doc.client?.email || '',
+        quotationNumber: docNumber(doc),
+        quotationDate: doc.issue_date || new Date().toISOString().split('T')[0],
+        validUntil: doc.valid_until || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        // Settled below once we know whether the client has seen it.
+        revision: currentRev,
+        // The columns first: they are what the totals trigger priced the
+        // document with. The camelCase names only exist on the form's side.
+        discountType: doc.discount_type || doc.discount?.type || 'percent',
+        discountValue: Number(doc.discount_value ?? doc.discount?.value) || 0,
+        enableGst: !!(doc.gst_enabled ?? doc.enableGst),
+        gstRate: Number(doc.gst_rate ?? doc.gstRate) || 18,
+        items: (doc.items || []).map((item, i) => ({
+          id: Date.now() + i,
+          description: item.description || '',
+          quantity: item.quantity || 1,
+          unit: item.unit || 'Nos',
+          rate: item.rate || item.price || 0,
+          // A reloaded line carries the column as `hsn`.
+          hsnSac: item.hsnSac || item.hsn || item.hsnCode || '',
+          // Without this, re-saving a quotation would drop its catalogue
+          // attribution and the product would lose the sale on conversion.
+          catalog_item_id: item.catalog_item_id || null,
+        })),
+        paymentInstructions: doc.payment_instructions || '',
+        terms: doc.terms || '',
+      });
+      setClientSearch(doc.client?.name || doc.issued_to || '');
+
+      documentStore.versionState(editDocId).then((state) => {
+        if (cancelled || !state) return;
+        const current = parseInt(String(state.revision || currentRev).replace(/\D/g, ''), 10) || revNum;
+        setVersion({
+          ...state,
+          current: `v${current}`,
+          next: `v${current + 1}`,
+          // Why the client sent it back, kept in view while revising.
+          revisionNotes: doc.revision_notes || '',
+          declineReason: doc.decline_reason || '',
+        });
+        setFormData((prev) => ({ ...prev, revision: state.published ? `v${current + 1}` : `v${current}` }));
+      }).catch(() => { /* the save re-checks; this only drives the banner */ });
+    })();
+    return () => { cancelled = true; };
+  }, [editDocId, activeOrg?.id]);
 
   const [totals, setTotals] = useState({
     subtotal: 0,
@@ -215,23 +248,27 @@ export default function QuotationForm({ editDocId }) {
     const q = clientSearch.toLowerCase();
     return savedClients.filter(
       (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.company.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q)
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.person_name || '').toLowerCase().includes(q) ||
+        (c.email || '').toLowerCase().includes(q)
     );
   }, [clientSearch, savedClients]);
 
   const handleSelectClient = (client) => {
-    setClientSearch(client.name);
+    // A saved client's name is the billing name (the company); person_name is
+    // the contact. An individual carries their name in both.
+    const contact = client.person_name || client.name || '';
+    const billedCompany = client.person_name && client.person_name !== client.name ? client.name : '';
+    setClientSearch(contact);
     setShowClientDropdown(false);
     setFormData((prev) => ({
       ...prev,
-      clientName: client.name,
-      clientCompany: client.company,
-      clientAddress: client.address,
+      clientName: contact,
+      clientCompany: billedCompany,
+      clientAddress: client.address || '',
       clientGstin: client.gstin || '',
       clientCountry: client.country_code || '',
-      clientEmail: client.email,
+      clientEmail: client.email || '',
     }));
   };
 
@@ -310,7 +347,9 @@ export default function QuotationForm({ editDocId }) {
     };
 
     return {
-      id: undefined,
+      // Editing saves THIS document. Leaving the id off used to insert a new
+      // quotation with a new number on every revise.
+      id: isEditing ? editDocId : undefined,
       type: 'quotation',
       status,
       // The FK to the client row, resolved by syncCustomer() before the save.
@@ -321,6 +360,12 @@ export default function QuotationForm({ editDocId }) {
       issued_to: formData.clientCompany || formData.clientName,
       company_profile: { ...company },
       client,
+      // The bill_to_* columns. Without these the row, and every version
+      // snapshot taken from it, named the recipient "Unnamed".
+      clientName: formData.clientCompany || formData.clientName,
+      clientEmail: formData.clientEmail,
+      clientAddress: formData.clientAddress,
+      buyerGSTIN: formData.clientGstin,
       amount: totals.grandTotal,
       valid_until: formData.validUntil,
       issue_date: formData.quotationDate,
@@ -366,6 +411,7 @@ export default function QuotationForm({ editDocId }) {
     try {
       const row = await customerService.upsert(activeOrg.id, {
         clientName: formData.clientCompany || formData.clientName,
+        person_name: formData.clientName || '',
         clientEmail: formData.clientEmail || '',
         clientAddress: formData.clientAddress || '',
         buyerGSTIN: formData.clientGstin || '',
@@ -380,10 +426,22 @@ export default function QuotationForm({ editDocId }) {
   };
 
   const handleSaveDraft = async () => {
-    const customerId = await syncCustomer();
-    await documentStore.save(buildDocument('draft', customerId));
-    toast('Quotation saved as draft', 'success');
-    navigate('/quotations');
+    if (saving) return;
+    setSaving(true);
+    try {
+      const customerId = await syncCustomer();
+      if (isEditing) {
+        await documentStore.saveEdit(editDocId, buildDocument('draft', customerId));
+      } else {
+        await documentStore.save(buildDocument('draft', customerId));
+      }
+      toast('Quotation saved as draft', 'success');
+      navigate('/quotations');
+    } catch (err) {
+      toast(err.message || 'Could not save the quotation', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSendToClient = async () => {
@@ -396,18 +454,44 @@ export default function QuotationForm({ editDocId }) {
       return;
     }
 
+    if (saving) return;
+    setSaving(true);
+
     // The row id and the document number are assigned by the database, so the
     // save has to complete before there is anything to link to.
-    const customerId = await syncCustomer();
-    const doc = await documentStore.save(buildDocument('sent', customerId));
+    let doc;
+    let published = false;
+    try {
+      const customerId = await syncCustomer();
+      if (isEditing) {
+        ({ doc, published } = await documentStore.saveEdit(editDocId, buildDocument('sent', customerId), {
+          send: true,
+          summary: version?.revisionNotes ? `Revised: ${version.revisionNotes}`.slice(0, 280) : undefined,
+        }));
+        // The request is answered; the new version is what the client sees now.
+        if (published && (version?.revisionNotes || version?.declineReason)) {
+          await documentStore.updateMeta(doc.id, { revision_notes: null, decline_reason: null }).catch(() => {});
+        }
+      } else {
+        doc = await documentStore.save(buildDocument('sent', customerId));
+      }
+    } catch (err) {
+      toast(err.message || 'Could not send the quotation', 'error');
+      setSaving(false);
+      return;
+    }
+    setSaving(false);
+    const label = published ? `${docNumber(doc)} ${doc.revision || ''}`.trim() : docNumber(doc);
 
     documentStore.addNotification({
       type: 'quotation_sent',
-      title: 'Quotation Sent',
-      message: `Quotation ${doc.id} sent to ${doc.issued_to}`,
+      title: published ? 'Quotation Revised' : 'Quotation Sent',
+      message: `Quotation ${label} sent to ${doc.issued_to}`,
       documentId: doc.id,
     });
 
+    // The quotation is saved and sent from here on, so every outcome below
+    // ends on the Quotations page. What differs is only what the toast says.
     let issued;
     try {
       issued = await createPortalLink({
@@ -416,22 +500,40 @@ export default function QuotationForm({ editDocId }) {
         recipientEmail: formData.clientEmail,
       });
     } catch (err) {
-      toast('Saved, but the portal link could not be created: ' + err.message, 'error');
+      toast(`Quotation saved, but the link could not be created: ${err.message}`, 'error');
+      navigate('/quotations');
       return;
     }
-    const portalUrl = issued.url;
 
-    // Open WhatsApp with pre-filled message
-    const phone = (formData.clientPhone || '').replace(/[^0-9+]/g, '');
-    const message = `Hi ${formData.clientName},\n\nPlease find your quotation *${doc.id}* from *${company.company_name}*.\n\nAmount: ₹${(doc.grand_total || 0).toLocaleString('en-IN')}\nValid until: ${formData.validUntil}\n\nView & respond here:\n${portalUrl}\n\nThank you!`;
-    const waUrl = `https://wa.me/${phone.replace('+', '')}?text=${encodeURIComponent(message)}`;
-    window.open(waUrl, '_blank');
+    const email = (formData.clientEmail || '').trim();
+    if (!email) {
+      toast(`${label} sent — link created. Copy it from the Quotations list to share.`, 'success');
+      navigate('/quotations');
+      return;
+    }
 
-    toast('Quotation sent — WhatsApp opened', 'success');
-    setPortalDoc(doc);
-    setPortalLink(issued);
-    // Give a short delay before redirecting so they see the toast and WhatsApp opens
-    setTimeout(() => navigate('/quotations'), 2000);
+    // The button keeps reading "Sending…" while the email goes out.
+    setSaving(true);
+    const mail = await emailService.sendQuotationLink({
+      orgProfile: activeOrg,
+      to: email,
+      recipientName: formData.clientName,
+      companyName: company.company_name,
+      number: label,
+      amount: doc.grand_total,
+      validUntil: formData.validUntil,
+      portalUrl: issued.url,
+      revised: published,
+    });
+    setSaving(false);
+    if (mail.success) {
+      toast(`${label} emailed to ${email}`, 'success');
+    } else {
+      // Saved and linked either way; only the delivery failed, and the link
+      // can still be copied from the list.
+      toast(`${label} saved and link created, but the email failed: ${mail.message}`, 'error');
+    }
+    navigate('/quotations');
   };
 
   return (
@@ -456,14 +558,10 @@ export default function QuotationForm({ editDocId }) {
             >
               <ArrowLeft size={16} /> Back
             </button>
-            <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>{isEditing ? 'Edit Quotation' : 'New Quotation'}</h2>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>{isRevision ? `Revise ${formData.quotationNumber}` : isEditing ? 'Edit Quotation' : 'New Quotation'}</h2>
           </div>
-          {/* Portal Link Generator (shown after send) */}
-          {portalDoc && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <PortalLinkGenerator documentId={portalDoc.id} documentType="quotation" link={portalLink} />
-            </div>
-          )}
+
+          {isRevision && <RevisionBanner version={version} />}
 
           {/* 1. Client Details */}
           <div className="easy-section">
@@ -493,7 +591,7 @@ export default function QuotationForm({ editDocId }) {
                       >
                         <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{c.name}</span>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-                          {c.company} {c.email ? `\u00B7 ${c.email}` : ''}
+                          {[c.person_name !== c.name && c.person_name, c.email].filter(Boolean).join(' \u00B7 ')}
                         </span>
                       </div>
                     ))}
@@ -552,8 +650,8 @@ export default function QuotationForm({ editDocId }) {
                 />
               </div>
               <div className="easy-field">
-                <label className="easy-lbl">Client phone (WhatsApp)</label>
-                <input aria-label="Client phone (WhatsApp)"
+                <label className="easy-lbl">Client phone</label>
+                <input aria-label="Client phone"
                   type="tel"
                   placeholder="+91 98765 43210"
                   value={formData.clientPhone}
@@ -575,8 +673,10 @@ export default function QuotationForm({ editDocId }) {
                 <label className="easy-lbl">Quotation number</label>
                 <input aria-label="Quotation number"
                   type="text"
+                  readOnly
                   value={formData.quotationNumber}
-                  onChange={(e) => setFormData({ ...formData, quotationNumber: e.target.value })}
+                  placeholder="Assigned when saved"
+                  title="Numbers are assigned by the system and never change"
                   className="easy-inp"
                   style={{ fontWeight: 700 }}
                 />
@@ -603,8 +703,9 @@ export default function QuotationForm({ editDocId }) {
                 <label className="easy-lbl">Revision</label>
                 <input aria-label="Revision"
                   type="text"
+                  readOnly
                   value={formData.revision}
-                  onChange={(e) => setFormData({ ...formData, revision: e.target.value })}
+                  title="Goes up by one each time a changed quotation is sent to the client"
                   className="easy-inp"
                 />
               </div>
@@ -889,17 +990,21 @@ export default function QuotationForm({ editDocId }) {
           </div>
 
           {/* 6. Actions */}
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-            <button type="button" onClick={handleSaveDraft} className="easy-submit-outline" style={{ flex: '1 1 140px', minWidth: 0 }}>
-              <Save size={16} /> Save Draft
-            </button>
+          <div className="form-actions">
+            {/* A sent quotation has no draft state to save into: the client
+                already holds a version, and the next one exists once it is sent. */}
+            {!isRevision && (
+              <button type="button" onClick={handleSaveDraft} disabled={saving} className="easy-submit-outline">
+                <Save size={16} /> Save Draft
+              </button>
+            )}
             <button
               type="button"
               onClick={handleSendToClient}
+              disabled={saving}
               className="easy-submit"
-              style={{ flex: '2 1 200px', minWidth: 0, background: '#25D366', gap: '0.5rem' }}
             >
-              <MessageCircle size={16} /> Send via WhatsApp
+              <Send size={16} /> {saving ? 'Sending…' : isRevision ? `Send ${version.next} to client` : 'Send to client'}
             </button>
           </div>
         </form>
@@ -1370,6 +1475,42 @@ export default function QuotationForm({ editDocId }) {
           </div>
         </A4Stage>
       </div>
+    </div>
+  );
+}
+
+/* What revising a sent quotation means, said once, above the form: the same
+   quotation and link, a new version, and why the client sent it back. */
+function RevisionBanner({ version }) {
+  const note = version.revisionNotes || version.declineReason;
+  return (
+    <div
+      role="note"
+      style={{
+        border: '1px solid var(--border-default)', borderRadius: 10,
+        background: 'var(--surface)', padding: '0.75rem 0.9rem', marginBottom: '1.25rem',
+      }}
+    >
+      <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+        The client has {version.current}. Sending creates {version.next} of this same quotation.
+      </div>
+      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 3, lineHeight: 1.5 }}>
+        Their link will show {version.next}; {version.current} stays in the history.
+      </div>
+      {note && (
+        <div style={{ marginTop: '0.6rem' }}>
+          <div style={{ fontSize: '0.65rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            {version.revisionNotes ? 'Client asked for' : 'Client declined because'}
+          </div>
+          <p style={{
+            margin: '0.3rem 0 0', padding: '0.5rem 0.7rem', borderRadius: 7,
+            background: 'var(--background)', border: '1px solid var(--border-default)',
+            fontSize: '0.8rem', lineHeight: 1.55, whiteSpace: 'pre-wrap', color: 'var(--text-primary)',
+          }}>
+            {note}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

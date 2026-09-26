@@ -8,7 +8,7 @@ import { DEPT_PALETTE } from './TeamHierarchy';
 import { useOrg } from '../context/OrgContext';
 import { useAuth } from '../context/AuthContext';
 import EmployeeForm from './EmployeeForm';
-import AccessRolePicker from './settings/AccessRolePicker';
+import MemberAccess from './settings/MemberAccess';
 import { EmployeePhotoFill } from './shared/EmployeeAvatar';
 import { portalAccessService } from '../services/portalAccessService';
 import {
@@ -19,6 +19,7 @@ import {
 import { useT, fmtDate, MONO } from './ui/edgeUtils';
 import { Mail, Phone } from 'lucide-react';
 import EmployeeWorkInsights from './people/EmployeeWorkInsights';
+import RelatedProjects from './projects/RelatedProjects';
 import { PhotoPortrait } from './portal/me/portalKit';
 import { tenureLabel, daysUntilBirthday, useWindowWidth } from './portal/me/portalUtils';
 
@@ -70,7 +71,7 @@ const ACCESS_LABEL = {
     unknown: 'Checking…',
 };
 
-function PortalAccess({ emp, orgId }) {
+function PortalAccess({ emp, orgId, onChanged }) {
     const t = useT();
     const [row, setRow] = useState(null);
     const [state, setState] = useState('unknown');
@@ -95,7 +96,7 @@ function PortalAccess({ emp, orgId }) {
 
     const run = async (fn) => {
         setBusy(true); setError(''); setNote('');
-        try { await fn(); load(); }
+        try { await fn(); load(); onChanged?.(); }
         catch (err) { setError(err.message || 'That did not work.'); }
         finally { setBusy(false); }
     };
@@ -200,6 +201,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
     const [link, setLink] = useState(null);
     const [busy, setBusy] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [accessKey, setAccessKey] = useState(0);   // remounts MemberAccess after a login changes
 
     const winW = useWindowWidth();
     const isSelf = currentUserEmail && (emp.email || '').toLowerCase() === currentUserEmail.toLowerCase();
@@ -377,7 +379,8 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
             title={name || 'Employee'} note={[emp.role, emp.department].filter(Boolean).join(' · ') || undefined}
             footer={
                 <>
-                    {!isSelf && <ConfirmBtn size="md" label="Delete record" confirmLabel="Delete for good" onConfirm={() => onDelete(emp.id)} />}
+                    {!isSelf && <ConfirmBtn size="md" label="Delete record" confirmLabel="Delete" title="Delete employee"
+                        message={`Are you sure you want to delete ${name || 'this employee'} from the registry? This cannot be undone.`} onConfirm={() => onDelete(emp.id)} />}
                     <div style={{ flex: 1 }} />
                     <Btn onClick={() => setView('termination')}>End employment</Btn>
                     <Btn onClick={() => setView('role_change')}>Role change</Btn>
@@ -448,14 +451,13 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
                 <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
                     <EmployeeWorkInsights emp={emp} orgId={orgId} narrow={!wide} />
 
+                    <RelatedProjects employeeId={emp.id} />
+
                     <div>
                         <div style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.faint, margin: '4px 0 9px' }}>ACCESS</div>
-                        <div style={{
-                            display: 'grid', gap: 12, alignItems: 'start',
-                            gridTemplateColumns: wide ? 'repeat(2, minmax(0, 1fr))' : '1fr',
-                        }}>
-                            <AccessRolePicker email={emp.email} />
-                            <PortalAccess emp={emp} orgId={orgId} />
+                        <div style={{ display: 'grid', gap: 12, alignItems: 'start' }}>
+                            <PortalAccess emp={emp} orgId={orgId} onChanged={() => setAccessKey((k) => k + 1)} />
+                            <MemberAccess key={accessKey} email={emp.email} name={name} />
                         </div>
                     </div>
                 </div>
@@ -850,7 +852,8 @@ export default function Employees() {
                                         <span style={{ fontSize: 9.5, color: t.ghost }}>{d.count}</span>
                                     </button>
                                     {d.id && (
-                                        <ConfirmBtn label="×" confirmLabel="Sure?"
+                                        <ConfirmBtn label="×" confirmLabel="Delete" title="Delete department"
+                                            message={`Are you sure you want to delete the ${d.name} department? People in it keep their records.`}
                                             onConfirm={() => storageService.deleteDepartment(d.id, activeOrg?.id).then(loadDepartments)} />
                                     )}
                                 </Row>

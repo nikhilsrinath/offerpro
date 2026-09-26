@@ -4,6 +4,7 @@ import { storageService } from '../services/storageService';
 import { pdfService } from '../services/pdfService';
 import { emailService } from '../services/emailService';
 import { useOrg } from '../context/OrgContext';
+import { confirmDialog } from '../services/confirm';
 
 const TYPE_CONFIG = {
   offer: { icon: Briefcase, color: '#3b82f6', bg: '#3b82f612', bgSolid: 'rgba(59,130,246,0.08)', label: 'Offer Letter' },
@@ -48,7 +49,7 @@ export default function InternRecords() {
   }, [activeOrg]);
 
   const handleDelete = async (id) => {
-    if (window.confirm('Delete this record permanently?')) {
+    if (await confirmDialog({ title: 'Delete record', message: 'Are you sure you want to delete this record? This cannot be undone.' })) {
       try {
         await storageService.delete(id, activeOrg?.id);
         loadRecords();
