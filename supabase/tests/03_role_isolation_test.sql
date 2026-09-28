@@ -78,6 +78,7 @@ insert into memberships (org_id, user_id, role) values
 do $$
 declare o uuid; s text; d uuid; e uuid; f uuid; r uuid; n uuid; l uuid; v uuid;
         ie uuid; pj uuid; bn1 uuid; bn2 uuid; ld uuid;
+        cl uuid; ri uuid; pf uuid; pfl uuid;
 begin
   foreach o in array array['c0000000-0000-0000-0000-00000000000a',
                            'c0000000-0000-0000-0000-00000000000b']::uuid[] loop
@@ -97,7 +98,7 @@ begin
     insert into customers (org_id, name) values (o, 'Customer ' || s);
     insert into crm_leads (org_id, company_name) values (o, 'Lead ' || s);
     insert into products (org_id, name) values (o, 'Product ' || s);
-    insert into clients (org_id, name) values (o, 'Client ' || s);
+    insert into clients (org_id, name) values (o, 'Client ' || s) returning id into cl;
     insert into catalog_items (org_id, name, sku) values (o, 'Item ' || s, 'SKU-' || s);
     insert into expenses (org_id, description, amount) values (o, 'Expense ' || s, 10);
     insert into records (org_id, doc_number, type, title) values (o, 'OL-2026-9' || s, 'offer', 'Offer ' || s)
@@ -166,6 +167,24 @@ begin
     with w as (insert into tasks (org_id, title, project_id) values (o, 'WBS A ' || s, pj), (o, 'WBS B ' || s, pj) returning id)
     insert into task_dependencies (org_id, predecessor_id, successor_id)
       select o, min(id::text)::uuid, max(id::text)::uuid from w;
+
+    -- Team Management (0073): one RACI row with one letter on it.
+    insert into project_raci_items (org_id, project_id, title) values (o, pj, 'RACI ' || s) returning id into ri;
+    insert into project_raci_assignments (org_id, project_id, item_id, employee_id, role) values (o, pj, ri, e, 'A');
+
+    -- Client, vendor and document management (0074).
+    insert into project_clients (org_id, project_id, client_id) values (o, pj, cl);
+    insert into project_vendors (org_id, project_id, vendor_id) values (o, pj, v);
+    insert into vendor_bank_accounts (org_id, vendor_id, account_name) values (o, v, 'Account ' || s);
+    insert into client_channels (org_id, project_id, client_id, channel) values (o, pj, cl, 'email');
+    insert into client_communications (org_id, project_id, client_id, channel, subject) values (o, pj, cl, 'phone', 'Call ' || s);
+    insert into project_folders (org_id, project_id, name) values (o, pj, 'Folder ' || s) returning id into pfl;
+    insert into project_files (org_id, project_id, folder_id, name, storage_path)
+      values (o, pj, pfl, 'file-' || s || '.pdf', o || '/' || pj || '/file.pdf') returning id into pf;
+    insert into project_file_versions (org_id, project_id, file_id, version, storage_path)
+      values (o, pj, pf, 1, o || '/' || pj || '/file.pdf');
+    insert into client_approvals (org_id, project_id, client_id, item_name, file_id) values (o, pj, cl, 'Design ' || s, pf);
+    insert into project_templates (org_id, project_id, name, body_html) values (o, pj, 'Template ' || s, '<p>{{client_name}}</p>');
 
     -- AI call log (0067), written by the API.
     insert into ai_usage_events (org_id, surface) values (o, 'copilot');
@@ -282,6 +301,17 @@ select c.table_name as tbl,
                                 when 'project_code_counters' then 'projects'
                                 when 'timesheet_entries' then 'timesheets'
                                 when 'task_dependencies' then 'tasks'
+                                when 'project_raci_items' then 'project_members'
+                                when 'project_raci_assignments' then 'project_members'
+                                when 'project_clients' then 'clients'
+                                when 'client_channels' then 'clients'
+                                when 'client_communications' then 'clients'
+                                when 'client_approvals' then 'clients'
+                                when 'project_vendors' then 'vendors'
+                                when 'vendor_bank_accounts' then 'vendor_banking'
+                                when 'project_folders' then 'project_files'
+                                when 'project_file_versions' then 'project_files'
+                                when 'project_templates' then 'project_files'
                                 when 'library_chunks'  then 'library_documents'
                                 when 'ai_usage_events' then 'usage_counters'
                                 when 'document_negotiation_events' then 'document_negotiation'

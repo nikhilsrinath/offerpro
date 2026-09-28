@@ -105,6 +105,10 @@ export const leaveService = {
     if (!orgId) return [];
     let q = supabase.from('leave_requests').select(REQ_SELECT).eq('org_id', orgId);
     if (filters.employeeId) q = q.eq('employee_id', filters.employeeId);
+    if (filters.employeeIds) q = q.in('employee_id', filters.employeeIds);
+    // Any request touching [overlapsFrom, overlapsTo], not only ones inside it.
+    if (filters.overlapsFrom) q = q.gte('end_date', filters.overlapsFrom);
+    if (filters.overlapsTo) q = q.lte('start_date', filters.overlapsTo);
     if (filters.status) q = q.eq('status', filters.status);
     if (filters.typeId) q = q.eq('leave_type_id', filters.typeId);
     if (filters.from) q = q.gte('start_date', filters.from);
@@ -170,6 +174,17 @@ export const leaveService = {
       .from('leave_balances_v')
       .select('leave_type_id, leave_type_name, year, quota, taken, adjusted, remaining')
       .eq('org_id', orgId).eq('employee_id', employeeId);
+    if (error) throw error;
+    return data || [];
+  },
+
+  /** Balances for several people at once, for one year. */
+  async balancesFor(orgId, employeeIds, year = new Date().getFullYear()) {
+    if (!orgId || !employeeIds?.length) return [];
+    const { data, error } = await supabase
+      .from('leave_balances_v')
+      .select('employee_id, leave_type_id, leave_type_name, year, quota, taken, adjusted, remaining')
+      .eq('org_id', orgId).in('employee_id', employeeIds).eq('year', year);
     if (error) throw error;
     return data || [];
   },

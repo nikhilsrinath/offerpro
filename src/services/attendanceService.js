@@ -93,6 +93,18 @@ export const attendanceService = {
     return data || [];
   },
 
+  /** Several people over a date range — a project's attendance grid. */
+  async listRange(orgId, employeeIds, from, to) {
+    if (!orgId || !employeeIds?.length) return [];
+    const { data, error } = await supabase
+      .from('attendance_days').select(SELECT)
+      .eq('org_id', orgId).in('employee_id', employeeIds)
+      .gte('work_date', from).lte('work_date', to)
+      .order('work_date');
+    if (error) throw error;
+    return data || [];
+  },
+
   /** One employee's row for one date, or null. */
   async getDay(orgId, employeeId, date) {
     if (!orgId || !employeeId) return null;

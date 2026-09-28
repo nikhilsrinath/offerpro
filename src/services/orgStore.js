@@ -41,6 +41,15 @@ const num = (v, dflt = null) => (v === undefined || v === '' || v === null ? dfl
 const date = (v) => (v ? String(v).slice(0, 10) : null);
 const nowIso = () => new Date().toISOString();
 
+const jsonList = (v) => (Array.isArray(v) ? v : []);
+
+/** Only the keys the caller actually set, each through its converter. */
+function optional(item, converters) {
+  const out = {};
+  for (const [k, fn] of Object.entries(converters)) if (item[k] !== undefined) out[k] = fn(item[k]);
+  return out;
+}
+
 function stripNulls(row) {
   const out = {};
   for (const [k, v] of Object.entries(row)) if (v !== undefined) out[k] = v;
@@ -247,6 +256,167 @@ const SECTIONS = {
     }),
   },
 
+  // The RACI matrix (0073): its rows, and one letter per person per row.
+  // A cell's project_id is stamped by the database from its row.
+  project_raci_items: {
+    table: 'project_raci_items',
+    order: 'position',
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, title: r.title, kind: r.kind || 'task',
+      task_id: r.task_id || null, milestone_id: r.milestone_id || null,
+      position: r.position ?? 0, created_at: r.created_at,
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, title: String(i.title || '').trim(),
+      kind: ['task', 'deliverable', 'milestone'].includes(i.kind) ? i.kind : 'task',
+      task_id: nn(i.task_id), milestone_id: nn(i.milestone_id),
+      position: Math.round(num(i.position, 0)),
+    }),
+  },
+  project_raci_assignments: {
+    table: 'project_raci_assignments',
+    order: 'created_at',
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, item_id: r.item_id, employee_id: r.employee_id, role: r.role,
+    }),
+    toRow: (i) => ({
+      item_id: i.item_id, employee_id: i.employee_id, role: i.role,
+    }),
+  },
+
+  // ── Client, vendor and document management (0074) ─────────────────────────
+  // The project's clients besides projects.client_id, and its vendors.
+  project_clients: {
+    table: 'project_clients',
+    order: 'created_at',
+    fromRow: (r) => ({ id: r.id, project_id: r.project_id, client_id: r.client_id, created_at: r.created_at }),
+    toRow: (i) => ({ project_id: i.project_id, client_id: i.client_id }),
+  },
+  project_vendors: {
+    table: 'project_vendors',
+    order: 'created_at',
+    fromRow: (r) => ({ id: r.id, project_id: r.project_id, vendor_id: r.vendor_id, scope: r.scope || '', created_at: r.created_at }),
+    toRow: (i) => ({ project_id: i.project_id, vendor_id: i.vendor_id, scope: nn(i.scope) }),
+  },
+  // Owner/admin by default (vendor_banking); nobody else even asks.
+  vendor_bank_accounts: {
+    table: 'vendor_bank_accounts',
+    order: 'created_at',
+    requires: ['vendor_banking', 'view'],
+    fromRow: (r) => ({
+      id: r.id, vendor_id: r.vendor_id, account_name: r.account_name || '', account_number: r.account_number || '',
+      bank_name: r.bank_name || '', ifsc: r.ifsc || '', swift: r.swift || '',
+    }),
+    toRow: (i) => ({
+      vendor_id: i.vendor_id, account_name: nn(i.account_name), account_number: nn(i.account_number),
+      bank_name: nn(i.bank_name), ifsc: nn((i.ifsc || '').trim().toUpperCase()), swift: nn((i.swift || '').trim().toUpperCase()),
+    }),
+  },
+  client_channels: {
+    table: 'client_channels',
+    order: 'created_at',
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, client_id: r.client_id, channel: r.channel,
+      contact_name: r.contact_name || '', detail: r.detail || '', preferred: !!r.preferred, notes: r.notes || '',
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, client_id: i.client_id, channel: i.channel,
+      contact_name: nn(i.contact_name), detail: nn(i.detail), preferred: bool(i.preferred), notes: nn(i.notes),
+    }),
+  },
+  client_communications: {
+    table: 'client_communications',
+    order: 'occurred_at',
+    orderDesc: true,
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, client_id: r.client_id || null, occurred_at: r.occurred_at,
+      channel: r.channel, subject: r.subject, summary: r.summary || '', participants: r.participants || [],
+      contact_name: r.contact_name || '', logged_by: r.logged_by || null, created_at: r.created_at, updated_at: r.updated_at,
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, client_id: nn(i.client_id), occurred_at: i.occurred_at || nowIso(),
+      channel: i.channel, subject: String(i.subject || '').trim(), summary: nn(i.summary),
+      participants: jsonList(i.participants).map((x) => String(x).trim()).filter(Boolean),
+      contact_name: nn(i.contact_name),
+    }),
+  },
+  client_approvals: {
+    table: 'client_approvals',
+    order: 'sent_on',
+    orderDesc: true,
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, client_id: r.client_id || null, item_name: r.item_name,
+      item_type: r.item_type, file_id: r.file_id || null, milestone_id: r.milestone_id || null,
+      sent_on: r.sent_on, sent_by: r.sent_by || null, status: r.status, client_remarks: r.client_remarks || '',
+      responded_on: r.responded_on || null, contact_name: r.contact_name || '', created_by: r.created_by,
+      created_at: r.created_at, updated_at: r.updated_at,
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, client_id: nn(i.client_id), item_name: String(i.item_name || '').trim(),
+      item_type: i.item_type || 'document', file_id: nn(i.file_id), milestone_id: nn(i.milestone_id),
+      sent_on: date(i.sent_on) || date(nowIso()), sent_by: nn(i.sent_by), status: i.status || 'pending',
+      client_remarks: nn(i.client_remarks), responded_on: date(i.responded_on), contact_name: nn(i.contact_name),
+    }),
+  },
+  project_folders: {
+    table: 'project_folders',
+    order: 'name',
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, parent_id: r.parent_id || null, name: r.name,
+      visible_roles: r.visible_roles || null, created_by: r.created_by, created_at: r.created_at, updated_at: r.updated_at,
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, parent_id: nn(i.parent_id), name: String(i.name || '').trim(),
+      visible_roles: Array.isArray(i.visible_roles) && i.visible_roles.length ? i.visible_roles : null,
+    }),
+  },
+  project_files: {
+    table: 'project_files',
+    order: 'name',
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, folder_id: r.folder_id || null, name: r.name, tags: r.tags || [],
+      visible_roles: r.visible_roles || null, link_type: r.link_type || null, link_id: r.link_id || null,
+      version: r.version, storage_path: r.storage_path, size_bytes: Number(r.size_bytes) || 0,
+      mime_type: r.mime_type || '', created_by: r.created_by, updated_by: r.updated_by,
+      created_at: r.created_at, updated_at: r.updated_at,
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, folder_id: nn(i.folder_id), name: String(i.name || '').trim(),
+      tags: jsonList(i.tags).map((x) => String(x).trim().toLowerCase()).filter(Boolean),
+      visible_roles: Array.isArray(i.visible_roles) && i.visible_roles.length ? i.visible_roles : null,
+      link_type: nn(i.link_type), link_id: nn(i.link_id),
+      version: Math.max(1, Math.round(num(i.version, 1))), storage_path: i.storage_path,
+      size_bytes: Math.round(num(i.size_bytes, 0)), mime_type: nn(i.mime_type),
+    }),
+  },
+  project_file_versions: {
+    table: 'project_file_versions',
+    order: 'version',
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, file_id: r.file_id, version: r.version, storage_path: r.storage_path,
+      size_bytes: Number(r.size_bytes) || 0, mime_type: r.mime_type || '', note: r.note || '',
+      uploaded_by: r.uploaded_by, created_at: r.created_at,
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, file_id: i.file_id, version: Math.round(num(i.version, 1)),
+      storage_path: i.storage_path, size_bytes: Math.round(num(i.size_bytes, 0)),
+      mime_type: nn(i.mime_type), note: nn(i.note),
+    }),
+  },
+  project_templates: {
+    table: 'project_templates',
+    order: 'name',
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, name: r.name, category: r.category, body_html: r.body_html || '',
+      file_path: r.file_path || null, file_name: r.file_name || '', created_by: r.created_by,
+      created_at: r.created_at, updated_at: r.updated_at,
+    }),
+    toRow: (i) => ({
+      project_id: i.project_id, name: String(i.name || '').trim(), category: i.category || 'other',
+      body_html: nn(i.body_html), file_path: nn(i.file_path), file_name: nn(i.file_name),
+    }),
+  },
+
   // billing_amount is derived from billing_pct × contract value when a
   // percentage is set, and status 'invoiced' only arrives with an invoice_id
   // (0047). Both are still sent: the guard recomputes one and checks the other.
@@ -347,6 +517,14 @@ const SECTIONS = {
       archived_at: r.archived_at,
       created_at: r.created_at,
       updated_at: r.updated_at,
+      // 0074: the profile a project's Client Directory keeps. Present only
+      // when the database has the columns — an update round-trips the cached
+      // item, and these must not be sent to a database without them.
+      ...('contacts' in r ? {
+        industry: r.industry || '', website: r.website || '', logo_path: r.logo_path || null,
+        contact_designation: r.contact_designation || '', alt_contact: r.alt_contact || '',
+        client_since: r.client_since || null, contacts: Array.isArray(r.contacts) ? r.contacts : [],
+      } : {}),
     }),
     toRow: (i) => ({
       name: i.clientName || i.name || 'Unnamed',
@@ -363,6 +541,9 @@ const SECTIONS = {
       position: num(i.position, 0),
       source: i.source || 'manual',
       extra: i.extra || {},
+      // 0074 columns go only when a caller sets them, so every older save path
+      // (and a database without 0074) is untouched.
+      ...optional(i, { industry: nn, website: nn, logo_path: nn, contact_designation: nn, alt_contact: nn, client_since: date, contacts: jsonList }),
     }),
   },
 
@@ -586,6 +767,12 @@ const SECTIONS = {
       email: r.email, phone: r.phone, address: r.address, state: r.state,
       gstin: r.gstin, payment_terms_days: r.payment_terms_days,
       category: r.category, notes: r.notes, archived_at: r.archived_at,
+      // 0074, present only when the database has the columns (see customers).
+      ...('contacts' in r ? {
+        logo_path: r.logo_path || null, website: r.website || '', contacts: Array.isArray(r.contacts) ? r.contacts : [],
+        contract_start: r.contract_start || null, contract_end: r.contract_end || null,
+        contract_value: r.contract_value == null ? null : Number(r.contract_value), status: r.status || 'active',
+      } : {}),
       created_at: r.created_at,
     }),
     toRow: (i) => ({
@@ -596,6 +783,10 @@ const SECTIONS = {
       payment_terms_days: num(i.payment_terms_days, 30),
       category: nn(i.category), notes: nn(i.notes),
       archived_at: nn(i.archived_at),
+      ...optional(i, {
+        logo_path: nn, website: nn, contacts: jsonList, contract_start: date, contract_end: date,
+        contract_value: (v) => (v === '' || v == null ? null : num(v)), status: (v) => (v === 'inactive' ? 'inactive' : 'active'),
+      }),
     }),
   },
 

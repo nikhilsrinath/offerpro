@@ -25,17 +25,29 @@ import CashBook from '../financial/CashBook';
 import PurchaseInvoices from '../financial/PurchaseInvoices';
 import TaxSummary from '../financial/TaxSummary';
 import ProjectTeam from './ProjectTeam';
-import ProjectDocuments from './ProjectDocuments';
+
 import ProjectActivity from './ProjectActivity';
 import TasksPage from '../tasks/TasksPage';
 import PmOverview from './pm/PmOverview';
 import WbsPage from './pm/WbsPage';
 import GanttPage from './pm/GanttPage';
+import RaciPage from './team/RaciPage';
+import ProjectAttendance from './team/ProjectAttendance';
+import ProjectAnnouncements from './team/ProjectAnnouncements';
+import ClientDirectory from './parties/ClientDirectory';
+import ClientCommunication from './parties/ClientCommunication';
+import PaymentStatus from './parties/PaymentStatus';
+import VendorDirectory from './parties/VendorDirectory';
+import ProjectFiles from './docs/ProjectFiles';
+import ProjectTemplates from './docs/ProjectTemplates';
+import { orgStore } from '../../services/orgStore';
 import '../../theme/surface.css';
 import {
     LayoutDashboard, Wallet, Users, Flag, FileText, History,
     Gauge, BookOpen, Receipt, ShoppingCart, Scale, TrendingUp,
     FolderKanban, Briefcase, ListTree, SquareKanban, ChartGantt,
+    UsersRound, Network, CalendarCheck, Megaphone,
+    Handshake, Building2, MessagesSquare, BadgeIndianRupee, Truck, FolderOpen, FilePen, Contact,
 } from 'lucide-react';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -69,16 +81,31 @@ const TABS = [
     { id: 'wbs', parent: 'pm', label: 'Tasks (WBS)', icon: ListTree },
     { id: 'tasks', parent: 'pm', label: 'Kanban Board', icon: SquareKanban },
     { id: 'gantt', parent: 'pm', label: 'Gantt Chart', icon: ChartGantt },
-    { id: 'team', label: 'Team', icon: Users },
+    // Team Management is four pages over the project's people, folded the
+    // same way. Team Members keeps the id 'team', so older ?tab=team links
+    // (and the new-project redirect) still land on it.
+    { id: 'team', parent: 'tm', label: 'Team Members', icon: Users },
+    { id: 'raci', parent: 'tm', label: 'Team Hierarchy', icon: Network },
+    { id: 'attendance', parent: 'tm', label: 'Attendance', icon: CalendarCheck },
+    { id: 'announcements', parent: 'tm', label: 'Announcements', icon: Megaphone },
+    // Client, Vendor and Documents Management (0074), folded the same way.
+    // Project Documents keeps the id 'documents', so older ?tab=documents
+    // links land on it; the links it used to be are its Linked records view.
+    { id: 'clients', parent: 'cm', label: 'Client Directory', icon: Contact },
+    { id: 'comms', parent: 'cm', label: "Client's Communication", icon: MessagesSquare },
+    { id: 'payments', parent: 'cm', label: 'Payment Status & Pendings', icon: BadgeIndianRupee, fin: true, pay: true },
+    { id: 'vendors', parent: 'vm', label: 'Vendor Directory', icon: Truck },
+    { id: 'documents', parent: 'dm', label: 'Project Documents', icon: FolderOpen },
+    { id: 'templates', parent: 'dm', label: 'Custom Templates', icon: FilePen },
     { id: 'milestones', label: 'Milestones', icon: Flag },
-    { id: 'documents', label: 'Documents', icon: FileText },
+
     { id: 'activity', label: 'Activity', icon: History },
 ];
 
 // The sections this user may open, and which one ?tab= names.
 export function projectSections() {
     const fin = canSeeFinancials();
-    return TABS.filter((x) => !x.fin || fin);
+    return TABS.filter((x) => (!x.fin || fin) && (!x.pay || orgStore.can('payments', 'view')));
 }
 /** The page ?tab= names; 'home' is the project's hub, the bare /projects/:id. */
 export function activeSection(params, sections = projectSections()) {
@@ -89,6 +116,10 @@ export function activeSection(params, sections = projectSections()) {
 const GROUPS = {
     finance: { label: 'Finance', icon: Wallet },
     pm: { label: 'Project Management', icon: FolderKanban },
+    tm: { label: 'Team Management', icon: UsersRound },
+    cm: { label: 'Client Management', icon: Handshake },
+    vm: { label: 'Vendor Management', icon: Building2 },
+    dm: { label: 'Documents Management', icon: FileText },
 };
 
 /**
@@ -186,9 +217,13 @@ function ProjectWorkspace({ project, t, toast, navigate, location, params, setPa
     const sections = projectSections();
     const tab = activeSection(params, sections);
     const section = sections.find((x) => x.id === tab);
-    const openTab = useCallback((id) => {
+    // `extra` carries a page's own filter (Client Directory → a client's
+    // communications); any older one is dropped so it cannot stick.
+    const openTab = useCallback((id, extra = {}) => {
         const next = new URLSearchParams(params);
         next.set('tab', id);
+        next.delete('client');
+        Object.entries(extra).forEach(([k, v]) => next.set(k, v));
         setParams(next);
     }, [params, setParams]);
 
@@ -334,12 +369,20 @@ function ProjectWorkspace({ project, t, toast, navigate, location, params, setPa
                             {tab === 'tax' && fin && <TaxSummary projectId={project.id} />}
                             {tab === 'pl' && fin && <ProjectProfitLoss project={project} />}
                             {tab === 'team' && <ProjectTeam project={project} />}
+                            {tab === 'raci' && <RaciPage project={project} onOpen={openTab} />}
+                            {tab === 'attendance' && <ProjectAttendance project={project} onOpen={openTab} />}
+                            {tab === 'announcements' && <ProjectAnnouncements project={project} />}
                             {tab === 'milestones' && <ProjectMilestones project={project} />}
                             {tab === 'pm' && <PmOverview project={project} onOpen={openTab} />}
                             {tab === 'wbs' && <WbsPage project={project} />}
                             {tab === 'tasks' && <TasksPage projectId={project.id} embedded />}
                             {tab === 'gantt' && <GanttPage project={project} />}
-                            {tab === 'documents' && <ProjectDocuments project={project} />}
+                            {tab === 'clients' && <ClientDirectory project={project} onOpen={openTab} />}
+                            {tab === 'comms' && <ClientCommunication key={params.get('client') || 'all'} project={project} />}
+                            {tab === 'payments' && fin && <PaymentStatus project={project} />}
+                            {tab === 'vendors' && <VendorDirectory project={project} />}
+                            {tab === 'documents' && <ProjectFiles project={project} />}
+                            {tab === 'templates' && <ProjectTemplates project={project} onOpen={openTab} />}
                             {tab === 'activity' && <ProjectActivity project={project} />}
                         </div>
                     )}
