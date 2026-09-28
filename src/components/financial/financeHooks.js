@@ -13,9 +13,16 @@ export const fmtDate = (d) => (d
 
 /** Live list for an orgStore section; re-renders on every write to it. */
 export function useSection(section) {
+  // listenSection is a no-op until an org is loaded, so a caller mounted
+  // before that (the app shell) must subscribe again once one is — and again
+  // on a switch, so it never keeps listing the previous org's rows.
+  const orgId = orgStore.getOrgId();
   const [list, setList] = useState(() => orgStore.getSectionAsList(section));
-  useEffect(() => orgStore.listenSection(section, (value) => {
-    setList(Object.values(value || {}));
-  }), [section]);
+  useEffect(() => {
+    setList(orgStore.getSectionAsList(section));
+    return orgStore.listenSection(section, (value) => {
+      setList(Object.values(value || {}));
+    });
+  }, [section, orgId]);
   return list;
 }

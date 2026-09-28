@@ -29,7 +29,7 @@ export function SectionLabel({ children, right }) {
   const t = useT();
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 9px' }}>
-      <span style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.faint }}>{String(children).toUpperCase()}</span>
+      <span style={{ fontSize: 11, letterSpacing: '0.1em', color: t.faint }}>{String(children).toUpperCase()}</span>
       <span style={{ flex: 1, height: 1, background: t.lineSoft }} />
       {right}
     </div>
@@ -45,13 +45,13 @@ export function Kpi({ label, value, note, share, tone }) {
       border: '1px solid ' + t.line, borderRadius: 10, padding: '13px 14px 12px',
       background: t.panel, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6,
     }}>
-      <span style={{ fontSize: 9, letterSpacing: '0.1em', color: t.faint }}>{String(label).toUpperCase()}</span>
+      <span style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint }}>{String(label).toUpperCase()}</span>
       <span style={{
         fontSize: 22, fontWeight: 500, letterSpacing: '-0.03em', lineHeight: 1.1,
         color: tone === 'up' ? t.up : tone === 'down' ? t.down : t.text,
       }}>{value}</span>
       {share != null && <Bar value={share} max={1} height={3} />}
-      {note && <span style={{ fontSize: 10, color: t.faint, lineHeight: 1.4 }}>{note}</span>}
+      {note && <span style={{ fontSize: 11.5, color: t.faint, lineHeight: 1.4 }}>{note}</span>}
     </div>
   );
 }
@@ -70,7 +70,7 @@ export function ChartTip({ active, payload, render }) {
       {rows.map(([k, v], i) => (
         <div key={k} style={{
           display: 'flex', justifyContent: 'space-between', gap: 14,
-          fontSize: i === 0 ? 11 : 10.5, color: i === 0 ? t.text : t.dim,
+          fontSize: i === 0 ? 12.5 : 12, color: i === 0 ? t.text : t.dim,
           marginBottom: i === 0 && rows.length > 1 ? 5 : 1,
         }}>
           <span>{k}</span>{v != null && <span style={{ color: t.text }}>{v}</span>}
@@ -99,21 +99,21 @@ export function ClockCard({ today, clocking, onClock, compact }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: dot, boxShadow: inAt && !outAt ? `0 0 0 3px ${t.up}33` : 'none' }} />
-        <span style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.faint }}>TODAY · {fmtLongDay(todayKey()).toUpperCase()}</span>
+        <span style={{ fontSize: 11, letterSpacing: '0.1em', color: t.faint }}>TODAY · {fmtLongDay(todayKey()).toUpperCase()}</span>
       </div>
 
       <div>
         <div style={{ fontSize: 30, fontWeight: 500, letterSpacing: '-0.04em', lineHeight: 1, color: t.text }}>
           {running != null ? hoursLabel(running) : outAt ? formatDuration(workedMinutes(today)) : '0h'}
         </div>
-        <div style={{ fontSize: 10.5, color: t.faint, marginTop: 6 }}>{state}{running != null && ' — the clock is running'}</div>
+        <div style={{ fontSize: 12, color: t.faint, marginTop: 6 }}>{state}{running != null && ' — the clock is running'}</div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', border: '1px solid ' + t.lineSoft, borderRadius: 8 }}>
         {[['IN', inAt], ['OUT', outAt]].map(([k, v], i) => (
           <div key={k} style={{ padding: '8px 11px', borderLeft: i ? '1px solid ' + t.lineSoft : 'none' }}>
-            <div style={{ fontSize: 9, letterSpacing: '0.1em', color: t.faint }}>{k}</div>
-            <div style={{ fontSize: 13, color: v ? t.text : t.ghost, marginTop: 3 }}>{v || '--:--'}</div>
+            <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint }}>{k}</div>
+            <div style={{ fontSize: 14.5, color: v ? t.text : t.ghost, marginTop: 3 }}>{v || '--:--'}</div>
           </div>
         ))}
       </div>
@@ -128,7 +128,7 @@ export function ClockCard({ today, clocking, onClock, compact }) {
           onClick={() => onClock(inAt ? 'out' : 'in')} disabled={clocking}
           style={{
             height: 40, borderRadius: 9, border: '1px solid ' + t.text, background: t.text, color: t.panel,
-            fontFamily: MONO, fontSize: 12.5, cursor: clocking ? 'wait' : 'pointer', opacity: clocking ? 0.6 : 1,
+            fontFamily: MONO, fontSize: 14, cursor: clocking ? 'wait' : 'pointer', opacity: clocking ? 0.6 : 1,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}
         >
@@ -137,7 +137,7 @@ export function ClockCard({ today, clocking, onClock, compact }) {
         </button>
       ) : (
         <div style={{
-          height: 40, borderRadius: 9, border: '1px dashed ' + t.line, color: t.dim, fontSize: 11.5,
+          height: 40, borderRadius: 9, border: '1px dashed ' + t.line, color: t.dim, fontSize: 13,
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}><Check size={14} /> See you tomorrow</div>
       )}

@@ -105,7 +105,7 @@ export default function Portfolio() {
     const cell = (r, key) => {
         switch (key) {
             case 'code': return <Muted>{r.code}</Muted>;
-            case 'name': return <>{r.name}<span style={{ display: 'block', fontSize: 9.5, color: t.faint }}>
+            case 'name': return <>{r.name}<span style={{ display: 'block', fontSize: 11, color: t.faint }}>
                 {r.client_id ? clientName[r.client_id] || 'Client' : 'Internal'}</span></>;
             case 'status': return statusLabel(r.status);
             case 'health': return <HealthChip health={r.health} reasons={r.health_reasons || []} />;

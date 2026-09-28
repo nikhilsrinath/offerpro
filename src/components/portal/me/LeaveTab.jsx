@@ -86,13 +86,13 @@ export default function LeaveTab({ orgId, me, types, balances, requests, setRequ
                 fontFamily: 'inherit', color: t.text, display: 'grid', gap: 6,
               }}
             >
-              <span style={{ fontSize: 9, letterSpacing: '0.1em', color: t.faint }}>{String(b.leave_type_name).toUpperCase()}</span>
+              <span style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint }}>{String(b.leave_type_name).toUpperCase()}</span>
               <span style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                 <span style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.03em' }}>{Number(b.remaining)}</span>
-                <span style={{ fontSize: 10, color: t.faint }}>of {total} left</span>
+                <span style={{ fontSize: 11.5, color: t.faint }}>of {total} left</span>
               </span>
               <Bar value={Number(b.taken)} max={total || 1} />
-              <span style={{ fontSize: 9.5, color: t.faint }}>{Number(b.taken)} used this year</span>
+              <span style={{ fontSize: 11, color: t.faint }}>{Number(b.taken)} used this year</span>
             </button>
           );
         }) : <Empty>No leave types configured yet.</Empty>}
@@ -135,7 +135,7 @@ export default function LeaveTab({ orgId, me, types, balances, requests, setRequ
 
             <div style={{
               display: 'flex', justifyContent: 'space-between', gap: 10, padding: '9px 11px', borderRadius: 8,
-              background: t.panelAlt, border: '1px solid ' + t.lineSoft, fontSize: 11,
+              background: t.panelAlt, border: '1px solid ' + t.lineSoft, fontSize: 12.5,
             }}>
               <span style={{ color: t.dim }}>Requesting</span>
               <span style={{ color: t.text }}>
@@ -146,7 +146,7 @@ export default function LeaveTab({ orgId, me, types, balances, requests, setRequ
             {/* A warning, not a block: unpaid and carried-over leave are real,
                 and the approver is the one who should decide. */}
             {wouldOverdraw && (
-              <div style={{ fontSize: 10.5, color: t.down, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 12, color: t.down, lineHeight: 1.5 }}>
                 This is more than your remaining balance. You can still apply — your manager will see it.
               </div>
             )}
@@ -171,16 +171,16 @@ export default function LeaveTab({ orgId, me, types, balances, requests, setRequ
                 <span style={{ width: 3, alignSelf: 'stretch', borderRadius: 3, background: s.color || t.ghost, flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 12, color: t.text }}>{typeName(r.leave_type_id)}</span>
-                    <span style={{ fontSize: 10, color: t.dim }}>{s.label || r.status}</span>
+                    <span style={{ fontSize: 13.5, color: t.text }}>{typeName(r.leave_type_id)}</span>
+                    <span style={{ fontSize: 11.5, color: t.dim }}>{s.label || r.status}</span>
                   </div>
-                  <div style={{ fontSize: 10.5, color: t.faint, marginTop: 3 }}>
+                  <div style={{ fontSize: 12, color: t.faint, marginTop: 3 }}>
                     {fmtLongDay(r.start_date)}{r.end_date !== r.start_date && <> → {fmtLongDay(r.end_date)}</>}
                     {' '}· {Number(r.days)} day{Number(r.days) === 1 ? '' : 's'}
                   </div>
-                  {r.reason && <div style={{ fontSize: 11, color: t.dim, marginTop: 6, lineHeight: 1.5 }}>{r.reason}</div>}
+                  {r.reason && <div style={{ fontSize: 12.5, color: t.dim, marginTop: 6, lineHeight: 1.5 }}>{r.reason}</div>}
                   {r.decision_comment && (
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 10.5, color: t.dim, marginTop: 6 }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, color: t.dim, marginTop: 6 }}>
                       {r.status === 'approved' ? <Check size={12} /> : <X size={12} />} {r.decision_comment}
                     </div>
                   )}

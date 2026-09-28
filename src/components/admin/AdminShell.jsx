@@ -45,8 +45,8 @@ export default function AdminShell({
             background: t.panelAlt, border: '1px solid ' + t.line, color: t.dim, flexShrink: 0,
           }}><ShieldCheck size={13} /></span>
           <span style={{ minWidth: 0 }}>
-            <span style={{ display: 'block', fontSize: 11.5, color: t.text }}>Platform</span>
-            <span style={{ display: 'block', fontSize: 9, letterSpacing: '0.09em', color: t.faint, marginTop: 1 }}>
+            <span style={{ display: 'block', fontSize: 13, color: t.text }}>Platform</span>
+            <span style={{ display: 'block', fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, marginTop: 1 }}>
               CONSOLE
             </span>
           </span>
@@ -65,8 +65,8 @@ export default function AdminShell({
                 <>
                   <s.icon size={13} aria-hidden="true" style={{ flexShrink: 0, color: isActive ? t.text : t.faint }} />
                   <span style={{ minWidth: 0 }}>
-                    <span style={{ display: 'block', fontSize: 11.5 }}>{s.label}</span>
-                    <span style={{ display: 'block', fontSize: 9, color: t.ghost, marginTop: 1 }}>{s.note}</span>
+                    <span style={{ display: 'block', fontSize: 13 }}>{s.label}</span>
+                    <span style={{ display: 'block', fontSize: 10.5, color: t.ghost, marginTop: 1 }}>{s.note}</span>
                   </span>
                 </>
               )}
@@ -82,7 +82,7 @@ export default function AdminShell({
             margin: 8, padding: '8px 10px', borderRadius: 7, textAlign: 'left',
             display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer',
             background: 'transparent', border: '1px solid transparent',
-            color: t.dim, fontFamily: MONO, fontSize: 11.5,
+            color: t.dim, fontFamily: MONO, fontSize: 13,
           }}
         >
           <ArrowUpRight size={13} aria-hidden="true" style={{ color: t.faint, flexShrink: 0 }} />
@@ -99,11 +99,11 @@ export default function AdminShell({
           position: 'sticky', top: 0, zIndex: 30,
         }}>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <h1 style={{ margin: 0, fontSize: 13, fontWeight: 500, color: t.text, letterSpacing: '-0.01em' }}>
+            <h1 style={{ margin: 0, fontSize: 14.5, fontWeight: 500, color: t.text, letterSpacing: '-0.01em' }}>
               {title}
             </h1>
             {subtitle && (
-              <p style={{ margin: '3px 0 0', fontSize: 10, color: t.faint, lineHeight: 1.5 }}>{subtitle}</p>
+              <p style={{ margin: '3px 0 0', fontSize: 11.5, color: t.faint, lineHeight: 1.5 }}>{subtitle}</p>
             )}
           </div>
 
@@ -127,7 +127,7 @@ export default function AdminShell({
                 display: 'flex', alignItems: 'center', gap: 8, height: 29, padding: '0 10px',
                 borderRadius: 7, cursor: 'pointer', maxWidth: 230,
                 background: t.panelAlt, border: '1px solid ' + t.line,
-                color: t.dim, fontFamily: MONO, fontSize: 10.5,
+                color: t.dim, fontFamily: MONO, fontSize: 12,
               }}
             >
               <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: 999, background: t.up, flexShrink: 0 }} />
@@ -146,8 +146,8 @@ export default function AdminShell({
                   borderRadius: 9, boxShadow: t.shadow, padding: 5,
                 }}>
                   <div style={{ padding: '7px 9px 9px', borderBottom: '1px solid ' + t.lineSoft, marginBottom: 4 }}>
-                    <div style={{ fontSize: 9, letterSpacing: '0.09em', color: t.faint }}>SIGNED IN AS</div>
-                    <div style={{ fontSize: 10.5, color: t.text, marginTop: 3, wordBreak: 'break-all' }}>{email}</div>
+                    <div style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint }}>SIGNED IN AS</div>
+                    <div style={{ fontSize: 12, color: t.text, marginTop: 3, wordBreak: 'break-all' }}>{email}</div>
                   </div>
                   <button
                     type="button" role="menuitem" className="edge-row"
@@ -156,7 +156,7 @@ export default function AdminShell({
                       display: 'flex', alignItems: 'center', gap: 9, width: '100%',
                       padding: '8px 9px', borderRadius: 6, cursor: 'pointer', textAlign: 'left',
                       background: 'transparent', border: 'none',
-                      color: t.down, fontFamily: MONO, fontSize: 11.5,
+                      color: t.down, fontFamily: MONO, fontSize: 13,
                     }}
                   >
                     <LogOut size={13} aria-hidden="true" /> Sign out

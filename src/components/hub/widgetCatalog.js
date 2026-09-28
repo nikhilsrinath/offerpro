@@ -51,14 +51,6 @@ export const WIDGETS = [
 
 export const SIZE_LABEL = { sm: 'Small', md: 'Medium', lg: 'Large' };
 
-/** A stored size the widget can take, or its default. Old layouts stored 'wide'. */
-export const sizeFor = (id, size) => {
-    const w = WIDGET_BY_ID.get(id);
-    if (!w) return 'sm';
-    const s = size === 'wide' ? 'md' : size;
-    return w.sizes.includes(s) ? s : w.size;
-};
-
 export const WIDGET_BY_ID = new Map(WIDGETS.map((w) => [w.id, w]));
 
 export const DEFAULT_LAYOUT = [

@@ -90,7 +90,7 @@ export default function AdminOverview({ data, orgs, loading, error }) {
             <Tr key={o.id} label={o.name} onClick={() => navigate(`/admin/orgs?open=${o.id}`)}>
               <Td>
                 <span style={{ display: 'block' }}>{o.name}</span>
-                <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 2 }}>
+                <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 2 }}>
                   {o.owner.email || '—'}
                 </span>
               </Td>

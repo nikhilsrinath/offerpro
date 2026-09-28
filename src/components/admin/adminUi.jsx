@@ -14,7 +14,7 @@ export function PlanTag({ plan }) {
     <span style={{
       display: 'inline-flex', alignItems: 'center', height: 19, padding: '0 7px',
       borderRadius: 5, border: '1px solid ' + t.line, background: t.panelAlt,
-      fontSize: 9.5, letterSpacing: '0.07em', color: plan === 'max' ? t.up : t.dim,
+      fontSize: 11, letterSpacing: '0.07em', color: plan === 'max' ? t.up : t.dim,
       textTransform: 'uppercase', whiteSpace: 'nowrap',
     }}>{plan || 'free'}</span>
   );
@@ -46,7 +46,7 @@ export function MonthBars({ series, height = 132, keys = ['billed', 'collected']
     <div>
       <div style={{ display: 'flex', gap: 14, marginBottom: 10, paddingLeft: 2 }}>
         {labels.map((l, i) => (
-          <span key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 9.5, color: t.faint }}>
+          <span key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: t.faint }}>
             <span aria-hidden="true" style={{
               width: 8, height: 8, borderRadius: 2,
               background: i === 0 && keys.length > 1 ? t.scale[2] : t.chart,
@@ -73,7 +73,7 @@ export function MonthBars({ series, height = 132, keys = ['billed', 'collected']
                 }} />
               ))}
             </div>
-            <span style={{ fontSize: 8.5, color: t.ghost, whiteSpace: 'nowrap' }}>{monthLabel(p.month)}</span>
+            <span style={{ fontSize: 10, color: t.ghost, whiteSpace: 'nowrap' }}>{monthLabel(p.month)}</span>
           </div>
         ))}
       </div>
@@ -88,11 +88,11 @@ export function KeyVal({ label, children, mono }) {
   const t = useT();
   return (
     <div style={{ minWidth: 0 }}>
-      <div style={{ fontSize: 9, letterSpacing: '0.09em', color: t.faint, marginBottom: 4 }}>
+      <div style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, marginBottom: 4 }}>
         {String(label).toUpperCase()}
       </div>
       <div style={{
-        fontSize: 11.5, color: t.text, wordBreak: 'break-word',
+        fontSize: 13, color: t.text, wordBreak: 'break-word',
         fontFamily: mono ? 'ui-monospace, SFMono-Regular, Menlo, monospace' : MONO,
       }}>{children || <span style={{ color: t.ghost }}>—</span>}</div>
     </div>

@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import { buildAgreement } from './agreementModel';
 
 /**
  * Rasterise a live preview element at its true size.
@@ -1098,6 +1099,115 @@ export const pdfService = {
     } else {
       const fileName = `MoU_${(fp).replace(/\s+/g, '_')}_${(sp).replace(/\s+/g, '_')}.pdf`;
       doc.save(fileName);
+    }
+  },
+
+  // Partnership and Custom templates. The text comes from buildAgreement(), the
+  // same model AgreementPreview renders, so the PDF matches the live sheet.
+  generateAgreement: async (data, isPreview = false) => {
+    const built = buildAgreement(data);
+    const doc = new jsPDF('portrait', 'mm', 'a4');
+    const mg = 22;
+    const pw = 210;
+    const cw = pw - mg * 2;
+    let y = 28;
+    const pageBottom = 278;
+    const lh = 5;
+
+    const checkPage = (needed = 8) => { if (y + needed > pageBottom) { doc.addPage(); y = 28; } };
+    const setN = (sz = 11) => { doc.setFont('times', 'normal'); doc.setFontSize(sz); };
+    const setB = (sz = 11) => { doc.setFont('times', 'bold'); doc.setFontSize(sz); };
+    const setI = (sz = 11) => { doc.setFont('times', 'italic'); doc.setFontSize(sz); };
+
+    const writeLines = (lines, x = mg) => {
+      for (const line of lines) { checkPage(lh); doc.text(line, x, y); y += lh; }
+    };
+
+    const block = ({ kind, text }) => {
+      if (kind === 'center') {
+        setB(11); checkPage(lh + 2);
+        doc.text(text, pw / 2, y, { align: 'center' }); y += 11 * 0.42 + 3;
+      } else if (kind === 'bullet') {
+        setN(); const lines = doc.splitTextToSize(text, cw - 10);
+        checkPage(lh); doc.text('•', mg + 6, y);
+        writeLines(lines, mg + 10); y += 1;
+      } else {
+        if (kind === 'bold') setB(); else if (kind === 'italic') setI(10); else setN();
+        writeLines(doc.splitTextToSize(text || '', cw)); y += kind === 'italic' ? 2 : 3;
+      }
+    };
+
+    y = renderDocumentHeader(doc, data, { margin: mg, pageWidth: pw, startY: y });
+
+    setB(16);
+    for (const line of doc.splitTextToSize(built.title, cw)) {
+      checkPage(lh + 2); doc.text(line, pw / 2, y, { align: 'center' }); y += 7;
+    }
+    y += 3;
+
+    built.preamble.forEach(block);
+
+    for (const clause of built.clauses) {
+      if (clause.heading) {
+        checkPage(15); y += 4;
+        setB(); writeLines(doc.splitTextToSize(clause.heading, cw)); y += 3;
+      }
+      clause.blocks.forEach(block);
+    }
+
+    if (built.closing) {
+      checkPage(65);
+      y += 8;
+      block({ kind: 'para', text: built.closing });
+      y += 6;
+    }
+
+    if (built.signatories.length) {
+      const halfW = (cw - 10) / 2;
+      const sigStartY = y;
+      let sigEndY = y;
+      for (let i = 0; i < built.signatories.length; i++) {
+        const s = built.signatories[i];
+        const x = i === 0 ? mg : mg + halfW + 10;
+        y = sigStartY;
+        setB(10);
+        for (const line of doc.splitTextToSize(s.party.toUpperCase(), halfW)) { doc.text(line, x, y); y += 5; }
+        y += 4;
+        let signed = false;
+        if (s.signature) {
+          try { doc.addImage(s.signature, 'PNG', x, y, 38, 14); y += 17; signed = true; } catch { /* drawn as a line below */ }
+        }
+        if (!signed) { setN(10); doc.text('Signature: ___________________________', x, y); y += 7; }
+        setN(10);
+        doc.text(`Name: ${s.name || '___________________'}`, x, y); y += 5;
+        doc.text(`Designation: ${s.designation || '___________________'}`, x, y); y += 5;
+        doc.text(`Date: ${s.date}`, x, y); y += 5;
+        if (s.stamp) { await renderStamp(doc, data, x, y); y += data.showStamp ? 37 : 0; }
+        sigEndY = Math.max(sigEndY, y);
+      }
+      y = sigEndY + 4;
+    }
+
+    if (built.witnesses) {
+      checkPage(40);
+      y += 4;
+      setB(10); doc.text('WITNESSES:', mg, y); y += 8;
+      const halfW = (cw - 10) / 2;
+      setN(9);
+      [0, 1].forEach((i) => {
+        const x = i === 0 ? mg : mg + halfW + 10;
+        doc.text(`${i + 1}. Name: ___________________________`, x, y);
+        doc.text('Address: ___________________________', x, y + 6);
+        doc.line(x, y + 18, x + 60, y + 18);
+        doc.setFontSize(8); doc.text('Signature', x, y + 22); doc.setFontSize(9);
+      });
+      y += 26;
+    }
+
+    if (isPreview) {
+      window.open(doc.output('bloburl'), '_blank');
+    } else {
+      doc.save(built.fileName);
     }
   },
 

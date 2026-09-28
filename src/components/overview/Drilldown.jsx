@@ -54,18 +54,18 @@ export default function Drilldown({ model, stack, push, pop, close }) {
                             </button>
                         )}
                         <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 9, letterSpacing: '0.1em', color: t.faint }}>
+                            <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint }}>
                                 {stack.map((s, i) => (
                                     <span key={i}>{i > 0 && '  /  '}{crumb(model, s)}</span>
                                 ))}
                             </div>
-                            <div style={{ fontSize: 15, color: t.text, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{view.title}</div>
+                            <div style={{ fontSize: 16.5, color: t.text, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{view.title}</div>
                         </div>
                         <button type="button" onClick={close} className="ov-icon" aria-label="Close" style={iconBtn(t)}>
                             <X size={14} />
                         </button>
                     </div>
-                    {view.note && <div style={{ fontSize: 10.5, color: t.dim, marginTop: 6, lineHeight: 1.5 }}>{view.note}</div>}
+                    {view.note && <div style={{ fontSize: 12, color: t.dim, marginTop: 6, lineHeight: 1.5 }}>{view.note}</div>}
                 </header>
                 <div key={stack.length} className="edge-scroll" style={{ flex: 1, overflowY: 'auto', padding: 16, animation: 'ovFade .2s ease' }}>
                     {view.body}
@@ -100,9 +100,9 @@ function Stats({ items }) {
         }}>
             {items.filter(Boolean).map((s) => (
                 <div key={s.label} style={{ padding: '11px 13px', borderRight: '1px solid ' + t.lineSoft, borderBottom: '1px solid ' + t.lineSoft }}>
-                    <div style={{ fontSize: 9, letterSpacing: '0.09em', color: t.faint }}>{s.label.toUpperCase()}</div>
-                    <div style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.03em', color: s.tone === 'down' ? t.down : s.tone === 'up' ? t.up : t.text, marginTop: 5 }}>{s.value}</div>
-                    {s.note && <div style={{ fontSize: 9.5, color: t.faint, marginTop: 3 }}>{s.note}</div>}
+                    <div style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint }}>{s.label.toUpperCase()}</div>
+                    <div style={{ fontSize: 18.5, fontWeight: 600, letterSpacing: '-0.03em', color: s.tone === 'down' ? t.down : s.tone === 'up' ? t.up : t.text, marginTop: 5 }}>{s.value}</div>
+                    {s.note && <div style={{ fontSize: 11, color: t.faint, marginTop: 3 }}>{s.note}</div>}
                 </div>
             ))}
         </div>
@@ -114,8 +114,8 @@ function Section({ title, note, right, children }) {
     return (
         <section style={{ marginBottom: 20 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
-                <span style={{ fontSize: 10, letterSpacing: '0.1em', color: t.text }}>{title.toUpperCase()}</span>
-                {note && <span style={{ fontSize: 10, color: t.faint }}>{note}</span>}
+                <span style={{ fontSize: 11.5, letterSpacing: '0.1em', color: t.text }}>{title.toUpperCase()}</span>
+                {note && <span style={{ fontSize: 11.5, color: t.faint }}>{note}</span>}
                 <span style={{ flex: 1 }} />
                 {right}
             </div>
@@ -127,7 +127,7 @@ function Section({ title, note, right, children }) {
 function Explain({ children }) {
     const { t } = useViz();
     return (
-        <div style={{ fontSize: 11, lineHeight: 1.65, color: t.dim, padding: '10px 12px', background: t.panelAlt, border: '1px solid ' + t.lineSoft, borderRadius: 8, marginBottom: 16 }}>
+        <div style={{ fontSize: 12.5, lineHeight: 1.65, color: t.dim, padding: '10px 12px', background: t.panelAlt, border: '1px solid ' + t.lineSoft, borderRadius: 8, marginBottom: 16 }}>
             {children}
         </div>
     );
@@ -144,7 +144,7 @@ function List({ cols, rows, empty = 'Nothing here', max = 60 }) {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO }}>
                     <thead>
                         <tr>{cols.map((c) => (
-                            <th key={c.label} style={{ textAlign: c.align || 'left', padding: '8px 10px', fontSize: 9, letterSpacing: '0.08em', color: t.faint, fontWeight: 400, borderBottom: '1px solid ' + t.line, whiteSpace: 'nowrap' }}>{c.label.toUpperCase()}</th>
+                            <th key={c.label} style={{ textAlign: c.align || 'left', padding: '8px 10px', fontSize: 10.5, letterSpacing: '0.08em', color: t.faint, fontWeight: 400, borderBottom: '1px solid ' + t.line, whiteSpace: 'nowrap' }}>{c.label.toUpperCase()}</th>
                         ))}</tr>
                     </thead>
                     <tbody>
@@ -157,7 +157,7 @@ function List({ cols, rows, empty = 'Nothing here', max = 60 }) {
                                     style={{ cursor: go ? 'pointer' : 'default' }}>
                                     {cols.map((c, ci) => (
                                         <td key={c.label} style={{
-                                            padding: '8px 10px', fontSize: 11, textAlign: c.align || 'left',
+                                            padding: '8px 10px', fontSize: 12.5, textAlign: c.align || 'left',
                                             color: ci === 0 ? t.text : t.dim, borderBottom: '1px solid ' + t.lineSoft,
                                             whiteSpace: c.wrap ? 'normal' : 'nowrap', fontVariantNumeric: 'tabular-nums',
                                             maxWidth: c.wrap ? 220 : undefined,
@@ -169,7 +169,7 @@ function List({ cols, rows, empty = 'Nothing here', max = 60 }) {
                     </tbody>
                 </table>
             </div>
-            {rows.length > max && <div style={{ padding: '7px 10px', fontSize: 10, color: t.faint, borderTop: '1px solid ' + t.lineSoft }}>Showing {max} of {rows.length}</div>}
+            {rows.length > max && <div style={{ padding: '7px 10px', fontSize: 11.5, color: t.faint, borderTop: '1px solid ' + t.lineSoft }}>Showing {max} of {rows.length}</div>}
         </div>
     );
 }
@@ -179,7 +179,7 @@ function OpenModule({ to, children }) {
     const navigate = useNavigate();
     return (
         <button type="button" onClick={() => navigate(to)} className="ov-link" style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: MONO, fontSize: 10.5,
+            display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: MONO, fontSize: 12,
             color: t.dim, background: 'transparent', border: '1px solid ' + t.line, borderRadius: 6,
             padding: '4px 8px', cursor: 'pointer',
         }}>{children}<ArrowUpRight size={11} /></button>
@@ -375,7 +375,7 @@ function BucketView({ model, index, push }) {
                     { label: 'Amount', align: 'right', render: (e) => fmtInr(e.amount) },
                 ]} />
             </Section>
-            <div style={{ fontSize: 10, color: t.faint }}>{d.docs.length} documents of all kinds dated in this bucket.</div>
+            <div style={{ fontSize: 11.5, color: t.faint }}>{d.docs.length} documents of all kinds dated in this bucket.</div>
         </>
     );
 }
@@ -607,7 +607,7 @@ function HeadcountView({ model, push }) {
             </Section>
             <Section title="Employment type"><RankBars rows={model.employmentTypes} format={(v) => String(v)} /></Section>
             <Section title="Joiners and leavers" right={<OpenModule to="/employees">Employees</OpenModule>}>
-                <List rows={movement.map((m, i) => ({ id: i, data: m, to: m.what === 'Left' ? '/ex-employees' : '/employees' }))} empty="No one joined or left in this period" cols={[
+                <List rows={movement.map((m, i) => ({ id: i, data: m, to: m.what === 'Left' ? '/employees?mode=former' : '/employees' }))} empty="No one joined or left in this period" cols={[
                     { label: 'Name', render: (m) => m.e.name || 'Unnamed' },
                     { label: 'Event', render: (m) => <span style={{ color: m.what === 'Left' ? t.down : t.up }}>{m.what}</span> },
                     { label: 'Date', render: (m) => fmtDay(m.date) },

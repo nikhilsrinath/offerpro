@@ -24,15 +24,42 @@ export const CATEGORIES = [
 ];
 export const categoryLabel = (id) => CATEGORIES.find((c) => c.id === id)?.label || id;
 
+/**
+ * The three registers the library holds (0069). Uploaded and read the same
+ * way; `category` is the topic inside a register.
+ */
+export const COLLECTIONS = [
+  { id: 'general', label: 'General Documents', short: 'General',
+    blurb: 'Any file the company keeps — policies, contracts, decks, price lists, scans.' },
+  { id: 'opa', label: 'Organisational Process Assets', short: 'Process Assets',
+    blurb: 'Templates, procedures, standards and guidelines the company works to.' },
+  { id: 'lessons', label: 'Lessons Learned Register', short: 'Lessons Learned',
+    blurb: 'What past projects taught — what went well, what did not, and what to repeat.' },
+];
+export const collectionOf = (id) => COLLECTIONS.find((c) => c.id === id) || COLLECTIONS[0];
+
 /** What the reader can and cannot do with a file, for the upload hint. */
 export const READABLE_HINT =
   'PDF, Word, PowerPoint, Excel/CSV, OpenDocument, text, Markdown, HTML and images are read by EdgeBrain. ' +
   'Anything else is stored but not searchable.';
 
-const LIST_COLUMNS =
+const BASE_COLUMNS =
   'id, title, description, category, tags, file_name, mime_type, size_bytes, storage_path, ' +
   'extraction_status, extraction_method, extraction_error, summary, page_count, char_count, ' +
   'chunk_count, extracted_at, created_by, created_at, updated_at';
+let LIST_COLUMNS = `${BASE_COLUMNS}, collection`;
+
+// Until 0069 is applied the column does not exist. Reads fall back to the old
+// shape (every file is then General); writes into another register say why.
+const missingCollection = (e) => ['42703', 'PGRST204'].includes(e?.code) && /collection/.test(e?.message || '');
+async function withColumns(run) {
+  const res = await run(LIST_COLUMNS);
+  if (res.error && LIST_COLUMNS !== BASE_COLUMNS && missingCollection(res.error)) {
+    LIST_COLUMNS = BASE_COLUMNS;
+    return run(LIST_COLUMNS);
+  }
+  return res;
+}
 
 export function validateLibraryFile(file) {
   if (!file) return 'No file selected.';
@@ -62,18 +89,18 @@ async function authHeader() {
 export const libraryService = {
   async list(orgId) {
     if (!orgId) return [];
-    const { data, error } = await supabase.from('library_documents')
-      .select(LIST_COLUMNS).eq('org_id', orgId).order('created_at', { ascending: false });
+    const { data, error } = await withColumns((cols) => supabase.from('library_documents')
+      .select(cols).eq('org_id', orgId).order('created_at', { ascending: false }));
     if (error) throw error;
-    return data || [];
+    return (data || []).map((d) => ({ ...d, collection: d.collection || 'general' }));
   },
 
   /** One document, with its full Markdown. */
   async get(id) {
-    const { data, error } = await supabase.from('library_documents')
-      .select(`${LIST_COLUMNS}, content_md`).eq('id', id).maybeSingle();
+    const { data, error } = await withColumns((cols) => supabase.from('library_documents')
+      .select(`${cols}, content_md`).eq('id', id).maybeSingle());
     if (error) throw error;
-    return data;
+    return data && { ...data, collection: data.collection || 'general' };
   },
 
   /**
@@ -92,8 +119,11 @@ export const libraryService = {
     });
     if (upErr) throw upErr;
 
+    const collection = meta.collection || 'general';
     const { data: row, error } = await supabase.from('library_documents').insert({
       org_id: orgId,
+      // Omitted for General so uploads keep working before 0069 is applied.
+      ...(collection !== 'general' ? { collection } : {}),
       title: (meta.title || titleFromFileName(file.name)).slice(0, 200),
       description: meta.description || null,
       category: meta.category || 'general',
@@ -106,7 +136,9 @@ export const libraryService = {
     if (error) {
       // No row, so nothing points at the object: take it back out.
       await supabase.storage.from(LIBRARY_BUCKET).remove([path]);
-      throw error;
+      throw missingCollection(error)
+        ? new Error(`${collectionOf(collection).label} needs database migration 0069 before files can be added to it.`)
+        : error;
     }
 
     try {
@@ -132,11 +164,16 @@ export const libraryService = {
 
   async update(id, patch) {
     const allowed = {};
-    for (const k of ['title', 'description', 'category', 'tags']) if (k in patch) allowed[k] = patch[k];
+    for (const k of ['title', 'description', 'category', 'collection', 'tags']) if (k in patch) allowed[k] = patch[k];
+    if (LIST_COLUMNS === BASE_COLUMNS && allowed.collection === 'general') delete allowed.collection;
     const { data, error } = await supabase.from('library_documents')
       .update(allowed).eq('id', id).select(LIST_COLUMNS).single();
-    if (error) throw error;
-    return data;
+    if (error) {
+      throw missingCollection(error)
+        ? new Error('Moving a document between registers needs database migration 0069.')
+        : error;
+    }
+    return { ...data, collection: data.collection || 'general' };
   },
 
   /** Row first: once it is gone nothing references the object, so a failed object delete only costs storage. */

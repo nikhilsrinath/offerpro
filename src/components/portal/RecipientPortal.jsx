@@ -42,6 +42,7 @@ function formatDocType(type) {
   const map = {
     offer_letter: 'Offer Letter',
     mou: 'Memorandum of Understanding',
+    agreement: 'Agreement',
     nda: 'Non-Disclosure Agreement',
     invoice: 'Tax Invoice',
     quotation: 'Quotation',

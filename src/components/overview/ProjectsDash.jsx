@@ -112,7 +112,7 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
                     }))} onSelect={() => navigate('/projects')} />
                 )}
                 <div style={{ marginTop: 14 }}>
-                    <div style={{ fontSize: 9, letterSpacing: '0.1em', color: t.faint, marginBottom: 6 }}>HEALTH OF OPEN PROJECTS</div>
+                    <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, marginBottom: 6 }}>HEALTH OF OPEN PROJECTS</div>
                     {!withHealth ? <EmptyNote>Project health is part of Pro and Max.</EmptyNote>
                         : rows === undefined ? <EmptyNote>Loading…</EmptyNote>
                             : !health ? <EmptyNote>Health could not be loaded</EmptyNote>

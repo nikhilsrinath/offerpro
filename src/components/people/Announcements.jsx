@@ -142,10 +142,10 @@ export default function Announcements() {
                             }}>
                                 <Row gap={10} align="flex-start" style={{ marginBottom: 8 }}>
                                     <h3 style={{
-                                        margin: 0, flex: 1, minWidth: 0, fontSize: 12.5,
+                                        margin: 0, flex: 1, minWidth: 0, fontSize: 14,
                                         fontWeight: 500, color: t.text, letterSpacing: '-0.01em',
                                     }}>
-                                        {a.is_pinned && <span style={{ color: t.faint, marginRight: 7, fontSize: 10 }}>PINNED</span>}
+                                        {a.is_pinned && <span style={{ color: t.faint, marginRight: 7, fontSize: 11.5 }}>PINNED</span>}
                                         {a.title}
                                     </h3>
                                     <Row gap={6}>
@@ -158,13 +158,13 @@ export default function Announcements() {
                                 </Row>
 
                                 <p style={{
-                                    margin: '0 0 11px', fontSize: 11.5, color: t.dim,
+                                    margin: '0 0 11px', fontSize: 13, color: t.dim,
                                     lineHeight: 1.75, whiteSpace: 'pre-wrap',
                                 }}>{a.body}</p>
 
                                 <Row gap={14} wrap style={{
                                     paddingTop: 10, borderTop: '1px solid ' + t.lineSoft,
-                                    fontSize: 10, color: t.faint,
+                                    fontSize: 11.5, color: t.faint,
                                 }}>
                                     <Status tone={a.department_id ? 'neutral' : 'mute'}>
                                         {a.department_id ? (deptName[a.department_id] || 'Department') + ' only' : 'Whole team'}

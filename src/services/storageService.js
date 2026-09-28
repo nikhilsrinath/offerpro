@@ -1,6 +1,7 @@
 // storageService.js — Thin wrapper around orgStore
 // Same exported API as before. All data now under organizations/{orgId}/.
 import { orgStore } from './orgStore';
+import { agreementRecordTitle } from './agreementModel';
 
 export const storageService = {
   getAll: async (orgId, type) => {
@@ -33,7 +34,9 @@ export const storageService = {
           ? `${recordData.disclosingPartyName || ''} & ${recordData.receivingPartyName || ''}`
           : type === 'mou'
             ? `${recordData.firstPartyName || ''} & ${recordData.secondPartyName || ''}`
-            : `Inv: ${recordData.clientName} (${recordData.invoiceNumber})`;
+            : type === 'agreement'
+              ? agreementRecordTitle(recordData)
+              : `Inv: ${recordData.clientName} (${recordData.invoiceNumber})`;
 
     const record = await orgStore.addItem('records', {
       data: recordData,

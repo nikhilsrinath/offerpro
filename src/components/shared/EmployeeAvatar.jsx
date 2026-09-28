@@ -44,7 +44,7 @@ export default function EmployeeAvatar({ name, photoPath, size = 36, title }) {
     width: size, height: size, borderRadius: '50%',
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     flexShrink: 0, overflow: 'hidden',
-    fontSize: Math.max(10, Math.round(size * 0.36)),
+    fontSize: Math.max(11.5, Math.round(size * 0.36)),
     fontWeight: 700, letterSpacing: '0.02em',
     color: '#fff', background: hueOf(name),
     userSelect: 'none',

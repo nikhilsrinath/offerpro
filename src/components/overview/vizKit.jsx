@@ -67,16 +67,16 @@ export function TipBody({ title, rows = [], hint }) {
     const t = useT();
     return (
         <div>
-            {title && <div style={{ fontSize: 10, color: t.faint, marginBottom: rows.length ? 6 : 0 }}>{title}</div>}
+            {title && <div style={{ fontSize: 11.5, color: t.faint, marginBottom: rows.length ? 6 : 0 }}>{title}</div>}
             {rows.map((r) => (
-                <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, lineHeight: 1.7 }}>
+                <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, lineHeight: 1.7 }}>
                     {r.color && <span style={{ width: 10, height: 2, borderRadius: 2, background: r.color, flexShrink: 0 }} />}
                     <span style={{ fontWeight: 600, color: t.text, fontVariantNumeric: 'tabular-nums' }}>{r.value}</span>
                     <span style={{ color: t.dim, marginLeft: 'auto', paddingLeft: 10 }}>{r.label}</span>
                 </div>
             ))}
             {hint !== false && (
-                <div style={{ fontSize: 9, color: t.ghost, marginTop: 6, letterSpacing: '0.06em' }}>{hint || 'CLICK FOR DETAIL'}</div>
+                <div style={{ fontSize: 10.5, color: t.ghost, marginTop: 6, letterSpacing: '0.06em' }}>{hint || 'CLICK FOR DETAIL'}</div>
             )}
         </div>
     );
@@ -141,7 +141,7 @@ export function Columns({
                         <g key={v}>
                             <line x1={axisW} x2={w} y1={Math.round(y(v)) + 0.5} y2={Math.round(y(v)) + 0.5}
                                 stroke={v === 0 ? t.lineStrong : t.lineSoft} />
-                            <text x={axisW - 8} y={y(v) + 3} textAnchor="end" fontSize="9.5" fill={t.faint}
+                            <text x={axisW - 8} y={y(v) + 3} textAnchor="end" fontSize="11" fill={t.faint}
                                 fontFamily={MONO} style={{ fontVariantNumeric: 'tabular-nums' }}>{format(v)}</text>
                         </g>
                     ))}
@@ -173,7 +173,7 @@ export function Columns({
                                     return <path key={s.key} d={roundTop(x0, y0, barW, h, v >= 0 ? r : 0, v < 0 ? r : 0)} fill={s.color} />;
                                 })}
                                 {i % labelEvery === 0 && (
-                                    <text x={cx} y={height - 6} textAnchor="middle" fontSize="9.5" fontFamily={MONO}
+                                    <text x={cx} y={height - 6} textAnchor="middle" fontSize="11" fontFamily={MONO}
                                         fill={on ? t.text : t.faint}>{d.label}</text>
                                 )}
                             </g>
@@ -206,7 +206,7 @@ export function Columns({
             )}
             {allZero && w > 0 && (
                 <div style={{ position: 'absolute', inset: `0 0 ${bandH}px ${axisW}px`, display: 'grid', placeItems: 'center', pointerEvents: 'none' }}>
-                    <span style={{ fontSize: 10.5, color: t.faint, background: t.panel, padding: '2px 8px' }}>{empty}</span>
+                    <span style={{ fontSize: 12, color: t.faint, background: t.panel, padding: '2px 8px' }}>{empty}</span>
                 </div>
             )}
         </div>
@@ -266,14 +266,14 @@ export function Area({ data, height = 160, color, format = fmtAxis, tipTitle = (
                         return (
                             <g key={f}>
                                 <line x1={axisW} x2={w} y1={Math.round(y(v)) + 0.5} y2={Math.round(y(v)) + 0.5} stroke={v === 0 ? t.lineStrong : t.lineSoft} />
-                                <text x={axisW - 8} y={y(v) + 3} textAnchor="end" fontSize="9.5" fill={t.faint} fontFamily={MONO}>{format(v)}</text>
+                                <text x={axisW - 8} y={y(v) + 3} textAnchor="end" fontSize="11" fill={t.faint} fontFamily={MONO}>{format(v)}</text>
                             </g>
                         );
                     })}
                     <path d={`${path} L${pts[n - 1][0]} ${y(Math.max(0, bottom))} L${pts[0][0]} ${y(Math.max(0, bottom))} Z`} fill={`url(#${gid})`} />
                     <path d={path} fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
                     {data.map((d, i) => i % labelEvery === 0 && (
-                        <text key={i} x={x(i)} y={height - 6} textAnchor="middle" fontSize="9.5" fontFamily={MONO} fill={hover === i ? t.text : t.faint}>{d.label}</text>
+                        <text key={i} x={x(i)} y={height - 6} textAnchor="middle" fontSize="11" fontFamily={MONO} fill={hover === i ? t.text : t.faint}>{d.label}</text>
                     ))}
                     {hover !== null && (
                         <g pointerEvents="none">
@@ -326,11 +326,11 @@ export function RankBars({ rows, format, total, max = 6, color, onSelect, sub, e
                             background: on ? t.panelAlt : 'transparent', transition: 'background .12s',
                         }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 5 }}>
-                            <span style={{ fontSize: 9.5, color: t.ghost, width: 14, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{String(i + 1).padStart(2, '0')}</span>
-                            <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
-                            {sub && <span style={{ fontSize: 9.5, color: t.faint, whiteSpace: 'nowrap' }}>{sub(r)}</span>}
-                            <span style={{ fontSize: 11.5, color: t.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{format(r.value)}</span>
-                            {share !== null && <span style={{ fontSize: 9.5, color: t.faint, width: 30, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{share.toFixed(0)}%</span>}
+                            <span style={{ fontSize: 11, color: t.ghost, width: 14, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{String(i + 1).padStart(2, '0')}</span>
+                            <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
+                            {sub && <span style={{ fontSize: 11, color: t.faint, whiteSpace: 'nowrap' }}>{sub(r)}</span>}
+                            <span style={{ fontSize: 13, color: t.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{format(r.value)}</span>
+                            {share !== null && <span style={{ fontSize: 11, color: t.faint, width: 30, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{share.toFixed(0)}%</span>}
                         </div>
                         <div style={{ marginLeft: 22, height: 6, background: t.lineSoft, borderRadius: 99, overflow: 'hidden' }}>
                             <div style={{
@@ -343,7 +343,7 @@ export function RankBars({ rows, format, total, max = 6, color, onSelect, sub, e
                 );
             })}
             {rows.length > max && (
-                <div style={{ fontSize: 10, color: t.faint, paddingTop: 6 }}>+{rows.length - max} more · open for the full list</div>
+                <div style={{ fontSize: 11.5, color: t.faint, paddingTop: 6 }}>+{rows.length - max} more · open for the full list</div>
             )}
         </div>
     );
@@ -383,10 +383,10 @@ export function SplitBar({ parts, format, height = 16, onSelect, selected, unit 
                             background: active === p.id ? t.panelAlt : 'transparent',
                         }}>
                         <span style={{ width: 8, height: 8, borderRadius: 2, background: p.color, flexShrink: 0 }} />
-                        <span style={{ flex: 1, fontSize: 11, color: t.dim, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
-                        {p.note && <span style={{ fontSize: 9.5, color: t.faint }}>{p.note}</span>}
-                        <span style={{ fontSize: 11, color: t.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{format(p.value)}</span>
-                        <span style={{ fontSize: 9.5, color: t.faint, width: 32, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        <span style={{ flex: 1, fontSize: 12.5, color: t.dim, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
+                        {p.note && <span style={{ fontSize: 11, color: t.faint }}>{p.note}</span>}
+                        <span style={{ fontSize: 12.5, color: t.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{format(p.value)}</span>
+                        <span style={{ fontSize: 11, color: t.faint, width: 32, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                             {total > 0 ? `${Math.round((p.value / total) * 100)}%` : '—'}
                         </span>
                     </div>
@@ -414,20 +414,20 @@ export function Funnel({ stages, format, onSelect }) {
                         onPointerEnter={() => setHover(s.id)} onPointerLeave={() => { setHover(null); tip.hide(); }}
                         onPointerMove={(e) => tip.show(e, <TipBody title={s.label} rows={[{ label: 'Count', value: String(s.count), color: s.color }, { label: 'Value', value: format(s.value) }]} />)}
                         style={{ display: 'grid', gridTemplateColumns: '78px 1fr 70px', alignItems: 'center', gap: 10, cursor: onSelect ? 'pointer' : 'default', outline: 'none' }}>
-                        <span style={{ fontSize: 10.5, color: hover === s.id ? t.text : t.dim }}>{s.label}</span>
+                        <span style={{ fontSize: 12, color: hover === s.id ? t.text : t.dim }}>{s.label}</span>
                         <div style={{ height: 24, display: 'flex', justifyContent: 'center', background: t.lineSoft, borderRadius: 5 }}>
                             <div style={{
                                 width: `${Math.max(pct, s.count ? 4 : 0)}%`, background: s.color, borderRadius: 5,
                                 display: 'grid', placeItems: 'center', transition: 'width .45s cubic-bezier(.16,1,.3,1)',
                                 opacity: hover === null || hover === s.id ? 1 : 0.45,
                             }}>
-                                {pct > 22 && <span style={{ fontSize: 10.5, fontWeight: 600, color: s.ink || '#fff' }}>{s.count}</span>}
+                                {pct > 22 && <span style={{ fontSize: 12, fontWeight: 600, color: s.ink || '#fff' }}>{s.count}</span>}
                             </div>
                         </div>
-                        <span style={{ fontSize: 10.5, color: t.text, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        <span style={{ fontSize: 12, color: t.text, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                             {pct <= 22 && <span style={{ color: t.dim, marginRight: 6 }}>{s.count}</span>}
                             {format(s.value)}
-                            {conv !== null && conv !== undefined && <span style={{ display: 'block', fontSize: 9, color: t.faint }}>{s.convLabel || `${conv.toFixed(0)}% of prev`}</span>}
+                            {conv !== null && conv !== undefined && <span style={{ display: 'block', fontSize: 10.5, color: t.faint }}>{s.convLabel || `${conv.toFixed(0)}% of prev`}</span>}
                         </span>
                     </div>
                 );
@@ -461,10 +461,10 @@ export function CalendarHeat({ days, onSelect }) {
             {w > 0 && (
                 <svg width={w} height={height} style={{ display: 'block' }}>
                     {monthMarks.map((m) => (
-                        <text key={m.wk} x={labelW + m.wk * (cell + gap)} y={10} fontSize="9.5" fill={t.faint} fontFamily={MONO}>{m.text}</text>
+                        <text key={m.wk} x={labelW + m.wk * (cell + gap)} y={10} fontSize="11" fill={t.faint} fontFamily={MONO}>{m.text}</text>
                     ))}
                     {['M', '', 'W', '', 'F', '', ''].map((l, i) => l && (
-                        <text key={i} x={0} y={16 + i * (cell + gap) + cell - 2} fontSize="9" fill={t.ghost} fontFamily={MONO}>{l}</text>
+                        <text key={i} x={0} y={16 + i * (cell + gap) + cell - 2} fontSize="10.5" fill={t.ghost} fontFamily={MONO}>{l}</text>
                     ))}
                     {days.map((d, i) => {
                         const wk = Math.floor(i / 7);
@@ -484,7 +484,7 @@ export function CalendarHeat({ days, onSelect }) {
                     })}
                 </svg>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end', marginTop: 8, fontSize: 9.5, color: t.faint }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end', marginTop: 8, fontSize: 11, color: t.faint }}>
                 Less
                 {heat.map((c, i) => <span key={i} style={{ width: 10, height: 10, borderRadius: 2, background: c, border: i === 0 ? '1px solid ' + t.line : 'none' }} />)}
                 More
@@ -552,9 +552,9 @@ export function Gauge({ value, label, size = 150, color }) {
             </svg>
             <div style={{ position: 'absolute', left: 0, right: 0, top: size / 2 - 22, textAlign: 'center' }}>
                 <div style={{ fontSize: 24, fontWeight: 600, color: t.text, letterSpacing: '-0.04em', lineHeight: 1 }}>
-                    {v === null ? '—' : v.toFixed(0)}{v !== null && <span style={{ fontSize: 12, color: t.dim }}>%</span>}
+                    {v === null ? '—' : v.toFixed(0)}{v !== null && <span style={{ fontSize: 13.5, color: t.dim }}>%</span>}
                 </div>
-                <div style={{ fontSize: 9, letterSpacing: '0.08em', color: t.faint, marginTop: 4 }}>{label}</div>
+                <div style={{ fontSize: 10.5, letterSpacing: '0.08em', color: t.faint, marginTop: 4 }}>{label}</div>
             </div>
         </div>
     );
@@ -565,7 +565,7 @@ export function Legend({ items }) {
     return (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
             {items.map((it) => (
-                <span key={it.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, color: t.dim }}>
+                <span key={it.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: t.dim }}>
                     <span style={{ width: it.line ? 12 : 8, height: it.line ? 2 : 8, borderRadius: 2, background: it.color }} />
                     {it.label}
                 </span>
@@ -576,17 +576,17 @@ export function Legend({ items }) {
 
 export function EmptyNote({ children }) {
     const { t } = useViz();
-    return <div style={{ padding: '26px 8px', textAlign: 'center', fontSize: 11, color: t.faint }}>{children}</div>;
+    return <div style={{ padding: '26px 8px', textAlign: 'center', fontSize: 12.5, color: t.faint }}>{children}</div>;
 }
 
 export function Delta({ value, suffix = '%', invert = false, abs = false }) {
     const { t } = useViz();
-    if (value === null || value === undefined || !Number.isFinite(value)) return <span style={{ fontSize: 10, color: t.faint }}>no comparison</span>;
+    if (value === null || value === undefined || !Number.isFinite(value)) return <span style={{ fontSize: 11.5, color: t.faint }}>no comparison</span>;
     const up = value >= 0;
     const good = invert ? !up : up;
     const color = Math.abs(value) < 0.05 ? t.dim : good ? t.up : t.down;
     return (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 600, color, whiteSpace: 'nowrap' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, fontWeight: 600, color, whiteSpace: 'nowrap' }}>
             <span aria-hidden>{Math.abs(value) < 0.05 ? '→' : up ? '↑' : '↓'}</span>
             {abs ? `${up ? '+' : '−'}${Math.abs(value)}` : `${Math.abs(value).toFixed(1)}${suffix}`}
         </span>

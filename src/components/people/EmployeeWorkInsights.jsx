@@ -111,8 +111,8 @@ export default function EmployeeWorkInsights({ emp, orgId, narrow }) {
           boxShadow: nowLabel === 'Working now' ? `0 0 0 4px ${t.up}2e` : 'none',
         }} />
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-          <div style={{ fontSize: 12.5, color: t.text }}>{nowLabel}</div>
-          {nowDetail && <div style={{ fontSize: 10, color: t.faint, marginTop: 2 }}>{nowDetail}</div>}
+          <div style={{ fontSize: 14, color: t.text }}>{nowLabel}</div>
+          {nowDetail && <div style={{ fontSize: 11.5, color: t.faint, marginTop: 2 }}>{nowDetail}</div>}
         </div>
         <Mini label="Streak" value={`${streak}d`} />
         <Mini label="6-month hours" value={hoursLabel(sixMonthMinutes)} />
@@ -170,9 +170,9 @@ export default function EmployeeWorkInsights({ emp, orgId, narrow }) {
               return (
                 <div key={b.leave_type_id}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 5 }}>
-                    <span style={{ flex: 1, fontSize: 11, color: t.text }}>{b.leave_type_name}</span>
-                    <span style={{ fontSize: 12, color: t.text }}>{Number(b.remaining)}</span>
-                    <span style={{ fontSize: 9.5, color: t.faint }}>of {total} left</span>
+                    <span style={{ flex: 1, fontSize: 12.5, color: t.text }}>{b.leave_type_name}</span>
+                    <span style={{ fontSize: 13.5, color: t.text }}>{Number(b.remaining)}</span>
+                    <span style={{ fontSize: 11, color: t.faint }}>of {total} left</span>
                   </div>
                   <Bar value={Number(b.taken)} max={total || 1} />
                 </div>
@@ -192,13 +192,13 @@ export default function EmployeeWorkInsights({ emp, orgId, narrow }) {
             }}>
               <span style={{ width: 3, height: 26, borderRadius: 3, background: s.color || t.ghost, flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11.5, color: t.text }}>{typeName(r.leave_type_id)} · {Number(r.days)} day{Number(r.days) === 1 ? '' : 's'}</div>
-                <div style={{ fontSize: 10, color: t.faint, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontSize: 13, color: t.text }}>{typeName(r.leave_type_id)} · {Number(r.days)} day{Number(r.days) === 1 ? '' : 's'}</div>
+                <div style={{ fontSize: 11.5, color: t.faint, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {fmtLongDay(r.start_date)}{r.end_date !== r.start_date && ` → ${fmtLongDay(r.end_date)}`}
                   {r.reason && ` · ${r.reason}`}
                 </div>
               </div>
-              <span style={{ fontSize: 10.5, color: t.dim, flexShrink: 0 }}>{s.label || r.status}</span>
+              <span style={{ fontSize: 12, color: t.dim, flexShrink: 0 }}>{s.label || r.status}</span>
             </div>
           );
         }) : <Empty>No leave requested.</Empty>}
@@ -211,8 +211,8 @@ function Mini({ label, value }) {
   const t = useT();
   return (
     <div style={{ textAlign: 'right', paddingLeft: 12, borderLeft: '1px solid ' + t.line }}>
-      <div style={{ fontSize: 13, color: t.text }}>{value}</div>
-      <div style={{ fontSize: 8.5, letterSpacing: '0.1em', color: t.faint, marginTop: 2 }}>{label.toUpperCase()}</div>
+      <div style={{ fontSize: 14.5, color: t.text }}>{value}</div>
+      <div style={{ fontSize: 10, letterSpacing: '0.1em', color: t.faint, marginTop: 2 }}>{label.toUpperCase()}</div>
     </div>
   );
 }

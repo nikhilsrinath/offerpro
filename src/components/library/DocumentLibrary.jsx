@@ -4,16 +4,20 @@ import {
     Page, Toolbar, Row, Btn, Seg, Search, Table, Tr, Td, Empty, Loading, Muted, Modal,
     Field, Input, Select, Textarea, Status, StatBand, ConfirmBtn, Panel,
 } from '../ui/edge';
+import { useSearchParams } from 'react-router-dom';
 import { useT } from '../ui/edgeUtils';
 import { useOrg } from '../../context/OrgContext';
 import { useToast } from '../shared/Toast';
 import { orgStore } from '../../services/orgStore';
 import {
-    libraryService, CATEGORIES, categoryLabel, validateLibraryFile, titleFromFileName, READABLE_HINT,
+    libraryService, CATEGORIES, COLLECTIONS, collectionOf, categoryLabel, validateLibraryFile,
+    titleFromFileName, READABLE_HINT,
 } from '../../services/libraryService';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   General Documents — the company's file library.
+   Document library — General Documents, Organisational Process Assets and
+   the Lessons Learned Register. Three registers, one way of working: the
+   switch at the top picks the register, and uploads land in it.
 
    Anything can be stored. What EdgeBrain can read (PDF, Office, sheets, text,
    images) is turned into Markdown and indexed on upload, so the copilot and
@@ -66,6 +70,19 @@ export default function DocumentLibrary() {
     const [loadError, setLoadError] = useState('');
     const [query, setQuery] = useState('');
     const [category, setCategory] = useState('all');
+
+    // The register lives in the URL, so a link or a refresh lands on it.
+    const [params, setParams] = useSearchParams();
+    const collection = collectionOf(params.get('type')).id;
+    const register = collectionOf(collection);
+    const setCollection = (id) => {
+        setCategory('all');
+        setParams((p) => {
+            const next = new URLSearchParams(p);
+            if (id === 'general') next.delete('type'); else next.set('type', id);
+            return next;
+        }, { replace: true });
+    };
     const [inside, setInside] = useState(new Map());
     const [queue, setQueue] = useState([]);
     const [openId, setOpenId] = useState(null);
@@ -115,7 +132,10 @@ export default function DocumentLibrary() {
     const upload = useCallback(async (files) => {
         const list = Array.from(files || []);
         if (!list.length) return;
-        const jobs = list.map((f) => ({ key: crypto.randomUUID(), name: f.name, file: f, state: 'queued', error: validateLibraryFile(f) }));
+        const jobs = list.map((f) => ({
+            key: crypto.randomUUID(), name: f.name, file: f, state: 'queued',
+            error: validateLibraryFile(f), register: collectionOf(collection).short,
+        }));
         setQueue((q) => [...jobs.map(({ file: _f, ...j }) => ({ ...j, state: j.error ? 'failed' : 'queued' })), ...q]);
         const set = (key, patch) => setQueue((q) => q.map((j) => (j.key === key ? { ...j, ...patch } : j)));
 
@@ -129,6 +149,7 @@ export default function DocumentLibrary() {
                 const row = await libraryService.upload(orgId, job.file, {
                     title: titleFromFileName(job.name),
                     category: category !== 'all' ? category : 'general',
+                    collection,
                 });
                 ok += 1;
                 set(job.key, { state: 'done', status: row.extraction_status, error: row.extraction_error });
@@ -137,9 +158,9 @@ export default function DocumentLibrary() {
                 set(job.key, { state: 'failed', error: e.message || 'Upload failed' });
             }
         }
-        if (ok) toast(`${ok} document${ok === 1 ? '' : 's'} added to the library`, 'success');
+        if (ok) toast(`${ok} document${ok === 1 ? '' : 's'} added to ${collectionOf(collection).label}`, 'success');
         refresh();
-    }, [orgId, category, toast, refresh]);
+    }, [orgId, category, collection, toast, refresh]);
 
     const onDrop = (e) => {
         e.preventDefault();
@@ -147,32 +168,40 @@ export default function DocumentLibrary() {
         if (canCreate) upload(e.dataTransfer.files);
     };
 
+    // This register's documents; everything below the switch works on these.
+    const inRegister = useMemo(() => (docs || []).filter((d) => d.collection === collection), [docs, collection]);
+    const counts = useMemo(() => {
+        const c = { general: 0, opa: 0, lessons: 0 };
+        for (const d of docs || []) if (d.collection in c) c[d.collection] += 1;
+        return c;
+    }, [docs]);
+
     const shown = useMemo(() => {
         const q = query.trim().toLowerCase();
-        return (docs || []).filter((d) => {
+        return inRegister.filter((d) => {
             if (category !== 'all' && d.category !== category) return false;
             if (!q) return true;
             return hits.has(d.id)
                 || [d.title, d.file_name, d.description, d.summary, ...(d.tags || [])]
                     .some((v) => String(v || '').toLowerCase().includes(q));
         });
-    }, [docs, category, query, hits]);
+    }, [inRegister, category, query, hits]);
 
     const stats = useMemo(() => {
-        const all = docs || [];
+        const all = inRegister;
         return [
             { label: 'DOCUMENTS', value: all.length },
             { label: 'READABLE BY AI', value: all.filter((d) => d.chunk_count > 0).length,
-              note: all.length ? `${Math.round(100 * all.filter((d) => d.chunk_count > 0).length / all.length)}% of the library` : undefined },
+              note: all.length ? `${Math.round(100 * all.filter((d) => d.chunk_count > 0).length / all.length)}% of this register` : undefined },
             { label: 'PASSAGES INDEXED', value: all.reduce((a, d) => a + (d.chunk_count || 0), 0) },
             { label: 'STORAGE', value: fmtSize(all.reduce((a, d) => a + (d.size_bytes || 0), 0)) },
         ];
-    }, [docs]);
+    }, [inRegister]);
 
     const catOptions = useMemo(() => {
-        const present = new Set((docs || []).map((d) => d.category));
+        const present = new Set(inRegister.map((d) => d.category));
         return [{ id: 'all', label: 'All' }, ...CATEGORIES.filter((c) => present.has(c.id) || c.id === category)];
-    }, [docs, category]);
+    }, [inRegister, category]);
 
     const active = queue.filter((j) => j.state === 'queued' || j.state === 'working').length;
 
@@ -196,11 +225,24 @@ export default function DocumentLibrary() {
                         </Btn>
                     </>
                 )}>
+                    <div className="edge-scroll" style={{ maxWidth: '100%', overflowX: 'auto' }}>
+                        <Seg
+                            label="Register" value={collection} onChange={setCollection}
+                            options={COLLECTIONS.map((c) => ({
+                                id: c.id, label: c.label, count: docs ? counts[c.id] : undefined,
+                            }))}
+                        />
+                    </div>
+                </Toolbar>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
                     <Search value={query} onChange={setQuery} placeholder="Search names and inside documents…" width={280} />
                     {catOptions.length > 2 && (
                         <Seg value={category} onChange={setCategory} options={catOptions} size="sm" label="Category" />
                     )}
-                </Toolbar>
+                    <div style={{ flex: 1 }} />
+                    <span style={{ fontSize: 12, color: t.faint, lineHeight: 1.5 }}>{register.blurb}</span>
+                </div>
 
                 <StatBand items={stats} />
 
@@ -215,9 +257,10 @@ export default function DocumentLibrary() {
                                 {queue.map((j) => (
                                     <li key={j.key} style={{
                                         display: 'flex', gap: 12, alignItems: 'baseline', padding: '6px 13px',
-                                        fontSize: 11, borderBottom: '1px solid ' + t.lineSoft,
+                                        fontSize: 12.5, borderBottom: '1px solid ' + t.lineSoft,
                                     }}>
                                         <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{j.name}</span>
+                                        <Muted>{j.register}</Muted>
                                         <QueueState job={j} />
                                     </li>
                                 ))}
@@ -227,7 +270,7 @@ export default function DocumentLibrary() {
                 )}
 
                 {loadError && (
-                    <div role="alert" style={{ marginBottom: 14, fontSize: 11.5, color: t.down }}>
+                    <div role="alert" style={{ marginBottom: 14, fontSize: 13, color: t.down }}>
                         {loadError}
                     </div>
                 )}
@@ -244,9 +287,9 @@ export default function DocumentLibrary() {
                                 <Btn primary onClick={() => inputRef.current?.click()}>Upload the first file</Btn>
                             )}>
                                 {query || category !== 'all'
-                                    ? 'Nothing in the library matches that.'
-                                    : <>Store any file the company works from — policies, contracts, decks, price lists, scans.
-                                        Drop files anywhere on this page. {READABLE_HINT}</>}
+                                    ? `Nothing in ${register.label} matches that.`
+                                    : <>Nothing in {register.label} yet. {register.blurb} Drop files anywhere
+                                        on this page. {READABLE_HINT}</>}
                             </Empty>
                         )}
                     >
@@ -256,10 +299,10 @@ export default function DocumentLibrary() {
                             return (
                                 <Tr key={d.id} onClick={() => setOpenId(d.id)} label={`Open ${d.title}`}>
                                     <Td>
-                                        <div style={{ fontSize: 12, color: t.text }}>{d.title}</div>
+                                        <div style={{ fontSize: 13.5, color: t.text }}>{d.title}</div>
                                         <Muted>{d.file_name}{d.page_count ? ` · ${d.page_count} ${d.extraction_method === 'pptx' ? 'slides' : d.extraction_method === 'sheet' ? 'sheets' : 'pages'}` : ''}</Muted>
                                         {hit && (
-                                            <div style={{ fontSize: 10.5, color: t.dim, marginTop: 4, lineHeight: 1.5 }}>
+                                            <div style={{ fontSize: 12, color: t.dim, marginTop: 4, lineHeight: 1.5 }}>
                                                 {hit.heading && <span style={{ color: t.faint }}>{hit.heading} — </span>}{hit.snippet}
                                             </div>
                                         )}
@@ -282,8 +325,8 @@ export default function DocumentLibrary() {
                         position: 'absolute', inset: 0, zIndex: 30, display: 'grid', placeItems: 'center',
                         border: `2px dashed ${t.lineStrong}`, borderRadius: 12,
                         background: t.isDark ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.8)',
-                        fontSize: 13, color: t.text, pointerEvents: 'none',
-                    }}>Drop to add to the library</div>
+                        fontSize: 14.5, color: t.text, pointerEvents: 'none',
+                    }}>Drop to add to {register.label}</div>
                 )}
             </div>
 
@@ -292,7 +335,11 @@ export default function DocumentLibrary() {
                     id={openId} orgId={orgId}
                     canEdit={canEdit} canDelete={canDelete}
                     onClose={() => setOpenId(null)}
-                    onChanged={(row) => setDocs((d) => (d || []).map((x) => (x.id === row.id ? { ...x, ...row } : x)))}
+                    onChanged={(row) => {
+                        setDocs((d) => (d || []).map((x) => (x.id === row.id ? { ...x, ...row } : x)));
+                        // Moved to another register: it leaves this list, so the sheet goes with it.
+                        if (row.collection && row.collection !== collection) setOpenId(null);
+                    }}
                     onRemoved={(id) => { setDocs((d) => (d || []).filter((x) => x.id !== id)); setOpenId(null); }}
                 />
             )}
@@ -304,7 +351,7 @@ function QueueState({ job }) {
     const t = useT();
     if (job.state === 'queued') return <Muted>Waiting</Muted>;
     if (job.state === 'working') return <Status tone="mute">Uploading and reading…</Status>;
-    if (job.state === 'failed') return <span style={{ fontSize: 10.5, color: t.down }}>{job.error}</span>;
+    if (job.state === 'failed') return <span style={{ fontSize: 12, color: t.down }}>{job.error}</span>;
     const st = STATUS[job.status] || STATUS.pending;
     return <Status tone={st.tone}>{st.label}</Status>;
 }
@@ -324,7 +371,8 @@ function DocumentSheet({ id, orgId, canEdit, canDelete, onClose, onChanged, onRe
             const d = await libraryService.get(id);
             setDoc(d);
             setForm(d ? {
-                title: d.title, category: d.category, description: d.description || '',
+                title: d.title, category: d.category, collection: d.collection || 'general',
+                description: d.description || '',
                 tags: (d.tags || []).join(', '),
             } : null);
         } catch (e) { toast(e.message, 'error'); onClose(); }
@@ -334,6 +382,7 @@ function DocumentSheet({ id, orgId, canEdit, canDelete, onClose, onChanged, onRe
 
     const dirty = doc && form && (
         form.title !== doc.title || form.category !== doc.category
+        || form.collection !== (doc.collection || 'general')
         || form.description !== (doc.description || '') || form.tags !== (doc.tags || []).join(', ')
     );
 
@@ -341,14 +390,16 @@ function DocumentSheet({ id, orgId, canEdit, canDelete, onClose, onChanged, onRe
         if (!form.title.trim()) { toast('A document needs a title', 'error'); return; }
         setSaving(true);
         try {
+            const moved = form.collection !== (doc.collection || 'general');
             const row = await libraryService.update(doc.id, {
                 title: form.title.trim(), category: form.category,
+                ...(moved ? { collection: form.collection } : {}),
                 description: form.description.trim() || null,
                 tags: form.tags.split(',').map((s) => s.trim()).filter(Boolean).slice(0, 20),
             });
             setDoc((d) => ({ ...d, ...row }));
             onChanged(row);
-            toast('Saved', 'success');
+            toast(moved ? `Moved to ${collectionOf(row.collection).label}` : 'Saved', 'success');
         } catch (e) { toast(e.message, 'error'); } finally { setSaving(false); }
     };
 
@@ -399,10 +450,16 @@ function DocumentSheet({ id, orgId, canEdit, canDelete, onClose, onChanged, onRe
         >
             {!doc || !form ? <Loading /> : (
                 <div style={{ display: 'grid', gap: 16 }}>
-                    <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+                    <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
                         <Field label="Title">
                             <Input value={form.title} maxLength={200} disabled={!canEdit}
                                 onChange={(e) => setForm({ ...form, title: e.target.value })} />
+                        </Field>
+                        <Field label="Register">
+                            <Select value={form.collection} disabled={!canEdit}
+                                onChange={(e) => setForm({ ...form, collection: e.target.value })}>
+                                {COLLECTIONS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                            </Select>
                         </Field>
                         <Field label="Category">
                             <Select value={form.category} disabled={!canEdit}
@@ -422,7 +479,7 @@ function DocumentSheet({ id, orgId, canEdit, canDelete, onClose, onChanged, onRe
 
                     <section aria-labelledby="lib-ai-h" style={{ border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden' }}>
                         <Row style={{ padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft }} wrap>
-                            <h3 id="lib-ai-h" style={{ margin: 0, fontSize: 12, fontWeight: 500, color: t.text }}>What EdgeBrain read</h3>
+                            <h3 id="lib-ai-h" style={{ margin: 0, fontSize: 13.5, fontWeight: 500, color: t.text }}>What EdgeBrain read</h3>
                             <Status tone={st.tone}>{st.label}</Status>
                             {doc.extraction_method && <Muted>via {METHOD[doc.extraction_method] || doc.extraction_method}</Muted>}
                             {doc.chunk_count > 0 && <Muted>{doc.chunk_count} passage{doc.chunk_count === 1 ? '' : 's'} · {(doc.char_count || 0).toLocaleString('en-IN')} characters</Muted>}
@@ -431,7 +488,7 @@ function DocumentSheet({ id, orgId, canEdit, canDelete, onClose, onChanged, onRe
                             {canEdit && <Btn size="sm" onClick={reread} disabled={reading}>{reading ? 'Reading…' : 'Read again'}</Btn>}
                         </Row>
                         {doc.extraction_error && (
-                            <div role="note" style={{ padding: '9px 13px', fontSize: 11, color: doc.extraction_status === 'failed' ? t.down : t.dim, borderBottom: '1px solid ' + t.lineSoft }}>
+                            <div role="note" style={{ padding: '9px 13px', fontSize: 12.5, color: doc.extraction_status === 'failed' ? t.down : t.dim, borderBottom: '1px solid ' + t.lineSoft }}>
                                 {doc.extraction_error}
                             </div>
                         )}
@@ -442,7 +499,7 @@ function DocumentSheet({ id, orgId, canEdit, canDelete, onClose, onChanged, onRe
                                     margin: 0, padding: '12px 13px', maxHeight: 360, overflow: 'auto',
                                     whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                                     fontFamily: "ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace",
-                                    fontSize: 11, lineHeight: 1.6, color: t.dim, background: t.panelAlt,
+                                    fontSize: 12.5, lineHeight: 1.6, color: t.dim, background: t.panelAlt,
                                 }}
                             >{doc.content_md}</pre>
                         ) : (

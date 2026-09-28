@@ -1103,7 +1103,7 @@ h3 {
   min-height: 100vh;
   background: #FAF9F5;
   color: #0E0E0E;
-  font-family: 'Inter', -apple-system, sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 /* ── Left: Visual Panel ── */
@@ -4893,7 +4893,7 @@ label {
 }
 
 .records-summary-label {
-  font-size: 0.6875rem;
+  font-size: 12.5px;
   color: var(--text-tertiary);
   font-weight: 600;
   margin-top: 0.25rem;
@@ -4928,7 +4928,7 @@ label {
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--text-muted);
-  font-size: 0.8125rem;
+  font-size: 14.5px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
@@ -4946,7 +4946,7 @@ label {
 }
 
 .records-tab-count {
-  font-size: 0.625rem;
+  font-size: 11.5px;
   background: var(--num-badge-bg);
   padding: 0.125rem 0.5rem;
   border-radius: 10px;
@@ -5004,7 +5004,7 @@ label {
   border: 1px solid var(--border-default);
   border-radius: 8px;
   color: var(--text-secondary);
-  font-size: 0.8125rem;
+  font-size: 14.5px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
@@ -5076,7 +5076,7 @@ label {
 }
 
 .records-grid-card-type {
-  font-size: 0.625rem;
+  font-size: 11.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -5085,7 +5085,7 @@ label {
 }
 
 .records-grid-card-title {
-  font-size: 1.0625rem;
+  font-size: 18.5px;
   font-weight: 700;
   letter-spacing: -0.01em;
   margin: 0;
@@ -5096,7 +5096,7 @@ label {
 }
 
 .records-grid-card-detail {
-  font-size: 0.8125rem;
+  font-size: 14.5px;
   color: var(--text-tertiary);
   font-weight: 500;
   white-space: nowrap;
@@ -5105,7 +5105,7 @@ label {
 }
 
 .records-grid-card-date {
-  font-size: 0.6875rem;
+  font-size: 12.5px;
   color: var(--text-muted);
   font-weight: 500;
 }
@@ -5124,7 +5124,7 @@ label {
   gap: 0.375rem;
   padding: 0.4rem 0.75rem;
   border-radius: 8px;
-  font-size: 0.75rem;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
@@ -9143,11 +9143,11 @@ label {
   }
 
   .records-summary-count {
-    font-size: 1.125rem;
+    font-size: 19.5px;
   }
 
   .records-summary-label {
-    font-size: 0.625rem;
+    font-size: 11.5px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -9164,12 +9164,12 @@ label {
 
   .records-tab {
     padding: 0.375rem 0.75rem;
-    font-size: 0.75rem;
+    font-size: 13.5px;
     gap: 0.375rem;
   }
 
   .records-tab-count {
-    font-size: 0.5625rem;
+    font-size: 10.5px;
     padding: 0.1rem 0.375rem;
   }
 
@@ -9196,7 +9196,7 @@ label {
 
   .records-export-btn {
     padding: 0.4rem 0.625rem;
-    font-size: 0.75rem;
+    font-size: 13.5px;
   }
 
   .records-grid {
@@ -9217,11 +9217,11 @@ label {
   }
 
   .records-grid-card-title {
-    font-size: 0.9375rem;
+    font-size: 16.5px;
   }
 
   .records-grid-card-detail {
-    font-size: 0.75rem;
+    font-size: 13.5px;
   }
 
   .records-grid-card-actions {
@@ -9230,7 +9230,7 @@ label {
 
   .records-action-btn {
     padding: 0.375rem 0.625rem;
-    font-size: 0.6875rem;
+    font-size: 12.5px;
     border-radius: 6px;
   }
 
@@ -9273,7 +9273,7 @@ label {
 
   .records-tab {
     padding: 0.3rem 0.5rem;
-    font-size: 0.6875rem;
+    font-size: 12.5px;
   }
 }
 
@@ -9291,11 +9291,6 @@ label {
 .bulk-bento-grid {
   display: flex;
   gap: 4rem;
-}
-
-.bulk-history-table-wrapper {
-  overflow-x: auto;
-  width: 100%;
 }
 
 .recipient-portal-layout {
@@ -10810,7 +10805,7 @@ label {
 .rp-page {
   min-height: 100vh;
   background: #f6f7f9;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   color: #1a1a2e;
   display: flex;
   flex-direction: column;
@@ -13708,6 +13703,87 @@ label {
 }
 
 .prod-rate-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+
+/* ── Cash Book entry form: roomy, essentials first ─────────────────────── */
+
+/* The shell's tokens (edgeBridge.css) where it is on, the app's otherwise. */
+.cb-form {
+  --cb-bg: var(--edge-panel-alt, var(--bg-base));
+  --cb-line: var(--edge-line, var(--border-default));
+  --cb-line-strong: var(--edge-line-strong, var(--border-strong));
+  --cb-text: var(--edge-text, var(--text-primary));
+  --cb-dim: var(--edge-dim, var(--text-secondary));
+  --cb-faint: var(--edge-faint, var(--text-muted));
+  --cb-sel-bg: var(--edge-sel-bg, var(--btn-accent-bg));
+  --cb-sel-text: var(--edge-sel-text, var(--btn-accent-text));
+  padding: 1.5rem 1.75rem;
+}
+.cb-form .prod-form-grid { gap: 1.1rem 1.25rem; }
+.cb-form .prod-field { gap: 0.45rem; }
+/* The legend reads like the kit's field labels beside it. */
+.cb-form .cb-fieldset > legend {
+  font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase; font-weight: 400;
+  color: var(--cb-faint); padding: 0;
+}
+.cb-form .prod-field input,
+.cb-form .prod-field select,
+.cb-form .prod-field textarea {
+  min-height: 44px; padding: 0.6rem 0.85rem; font-size: 0.95rem; border-radius: 10px;
+}
+.cb-form .prod-field textarea { min-height: 72px; }
+.cb-form .prod-field-note { font-size: 0.75rem; }
+.cb-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.cb-fieldset > legend { margin-bottom: 0.4rem; }
+
+.cb-direction {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem; padding: 0.25rem;
+  margin-bottom: 1.25rem; border: 1px solid var(--cb-line); border-radius: 12px; background: var(--cb-bg);
+}
+.cb-direction button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  min-height: 44px; border: 0; border-radius: 9px; background: transparent; cursor: pointer;
+  font-family: inherit; font-size: 0.95rem; font-weight: 600; color: var(--cb-dim);
+}
+.cb-direction button.active { background: var(--cb-sel-bg); color: var(--cb-sel-text); }
+
+.cb-amount {
+  display: flex; align-items: center; min-height: 52px; padding: 0 0.9rem; border-radius: 10px;
+  border: 1px solid var(--cb-line); background: var(--cb-bg);
+}
+.cb-amount:focus-within { border-color: var(--cb-line-strong); }
+.cb-amount > span { font-size: 1.3rem; font-weight: 600; color: var(--cb-faint); margin-right: 0.4rem; }
+.cb-form .cb-amount input {
+  flex: 1; min-width: 0; border: 0; background: transparent; padding: 0; min-height: 50px;
+  font-size: 1.4rem; font-weight: 650; outline: none;
+}
+
+.cb-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.cb-chips button {
+  min-height: 40px; padding: 0 1rem; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--cb-line); background: var(--cb-bg);
+  font-family: inherit; font-size: 0.875rem; font-weight: 550; color: var(--cb-dim);
+}
+.cb-chips button:hover { border-color: var(--cb-line-strong); color: var(--cb-text); }
+.cb-chips button.active { background: var(--cb-sel-bg); border-color: var(--cb-sel-bg); color: var(--cb-sel-text); }
+
+.cb-check { display: flex !important; align-items: center; gap: 0.5rem; margin-top: 0.25rem; font-weight: 400 !important; }
+.cb-form .cb-check input { min-height: 0; width: 16px; height: 16px; }
+
+.cb-more { margin-top: 1.4rem; border-top: 1px solid var(--cb-line); padding-top: 0.9rem; }
+.cb-more > .prod-form-grid { margin-top: 1rem; }
+.cb-more-toggle {
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; width: 100%; padding: 0.4rem 0;
+  border: 0; background: transparent; cursor: pointer; font-family: inherit; text-align: left;
+}
+.cb-more-toggle > span:first-child { font-size: 0.9rem; font-weight: 600; color: var(--cb-text); text-decoration: underline; text-underline-offset: 3px; }
+.cb-more-toggle:disabled { cursor: default; }
+.cb-more-toggle:disabled > span:first-child { text-decoration: none; }
+.cb-more-hint { font-size: 0.78rem; color: var(--cb-faint); }
+.cb-form .prod-modal-foot { margin-top: 1.5rem; }
+.cb-form .prod-modal-foot button { min-height: 44px; padding: 0 1.25rem; font-size: 0.9rem; }
+@media (max-width: 640px) {
+  .cb-form { padding: 1.1rem; }
+}
 
 .prod-inventory {
   margin-top: 1rem;

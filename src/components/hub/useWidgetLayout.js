@@ -1,63 +1,76 @@
 import { useCallback, useEffect, useState } from 'react';
-import { DEFAULT_LAYOUT, WIDGET_BY_ID, sizeFor } from './widgetCatalog';
+import { DEFAULT_LAYOUT, WIDGET_BY_ID } from './widgetCatalog';
 
-/* Which widgets the hub shows, in what order and at what size.
+/* Which widgets a board shows, in what order and at what size.
 
    Kept per person and per organization in localStorage: a layout is a
    preference about how you like to look at a company, not a fact about the
    company, and two people in one org rarely want the same board. An empty
    array is a deliberate "cleared" state and is stored as such — only a
-   missing key falls back to the default ten. */
+   missing key falls back to the defaults.
 
-const keyFor = (orgId) => `edgeos.hub.layout.v1:${orgId || 'none'}`;
+   The hub's catalog is the default; a project workspace passes its own
+   (projects/projectWidgets.jsx), stored under its own key. */
 
-function read(orgId) {
+export const HUB_CATALOG = { key: 'edgeos.hub.layout.v1', byId: WIDGET_BY_ID, defaults: DEFAULT_LAYOUT };
+
+/** A stored size the widget can take, or its default. Old layouts stored 'wide'. */
+const sizeIn = (byId, id, size) => {
+    const w = byId.get(id);
+    if (!w) return 'sm';
+    const s = size === 'wide' ? 'md' : size;
+    return w.sizes.includes(s) ? s : w.size;
+};
+
+function read(catalog, orgId) {
     try {
-        const raw = localStorage.getItem(keyFor(orgId));
-        if (raw === null) return DEFAULT_LAYOUT;
+        const raw = localStorage.getItem(`${catalog.key}:${orgId || 'none'}`);
+        if (raw === null) return catalog.defaults;
         const list = JSON.parse(raw);
-        if (!Array.isArray(list)) return DEFAULT_LAYOUT;
+        if (!Array.isArray(list)) return catalog.defaults;
         // Drop widgets that no longer exist, and duplicates.
         const seen = new Set();
         return list.filter((w) => {
-            if (!w || !WIDGET_BY_ID.has(w.id) || seen.has(w.id)) return false;
+            if (!w || !catalog.byId.has(w.id) || seen.has(w.id)) return false;
             seen.add(w.id);
             return true;
-        }).map((w) => ({ id: w.id, size: sizeFor(w.id, w.size) }));
+        }).map((w) => ({ id: w.id, size: sizeIn(catalog.byId, w.id, w.size) }));
     } catch {
-        return DEFAULT_LAYOUT;
+        return catalog.defaults;
     }
 }
 
-export function useWidgetLayout(orgId) {
-    const [state, setState] = useState(() => ({ orgId, layout: read(orgId) }));
+export function useWidgetLayout(orgId, catalog = HUB_CATALOG) {
+    const storageKey = `${catalog.key}:${orgId || 'none'}`;
+    const [state, setState] = useState(() => ({ storageKey, layout: read(catalog, orgId) }));
     // Re-read when the org changes, without a setState-in-effect cascade.
-    const layout = state.orgId === orgId ? state.layout : read(orgId);
+    const layout = state.storageKey === storageKey ? state.layout : read(catalog, orgId);
 
     const commit = useCallback((fn) => {
         setState((s) => {
-            const base = s.orgId === orgId ? s.layout : read(orgId);
+            const base = s.storageKey === storageKey ? s.layout : read(catalog, orgId);
             const next = fn(base);
-            try { localStorage.setItem(keyFor(orgId), JSON.stringify(next)); } catch { /* quota / private mode */ }
-            return { orgId, layout: next };
+            try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* quota / private mode */ }
+            return { storageKey, layout: next };
         });
-    }, [orgId]);
+    }, [storageKey, catalog, orgId]);
 
     // Another tab changed the layout.
     useEffect(() => {
-        const onStorage = (e) => { if (e.key === keyFor(orgId)) setState({ orgId, layout: read(orgId) }); };
+        const onStorage = (e) => { if (e.key === storageKey) setState({ storageKey, layout: read(catalog, orgId) }); };
         window.addEventListener('storage', onStorage);
         return () => window.removeEventListener('storage', onStorage);
-    }, [orgId]);
+    }, [storageKey, catalog, orgId]);
 
+    const sizeOf = (id) => catalog.byId.get(id)?.size || 'sm';
     const api = {
         has: (id) => layout.some((w) => w.id === id),
-        add: (id) => commit((l) => (l.some((w) => w.id === id) ? l : [...l, { id, size: WIDGET_BY_ID.get(id)?.size || 'sm' }])),
+        add: (id) => commit((l) => (l.some((w) => w.id === id) ? l : [...l, { id, size: sizeOf(id) }])),
         remove: (id) => commit((l) => l.filter((w) => w.id !== id)),
         toggle: (id) => commit((l) => (l.some((w) => w.id === id)
             ? l.filter((w) => w.id !== id)
-            : [...l, { id, size: WIDGET_BY_ID.get(id)?.size || 'sm' }])),
-        resize: (id, size) => commit((l) => l.map((w) => (w.id === id ? { ...w, size: sizeFor(id, size) } : w))),
+            : [...l, { id, size: sizeOf(id) }])),
+        resize: (id, size) => commit((l) => l.map((w) => (w.id === id ? { ...w, size: sizeIn(catalog.byId, id, size) } : w))),
         move: (id, delta) => commit((l) => {
             const i = l.findIndex((w) => w.id === id);
             const j = i + delta;
@@ -77,7 +90,7 @@ export function useWidgetLayout(orgId) {
             return next;
         }),
         set: (list) => commit(() => list),
-        reset: () => commit(() => DEFAULT_LAYOUT),
+        reset: () => commit(() => catalog.defaults),
         clear: () => commit(() => []),
     };
 

@@ -218,7 +218,7 @@ export default function ProjectsPage() {
                                 <Td muted nowrap>{p.code}</Td>
                                 <Td>
                                     <span style={{ display: 'block' }}>{p.name}</span>
-                                    <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 2 }}>
+                                    <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 2 }}>
                                         {p.client_id ? clientName[p.client_id] || 'Client' : 'Internal'}
                                         {p.archived_at ? ' · archived' : ''}
                                     </span>
@@ -247,7 +247,7 @@ export default function ProjectsPage() {
                                         {f?.net_margin == null ? <span style={{ color: t.ghost }}>—</span> : (
                                             <span style={{ color: Number(f.net_margin) < 0 ? t.down : t.text }}>
                                                 {money(f.net_margin)}
-                                                {f.net_margin_pct != null && <span style={{ color: t.faint, fontSize: 10 }}> · {f.net_margin_pct}%</span>}
+                                                {f.net_margin_pct != null && <span style={{ color: t.faint, fontSize: 11.5 }}> · {f.net_margin_pct}%</span>}
                                             </span>
                                         )}
                                     </Td>
@@ -269,12 +269,12 @@ function Board({ projects, clientName, empById, progressOf, onOpen }) {
             {PROJECT_STATUSES.map((s) => (
                 <section key={s.id} aria-label={s.label} style={{ border: '1px solid ' + t.line, borderRadius: 10, minWidth: 0 }}>
                     <header style={{ display: 'flex', gap: 8, padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft }}>
-                        <span style={{ flex: 1, fontSize: 11.5 }}>{s.label}</span>
-                        <span style={{ fontSize: 10, color: t.ghost }}>{groups[s.id].length}</span>
+                        <span style={{ flex: 1, fontSize: 13 }}>{s.label}</span>
+                        <span style={{ fontSize: 11.5, color: t.ghost }}>{groups[s.id].length}</span>
                     </header>
                     <div style={{ display: 'grid', gap: 8, padding: 10 }}>
                         {groups[s.id].length === 0
-                            ? <div style={{ padding: '18px 6px', textAlign: 'center', fontSize: 10, color: t.ghost }}>Nothing here</div>
+                            ? <div style={{ padding: '18px 6px', textAlign: 'center', fontSize: 11.5, color: t.ghost }}>Nothing here</div>
                             : groups[s.id].map((p) => {
                                 const prog = progressOf[p.id];
                                 const mgr = empById[p.manager_employee_id];
@@ -283,9 +283,9 @@ function Board({ projects, clientName, empById, progressOf, onOpen }) {
                                         textAlign: 'left', border: '1px solid ' + t.line, borderRadius: 9, padding: 11,
                                         background: t.panel, cursor: 'pointer', color: t.text, fontFamily: 'inherit',
                                     }}>
-                                        <span style={{ display: 'block', fontSize: 9.5, color: t.faint }}>{p.code}</span>
-                                        <span style={{ display: 'block', fontSize: 11.5, margin: '3px 0 6px' }}>{p.name}</span>
-                                        <span style={{ display: 'block', fontSize: 10, color: t.faint, marginBottom: 8 }}>
+                                        <span style={{ display: 'block', fontSize: 11, color: t.faint }}>{p.code}</span>
+                                        <span style={{ display: 'block', fontSize: 13, margin: '3px 0 6px' }}>{p.name}</span>
+                                        <span style={{ display: 'block', fontSize: 11.5, color: t.faint, marginBottom: 8 }}>
                                             {p.client_id ? clientName[p.client_id] || 'Client' : 'Internal'}
                                             {mgr ? ` · ${mgr.name || mgr.full_name || ''}` : ''}
                                         </span>

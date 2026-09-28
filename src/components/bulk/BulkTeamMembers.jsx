@@ -136,7 +136,7 @@ export default function BulkTeamMembers() {
                     <Step n={2} title="Check and fix rows" actions={<Btn size="sm" onClick={() => setStep(1)}>Upload a different file</Btn>}>
                         <ValidationTable data={data} columns={COLUMNS} onEdit={handleEdit} validationConfig={VALIDATION_CONFIG} />
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 14, paddingTop: 14, borderTop: '1px solid ' + t.lineSoft }}>
-                            <Muted size={11}>Rows with errors are skipped. Only valid rows create profiles.</Muted>
+                            <Muted size={12.5}>Rows with errors are skipped. Only valid rows create profiles.</Muted>
                             <div style={{ flex: 1 }} />
                             <Btn primary onClick={startImport} disabled={validCount === 0}>
                                 <UserPlus aria-hidden="true" size={13} strokeWidth={2} /> Import {validCount} employee{validCount === 1 ? '' : 's'}

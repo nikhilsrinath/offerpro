@@ -125,7 +125,7 @@ export default function PortalLinkGenerator({ documentId, recipientEmail, link: 
       return (
         <div>
           <Status tone="down">Could not create the link</Status>
-          <p style={{ margin: '8px 0 12px', fontSize: 11.5, color: t.dim, lineHeight: 1.55 }}>{error}</p>
+          <p style={{ margin: '8px 0 12px', fontSize: 13, color: t.dim, lineHeight: 1.55 }}>{error}</p>
           <Btn primary disabled={busy === 'new'} onClick={() => run('new', issue, 'Could not create the link')}>
             {busy === 'new' ? 'Trying…' : 'Try again'}
           </Btn>
@@ -145,7 +145,7 @@ export default function PortalLinkGenerator({ documentId, recipientEmail, link: 
     return (
       <>
         {/* State, in one line: live or not, for whom, until when. */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 11, color: t.faint }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12.5, color: t.faint }}>
           {revoked ? <Status tone="down">Revoked</Status> : <Status tone="up">Active</Status>}
           {!revoked && link.expires_at && <span>expires {fmt(link.expires_at)}</span>}
           {!revoked && sentTo && <span>· for {sentTo}</span>}
@@ -153,7 +153,7 @@ export default function PortalLinkGenerator({ documentId, recipientEmail, link: 
 
         {revoked ? (
           <div style={{ marginTop: 12 }}>
-            <p style={{ margin: '0 0 12px', fontSize: 11.5, color: t.dim, lineHeight: 1.55 }}>
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: t.dim, lineHeight: 1.55 }}>
               This link no longer opens the document. Create a new one if the client still needs access.
             </p>
             <Btn primary disabled={busy === 'new'} onClick={() => run('new', issue, 'Could not create a new link')}>
@@ -172,7 +172,7 @@ export default function PortalLinkGenerator({ documentId, recipientEmail, link: 
                 style={{
                   flex: 1, minWidth: 0, height: 29, padding: '0 10px', borderRadius: 7,
                   border: '1px solid ' + t.line, background: t.panelAlt, color: t.dim,
-                  fontSize: 11.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                  fontSize: 13, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
                   textOverflow: 'ellipsis', outline: 'none',
                 }}
               />
@@ -202,7 +202,7 @@ export default function PortalLinkGenerator({ documentId, recipientEmail, link: 
                 <div style={{ background: '#fff', padding: 6, borderRadius: 6, lineHeight: 0 }}>
                   <QRCodeSVG value={link.url} size={112} bgColor="#ffffff" fgColor="#0e1011" level="M" />
                 </div>
-                <p style={{ margin: 0, fontSize: 11, color: t.dim, lineHeight: 1.55 }}>
+                <p style={{ margin: 0, fontSize: 12.5, color: t.dim, lineHeight: 1.55 }}>
                   Scan with a phone camera to open the document.
                 </p>
               </div>
@@ -211,7 +211,7 @@ export default function PortalLinkGenerator({ documentId, recipientEmail, link: 
         )}
 
         {error && (
-          <p role="alert" style={{ margin: '10px 0 0', fontSize: 11, color: t.down, lineHeight: 1.5 }}>{error}</p>
+          <p role="alert" style={{ margin: '10px 0 0', fontSize: 12.5, color: t.down, lineHeight: 1.5 }}>{error}</p>
         )}
 
         {/* Earlier links: one summary line and one action. The list is there
@@ -219,7 +219,7 @@ export default function PortalLinkGenerator({ documentId, recipientEmail, link: 
         {older.length > 0 && (
           <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid ' + t.lineSoft }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 11, color: t.dim }}>
+              <span style={{ fontSize: 12.5, color: t.dim }}>
                 {older.length} older {older.length === 1 ? 'link still works' : 'links still work'}
               </span>
               <button
@@ -228,7 +228,7 @@ export default function PortalLinkGenerator({ documentId, recipientEmail, link: 
                 aria-expanded={showOlder}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 4px',
-                  background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: t.faint,
+                  background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, color: t.faint,
                   fontFamily: 'inherit', minHeight: 24,
                 }}
               >
@@ -245,7 +245,7 @@ export default function PortalLinkGenerator({ documentId, recipientEmail, link: 
                 {older.map((row, i) => (
                   <li key={row.jti} style={{
                     display: 'flex', alignItems: 'center', gap: 10, padding: '6px 6px 6px 10px',
-                    borderTop: i ? '1px solid ' + t.lineSoft : 'none', fontSize: 11,
+                    borderTop: i ? '1px solid ' + t.lineSoft : 'none', fontSize: 12.5,
                   }}>
                     <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: t.text }}>
                       {row.recipient_email || 'No email recorded'}
@@ -277,8 +277,8 @@ export default function PortalLinkGenerator({ documentId, recipientEmail, link: 
   return (
     <section style={{ border: '1px solid ' + t.line, borderRadius: 10, background: t.panel, overflow: 'hidden' }}>
       <header style={{ padding: '10px 14px', borderBottom: '1px solid ' + t.lineSoft }}>
-        <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>Client link</div>
-        <div style={{ fontSize: 10.5, color: t.faint, marginTop: 2 }}>Anyone with this link can view and respond to the document.</div>
+        <div style={{ fontSize: 13.5, fontWeight: 500, color: t.text }}>Client link</div>
+        <div style={{ fontSize: 12, color: t.faint, marginTop: 2 }}>Anyone with this link can view and respond to the document.</div>
       </header>
       <div style={{ padding: 14 }}>{body}</div>
     </section>

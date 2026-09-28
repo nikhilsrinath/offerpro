@@ -49,9 +49,9 @@ const inr = (v) => '₹' + Math.round(Number(v) || 0).toLocaleString('en-IN');
 // light/dark like every other surface, rather than baking in one palette.
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const chartStyles = () => ({
-  tooltip: { background: css('--chart-tooltip-bg'), border: `1px solid ${css('--chart-tooltip-border')}`, borderRadius: 10, fontSize: 12, color: css('--chart-tooltip-text') },
+  tooltip: { background: css('--chart-tooltip-bg'), border: `1px solid ${css('--chart-tooltip-border')}`, borderRadius: 10, fontSize: 13.5, color: css('--chart-tooltip-text') },
   label: { color: css('--chart-axis-text') },
-  axis: { fill: css('--chart-axis-text'), fontSize: 11 },
+  axis: { fill: css('--chart-axis-text'), fontSize: 12.5 },
   grid: css('--chart-grid'),
 });
 

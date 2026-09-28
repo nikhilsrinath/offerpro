@@ -3,6 +3,7 @@ import { Download, Info, ArrowUpRight, ArrowDownLeft, Scale } from 'lucide-react
 import { taxSummary, periodOptions, downloadCsv } from '../../services/financeAnalytics';
 import { Stat } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
+import { useProjectScope } from '../projects/projectScope';
 
 /**
  * Output GST collected against input GST paid, by month or FY quarter.
@@ -10,12 +11,19 @@ import { useSection, money, fmtDate } from './financeHooks';
  * EdgeOS and does not handle reverse charge, blocked credits, credit notes or
  * amendments, so it must never be mistaken for a return.
  */
-export default function TaxSummary() {
-  const docs = useSection('fin_docs');
-  const purchases = useSection('purchase_invoices');
-  const expenses = useSection('expenses');
-  const income = useSection('income_entries');
+export default function TaxSummary({ projectId = null }) {
+  const allDocs = useSection('fin_docs');
+  const allPurchases = useSection('purchase_invoices');
+  const allExpenses = useSection('expenses');
+  const allIncome = useSection('income_entries');
   const vendors = useSection('vendors');
+  // With `projectId` (a project's Tax Summary): the GST on what is linked to
+  // the project, at its share of anything split across projects.
+  const scope = useProjectScope(projectId);
+  const docs = scope ? scope.data.docs : allDocs;
+  const purchases = scope ? scope.data.purchases : allPurchases;
+  const expenses = scope ? scope.data.expenses : allExpenses;
+  const income = scope ? scope.data.income : allIncome;
 
   const [kind, setKind] = useState('month');
   const options = useMemo(() => periodOptions(kind, kind === 'month' ? 12 : 8), [kind]);
@@ -36,7 +44,7 @@ export default function TaxSummary() {
     rows.push(['', net >= 0 ? 'Net payable' : 'Net credit', '', '', '', Math.abs(net).toFixed(2)]);
     rows.push([]);
     rows.push(['Preparation aid only. Not a GST return. Verify with your accountant before filing.']);
-    downloadCsv(`tax-summary-${period.from}-to-${period.to}.csv`,
+    downloadCsv(`tax-summary-${scope?.project?.code ? `${scope.project.code}-` : ''}${period.from}-to-${period.to}.csv`,
       ['Date', 'Type', 'Reference', 'Party', 'Taxable value', 'GST'], rows);
   };
 
@@ -52,6 +60,8 @@ export default function TaxSummary() {
       >
         <Info size={16} style={{ flexShrink: 0, marginTop: 2 }} />
         <span>
+          {scope && <>Only this project’s invoices, bills and cash-book entries — and only its share of any split
+            across projects. GST is filed for the whole company, so use the company Tax Summary to file. </>}
           <strong>A preparation aid, not a filing tool.</strong> These figures come from invoices, bills and
           expenses recorded in EdgeOS. They do not account for reverse charge, ineligible input credit,
           credit/debit notes or amendments. Reconcile with GSTR-2B and your accountant before filing.

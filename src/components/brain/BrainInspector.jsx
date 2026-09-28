@@ -19,7 +19,7 @@ export default function BrainInspector({ detail, loading, error, onOpen, onLocat
     if (loading) return <div style={{ padding: 14 }}><Loading>Opening…</Loading></div>;
     if (error) {
         return (
-            <div role="alert" style={{ padding: 14, fontSize: 11, color: t.down, lineHeight: 1.6 }}>
+            <div role="alert" style={{ padding: 14, fontSize: 12.5, color: t.down, lineHeight: 1.6 }}>
                 {error}
             </div>
         );
@@ -37,11 +37,11 @@ export default function BrainInspector({ detail, loading, error, onOpen, onLocat
         <div style={{ fontFamily: MONO }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 13 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 9, letterSpacing: '0.1em', color: t.faint }}>
+                    <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint }}>
                         {kindLabel(node.kind).toUpperCase()}
                     </div>
                     <div style={{
-                        fontSize: 14, color: t.text, marginTop: 4, lineHeight: 1.35,
+                        fontSize: 15.5, color: t.text, marginTop: 4, lineHeight: 1.35,
                         wordBreak: 'break-word',
                     }}>{node.label}</div>
                 </div>
@@ -53,7 +53,7 @@ export default function BrainInspector({ detail, loading, error, onOpen, onLocat
                             display: 'inline-flex', alignItems: 'center', gap: 5, height: 25,
                             padding: '0 8px', borderRadius: 6, cursor: 'pointer', flexShrink: 0,
                             border: `1px solid ${t.line}`, background: t.panel, color: t.dim,
-                            fontFamily: MONO, fontSize: 10,
+                            fontFamily: MONO, fontSize: 11.5,
                         }}>
                         <Crosshair aria-hidden="true" size={11} strokeWidth={1.8} />
                         Locate
@@ -108,10 +108,10 @@ export default function BrainInspector({ detail, loading, error, onOpen, onLocat
                                     }}>
                                     <span style={{ flex: 1, minWidth: 0 }}>
                                         <span style={{
-                                            display: 'block', fontSize: 11, color: t.text,
+                                            display: 'block', fontSize: 12.5, color: t.text,
                                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                                         }}>{nb.label}</span>
-                                        <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 2 }}>
+                                        <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 2 }}>
                                             {edge
                                                 ? `${outgoing ? '' : '← '}${relLabel(edge.rel)}${outgoing ? ' →' : ''} · ${kindLabel(nb.kind)}`
                                                 : kindLabel(nb.kind)}
@@ -131,7 +131,7 @@ export default function BrainInspector({ detail, loading, error, onOpen, onLocat
 
 function Line({ t, icon, label, value }) {
     return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5 }}>
             <span aria-hidden="true" style={{ color: t.ghost, display: 'grid', placeItems: 'center' }}>{icon}</span>
             <span style={{ color: t.faint, width: 92, flexShrink: 0 }}>{label}</span>
             <span style={{
@@ -147,9 +147,9 @@ function Section({ t, title, note, children }) {
         <section style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 8 }}>
                 <h3 style={{
-                    margin: 0, fontSize: 9, letterSpacing: '0.1em', fontWeight: 400, color: t.faint,
+                    margin: 0, fontSize: 10.5, letterSpacing: '0.1em', fontWeight: 400, color: t.faint,
                 }}>{title}</h3>
-                {note && <span style={{ fontSize: 9, color: t.ghost }}>{note}</span>}
+                {note && <span style={{ fontSize: 10.5, color: t.ghost }}>{note}</span>}
             </div>
             {children}
         </section>
@@ -165,7 +165,7 @@ function FactList({ t, data }) {
     return (
         <div style={{ display: 'grid', gap: 5 }}>
             {entries.map(([k, v]) => (
-                <div key={k} style={{ display: 'flex', gap: 9, fontSize: 10.5, alignItems: 'baseline' }}>
+                <div key={k} style={{ display: 'flex', gap: 9, fontSize: 12, alignItems: 'baseline' }}>
                     <span style={{ color: t.faint, width: 112, flexShrink: 0 }}>
                         {k.replace(/_/g, ' ')}
                     </span>

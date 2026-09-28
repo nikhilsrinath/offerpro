@@ -477,7 +477,7 @@ export default function CompanyProfile() {
             {[...steps, ...extras].map((s) => (
               <button key={s.id} type="button" onClick={() => jumpTo(s.id)} className="cp-chip" style={{
                 flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6,
-                height: 32, padding: '0 11px', borderRadius: 999, cursor: 'pointer', fontFamily: MONO, fontSize: 11.5,
+                height: 32, padding: '0 11px', borderRadius: 999, cursor: 'pointer', fontFamily: MONO, fontSize: 13,
                 border: '1px solid ' + (activeSection === s.id ? t.lineStrong : t.line),
                 background: activeSection === s.id ? t.panelAlt : t.panel,
                 color: activeSection === s.id ? t.text : t.dim,
@@ -517,10 +517,10 @@ export default function CompanyProfile() {
                 : <Building2 size={20} strokeWidth={1.6} color={t.faint} />}
             </div>
             <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-              <div style={{ fontSize: 16, fontWeight: 500, letterSpacing: '-0.02em', color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 17.5, fontWeight: 500, letterSpacing: '-0.02em', color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {form.company_name || 'Your company'}
               </div>
-              <div style={{ fontSize: 11.5, color: t.dim, marginTop: 3, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 13, color: t.dim, marginTop: 3, lineHeight: 1.5 }}>
                 {doneCount === steps.length
                   ? 'All set — every document you create is filled in from here.'
                   : `${doneCount} of ${steps.length} steps done. Everything here is auto-filled into offers, invoices, MoUs and certificates.`}
@@ -544,11 +544,11 @@ export default function CompanyProfile() {
             <details className="cp-details" style={{ border: '1px solid ' + t.line, borderRadius: 12, background: t.panel }}>
               <summary style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', cursor: 'pointer',
-                fontSize: 12, color: t.text, listStyle: 'none',
+                fontSize: 13.5, color: t.text, listStyle: 'none',
               }}>
                 <ChevronDown size={14} className="cp-caret" color={t.faint} />
                 Preview on a document
-                <span style={{ fontSize: 10.5, color: t.faint, marginLeft: 'auto' }}>updates as you type</span>
+                <span style={{ fontSize: 12, color: t.faint, marginLeft: 'auto' }}>updates as you type</span>
               </summary>
               <div style={{ padding: '0 16px 16px' }}>
                 <Letterhead form={form} onJump={jumpTo} />
@@ -721,17 +721,17 @@ export default function CompanyProfile() {
             )}
 
             <details className="cp-details" style={{ marginTop: 14, border: '1px solid ' + t.lineSoft, borderRadius: 10, background: t.panelAlt }}>
-              <summary style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', cursor: 'pointer', fontSize: 12, color: t.text, listStyle: 'none' }}>
+              <summary style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', cursor: 'pointer', fontSize: 13.5, color: t.text, listStyle: 'none' }}>
                 <ChevronDown size={14} className="cp-caret" color={t.faint} />
                 How do I get an app password?
-                <span style={{ fontSize: 10.5, color: t.faint, marginLeft: 'auto' }}>about 2 minutes</span>
+                <span style={{ fontSize: 12, color: t.faint, marginLeft: 'auto' }}>about 2 minutes</span>
               </summary>
-              <ol style={{ margin: 0, padding: '2px 14px 14px 36px', display: 'grid', gap: 8, fontSize: 12, lineHeight: 1.6, color: t.dim }}>
+              <ol style={{ margin: 0, padding: '2px 14px 14px 36px', display: 'grid', gap: 8, fontSize: 13.5, lineHeight: 1.6, color: t.dim }}>
                 <li>Turn on <b style={{ color: t.text, fontWeight: 500 }}>2-Step Verification</b> for your Google account. <ExtLink t={t} href="https://myaccount.google.com/signinoptions/two-step-verification">Open 2-Step settings</ExtLink></li>
                 <li>Open <b style={{ color: t.text, fontWeight: 500 }}>App passwords</b>. <ExtLink t={t} href="https://myaccount.google.com/apppasswords">Open App passwords</ExtLink></li>
                 <li>Name it “EdgeOS” and press <b style={{ color: t.text, fontWeight: 500 }}>Create</b>.</li>
                 <li>Copy the 16-character password, paste it above, and press <b style={{ color: t.text, fontWeight: 500 }}>Save & send a test email</b>.</li>
-                <li style={{ listStyle: 'none', marginLeft: -22, color: t.faint, fontSize: 11 }}>
+                <li style={{ listStyle: 'none', marginLeft: -22, color: t.faint, fontSize: 12.5 }}>
                   An app password is not your Google login password, and you can revoke it from the same page at any time.
                 </li>
               </ol>
@@ -761,8 +761,8 @@ export default function CompanyProfile() {
                 const v = plan.limits[key];
                 return (
                   <div key={key} style={{ padding: '12px 14px', borderRight: '1px solid ' + t.lineSoft, borderBottom: '1px solid ' + t.lineSoft }}>
-                    <div style={{ fontSize: 18, fontWeight: 500, letterSpacing: '-0.03em', color: t.text }}>{v === Infinity ? '∞' : v}</div>
-                    <div style={{ fontSize: 10.5, color: t.faint, marginTop: 4 }}>{label}</div>
+                    <div style={{ fontSize: 19.5, fontWeight: 500, letterSpacing: '-0.03em', color: t.text }}>{v === Infinity ? '∞' : v}</div>
+                    <div style={{ fontSize: 12, color: t.faint, marginTop: 4 }}>{label}</div>
                   </div>
                 );
               })}
@@ -831,9 +831,9 @@ export default function CompanyProfile() {
               transition: 'opacity .18s, transform .22s cubic-bezier(.16,1,.3,1)',
             }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: saved && !dirty ? t.up : t.text }} />
-              <span style={{ fontSize: 12, color: t.text, flex: 1, minWidth: 140 }}>
+              <span style={{ fontSize: 13.5, color: t.text, flex: 1, minWidth: 140 }}>
                 {saved && !dirty ? 'Saved — new documents will use these details.' : 'You have unsaved changes'}
-                {!narrow && dirty && <span style={{ color: t.faint, marginLeft: 8, fontSize: 10.5 }}>Ctrl + S</span>}
+                {!narrow && dirty && <span style={{ color: t.faint, marginLeft: 8, fontSize: 12 }}>Ctrl + S</span>}
               </span>
               {dirty && <Btn onClick={handleDiscard} disabled={saving}>Discard</Btn>}
               {dirty && (
@@ -850,7 +850,7 @@ export default function CompanyProfile() {
           <aside style={{ position: 'sticky', top: 0 }} aria-label="Document preview">
             <RailHead t={t}>PREVIEW ON A DOCUMENT</RailHead>
             <Letterhead form={form} onJump={jumpTo} />
-            <p style={{ fontSize: 10.5, color: t.faint, lineHeight: 1.6, margin: '10px 2px 0' }}>
+            <p style={{ fontSize: 12, color: t.faint, lineHeight: 1.6, margin: '10px 2px 0' }}>
               Updates as you type. Click a dashed box to fill it in.
             </p>
           </aside>
@@ -891,20 +891,20 @@ export default function CompanyProfile() {
 /* ── pieces ──────────────────────────────────────────────────────────────── */
 
 function RailHead({ t, children, style }) {
-  return <div style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.faint, padding: '4px 10px 8px', ...style }}>{children}</div>;
+  return <div style={{ fontSize: 11, letterSpacing: '0.1em', color: t.faint, padding: '4px 10px 8px', ...style }}>{children}</div>;
 }
 
 function RailItem({ t, active, done, marker, onClick, children }) {
   return (
     <button type="button" onClick={onClick} className="cp-rail edge-navitem" aria-current={active ? 'true' : undefined} style={{
       display: 'flex', alignItems: 'center', gap: 10, width: '100%', height: 36, padding: '0 10px',
-      borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: MONO, fontSize: 12,
+      borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: MONO, fontSize: 13.5,
       background: active ? t.panelAlt : 'transparent', color: active ? t.text : t.dim,
       boxShadow: active ? 'inset 2px 0 0 ' + t.text : 'none', transition: 'color .14s, background .14s',
     }}>
       <span style={{
         width: 20, height: 20, borderRadius: 999, flexShrink: 0, display: 'grid', placeItems: 'center',
-        fontSize: 10, border: '1px solid ' + (done ? t.up : t.line),
+        fontSize: 11.5, border: '1px solid ' + (done ? t.up : t.line),
         background: done ? t.up : 'transparent', color: done ? (t.isDark ? '#050506' : '#fff') : t.faint,
       }}>{marker}</span>
       <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>
@@ -925,16 +925,16 @@ function Section({ t, narrow, id, n, done, title, desc, status, children }) {
         {n !== undefined && (
           <span aria-hidden="true" style={{
             width: 24, height: 24, borderRadius: 999, flexShrink: 0, marginTop: 1, display: 'grid', placeItems: 'center',
-            fontSize: 11, border: '1px solid ' + (done ? t.up : t.lineStrong),
+            fontSize: 12.5, border: '1px solid ' + (done ? t.up : t.lineStrong),
             background: done ? t.up : 'transparent', color: done ? (t.isDark ? '#050506' : '#fff') : t.dim,
           }}>{done ? <Check size={12} strokeWidth={2.6} /> : n}</span>
         )}
         <div style={{ flex: '1 1 240px', minWidth: 0 }}>
-          <h2 id={`cp-sec-${id}-title`} style={{ margin: 0, fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em', color: t.text }}>
+          <h2 id={`cp-sec-${id}-title`} style={{ margin: 0, fontSize: 15.5, fontWeight: 500, letterSpacing: '-0.01em', color: t.text }}>
             {title}
-            {n !== undefined && <span style={{ fontSize: 10.5, fontWeight: 400, color: done ? t.up : t.faint, marginLeft: 10 }}>{done ? 'Done' : 'To do'}</span>}
+            {n !== undefined && <span style={{ fontSize: 12, fontWeight: 400, color: done ? t.up : t.faint, marginLeft: 10 }}>{done ? 'Done' : 'To do'}</span>}
           </h2>
-          {desc && <p style={{ margin: '4px 0 0', fontSize: 11.5, color: t.dim, lineHeight: 1.55 }}>{desc}</p>}
+          {desc && <p style={{ margin: '4px 0 0', fontSize: 13, color: t.dim, lineHeight: 1.55 }}>{desc}</p>}
         </div>
         {status}
       </header>
@@ -955,14 +955,14 @@ function FormField({ t, label, required, hint, warn, htmlFor, wide, children }) 
   const hintId = htmlFor ? `${htmlFor}-hint` : undefined;
   return (
     <div style={{ minWidth: 0, gridColumn: wide ? '1 / -1' : undefined }}>
-      <label htmlFor={htmlFor} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 11.5, color: t.text, marginBottom: 6 }}>
+      <label htmlFor={htmlFor} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 13, color: t.text, marginBottom: 6 }}>
         {label}
-        {required && <span style={{ color: t.faint, fontSize: 10.5 }}>required</span>}
+        {required && <span style={{ color: t.faint, fontSize: 12 }}>required</span>}
       </label>
       {children}
       {(warn || hint) && (
         <div id={hintId} role={warn ? 'alert' : undefined} style={{
-          display: 'flex', gap: 5, alignItems: 'flex-start', fontSize: 10.5, lineHeight: 1.5, marginTop: 5,
+          display: 'flex', gap: 5, alignItems: 'flex-start', fontSize: 12, lineHeight: 1.5, marginTop: 5,
           color: warn ? t.down : t.faint,
         }}>
           {warn && <AlertCircle size={11} style={{ marginTop: 2, flexShrink: 0 }} />}
@@ -986,7 +986,7 @@ function TextInput({ t, as, mono, style, ...props }) {
         height: Tag === 'textarea' ? undefined : 40,
         padding: Tag === 'textarea' ? '10px 12px' : '0 12px',
         background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 8,
-        color: t.text, fontFamily: MONO, fontSize: 13, outline: 'none',
+        color: t.text, fontFamily: MONO, fontSize: 14.5, outline: 'none',
         letterSpacing: mono ? '0.04em' : undefined,
         resize: Tag === 'textarea' ? 'vertical' : undefined, lineHeight: 1.55,
         ...style,
@@ -1001,7 +1001,7 @@ function Uploader({ t, field, label, hint, url, busy, height, onFile, onEdit, on
   const pick = () => inputRef.current?.click();
   return (
     <div style={{ minWidth: 0 }}>
-      <div style={{ fontSize: 11.5, color: t.text, marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 13, color: t.text, marginBottom: 6 }}>{label}</div>
       <input ref={inputRef} type="file" accept="image/*" hidden
         onChange={(e) => { onFile(e.target.files[0], field); e.target.value = ''; }} />
       <button
@@ -1019,7 +1019,7 @@ function Uploader({ t, field, label, hint, url, busy, height, onFile, onEdit, on
         }}
       >
         {busy ? (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: url ? '#6b7275' : t.dim }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: url ? '#6b7275' : t.dim }}>
             <Loader size={14} className="spin-icon" /> Uploading…
           </span>
         ) : url ? (
@@ -1027,7 +1027,7 @@ function Uploader({ t, field, label, hint, url, busy, height, onFile, onEdit, on
         ) : (
           <>
             <Upload size={18} strokeWidth={1.7} color={t.dim} />
-            <span style={{ fontSize: 12, color: t.text }}>Click to choose, or drop an image</span>
+            <span style={{ fontSize: 13.5, color: t.text }}>Click to choose, or drop an image</span>
           </>
         )}
       </button>
@@ -1039,7 +1039,7 @@ function Uploader({ t, field, label, hint, url, busy, height, onFile, onEdit, on
             <Btn size="sm" danger onClick={() => onRemove(field)} disabled={busy}><Trash2 size={11} /> Remove</Btn>
           </>
         ) : (
-          <span style={{ fontSize: 10.5, color: t.faint, lineHeight: 1.5 }}>{hint}</span>
+          <span style={{ fontSize: 12, color: t.faint, lineHeight: 1.5 }}>{hint}</span>
         )}
       </div>
     </div>
@@ -1049,7 +1049,7 @@ function Uploader({ t, field, label, hint, url, busy, height, onFile, onEdit, on
 function StatusLine({ t, ok, dot, children }) {
   return (
     <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11, color: t.dim,
+      display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: t.dim,
       padding: '5px 10px', borderRadius: 999, border: '1px solid ' + t.line, background: t.panelAlt,
       maxWidth: '100%', minWidth: 0,
     }}>
@@ -1065,7 +1065,7 @@ function Notice({ t, tone, children, onClose }) {
     <div role={tone === 'down' ? 'alert' : 'status'} style={{
       display: 'flex', alignItems: 'flex-start', gap: 9, padding: '10px 12px', borderRadius: 9,
       border: '1px solid ' + t.line, borderLeft: '3px solid ' + color, background: t.panelAlt,
-      fontSize: 12, lineHeight: 1.5, color: t.text,
+      fontSize: 13.5, lineHeight: 1.5, color: t.text,
     }}>
       {tone === 'up'
         ? <Check size={14} color={color} style={{ marginTop: 2, flexShrink: 0 }} />
@@ -1073,7 +1073,7 @@ function Notice({ t, tone, children, onClose }) {
       <span style={{ flex: 1, minWidth: 0 }}>{children}</span>
       {onClose && (
         <button type="button" onClick={onClose} aria-label="Dismiss" className="cp-iconbtn" style={{
-          border: 'none', background: 'transparent', color: t.faint, cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: '0 2px',
+          border: 'none', background: 'transparent', color: t.faint, cursor: 'pointer', fontSize: 16.5, lineHeight: 1, padding: '0 2px',
         }}>×</button>
       )}
     </div>
@@ -1082,7 +1082,7 @@ function Notice({ t, tone, children, onClose }) {
 
 function SubHead({ t, icon, children }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: t.text, marginBottom: 10 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13.5, color: t.text, marginBottom: 10 }}>
       {icon && <span style={{ color: t.faint, display: 'grid' }}>{icon}</span>}
       {children}
     </div>
@@ -1094,8 +1094,8 @@ function ActionRow({ t, title, note, action, children }) {
     <div style={{ border: '1px solid ' + t.lineSoft, borderRadius: 10, padding: '12px 14px', background: t.panelAlt }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 240px', minWidth: 0 }}>
-          <div style={{ fontSize: 12.5, color: t.text }}>{title}</div>
-          <div style={{ fontSize: 11, color: t.faint, marginTop: 3, lineHeight: 1.55 }}>{note}</div>
+          <div style={{ fontSize: 14, color: t.text }}>{title}</div>
+          <div style={{ fontSize: 12.5, color: t.faint, marginTop: 3, lineHeight: 1.55 }}>{note}</div>
         </div>
         {action}
       </div>
@@ -1119,7 +1119,7 @@ function Gap({ label, onClick, style }) {
   return (
     <button type="button" onClick={onClick} className="cp-jump" style={{
       border: '1px dashed #c2c9cc', borderRadius: 6, background: 'transparent', color: '#959c9f',
-      fontFamily: MONO, fontSize: 9.5, cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 4, ...style,
+      fontFamily: MONO, fontSize: 11, cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 4, ...style,
     }}>+ {label}</button>
   );
 }
@@ -1148,15 +1148,15 @@ function Letterhead({ form, onJump }) {
           ? <img src={form.logo_url} alt="" style={{ width: 48, height: 48, objectFit: 'contain', flexShrink: 0 }} />
           : <Gap label="Logo" onClick={() => onJump('branding')} style={{ width: 48, height: 48, flexShrink: 0 }} />}
         <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.25, wordBreak: 'break-word' }}>
+          <div style={{ fontSize: 14.5, fontWeight: 700, lineHeight: 1.25, wordBreak: 'break-word' }}>
             {form.company_name || <span style={{ color: '#c2c9cc' }}>Company name</span>}
           </div>
-          {form.company_tagline && <div style={{ fontSize: 9, color: soft, marginTop: 2, fontStyle: 'italic' }}>{form.company_tagline}</div>}
-          <div style={{ fontSize: 8.5, color: soft, marginTop: 5, lineHeight: 1.5, whiteSpace: 'pre-line' }}>
-            {form.company_address || <button type="button" onClick={() => onJump('company', 'company_address')} className="cp-jump" style={{ border: 'none', background: 'none', padding: 0, color: '#959c9f', fontSize: 8.5, cursor: 'pointer', fontFamily: MONO }}>+ Address</button>}
+          {form.company_tagline && <div style={{ fontSize: 10.5, color: soft, marginTop: 2, fontStyle: 'italic' }}>{form.company_tagline}</div>}
+          <div style={{ fontSize: 10, color: soft, marginTop: 5, lineHeight: 1.5, whiteSpace: 'pre-line' }}>
+            {form.company_address || <button type="button" onClick={() => onJump('company', 'company_address')} className="cp-jump" style={{ border: 'none', background: 'none', padding: 0, color: '#959c9f', fontSize: 10, cursor: 'pointer', fontFamily: MONO }}>+ Address</button>}
           </div>
-          {contact && <div style={{ fontSize: 8, color: soft, marginTop: 3, wordBreak: 'break-word' }}>{contact}</div>}
-          {form.gstin && <div style={{ fontSize: 8, color: soft, marginTop: 2 }}>GSTIN {form.gstin}</div>}
+          {contact && <div style={{ fontSize: 9.5, color: soft, marginTop: 3, wordBreak: 'break-word' }}>{contact}</div>}
+          {form.gstin && <div style={{ fontSize: 9.5, color: soft, marginTop: 2 }}>GSTIN {form.gstin}</div>}
         </div>
       </div>
       <div style={{ height: 2, background: ink, margin: '12px 0 14px' }} />
@@ -1171,13 +1171,13 @@ function Letterhead({ form, onJump }) {
             ? <img src={form.signature_url} alt="" style={{ height: 34, maxWidth: 130, objectFit: 'contain', display: 'block' }} />
             : <Gap label="Signature" onClick={() => onJump('branding')} style={{ width: 120, height: 34 }} />}
           <div style={{ width: 130, height: 1, background: ink, margin: '4px 0 5px' }} />
-          <div style={{ fontSize: 9.5, fontWeight: 600 }}>{form.owner_full_name || <span style={{ color: '#c2c9cc' }}>Signatory name</span>}</div>
-          <div style={{ fontSize: 8.5, color: soft }}>{form.document_designation || 'Title'}</div>
+          <div style={{ fontSize: 11, fontWeight: 600 }}>{form.owner_full_name || <span style={{ color: '#c2c9cc' }}>Signatory name</span>}</div>
+          <div style={{ fontSize: 10, color: soft }}>{form.document_designation || 'Title'}</div>
         </div>
         {stamp}
       </div>
       {form.upi_id && (
-        <div style={{ marginTop: 10, paddingTop: 7, borderTop: '1px solid ' + rule, fontSize: 8, color: soft }}>
+        <div style={{ marginTop: 10, paddingTop: 7, borderTop: '1px solid ' + rule, fontSize: 9.5, color: soft }}>
           Pay via UPI · {form.upi_id}
         </div>
       )}

@@ -17,12 +17,12 @@ export function Step({ n, title, note, actions, children }) {
             }}>
                 <span aria-hidden="true" style={{
                     width: 22, height: 22, borderRadius: 6, display: 'grid', placeItems: 'center', flexShrink: 0,
-                    border: '1px solid ' + t.line, background: t.panelAlt, fontSize: 10.5, color: t.dim,
+                    border: '1px solid ' + t.line, background: t.panelAlt, fontSize: 12, color: t.dim,
                 }}>{n}</span>
-                <h2 id={id} style={{ margin: 0, fontSize: 12.5, fontWeight: 500, color: t.text }}>
+                <h2 id={id} style={{ margin: 0, fontSize: 14, fontWeight: 500, color: t.text }}>
                     <span style={SR_ONLY}>Step {n}: </span>{title}
                 </h2>
-                {note && <span style={{ fontSize: 10.5, color: t.faint }}>{note}</span>}
+                {note && <span style={{ fontSize: 12, color: t.faint }}>{note}</span>}
                 <div style={{ flex: 1 }} />
                 {actions}
             </header>
@@ -47,7 +47,7 @@ export function LiveFeed({ title = 'Live feed', items, working, workingText = 'P
     return (
         <section aria-label={title} style={{ border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden' }}>
             <header style={{ padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft }}>
-                <h2 style={{ margin: 0, fontSize: 12, fontWeight: 500, color: t.text }}>{title}</h2>
+                <h2 style={{ margin: 0, fontSize: 13.5, fontWeight: 500, color: t.text }}>{title}</h2>
             </header>
             <ol aria-live="polite" className="edge-scroll" style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: 520, overflowY: 'auto' }}>
                 {items.slice().reverse().map((it, i) => (
@@ -56,15 +56,15 @@ export function LiveFeed({ title = 'Live feed', items, working, workingText = 'P
                         boxShadow: 'inset 2px 0 0 ' + (it.failed ? t.down : t.up),
                     }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.title}</span>
+                            <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.title}</span>
                             <Status tone={it.failed ? 'down' : 'up'}>{it.status}</Status>
                         </div>
-                        {it.detail && <div style={{ fontSize: 10.5, color: t.dim, marginTop: 3, wordBreak: 'break-word' }}>{it.detail}</div>}
+                        {it.detail && <div style={{ fontSize: 12, color: t.dim, marginTop: 3, wordBreak: 'break-word' }}>{it.detail}</div>}
                     </li>
                 ))}
             </ol>
             {working && (
-                <div role="status" style={{ padding: '12px 13px', fontSize: 10.5, color: t.faint, textAlign: 'center' }}>{workingText}</div>
+                <div role="status" style={{ padding: '12px 13px', fontSize: 12, color: t.faint, textAlign: 'center' }}>{workingText}</div>
             )}
         </section>
     );
@@ -80,8 +80,8 @@ export function Outcome({ ok, failed, children, action }) {
             boxShadow: 'inset 2px 0 0 ' + (failed > 0 ? t.down : t.up),
         }}>
             <div style={{ flex: 1, minWidth: 200 }}>
-                <div style={{ fontSize: 12.5, color: t.text }}>{ok}</div>
-                {failed > 0 && <div style={{ fontSize: 11, color: t.down, marginTop: 3 }}>{children}</div>}
+                <div style={{ fontSize: 14, color: t.text }}>{ok}</div>
+                {failed > 0 && <div style={{ fontSize: 12.5, color: t.down, marginTop: 3 }}>{children}</div>}
             </div>
             {action}
         </div>
@@ -110,8 +110,8 @@ export function SwitchRow({ checked, onChange, title, note }) {
             }}
         >
             <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 12 }}>{title}</span>
-                {note && <span style={{ display: 'block', fontSize: 10.5, color: t.faint, marginTop: 2 }}>{note}</span>}
+                <span style={{ display: 'block', fontSize: 13.5 }}>{title}</span>
+                {note && <span style={{ display: 'block', fontSize: 12, color: t.faint, marginTop: 2 }}>{note}</span>}
             </span>
             <span aria-hidden="true" style={{
                 width: 32, height: 18, borderRadius: 99, flexShrink: 0, position: 'relative',

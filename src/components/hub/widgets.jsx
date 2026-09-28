@@ -758,7 +758,7 @@ function Documents({ d, size }) {
 
 const TYPE_LABEL = {
     invoice: 'Invoices', quotation: 'Quotations', proforma: 'Proforma', offer: 'Offer letters', offer_letter: 'Offer letters',
-    certificate: 'Certificates', nda: 'NDAs', mou: 'MoUs',
+    certificate: 'Certificates', nda: 'NDAs', mou: 'MoUs', agreement: 'Agreements',
 };
 
 function Volume({ d, size }) {
@@ -853,5 +853,5 @@ export {
     Revenue, Expenses, NetCash, CashFlow, Receivables, Settlement, Markets, GeoMap, Brain,
     Team, Tasks, Pipeline, Documents, Volume, Activity, Payables, Shortcuts,
     // Primitives the project widgets (projectWidgets.jsx) share.
-    Empty as WidgetEmpty, LinkBtn, Meter, Value, Duo, Bar,
+    Empty as WidgetEmpty, LinkBtn, Meter, Value, Duo, Bar, Ring,
 };

@@ -351,7 +351,7 @@ export default function EdgeBrain() {
                             position: 'absolute', left: '50%', top: 12, transform: 'translateX(-50%)',
                             maxWidth: 'min(560px, calc(100% - 24px))', padding: '10px 13px', borderRadius: 9,
                             border: `1px solid ${t.lineStrong}`, background: t.panel, boxShadow: t.shadow,
-                            fontSize: 10.5, color: t.dim, lineHeight: 1.6, zIndex: 6,
+                            fontSize: 12, color: t.dim, lineHeight: 1.6, zIndex: 6,
                         }}>{actionError}</div>
                     )}
 
@@ -387,7 +387,7 @@ export default function EdgeBrain() {
                             <Minus aria-hidden="true" size={13} strokeWidth={1.9} />
                         </CtlBtn>
                         <span aria-live="off" style={{
-                            minWidth: 42, textAlign: 'center', fontSize: 10, color: t.faint,
+                            minWidth: 42, textAlign: 'center', fontSize: 11.5, color: t.faint,
                         }}>{Math.round(zoom * 100)}%</span>
                         <CtlBtn t={t} label="Zoom in" onClick={() => graphRef.current?.zoomBy(1.35)}>
                             <Plus aria-hidden="true" size={13} strokeWidth={1.9} />
@@ -462,7 +462,7 @@ function Chip({ t, children, tone, muted }) {
     return (
         <span style={{
             ...glass(t), display: 'inline-flex', alignItems: 'center', height: 27,
-            padding: '0 10px', borderRadius: 999, fontFamily: MONO, fontSize: 10.5,
+            padding: '0 10px', borderRadius: 999, fontFamily: MONO, fontSize: 12,
             color: tone || (muted ? t.faint : t.dim), whiteSpace: 'nowrap',
         }}>{children}</span>
     );
@@ -476,7 +476,7 @@ function FilterChip({ t, on, label, dot, onClick }) {
                 ...glass(t),
                 display: 'inline-flex', alignItems: 'center', gap: 5, height: 24,
                 padding: '0 9px', borderRadius: 999, cursor: 'pointer', fontFamily: MONO,
-                fontSize: 9.5, whiteSpace: 'nowrap',
+                fontSize: 11, whiteSpace: 'nowrap',
                 borderColor: on ? t.lineStrong : t.line,
                 color: on ? t.text : t.faint,
             }}>
@@ -521,7 +521,7 @@ function SyncChip({ t, busy, stale, pending, failed, live, onClick }) {
             ...glass(t),
             display: 'inline-flex', alignItems: 'center', gap: 7, height: 27,
             padding: '0 11px', borderRadius: 999, cursor: 'pointer',
-            color: t.dim, fontFamily: MONO, fontSize: 10.5, pointerEvents: 'auto',
+            color: t.dim, fontFamily: MONO, fontSize: 12, pointerEvents: 'auto',
         }} title="Open Brain Health">
             <span aria-hidden="true" style={{
                 width: 6, height: 6, borderRadius: 999, background: tone, flexShrink: 0,

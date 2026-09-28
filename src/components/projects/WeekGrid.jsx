@@ -48,7 +48,7 @@ export default function WeekGrid({ employeeId, projects, entries, readOnly = fal
         finally { setBusy(false); }
     };
 
-    const th = { padding: '7px 8px', fontSize: 9.5, letterSpacing: '0.06em', color: t.faint, fontWeight: 400, textAlign: 'center', borderBottom: '1px solid ' + t.line };
+    const th = { padding: '7px 8px', fontSize: 11, letterSpacing: '0.06em', color: t.faint, fontWeight: 400, textAlign: 'center', borderBottom: '1px solid ' + t.line };
     const td = { padding: 4, borderBottom: '1px solid ' + t.lineSoft, textAlign: 'center' };
     const dayTotal = (dk) => mine.filter((e) => e.work_date === dk).reduce((s, e) => s + e.minutes, 0);
 
@@ -56,7 +56,7 @@ export default function WeekGrid({ employeeId, projects, entries, readOnly = fal
         <div>
             <Row gap={8} wrap style={{ marginBottom: 10 }}>
                 <Btn size="sm" aria-label="Previous week" onClick={() => setWeek((w) => new Date(w.getTime() - 7 * DAY))}>←</Btn>
-                <span style={{ fontSize: 11.5 }}>
+                <span style={{ fontSize: 13 }}>
                     Week of {days[0].toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – {days[6].toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </span>
                 <Btn size="sm" aria-label="Next week" onClick={() => setWeek((w) => new Date(w.getTime() + 7 * DAY))}>→</Btn>
@@ -88,8 +88,8 @@ export default function WeekGrid({ employeeId, projects, entries, readOnly = fal
                                 const total = mine.filter((e) => e.project_id === p.id).reduce((s, e) => s + e.minutes, 0);
                                 return (
                                     <tr key={p.id}>
-                                        <th scope="row" style={{ ...td, textAlign: 'left', fontSize: 11, fontWeight: 400, color: t.text }}>
-                                            <span style={{ color: t.faint, fontSize: 9.5 }}>{p.code}</span> {p.name}
+                                        <th scope="row" style={{ ...td, textAlign: 'left', fontSize: 12.5, fontWeight: 400, color: t.text }}>
+                                            <span style={{ color: t.faint, fontSize: 11 }}>{p.code}</span> {p.name}
                                         </th>
                                         {dayKeys.map((dk) => {
                                             const es = cell(p.id, dk);
@@ -108,7 +108,7 @@ export default function WeekGrid({ employeeId, projects, entries, readOnly = fal
                                                         title={status ? `Status: ${status}` : undefined}
                                                         className="edge-input"
                                                         style={{
-                                                            width: 56, height: 28, textAlign: 'center', fontFamily: MONO, fontSize: 11,
+                                                            width: 56, height: 28, textAlign: 'center', fontFamily: MONO, fontSize: 12.5,
                                                             background: status === 'approved' ? t.panelAlt : t.panel, color: t.text,
                                                             border: '1px solid ' + (status === 'rejected' ? t.down : status === 'submitted' ? t.lineStrong : t.line),
                                                             borderRadius: 6,
@@ -116,13 +116,13 @@ export default function WeekGrid({ employeeId, projects, entries, readOnly = fal
                                                 </td>
                                             );
                                         })}
-                                        <td style={{ ...td, fontSize: 11 }}>{fmtH(total) || '—'}</td>
+                                        <td style={{ ...td, fontSize: 12.5 }}>{fmtH(total) || '—'}</td>
                                     </tr>
                                 );
                             })}
                             <tr>
-                                <th scope="row" style={{ ...td, textAlign: 'left', fontSize: 9.5, color: t.faint, fontWeight: 400 }}>DAY TOTAL</th>
-                                {dayKeys.map((dk) => <td key={dk} style={{ ...td, fontSize: 11, color: t.dim }}>{fmtH(dayTotal(dk)) || '—'}</td>)}
+                                <th scope="row" style={{ ...td, textAlign: 'left', fontSize: 11, color: t.faint, fontWeight: 400 }}>DAY TOTAL</th>
+                                {dayKeys.map((dk) => <td key={dk} style={{ ...td, fontSize: 12.5, color: t.dim }}>{fmtH(dayTotal(dk)) || '—'}</td>)}
                                 <td style={td} />
                             </tr>
                         </tbody>

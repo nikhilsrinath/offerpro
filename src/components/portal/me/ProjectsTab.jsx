@@ -41,9 +41,9 @@ export default function ProjectsTab({ orgId }) {
                 const upcoming = (p.milestones || []).filter((m) => m.status === 'pending' || m.status === 'in_progress').slice(0, 3);
                 return (
                     <section key={p.project_id} aria-label={p.name} style={{ border: '1px solid ' + t.line, borderRadius: 10, padding: 14 }}>
-                        <div style={{ fontSize: 9.5, color: t.faint }}>{p.code}</div>
-                        <div style={{ fontSize: 14, color: t.text, margin: '2px 0 6px' }}>{p.name}</div>
-                        <div style={{ fontSize: 11, color: t.dim, lineHeight: 1.7 }}>
+                        <div style={{ fontSize: 11, color: t.faint }}>{p.code}</div>
+                        <div style={{ fontSize: 15.5, color: t.text, margin: '2px 0 6px' }}>{p.name}</div>
+                        <div style={{ fontSize: 12.5, color: t.dim, lineHeight: 1.7 }}>
                             {p.client_name ? `For ${p.client_name}` : 'Internal'} · {statusLabel(p.status)}<br />
                             You: {p.my_role}, {Math.round(p.my_allocation_pct)}% of your time
                             {p.my_end ? ` until ${fmtLongDay(p.my_end)}` : ''}
@@ -52,9 +52,9 @@ export default function ProjectsTab({ orgId }) {
 
                         {upcoming.length > 0 && (
                             <div style={{ marginTop: 10 }}>
-                                <div style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.faint, marginBottom: 5 }}>NEXT MILESTONES</div>
+                                <div style={{ fontSize: 11, letterSpacing: '0.1em', color: t.faint, marginBottom: 5 }}>NEXT MILESTONES</div>
                                 {upcoming.map((m) => (
-                                    <div key={m.id} style={{ fontSize: 11.5, display: 'flex', gap: 8 }}>
+                                    <div key={m.id} style={{ fontSize: 13, display: 'flex', gap: 8 }}>
                                         <span style={{ flex: 1 }}>{m.title}</span>
                                         <span style={{ color: t.faint }}>{m.due_date ? fmtLongDay(m.due_date) : 'No date'}</span>
                                     </div>
@@ -63,11 +63,11 @@ export default function ProjectsTab({ orgId }) {
                         )}
 
                         <div style={{ marginTop: 10 }}>
-                            <div style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.faint, marginBottom: 5 }}>YOUR TASKS</div>
-                            {(p.my_tasks || []).length === 0 ? <div style={{ fontSize: 11, color: t.faint }}>None assigned to you.</div>
+                            <div style={{ fontSize: 11, letterSpacing: '0.1em', color: t.faint, marginBottom: 5 }}>YOUR TASKS</div>
+                            {(p.my_tasks || []).length === 0 ? <div style={{ fontSize: 12.5, color: t.faint }}>None assigned to you.</div>
                                 : p.my_tasks.map((task) => (
                                     <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderTop: '1px solid ' + t.lineSoft }}>
-                                        <span style={{ flex: 1, fontSize: 11.5, color: t.text }}>{task.title}</span>
+                                        <span style={{ flex: 1, fontSize: 13, color: t.text }}>{task.title}</span>
                                         <Status tone={task.status === 'done' ? 'up' : 'neutral'}>{TASK_LABEL[task.status] || task.status}</Status>
                                         {NEXT[task.status] && (
                                             <Btn size="sm" disabled={busy === task.id} onClick={() => move(task, NEXT[task.status])}>

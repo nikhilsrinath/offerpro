@@ -16,6 +16,7 @@ import A4Stage from './shared/A4Stage';
 import ProjectPicker from './shared/ProjectPicker';
 import { pickerFor, saveSplitFromPicker } from '../services/projectService';
 import { orgStore } from '../services/orgStore';
+import { useFormProject, projectStartLines } from './projects/projectScope';
 
 
 
@@ -34,6 +35,12 @@ export default function InvoiceForm() {
   // the client and one line. The milestone rides in the document's payload,
   // and the database links it and allocates the invoice on insert (0054).
   const fromMilestone = location.state?.milestoneId ? location.state : null;
+  // Opened from a project (its Billing page, a milestone, unbilled hours):
+  // the project's client, what of the contract is still unbilled when no
+  // lines were handed over, and saving returns to the project.
+  const fromProject = useFormProject('invoice', '/invoices');
+  const [projectLines] = useState(() => (location.state?.lines?.length || location.state?.line
+    ? null : projectStartLines(fromProject.project, 'invoice')));
   const { activeOrg } = useOrg();
   const { currentPlan, planConfig, usage, canCreate, getRemainingCount, getUsagePercent, isAtLimit, refreshUsage } = usePlanStatus();
   const [loading, setLoading] = useState(false);
@@ -66,10 +73,14 @@ export default function InvoiceForm() {
         id: i + 1, description: l.description || '', hsnCode: '', quantity: Number(l.quantity) || 1,
         price: Number(l.rate) || 0, makingCost: 0,
       }))
-      : [{
-        id: 1, description: location.state?.line?.description || '', hsnCode: '', quantity: 1,
-        price: Number(location.state?.line?.amount) || 0, makingCost: 0,
-      }],
+      : projectLines
+        ? projectLines.map((l, i) => ({
+          id: i + 1, description: l.description, hsnCode: '', quantity: l.quantity, price: l.rate, makingCost: 0,
+        }))
+        : [{
+          id: 1, description: location.state?.line?.description || '', hsnCode: '', quantity: 1,
+          price: Number(location.state?.line?.amount) || 0, makingCost: 0,
+        }],
     discountRate: 0,
     notes: '',
     orgName: org.company_name || org.name || '',
@@ -194,7 +205,7 @@ export default function InvoiceForm() {
   };
 
   // Opened from a project milestone: select the project's client once.
-  const prefillClientId = location.state?.clientId || null;
+  const prefillClientId = location.state?.clientId || fromProject.project?.client_id || null;
   useEffect(() => {
     if (!prefillClientId) return;
     const c = orgStore.getItem('customers', prefillClientId);
@@ -408,7 +419,7 @@ export default function InvoiceForm() {
         alert(`Invoice saved, but the project split was not: ${allocErr.message}`);
       }
       await refreshUsage();
-      navigate('/invoices');
+      navigate(fromProject.returnTo);
     } catch (err) {
       alert("Error saving invoice: " + err.message);
     } finally {

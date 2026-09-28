@@ -34,14 +34,14 @@ export default function BrainHealth({ status, syncing, onSync, onFullRebuild, er
                         : <AlertTriangle size={18} strokeWidth={1.7} />}
                 </span>
                 <div style={{ flex: 1, minWidth: 220 }}>
-                    <div style={{ fontSize: 12.5, color: t.text }}>
+                    <div style={{ fontSize: 14, color: t.text }}>
                         {healthy
                             ? 'The brain is synchronised'
                             : failed.length
                                 ? `${failed.length} domain${failed.length === 1 ? '' : 's'} failed to synchronise`
                                 : 'The brain has not finished a successful sync'}
                     </div>
-                    <div style={{ fontSize: 10.5, color: t.faint, marginTop: 4, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 12, color: t.faint, marginTop: 4, lineHeight: 1.6 }}>
                         Last sync {state.last_sync_at ? fmtDate(state.last_sync_at) : 'never'}
                         {state.last_sync_mode ? ` · ${state.last_sync_mode}` : ''}
                         {state.last_sync_ms ? ` · ${state.last_sync_ms} ms` : ''}
@@ -52,7 +52,7 @@ export default function BrainHealth({ status, syncing, onSync, onFullRebuild, er
                     {/* The buttons beside this are a manual override, not the
                         normal path — saying so stops "Sync now" from reading as
                         a chore the brain depends on somebody remembering. */}
-                    <div style={{ fontSize: 10, color: t.ghost, marginTop: 5, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 11.5, color: t.ghost, marginTop: 5, lineHeight: 1.6 }}>
                         Changes to your records sync on their own, within seconds. Sync now
                         forces it immediately; a full rebuild reprojects every domain from
                         scratch and is what to reach for after a bulk import.
@@ -74,7 +74,7 @@ export default function BrainHealth({ status, syncing, onSync, onFullRebuild, er
             {error && (
                 <div role="alert" style={{
                     padding: '11px 13px', borderRadius: 9, border: `1px solid ${t.down}`,
-                    fontSize: 11, color: t.down, lineHeight: 1.6,
+                    fontSize: 12.5, color: t.down, lineHeight: 1.6,
                 }}>{error}</div>
             )}
 
@@ -88,8 +88,8 @@ export default function BrainHealth({ status, syncing, onSync, onFullRebuild, er
                                     padding: '9px 11px', border: `1px solid ${t.lineSoft}`,
                                     borderRadius: 8, background: t.panelAlt,
                                 }}>
-                                    <div style={{ fontSize: 11, color: t.text, marginBottom: 3 }}>{d}</div>
-                                    <div style={{ fontSize: 10, color: t.down, lineHeight: 1.6, wordBreak: 'break-word' }}>
+                                    <div style={{ fontSize: 12.5, color: t.text, marginBottom: 3 }}>{d}</div>
+                                    <div style={{ fontSize: 11.5, color: t.down, lineHeight: 1.6, wordBreak: 'break-word' }}>
                                         {detail?.error || 'No detail recorded.'}
                                     </div>
                                 </div>
@@ -97,7 +97,7 @@ export default function BrainHealth({ status, syncing, onSync, onFullRebuild, er
                         })}
                     </div>
                     <div style={{ marginTop: 11 }}>
-                        <Muted size={9.5}>
+                        <Muted size={11}>
                             A domain that fails leaves its records as they were at the last
                             successful sync. Answers can still be drawn from everything else,
                             which is why the brain stays available rather than going dark.
@@ -115,8 +115,8 @@ export default function BrainHealth({ status, syncing, onSync, onFullRebuild, er
                             {status.byKind.map((k) => (
                                 <div key={k.kind}>
                                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
-                                        <span style={{ flex: 1, fontSize: 11, color: t.text }}>{kindLabel(k.kind)}</span>
-                                        <span style={{ fontSize: 11, color: t.text }}>{k.count}</span>
+                                        <span style={{ flex: 1, fontSize: 12.5, color: t.text }}>{kindLabel(k.kind)}</span>
+                                        <span style={{ fontSize: 12.5, color: t.text }}>{k.count}</span>
                                     </div>
                                     <Bar value={k.count} max={peak} />
                                 </div>
@@ -136,7 +136,7 @@ export default function BrainHealth({ status, syncing, onSync, onFullRebuild, er
                         <Row t={t} label="Last full sync" value={state.last_full_sync_at ? fmtDate(state.last_full_sync_at) : '—'} />
                     </div>
                     <div style={{ marginTop: 11 }}>
-                        <Muted size={9.5}>
+                        <Muted size={11}>
                             The two entity counts differ when your role cannot see every table.
                             That is the permission model working, not a gap in the brain.
                         </Muted>
@@ -180,8 +180,8 @@ export default function BrainHealth({ status, syncing, onSync, onFullRebuild, er
 function Row({ t, label, value }) {
     return (
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <span style={{ flex: 1, minWidth: 0, fontSize: 11, color: t.dim }}>{label}</span>
-            <span style={{ fontSize: 12, color: t.text }}>{value}</span>
+            <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: t.dim }}>{label}</span>
+            <span style={{ fontSize: 13.5, color: t.text }}>{value}</span>
         </div>
     );
 }

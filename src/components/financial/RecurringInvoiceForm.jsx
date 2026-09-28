@@ -8,6 +8,8 @@ import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
 import { useToast } from '../shared/Toast';
 import A4Stage from '../shared/A4Stage';
+import { confirmDialog } from '../../services/confirm';
+import { useFormProject, projectStartLines } from '../projects/projectScope';
 
 /* ─── Constants ─── */
 const GST_RATES = [0, 5, 12, 18, 28];
@@ -133,6 +135,9 @@ function RecurringInvoiceForm({ editItem }) {
   const [saving, setSaving] = useState(false);
   const allProjects = useSection('projects');
   const openProjects = allProjects.filter((p) => isOpen(p) || p.id === editItem?.project_id);
+  // Opened from a project's Billing page: the template starts on that project
+  // and its client, and saving returns there.
+  const fromProject = useFormProject('recurring', '/recurring');
 
   const [formData, setFormData] = useState(() => {
     if (editItem) {
@@ -141,17 +146,22 @@ function RecurringInvoiceForm({ editItem }) {
         items: editItem.items || [{ id: Date.now(), description: '', hsnSac: '', quantity: 1, unit: 'Nos', rate: 0 }],
       };
     }
+    const c = fromProject.client;
+    const start = projectStartLines(fromProject.project, 'recurring');
     return {
-      clientName: '',
-      clientCompany: '',
-      clientAddress: '',
-      clientGstin: '',
-      clientEmail: '',
+      clientName: c ? (c.person_name || c.name || '') : '',
+      clientCompany: c && c.person_name && c.person_name !== c.name ? c.name : '',
+      clientAddress: c?.address || '',
+      clientGstin: c?.gstin || '',
+      clientEmail: c?.email || '',
+      project_id: fromProject.projectId || '',
       invoicePrefix: generateRecurringId(),
       invoiceDate: todayStr(),
       dueOffsetDays: 30,
       gstRate: 18,
-      items: [{ id: Date.now(), description: '', hsnSac: '', quantity: 1, unit: 'Nos', rate: 0 }],
+      items: start
+        ? start.map((l, i) => ({ id: Date.now() + i, description: l.description, hsnSac: '', quantity: l.quantity, unit: 'Nos', rate: l.rate }))
+        : [{ id: Date.now(), description: '', hsnSac: '', quantity: 1, unit: 'Nos', rate: 0 }],
       frequency: 'monthly',
       startDate: todayStr(),
       endDate: '',
@@ -264,7 +274,7 @@ function RecurringInvoiceForm({ editItem }) {
   };
 
   /* Save */
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!formData.clientName.trim()) {
       toast('Client name is required', 'error');
@@ -312,9 +322,9 @@ function RecurringInvoiceForm({ editItem }) {
         updated_at: new Date().toISOString(),
       };
 
-      documentStore.saveRecurring(record);
+      await documentStore.saveRecurring(record);
       toast(editItem ? 'Recurring invoice updated successfully' : 'Recurring invoice created successfully', 'success');
-      navigate('/recurring');
+      navigate(fromProject.returnTo);
     } catch (err) {
       toast('Error saving recurring invoice: ' + err.message, 'error');
     } finally {
@@ -333,7 +343,7 @@ function RecurringInvoiceForm({ editItem }) {
 
           {/* Back / Title */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-            <button type="button" onClick={() => navigate('/recurring')}
+            <button type="button" onClick={() => navigate(fromProject.returnTo)}
               style={{ background: 'none', border: '1px solid var(--border-default)', borderRadius: '8px', padding: '0.375rem 0.75rem', cursor: 'pointer', color: 'var(--text-secondary)', fontFamily: 'var(--font-main)', fontSize: '0.8125rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
               <XIcon size={14} /> Back
             </button>
@@ -875,38 +885,42 @@ function RecurringInvoicePreview({ formData, totals, dueDatePreview, company }) 
 /* ═══════════════════════════════════════
    RecurringInvoiceList
    ═══════════════════════════════════════ */
-function RecurringInvoiceList() {
+/**
+ * The recurring templates — every one, or with `projectId` only that
+ * project's (its Billing page), where a new one starts on the project.
+ */
+function RecurringInvoiceList({ projectId = null }) {
   const navigate = useNavigate();
   const toast = useToast();
-  const [items, setItems] = useState([]);
+  const all = useSection('fin_recurring');
+  const items = projectId ? all.filter((r) => r.project_id === projectId) : all;
+  const withProject = (path) => (projectId ? `${path}?project=${projectId}` : path);
 
-  const loadItems = useCallback(() => {
-    setItems(documentStore.getRecurring());
-  }, []);
-
-  useEffect(() => {
-    loadItems();
-  }, [loadItems]);
-
-  const handlePause = (item) => {
-    const updated = { ...item, status: 'paused', updated_at: new Date().toISOString() };
-    documentStore.saveRecurring(updated);
-    loadItems();
-    toast('Recurring invoice paused', 'info');
+  // Saved and awaited: a refused write is said, not shown as done. The table
+  // keeps only active or not, so a template is paused, resumed or deleted.
+  const setActive = async (item, active) => {
+    try {
+      await documentStore.saveRecurring({ ...item, status: active ? 'active' : 'paused' });
+      toast(active ? 'Recurring invoice resumed' : 'Recurring invoice paused', active ? 'success' : 'info');
+    } catch (err) {
+      toast(`Could not update it: ${err.message}`, 'error');
+    }
   };
+  const handlePause = (item) => setActive(item, false);
+  const handleResume = (item) => setActive(item, true);
 
-  const handleResume = (item) => {
-    const updated = { ...item, status: 'active', updated_at: new Date().toISOString() };
-    documentStore.saveRecurring(updated);
-    loadItems();
-    toast('Recurring invoice resumed', 'success');
-  };
-
-  const handleCancel = (item) => {
-    const updated = { ...item, status: 'cancelled', updated_at: new Date().toISOString() };
-    documentStore.saveRecurring(updated);
-    loadItems();
-    toast('Recurring invoice cancelled', 'warning');
+  const handleCancel = async (item) => {
+    const ok = await confirmDialog({
+      title: 'Delete recurring invoice',
+      message: `Stop and delete the recurring invoice for ${item.clientName || 'this client'}? Invoices already raised from it are kept.`,
+    });
+    if (!ok) return;
+    try {
+      await documentStore.deleteRecurring(item.id);
+      toast('Recurring invoice deleted', 'success');
+    } catch (err) {
+      toast(`Could not delete it: ${err.message}`, 'error');
+    }
   };
 
   const getFrequencyLabel = (val) => {
@@ -930,7 +944,7 @@ function RecurringInvoiceList() {
             {items.length} recurring {items.length === 1 ? 'invoice' : 'invoices'} configured
           </p>
         </div>
-        <button type="button" onClick={() => navigate('/recurring/new')}
+        <button type="button" onClick={() => navigate(withProject('/recurring/new'))}
           style={{
             display: 'flex', alignItems: 'center', gap: '0.5rem',
             background: 'var(--btn-accent-bg)', color: 'var(--btn-accent-text)',
@@ -957,7 +971,7 @@ function RecurringInvoiceList() {
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', margin: '0 0 1.5rem', maxWidth: '400px', marginLeft: 'auto', marginRight: 'auto' }}>
             Set up automated invoice generation for your regular clients. Invoices will be created on schedule.
           </p>
-          <button type="button" onClick={() => navigate('/recurring/new')}
+          <button type="button" onClick={() => navigate(withProject('/recurring/new'))}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
               background: 'var(--btn-accent-bg)', color: 'var(--btn-accent-text)',
@@ -1060,7 +1074,7 @@ function RecurringInvoiceList() {
                       )}
                       {item.status !== 'cancelled' && (
                         <>
-                          <button type="button" onClick={() => navigate(`/recurring/edit/${item.id}`)}
+                          <button type="button" onClick={() => navigate(withProject(`/recurring/edit/${item.id}`))}
                             title="Edit"
                             style={{
                               background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',
@@ -1072,7 +1086,7 @@ function RecurringInvoiceList() {
                             Edit
                           </button>
                           <button type="button" onClick={() => handleCancel(item)}
-                            title="Cancel"
+                            title="Delete"
                             style={{
                               background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
                               borderRadius: '6px', padding: '0.375rem 0.625rem',
@@ -1080,7 +1094,7 @@ function RecurringInvoiceList() {
                               fontSize: '0.75rem', fontWeight: 600, color: '#ef4444',
                               fontFamily: 'var(--font-main)', transition: 'all 0.15s',
                             }}>
-                            <XIcon size={12} /> Cancel
+                            <Trash2 size={12} /> Delete
                           </button>
                         </>
                       )}

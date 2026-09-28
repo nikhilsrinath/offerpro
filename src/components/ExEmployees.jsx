@@ -136,7 +136,7 @@ export default function ExEmployees() {
             {stats.stillIn ? (
                 <div style={{
                     border: '1px solid ' + t.lineStrong, borderRadius: 10,
-                    padding: '11px 13px', marginBottom: 14, fontSize: 11, color: t.dim, lineHeight: 1.7,
+                    padding: '11px 13px', marginBottom: 14, fontSize: 12.5, color: t.dim, lineHeight: 1.7,
                 }}>
                     {stats.stillIn} {stats.stillIn === 1 ? 'person' : 'people'} in this archive still hold a
                     membership and can sign in. Remove their access from Settings → Members.
@@ -173,7 +173,7 @@ export default function ExEmployees() {
                                                 <Avatar name={name} size={26} />
                                                 <span style={{ minWidth: 0 }}>
                                                     <span style={{ display: 'block' }}>{name || '—'}</span>
-                                                    <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 1 }}>{emp.email}</span>
+                                                    <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>{emp.email}</span>
                                                 </span>
                                             </Row>
                                         </Td>
@@ -182,7 +182,7 @@ export default function ExEmployees() {
                                             {emp.department ? (
                                                 <Row gap={7}>
                                                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: deptColor(emp.department), flexShrink: 0 }} />
-                                                    <span style={{ color: t.dim, fontSize: 11 }}>{emp.department}</span>
+                                                    <span style={{ color: t.dim, fontSize: 12.5 }}>{emp.department}</span>
                                                 </Row>
                                             ) : <span style={{ color: t.ghost }}>—</span>}
                                         </Td>
@@ -224,15 +224,15 @@ export default function ExEmployees() {
                                 display: 'flex', gap: 12, padding: '9px 13px',
                                 borderTop: i ? '1px solid ' + t.lineSoft : 'none',
                             }}>
-                                <span style={{ width: 98, flexShrink: 0, fontSize: 9, letterSpacing: '0.09em', color: t.faint, paddingTop: 2 }}>
+                                <span style={{ width: 98, flexShrink: 0, fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, paddingTop: 2 }}>
                                     {k.toUpperCase()}
                                 </span>
-                                <span style={{ fontSize: 11.5, color: t.text, minWidth: 0, wordBreak: 'break-word' }}>{v}</span>
+                                <span style={{ fontSize: 13, color: t.text, minWidth: 0, wordBreak: 'break-word' }}>{v}</span>
                             </div>
                         ))}
                     </div>
                     {access(selected)?.tone === 'down' && (
-                        <p style={{ margin: '13px 0 0', fontSize: 10.5, color: t.down, lineHeight: 1.7 }}>
+                        <p style={{ margin: '13px 0 0', fontSize: 12, color: t.down, lineHeight: 1.7 }}>
                             This person still holds a membership and can sign in. Remove it from Settings → Members.
                         </p>
                     )}

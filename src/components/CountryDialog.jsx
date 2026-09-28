@@ -79,7 +79,7 @@ function Tabs({ t, font, tabs, value, onChange }) {
                         key={tb.id} type="button" role="tab" aria-selected={on}
                         onClick={() => onChange(tb.id)} className="cd-tab"
                         style={{
-                            fontFamily: font, fontSize: 11, padding: '10px 8px 9px', background: 'transparent',
+                            fontFamily: font, fontSize: 12.5, padding: '10px 8px 9px', background: 'transparent',
                             border: 'none', borderBottom: '1.5px solid ' + (on ? t.text : 'transparent'),
                             marginBottom: -1, color: on ? t.text : t.faint, cursor: 'pointer',
                             display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
@@ -89,7 +89,7 @@ function Tabs({ t, font, tabs, value, onChange }) {
                         {tb.label}
                         {tb.count !== undefined && (
                             <span style={{
-                                fontSize: 9, padding: '1px 5px', borderRadius: 4, lineHeight: 1.4,
+                                fontSize: 10.5, padding: '1px 5px', borderRadius: 4, lineHeight: 1.4,
                                 background: on ? t.selBg : t.raised, color: on ? t.selText : t.faint,
                             }}>{tb.count}</span>
                         )}
@@ -109,25 +109,25 @@ function Row({ t, label, value, note, onClick, tone }) {
             className={onClick ? 'cd-row' : undefined}
             style={{ ...listRow(t), cursor: onClick ? 'pointer' : 'default' }}
         >
-            <span style={{ flex: 1, minWidth: 0, fontSize: 11, color: t.dim }}>{label}</span>
+            <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: t.dim }}>{label}</span>
             {note ? (
-                <span style={{ fontSize: 9.5, color: t.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '45%' }}>{note}</span>
+                <span style={{ fontSize: 11, color: t.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '45%' }}>{note}</span>
             ) : null}
-            <span style={{ fontSize: 11.5, color: tone || t.text, whiteSpace: 'nowrap' }}>{value}</span>
+            <span style={{ fontSize: 13, color: tone || t.text, whiteSpace: 'nowrap' }}>{value}</span>
             <ChevronRight size={12} style={{ color: onClick ? t.faint : 'transparent', flexShrink: 0 }} />
         </Tag>
     );
 }
 
 const Label = ({ t, children, right }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 9, color: t.faint, letterSpacing: '0.08em', marginBottom: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10.5, color: t.faint, letterSpacing: '0.08em', marginBottom: 8 }}>
         <span>{children}</span>
         {right ? <span style={{ marginLeft: 'auto', letterSpacing: 0 }}>{right}</span> : null}
     </div>
 );
 
 const Empty = ({ t, children }) => (
-    <div style={{ padding: '48px 12px', fontSize: 10.5, color: t.faint, textAlign: 'center' }}>{children}</div>
+    <div style={{ padding: '48px 12px', fontSize: 12, color: t.faint, textAlign: 'center' }}>{children}</div>
 );
 
 const Bar = ({ t, pct }) => (
@@ -406,10 +406,10 @@ export default function CountryDialog({
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{
-                            fontSize: 9.5, color: t.faint, border: '1px solid ' + t.line,
+                            fontSize: 11, color: t.faint, border: '1px solid ' + t.line,
                             borderRadius: 4, padding: '2px 5px', letterSpacing: '0.06em',
                         }}>{code}</span>
-                        {rank ? <span style={{ fontSize: 9.5, color: t.faint }}>#{rank} of {marketCount} markets</span> : null}
+                        {rank ? <span style={{ fontSize: 11, color: t.faint }}>#{rank} of {marketCount} markets</span> : null}
                         {isMobile && (
                             <button type="button" onClick={onClose} aria-label="Close" style={closeBtn(t)}><X size={14} /></button>
                         )}
@@ -420,22 +420,22 @@ export default function CountryDialog({
                         padding: isMobile ? '10px 22%' : '28px 12px', display: 'flex',
                     }}>
                         {path ? <Outline t={t} d={path} fill={fill} /> : (
-                            <div style={{ margin: 'auto', fontSize: 10.5, color: t.faint }}>no outline for {code}</div>
+                            <div style={{ margin: 'auto', fontSize: 12, color: t.faint }}>no outline for {code}</div>
                         )}
                     </div>
 
                     <div>
                         <div style={{ fontSize: isMobile ? 20 : 28, letterSpacing: '-0.05em', lineHeight: 1.05 }}>{name}</div>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: isMobile ? 16 : 20, letterSpacing: '-0.04em' }}>{inr(revenue)}</span>
+                            <span style={{ fontSize: isMobile ? 17.5 : 20, letterSpacing: '-0.04em' }}>{inr(revenue)}</span>
                             {growth !== null && (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 10.5, color: growth >= 0 ? t.up : t.down }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 12, color: growth >= 0 ? t.up : t.down }}>
                                     {growth >= 0 ? <ArrowUp size={10} strokeWidth={2.8} /> : <ArrowDown size={10} strokeWidth={2.8} />}
                                     {Math.abs(growth).toFixed(1)}% vs prev
                                 </span>
                             )}
                         </div>
-                        <div style={{ fontSize: 9.5, color: t.faint, marginTop: 4 }}>
+                        <div style={{ fontSize: 11, color: t.faint, marginTop: 4 }}>
                             {(geoRow?.share || 0).toFixed(1)}% of total revenue
                             {m.currencies.length ? ' · billed in ' + m.currencies.join(', ') : ''}
                             {cash.currencies.length ? ' · cash in ' + cash.currencies.join(', ') : ''}
@@ -449,14 +449,14 @@ export default function CountryDialog({
                         display: 'flex', alignItems: 'center', gap: 10,
                         padding: '8px 12px 8px 16px', borderBottom: '1px solid ' + t.line, flexShrink: 0,
                     }}>
-                        <span style={{ fontSize: 12.5 }}>Market detail</span>
+                        <span style={{ fontSize: 14 }}>Market detail</span>
                         <span style={{ flex: 1 }} />
                         <div style={{ display: 'flex', gap: 1 }}>
                             {periods.map((p) => {
                                 const on = p.id === period;
                                 return (
                                     <button key={p.id} type="button" onClick={() => onPeriod(p.id)} className="nm-seg" style={{
-                                        fontFamily: font, fontSize: 9.5, fontWeight: 500, height: 20, padding: '0 6px',
+                                        fontFamily: font, fontSize: 11, fontWeight: 500, height: 20, padding: '0 6px',
                                         border: '1px solid ' + (on ? t.lineStrong : 'transparent'),
                                         background: on ? t.selBg : 'transparent', color: on ? t.selText : t.faint,
                                         borderRadius: 5, cursor: 'pointer',
@@ -499,9 +499,9 @@ export default function CountryDialog({
                                             ['Outstanding', m.outstanding, m.outstanding > 0 ? t.text : t.faint],
                                         ].map(([k, v, c]) => (
                                             <div key={k} style={{ minWidth: 0 }}>
-                                                <div style={{ fontSize: 10, color: t.faint, marginBottom: 5 }}>{k}</div>
+                                                <div style={{ fontSize: 11.5, color: t.faint, marginBottom: 5 }}>{k}</div>
                                                 <div title={inr(v)} style={{
-                                                    fontSize: isMobile ? 16 : 20, letterSpacing: '-0.045em', color: c,
+                                                    fontSize: isMobile ? 17.5 : 20, letterSpacing: '-0.045em', color: c,
                                                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                                                 }}>₹{fmtCompact(v)}</div>
                                             </div>
@@ -510,7 +510,7 @@ export default function CountryDialog({
                                     <div style={{ height: 5, background: t.scale[0], borderRadius: 3, overflow: 'hidden', marginTop: 14 }}>
                                         <div style={{ height: '100%', width: collectedPct + '%', background: t.text, transition: 'width .4s cubic-bezier(.16,1,.3,1)' }} />
                                     </div>
-                                    <div style={{ fontSize: 9.5, color: t.faint, marginTop: 6 }}>
+                                    <div style={{ fontSize: 11, color: t.faint, marginTop: 6 }}>
                                         {collectedPct.toFixed(0)}% collected
                                         {cash.direct > 0 ? ' · direct receipts counted as collected' : ''}
                                     </div>
@@ -533,15 +533,15 @@ export default function CountryDialog({
                                                     cash.netCash >= 0 ? t.up : t.down],
                                             ].map(([k, v, c]) => (
                                                 <div key={k} style={{ minWidth: 0 }}>
-                                                    <div style={{ fontSize: 10, color: t.faint, marginBottom: 5 }}>{k}</div>
+                                                    <div style={{ fontSize: 11.5, color: t.faint, marginBottom: 5 }}>{k}</div>
                                                     <div title={inr(v)} style={{
-                                                        fontSize: isMobile ? 16 : 20, letterSpacing: '-0.045em', color: c,
+                                                        fontSize: isMobile ? 17.5 : 20, letterSpacing: '-0.045em', color: c,
                                                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                                                     }}>₹{fmtCompact(v)}</div>
                                                 </div>
                                             ))}
                                         </div>
-                                        <div style={{ fontSize: 9.5, color: t.faint, marginTop: 8, lineHeight: 1.5 }}>
+                                        <div style={{ fontSize: 11, color: t.faint, marginTop: 8, lineHeight: 1.5 }}>
                                             {cash.notEarned > 0
                                                 ? inr(cash.notEarned) + ' of the money in was not earned — funding, a refund or an invoice being settled — so it is not in revenue. '
                                                 : ''}
@@ -575,7 +575,7 @@ export default function CountryDialog({
                                             </div>
                                         ))}
                                     </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: t.faint, marginTop: 6 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: t.faint, marginTop: 6 }}>
                                         <span>{trend[0]?.label}</span>
                                         <span>{trend[trend.length - 1]?.label}</span>
                                     </div>
@@ -731,13 +731,13 @@ export default function CountryDialog({
                                                     is the layer somebody recognises: "Counter sale",
                                                     not "revenue". */}
                                                 {cash.inByGroup.length > 0 && (
-                                                    <div style={{ fontSize: 9.5, color: t.faint, marginTop: 8, lineHeight: 1.6 }}>
+                                                    <div style={{ fontSize: 11, color: t.faint, marginTop: 8, lineHeight: 1.6 }}>
                                                         {cash.inByGroup.map((g) => g.key + ': '
                                                             + g.items.map((it) => it.label + ' ₹' + fmtCompact(it.amount)).join(', ')).join(' · ')}
                                                     </div>
                                                 )}
                                                 {cash.methodsIn.length > 1 && (
-                                                    <div style={{ fontSize: 9.5, color: t.faint, marginTop: 6 }}>
+                                                    <div style={{ fontSize: 11, color: t.faint, marginTop: 6 }}>
                                                         received by {cash.methodsIn.map((x) => x.label + ' ₹' + fmtCompact(x.amount)).join(' · ')}
                                                     </div>
                                                 )}
@@ -752,11 +752,11 @@ export default function CountryDialog({
                                                 {cash.outByGroup.map((g) => (
                                                     <div key={g.key} style={{ borderTop: '1px solid ' + t.lineSoft, padding: '10px 0' }}>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                                            <span style={{ flex: 1, minWidth: 0, fontSize: 11.5 }}>{g.key}</span>
-                                                            <span style={{ fontSize: 11.5 }}>₹{fmtCompact(g.amount)}</span>
+                                                            <span style={{ flex: 1, minWidth: 0, fontSize: 13 }}>{g.key}</span>
+                                                            <span style={{ fontSize: 13 }}>₹{fmtCompact(g.amount)}</span>
                                                         </div>
                                                         <Bar t={t} pct={(g.amount / (cash.outByGroup[0].amount || 1)) * 100} />
-                                                        <div style={{ fontSize: 9.5, color: t.faint, marginTop: 6, lineHeight: 1.6 }}>
+                                                        <div style={{ fontSize: 11, color: t.faint, marginTop: 6, lineHeight: 1.6 }}>
                                                             {g.items.map((it) => it.label + ' ₹' + fmtCompact(it.amount)).join(' · ')}
                                                         </div>
                                                     </div>
@@ -770,7 +770,7 @@ export default function CountryDialog({
                                                 <button key={r.dir + r.id} type="button" className="cd-row"
                                                         onClick={() => go('/cashbook')} style={listRow(t)}>
                                                     <span aria-hidden="true" style={{
-                                                        width: 18, flexShrink: 0, fontSize: 12,
+                                                        width: 18, flexShrink: 0, fontSize: 13.5,
                                                         color: r.dir === 'in' ? t.up : t.down,
                                                     }}>{r.dir === 'in' ? '+' : '−'}</span>
                                                     <span style={{ flex: 1, minWidth: 0 }}>
@@ -807,7 +807,7 @@ export default function CountryDialog({
                                     <Label t={t} right="line totals, pre-tax">BY REVENUE</Label>
                                     {m.products.map((p, i) => (
                                         <div key={p.name} style={{ ...listRow(t), cursor: 'default' }}>
-                                            <span style={{ fontSize: 9.5, color: t.ghost, width: 16, flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</span>
+                                            <span style={{ fontSize: 11, color: t.ghost, width: 16, flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</span>
                                             <span style={{ flex: 1, minWidth: 0 }}>
                                                 <span style={line1}>{p.name}</span>
                                                 <Bar t={t} pct={(p.amount / (m.products[0].amount || 1)) * 100} />
@@ -827,10 +827,10 @@ export default function CountryDialog({
                         display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, flexWrap: 'wrap',
                         padding: '7px 12px', borderTop: '1px solid ' + t.line,
                     }}>
-                        <span style={{ fontSize: 9, color: t.faint, letterSpacing: '0.08em', marginRight: 6 }}>OPEN</span>
+                        <span style={{ fontSize: 10.5, color: t.faint, letterSpacing: '0.08em', marginRight: 6 }}>OPEN</span>
                         {[['Customers', '/customers'], ['Invoices', '/invoices'], ['Cash book', '/cashbook'], ['Revenue', '/revenue']].map(([label, to]) => (
                             <button key={to} type="button" className="nm-nav" onClick={() => go(to)} style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 3, fontFamily: font, fontSize: 10.5,
+                                display: 'inline-flex', alignItems: 'center', gap: 3, fontFamily: font, fontSize: 12,
                                 padding: '4px 7px', border: 'none', borderRadius: 5,
                                 background: 'transparent', color: t.dim, cursor: 'pointer',
                             }}>{label}<ArrowUpRight size={10} /></button>
@@ -860,12 +860,12 @@ const listRow = (t) => ({
 
 const avatar = (t) => ({
     width: 26, height: 26, borderRadius: 6, flexShrink: 0, border: '1px solid ' + t.line,
-    display: 'grid', placeItems: 'center', fontSize: 10.5, color: t.dim,
+    display: 'grid', placeItems: 'center', fontSize: 12, color: t.dim,
 });
 
-const line1 = { display: 'block', fontSize: 11.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+const line1 = { display: 'block', fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
 const line2 = (t) => ({
-    display: 'block', fontSize: 9.5, color: t.faint, marginTop: 2,
+    display: 'block', fontSize: 11, color: t.faint, marginTop: 2,
     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
 });
 

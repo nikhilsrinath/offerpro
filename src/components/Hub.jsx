@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
     Bell, Sun, Moon, LogOut, User as UserIcon, Building2, Check, ChevronDown,
-    Plus, Minus, MoreHorizontal, ArrowUp, ArrowDown, EyeOff, X, Move, RotateCcw,
 } from 'lucide-react';
 import { useOrg } from '../context/OrgContext';
 import { documentStore } from '../services/documentStore';
@@ -17,7 +16,8 @@ import Copilot from './assistant/Copilot';
 import { useAssistant } from './assistant/assistantStore';
 import { useHubData } from './hub/useHubData';
 import { useWidgetLayout } from './hub/useWidgetLayout';
-import { WIDGETS, WIDGET_BY_ID, SIZE_LABEL } from './hub/widgetCatalog';
+import { WIDGETS, WIDGET_BY_ID, DEFAULT_LAYOUT } from './hub/widgetCatalog';
+import WidgetBoard from './hub/WidgetBoard';
 import '../theme/surface.css';
 import './assistant/copilot.css';
 import './hub/hub.css';
@@ -72,69 +72,6 @@ function useNow(every) {
     return now;
 }
 
-/** The latest value of a callback, for effects that must not re-run when it changes. */
-function useLatest(fn) {
-    const ref = useRef(fn);
-    useEffect(() => { ref.current = fn; });
-    return ref;
-}
-
-/* The board's cells are square and fill the row exactly: as many columns of
-   at least CELL_MIN as fit, then each stretched to share the leftover. The
-   result is written straight onto the grid as CSS variables rather than
-   through state, so while the copilot is dragged wider or narrower the board
-   re-flows every frame without re-rendering a single widget. */
-const CELL_MIN = 146;
-
-function useSquareGrid(gap) {
-    const ro = useRef(null);
-    const ref = useCallback((el) => {
-        ro.current?.disconnect();
-        ro.current = null;
-        if (!el) return;
-        let last = '';
-        const fit = () => {
-            const w = el.clientWidth;
-            if (!w) return;
-            let cols = Math.max(2, Math.floor((w + gap) / (CELL_MIN + gap)));
-            // Hysteresis: gain a column only with clear room to spare. A new
-            // column changes the board's height, which can add or drop the
-            // page scrollbar and nudge the width back — without this margin
-            // the two could chase each other forever.
-            const prev = Number(el.dataset.cols) || 0;
-            if (prev && cols > prev && w < cols * CELL_MIN + (cols - 1) * gap + 24) cols = prev;
-            const cell = Math.floor((w - gap * (cols - 1)) / cols);
-            const key = cols + ':' + cell;
-            if (key === last) return;
-            last = key;
-            // When the column count changes, widgets glide to their new
-            // places (FLIP) instead of jumping.
-            const reflow = el.dataset.cols && el.dataset.cols !== String(cols)
-                && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-            const kids = reflow ? [...el.children] : [];
-            const before = kids.map((k) => k.getBoundingClientRect());
-            el.style.setProperty('--cols', String(cols));
-            el.style.setProperty('--cell', `${cell}px`);
-            el.dataset.cols = String(cols);
-            kids.forEach((k, i) => {
-                const a = before[i];
-                const b = k.getBoundingClientRect();
-                const dx = a.left - b.left;
-                const dy = a.top - b.top;
-                if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
-                k.animate?.(
-                    [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
-                    { duration: 320, easing: 'cubic-bezier(.16, 1, .3, 1)' },
-                );
-            });
-        };
-        ro.current = new ResizeObserver(fit);
-        ro.current.observe(el);
-        fit();
-    }, [gap]);
-    return [ref, { '--gap': `${gap}px` }];
-}
-
 /* ── bar and rail primitives ───────────────────────────────────────────── */
 
 function IconBtn({ t, children, title, onClick, active, size = 28 }) {
@@ -175,8 +112,8 @@ function PopRow({ t, icon, label, note, onClick, danger, dot }) {
         }}>
             <span style={{ display: 'grid', placeItems: 'center', color: danger ? t.down : t.faint, flexShrink: 0 }}>{icon}</span>
             <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 11.5 }}>{label}</span>
-                {note && <span style={{ display: 'block', fontSize: 9.5, color: dot ? t.down : t.faint, marginTop: 1 }}>{note}</span>}
+                <span style={{ display: 'block', fontSize: 13 }}>{label}</span>
+                {note && <span style={{ display: 'block', fontSize: 11, color: dot ? t.down : t.faint, marginTop: 1 }}>{note}</span>}
             </span>
             {dot && <span aria-hidden="true" style={{
                 width: 6, height: 6, borderRadius: 999, background: t.down, flexShrink: 0,
@@ -221,13 +158,8 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
     const showDock = !aiHidden && winW >= DOCK_MIN;
     const setAi = (hidden) => { setAiHidden(hidden); writeFlag(AI_KEY, hidden); };
 
-    const [picker, setPicker] = useState(false);
-    const [editing, setEditing] = useState(false);
-    const [widgetMenu, setWidgetMenu] = useState(null);
-    const [drag, setDrag] = useState({ id: null, over: null });
     const [openCountry, setOpenCountry] = useState(null);
     const [geoMap, setGeoMap] = useState(null);
-    const [lastLayout, setLastLayout] = useState(null);
     const [announce, setAnnounce] = useState('');
     const say = (msg) => setAnnounce(msg);
 
@@ -299,31 +231,12 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
         else navigate('/offer-tracker');
     };
 
-    /* ── board actions ──────────────────────────────────────────────────── */
-    const clearBoard = () => {
-        setLastLayout(layout);
-        lay.clear();
-        setEditing(false);
-        say('All widgets removed.');
-    };
-
-    const widgetAction = (id, action, arg) => {
-        const w = WIDGET_BY_ID.get(id);
-        setWidgetMenu(null);
-        if (action === 'remove') { lay.remove(id); say(`${w.title} removed.`); }
-        if (action === 'size') { lay.resize(id, arg); say(`${w.title} is now ${SIZE_LABEL[arg].toLowerCase()}.`); }
-        if (action === 'up') { lay.move(id, -1); say(`${w.title} moved earlier.`); }
-        if (action === 'down') { lay.move(id, 1); say(`${w.title} moved later.`); }
-        if (action !== 'remove') requestAnimationFrame(() => document.getElementById(`wbtn-${id}`)?.focus());
-    };
-
     const widgetProps = {
         d, nav: navigate, ask: askCopilot, geoMap, countryNames: names,
         openCountry: (code) => setOpenCountry(code),
         geoPeriod, setGeoPeriod,
     };
     const gap = isMobile ? 12 : 16;
-    const [gridRef, gridStyle] = useSquareGrid(isMobile ? 12 : 14);
 
     /* The notification list and the account menu: drawn from the rail foot on
        desktop and from the top bar on phones. */
@@ -333,24 +246,24 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '9px 12px', borderBottom: '1px solid ' + t.lineSoft,
             }}>
-                <span style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.faint, flex: 1 }}>
+                <span style={{ fontSize: 11, letterSpacing: '0.1em', color: t.faint, flex: 1 }}>
                     NOTIFICATIONS
                 </span>
                 {unread > 0 && (
                     <span style={{
-                        fontSize: 9, padding: '1px 5px', borderRadius: 4,
+                        fontSize: 10.5, padding: '1px 5px', borderRadius: 4,
                         background: t.selBg, color: t.selText,
                     }}>{unread} NEW</span>
                 )}
                 {notifs.length > 0 && (
                     <button type="button" onClick={clearNotifs} style={{
                         background: 'none', border: 'none', cursor: 'pointer',
-                        fontFamily: MONO, fontSize: 9.5, color: t.faint, padding: 0,
+                        fontFamily: MONO, fontSize: 11, color: t.faint, padding: 0,
                     }}>CLEAR</button>
                 )}
             </div>
             {notifs.length === 0 ? (
-                <div style={{ padding: '22px 12px', textAlign: 'center', fontSize: 10.5, color: t.faint }}>
+                <div style={{ padding: '22px 12px', textAlign: 'center', fontSize: 12, color: t.faint }}>
                     Nothing new
                 </div>
             ) : (
@@ -365,9 +278,9 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                 borderLeft: '2px solid ' + (n.read ? 'transparent' : t.text),
                             }}
                         >
-                            <div style={{ fontSize: 11, color: t.text, marginBottom: 2 }}>{n.title}</div>
-                            <div style={{ fontSize: 10, color: t.dim, lineHeight: 1.4 }}>{n.message}</div>
-                            <div style={{ fontSize: 9, color: t.ghost, marginTop: 3 }}>
+                            <div style={{ fontSize: 12.5, color: t.text, marginBottom: 2 }}>{n.title}</div>
+                            <div style={{ fontSize: 11.5, color: t.dim, lineHeight: 1.4 }}>{n.message}</div>
+                            <div style={{ fontSize: 10.5, color: t.ghost, marginTop: 3 }}>
                                 {n.created_at ? new Date(n.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : ''}
                             </div>
                         </div>
@@ -379,15 +292,15 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
     const accountBody = (
         <>
             <div style={{ padding: '11px 12px', borderBottom: '1px solid ' + t.lineSoft }}>
-                <div style={{ fontSize: 11.5, color: t.text, fontWeight: 500 }}>{orgName}</div>
-                <div style={{ fontSize: 9.5, color: t.faint, marginTop: 2, wordBreak: 'break-all' }}>
+                <div style={{ fontSize: 13, color: t.text, fontWeight: 500 }}>{orgName}</div>
+                <div style={{ fontSize: 11, color: t.faint, marginTop: 2, wordBreak: 'break-all' }}>
                     {user?.email || ''}
                 </div>
                 <div style={{
                     display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 8,
                     height: 20, padding: '0 8px', borderRadius: 999,
                     border: '1px solid ' + t.line, background: t.panelAlt,
-                    fontSize: 9, letterSpacing: '0.05em', color: t.dim,
+                    fontSize: 10.5, letterSpacing: '0.05em', color: t.dim,
                 }}>
                     <span style={{ width: 4, height: 4, borderRadius: '50%', background: plan.color }} />
                     {plan.displayName.toUpperCase()}
@@ -457,7 +370,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                 <circle cx="10" cy="10" r="2.6" fill={t.panel} stroke={t.text} strokeWidth="1.3" />
                             </svg>
                             <span style={{
-                                fontSize: 14.5, fontWeight: 500, letterSpacing: '-0.02em', whiteSpace: 'nowrap',
+                                fontSize: 16, fontWeight: 500, letterSpacing: '-0.02em', whiteSpace: 'nowrap',
                                 opacity: rail ? 1 : 0, transition: 'opacity .16s',
                             }}>EdgeOS</span>
                         </Link>
@@ -468,7 +381,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                     </div>
 
                     <div style={{
-                        padding: '11px 18px 6px', fontSize: 9, letterSpacing: '0.1em',
+                        padding: '11px 18px 6px', fontSize: 10.5, letterSpacing: '0.1em',
                         color: t.ghost, whiteSpace: 'nowrap',
                         opacity: rail ? 1 : 0, transition: 'opacity .16s',
                     }}>WORKSPACE</div>
@@ -493,13 +406,9 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                 >
                                     <Icon size={17} strokeWidth={1.7} style={{ flexShrink: 0, marginLeft: 2 }} />
                                     <span style={{
-                                        fontSize: 11.5, whiteSpace: 'nowrap', flex: 1,
+                                        fontSize: 13, whiteSpace: 'nowrap', flex: 1,
                                         opacity: rail ? 1 : 0, transition: 'opacity .16s',
                                     }}>{m.label}</span>
-                                    <span style={{
-                                        fontSize: 9, color: t.ghost, letterSpacing: '0.06em', flexShrink: 0,
-                                        opacity: rail ? 1 : 0, transition: 'opacity .16s',
-                                    }}>{m.code}</span>
                                 </Link>
                             );
                         })}
@@ -538,12 +447,12 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                     }} />
                                 )}
                             </span>
-                            <span style={{ fontSize: 11.5, whiteSpace: 'nowrap', flex: 1, opacity: rail ? 1 : 0, transition: 'opacity .16s' }}>
+                            <span style={{ fontSize: 13, whiteSpace: 'nowrap', flex: 1, opacity: rail ? 1 : 0, transition: 'opacity .16s' }}>
                                 Notifications
                             </span>
                             {unread > 0 && (
                                 <span aria-hidden="true" style={{
-                                    fontSize: 9.5, fontWeight: 600, padding: '1px 6px', borderRadius: 999, flexShrink: 0,
+                                    fontSize: 11, fontWeight: 600, padding: '1px 6px', borderRadius: 999, flexShrink: 0,
                                     background: t.selBg, color: t.selText, opacity: rail ? 1 : 0, transition: 'opacity .16s',
                                 }}>{unread}</span>
                             )}
@@ -568,7 +477,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                 ) : (
                                     <span style={{
                                         width: 28, height: 28, borderRadius: 7, background: t.selBg, color: t.selText,
-                                        display: 'grid', placeItems: 'center', fontSize: 10.5, fontWeight: 600,
+                                        display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 600,
                                     }}>{displayName.slice(0, 2).toUpperCase()}</span>
                                 )}
                                 {profile.incomplete && (
@@ -582,8 +491,8 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                 display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, lineHeight: 1.3,
                                 opacity: rail ? 1 : 0, transition: 'opacity .16s',
                             }}>
-                                <span style={{ fontSize: 11.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName}</span>
-                                <span style={{ fontSize: 9.5, color: t.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName}</span>
+                                <span style={{ fontSize: 11, color: t.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 5 }}>
                                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: plan.color, flexShrink: 0 }} />
                                     {orgName}
                                 </span>
@@ -679,7 +588,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                     <span style={{
                                         width: 22, height: 22, borderRadius: 5,
                                         background: t.selBg, color: t.selText,
-                                        display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 600,
+                                        display: 'grid', placeItems: 'center', fontSize: 11.5, fontWeight: 600,
                                     }}>{displayName.slice(0, 2).toUpperCase()}</span>
                                 )}
                                 <ChevronDown size={12} strokeWidth={2} style={{
@@ -714,17 +623,14 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                         {/* — greeting — */}
                         <div style={{ padding: '2px 2px 0', display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: t.dim, letterSpacing: '0.08em', marginBottom: 6 }}>
+                                <div style={{ fontSize: 13.5, fontWeight: 600, color: t.text, letterSpacing: '0.08em', marginBottom: 6 }}>
                                     {greeting.toUpperCase()}
-                                    <span style={{ color: t.ghost, fontWeight: 500 }}>
-                                        {'  ·  '}{now.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase()}
-                                    </span>
                                 </div>
                                 <h1 style={{
                                     margin: 0, fontSize: isMobile ? 24 : 32, fontWeight: 700,
                                     letterSpacing: '-0.045em', color: t.text, lineHeight: 1.05,
                                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                }}>{displayName}</h1>
+                                }}>{orgName}</h1>
                             </div>
                             {!showDock && winW >= DOCK_MIN && (
                                 <button type="button" className="hx-btn" onClick={() => setAi(false)} aria-label="Show the EdgeAI panel">
@@ -735,120 +641,21 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
 
                         {d.loadError && <div className="hx-alert" role="alert">Some data could not be loaded: {d.loadError}</div>}
 
-                        {/* — widgets bar — */}
-                        <div className="hx-bar">
-                            <h2>WIDGETS{layout.length > 0 && <span>{layout.length} / {WIDGETS.length}</span>}</h2>
-                            <div className="hx-actions">
-                                {layout.length > 0 && (
-                                    <>
-                                        <button type="button" className="hx-btn is-quiet" onClick={clearBoard}>Clear</button>
-                                        <button type="button" className="hx-btn" aria-pressed={editing}
-                                            onClick={() => { setEditing((v) => !v); setWidgetMenu(null); }}>
-                                            {editing
-                                                ? <><Check size={13} strokeWidth={2} aria-hidden="true" />Done</>
-                                                : <><Move size={13} strokeWidth={1.9} aria-hidden="true" />Arrange</>}
-                                        </button>
-                                    </>
-                                )}
-                                <button type="button" className="hx-btn is-primary" onClick={() => setPicker(true)}>
-                                    <Plus size={13} strokeWidth={2.2} aria-hidden="true" />Add widget
-                                </button>
-                            </div>
-                        </div>
-
-                        {editing && (
-                            <div className="hx-hint">Drag a widget onto another to move it, tap − to remove, or use its ⋯ menu to change its size.</div>
-                        )}
-
-                        {layout.length === 0 ? (
-                            <section className="hx-emptydash">
-                                <div className="hx-ghost" aria-hidden="true"><span /><span /><span /><span /><span className="plus">+</span></div>
-                                <h3>No widgets yet</h3>
-                                <p>Add widgets to keep revenue, cash, clients and EdgeBrain in one view.</p>
-                                <div className="row">
-                                    <button type="button" className="hx-btn is-primary" onClick={() => setPicker(true)}>
-                                        <Plus size={13} strokeWidth={2.2} aria-hidden="true" />Add widget
-                                    </button>
-                                    <button type="button" className="hx-btn" onClick={() => { lay.reset(); say('Default layout restored.'); }}>
-                                        Use default layout
-                                    </button>
-                                    {lastLayout?.length > 0 && (
-                                        <button type="button" className="hx-btn is-quiet" onClick={() => {
-                                            lay.set(lastLayout);
-                                            setLastLayout(null);
-                                            say('Previous layout restored.');
-                                        }}>
-                                            <RotateCcw size={13} strokeWidth={1.9} aria-hidden="true" />Undo clear
-                                        </button>
-                                    )}
-                                </div>
-                            </section>
-                        ) : (
-                            <section ref={gridRef} style={gridStyle} className={`hx-grid${editing ? ' is-editing' : ''}`} aria-label="Widgets">
-                                {layout.map((item, i) => {
-                                    const w = WIDGET_BY_ID.get(item.id);
-                                    const Body = w.render;
-                                    const meta = w.meta?.(d, { geoPeriod });
-                                    const Icon = w.icon;
-                                    return (
-                                        <article
-                                            key={item.id}
-                                            className={[
-                                                'w', `is-${item.size}`,
-                                                editing ? 'is-editing' : '',
-                                                widgetMenu === item.id ? 'is-open' : '',
-                                                drag.id === item.id ? 'is-dragging' : '',
-                                                drag.over === item.id && drag.id !== item.id ? 'is-over' : '',
-                                            ].join(' ')}
-                                            style={{ '--i': i }}
-                                            aria-labelledby={`wt-${item.id}`}
-                                            draggable={editing}
-                                            onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', item.id); setDrag({ id: item.id, over: null }); }}
-                                            onDragOver={(e) => { if (drag.id) { e.preventDefault(); if (drag.over !== item.id) setDrag((s) => ({ ...s, over: item.id })); } }}
-                                            onDrop={(e) => { e.preventDefault(); if (drag.id) lay.place(drag.id, item.id); setDrag({ id: null, over: null }); }}
-                                            onDragEnd={() => setDrag({ id: null, over: null })}
-                                        >
-                                            <div className="w-head">
-                                                <span className="w-ic" aria-hidden="true"><Icon size={11} strokeWidth={2.4} /></span>
-                                                <span className="w-title" id={`wt-${item.id}`}>{w.title}</span>
-                                                {meta && <span className="w-meta">{meta}</span>}
-                                                <button
-                                                    type="button" id={`wbtn-${item.id}`} className="w-grip"
-                                                    aria-label={`${w.title} widget options`} aria-haspopup="menu"
-                                                    aria-expanded={widgetMenu === item.id}
-                                                    onClick={() => setWidgetMenu((m) => (m === item.id ? null : item.id))}
-                                                ><MoreHorizontal size={14} aria-hidden="true" /></button>
-                                            </div>
-                                            {widgetMenu === item.id && (
-                                                <WidgetMenu
-                                                    widget={w} size={item.size} first={i === 0} last={i === layout.length - 1}
-                                                    onAction={(a, arg) => widgetAction(item.id, a, arg)}
-                                                    onClose={() => { setWidgetMenu(null); document.getElementById(`wbtn-${item.id}`)?.focus(); }}
-                                                />
-                                            )}
-                                            <div className="w-body"><Body {...widgetProps} size={item.size} /></div>
-                                            {editing && (
-                                                <button type="button" className="w-remove" aria-label={`Remove ${w.title}`}
-                                                    onClick={() => widgetAction(item.id, 'remove')}>
-                                                    <Minus size={11} strokeWidth={3} aria-hidden="true" />
-                                                </button>
-                                            )}
-                                        </article>
-                                    );
-                                })}
-                                <button type="button" className="hx-addtile" onClick={() => setPicker(true)} aria-label="Add widget">
-                                    <span className="hx-addtile-ic"><Plus size={16} strokeWidth={2} aria-hidden="true" /></span>
-                                    <span>Add widget</span>
-                                </button>
-                            </section>
-                        )}
+                        <WidgetBoard
+                            layout={layout} lay={lay} widgets={WIDGETS} byId={WIDGET_BY_ID}
+                            defaultCount={DEFAULT_LAYOUT.length}
+                            widgetProps={widgetProps} metaArgs={{ geoPeriod }}
+                            isMobile={isMobile} say={say}
+                            emptyText="Add widgets to keep revenue, cash, clients and EdgeBrain in one view."
+                            pickerNote="Choose what the hub shows"
+                        />
                     </div>
 
                     {/* ── FOOTER ──────────────────────────────────────────── */}
                     <div style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         gap: 10, padding: '12px 24px', borderTop: '1px solid ' + t.line,
-                        fontSize: 11, color: t.dim, flexWrap: 'wrap',
+                        fontSize: 12.5, color: t.dim, flexWrap: 'wrap',
                     }}>
                         <span>EdgeOS · ENTERPRISE OPERATING SYSTEM</span>
                         <span style={{ display: 'flex', gap: 16 }}>
@@ -870,8 +677,6 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
             )}
 
             {isMobile && <MobileNav t={{ ...t, isDark }} active="hub" />}
-
-            {picker && <WidgetPicker layout={layout} lay={lay} onClose={() => setPicker(false)} say={say} />}
 
             {openCountry && (
                 <CountryDialog
@@ -914,141 +719,3 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
     );
 }
 
-/* ── per-widget menu ────────────────────────────────────────────────────── */
-
-/** The shape of each size, drawn the way the size picker shows it. */
-function SizeGlyph({ size }) {
-    const r = { sm: [5, 5, 8, 8], md: [2, 5, 14, 8], lg: [2, 2, 14, 14] }[size];
-    return (
-        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-            <rect x="1.5" y="1.5" width="15" height="15" rx="3.5" fill="none" stroke="currentColor" strokeOpacity=".28" />
-            <rect x={r[0]} y={r[1]} width={r[2]} height={r[3]} rx="2.2" fill="currentColor" />
-        </svg>
-    );
-}
-
-function WidgetMenu({ widget, size, first, last, onAction, onClose }) {
-    const ref = useRef(null);
-    const close = useLatest(onClose);
-    // Opens to the right of its button; flips left, before paint, where that
-    // would run off the board.
-    useLayoutEffect(() => {
-        const el = ref.current;
-        const box = el?.closest('.hx-grid')?.getBoundingClientRect();
-        if (el && box && el.getBoundingClientRect().right > box.right) el.classList.add('is-flip');
-        el?.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
-    }, []);
-    useEffect(() => {
-        const onDown = (e) => {
-            if (ref.current?.contains(e.target)) return;
-            if (e.target.closest?.('.w-grip')) return;
-            close.current();
-        };
-        const onKey = (e) => {
-            if (e.key === 'Escape') { e.preventDefault(); close.current(); return; }
-            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-            e.preventDefault();
-            const items = [...ref.current.querySelectorAll('button:not(:disabled)')];
-            const i = items.indexOf(document.activeElement);
-            items[e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length]?.focus();
-        };
-        document.addEventListener('mousedown', onDown);
-        document.addEventListener('keydown', onKey);
-        return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
-    }, [close]);
-
-    return (
-        <div ref={ref} className="hx-wmenu" role="menu" aria-label={`${widget.title} options`}>
-            {widget.sizes.length > 1 && (
-                <div className="hx-wsizes" role="group" aria-label="Size">
-                    {widget.sizes.map((s) => (
-                        <button key={s} type="button" role="menuitemradio" aria-checked={s === size}
-                            onClick={() => (s === size ? onClose() : onAction('size', s))}>
-                            <SizeGlyph size={s} />{SIZE_LABEL[s]}
-                        </button>
-                    ))}
-                </div>
-            )}
-            <button type="button" role="menuitem" disabled={first} onClick={() => onAction('up')}>
-                <ArrowUp size={13} aria-hidden="true" />Move earlier
-            </button>
-            <button type="button" role="menuitem" disabled={last} onClick={() => onAction('down')}>
-                <ArrowDown size={13} aria-hidden="true" />Move later
-            </button>
-            <hr />
-            <button type="button" role="menuitem" className="is-danger" onClick={() => onAction('remove')}>
-                <EyeOff size={13} aria-hidden="true" />Remove widget
-            </button>
-        </div>
-    );
-}
-
-/* ── widget picker ──────────────────────────────────────────────────────── */
-
-function WidgetPicker({ layout, lay, onClose, say }) {
-    const ref = useRef(null);
-    const back = useRef(typeof document !== 'undefined' ? document.activeElement : null);
-    // Read through a ref: the parent passes a fresh onClose on every render,
-    // and an effect keyed on it re-ran each time, pulling focus back to the
-    // first card and scrolling the list to the top.
-    const close = useLatest(onClose);
-
-    useEffect(() => {
-        ref.current?.querySelector('.hx-pick')?.focus({ preventScroll: true });
-        const prev = back.current;
-        const onKey = (e) => {
-            if (e.key === 'Escape') { e.preventDefault(); close.current(); return; }
-            if (e.key !== 'Tab') return;
-            // Keep focus inside the dialog.
-            const f = [...ref.current.querySelectorAll('button')].filter((x) => !x.disabled);
-            if (!f.length) return;
-            const first = f[0]; const last = f[f.length - 1];
-            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-        };
-        document.addEventListener('keydown', onKey);
-        return () => { document.removeEventListener('keydown', onKey); prev?.focus?.({ preventScroll: true }); };
-    }, [close]);
-
-    const on = new Set(layout.map((w) => w.id));
-
-    return (
-        <div className="hx-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-            <div ref={ref} className="hx-dialog" role="dialog" aria-modal="true" aria-labelledby="hx-pick-title">
-                <div className="hx-dialog-head">
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <h2 id="hx-pick-title">Widgets</h2>
-                        <p>Choose what the hub shows · {on.size} of {WIDGETS.length} on</p>
-                    </div>
-                    <button type="button" className="hx-x" onClick={onClose} aria-label="Close"><X size={15} aria-hidden="true" /></button>
-                </div>
-                <div className="hx-dialog-body eo-scroll">
-                    {WIDGETS.map((w) => {
-                        const active = on.has(w.id);
-                        return (
-                            <button key={w.id} type="button" className="hx-pick" aria-pressed={active}
-                                onClick={() => { lay.toggle(w.id); say(`${w.title} ${active ? 'removed' : 'added'}.`); }}>
-                                <span className="hx-pick-ic" aria-hidden="true"><w.icon size={14} strokeWidth={2} /></span>
-                                <span className="hx-pick-text">
-                                    <span className="hx-pick-t">{w.title}
-                                        <span className="hx-pick-sizes" aria-label={`Sizes: ${w.sizes.map((x) => SIZE_LABEL[x]).join(', ')}`}>
-                                            {w.sizes.map((x) => <SizeGlyph key={x} size={x} />)}
-                                        </span>
-                                    </span>
-                                    <span className="hx-pick-d">{w.desc}</span>
-                                </span>
-                                <span className="hx-check" aria-hidden="true">{active && <Check size={12} strokeWidth={3} />}</span>
-                            </button>
-                        );
-                    })}
-                </div>
-                <div className="hx-dialog-foot">
-                    <button type="button" className="hx-btn is-quiet" onClick={() => { lay.reset(); say('Default layout restored.'); }}>
-                        <RotateCcw size={13} strokeWidth={1.9} aria-hidden="true" />Reset to default ten
-                    </button>
-                    <button type="button" className="hx-btn is-primary" onClick={onClose}>Done</button>
-                </div>
-            </div>
-        </div>
-    );
-}

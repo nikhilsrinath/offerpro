@@ -100,15 +100,15 @@ function UsageBody({ t, cat, status, cols, grid, tileCols, orgId, navigate, toda
                 right={<div style={{ display: 'flex', gap: 6 }}>
                     <button type="button" onClick={load} disabled={busy} className="ov-chip" aria-label="Refresh usage" style={{
                         display: 'inline-flex', alignItems: 'center', gap: 5, minHeight: 24, padding: '0 8px', borderRadius: 6, border: '1px solid ' + t.line,
-                        background: t.panel, color: t.dim, fontFamily: MONO, fontSize: 10, cursor: busy ? 'wait' : 'pointer',
+                        background: t.panel, color: t.dim, fontFamily: MONO, fontSize: 11.5, cursor: busy ? 'wait' : 'pointer',
                     }}><RefreshCw aria-hidden="true" size={11} style={{ animation: busy ? 'usageSpin 1s linear infinite' : 'none' }} /> Refresh</button>
                     <More label={unlimited ? 'Plans' : 'Upgrade'} to="/pricing" />
                 </div>}>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
                     <span style={{ fontSize: 40, fontWeight: 600, letterSpacing: '-0.05em', lineHeight: 1 }}>{used.toLocaleString('en-IN')}</span>
-                    <span style={{ fontSize: 13, color: t.dim, paddingBottom: 4 }}>{unlimited ? 'messages · unlimited' : `/ ${limit} messages`}</span>
+                    <span style={{ fontSize: 14.5, color: t.dim, paddingBottom: 4 }}>{unlimited ? 'messages · unlimited' : `/ ${limit} messages`}</span>
                     <span style={{ flex: 1 }} />
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10.5, padding: '4px 9px', borderRadius: 99, border: '1px solid ' + t.line, color: t.text }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '4px 9px', borderRadius: 99, border: '1px solid ' + t.line, color: t.text }}>
                         <Crown aria-hidden="true" size={12} /> {plan.displayName}
                     </span>
                 </div>
@@ -127,7 +127,7 @@ function UsageBody({ t, cat, status, cols, grid, tileCols, orgId, navigate, toda
                     <Figure label="refused at limit" value={history?.available ? String(s.blocked) : '—'} tone={s.blocked ? 'down' : null} />
                     <Figure label="provider errors" value={history?.available ? String(s.failed) : '—'} />
                 </div>
-                <div style={{ fontSize: 10, color: t.faint, marginTop: 12, lineHeight: 1.6 }}>
+                <div style={{ fontSize: 11.5, color: t.faint, marginTop: 12, lineHeight: 1.6 }}>
                     This is a running total for the organisation and does not reset each month. A request is counted when it is sent — before the answer —
                     so a refused request still moves the counter.
                     {refreshedAt && <> Updated {refreshedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}.</>}
@@ -191,7 +191,7 @@ function UsageBody({ t, cat, status, cols, grid, tileCols, orgId, navigate, toda
                     <Meter key={d.key} label={d.label} used={Number(counters[d.key]) || 0}
                         limit={d.limit ? plan.limits[d.limit] : Infinity} />
                 ))}
-                <div style={{ fontSize: 10, color: t.faint, marginTop: 8, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 11.5, color: t.faint, marginTop: 8, lineHeight: 1.5 }}>
                     Bulk operations {plan.limits.bulkOperations ? 'included' : 'not included'} · priority support {plan.limits.prioritySupport ? 'included' : 'not included'}.
                 </div>
             </Card>

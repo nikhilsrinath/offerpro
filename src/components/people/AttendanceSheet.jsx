@@ -91,13 +91,13 @@ function DayBar({ totals, size }) {
             </div>
             <Row gap={16} wrap>
                 {segs.map((s) => (
-                    <span key={s.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, color: t.faint }}>
+                    <span key={s.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: t.faint }}>
                         <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.color }} />
                         {s.key} {s.value}
                     </span>
                 ))}
                 {totals.unmarked > 0 && (
-                    <span style={{ fontSize: 10, color: t.faint }}>
+                    <span style={{ fontSize: 11.5, color: t.faint }}>
                         {totals.unmarked} not marked yet
                     </span>
                 )}
@@ -293,7 +293,7 @@ export default function AttendanceSheet() {
                     <>
                         <Row gap={4}>
                             <Btn size="sm" onClick={() => setMonthKey(shiftMonth(monthKey, -1))} title="Previous month">←</Btn>
-                            <span style={{ minWidth: 128, textAlign: 'center', fontSize: 11.5, color: t.text }}>
+                            <span style={{ minWidth: 128, textAlign: 'center', fontSize: 13, color: t.text }}>
                                 {monthLabel(monthKey)}
                             </span>
                             <Btn size="sm" onClick={() => setMonthKey(shiftMonth(monthKey, 1))}
@@ -309,7 +309,7 @@ export default function AttendanceSheet() {
             {tab === 'daily' ? (
                 <>
                     <Row gap={10} style={{ marginBottom: 12 }}>
-                        <span style={{ fontSize: 12, color: t.text }}>{fmtDate(date)}</span>
+                        <span style={{ fontSize: 13.5, color: t.text }}>{fmtDate(date)}</span>
                         <Muted>{roster.length} on the roster</Muted>
                     </Row>
 
@@ -337,7 +337,7 @@ export default function AttendanceSheet() {
                                                 <Avatar name={name} size={26} />
                                                 <span style={{ minWidth: 0 }}>
                                                     <span style={{ display: 'block' }}>{name}</span>
-                                                    <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 1 }}>
+                                                    <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>
                                                         {e.role || '—'}
                                                     </span>
                                                 </span>
@@ -422,7 +422,7 @@ export default function AttendanceSheet() {
                             </Btn>
                         </>
                     }>
-                    <p style={{ margin: 0, fontSize: 11.5, color: t.dim, lineHeight: 1.75 }}>
+                    <p style={{ margin: 0, fontSize: 13, color: t.dim, lineHeight: 1.75 }}>
                         This overwrites anything already marked for {fmtDate(date)}, including times and notes
                         people entered themselves. You can still correct individual rows afterwards.
                     </p>
@@ -461,7 +461,7 @@ function MonthlyView({ t, monthKey, rows, loading, personId, roster, onPick }) {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0,1fr))', gap: 5 }}>
                     {WEEKDAYS.map((w) => (
                         <div key={w} style={{
-                            fontSize: 9, letterSpacing: '0.09em', color: t.faint,
+                            fontSize: 10.5, letterSpacing: '0.09em', color: t.faint,
                             textAlign: 'center', paddingBottom: 5,
                         }}>{w.toUpperCase()}</div>
                     ))}
@@ -483,15 +483,15 @@ function MonthlyView({ t, monthKey, rows, loading, personId, roster, onPick }) {
                                     borderRadius: 7,
                                 }}
                             >
-                                <span style={{ fontSize: 11, color: today ? t.text : t.dim }}>
+                                <span style={{ fontSize: 12.5, color: today ? t.text : t.dim }}>
                                     {Number(dateKey.slice(-2))}
                                 </span>
                                 {row && (
                                     <>
-                                        <span style={{ fontSize: 9, color: t.faint, lineHeight: 1.3 }}>
+                                        <span style={{ fontSize: 10.5, color: t.faint, lineHeight: 1.3 }}>
                                             {statusLabel(row.status)}
                                         </span>
-                                        <span style={{ fontSize: 9, color: t.ghost }}>
+                                        <span style={{ fontSize: 10.5, color: t.ghost }}>
                                             {formatDuration(workedMinutes(row))}
                                         </span>
                                     </>
@@ -503,7 +503,7 @@ function MonthlyView({ t, monthKey, rows, loading, personId, roster, onPick }) {
 
                 <Row gap={14} wrap style={{ marginTop: 13, paddingTop: 12, borderTop: '1px solid ' + t.lineSoft }}>
                     {ATTENDANCE_STATUSES.map((s) => (
-                        <span key={s.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 9.5, color: t.faint }}>
+                        <span key={s.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: t.faint }}>
                             <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.color }} />
                             {s.label}
                         </span>

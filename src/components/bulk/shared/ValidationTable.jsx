@@ -61,7 +61,7 @@ export default function ValidationTable({ data, columns, onEdit, validationConfi
     };
 
     const th = {
-        textAlign: 'left', padding: '9px 12px', fontSize: 9.5, letterSpacing: '0.09em', fontWeight: 400,
+        textAlign: 'left', padding: '9px 12px', fontSize: 11, letterSpacing: '0.09em', fontWeight: 400,
         color: t.faint, borderBottom: '1px solid ' + t.line, whiteSpace: 'nowrap',
         position: 'sticky', top: 0, background: t.panel, zIndex: 1,
     };
@@ -75,7 +75,7 @@ export default function ValidationTable({ data, columns, onEdit, validationConfi
                     { id: 'Invalid', label: 'Invalid', count: invalidCount },
                 ]} />
                 <div style={{ flex: 1 }} />
-                <span role="status" style={{ fontSize: 10.5, color: t.faint }}>
+                <span role="status" style={{ fontSize: 12, color: t.faint }}>
                     {validCount} valid · {invalidCount} need attention · {data.length} total
                 </span>
             </div>
@@ -102,7 +102,7 @@ export default function ValidationTable({ data, columns, onEdit, validationConfi
                                         : (
                                             <span title={errors.join(', ')}>
                                                 <Status tone="down">Invalid</Status>
-                                                <span style={{ display: 'block', fontSize: 9.5, color: t.dim, marginTop: 3, whiteSpace: 'normal', maxWidth: 180 }}>
+                                                <span style={{ display: 'block', fontSize: 11, color: t.dim, marginTop: 3, whiteSpace: 'normal', maxWidth: 180 }}>
                                                     {errors.join('; ')}
                                                 </span>
                                             </span>
@@ -129,7 +129,7 @@ export default function ValidationTable({ data, columns, onEdit, validationConfi
                                                     style={{
                                                         width: '100%', minWidth: 120, height: 30, boxSizing: 'border-box', padding: '0 8px',
                                                         background: t.panel, border: '1px solid ' + t.text, borderRadius: 6,
-                                                        color: t.text, fontFamily: MONO, fontSize: 11.5,
+                                                        color: t.text, fontFamily: MONO, fontSize: 13,
                                                     }}
                                                 />
                                             ) : (
@@ -141,7 +141,7 @@ export default function ValidationTable({ data, columns, onEdit, validationConfi
                                                     style={{
                                                         display: 'block', width: '100%', minHeight: 30, maxWidth: 220, textAlign: 'left',
                                                         padding: '0 9px', border: '1px solid transparent', borderRadius: 6,
-                                                        background: 'transparent', cursor: 'text', fontFamily: MONO, fontSize: 11.5,
+                                                        background: 'transparent', cursor: 'text', fontFamily: MONO, fontSize: 13,
                                                         color: hasError ? t.down : t.text,
                                                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                                                     }}
@@ -162,7 +162,7 @@ export default function ValidationTable({ data, columns, onEdit, validationConfi
             {filteredData.length > ROWS_PER_PAGE && (
                 <nav aria-label="Rows pages" style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
                     <Btn size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>Previous</Btn>
-                    <span style={{ fontSize: 10.5, color: t.faint }} aria-live="polite">Page {page + 1} of {pageCount}</span>
+                    <span style={{ fontSize: 12, color: t.faint }} aria-live="polite">Page {page + 1} of {pageCount}</span>
                     <Btn size="sm" disabled={page + 1 >= pageCount} onClick={() => setPage((p) => p + 1)}>Next</Btn>
                 </nav>
             )}

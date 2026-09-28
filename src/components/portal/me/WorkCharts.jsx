@@ -17,7 +17,7 @@ import { monthLabel, minutesToClock, hoursLabel, fmtWeekday, clockTime } from '.
 
 const useAxis = () => {
   const t = useT();
-  return { fontSize: 9.5, fill: t.faint, fontFamily: MONO };
+  return { fontSize: 11, fill: t.faint, fontFamily: MONO };
 };
 
 /** Hours worked per day, from `dailySeries()`. */

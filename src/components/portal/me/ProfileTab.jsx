@@ -111,8 +111,8 @@ export default function ProfileTab({ orgId, me, setMe, email, narrow }) {
             </div>
             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={onPhoto} style={{ display: 'none' }} />
             <div>
-              <div style={{ fontSize: 15, color: t.text, fontWeight: 500 }}>{me.full_name}</div>
-              <div style={{ fontSize: 10.5, color: t.faint, marginTop: 3 }}>{[me.role, me.department_name].filter(Boolean).join(' · ') || 'Team member'}</div>
+              <div style={{ fontSize: 16.5, color: t.text, fontWeight: 500 }}>{me.full_name}</div>
+              <div style={{ fontSize: 12, color: t.faint, marginTop: 3 }}>{[me.role, me.department_name].filter(Boolean).join(' · ') || 'Team member'}</div>
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <Btn size="sm" onClick={() => fileRef.current?.click()} disabled={photoBusy}>
@@ -121,7 +121,7 @@ export default function ProfileTab({ orgId, me, setMe, email, narrow }) {
               {me.photo_path && <Btn size="sm" onClick={removePhoto} disabled={photoBusy} title="Remove photo"><Trash2 size={12} /></Btn>}
             </div>
             <div style={{ width: '100%', textAlign: 'left', marginTop: 4 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: t.faint, marginBottom: 5 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: t.faint, marginBottom: 5 }}>
                 <span>Profile complete</span><span style={{ color: t.text }}>{completeness.done}/{completeness.total}</span>
               </div>
               <Bar value={completeness.done} max={completeness.total} />
@@ -132,11 +132,11 @@ export default function ProfileTab({ orgId, me, setMe, email, narrow }) {
         <Panel title="From your employer" actions={<Lock size={12} style={{ color: t.faint }} />}>
           {employer.map(([k, v], i) => (
             <div key={k} style={{ display: 'flex', gap: 12, padding: '9px 14px', borderTop: i ? '1px solid ' + t.lineSoft : 'none' }}>
-              <span style={{ width: 88, flexShrink: 0, fontSize: 9, letterSpacing: '0.09em', color: t.faint, paddingTop: 2 }}>{k.toUpperCase()}</span>
-              <span style={{ fontSize: 11.5, color: v ? t.text : t.ghost, minWidth: 0, wordBreak: 'break-word' }}>{v || '—'}</span>
+              <span style={{ width: 88, flexShrink: 0, fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, paddingTop: 2 }}>{k.toUpperCase()}</span>
+              <span style={{ fontSize: 13, color: v ? t.text : t.ghost, minWidth: 0, wordBreak: 'break-word' }}>{v || '—'}</span>
             </div>
           ))}
-          <div style={{ padding: '9px 14px', borderTop: '1px solid ' + t.lineSoft, fontSize: 9.5, color: t.faint, lineHeight: 1.5 }}>
+          <div style={{ padding: '9px 14px', borderTop: '1px solid ' + t.lineSoft, fontSize: 11, color: t.faint, lineHeight: 1.5 }}>
             Something wrong here? Ask your admin — these are set on your employee record.
           </div>
         </Panel>
@@ -152,13 +152,13 @@ export default function ProfileTab({ orgId, me, setMe, email, narrow }) {
             <Field label="About you" wide hint={`${String(form.bio || '').length}/600 — a line or two your team will see on your card`}>
               <Textarea rows={3} value={form.bio} onChange={set('bio')} maxLength={600} placeholder="What you work on, what you're into" />
             </Field>
-            <div style={{ gridColumn: '1 / -1', fontSize: 9.5, letterSpacing: '0.1em', color: t.faint, borderTop: '1px solid ' + t.lineSoft, paddingTop: 12 }}>
+            <div style={{ gridColumn: '1 / -1', fontSize: 11, letterSpacing: '0.1em', color: t.faint, borderTop: '1px solid ' + t.lineSoft, paddingTop: 12 }}>
               EMERGENCY CONTACT
             </div>
             <Field label="Name"><Input value={form.emergency_contact_name} onChange={set('emergency_contact_name')} maxLength={120} /></Field>
             <Field label="Phone"><Input type="tel" value={form.emergency_contact_phone} onChange={set('emergency_contact_phone')} maxLength={40} /></Field>
             <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end', paddingTop: 4 }}>
-              {changed.length > 0 && <span style={{ fontSize: 10, color: t.faint, marginRight: 'auto' }}>{changed.length} unsaved change{changed.length === 1 ? '' : 's'}</span>}
+              {changed.length > 0 && <span style={{ fontSize: 11.5, color: t.faint, marginRight: 'auto' }}>{changed.length} unsaved change{changed.length === 1 ? '' : 's'}</span>}
               <Btn onClick={() => setForm(pick(me))} disabled={!changed.length || saving}>Discard</Btn>
               <Btn type="submit" primary disabled={!changed.length || saving}>{saving ? 'Saving…' : 'Save changes'}</Btn>
             </div>
@@ -205,7 +205,7 @@ export function ChangePassword({ mustChange = false, onDone }) {
       style={mustChange ? { borderColor: t.text } : undefined}>
       <form onSubmit={submit} style={{ padding: 14, display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', alignItems: 'end' }}>
         {mustChange && (
-          <div style={{ gridColumn: '1 / -1', fontSize: 11, color: t.dim, lineHeight: 1.6 }}>
+          <div style={{ gridColumn: '1 / -1', fontSize: 12.5, color: t.dim, lineHeight: 1.6 }}>
             You are signed in with the password your workplace generated for you, which means someone else has
             seen it. Pick one only you know.
           </div>
@@ -217,7 +217,7 @@ export function ChangePassword({ mustChange = false, onDone }) {
           <Input type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
         </Field>
         <Btn type="submit" primary disabled={busy || !pw || !confirm}>{busy ? 'Saving…' : 'Update password'}</Btn>
-        {error && <div style={{ gridColumn: '1 / -1', fontSize: 10.5, color: t.down }}>{error}</div>}
+        {error && <div style={{ gridColumn: '1 / -1', fontSize: 12, color: t.down }}>{error}</div>}
       </form>
     </Panel>
   );

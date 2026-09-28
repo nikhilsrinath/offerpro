@@ -549,6 +549,13 @@ export function libraryQuery(question) {
 
 const PASSAGE_CHARS = 1500;
 
+// The library's registers (0069), as the model should name them.
+const REGISTER = {
+  general: 'General Documents',
+  opa: 'Organisational Process Assets',
+  lessons: 'Lessons Learned Register',
+};
+
 /**
  * The library's part of the context: how many documents exist, a catalogue of
  * them, and the passages that best match the question.
@@ -561,14 +568,20 @@ export async function libraryContext(orgId, allowed, question, { passages = 6, c
   const db = supabaseAdmin();
 
   const tsq = libraryQuery(question);
-  const [docsRes, hitsRes] = await Promise.all([
-    db.from('library_documents')
-      .select('id, title, file_name, category, extraction_status, page_count, chunk_count, summary', { count: 'exact' })
-      .eq('org_id', orgId).order('updated_at', { ascending: false }).limit(catalogue),
+  const catalogueOf = (cols) => db.from('library_documents')
+    .select(cols, { count: 'exact' })
+    .eq('org_id', orgId).order('updated_at', { ascending: false }).limit(catalogue);
+  const baseCols = 'id, title, file_name, category, extraction_status, page_count, chunk_count, summary';
+  const [firstDocsRes, hitsRes] = await Promise.all([
+    catalogueOf(`${baseCols}, collection`),
     tsq
       ? db.rpc('library_search', { p_org: orgId, p_query: tsq, p_limit: passages })
       : Promise.resolve({ data: [] }),
   ]);
+  // Before 0069 there is no register column: every document is General.
+  const docsRes = firstDocsRes.error && /collection/.test(firstDocsRes.error.message || '')
+    ? await catalogueOf(baseCols)
+    : firstDocsRes;
   if (docsRes.error) throw new HttpError(500, docsRes.error.message);
   const total = docsRes.count ?? (docsRes.data || []).length;
   if (!total) return null;
@@ -580,7 +593,9 @@ export async function libraryContext(orgId, allowed, question, { passages = 6, c
 
   const lines = [
     '## DOCUMENT LIBRARY',
-    'Files the company uploaded to Documents → General Documents, read into text by EdgeBrain. ' +
+    'Files the company uploaded to its Documents library, read into text by EdgeBrain. Each file ' +
+    'belongs to one register: General Documents, Organisational Process Assets (templates, ' +
+    'procedures, standards) or the Lessons Learned Register (what past work taught). ' +
     `The library holds ${total} document(s); ${readable} of the ${docs.length} listed below are readable. ` +
     'PASSAGES are quoted verbatim from the file named, at the page, slide or section given. ' +
     'When you use one, name the document and where in it ("HR Policy.pdf, page 3"). They are the ' +
@@ -589,7 +604,7 @@ export async function libraryContext(orgId, allowed, question, { passages = 6, c
     'gap with what such a document usually says.',
     `Catalogue (${docs.length} of ${total}, most recently changed first):`,
     ...docs.map((d) => {
-      const bits = [d.file_name, d.category];
+      const bits = [d.file_name, REGISTER[d.collection] || REGISTER.general, d.category];
       if (d.page_count) bits.push(`${d.page_count} page(s)/slide(s)/sheet(s)`);
       bits.push(d.chunk_count > 0 ? 'readable' : `not readable (${d.extraction_status})`);
       return `- "${d.title}" (${bits.join(' · ')})` +
@@ -602,7 +617,8 @@ export async function libraryContext(orgId, allowed, question, { passages = 6, c
       const where = h.heading ? ` · ${h.heading}` : '';
       const text = h.content.length > PASSAGE_CHARS ? `${h.content.slice(0, PASSAGE_CHARS)}…` : h.content;
       // One line per passage, so the budget trim can only ever drop a whole one.
-      lines.push(`- [${h.title} · ${h.file_name}${where}] ${text.replace(/\s*\n\s*/g, ' ↵ ')}`);
+      const register = REGISTER[h.collection] || REGISTER.general;
+      lines.push(`- [${h.title} · ${h.file_name} · ${register}${where}] ${text.replace(/\s*\n\s*/g, ' ↵ ')}`);
     }
   } else {
     lines.push('- (no passage in the library matched this question\'s words)');

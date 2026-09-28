@@ -28,14 +28,14 @@ export default function RelatedProjects({ clientId = null, employeeId = null }) 
     return (
         <section aria-label="Projects">
             <div style={head}>
-                <span style={{ fontSize: 9.5, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>PROJECTS ({rows.length})</span>
+                <span style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>PROJECTS ({rows.length})</span>
                 {clientId && canCreateProjects() && (
-                    <button type="button" className="easy-submit-outline" style={{ padding: '4px 10px', fontSize: 12 }}
+                    <button type="button" className="easy-submit-outline" style={{ padding: '4px 10px', fontSize: 13.5 }}
                         onClick={() => navigate(`/projects/new?client=${clientId}`)}>Start project</button>
                 )}
             </div>
             {rows.length === 0 ? (
-                <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>
+                <p style={{ margin: 0, fontSize: 13.5, color: 'var(--text-muted)' }}>
                     {clientId ? 'No projects for this client yet.' : 'Not on any project.'}
                 </p>
             ) : (
@@ -43,9 +43,9 @@ export default function RelatedProjects({ clientId = null, employeeId = null }) 
                     {rows.map(({ key, p, m }) => {
                         const current = m ? (!m.end_date || m.end_date >= today) : null;
                         return (
-                            <li key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, flexWrap: 'wrap' }}>
+                            <li key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13.5, flexWrap: 'wrap' }}>
                                 <Link to={`/projects/${p.id}`} style={{ color: 'var(--text-primary)', flex: 1, minWidth: 160 }}>
-                                    <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{p.code}</span> {p.name}
+                                    <span style={{ color: 'var(--text-muted)', fontSize: 12.5 }}>{p.code}</span> {p.name}
                                 </Link>
                                 {m ? (
                                     <>

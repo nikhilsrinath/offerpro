@@ -92,7 +92,7 @@
 .edge-shell main .a4-stage-zoom button {
   border-radius: 5px;
   color: var(--edge-dim);
-  font-size: 10.5px;
+  font-size: 12px;
 }
 
 .edge-shell main .a4-stage-zoom button:hover:not(:disabled) {
@@ -106,7 +106,7 @@
 }
 
 .edge-shell main :where(.a4-stage-zoom-value, .a4-stage-pages) {
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--edge-dim);
 }
 
@@ -130,7 +130,7 @@
 }
 
 .edge-shell main .mou-preview-toolbar-label {
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--edge-faint);
@@ -161,7 +161,7 @@
 
 .edge-shell main .pro-card-title-group h3,
 .edge-shell main .pro-card-header h3 {
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 500;
   color: var(--edge-text);
   letter-spacing: 0;
@@ -175,7 +175,7 @@
 }
 
 .edge-shell main :where(.pro-stat-label, .fin-status-stat-label, .prod-stat-label, .sbc-metric-label) {
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   font-weight: 400;
@@ -199,7 +199,7 @@
 }
 
 .edge-shell main .easy-section-title {
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: 0;
 }
@@ -208,7 +208,7 @@
   width: 22px;
   height: 22px;
   border-radius: 6px;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 500;
   background: var(--edge-panel-alt);
   border: 1px solid var(--edge-line);
@@ -216,7 +216,7 @@
 }
 
 .edge-shell main :where(.easy-lbl, .easy-lbl-sm, .easy-party-label, .inv-party-label, .prod-field > span, .payment-conf-field > label) {
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   font-weight: 400;
@@ -233,7 +233,7 @@
   border: 1px solid var(--edge-line);
   border-radius: 7px;
   color: var(--edge-text);
-  font-size: 12px;
+  font-size: 13.5px;
   line-height: 1.4;
   box-shadow: none;
   min-height: 32px;
@@ -318,7 +318,7 @@
   transform: none !important;
   border-radius: 7px;
   font-weight: 500;
-  font-size: 12px;
+  font-size: 13.5px;
   letter-spacing: 0;
   min-height: 32px;
   transition: opacity .15s;
@@ -362,7 +362,7 @@
   padding: 0 16px;
   gap: 8px;
   border-radius: 9px;
-  font-size: 12px;
+  font-size: 13.5px;
 }
 
 .edge-shell main .form-actions > .easy-submit {
@@ -382,7 +382,7 @@
   backdrop-filter: none;
   transform: none;
   font-weight: 400;
-  font-size: 11.5px;
+  font-size: 13px;
   min-height: 28px;
   transition: border-color .15s, background .15s, color .15s;
 }
@@ -443,7 +443,7 @@
   border-radius: 7px;
   color: var(--edge-dim);
   font-weight: 400;
-  font-size: 11.5px;
+  font-size: 13px;
   min-height: 32px;
 }
 
@@ -460,7 +460,7 @@
   background: var(--edge-panel);
   color: var(--edge-dim);
   font-weight: 400;
-  font-size: 11px;
+  font-size: 12.5px;
   min-height: 28px;
   box-shadow: none;
 }
@@ -483,7 +483,7 @@
 /* ── tables ───────────────────────────────────────────────────────────────── */
 
 .edge-shell main table:not(:where(.a4-sheet *, .certificate-preview-root *, .inv-saffron-page *)) th {
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   font-weight: 400;
@@ -538,7 +538,7 @@
   border-radius: 7px;
   box-shadow: none;
   font-weight: 500;
-  font-size: 12px;
+  font-size: 13.5px;
   min-height: 32px;
 }
 
@@ -574,7 +574,7 @@
 
 .edge-shell main .easy-switch-label,
 .edge-shell main .easy-switch-row.active .easy-switch-label {
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 400;
   color: var(--edge-text);
 }
@@ -683,7 +683,7 @@
   border-radius: 0;
   background: transparent !important;
   color: var(--edge-dim) !important;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 400;
 }
 
@@ -755,7 +755,7 @@
 }
 
 .edge-shell main .prod-field > label {
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   font-weight: 400;
@@ -896,12 +896,12 @@
   border: none;
   background: var(--edge-panel-alt);
   color: var(--edge-dim);
-  font-size: 10px;
+  font-size: 11.5px;
   font-weight: 600;
 }
 
 .edge-shell main .mou-form-pane .easy-section-title {
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 600;
   color: var(--edge-text);
   letter-spacing: -0.01em;
@@ -927,7 +927,7 @@
 
 /* Sentence case, and legible while typing. */
 .edge-shell main :where(.easy-lbl, .easy-lbl-sm, .prod-field > span, .payment-conf-field > label) {
-  font-size: 11px;
+  font-size: 12.5px;
   letter-spacing: 0;
   text-transform: none;
   font-weight: 500;
@@ -937,7 +937,7 @@
 .edge-shell main :where(.easy-inp, .pro-input) {
   padding: 0 10px;
   min-height: 34px;
-  font-size: 12.5px;
+  font-size: 14px;
 }
 
 .edge-shell main .mou-form-pane textarea.easy-inp {

@@ -189,7 +189,7 @@ export default function EmployeePortal() {
       <div style={{ height: '100vh', display: 'grid', placeItems: 'center', padding: 20 }}>
         <div style={{ maxWidth: 420, border: '1px solid ' + t.line, borderRadius: 12, padding: 24, textAlign: 'center' }}>
           <UserCircle size={28} style={{ color: t.faint }} />
-          <div style={{ fontSize: 14, margin: '10px 0 8px' }}>Your employee record isn&rsquo;t linked yet</div>
+          <div style={{ fontSize: 15.5, margin: '10px 0 8px' }}>Your employee record isn&rsquo;t linked yet</div>
           <Empty>
             Your sign-in works, but no employee record in {orgName} is connected to it — so there is no
             attendance or leave to show. Ask an admin to link your record from the Employees page.
@@ -223,13 +223,13 @@ export default function EmployeePortal() {
               ) : (
                 <span style={{
                   width: 30, height: 30, borderRadius: 7, background: t.selBg, color: t.selText, flexShrink: 0,
-                  display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 600,
+                  display: 'grid', placeItems: 'center', fontSize: 12.5, fontWeight: 600,
                 }}>{orgName.slice(0, 2).toUpperCase()}</span>
               )}
               {!narrow && (
                 <span style={{ minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 11.5, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}</span>
-                  <span style={{ display: 'block', fontSize: 9, letterSpacing: '0.1em', color: t.faint, marginTop: 2 }}>EMPLOYEE PORTAL</span>
+                  <span style={{ display: 'block', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}</span>
+                  <span style={{ display: 'block', fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, marginTop: 2 }}>EMPLOYEE PORTAL</span>
                 </span>
               )}
             </div>
@@ -246,7 +246,7 @@ export default function EmployeePortal() {
                     style={{
                       display: 'flex', alignItems: 'center', gap: 12, height: 38, padding: narrow ? 0 : '0 10px',
                       justifyContent: narrow ? 'center' : 'flex-start', position: 'relative',
-                      border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: MONO, fontSize: 12,
+                      border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: MONO, fontSize: 13.5,
                       background: active ? t.panelAlt : 'transparent', color: active ? t.text : t.dim,
                       boxShadow: active ? 'inset 2px 0 0 ' + t.text : 'none',
                     }}
@@ -257,7 +257,7 @@ export default function EmployeePortal() {
                       <span style={narrow ? {
                         position: 'absolute', top: 7, right: 12, width: 7, height: 7, borderRadius: '50%', background: t.down,
                       } : {
-                        fontSize: 9.5, minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9, boxSizing: 'border-box',
+                        fontSize: 11, minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9, boxSizing: 'border-box',
                         display: 'grid', placeItems: 'center', background: t.selBg, color: t.selText,
                       }}>{narrow ? '' : badge}</span>
                     )}
@@ -292,10 +292,10 @@ export default function EmployeePortal() {
             padding: mobile ? '0 12px' : '0 22px', background: t.panel, borderBottom: '1px solid ' + t.line,
           }}>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <h1 style={{ margin: 0, fontSize: mobile ? 14 : 15, fontWeight: 500, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <h1 style={{ margin: 0, fontSize: mobile ? 15.5 : 16.5, fontWeight: 500, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {current.label}
               </h1>
-              {!mobile && <div style={{ fontSize: 10, color: t.faint, marginTop: 2 }}>{current.id === 'attendance' ? monthLabel(monthKey) : current.sub}</div>}
+              {!mobile && <div style={{ fontSize: 11.5, color: t.faint, marginTop: 2 }}>{current.id === 'attendance' ? monthLabel(monthKey) : current.sub}</div>}
             </div>
 
             {/* Check-in lives here on every tab. Hidden once the day is closed. */}
@@ -325,8 +325,8 @@ export default function EmployeePortal() {
               <PhotoAvatar name={me.full_name} path={me.photo_path} size={30} radius={7} />
               {!mobile && (
                 <span style={{ textAlign: 'left', lineHeight: 1.25, maxWidth: 150 }}>
-                  <span style={{ display: 'block', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{me.full_name}</span>
-                  <span style={{ display: 'block', fontSize: 9, color: t.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.email}</span>
+                  <span style={{ display: 'block', fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{me.full_name}</span>
+                  <span style={{ display: 'block', fontSize: 10.5, color: t.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.email}</span>
                 </span>
               )}
             </button>
@@ -384,7 +384,7 @@ export default function EmployeePortal() {
                 <button key={x.id} type="button" onClick={() => go(x.id)} aria-current={active ? 'page' : undefined} style={{
                   height: 60, border: 'none', background: 'transparent', cursor: 'pointer', position: 'relative',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
-                  color: active ? t.text : t.faint, fontFamily: MONO, fontSize: 9.5,
+                  color: active ? t.text : t.faint, fontFamily: MONO, fontSize: 11,
                   boxShadow: active ? 'inset 0 2px 0 ' + t.text : 'none',
                 }}>
                   <x.icon size={18} strokeWidth={active ? 2 : 1.7} />
@@ -405,7 +405,7 @@ function railLink(t, narrow) {
   return {
     display: 'flex', alignItems: 'center', gap: 12, height: 34, padding: narrow ? 0 : '0 10px',
     justifyContent: narrow ? 'center' : 'flex-start', borderRadius: 8, border: 'none', background: 'transparent',
-    cursor: 'pointer', fontFamily: MONO, fontSize: 11.5, color: t.dim, textDecoration: 'none',
+    cursor: 'pointer', fontFamily: MONO, fontSize: 13, color: t.dim, textDecoration: 'none',
   };
 }
 

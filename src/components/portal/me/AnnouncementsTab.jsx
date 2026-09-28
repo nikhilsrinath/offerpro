@@ -38,16 +38,16 @@ export default function AnnouncementsTab({ notices, readIds, onOpen }) {
           >
             <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
               {a.is_pinned && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9, letterSpacing: '0.08em', color: t.dim, border: '1px solid ' + t.line, borderRadius: 5, padding: '2px 6px' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, letterSpacing: '0.08em', color: t.dim, border: '1px solid ' + t.line, borderRadius: 5, padding: '2px 6px' }}>
                   <Pin size={10} /> PINNED
                 </span>
               )}
-              <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 500, color: t.text, letterSpacing: '-0.01em' }}>{a.title}</h3>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 500, color: t.text, letterSpacing: '-0.01em' }}>{a.title}</h3>
               <div style={{ flex: 1 }} />
-              {isUnread && <span style={{ fontSize: 9, letterSpacing: '0.08em', color: t.selText, background: t.selBg, borderRadius: 4, padding: '2px 6px' }}>NEW</span>}
-              <span style={{ fontSize: 10, color: t.faint }}>{fmtLongDay(a.published_at)}</span>
+              {isUnread && <span style={{ fontSize: 10.5, letterSpacing: '0.08em', color: t.selText, background: t.selBg, borderRadius: 4, padding: '2px 6px' }}>NEW</span>}
+              <span style={{ fontSize: 11.5, color: t.faint }}>{fmtLongDay(a.published_at)}</span>
             </header>
-            <p style={{ margin: 0, fontSize: 12, lineHeight: 1.7, color: t.dim, whiteSpace: 'pre-wrap' }}>{a.body}</p>
+            <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.7, color: t.dim, whiteSpace: 'pre-wrap' }}>{a.body}</p>
           </article>
         );
       }) : <Empty>{filter === 'all' ? 'Nothing announced yet.' : `No ${filter} announcements.`}</Empty>}

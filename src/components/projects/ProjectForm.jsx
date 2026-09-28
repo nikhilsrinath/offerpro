@@ -291,7 +291,7 @@ export default function ProjectForm({ project = null, onDone }) {
                     {milestones.length > 0 && (
                         <ul style={{ margin: '12px 0 0', padding: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
                             {milestones.map((m, i) => (
-                                <li key={i} style={{ fontSize: 11, color: t.dim, display: 'flex', gap: 10 }}>
+                                <li key={i} style={{ fontSize: 12.5, color: t.dim, display: 'flex', gap: 10 }}>
                                     <span style={{ flex: 1 }}>{m.title}</span>
                                     <span>{m.billing_pct != null
                                         ? `${m.billing_pct}%${Number(form.contract_value) ? ` · ${money((Number(form.contract_value) * m.billing_pct) / 100)}` : ''}`
@@ -303,7 +303,7 @@ export default function ProjectForm({ project = null, onDone }) {
                 </Panel>
             )}
 
-            {error && <div role="alert" style={{ margin: '0 0 12px', fontSize: 11, color: t.down }}>{error}</div>}
+            {error && <div role="alert" style={{ margin: '0 0 12px', fontSize: 12.5, color: t.down }}>{error}</div>}
             <Row gap={8} style={{ justifyContent: 'flex-end' }}>
                 <Btn onClick={() => (isEdit ? onDone?.() : navigate(-1))}>Cancel</Btn>
                 <Btn primary type="submit" disabled={saving}>

@@ -101,7 +101,7 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
                                 style={{
                                     display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: 26, padding: '4px 9px', borderRadius: 7, cursor: 'pointer',
                                     border: '1px solid ' + (on ? t.lineStrong : t.line), background: on ? t.panelAlt : t.panel,
-                                    fontFamily: MONO, fontSize: 10.5, color: mixFocus && !on ? t.dim : t.text,
+                                    fontFamily: MONO, fontSize: 12, color: mixFocus && !on ? t.dim : t.text,
                                 }}>
                                 <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 2, background: cat[i] }} />
                                 {g.label}<b style={{ fontWeight: 600 }}>{g.count}</b>
@@ -111,7 +111,7 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
                     {mixFocus && (
                         <button type="button" className="ov-chip" onClick={() => open({ kind: 'docs', id: mixFocus })} style={{
                             display: 'inline-flex', alignItems: 'center', gap: 4, minHeight: 26, padding: '4px 9px', borderRadius: 7, cursor: 'pointer',
-                            border: '1px solid ' + t.text, background: t.text, color: t.panel, fontFamily: MONO, fontSize: 10.5,
+                            border: '1px solid ' + t.text, background: t.text, color: t.panel, fontFamily: MONO, fontSize: 12,
                         }}>Analyse {DOC_GROUPS.find((g) => g.id === mixFocus)?.label.toLowerCase()} <ChevronRight aria-hidden="true" size={11} /></button>
                     )}
                 </div>
@@ -151,7 +151,7 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
                 {library === undefined ? <EmptyNote>Loading…</EmptyNote> : !lib ? <EmptyNote>The library is not available to your role</EmptyNote>
                     : lib.total === 0 ? <EmptyNote>No files in the library yet</EmptyNote> : (<>
                         <RankBars rows={lib.cats} format={(v) => String(v)} total={lib.total} max={5} color={cat[3]} onSelect={() => navigate('/library')} />
-                        <div style={{ fontSize: 9, letterSpacing: '0.1em', color: t.faint, margin: '12px 0 6px' }}>READ BY EDGEBRAIN</div>
+                        <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, margin: '12px 0 6px' }}>READ BY EDGEBRAIN</div>
                         <SplitBar format={(v) => String(v)} unit="Files" parts={[
                             { id: 'ready', label: 'Readable', value: lib.st.ready, color: status.good },
                             { id: 'processing', label: 'Reading', value: lib.st.processing, color: cat[0] },

@@ -34,7 +34,7 @@ export default function ProjectActivity({ project }) {
                             <span style={{ width: 150, flexShrink: 0 }}>
                                 <Muted>{new Date(a.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</Muted>
                             </span>
-                            <span style={{ fontSize: 11.5, color: t.text, lineHeight: 1.5 }}>{describeActivity(a)}</span>
+                            <span style={{ fontSize: 13, color: t.text, lineHeight: 1.5 }}>{describeActivity(a)}</span>
                         </li>
                     ))}
                 </ol>

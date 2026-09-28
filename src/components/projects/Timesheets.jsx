@@ -116,7 +116,7 @@ export default function Timesheets() {
                     )}
                 </Panel>
             )}
-            <p style={{ fontSize: 10, color: t.faint, marginTop: 10 }}>Nobody approves their own hours; approved hours are locked.</p>
+            <p style={{ fontSize: 11.5, color: t.faint, marginTop: 10 }}>Nobody approves their own hours; approved hours are locked.</p>
         </Page>
     );
 }

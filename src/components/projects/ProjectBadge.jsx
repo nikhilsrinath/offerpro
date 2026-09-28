@@ -8,7 +8,7 @@ export default function ProjectBadge({ project, link = true }) {
     if (!project) return <span style={{ color: t.ghost }}>General</span>;
     const body = (
         <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, minWidth: 0 }}>
-            <span style={{ fontSize: 9.5, color: t.faint, letterSpacing: '0.04em' }}>{project.code}</span>
+            <span style={{ fontSize: 11, color: t.faint, letterSpacing: '0.04em' }}>{project.code}</span>
             <span style={{ color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{project.name}</span>
         </span>
     );

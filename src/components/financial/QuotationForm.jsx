@@ -11,6 +11,7 @@ import { productToLineItem } from '../../services/catalogService';
 import CountrySelect from '../shared/CountrySelect';
 import { useToast } from '../shared/Toast';
 import A4Stage from '../shared/A4Stage';
+import { useFormProject, projectStartLines, linkToProject, projectFormNote } from '../projects/projectScope';
 
 const UNIT_OPTIONS = ['Hrs', 'Units', 'Nos', 'Kg', 'Ltr'];
 const GST_RATES = [0, 5, 12, 18, 28];
@@ -55,6 +56,10 @@ export default function QuotationForm({ editDocId }) {
   const toast = useToast();
   const { activeOrg } = useOrg();
   const savedClients = documentStore.getSavedClients();
+  // Opened from a project's Billing page (?project=): the quotation starts on
+  // the project's client and contract, is linked to the project when saved,
+  // and every way out returns there.
+  const fromProject = useFormProject('quotation', '/quotations');
 
   // Build company info from activeOrg (dynamic, not stale localStorage)
   const company = {
@@ -272,6 +277,30 @@ export default function QuotationForm({ editDocId }) {
     }));
   };
 
+  // A new quotation for a project: its client and a first line for the
+  // contract, each filled once, as soon as the cache has them.
+  const prefilled = useRef({ client: false, lines: false });
+  useEffect(() => {
+    if (editDocId || !fromProject.project) return;
+    if (fromProject.client && !prefilled.current.client) {
+      prefilled.current.client = true;
+      handleSelectClient(fromProject.client);
+    }
+    if (!prefilled.current.lines) {
+      prefilled.current.lines = true;
+      const lines = projectStartLines(fromProject.project, 'quotation') || [];
+      if (lines.length) {
+        setFormData((prev) => ({
+          ...prev,
+          items: lines.map((l, i) => ({
+            id: Date.now() + i, description: l.description, quantity: l.quantity,
+            unit: l.unit || 'Nos', rate: l.rate, hsnSac: l.hsn || '', catalog_item_id: l.catalog_item_id || null,
+          })),
+        }));
+      }
+    }
+  }, [editDocId, fromProject.project, fromProject.client]);
+
   const handleClientSearchChange = (value) => {
     setClientSearch(value);
     setShowClientDropdown(value.length > 0 || savedClients.length > 0);
@@ -430,13 +459,15 @@ export default function QuotationForm({ editDocId }) {
     setSaving(true);
     try {
       const customerId = await syncCustomer();
+      let linkError = '';
       if (isEditing) {
         await documentStore.saveEdit(editDocId, buildDocument('draft', customerId));
       } else {
-        await documentStore.save(buildDocument('draft', customerId));
+        const saved = await documentStore.save(buildDocument('draft', customerId));
+        linkError = await linkToProject(fromProject.projectId, saved?.id);
       }
-      toast('Quotation saved as draft', 'success');
-      navigate('/quotations');
+      toast(linkError ? `Quotation saved as draft, but ${linkError}` : 'Quotation saved as draft', linkError ? 'error' : 'success');
+      navigate(fromProject.returnTo);
     } catch (err) {
       toast(err.message || 'Could not save the quotation', 'error');
     } finally {
@@ -474,6 +505,8 @@ export default function QuotationForm({ editDocId }) {
         }
       } else {
         doc = await documentStore.save(buildDocument('sent', customerId));
+        const linkError = await linkToProject(fromProject.projectId, doc?.id);
+        if (linkError) toast(`Quotation saved, but ${linkError}`, 'error');
       }
     } catch (err) {
       toast(err.message || 'Could not send the quotation', 'error');
@@ -501,14 +534,14 @@ export default function QuotationForm({ editDocId }) {
       });
     } catch (err) {
       toast(`Quotation saved, but the link could not be created: ${err.message}`, 'error');
-      navigate('/quotations');
+      navigate(fromProject.returnTo);
       return;
     }
 
     const email = (formData.clientEmail || '').trim();
     if (!email) {
       toast(`${label} sent — link created. Copy it from the Quotations list to share.`, 'success');
-      navigate('/quotations');
+      navigate(fromProject.returnTo);
       return;
     }
 
@@ -533,7 +566,7 @@ export default function QuotationForm({ editDocId }) {
       // can still be copied from the list.
       toast(`${label} saved and link created, but the email failed: ${mail.message}`, 'error');
     }
-    navigate('/quotations');
+    navigate(fromProject.returnTo);
   };
 
   return (
@@ -549,7 +582,7 @@ export default function QuotationForm({ editDocId }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
             <button
               type="button"
-              onClick={() => navigate('/quotations')}
+              onClick={() => navigate(fromProject.returnTo)}
               style={{
                 background: 'none', border: '1px solid var(--border-default)', borderRadius: '8px',
                 padding: '0.5rem 0.75rem', cursor: 'pointer', color: 'var(--text-secondary)',
@@ -560,6 +593,9 @@ export default function QuotationForm({ editDocId }) {
             </button>
             <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>{isRevision ? `Revise ${formData.quotationNumber}` : isEditing ? 'Edit Quotation' : 'New Quotation'}</h2>
           </div>
+          {fromProject.project && !isEditing && (
+            <p style={{ margin: '-0.5rem 0 1.25rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{projectFormNote(fromProject.project)}</p>
+          )}
 
           {isRevision && <RevisionBanner version={version} />}
 
@@ -1047,7 +1083,7 @@ export default function QuotationForm({ editDocId }) {
               >
                 {company.company_name}
               </div>
-              <div style={{ fontSize: '11px', color: '#666', marginTop: '4px', lineHeight: 1.6 }}>
+              <div style={{ fontSize: '12.5px', color: '#666', marginTop: '4px', lineHeight: 1.6 }}>
                 {company.address}
                 <br />
                 {company.email} | {company.phone}
@@ -1080,7 +1116,7 @@ export default function QuotationForm({ editDocId }) {
               </div>
               <div
                 style={{
-                  fontSize: '11px',
+                  fontSize: '12.5px',
                   color: '#888',
                   marginTop: '4px',
                   fontWeight: 500,
@@ -1102,7 +1138,7 @@ export default function QuotationForm({ editDocId }) {
               <div style={{ flex: 1 }}>
                 <div
                   style={{
-                    fontSize: '9px',
+                    fontSize: '10.5px',
                     textTransform: 'uppercase',
                     letterSpacing: '0.1em',
                     color: '#999',
@@ -1112,40 +1148,40 @@ export default function QuotationForm({ editDocId }) {
                 >
                   Quotation For
                 </div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#1a1a2e' }}>
+                <div style={{ fontSize: '15.5px', fontWeight: 700, color: '#1a1a2e' }}>
                   {formData.clientName || 'Client Name'}
                 </div>
                 {formData.clientCompany && (
-                  <div style={{ fontSize: '12px', color: '#555', marginTop: '2px' }}>
+                  <div style={{ fontSize: '13.5px', color: '#555', marginTop: '2px' }}>
                     {formData.clientCompany}
                   </div>
                 )}
                 {formData.clientAddress && (
-                  <div style={{ fontSize: '11px', color: '#777', marginTop: '4px', lineHeight: 1.5 }}>
+                  <div style={{ fontSize: '12.5px', color: '#777', marginTop: '4px', lineHeight: 1.5 }}>
                     {formData.clientAddress}
                   </div>
                 )}
                 {formData.clientEmail && (
-                  <div style={{ fontSize: '11px', color: '#777', marginTop: '2px' }}>
+                  <div style={{ fontSize: '12.5px', color: '#777', marginTop: '2px' }}>
                     {formData.clientEmail}
                   </div>
                 )}
                 {formData.clientGstin && (
-                  <div style={{ fontSize: '10px', color: '#888', marginTop: '4px' }}>
+                  <div style={{ fontSize: '11.5px', color: '#888', marginTop: '4px' }}>
                     GSTIN: {formData.clientGstin}
                   </div>
                 )}
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '11px', color: '#777', lineHeight: 2 }}>
+                <div style={{ fontSize: '12.5px', color: '#777', lineHeight: 2 }}>
                   <span style={{ color: '#999' }}>Date: </span>
                   <strong style={{ color: '#333' }}>{formatDate(formData.quotationDate)}</strong>
                 </div>
-                <div style={{ fontSize: '11px', color: '#777', lineHeight: 2 }}>
+                <div style={{ fontSize: '12.5px', color: '#777', lineHeight: 2 }}>
                   <span style={{ color: '#999' }}>Valid Until: </span>
                   <strong style={{ color: '#333' }}>{formatDate(formData.validUntil)}</strong>
                 </div>
-                <div style={{ fontSize: '11px', color: '#777', lineHeight: 2 }}>
+                <div style={{ fontSize: '12.5px', color: '#777', lineHeight: 2 }}>
                   <span style={{ color: '#999' }}>Revision: </span>
                   <strong style={{ color: '#333' }}>{formData.revision}</strong>
                 </div>
@@ -1157,7 +1193,7 @@ export default function QuotationForm({ editDocId }) {
               style={{
                 width: '100%',
                 borderCollapse: 'collapse',
-                fontSize: '11px',
+                fontSize: '12.5px',
                 marginBottom: '16px',
               }}
             >
@@ -1173,7 +1209,7 @@ export default function QuotationForm({ editDocId }) {
                       padding: '8px 10px',
                       textAlign: 'left',
                       fontWeight: 600,
-                      fontSize: '10px',
+                      fontSize: '11.5px',
                       letterSpacing: '0.05em',
                     }}
                   >
@@ -1184,7 +1220,7 @@ export default function QuotationForm({ editDocId }) {
                       padding: '8px 10px',
                       textAlign: 'left',
                       fontWeight: 600,
-                      fontSize: '10px',
+                      fontSize: '11.5px',
                       letterSpacing: '0.05em',
                     }}
                   >
@@ -1195,7 +1231,7 @@ export default function QuotationForm({ editDocId }) {
                       padding: '8px 10px',
                       textAlign: 'center',
                       fontWeight: 600,
-                      fontSize: '10px',
+                      fontSize: '11.5px',
                       letterSpacing: '0.05em',
                     }}
                   >
@@ -1206,7 +1242,7 @@ export default function QuotationForm({ editDocId }) {
                       padding: '8px 10px',
                       textAlign: 'center',
                       fontWeight: 600,
-                      fontSize: '10px',
+                      fontSize: '11.5px',
                       letterSpacing: '0.05em',
                     }}
                   >
@@ -1217,7 +1253,7 @@ export default function QuotationForm({ editDocId }) {
                       padding: '8px 10px',
                       textAlign: 'center',
                       fontWeight: 600,
-                      fontSize: '10px',
+                      fontSize: '11.5px',
                       letterSpacing: '0.05em',
                     }}
                   >
@@ -1228,7 +1264,7 @@ export default function QuotationForm({ editDocId }) {
                       padding: '8px 10px',
                       textAlign: 'right',
                       fontWeight: 600,
-                      fontSize: '10px',
+                      fontSize: '11.5px',
                       letterSpacing: '0.05em',
                     }}
                   >
@@ -1239,7 +1275,7 @@ export default function QuotationForm({ editDocId }) {
                       padding: '8px 10px',
                       textAlign: 'right',
                       fontWeight: 600,
-                      fontSize: '10px',
+                      fontSize: '11.5px',
                       letterSpacing: '0.05em',
                     }}
                   >
@@ -1299,7 +1335,7 @@ export default function QuotationForm({ editDocId }) {
                     display: 'flex',
                     justifyContent: 'space-between',
                     padding: '5px 0',
-                    fontSize: '11px',
+                    fontSize: '12.5px',
                     color: '#555',
                   }}
                 >
@@ -1313,7 +1349,7 @@ export default function QuotationForm({ editDocId }) {
                       display: 'flex',
                       justifyContent: 'space-between',
                       padding: '5px 0',
-                      fontSize: '11px',
+                      fontSize: '12.5px',
                       color: '#ef4444',
                     }}
                   >
@@ -1333,7 +1369,7 @@ export default function QuotationForm({ editDocId }) {
                       display: 'flex',
                       justifyContent: 'space-between',
                       padding: '5px 0',
-                      fontSize: '11px',
+                      fontSize: '12.5px',
                       color: '#3b82f6',
                     }}
                   >
@@ -1349,7 +1385,7 @@ export default function QuotationForm({ editDocId }) {
                     paddingTop: '8px',
                     display: 'flex',
                     justifyContent: 'space-between',
-                    fontSize: '14px',
+                    fontSize: '15.5px',
                     fontWeight: 800,
                     color: '#1a1a2e',
                   }}
@@ -1367,7 +1403,7 @@ export default function QuotationForm({ editDocId }) {
                   background: '#f8f9fa',
                   padding: '8px 12px',
                   borderRadius: '4px',
-                  fontSize: '10px',
+                  fontSize: '11.5px',
                   color: '#555',
                   marginBottom: '16px',
                   fontStyle: 'italic',
@@ -1390,7 +1426,7 @@ export default function QuotationForm({ editDocId }) {
                   <div style={{ marginBottom: '10px' }}>
                     <div
                       style={{
-                        fontSize: '9px',
+                        fontSize: '10.5px',
                         textTransform: 'uppercase',
                         letterSpacing: '0.1em',
                         color: '#999',
@@ -1402,7 +1438,7 @@ export default function QuotationForm({ editDocId }) {
                     </div>
                     <div
                       style={{
-                        fontSize: '10px',
+                        fontSize: '11.5px',
                         color: '#555',
                         lineHeight: 1.6,
                         whiteSpace: 'pre-wrap',
@@ -1416,7 +1452,7 @@ export default function QuotationForm({ editDocId }) {
                   <div>
                     <div
                       style={{
-                        fontSize: '9px',
+                        fontSize: '10.5px',
                         textTransform: 'uppercase',
                         letterSpacing: '0.1em',
                         color: '#999',
@@ -1428,7 +1464,7 @@ export default function QuotationForm({ editDocId }) {
                     </div>
                     <div
                       style={{
-                        fontSize: '10px',
+                        fontSize: '11.5px',
                         color: '#555',
                         lineHeight: 1.6,
                         whiteSpace: 'pre-wrap',
@@ -1448,7 +1484,7 @@ export default function QuotationForm({ editDocId }) {
                 border: '1px solid #fde68a',
                 borderRadius: '4px',
                 padding: '8px 12px',
-                fontSize: '10px',
+                fontSize: '11.5px',
                 color: '#92400e',
                 marginBottom: '16px',
                 fontWeight: 500,
@@ -1461,7 +1497,7 @@ export default function QuotationForm({ editDocId }) {
             <div
               style={{
                 textAlign: 'center',
-                fontSize: '9px',
+                fontSize: '10.5px',
                 color: '#aaa',
                 borderTop: '1px solid #eee',
                 paddingTop: '12px',

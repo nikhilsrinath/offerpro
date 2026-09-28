@@ -205,7 +205,7 @@ export default function BrainDock({
                         borderBottom: `1px solid ${t.line}`,
                     }}>
                         <span style={{
-                            fontSize: 10, letterSpacing: '0.11em', color: t.faint, fontFamily: MONO,
+                            fontSize: 11.5, letterSpacing: '0.11em', color: t.faint, fontFamily: MONO,
                         }}>{active.label.toUpperCase()}</span>
                         <div style={{ flex: 1 }} />
                         <button
@@ -286,7 +286,7 @@ function EntityBrowser({
                     placeholder="Search employees, invoices, customers…"
                 />
                 <div style={{ marginTop: 8 }}>
-                    <Muted size={9.5}>
+                    <Muted size={11}>
                         {searching ? 'Searching…'
                             : hasHits ? `${listed.length} match${listed.length === 1 ? '' : 'es'} in the whole brain`
                                 : `${shownCount} on the graph`}
@@ -317,11 +317,11 @@ function EntityBrowser({
                                     background: selectedId === n.id ? t.panelAlt : 'transparent',
                                 }}>
                                 <span style={{
-                                    display: 'block', fontSize: 11.5, color: t.text,
+                                    display: 'block', fontSize: 13, color: t.text,
                                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                                 }}>{n.label}</span>
                                 <span style={{
-                                    display: 'block', fontSize: 9, color: t.faint, marginTop: 2,
+                                    display: 'block', fontSize: 10.5, color: t.faint, marginTop: 2,
                                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                                 }}>
                                     {kindLabel(n.kind).toUpperCase()}{n.state ? ` · ${n.state}` : ''}

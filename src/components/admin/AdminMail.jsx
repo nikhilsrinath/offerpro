@@ -167,11 +167,11 @@ export default function AdminMail({ orgs, preset }) {
                   />
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{
-                      display: 'block', fontSize: 11.5, color: t.text,
+                      display: 'block', fontSize: 13, color: t.text,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{c.name}</span>
                     <span style={{
-                      display: 'block', fontSize: 9.5, color: t.ghost, marginTop: 2,
+                      display: 'block', fontSize: 11, color: t.ghost, marginTop: 2,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{c.address}</span>
                   </span>
@@ -219,7 +219,7 @@ export default function AdminMail({ orgs, preset }) {
             display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
             paddingTop: 12, borderTop: '1px solid ' + t.lineSoft,
           }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 10.5, color: t.faint }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12, color: t.faint }}>
               <Users size={12} aria-hidden="true" />
               {recipients.length === 0
                 ? 'No recipients selected'
@@ -227,7 +227,7 @@ export default function AdminMail({ orgs, preset }) {
             </span>
             <div style={{ flex: 1 }} />
             {sent !== null && (
-              <span role="status" style={{ fontSize: 10.5, color: t.up }}>Delivered to {sent}</span>
+              <span role="status" style={{ fontSize: 12, color: t.up }}>Delivered to {sent}</span>
             )}
             <Btn primary onClick={send} disabled={!ready || sending}>
               {sending

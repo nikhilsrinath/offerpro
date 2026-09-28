@@ -63,7 +63,7 @@ function ConvertSheet({ source, docs, busy, onClose, onConvert }) {
       )}
     >
       <fieldset style={{ border: 0, margin: 0, padding: 0, display: 'grid', gap: 8 }}>
-        <legend style={{ fontSize: 11, color: t.dim, marginBottom: 8, padding: 0 }}>Bill this quotation as</legend>
+        <legend style={{ fontSize: 12.5, color: t.dim, marginBottom: 8, padding: 0 }}>Bill this quotation as</legend>
         {['proforma', 'invoice'].map((key) => {
           const selected = target === key;
           return (
@@ -82,10 +82,10 @@ function ConvertSheet({ source, docs, busy, onClose, onConvert }) {
               />
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 12, color: t.text }}>{OPTIONS[key].label}</span>
+                  <span style={{ fontSize: 13.5, color: t.text }}>{OPTIONS[key].label}</span>
                   {rec.target === key && <Status tone="up">Suggested</Status>}
                 </span>
-                <span style={{ display: 'block', fontSize: 10.5, lineHeight: 1.5, color: t.dim, marginTop: 3 }}>
+                <span style={{ display: 'block', fontSize: 12, lineHeight: 1.5, color: t.dim, marginTop: 3 }}>
                   {OPTIONS[key].what}
                 </span>
               </span>
@@ -97,10 +97,10 @@ function ConvertSheet({ source, docs, busy, onClose, onConvert }) {
       <section aria-label="Why this is suggested" style={{
         marginTop: 12, padding: '9px 11px', borderRadius: 8, background: t.panelAlt, border: '1px solid ' + t.lineSoft,
       }}>
-        <div style={{ fontSize: 9, letterSpacing: '0.09em', color: t.faint, marginBottom: 5 }}>
+        <div style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, marginBottom: 5 }}>
           WHY {OPTIONS[rec.target].label.toUpperCase()}
         </div>
-        <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, lineHeight: 1.6, color: t.text }}>
+        <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12.5, lineHeight: 1.6, color: t.text }}>
           {rec.reasons.map((r) => <li key={r}>{r}</li>)}
         </ul>
       </section>
@@ -114,19 +114,19 @@ function ConvertSheet({ source, docs, busy, onClose, onConvert }) {
               onChange={(e) => setPercent(e.target.value)}
             />
           </Field>
-          <div style={{ fontSize: 11, color: t.dim, paddingBottom: 8 }}>
+          <div style={{ fontSize: 12.5, color: t.dim, paddingBottom: 8 }}>
             {pct === 0
               ? 'No advance — the client only confirms the order.'
               : <>Advance {money(a.advance)} · balance {money(a.balance)} on the tax invoice</>}
           </div>
         </div>
       ) : (
-        <p style={{ margin: '12px 0 0', fontSize: 11, color: t.dim }}>
+        <p style={{ margin: '12px 0 0', fontSize: 12.5, color: t.dim }}>
           Dated today, due in {DUE_DAYS.invoice} days.
         </p>
       )}
 
-      <p style={{ margin: '12px 0 0', fontSize: 10.5, color: t.faint, lineHeight: 1.5 }}>
+      <p style={{ margin: '12px 0 0', fontSize: 12, color: t.faint, lineHeight: 1.5 }}>
         The new document is a draft with its own number, built from the version the client accepted.
         The quotation is marked converted.
       </p>

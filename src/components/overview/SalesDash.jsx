@@ -52,7 +52,7 @@ function SalesBody({ model, open, t, cat, ramp, status, cols, tileCols, orgId })
     return (<>
         <TileRow cols={tileCols(6)}>
             <Tile icon={Target} label="Pipeline" value={fmtShort(k.pipeline.value)} exact={fmtInr(k.pipeline.value)}
-                delta={<span style={{ fontSize: 10.5, color: t.dim }}>{k.pipeline.open} open</span>}
+                delta={<span style={{ fontSize: 12, color: t.dim }}>{k.pipeline.open} open</span>}
                 foot="open leads on the CRM board · today" spark={k.pipeline.spark} sparkBars color={ramp[2]}
                 onClick={() => open({ kind: 'metric', id: 'pipeline' })} />
             <Tile icon={Trophy} label="Deal win rate" value={k.pipeline.winRate === null ? '—' : `${k.pipeline.winRate.toFixed(0)}%`}
@@ -83,7 +83,7 @@ function SalesBody({ model, open, t, cat, ramp, status, cols, tileCols, orgId })
                         { ...model.stages[2], label: 'Won', color: ramp[3] },
                     ].map((s, i, arr) => ({ ...s, conversion: i === 0 ? undefined : arr[i - 1].count ? (s.count / arr[i - 1].count) * 100 : null }))} />
                 )}
-                <div style={{ fontSize: 10, color: t.faint, marginTop: 10 }}>
+                <div style={{ fontSize: 11.5, color: t.faint, marginTop: 10 }}>
                     {model.stages[3].count} lost · {model.stages[0].count} not yet contacted
                 </div>
             </Card>

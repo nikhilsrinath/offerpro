@@ -103,12 +103,12 @@ export default function ProjectMilestones({ project }) {
                                 </Td>
                                 <Td>
                                     <span style={{ display: 'block' }}>{m.title}</span>
-                                    {m.description && <span style={{ display: 'block', fontSize: 9.5, color: t.faint }}>{m.description}</span>}
+                                    {m.description && <span style={{ display: 'block', fontSize: 11, color: t.faint }}>{m.description}</span>}
                                 </Td>
                                 <Td nowrap>{m.due_date ? <Status tone={late ? 'down' : 'mute'}>{fmtDate(m.due_date)}{late ? ' · late' : ''}</Status> : <Muted>—</Muted>}</Td>
                                 <Td align="right" nowrap>
                                     {m.billing_amount != null ? money(m.billing_amount) : <Muted>—</Muted>}
-                                    {m.billing_pct != null && <span style={{ color: t.faint, fontSize: 10 }}> · {m.billing_pct}%</span>}
+                                    {m.billing_pct != null && <span style={{ color: t.faint, fontSize: 11.5 }}> · {m.billing_pct}%</span>}
                                 </Td>
                                 <Td>
                                     <Row gap={8}><span style={{ flex: 1 }}><Bar value={prog} max={1} height={4} /></span>
@@ -200,7 +200,7 @@ function MilestoneSheet({ project, milestone, onClose }) {
                     <Field label="Amount (₹, before GST)"><Input type="number" min="0" step="0.01" value={form.billing_amount} onChange={set('billing_amount')} /></Field>
                 )}
             </Grid>
-            {error && <div role="alert" style={{ marginTop: 12, fontSize: 11, color: t.down }}>{error}</div>}
+            {error && <div role="alert" style={{ marginTop: 12, fontSize: 12.5, color: t.down }}>{error}</div>}
         </Modal>
     );
 }

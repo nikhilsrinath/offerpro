@@ -58,8 +58,8 @@ export default function BrainSummary({ status, metrics, onAsk }) {
                         {byDomain.map((d) => (
                             <div key={d.id}>
                                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
-                                    <span style={{ flex: 1, fontSize: 10.5, color: t.dim }}>{d.label}</span>
-                                    <span style={{ fontSize: 10.5, color: t.text }}>{d.count}</span>
+                                    <span style={{ flex: 1, fontSize: 12, color: t.dim }}>{d.label}</span>
+                                    <span style={{ fontSize: 12, color: t.text }}>{d.count}</span>
                                 </div>
                                 <Bar value={d.count} max={peak} />
                             </div>
@@ -114,13 +114,13 @@ export default function BrainSummary({ status, metrics, onAsk }) {
                     padding: '11px 12px', borderRadius: 9, marginBottom: 12,
                     border: `1px solid ${t.line}`, background: t.panelAlt, color: t.text,
                 }}>
-                <span style={{ display: 'block', fontSize: 11 }}>Ask anything about your company</span>
-                <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 3 }}>
+                <span style={{ display: 'block', fontSize: 12.5 }}>Ask anything about your company</span>
+                <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 3 }}>
                     Answered from these records, with the sources shown.
                 </span>
             </button>
 
-            <Muted size={9.5}>
+            <Muted size={11}>
                 Last synchronised {status?.state?.last_sync_at ? fmtDate(status.state.last_sync_at) : 'never'}
                 {status?.state?.node_count !== status?.visibleNodeCount
                     ? ' · counts reflect what your role may see'
@@ -133,10 +133,10 @@ export default function BrainSummary({ status, metrics, onAsk }) {
 function Cell({ t, label, value, tone }) {
     return (
         <div style={{ background: t.panel, padding: '10px 11px' }}>
-            <div style={{ fontSize: 9, letterSpacing: '0.08em', color: t.faint }}>
+            <div style={{ fontSize: 10.5, letterSpacing: '0.08em', color: t.faint }}>
                 {label.toUpperCase()}
             </div>
-            <div style={{ fontSize: 15, color: tone || t.text, marginTop: 4, whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 16.5, color: tone || t.text, marginTop: 4, whiteSpace: 'nowrap' }}>
                 {value}
             </div>
         </div>
@@ -148,9 +148,9 @@ function Block({ t, title, note, children }) {
         <section style={{ marginBottom: 18 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 9 }}>
                 <h3 style={{
-                    margin: 0, fontSize: 9, letterSpacing: '0.1em', fontWeight: 400, color: t.faint,
+                    margin: 0, fontSize: 10.5, letterSpacing: '0.1em', fontWeight: 400, color: t.faint,
                 }}>{title}</h3>
-                {note && <span style={{ fontSize: 9, color: t.ghost }}>{note}</span>}
+                {note && <span style={{ fontSize: 10.5, color: t.ghost }}>{note}</span>}
             </div>
             {children}
         </section>
@@ -160,10 +160,10 @@ function Block({ t, title, note, children }) {
 function Row({ t, label, value, note, tone }) {
     return (
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <span style={{ flex: 1, minWidth: 0, fontSize: 10.5, color: t.dim }} title={note || undefined}>
+            <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: t.dim }} title={note || undefined}>
                 {label}
             </span>
-            <span style={{ fontSize: 11.5, color: tone || t.text, whiteSpace: 'nowrap' }}>{value}</span>
+            <span style={{ fontSize: 13, color: tone || t.text, whiteSpace: 'nowrap' }}>{value}</span>
         </div>
     );
 }
@@ -185,7 +185,7 @@ function MonthBars({ t, rows }) {
                             height: `${Math.max((v / peak) * 100, 2)}%`,
                             borderRadius: 2, transition: 'height .35s cubic-bezier(.16,1,.3,1)',
                         }} />
-                        <span style={{ fontSize: 8.5, color: t.faint }}>{label}</span>
+                        <span style={{ fontSize: 10, color: t.faint }}>{label}</span>
                     </div>
                 );
             })}

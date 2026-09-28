@@ -178,7 +178,7 @@ export default function MemberAccess({ email, name }) {
     <Panel title="Role & permissions" note={`${roleLabel}${customCount ? ` · ${customCount} custom` : ''}`} pad={13}>
       {/* ── role ─────────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gap: 6, marginBottom: 14 }}>
-        <label htmlFor={roleSelectId} style={{ fontSize: 9, letterSpacing: '0.1em', color: t.faint }}>ROLE</label>
+        <label htmlFor={roleSelectId} style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint }}>ROLE</label>
         <Select id={roleSelectId} value={pendingRole || member.role} disabled={!canManage || busy !== ''}
           onChange={(e) => onRoleSelect(e.target.value)}>
           {data.roles.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
@@ -206,7 +206,7 @@ export default function MemberAccess({ email, name }) {
 
       {/* ── permissions ──────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-        <span style={{ fontSize: 9, letterSpacing: '0.1em', color: t.faint }}>PERMISSIONS</span>
+        <span style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint }}>PERMISSIONS</span>
         <div style={{ flex: 1 }} />
         <Seg size="sm" value={scope} onChange={setScope} label="Apply permission changes to"
           options={[
@@ -247,15 +247,15 @@ export default function MemberAccess({ email, name }) {
       </div>
 
       <div style={{ border: '1px solid ' + t.line, borderRadius: 8, overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 420 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 420 }}>
           <caption style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
             {scope === 'person' ? `Permissions for ${name || first}` : `Permissions for the ${roleLabel} role`}
           </caption>
           <thead>
             <tr style={{ background: t.panelAlt }}>
-              <th scope="col" style={{ textAlign: 'left', padding: '7px 10px', fontSize: 9, letterSpacing: '0.1em', color: t.faint, fontWeight: 400 }}>RESOURCE</th>
+              <th scope="col" style={{ textAlign: 'left', padding: '7px 10px', fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, fontWeight: 400 }}>RESOURCE</th>
               {ACTIONS.map((a) => (
-                <th key={a} scope="col" style={{ width: 52, padding: '7px 4px', fontSize: 9, letterSpacing: '0.1em', color: t.faint, fontWeight: 400 }}>
+                <th key={a} scope="col" style={{ width: 52, padding: '7px 4px', fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, fontWeight: 400 }}>
                   {a.toUpperCase()}
                 </th>
               ))}
@@ -277,11 +277,11 @@ export default function MemberAccess({ email, name }) {
                         style={{
                           display: 'flex', alignItems: 'center', gap: 8, width: '100%', minHeight: 32, padding: '6px 10px',
                           border: 'none', borderRadius: 0, background: 'transparent', color: t.text, cursor: 'pointer',
-                          fontFamily: 'inherit', fontSize: 11, textAlign: 'left',
+                          fontFamily: 'inherit', fontSize: 12.5, textAlign: 'left',
                         }}>
                         <span aria-hidden="true" style={{ color: t.faint, width: 10 }}>{isOpen ? '▾' : '▸'}</span>
                         <span style={{ fontWeight: 500 }}>{cat}</span>
-                        <span style={{ fontSize: 10, color: t.faint }}>{viewable} of {rows.length} allowed</span>
+                        <span style={{ fontSize: 11.5, color: t.faint }}>{viewable} of {rows.length} allowed</span>
                         {custom > 0 && <Status tone="up">{custom} custom</Status>}
                       </button>
                     </td>
@@ -292,7 +292,7 @@ export default function MemberAccess({ email, name }) {
                     return (
                       <tr key={res.key}>
                         <th scope="row" title={res.description || undefined}
-                          style={{ ...cell, textAlign: 'left', padding: '6px 10px 6px 28px', fontWeight: 400, fontSize: 11, letterSpacing: 'normal', textTransform: 'none', color: t.text }}>
+                          style={{ ...cell, textAlign: 'left', padding: '6px 10px 6px 28px', fontWeight: 400, fontSize: 12.5, letterSpacing: 'normal', textTransform: 'none', color: t.text }}>
                           {res.label}
                         </th>
                         {ACTIONS.map((a) => (

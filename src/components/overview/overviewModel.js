@@ -204,7 +204,7 @@ export const DOC_GROUPS = [
   { id: 'proforma',    label: 'Proformas',   types: ['proforma'] },
   { id: 'offer',       label: 'Offers',      types: ['offer', 'offer_letter'] },
   { id: 'certificate', label: 'Certificates', types: ['certificate'] },
-  { id: 'agreement',   label: 'Agreements & notices', types: ['nda', 'mou', 'role_change', 'termination'] },
+  { id: 'agreement',   label: 'Agreements & notices', types: ['nda', 'mou', 'agreement', 'role_change', 'termination'] },
 ];
 export const docGroupOf = (type) => DOC_GROUPS.find((g) => g.types.includes(type))?.id || 'agreement';
 

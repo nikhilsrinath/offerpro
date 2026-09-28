@@ -18,7 +18,7 @@ import { supabase } from '../lib/supabase';
 const FINANCIAL_TYPES = new Set(['invoice', 'quotation', 'proforma']);
 // Everything else is an HR document and lives in `records`: the four original
 // types plus the two notices that used to be squeezed into fin_docs.
-const HR_TYPES = new Set(['offer', 'certificate', 'nda', 'mou', 'role_change', 'termination']);
+const HR_TYPES = new Set(['offer', 'certificate', 'nda', 'mou', 'agreement', 'role_change', 'termination']);
 
 // The app is inconsistent about the offer key — storageService says 'offer',
 // the portal and bulk tools say 'offer_letter'. The enum says 'offer'.

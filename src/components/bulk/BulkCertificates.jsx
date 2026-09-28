@@ -139,7 +139,7 @@ export default function BulkCertificates() {
                                         {CERTIFICATE_TYPES.map((ct) => <option key={ct} value={ct}>{ct}</option>)}
                                     </Select>
                                 </Field>
-                                <p style={{ margin: '12px 0 0', fontSize: 10.5, lineHeight: 1.6, color: t.dim }}>
+                                <p style={{ margin: '12px 0 0', fontSize: 12, lineHeight: 1.6, color: t.dim }}>
                                     Every certificate in the batch is issued under your organisation profile. Keep test data out of the live registry.
                                 </p>
                             </div>
@@ -159,7 +159,7 @@ export default function BulkCertificates() {
                     <Step n={3} title="Check and fix rows" actions={<Btn size="sm" onClick={() => setStep(1)}>Back to options</Btn>}>
                         <ValidationTable data={data} columns={COLUMNS} onEdit={handleEdit} validationConfig={VALIDATION_CONFIG} />
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 14, paddingTop: 14, borderTop: '1px solid ' + t.lineSoft }}>
-                            <Muted size={11}>Issuing <span style={{ color: t.text }}>{selectedType}</span> for every valid row.</Muted>
+                            <Muted size={12.5}>Issuing <span style={{ color: t.text }}>{selectedType}</span> for every valid row.</Muted>
                             <div style={{ flex: 1 }} />
                             <Btn primary onClick={startGeneration} disabled={validCount === 0}>
                                 <Play aria-hidden="true" size={13} strokeWidth={2} /> Generate {validCount} certificate{validCount === 1 ? '' : 's'}
@@ -185,7 +185,7 @@ export default function BulkCertificates() {
                 {step === 4 && addRegistry && (
                     <section aria-labelledby="cert-registry">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-                            <h2 id="cert-registry" style={{ margin: 0, fontSize: 12.5, fontWeight: 500, color: t.text }}>Certificate registry</h2>
+                            <h2 id="cert-registry" style={{ margin: 0, fontSize: 14, fontWeight: 500, color: t.text }}>Certificate registry</h2>
                             <div style={{ flex: 1 }} />
                             <Search value={searchQuery} onChange={setSearchQuery} placeholder="Search by ID or name" />
                         </div>

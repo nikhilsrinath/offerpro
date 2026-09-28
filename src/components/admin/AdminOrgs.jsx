@@ -145,15 +145,15 @@ export default function AdminOrgs({ orgs, loading, error, onChanged, onMailTo })
             <Td>
               <span style={{ display: 'block', color: o.deletedAt ? t.faint : t.text }}>
                 {o.name}
-                {o.deletedAt && <span style={{ fontSize: 9, color: t.down, marginLeft: 7 }}>DELETED</span>}
+                {o.deletedAt && <span style={{ fontSize: 10.5, color: t.down, marginLeft: 7 }}>DELETED</span>}
               </span>
-              <span style={{ display: 'block', fontSize: 9.5, color: t.ghost, marginTop: 2 }}>
+              <span style={{ display: 'block', fontSize: 11, color: t.ghost, marginTop: 2 }}>
                 {[o.industry, o.location].filter(Boolean).join(' · ') || o.id.slice(0, 8)}
               </span>
             </Td>
             <Td muted>
               <span style={{ display: 'block' }}>{o.email || o.owner?.email || '—'}</span>
-              <span style={{ display: 'block', fontSize: 9.5, color: t.ghost, marginTop: 2 }}>
+              <span style={{ display: 'block', fontSize: 11, color: t.ghost, marginTop: 2 }}>
                 {o.owner?.name || o.phone || '—'}
               </span>
             </Td>

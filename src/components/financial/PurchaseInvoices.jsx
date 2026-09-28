@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus, Search, X, FileInput, Pencil, Trash2, CheckCircle, Paperclip, IndianRupee, AlertTriangle, Ban,
@@ -11,7 +11,8 @@ import { useToast } from '../shared/Toast';
 import { Stat, Modal, ReceiptField } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
 import ProjectPicker from '../shared/ProjectPicker';
-import { pickerFromAllocations, saveSplitFromPicker, friendlyError } from '../../services/projectService';
+import { pickerFromAllocations, pickerFor, saveSplitFromPicker, friendlyError } from '../../services/projectService';
+import { useProjectScope } from '../projects/projectScope';
 import { confirmDialog } from '../../services/confirm';
 
 const CATEGORIES = ['Operations', 'Inventory', 'Software', 'Hardware', 'Marketing', 'Travel', 'Utilities', 'Professional fees', 'Rent', 'Other'];
@@ -29,12 +30,22 @@ const blank = (vendorId = '') => ({
   amount_paid: 0, receipt_path: null, notes: '',
 });
 
-export default function PurchaseInvoices() {
+export default function PurchaseInvoices({ projectId = null }) {
   const toast = useToast();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const vendors = useSection('vendors');
-  const bills = useSection('purchase_invoices');
+  const allBills = useSection('purchase_invoices');
+  // With `projectId` (a project's Purchase Bills) only bills linked to the
+  // project are listed, whole — a bill is paid in full whatever its split —
+  // while the totals count the project's share. A new bill starts on it.
+  const scope = useProjectScope(projectId);
+  const bills = useMemo(() => (scope
+    ? scope.data.purchases.map((b) => ({ ...b._full, _share: b._share, _shareNet: b.subtotal }))
+    : allBills), [scope, allBills]);
+  const fresh = useCallback((vendorId = '') => (projectId
+    ? { ...blank(vendorId), _picker: pickerFor(projectId) }
+    : blank(vendorId)), [projectId]);
 
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
@@ -48,12 +59,12 @@ export default function PurchaseInvoices() {
   // Vendors page links here with ?vendor=<id>&new=1 to open a bill for them.
   useEffect(() => {
     if (params.get('new') === '1') {
-      setEditing(blank(params.get('vendor') || ''));
+      setEditing(fresh(params.get('vendor') || ''));
       const next = new URLSearchParams(params);
       next.delete('new');
       setParams(next, { replace: true });
     }
-  }, [params, setParams]);
+  }, [params, setParams, fresh]);
 
   const vendorById = useMemo(() => Object.fromEntries(vendors.map((v) => [v.id, v])), [vendors]);
   const today = todayIso();
@@ -72,7 +83,10 @@ export default function PurchaseInvoices() {
   }, [bills, search, filter, vendorFilter, vendorById]);
 
   const totals = useMemo(() => {
-    const live = bills.filter((b) => b.status !== 'void');
+    const share = (b) => b._share ?? 1;
+    const live = bills.filter((b) => b.status !== 'void').map((b) => (share(b) === 1 ? b : {
+      ...b, total: b.total * share(b), amount_paid: b.amount_paid * share(b), tax_amount: b.tax_amount * share(b),
+    }));
     return {
       billed: live.reduce((s, b) => s + b.total, 0),
       payable: live.reduce((s, b) => s + balance(b), 0),
@@ -103,7 +117,7 @@ export default function PurchaseInvoices() {
     setSaving(true);
     setFormError('');
     try {
-      const { due_date_touched: _touched, _picker: picker, ...data } = editing;
+      const { due_date_touched: _touched, _picker: picker, _share: _s, _shareNet: _n, ...data } = editing;
       let id = editing.id;
       if (id) await orgStore.updateItem('purchase_invoices', id, data);
       else id = (await orgStore.addItem('purchase_invoices', data)).id;
@@ -144,8 +158,12 @@ export default function PurchaseInvoices() {
 
   const handleVoid = async (b) => {
     if (!(await confirmDialog({ title: 'Void bill', message: `Void bill ${b.bill_number}? It will be excluded from payables, P&L and tax.`, confirmLabel: 'Void' }))) return;
-    await orgStore.updateItem('purchase_invoices', b.id, { status: 'void' });
-    toast('Bill voided', 'success');
+    try {
+      await orgStore.updateItem('purchase_invoices', b.id, { status: 'void' });
+      toast('Bill voided', 'success');
+    } catch (err) {
+      toast(`Could not void it: ${err.message}`, 'error');
+    }
   };
 
   const handleDelete = async (b) => {
@@ -189,7 +207,7 @@ export default function PurchaseInvoices() {
           className="prod-add-btn"
           onClick={() => {
             if (activeVendors.length === 0) { toast('Add a vendor first', 'info'); navigate('/vendors'); return; }
-            setEditing(blank(vendorFilter === 'all' ? '' : vendorFilter));
+            setEditing(fresh(vendorFilter === 'all' ? '' : vendorFilter));
             setFormError('');
           }}
         >
@@ -200,7 +218,7 @@ export default function PurchaseInvoices() {
       {filtered.length === 0 ? (
         <div className="prod-empty">
           <FileInput size={40} strokeWidth={1} />
-          <p>{bills.length === 0 ? 'No purchase invoices yet' : 'Nothing matches these filters'}</p>
+          <p>{bills.length === 0 ? (projectId ? 'No bills on this project yet' : 'No purchase invoices yet') : 'Nothing matches these filters'}</p>
           <span>Record bills your vendors send you, so money out is a tracked payable with its GST, not just an expense line.</span>
         </div>
       ) : (
@@ -226,7 +244,10 @@ export default function PurchaseInvoices() {
                   <tr key={b.id} style={b.status === 'void' ? { opacity: 0.5 } : undefined}>
                     <td>
                       <div className="prod-perf-name">{b.bill_number}</div>
-                      <div className="prod-perf-meta">{b.category}{b.description ? ` · ${b.description}` : ''}</div>
+                      <div className="prod-perf-meta">
+                        {b.category}{b.description ? ` · ${b.description}` : ''}
+                        {b._share < 1 ? ` · ${money(b._shareNet, 2)} of it on this project` : ''}
+                      </div>
                     </td>
                     <td>{vendorById[b.vendor_id]?.company_name || '—'}</td>
                     <td className="prod-perf-date">{fmtDate(b.bill_date)}</td>
@@ -246,7 +267,7 @@ export default function PurchaseInvoices() {
                           <CheckCircle size={14} />
                         </button>
                       )}
-                      <button className="fin-list-action-btn" title="Edit" onClick={() => { setEditing({ ...b, due_date_touched: true }); setFormError(''); }} aria-label="Edit"><Pencil size={14} /></button>
+                      <button className="fin-list-action-btn" title="Edit" onClick={() => { setEditing({ ...b, _share: undefined, _shareNet: undefined, due_date_touched: true }); setFormError(''); }} aria-label="Edit"><Pencil size={14} /></button>
                       {b.status !== 'void' && (
                         <button className="fin-list-action-btn" title="Void" onClick={() => handleVoid(b)} aria-label="Void"><Ban size={14} /></button>
                       )}

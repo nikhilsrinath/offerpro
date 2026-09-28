@@ -103,10 +103,10 @@ function Pipeline({ docs }) {
                     flex: '1 1 0', padding: '12px 14px', minWidth: 0,
                     borderLeft: i ? '1px solid ' + t.lineSoft : 'none',
                 }}>
-                    <div style={{ fontSize: 18, fontWeight: 500, letterSpacing: '-0.03em', color: s.value ? t.text : t.ghost }}>
+                    <div style={{ fontSize: 19.5, fontWeight: 500, letterSpacing: '-0.03em', color: s.value ? t.text : t.ghost }}>
                         {s.value}
                     </div>
-                    <div style={{ fontSize: 9, letterSpacing: '0.09em', color: t.faint, margin: '5px 0 7px' }}>
+                    <div style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, margin: '5px 0 7px' }}>
                         {s.key.toUpperCase()}
                     </div>
                     <Bar value={s.value} max={total}
@@ -219,12 +219,12 @@ function OfferModal({ activeOrg, offer, onClose }) {
         return (
             <Modal open onClose={onClose} title="Offer created" note={created.docId}
                 footer={<Btn primary onClick={onClose}>Done</Btn>}>
-                <p style={{ margin: '0 0 12px', fontSize: 11, color: t.faint, lineHeight: 1.7 }}>
+                <p style={{ margin: '0 0 12px', fontSize: 12.5, color: t.faint, lineHeight: 1.7 }}>
                     Send {form.studentName} this link. They read the letter and sign it there — the
                     tracker moves to Opened and then Accepted on its own.
                 </p>
                 <code style={{
-                    display: 'block', fontSize: 10, color: t.dim, wordBreak: 'break-all',
+                    display: 'block', fontSize: 11.5, color: t.dim, wordBreak: 'break-all',
                     padding: '9px 11px', border: '1px solid ' + t.line, borderRadius: 7, marginBottom: 12,
                 }}>{created.portalUrl}</code>
                 <Btn primary onClick={async () => {
@@ -516,7 +516,7 @@ export default function OfferTracker() {
                                         <Avatar name={doc.issued_to || '?'} size={26} />
                                         <span style={{ minWidth: 0 }}>
                                             <span style={{ display: 'block' }}>{doc.issued_to || '—'}</span>
-                                            <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 1 }}>
+                                            <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>
                                                 {doc.recipient_email || 'No email'}
                                             </span>
                                         </span>

@@ -112,6 +112,11 @@ const SECTIONS = {
   //
   // projectId / milestoneId (0050): null is a "General" task, which is every
   // task that existed before Projects.
+  //
+  // parentId / startDate / progress (0072) place a task in its project's work
+  // breakdown and on the Gantt chart. They stay undefined — and so are never
+  // sent — against a database without those columns, so task writes keep
+  // working until 0072 is applied.
   tasks: {
     table: 'tasks',
     order: 'position',
@@ -122,6 +127,9 @@ const SECTIONS = {
       deadline: r.deadline, notes: r.notes,
       follow_up_sent_at: r.follow_up_sent_at, position: r.position,
       projectId: r.project_id || null, milestoneId: r.milestone_id || null,
+      parentId: 'parent_id' in r ? r.parent_id || null : undefined,
+      startDate: 'start_date' in r ? r.start_date || null : undefined,
+      progress: 'progress' in r ? r.progress ?? 0 : undefined,
       created_at: r.created_at, createdAt: r.created_at,
     }),
     toRow: (i) => ({
@@ -133,6 +141,24 @@ const SECTIONS = {
       follow_up_sent_at: nn(i.follow_up_sent_at),
       position: num(i.position, 0),
       project_id: nn(i.projectId), milestone_id: nn(i.milestoneId),
+      parent_id: i.parentId === undefined ? undefined : i.parentId || null,
+      start_date: i.startDate === undefined ? undefined : date(i.startDate),
+      progress: i.progress === undefined ? undefined : Math.max(0, Math.min(100, Math.round(num(i.progress, 0)))),
+    }),
+  },
+
+  // Precedence links between two tasks of a project (0072): FS, SS, FF or SF
+  // with a lag in days. project_id is stamped by the database.
+  task_dependencies: {
+    table: 'task_dependencies',
+    order: 'created_at',
+    fromRow: (r) => ({
+      id: r.id, project_id: r.project_id, predecessor_id: r.predecessor_id, successor_id: r.successor_id,
+      kind: r.kind, lag_days: r.lag_days ?? 0, created_at: r.created_at,
+    }),
+    toRow: (i) => ({
+      predecessor_id: i.predecessor_id, successor_id: i.successor_id,
+      kind: i.kind || 'FS', lag_days: Math.round(num(i.lag_days, 0)),
     }),
   },
 
@@ -683,24 +709,40 @@ const SECTIONS = {
   fin_recurring: {
     table: 'recurring_invoices',
     order: 'created_at',
-    fromRow: (r) => ({ ...r, id: r.id }),
+    // The recurring form and list (RecurringInvoiceForm.jsx) speak camelCase.
+    // Both directions translate — the form's names win, since an edited row
+    // still carries the stale columns — so a saved template keeps its client, dates,
+    // cycle and totals — before this only the name, items and project survived
+    // the round trip, and the list showed '-' for every client. A paused or
+    // cancelled template is stored as active = false and reads back as paused.
+    fromRow: (r) => ({
+      ...r, id: r.id,
+      clientName: r.bill_to_name, clientCompany: r.bill_to_company || '', clientEmail: r.bill_to_email || '',
+      clientAddress: r.bill_to_address || '', clientGstin: r.bill_to_gstin || '',
+      invoicePrefix: r.invoice_prefix, startDate: r.start_date, endDate: r.end_date || '',
+      noEndDate: r.no_end_date, nextInvoiceDate: r.next_invoice_date, dueOffsetDays: r.due_offset_days,
+      totalCycles: r.total_cycles, autoAction: r.auto_action === 'send' ? 'sent' : r.auto_action,
+      frequency: r.frequency === 'half_yearly' ? 'half-yearly' : r.frequency, gstRate: Number(r.gst_rate),
+      subtotal: Number(r.subtotal), gst: Number(r.gst_amount), grandTotal: Number(r.grand_total),
+      notes: r.notes || '', status: r.active ? 'active' : 'paused',
+    }),
     toRow: (i) => ({
       customer_id: nn(i.customer_id),
-      bill_to_name: i.bill_to_name || i.clientName || 'Unnamed',
-      bill_to_company: nn(i.bill_to_company), bill_to_email: nn(i.bill_to_email),
-      bill_to_address: nn(i.bill_to_address), bill_to_gstin: nn(i.bill_to_gstin),
-      invoice_prefix: i.invoice_prefix || 'INV',
-      frequency: i.frequency || 'monthly',
-      start_date: date(i.start_date) || date(nowIso()),
-      end_date: date(i.end_date), no_end_date: bool(i.no_end_date, true),
-      next_invoice_date: date(i.next_invoice_date),
-      due_offset_days: num(i.due_offset_days, 15),
-      total_cycles: num(i.total_cycles), cycles_completed: num(i.cycles_completed, 0),
-      auto_action: i.auto_action || 'draft',
-      gst_rate: num(i.gst_rate, 18), subtotal: num(i.subtotal, 0),
-      gst_amount: num(i.gst_amount, 0), grand_total: num(i.grand_total, 0),
+      bill_to_name: i.clientName || i.bill_to_name || 'Unnamed',
+      bill_to_company: nn(i.clientCompany ?? i.bill_to_company), bill_to_email: nn(i.clientEmail ?? i.bill_to_email),
+      bill_to_address: nn(i.clientAddress ?? i.bill_to_address), bill_to_gstin: nn(i.clientGstin ?? i.bill_to_gstin),
+      invoice_prefix: i.invoicePrefix || i.invoice_prefix || 'INV',
+      frequency: String(i.frequency || 'monthly').replace('-', '_'),
+      start_date: date(i.startDate ?? i.start_date) || date(nowIso()),
+      end_date: date(i.endDate ?? i.end_date), no_end_date: bool(i.noEndDate ?? i.no_end_date, true),
+      next_invoice_date: date(i.nextInvoiceDate ?? i.next_invoice_date),
+      due_offset_days: num(i.dueOffsetDays ?? i.due_offset_days, 15),
+      total_cycles: num(i.totalCycles ?? i.total_cycles), cycles_completed: num(i.cycles_completed, 0),
+      auto_action: (i.autoAction || i.auto_action) === 'sent' ? 'send' : (i.autoAction || i.auto_action || 'draft'),
+      gst_rate: num(i.gstRate ?? i.gst_rate, 18), subtotal: num(i.subtotal, 0),
+      gst_amount: num(i.gst ?? i.gst_amount, 0), grand_total: num(i.grandTotal ?? i.grand_total, 0),
       items: Array.isArray(i.items) ? i.items : [],
-      notes: nn(i.notes), active: bool(i.active, true),
+      notes: nn(i.notes), active: i.status ? i.status === 'active' : bool(i.active, true),
       // 0054: the template's project; every invoice generated from it is
       // allocated to that project by the database.
       project_id: nn(i.project_id),
@@ -773,7 +815,7 @@ function employeeToRow(i) {
 // The app and admin panel disagree on the offer key ('offer' vs 'offer_letter');
 // the enum uses 'offer'.
 const RECORD_TITLES = {
-  offer: 'Offer Letter', certificate: 'Certificate', nda: 'NDA', mou: 'MoU',
+  offer: 'Offer Letter', certificate: 'Certificate', nda: 'NDA', mou: 'MoU', agreement: 'Agreement',
   role_change: 'Role Change Notice', termination: 'Termination Notice',
 };
 

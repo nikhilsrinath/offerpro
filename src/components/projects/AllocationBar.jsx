@@ -12,7 +12,7 @@ export default function AllocationBar({ pct, width = 90 }) {
             <span style={{ width, display: 'inline-block' }}>
                 <Bar value={Math.min(v, 100)} max={100} height={4} tone={over ? t.down : undefined} />
             </span>
-            <span style={{ fontSize: 10.5, color: over ? t.down : t.dim, minWidth: 34 }}>
+            <span style={{ fontSize: 12, color: over ? t.down : t.dim, minWidth: 34 }}>
                 {Math.round(v)}%{over ? ' · over' : ''}
             </span>
         </span>

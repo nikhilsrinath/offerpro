@@ -11,7 +11,7 @@ import { linkDocument, unlinkDocument } from '../../services/projectService';
    proformas from Finance. Invoices are not here on purpose — an invoice is
    money, and it is linked on the Finance tab, where it is counted once. */
 
-const RECORD_LABEL = { nda: 'NDA', mou: 'MoU', offer: 'Offer letter', certificate: 'Certificate', role_change: 'Role change', termination: 'Termination' };
+const RECORD_LABEL = { nda: 'NDA', mou: 'MoU', agreement: 'Agreement', offer: 'Offer letter', certificate: 'Certificate', role_change: 'Role change', termination: 'Termination' };
 const FIN_LABEL = { quotation: 'Quotation', proforma: 'Proforma' };
 
 export default function ProjectDocuments({ project }) {
@@ -132,7 +132,7 @@ function LinkDialog({ project, records, docs, linked, onClose }) {
                 </Select>
             </Field>
             {options.length === 0 && <Muted>Nothing left to link.</Muted>}
-            {error && <div role="alert" style={{ marginTop: 10, fontSize: 11, color: t.down }}>{error}</div>}
+            {error && <div role="alert" style={{ marginTop: 10, fontSize: 12.5, color: t.down }}>{error}</div>}
         </Modal>
     );
 }

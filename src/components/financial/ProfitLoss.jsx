@@ -94,8 +94,8 @@ export default function ProfitLoss() {
           <ResponsiveContainer>
             <BarChart data={series} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-default)" />
-              <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={12} />
-              <YAxis tickLine={false} axisLine={false} fontSize={11} width={70}
+              <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={13.5} />
+              <YAxis tickLine={false} axisLine={false} fontSize={12.5} width={70}
                 tickFormatter={(v) => (Math.abs(v) >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${(v / 1000).toFixed(0)}k`)} />
               <Tooltip formatter={(v, name) => [money(v), name]} cursor={{ fill: 'var(--surface-hover)' }} />
               <Legend formatter={(value) => <span style={{ color: 'var(--text-secondary)' }}>{value}</span>} />

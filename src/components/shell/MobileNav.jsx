@@ -40,7 +40,7 @@ export default function MobileNav({ t, active }) {
         flex: 1, minWidth: 0, height: MOBILE_NAV_H, position: 'relative',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
         border: 'none', background: 'transparent', cursor: 'pointer', textDecoration: 'none',
-        fontFamily: MONO, fontSize: 10, fontWeight: on ? 600 : 400,
+        fontFamily: MONO, fontSize: 11.5, fontWeight: on ? 600 : 400,
         color: on ? t.text : t.faint,
         boxShadow: on ? 'inset 0 2px 0 ' + t.text : 'none',
         WebkitTapHighlightColor: 'transparent',
@@ -78,8 +78,8 @@ export default function MobileNav({ t, active }) {
                                         display: 'grid', placeItems: 'center', color: t.dim,
                                     }}><m.icon size={15} strokeWidth={1.8} /></span>
                                     <span style={{ flex: 1, minWidth: 0 }}>
-                                        <span style={{ display: 'block', fontSize: 13, fontWeight: 500 }}>{m.label}</span>
-                                        <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>{m.desc}</span>
+                                        <span style={{ display: 'block', fontSize: 14.5, fontWeight: 500 }}>{m.label}</span>
+                                        <span style={{ display: 'block', fontSize: 12.5, color: t.faint, marginTop: 1 }}>{m.desc}</span>
                                     </span>
                                 </Link>
                             );

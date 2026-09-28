@@ -124,15 +124,15 @@ function OverviewBody({ model, open, navigate, t, cat, ramp, status, cols, grid,
                 onClick={() => open({ kind: 'metric', id: 'net' })} />
             <Tile icon={Hourglass} label="Receivables" value={fmtShort(k.outstanding.value)} exact={fmtInr(k.outstanding.value)}
                 delta={k.outstanding.overdue > 0
-                    ? <span style={{ fontSize: 10.5, fontWeight: 600, color: t.down }}>{fmtShort(k.outstanding.overdue)} late</span>
-                    : <span style={{ fontSize: 10.5, color: t.faint }}>none late</span>}
+                    ? <span style={{ fontSize: 12, fontWeight: 600, color: t.down }}>{fmtShort(k.outstanding.overdue)} late</span>
+                    : <span style={{ fontSize: 12, color: t.faint }}>none late</span>}
                 foot="aging now · not-due → 90+" spark={k.outstanding.spark} sparkBars color={ramp[3]}
                 onClick={() => open({ kind: 'metric', id: 'outstanding' })} />
             <Tile icon={Users} label="Headcount" value={String(k.headcount.value)} exact={`${k.headcount.value} people`}
                 delta={<Delta abs value={k.headcount.deltaAbs} />} foot={`+${k.headcount.hires} joined · −${k.headcount.exits} left`} spark={k.headcount.spark}
                 onClick={() => open({ kind: 'metric', id: 'headcount' })} />
             <Tile icon={Target} label="Pipeline" value={fmtShort(k.pipeline.value)} exact={fmtInr(k.pipeline.value)}
-                delta={<span style={{ fontSize: 10.5, color: t.dim }}>{k.pipeline.open} open</span>}
+                delta={<span style={{ fontSize: 12, color: t.dim }}>{k.pipeline.open} open</span>}
                 foot={k.pipeline.winRate === null ? 'no closed deals yet' : `${k.pipeline.winRate.toFixed(0)}% win rate`} spark={k.pipeline.spark} sparkBars color={ramp[2]}
                 onClick={() => open({ kind: 'metric', id: 'pipeline' })} />
         </TileRow>
@@ -140,14 +140,14 @@ function OverviewBody({ model, open, navigate, t, cat, ramp, status, cols, grid,
         {/* ── signals ──────────────────────────────────────────────────── */}
         {model.insights.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 12 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 9.5, letterSpacing: '0.1em', color: t.faint, paddingRight: 4 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, letterSpacing: '0.1em', color: t.faint, paddingRight: 4 }}>
                     <Sparkles aria-hidden="true" size={12} /> SIGNALS
                 </span>
                 {model.insights.map((ins) => (
                     <button key={ins.text} type="button" onClick={() => open(ins.drill)} className="ov-chip" style={{
                         display: 'inline-flex', alignItems: 'center', gap: 8, textAlign: 'left',
                         padding: '7px 10px', borderRadius: 8, border: '1px solid ' + t.line, background: t.panel,
-                        fontFamily: MONO, fontSize: 11, color: t.text, cursor: 'pointer', maxWidth: '100%',
+                        fontFamily: MONO, fontSize: 12.5, color: t.text, cursor: 'pointer', maxWidth: '100%',
                     }}>
                         <span aria-hidden="true" style={{
                             width: 6, height: 6, borderRadius: 9, flexShrink: 0,
@@ -190,9 +190,9 @@ function OverviewBody({ model, open, navigate, t, cat, ramp, status, cols, grid,
             </Card>
         </CardGrid>
 
-        <div style={{ fontSize: 10, color: t.faint, marginTop: 16, lineHeight: 1.6 }}>
+        <div style={{ fontSize: 11.5, color: t.faint, marginTop: 16, lineHeight: 1.6 }}>
             Figures follow the finance pages: invoicing excludes drafts, cancelled and declined invoices; collections are confirmed payments on the date received;
-            profit is taxable income less expenses and purchase bills, net of GST. <button type="button" onClick={() => navigate('/profit-loss')} className="ov-plain" style={{ ...plainBtn, color: t.dim, textDecoration: 'underline', fontSize: 10 }}>Open Profit & Loss</button>
+            profit is taxable income less expenses and purchase bills, net of GST. <button type="button" onClick={() => navigate('/profit-loss')} className="ov-plain" style={{ ...plainBtn, color: t.dim, textDecoration: 'underline', fontSize: 11.5 }}>Open Profit & Loss</button>
         </div>
     </>);
 }
@@ -209,8 +209,8 @@ function AreaCard({ area, t, onOpen }) {
                 <span aria-hidden="true" style={{ width: 24, height: 24, borderRadius: 6, background: t.raised, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                     <Icon size={13} strokeWidth={2} />
                 </span>
-                <span style={{ fontSize: 12.5, fontWeight: 600, flex: 1 }}>{area.label}</span>
-                <span style={{ fontSize: 10, color: t.dim }}>Open</span>
+                <span style={{ fontSize: 14, fontWeight: 600, flex: 1 }}>{area.label}</span>
+                <span style={{ fontSize: 11.5, color: t.dim }}>Open</span>
                 <ChevronRight aria-hidden="true" size={13} className="ov-tile-arrow" style={{ color: t.dim }} />
             </span>
             <span style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, borderTop: '1px solid ' + t.lineSoft, paddingTop: 9 }}>

@@ -23,8 +23,11 @@ import ConvertDialog from './ConvertDialog';
 import { lifecycleOf, revertedStatusOf, isCarriedAdvance } from '../../services/documentLifecycle';
 import { orgStore } from '../../services/orgStore';
 import { confirmDialog } from '../../services/confirm';
+import { useProjectScope, projectBillingPath } from '../projects/projectScope';
 
-export default function InvoiceList({ type = 'invoice' }) {
+// With `projectId` (a project's Billing page) it lists only that project's
+// documents, and a new or revised one opens its form on the project.
+export default function InvoiceList({ type = 'invoice', projectId = null }) {
   const navigate = useNavigate();
   const toast = useToast();
   const { activeOrg } = useOrg();
@@ -51,7 +54,10 @@ export default function InvoiceList({ type = 'invoice' }) {
     projectLinks.filter((l) => l.financial_document_id).forEach((l) => add(l.financial_document_id, l.project_id));
     return (docId) => [...(map[docId] || [])].map((id) => byId[id]);
   }, [projects, allocations, projectLinks]);
-  const showProjects = projects.length > 0 && (type !== 'invoice' || allocations.length > 0);
+  const showProjects = !projectId && projects.length > 0 && (type !== 'invoice' || allocations.length > 0);
+  // A project's own documents, including anything converted from one of them.
+  const scope = useProjectScope(projectId);
+  const onProject = (path) => (projectId ? `${path}?project=${projectId}` : path);
   const [showPortalLink, setShowPortalLink] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(null);
@@ -96,7 +102,7 @@ export default function InvoiceList({ type = 'invoice' }) {
           && !['draft', 'cancelled', 'paid'].includes(d.status) && balanceOf(d) > 0.009)
         || (statusFilter === 'collected' && Number(d.amount_paid) > 0)
         || d.status === statusFilter;
-      const matchesProject = projectFilter === 'all'
+      const matchesProject = scope ? scope.docIds.has(d.id) : projectFilter === 'all'
         || (projectFilter === 'none' ? projectsOf(d.id).length === 0 : projectsOf(d.id).some((p) => p.id === projectFilter));
       return matchesSearch && matchesStatus && matchesProject;
     });
@@ -112,7 +118,7 @@ export default function InvoiceList({ type = 'invoice' }) {
       if (sortBy === 'client')      return (a.issued_to || a.client?.name || '').localeCompare(b.issued_to || b.client?.name || '');
       return 0;
     });
-  }, [documents, search, statusFilter, sortBy, projectFilter, projectsOf]);
+  }, [documents, search, statusFilter, sortBy, projectFilter, projectsOf, scope]);
 
   // Auto-detect overdue invoices
   useEffect(() => {
@@ -443,8 +449,8 @@ export default function InvoiceList({ type = 'invoice' }) {
   // only lets its content change as a new version (0064). The editor opens on
   // the same document with the client's note in view, and sending publishes v2
   // of THIS quotation — it used to save a brand-new quotation instead.
-  const handleReviseQuotation = (id) => navigate(`/new-quotation/${id}`);
-  const handleRedraftDeclined = (id) => navigate(`/new-quotation/${id}`);
+  const handleReviseQuotation = (id) => navigate(onProject(`/new-quotation/${id}`));
+  const handleRedraftDeclined = (id) => navigate(onProject(`/new-quotation/${id}`));
 
   // Quotation → proforma, quotation → tax invoice, proforma → tax invoice.
   // What the new document carries is decided in documentConversion.js; this
@@ -475,7 +481,7 @@ export default function InvoiceList({ type = 'invoice' }) {
       'success');
       setConvertSource(null);
       loadDocuments();
-      navigate(built.type === 'proforma' ? '/proforma' : '/invoices');
+      navigate(projectId ? projectBillingPath(projectId, built.type) : built.type === 'proforma' ? '/proforma' : '/invoices');
     } catch (err) {
       const msg = /SOURCE_NOT_LOCKED/.test(err.message || '')
         ? 'The client has not accepted this version yet, so it cannot be converted.'
@@ -628,7 +634,7 @@ export default function InvoiceList({ type = 'invoice' }) {
             </button>
           ))}
         </div>
-        <button className="fin-list-new-btn" onClick={() => navigate(`/new-${type}`)}>
+        <button className="fin-list-new-btn" onClick={() => navigate(onProject(`/new-${type}`))}>
           <Plus size={16} /> New {typeLabel}
         </button>
       </div>
@@ -663,7 +669,7 @@ export default function InvoiceList({ type = 'invoice' }) {
             {filteredDocs.length === 0 ? (
               <tr>
                 <td colSpan={(type === 'invoice' ? 8 : 7) + (showProjects ? 1 : 0)} className="fin-list-empty">
-                  No {typeLabel.toLowerCase()}s found
+                  {projectId ? `No ${typeLabel.toLowerCase()}s on this project yet` : `No ${typeLabel.toLowerCase()}s found`}
                 </td>
               </tr>
             ) : (
@@ -738,7 +744,7 @@ export default function InvoiceList({ type = 'invoice' }) {
                           className="fin-list-action-btn"
                           title={doc.status === 'draft' ? 'Edit quotation' : 'Revise — sends the client a new version'}
                           aria-label={doc.status === 'draft' ? 'Edit quotation' : 'Revise quotation'}
-                          onClick={() => navigate(`/new-quotation/${doc.id}`)}
+                          onClick={() => navigate(onProject(`/new-quotation/${doc.id}`))}
                         >
                           <Edit3 size={14} />
                         </button>
@@ -749,7 +755,7 @@ export default function InvoiceList({ type = 'invoice' }) {
                           Convert
                         </button>
                       )}
-                      {type === 'quotation' && doc.status === 'accepted' && canCreateProjects() && projectsOf(doc.id).length === 0 && (
+                      {!projectId && type === 'quotation' && doc.status === 'accepted' && canCreateProjects() && projectsOf(doc.id).length === 0 && (
                         <button className="fin-list-action-btn primary" title="Start a project from this quotation"
                           onClick={() => navigate(`/projects/new?fromQuotation=${doc.id}`)}>
                           Start project
@@ -816,7 +822,7 @@ export default function InvoiceList({ type = 'invoice' }) {
           </>
         )}
       >
-        <p style={{ margin: '0 0 12px', fontSize: 12, lineHeight: 1.6 }}>
+        <p style={{ margin: '0 0 12px', fontSize: 13.5, lineHeight: 1.6 }}>
           {cancelTarget?.type === 'invoice'
             ? 'The invoice keeps its number and is marked cancelled. It stops counting towards revenue, receivables and GST from now on.'
             : `The ${typeLabel.toLowerCase()} is marked cancelled and the client can no longer act on it from their link.`}
@@ -936,8 +942,8 @@ function AttentionPanel({ docs, type, onVerify, onReject, onRevise, onRedraft, o
       style={{ border: '1px solid ' + t.line, borderRadius: 10, background: t.panel, marginBottom: 14, overflow: 'hidden' }}
     >
       <header style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '9px 14px', borderBottom: '1px solid ' + t.lineSoft }}>
-        <span style={{ fontSize: 12, fontWeight: 500, color: t.text }}>Needs your attention</span>
-        <span style={{ fontSize: 10.5, color: t.faint }}>{items.length}</span>
+        <span style={{ fontSize: 13.5, fontWeight: 500, color: t.text }}>Needs your attention</span>
+        <span style={{ fontSize: 12, color: t.faint }}>{items.length}</span>
       </header>
       {items.map(({ doc, tone, label, headline, detail, note, actions }, i) => (
         <div
@@ -950,15 +956,15 @@ function AttentionPanel({ docs, type, onVerify, onReject, onRevise, onRedraft, o
           <div style={{ flex: '1 1 320px', minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <Status tone={tone}>{label}</Status>
-              <span style={{ fontSize: 10.5, color: t.faint }}>{docNo(doc)}</span>
+              <span style={{ fontSize: 12, color: t.faint }}>{docNo(doc)}</span>
             </div>
-            <div style={{ fontSize: 12.5, color: t.text, marginTop: 5 }}>{headline}</div>
-            {detail && <div style={{ fontSize: 11, color: t.dim, marginTop: 3 }}>{detail}</div>}
+            <div style={{ fontSize: 14, color: t.text, marginTop: 5 }}>{headline}</div>
+            {detail && <div style={{ fontSize: 12.5, color: t.dim, marginTop: 3 }}>{detail}</div>}
             {note !== undefined && (
               <p style={{
                 margin: '8px 0 0', padding: '8px 11px', borderRadius: 7,
                 background: t.panelAlt, border: '1px solid ' + t.lineSoft,
-                fontSize: 11.5, lineHeight: 1.55, whiteSpace: 'pre-wrap',
+                fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap',
                 color: note ? t.text : t.faint,
               }}>
                 {note || 'No details given.'}

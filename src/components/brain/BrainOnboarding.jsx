@@ -46,7 +46,7 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                     <div style={{
                         display: 'inline-flex', alignItems: 'center', gap: 7,
                         border: `1px solid ${t.lineStrong}`, borderRadius: 999,
-                        padding: '4px 10px', fontSize: 9.5, letterSpacing: '0.08em',
+                        padding: '4px 10px', fontSize: 11, letterSpacing: '0.08em',
                         color: t.dim, marginBottom: 16,
                     }}>
                         <Sparkles aria-hidden="true" size={11} strokeWidth={1.9} />
@@ -59,7 +59,7 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                     }}>Build your Company Brain</h2>
 
                     <p style={{
-                        margin: '12px 0 0', fontSize: 12.5, lineHeight: 1.75,
+                        margin: '12px 0 0', fontSize: 14, lineHeight: 1.75,
                         color: t.dim, maxWidth: 580,
                     }}>
                         EdgeBrain organises the data already in EdgeOS into one connected
@@ -68,7 +68,7 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                         rather than three screens.
                     </p>
                     <p style={{
-                        margin: '10px 0 0', fontSize: 11.5, lineHeight: 1.7,
+                        margin: '10px 0 0', fontSize: 13, lineHeight: 1.7,
                         color: t.faint, maxWidth: 580,
                     }}>
                         Nothing to upload and nothing to type. It reads the records this
@@ -79,7 +79,7 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
 
                 <div style={{ padding: '22px 30px 24px' }}>
                     <div style={{
-                        fontSize: 9, letterSpacing: '0.1em', color: t.faint, marginBottom: 14,
+                        fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, marginBottom: 14,
                     }}>WHAT IT WILL ORGANISE</div>
 
                     <div style={{
@@ -96,8 +96,8 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                                 <Icon aria-hidden="true" size={15} strokeWidth={1.7}
                                     style={{ color: t.dim, flexShrink: 0, marginTop: 1 }} />
                                 <div style={{ minWidth: 0 }}>
-                                    <div style={{ fontSize: 11.5, color: t.text }}>{label}</div>
-                                    <div style={{ fontSize: 10, color: t.faint, marginTop: 3, lineHeight: 1.55 }}>{note}</div>
+                                    <div style={{ fontSize: 13, color: t.text }}>{label}</div>
+                                    <div style={{ fontSize: 11.5, color: t.faint, marginTop: 3, lineHeight: 1.55 }}>{note}</div>
                                 </div>
                             </div>
                         ))}
@@ -110,7 +110,7 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                     }}>
                         <ShieldCheck aria-hidden="true" size={14} strokeWidth={1.7}
                             style={{ color: t.dim, flexShrink: 0, marginTop: 1 }} />
-                        <div style={{ fontSize: 10.5, color: t.dim, lineHeight: 1.65 }}>
+                        <div style={{ fontSize: 12, color: t.dim, lineHeight: 1.65 }}>
                             Every record keeps the permission of the table it came from. Someone
                             who cannot see pay or a customer list today will not see them
                             through EdgeBrain, and no answer is assembled from anything
@@ -121,7 +121,7 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                     {error && (
                         <div role="alert" style={{
                             marginTop: 16, padding: '11px 13px', borderRadius: 9,
-                            border: `1px solid ${t.down}`, fontSize: 11, color: t.down, lineHeight: 1.6,
+                            border: `1px solid ${t.down}`, fontSize: 12.5, color: t.down, lineHeight: 1.6,
                         }}>{error}</div>
                     )}
 
@@ -131,7 +131,7 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                         <Btn primary onClick={onBuild} disabled={building || !canBuild}>
                             {building ? 'Building…' : 'Build Company Brain'}
                         </Btn>
-                        <span style={{ fontSize: 10.5, color: t.faint }}>
+                        <span style={{ fontSize: 12, color: t.faint }}>
                             {!canBuild
                                 ? 'Your role cannot build the Company Brain — ask an owner or admin.'
                                 : building

@@ -75,7 +75,7 @@ export default function BrainAsk({ orgId, stale, syncedAt }) {
                 }}>
                     <AlertTriangle aria-hidden="true" size={13} strokeWidth={1.8}
                         style={{ color: t.dim, flexShrink: 0, marginTop: 1 }} />
-                    <div style={{ fontSize: 10.5, color: t.dim, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 12, color: t.dim, lineHeight: 1.6 }}>
                         Your records have changed since the brain last synchronised
                         {syncedAt ? ` on ${fmtDate(syncedAt)}` : ''}. Answers will reflect the
                         last sync, not this minute. Resynchronise from Brain Health for
@@ -96,7 +96,7 @@ export default function BrainAsk({ orgId, stale, syncedAt }) {
                     <div key={turn.id} style={{ marginBottom: 16 }}>
                         {turn.role === 'user' && (
                             <div style={{
-                                fontSize: 12.5, color: t.text, lineHeight: 1.6,
+                                fontSize: 14, color: t.text, lineHeight: 1.6,
                                 paddingLeft: 11, borderLeft: `2px solid ${t.lineStrong}`,
                             }}>{turn.text}</div>
                         )}
@@ -107,7 +107,7 @@ export default function BrainAsk({ orgId, stale, syncedAt }) {
                                 background: t.panel, overflow: 'hidden', marginTop: 9,
                             }}>
                                 <div style={{
-                                    padding: '13px 15px', fontSize: 12, color: t.text,
+                                    padding: '13px 15px', fontSize: 13.5, color: t.text,
                                     lineHeight: 1.75, whiteSpace: 'pre-wrap',
                                 }}>{turn.text}</div>
 
@@ -115,7 +115,7 @@ export default function BrainAsk({ orgId, stale, syncedAt }) {
                                     <details>
                                         <summary style={{
                                             cursor: 'pointer', listStyle: 'none', padding: '8px 15px',
-                                            borderTop: `1px solid ${t.lineSoft}`, fontSize: 9.5,
+                                            borderTop: `1px solid ${t.lineSoft}`, fontSize: 11,
                                             color: t.faint, letterSpacing: '0.06em',
                                             display: 'flex', alignItems: 'center', gap: 7,
                                         }}>
@@ -129,7 +129,7 @@ export default function BrainAsk({ orgId, stale, syncedAt }) {
                                         }}>
                                             {turn.sources.map((s) => (
                                                 <li key={s.node_id} style={{
-                                                    display: 'flex', gap: 9, fontSize: 10, alignItems: 'baseline',
+                                                    display: 'flex', gap: 9, fontSize: 11.5, alignItems: 'baseline',
                                                 }}>
                                                     <span style={{ color: t.faint, width: 108, flexShrink: 0 }}>
                                                         {kindLabel(s.kind)}
@@ -138,7 +138,7 @@ export default function BrainAsk({ orgId, stale, syncedAt }) {
                                                         color: t.dim, flex: 1, minWidth: 0,
                                                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                                                     }}>{s.label}</span>
-                                                    <span style={{ color: t.ghost, flexShrink: 0, fontSize: 9 }}>
+                                                    <span style={{ color: t.ghost, flexShrink: 0, fontSize: 10.5 }}>
                                                         {s.source_table}
                                                     </span>
                                                 </li>
@@ -152,7 +152,7 @@ export default function BrainAsk({ orgId, stale, syncedAt }) {
                         {turn.role === 'error' && (
                             <div role="alert" style={{
                                 marginTop: 9, padding: '11px 13px', borderRadius: 9,
-                                border: `1px solid ${t.down}`, fontSize: 11, color: t.down, lineHeight: 1.6,
+                                border: `1px solid ${t.down}`, fontSize: 12.5, color: t.down, lineHeight: 1.6,
                             }}>{turn.text}</div>
                         )}
                     </div>
@@ -160,7 +160,7 @@ export default function BrainAsk({ orgId, stale, syncedAt }) {
 
                 {busy && (
                     <div role="status" aria-live="polite" style={{
-                        fontSize: 11, color: t.faint, padding: '10px 0',
+                        fontSize: 12.5, color: t.faint, padding: '10px 0',
                     }}>Reading your records…</div>
                 )}
                 <div ref={endRef} />
@@ -186,7 +186,7 @@ export default function BrainAsk({ orgId, stale, syncedAt }) {
                             width: '100%', boxSizing: 'border-box', padding: '10px 12px',
                             minHeight: 42, maxHeight: 140, resize: 'vertical',
                             background: t.panelAlt, border: `1px solid ${t.line}`, borderRadius: 9,
-                            color: t.text, fontFamily: MONO, fontSize: 12, lineHeight: 1.6, outline: 'none',
+                            color: t.text, fontFamily: MONO, fontSize: 13.5, lineHeight: 1.6, outline: 'none',
                         }}
                     />
                 </label>
@@ -204,14 +204,14 @@ export default function BrainAsk({ orgId, stale, syncedAt }) {
                             style={{
                                 height: 26, padding: '0 10px', borderRadius: 999, cursor: 'pointer',
                                 border: `1px solid ${t.line}`, background: t.panel,
-                                color: t.dim, fontFamily: MONO, fontSize: 10.5,
+                                color: t.dim, fontFamily: MONO, fontSize: 12,
                             }}>{s}</button>
                     ))}
                 </div>
             )}
 
             <div style={{ marginTop: 14 }}>
-                <Muted size={9.5}>
+                <Muted size={11}>
                     Answers are drawn from records you are permitted to see, and figures come
                     from aggregates computed in PostgreSQL rather than from the model's own
                     arithmetic.

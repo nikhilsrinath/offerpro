@@ -158,11 +158,11 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                     </Btn>
                 </Row>
             }>
-                <span style={{ fontSize: 12, color: t.text }}>
+                <span style={{ fontSize: 13.5, color: t.text }}>
                     {isEdit ? 'Editing ' + (form.studentName || 'employee') : 'New employee'}
                 </span>
                 {!ready && (
-                    <span style={{ fontSize: 10, color: t.faint }}>
+                    <span style={{ fontSize: 11.5, color: t.faint }}>
                         Name, email, role and start date are needed
                     </span>
                 )}
@@ -179,7 +179,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                                 </Btn>
                             </div>
                             <input ref={photoInput} type="file" accept="image/*" onChange={onPhoto} style={{ display: 'none' }} />
-                            {photoError && <div style={{ fontSize: 9.5, color: t.down, marginTop: 6, maxWidth: 120 }}>{photoError}</div>}
+                            {photoError && <div style={{ fontSize: 11, color: t.down, marginTop: 6, maxWidth: 120 }}>{photoError}</div>}
                         </div>
 
                         <div style={{ flex: '1 1 320px', minWidth: 0 }}>
@@ -253,7 +253,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                         </>
                     )}
                     {!isEdit && (
-                        <p style={{ margin: '14px 0 0', fontSize: 10.5, color: t.faint, lineHeight: 1.75 }}>
+                        <p style={{ margin: '14px 0 0', fontSize: 12, color: t.faint, lineHeight: 1.75 }}>
                             Adding someone here puts them on the team straight away — no offer to accept. An
                             offer letter is filed alongside them for download. To send an offer someone has to
                             sign first, use the Recruitment Tracker instead.

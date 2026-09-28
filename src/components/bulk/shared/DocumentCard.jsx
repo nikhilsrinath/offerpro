@@ -20,12 +20,12 @@ export default function DocumentCard({
         }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                    <h4 style={{ margin: 0, fontSize: 12, fontWeight: 500, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</h4>
-                    {subtitle && <div style={{ fontSize: 10.5, color: t.dim, marginTop: 3 }}>{subtitle}</div>}
+                    <h4 style={{ margin: 0, fontSize: 13.5, fontWeight: 500, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</h4>
+                    {subtitle && <div style={{ fontSize: 12, color: t.dim, marginTop: 3 }}>{subtitle}</div>}
                 </div>
                 <Status tone={ok ? 'up' : status === 'Failed' ? 'down' : 'neutral'}>{status}</Status>
             </div>
-            {timestamp && <div style={{ fontSize: 10.5, color: t.faint, wordBreak: 'break-all' }}>{timestamp}</div>}
+            {timestamp && <div style={{ fontSize: 12, color: t.faint, wordBreak: 'break-all' }}>{timestamp}</div>}
             {(onPreview || onDownload || onEdit) && (
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', borderTop: '1px solid ' + t.lineSoft, paddingTop: 10 }}>
                     {onPreview && (

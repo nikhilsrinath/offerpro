@@ -47,8 +47,8 @@ export function Dashboard({ children, periodic = true, snapshotNote }) {
     }, [activeOrg?.id]);
 
     const t = useT();
-    if (!activeOrg?.id) return <div role="status" style={{ padding: 40, fontFamily: MONO, fontSize: 11, color: t.faint }}>No organisation selected.</div>;
-    if (!ready) return <div role="status" style={{ padding: 60, textAlign: 'center', fontFamily: MONO, fontSize: 11, color: t.faint }}>Loading dashboard…</div>;
+    if (!activeOrg?.id) return <div role="status" style={{ padding: 40, fontFamily: MONO, fontSize: 12.5, color: t.faint }}>No organisation selected.</div>;
+    if (!ready) return <div role="status" style={{ padding: 60, textAlign: 'center', fontFamily: MONO, fontSize: 12.5, color: t.faint }}>Loading dashboard…</div>;
     return (
         <TipProvider>
             <DashboardBody key={activeOrg.id} orgId={activeOrg.id} periodic={periodic} snapshotNote={snapshotNote}>{children}</DashboardBody>
@@ -120,21 +120,21 @@ function DashboardBody({ children, orgId, periodic, snapshotNote }) {
                                 <button key={p.id} type="button" aria-pressed={on} aria-label={p.note} title={p.note} onClick={() => setPeriodId(p.id)}
                                     className="ov-seg" style={{
                                         minHeight: 25, padding: '0 11px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                                        fontFamily: MONO, fontSize: 11, background: on ? t.panel : 'transparent',
+                                        fontFamily: MONO, fontSize: 12.5, background: on ? t.panel : 'transparent',
                                         boxShadow: on ? '0 0 0 1px ' + t.line : 'none', color: on ? t.text : t.dim,
                                     }}>{p.label}</button>
                             );
                         })}
                     </div>
-                    <span style={{ fontSize: 10.5, color: t.dim }}>
+                    <span style={{ fontSize: 12, color: t.dim }}>
                         {fmtDay(period.from)} – {fmtDay(period.to)}
                         <span style={{ color: t.faint }}> · {vsLabel}</span>
                     </span>
                 </>) : (
-                    <span style={{ fontSize: 10.5, color: t.dim }}>{snapshotNote || `As of ${fmtDay(today)}`}</span>
+                    <span style={{ fontSize: 12, color: t.dim }}>{snapshotNote || `As of ${fmtDay(today)}`}</span>
                 )}
                 <span style={{ flex: 1 }} />
-                <span style={{ fontSize: 9.5, color: t.faint, letterSpacing: '0.06em' }}>CLICK ANY CHART FOR DETAIL</span>
+                <span style={{ fontSize: 11, color: t.faint, letterSpacing: '0.06em' }}>CLICK ANY CHART FOR DETAIL</span>
             </div>
 
             {typeof children === 'function' ? children(ctx) : children}
@@ -168,8 +168,8 @@ export function Card({ title, note, right, children, style }) {
         }}>
             <header style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, minHeight: 26 }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
-                    <h2 style={{ margin: 0, fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em', color: t.text }}>{title}</h2>
-                    {note && <div style={{ fontSize: 10, color: t.faint, marginTop: 2 }}>{note}</div>}
+                    <h2 style={{ margin: 0, fontSize: 14.5, fontWeight: 600, letterSpacing: '-0.01em', color: t.text }}>{title}</h2>
+                    {note && <div style={{ fontSize: 11.5, color: t.faint, marginTop: 2 }}>{note}</div>}
                 </div>
                 {right}
             </header>
@@ -194,12 +194,12 @@ export function Tile({ icon: Icon, label, value, exact, delta, foot, spark, spar
                 <span aria-hidden="true" style={{ width: 22, height: 22, borderRadius: 6, background: t.raised, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                     <Icon size={12} strokeWidth={2.2} />
                 </span>
-                <span style={{ fontSize: 10, letterSpacing: '0.08em', color: t.dim, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label.toUpperCase()}</span>
+                <span style={{ fontSize: 11.5, letterSpacing: '0.08em', color: t.dim, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label.toUpperCase()}</span>
                 {delta}
             </span>
             <span style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.045em', lineHeight: 1, color: tone === 'down' ? t.down : tone === 'up' ? t.up : t.text, whiteSpace: 'nowrap' }}>{value}</span>
             {spark && <Spark values={spark} color={color} bars={sparkBars} height={30} />}
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', fontSize: 10, color: t.faint, borderTop: '1px solid ' + t.lineSoft, paddingTop: 8 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', fontSize: 11.5, color: t.faint, borderTop: '1px solid ' + t.lineSoft, paddingTop: 8 }}>
                 <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{foot}</span>
                 {onClick && <ChevronRight aria-hidden="true" size={12} className="ov-tile-arrow" />}
             </span>
@@ -211,8 +211,8 @@ export function Figure({ label, value, tone, big }) {
     const t = useT();
     return (
         <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: big ? 18 : 12.5, fontWeight: 600, letterSpacing: '-0.03em', color: tone === 'down' ? t.down : tone === 'up' ? t.up : t.text }}>{value}</span>
-            <span style={{ fontSize: 9, letterSpacing: '0.08em', color: t.faint }}>{label.toUpperCase()}</span>
+            <span style={{ fontSize: big ? 19.5 : 14, fontWeight: 600, letterSpacing: '-0.03em', color: tone === 'down' ? t.down : tone === 'up' ? t.up : t.text }}>{value}</span>
+            <span style={{ fontSize: 10.5, letterSpacing: '0.08em', color: t.faint }}>{label.toUpperCase()}</span>
         </span>
     );
 }
@@ -222,7 +222,7 @@ export function BigCount({ value, label }) {
     return (
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
             <span style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1 }}>{value}</span>
-            <span style={{ fontSize: 10, color: t.faint }}>{label}</span>
+            <span style={{ fontSize: 11.5, color: t.faint }}>{label}</span>
         </div>
     );
 }
@@ -233,7 +233,7 @@ export function More({ onClick, label = 'Analyse', to }) {
     return (
         <button type="button" onClick={to ? () => navigate(to) : onClick} className="ov-chip" style={{
             display: 'inline-flex', alignItems: 'center', gap: 3, minHeight: 24, padding: '0 8px', borderRadius: 6,
-            border: '1px solid ' + t.line, background: t.panel, color: t.dim, fontFamily: MONO, fontSize: 10, cursor: 'pointer', whiteSpace: 'nowrap',
+            border: '1px solid ' + t.line, background: t.panel, color: t.dim, fontFamily: MONO, fontSize: 11.5, cursor: 'pointer', whiteSpace: 'nowrap',
         }}>{label} <ChevronRight aria-hidden="true" size={11} /></button>
     );
 }
@@ -244,7 +244,7 @@ export function MiniSeg({ value, onChange, options, label }) {
         <div role="group" aria-label={label} style={{ display: 'inline-flex', gap: 2, padding: 2, border: '1px solid ' + t.line, borderRadius: 7, background: t.panelAlt }}>
             {options.map((o) => (
                 <button key={o.id} type="button" onClick={() => onChange(o.id)} aria-pressed={o.id === value} className="ov-seg" style={{
-                    minHeight: 24, padding: '0 9px', borderRadius: 5, border: 'none', cursor: 'pointer', fontFamily: MONO, fontSize: 10.5,
+                    minHeight: 24, padding: '0 9px', borderRadius: 5, border: 'none', cursor: 'pointer', fontFamily: MONO, fontSize: 12,
                     background: o.id === value ? t.panel : 'transparent', color: o.id === value ? t.text : t.dim,
                     boxShadow: o.id === value ? '0 0 0 1px ' + t.line : 'none',
                 }}>{o.label}</button>
@@ -264,10 +264,10 @@ export function ListRow({ label, sub, value, tone, onClick }) {
             fontFamily: MONO, color: t.text, cursor: onClick ? 'pointer' : 'default', borderRadius: 0,
         }}>
             <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 11.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
-                {sub && <span style={{ display: 'block', fontSize: 10, color: t.faint, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>}
+                <span style={{ display: 'block', fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+                {sub && <span style={{ display: 'block', fontSize: 11.5, color: t.faint, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>}
             </span>
-            {value != null && <span style={{ fontSize: 11.5, fontWeight: 600, whiteSpace: 'nowrap', color: tone === 'down' ? t.down : tone === 'up' ? t.up : t.text }}>{value}</span>}
+            {value != null && <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', color: tone === 'down' ? t.down : tone === 'up' ? t.up : t.text }}>{value}</span>}
             {onClick && <ChevronRight aria-hidden="true" size={12} style={{ color: t.faint, flexShrink: 0 }} />}
         </Tag>
     );
@@ -287,16 +287,16 @@ export function Meter({ label, used, limit, note, onClick }) {
             borderBottom: '1px solid ' + t.lineSoft, fontFamily: MONO, color: t.text, cursor: onClick ? 'pointer' : 'default',
         }}>
             <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 11.5, flex: 1, minWidth: 0 }}>{label}</span>
-                <span style={{ fontSize: 11.5, fontWeight: 600 }}>{used.toLocaleString('en-IN')}</span>
-                <span style={{ fontSize: 10, color: t.faint }}>{unlimited ? '/ unlimited' : `/ ${limit.toLocaleString('en-IN')}`}</span>
+                <span style={{ fontSize: 13, flex: 1, minWidth: 0 }}>{label}</span>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{used.toLocaleString('en-IN')}</span>
+                <span style={{ fontSize: 11.5, color: t.faint }}>{unlimited ? '/ unlimited' : `/ ${limit.toLocaleString('en-IN')}`}</span>
             </span>
             <span role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={unlimited ? undefined : limit} aria-valuenow={used}
                 aria-valuetext={unlimited ? `${used} used, unlimited` : `${used} of ${limit} used`}
                 style={{ display: 'block', height: 5, borderRadius: 3, background: t.raised, overflow: 'hidden' }}>
                 <span style={{ display: 'block', height: '100%', width: unlimited ? '100%' : `${pct}%`, background: color, opacity: unlimited ? 0.25 : 1, borderRadius: 3 }} />
             </span>
-            {note && <span style={{ display: 'block', fontSize: 10, color: t.faint, marginTop: 5 }}>{note}</span>}
+            {note && <span style={{ display: 'block', fontSize: 11.5, color: t.faint, marginTop: 5 }}>{note}</span>}
         </Tag>
     );
 }

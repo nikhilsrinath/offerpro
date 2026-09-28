@@ -79,11 +79,11 @@ function ConfirmDialog({ item }) {
                     boxShadow: isDark ? '0 30px 80px -20px rgba(0,0,0,.9)' : '0 30px 70px -24px rgba(20,28,32,.45)',
                 }}
             >
-                <h2 id={titleId} style={{ margin: 0, fontSize: 14, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.35 }}>
+                <h2 id={titleId} style={{ margin: 0, fontSize: 15.5, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.35 }}>
                     {item.title}
                 </h2>
                 {item.message && (
-                    <p id={msgId} style={{ margin: '6px 0 0', fontSize: 12.5, lineHeight: 1.5, color: t.dim, overflowWrap: 'anywhere' }}>
+                    <p id={msgId} style={{ margin: '6px 0 0', fontSize: 14, lineHeight: 1.5, color: t.dim, overflowWrap: 'anywhere' }}>
                         {item.message}
                     </p>
                 )}
@@ -92,7 +92,7 @@ function ConfirmDialog({ item }) {
                         type="button" className="eo-confirm-btn" onClick={() => settleConfirm(item.id, false)}
                         style={{
                             height: 32, padding: '0 14px', borderRadius: 8, cursor: 'pointer',
-                            fontFamily: MONO, fontSize: 12, fontWeight: 600,
+                            fontFamily: MONO, fontSize: 13.5, fontWeight: 600,
                             background: isDark ? '#2a2a30' : t.raised, color: t.text,
                             border: '1px solid ' + (isDark ? '#34343b' : t.line),
                         }}
@@ -101,7 +101,7 @@ function ConfirmDialog({ item }) {
                         ref={okRef} type="button" className="eo-confirm-btn is-ok" onClick={() => settleConfirm(item.id, true)}
                         style={{
                             height: 32, padding: '0 14px', borderRadius: 8, cursor: 'pointer',
-                            fontFamily: MONO, fontSize: 12, fontWeight: 600,
+                            fontFamily: MONO, fontSize: 13.5, fontWeight: 600,
                             background: danger ? red.bg : t.text, color: danger ? '#fff' : t.panel,
                             border: '1px solid ' + (danger ? red.bg : t.text),
                             '--ring': danger ? red.ring : t.dim,

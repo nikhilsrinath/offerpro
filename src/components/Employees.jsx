@@ -141,9 +141,9 @@ function PortalAccess({ emp, orgId, onChanged }) {
                 }}>
                     <div style={{ display: 'grid', gap: 6, marginBottom: 10 }}>
                         <Row><span style={{ width: 62, flexShrink: 0 }}><Label>EMAIL</Label></span>
-                            <code style={{ fontSize: 11, color: t.text, wordBreak: 'break-all' }}>{creds.email}</code></Row>
+                            <code style={{ fontSize: 12.5, color: t.text, wordBreak: 'break-all' }}>{creds.email}</code></Row>
                         <Row><span style={{ width: 62, flexShrink: 0 }}><Label>PASSWORD</Label></span>
-                            <code style={{ fontSize: 11, color: t.text }}>{creds.password}</code></Row>
+                            <code style={{ fontSize: 12.5, color: t.text }}>{creds.password}</code></Row>
                     </div>
                     <Row wrap gap={7}>
                         <Btn size="sm" primary onClick={() => copy('all', handover())}>
@@ -154,7 +154,7 @@ function PortalAccess({ emp, orgId, onChanged }) {
                         </Btn>
                         <Btn size="sm" onClick={() => setCreds(null)}>Done</Btn>
                     </Row>
-                    <div style={{ fontSize: 10, color: t.down, marginTop: 9, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 11.5, color: t.down, marginTop: 9, lineHeight: 1.6 }}>
                         Shown once. Nothing stores this password — if it is lost, generate a new one.
                     </div>
                 </div>
@@ -162,7 +162,7 @@ function PortalAccess({ emp, orgId, onChanged }) {
 
             {state === 'unknown' ? null : state === 'active' ? (
                 <>
-                    <p style={{ margin: '0 0 10px', fontSize: 10.5, color: t.faint, lineHeight: 1.7 }}>
+                    <p style={{ margin: '0 0 10px', fontSize: 12, color: t.faint, lineHeight: 1.7 }}>
                         {emp.email} signs in on the normal sign-in page and lands on their own portal —
                         attendance, leave and announcements. Archiving them removes it.
                     </p>
@@ -175,7 +175,7 @@ function PortalAccess({ emp, orgId, onChanged }) {
                 </>
             ) : (
                 <>
-                    <p style={{ margin: '0 0 10px', fontSize: 10.5, color: t.faint, lineHeight: 1.7 }}>
+                    <p style={{ margin: '0 0 10px', fontSize: 12, color: t.faint, lineHeight: 1.7 }}>
                         {!emp.email
                             ? 'Add an email address first — that is the username.'
                             : `Creates a login for ${emp.email} and a password you hand over. No invitation to accept, no email to wait for.`}
@@ -186,8 +186,8 @@ function PortalAccess({ emp, orgId, onChanged }) {
                 </>
             )}
 
-            {note && <div style={{ fontSize: 10.5, color: t.dim, marginTop: 9, lineHeight: 1.6 }}>{note}</div>}
-            {error && <div style={{ fontSize: 10.5, color: t.down, marginTop: 9 }}>{error}</div>}
+            {note && <div style={{ fontSize: 12, color: t.dim, marginTop: 9, lineHeight: 1.6 }}>{note}</div>}
+            {error && <div style={{ fontSize: 12, color: t.down, marginTop: 9 }}>{error}</div>}
         </Panel>
     );
 }
@@ -260,12 +260,12 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
 
     const sentBox = (what) => (
         <div style={{ border: '1px solid ' + t.lineStrong, borderRadius: 8, padding: 13, background: t.panelAlt }}>
-            <div style={{ fontSize: 11.5, color: t.text, marginBottom: 4 }}>{what} is ready</div>
-            <p style={{ margin: '0 0 10px', fontSize: 10.5, color: t.faint, lineHeight: 1.7 }}>
+            <div style={{ fontSize: 13, color: t.text, marginBottom: 4 }}>{what} is ready</div>
+            <p style={{ margin: '0 0 10px', fontSize: 12, color: t.faint, lineHeight: 1.7 }}>
                 Send {name} this link. They read it, and acknowledge it there.
             </p>
             <code style={{
-                display: 'block', fontSize: 10, color: t.dim, wordBreak: 'break-all',
+                display: 'block', fontSize: 11.5, color: t.dim, wordBreak: 'break-all',
                 padding: '8px 10px', border: '1px solid ' + t.line, borderRadius: 6, marginBottom: 10,
             }}>{link}</code>
             <Row gap={7}>
@@ -398,8 +398,8 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
                     </div>
 
                     <div>
-                        <div style={{ fontSize: 18, fontWeight: 500, letterSpacing: '-0.03em', color: t.text }}>{name}</div>
-                        <div style={{ fontSize: 11, color: t.dim, marginTop: 4 }}>{emp.role || 'No role set'}</div>
+                        <div style={{ fontSize: 19.5, fontWeight: 500, letterSpacing: '-0.03em', color: t.text }}>{name}</div>
+                        <div style={{ fontSize: 12.5, color: t.dim, marginTop: 4 }}>{emp.role || 'No role set'}</div>
                         <Row gap={12} wrap style={{ marginTop: 9 }}>
                             <Status tone={emp.user_id ? 'up' : 'mute'}>{emp.user_id ? 'Portal active' : 'No portal login'}</Status>
                             {tenure && <Status tone="neutral">{tenure} here</Status>}
@@ -419,10 +419,10 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
                                 display: 'flex', gap: 10, padding: '8px 12px',
                                 borderTop: i ? '1px solid ' + t.lineSoft : 'none',
                             }}>
-                                <span style={{ width: 76, flexShrink: 0, fontSize: 9, letterSpacing: '0.09em', color: t.faint, paddingTop: 2 }}>
+                                <span style={{ width: 76, flexShrink: 0, fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, paddingTop: 2 }}>
                                     {k.toUpperCase()}
                                 </span>
-                                <span style={{ fontSize: 11, color: t.text, minWidth: 0, wordBreak: 'break-word', lineHeight: 1.5 }}>{v}</span>
+                                <span style={{ fontSize: 12.5, color: t.text, minWidth: 0, wordBreak: 'break-word', lineHeight: 1.5 }}>{v}</span>
                             </div>
                         ))}
                     </div>
@@ -430,16 +430,16 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
                     {emp.bio && (
                         <div style={{ border: '1px solid ' + t.line, borderRadius: 10, padding: '10px 12px' }}>
                             <Label>ABOUT</Label>
-                            <p style={{ margin: '6px 0 0', fontSize: 11, lineHeight: 1.65, color: t.dim, whiteSpace: 'pre-wrap' }}>{emp.bio}</p>
+                            <p style={{ margin: '6px 0 0', fontSize: 12.5, lineHeight: 1.65, color: t.dim, whiteSpace: 'pre-wrap' }}>{emp.bio}</p>
                         </div>
                     )}
 
                     {(emp.emergency_contact_name || emp.emergency_contact_phone) && (
                         <div style={{ border: '1px solid ' + t.line, borderRadius: 10, padding: '10px 12px' }}>
                             <Label>EMERGENCY CONTACT</Label>
-                            <div style={{ fontSize: 11.5, color: t.text, marginTop: 6 }}>{emp.emergency_contact_name || '—'}</div>
+                            <div style={{ fontSize: 13, color: t.text, marginTop: 6 }}>{emp.emergency_contact_name || '—'}</div>
                             {emp.emergency_contact_phone && (
-                                <a href={`tel:${emp.emergency_contact_phone}`} style={{ fontSize: 10.5, color: t.dim, textDecoration: 'none' }}>
+                                <a href={`tel:${emp.emergency_contact_phone}`} style={{ fontSize: 12, color: t.dim, textDecoration: 'none' }}>
                                     {emp.emergency_contact_phone}
                                 </a>
                             )}
@@ -454,7 +454,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
                     <RelatedProjects employeeId={emp.id} />
 
                     <div>
-                        <div style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.faint, margin: '4px 0 9px' }}>ACCESS</div>
+                        <div style={{ fontSize: 11, letterSpacing: '0.1em', color: t.faint, margin: '4px 0 9px' }}>ACCESS</div>
                         <div style={{ display: 'grid', gap: 12, alignItems: 'start' }}>
                             <PortalAccess emp={emp} orgId={orgId} onChanged={() => setAccessKey((k) => k + 1)} />
                             <MemberAccess key={accessKey} email={emp.email} name={name} />
@@ -470,7 +470,7 @@ function contactBtn(t) {
     return {
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 30,
         borderRadius: 7, border: '1px solid ' + t.line, background: t.panel, color: t.text,
-        fontFamily: MONO, fontSize: 11, textDecoration: 'none',
+        fontFamily: MONO, fontSize: 12.5, textDecoration: 'none',
     };
 }
 
@@ -672,7 +672,7 @@ export default function Employees() {
         return (
             <Page>
                 <Toolbar right={<Btn onClick={() => setEditing(null)}>Back to registry</Btn>}>
-                    <span style={{ fontSize: 12 }}>Editing {getDisplayName(editing) || 'employee'}</span>
+                    <span style={{ fontSize: 13.5 }}>Editing {getDisplayName(editing) || 'employee'}</span>
                 </Toolbar>
                 <EmployeeForm employee={editing} onSuccess={() => { setEditing(null); loadEmployees(); }} onCancel={() => setEditing(null)} />
             </Page>
@@ -723,7 +723,7 @@ export default function Employees() {
                     border: '1px solid ' + t.lineStrong, borderRadius: 10,
                     padding: '11px 13px', marginBottom: 14,
                 }}>
-                    <span style={{ fontSize: 11, color: t.dim, flex: 1, minWidth: 200 }}>
+                    <span style={{ fontSize: 12.5, color: t.dim, flex: 1, minWidth: 200 }}>
                         You are not in the registry yet. Adding yourself puts you on the org chart and in the team list.
                     </span>
                     <Btn onClick={addSelf} disabled={addingSelf}>{addingSelf ? 'Adding…' : 'Add me'}</Btn>
@@ -766,7 +766,7 @@ export default function Employees() {
                                                 <Avatar name={name} size={26} photo={<EmployeePhotoFill photoPath={emp.photo_path} />} />
                                                 <span style={{ minWidth: 0 }}>
                                                     <span style={{ display: 'block' }}>{name || '—'}</span>
-                                                    <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 1 }}>{emp.email}</span>
+                                                    <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>{emp.email}</span>
                                                 </span>
                                             </Row>
                                         </Td>
@@ -775,7 +775,7 @@ export default function Employees() {
                                             {emp.department ? (
                                                 <Row gap={7}>
                                                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: c, flexShrink: 0 }} />
-                                                    <span style={{ color: t.dim, fontSize: 11 }}>{emp.department}</span>
+                                                    <span style={{ color: t.dim, fontSize: 12.5 }}>{emp.department}</span>
                                                 </Row>
                                             ) : <span style={{ color: t.ghost }}>—</span>}
                                         </Td>
@@ -804,20 +804,20 @@ export default function Employees() {
                                         <Row gap={10} style={{ marginBottom: 11 }}>
                                             <Avatar name={name} size={34} photo={<EmployeePhotoFill photoPath={emp.photo_path} />} />
                                             <span style={{ minWidth: 0, flex: 1 }}>
-                                                <span style={{ display: 'block', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name || '—'}</span>
-                                                <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.role || 'No role'}</span>
+                                                <span style={{ display: 'block', fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name || '—'}</span>
+                                                <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.role || 'No role'}</span>
                                             </span>
                                         </Row>
                                         <div style={{ borderTop: '1px solid ' + t.lineSoft, paddingTop: 9, display: 'flex', alignItems: 'center', gap: 8 }}>
                                             {emp.department ? (
                                                 <>
                                                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: c, flexShrink: 0 }} />
-                                                    <span style={{ fontSize: 9.5, color: t.faint, letterSpacing: '0.05em', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                    <span style={{ fontSize: 11, color: t.faint, letterSpacing: '0.05em', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                         {emp.department.toUpperCase()}
                                                     </span>
                                                 </>
                                             ) : <span style={{ flex: 1 }} />}
-                                            <span style={{ fontSize: 9.5, color: t.ghost }}>{TYPE_LABEL[emp.offerType] || ''}</span>
+                                            <span style={{ fontSize: 11, color: t.ghost }}>{TYPE_LABEL[emp.offerType] || ''}</span>
                                         </div>
                                     </button>
                                 );
@@ -845,11 +845,11 @@ export default function Employees() {
                                             padding: '6px 8px', borderRadius: 6, cursor: 'pointer', textAlign: 'left',
                                             background: dept === d.name ? t.panelAlt : 'transparent',
                                             border: '1px solid ' + (dept === d.name ? t.line : 'transparent'),
-                                            fontFamily: MONO, color: t.text, fontSize: 11,
+                                            fontFamily: MONO, color: t.text, fontSize: 12.5,
                                         }}>
                                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: d.color, flexShrink: 0 }} />
                                         <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
-                                        <span style={{ fontSize: 9.5, color: t.ghost }}>{d.count}</span>
+                                        <span style={{ fontSize: 11, color: t.ghost }}>{d.count}</span>
                                     </button>
                                     {d.id && (
                                         <ConfirmBtn label="×" confirmLabel="Delete" title="Delete department"

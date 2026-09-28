@@ -203,7 +203,7 @@ export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, on
                             <PanelLeft size={16} strokeWidth={1.8} aria-hidden="true" />
                         </button>
                     )}
-                    <span className="cp-sub" style={{ fontSize: 14, color: 'var(--text-2)' }}>
+                    <span className="cp-sub" style={{ fontSize: 15.5, color: 'var(--text-2)' }}>
                         {a.active.messages.length ? a.active.title : 'New chat'}
                     </span>
                     <div className="cp-head-actions">

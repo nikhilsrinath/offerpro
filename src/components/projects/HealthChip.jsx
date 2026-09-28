@@ -19,7 +19,7 @@ export default function HealthChip({ health, reasons = [] }) {
     const [open, setOpen] = useState(false);
     const id = useId();
     const h = HEALTH[health];
-    if (!h) return <span style={{ color: t.ghost, fontSize: 10.5 }}>—</span>;
+    if (!h) return <span style={{ color: t.ghost, fontSize: 12 }}>—</span>;
     const lines = formatHealthReasons(reasons);
     if (lines.length === 0) return <Status tone={h.tone}>{h.label}</Status>;
     return (
@@ -34,7 +34,7 @@ export default function HealthChip({ health, reasons = [] }) {
                 <span id={id} role="tooltip" style={{
                     position: 'absolute', top: '100%', left: 0, zIndex: 40, marginTop: 6, width: 260,
                     padding: '9px 11px', background: t.panel, border: '1px solid ' + t.lineStrong,
-                    borderRadius: 8, boxShadow: t.shadow, fontSize: 10.5, color: t.dim, lineHeight: 1.6,
+                    borderRadius: 8, boxShadow: t.shadow, fontSize: 12, color: t.dim, lineHeight: 1.6,
                 }}>
                     {lines.map((l) => <span key={l} style={{ display: 'block' }}>· {l}</span>)}
                 </span>

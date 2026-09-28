@@ -94,8 +94,8 @@ export default function CSVUploader({ columns, onUpload, sampleData }) {
                 }}
             >
                 <UploadCloud aria-hidden="true" size={22} strokeWidth={1.6} style={{ color: t.dim }} />
-                <span style={{ fontSize: 12.5 }}>Choose a CSV or XLSX file</span>
-                <span id={hintId} style={{ fontSize: 10.5, color: t.faint }}>
+                <span style={{ fontSize: 14 }}>Choose a CSV or XLSX file</span>
+                <span id={hintId} style={{ fontSize: 12, color: t.faint }}>
                     or drop it here · columns: {columns.join(', ')}
                 </span>
             </button>
@@ -108,7 +108,7 @@ export default function CSVUploader({ columns, onUpload, sampleData }) {
 
             <div role="alert" style={{ minHeight: error ? undefined : 0 }}>
                 {error && (
-                    <div style={{ marginTop: 10, fontSize: 11, color: t.down }}>{error}</div>
+                    <div style={{ marginTop: 10, fontSize: 12.5, color: t.down }}>{error}</div>
                 )}
             </div>
 

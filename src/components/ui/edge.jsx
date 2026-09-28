@@ -73,8 +73,8 @@ export function Panel({ children, title, note, actions, pad = 0, style }) {
                     display: 'flex', alignItems: 'center', gap: 10,
                     padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft,
                 }}>
-                    <span style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{title}</span>
-                    {note && <span style={{ fontSize: 10, color: t.faint }}>{note}</span>}
+                    <span style={{ fontSize: 13.5, color: t.text, fontWeight: 500 }}>{title}</span>
+                    {note && <span style={{ fontSize: 11.5, color: t.faint }}>{note}</span>}
                     <div style={{ flex: 1 }} />
                     {actions}
                 </header>
@@ -97,10 +97,10 @@ export function Grid({ children, min = 240, gap = 12, cols }) {
 
 export function Label({ children }) {
     const t = useT();
-    return <span style={{ fontSize: 9, letterSpacing: '0.1em', color: t.faint }}>{children}</span>;
+    return <span style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint }}>{children}</span>;
 }
 
-export function Muted({ children, size = 10.5 }) {
+export function Muted({ children, size = 12 }) {
     const t = useT();
     return <span style={{ fontSize: size, color: t.faint }}>{children}</span>;
 }
@@ -118,7 +118,7 @@ export function Btn({ children, onClick, primary, danger, disabled, title, size 
             style={{
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 height: h, padding: size === 'sm' ? '0 9px' : '0 12px', borderRadius: 7,
-                fontFamily: MONO, fontSize: size === 'sm' ? 10.5 : 11.5, whiteSpace: 'nowrap',
+                fontFamily: MONO, fontSize: size === 'sm' ? 12 : 13, whiteSpace: 'nowrap',
                 cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
                 width: full ? '100%' : undefined,
                 border: '1px solid ' + (primary ? t.text : t.line),
@@ -170,7 +170,7 @@ export function Seg({ value, onChange, options, size = 'md', label: groupLabel }
                         style={{
                             display: 'inline-flex', alignItems: 'center', gap: 6,
                             height: h - 4, padding: '0 10px', borderRadius: 6,
-                            fontFamily: MONO, fontSize: size === 'sm' ? 10.5 : 11,
+                            fontFamily: MONO, fontSize: size === 'sm' ? 12 : 12.5,
                             border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
                             background: active ? t.panel : 'transparent',
                             boxShadow: active ? '0 0 0 1px ' + t.line : 'none',
@@ -180,7 +180,7 @@ export function Seg({ value, onChange, options, size = 'md', label: groupLabel }
                     >
                         {label}
                         {count !== undefined && (
-                            <span style={{ fontSize: 9.5, color: t.faint }}>{count}</span>
+                            <span style={{ fontSize: 11, color: t.faint }}>{count}</span>
                         )}
                     </button>
                 );
@@ -200,7 +200,7 @@ export function Search({ value, onChange, placeholder = 'Search…', width = 240
             style={{
                 height: 29, width, maxWidth: '100%', padding: '0 10px', boxSizing: 'border-box',
                 background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 7,
-                color: t.text, fontFamily: MONO, fontSize: 11, outline: 'none',
+                color: t.text, fontFamily: MONO, fontSize: 12.5, outline: 'none',
             }}
         />
     );
@@ -211,11 +211,11 @@ export function Field({ label, children, hint, wide }) {
     return (
         <label style={{ display: 'block', minWidth: 0, gridColumn: wide ? '1 / -1' : undefined }}>
             <span style={{
-                display: 'block', fontSize: 9, letterSpacing: '0.09em',
+                display: 'block', fontSize: 10.5, letterSpacing: '0.09em',
                 color: t.faint, marginBottom: 5,
             }}>{String(label).toUpperCase()}</span>
             {children}
-            {hint && <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 4 }}>{hint}</span>}
+            {hint && <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 4 }}>{hint}</span>}
         </label>
     );
 }
@@ -228,7 +228,7 @@ export function Input(props) {
             style={{
                 width: '100%', boxSizing: 'border-box', height: 31, padding: '0 10px',
                 background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 7,
-                color: t.text, fontFamily: MONO, fontSize: 11.5, outline: 'none', ...props.style,
+                color: t.text, fontFamily: MONO, fontSize: 13, outline: 'none', ...props.style,
             }}
         />
     );
@@ -243,7 +243,7 @@ export function Select({ children, ...props }) {
                 width: '100%', boxSizing: 'border-box', height: 31,
                 padding: '0 26px 0 10px', cursor: 'pointer',
                 background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 7,
-                color: t.text, fontFamily: MONO, fontSize: 11.5, outline: 'none',
+                color: t.text, fontFamily: MONO, fontSize: 13, outline: 'none',
                 // The native control paints its own light chrome, which reads as a
                 // hole in a dark panel. Draw the caret ourselves instead.
                 appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
@@ -265,7 +265,7 @@ export function Textarea(props) {
             style={{
                 width: '100%', boxSizing: 'border-box', padding: '8px 10px', minHeight: 74,
                 background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 7,
-                color: t.text, fontFamily: MONO, fontSize: 11.5, outline: 'none',
+                color: t.text, fontFamily: MONO, fontSize: 13, outline: 'none',
                 resize: 'vertical', lineHeight: 1.6, ...props.style,
             }}
         />
@@ -280,7 +280,7 @@ export function Status({ tone = 'neutral', children }) {
     const t = useT();
     const color = tone === 'up' ? t.up : tone === 'down' ? t.down : tone === 'mute' ? t.ghost : t.dim;
     return (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: t.dim, whiteSpace: 'nowrap' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.dim, whiteSpace: 'nowrap' }}>
             <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: '50%', background: color, flexShrink: 0 }} />
             {children}
         </span>
@@ -333,11 +333,11 @@ export function Breakdown({ rows, total, max = 6 }) {
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
                         {r.color && <span style={{ width: 5, height: 5, borderRadius: '50%', background: r.color, flexShrink: 0 }} />}
                         <span style={{
-                            flex: 1, minWidth: 0, fontSize: 11, color: t.text,
+                            flex: 1, minWidth: 0, fontSize: 12.5, color: t.text,
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>{r.label}</span>
-                        <span style={{ fontSize: 11, color: t.text }}>{r.value}</span>
-                        {sum > 0 && <span style={{ fontSize: 9.5, color: t.ghost, width: 32, textAlign: 'right' }}>
+                        <span style={{ fontSize: 12.5, color: t.text }}>{r.value}</span>
+                        {sum > 0 && <span style={{ fontSize: 11, color: t.ghost, width: 32, textAlign: 'right' }}>
                             {Math.round((r.value / sum) * 100)}%
                         </span>}
                     </div>
@@ -356,10 +356,10 @@ export function Stat({ label, value, note, tone }) {
                 fontSize: 20, fontWeight: 500, lineHeight: 1.1, letterSpacing: '-0.03em',
                 color: tone === 'up' ? t.up : tone === 'down' ? t.down : t.text,
             }}>{value}</div>
-            <div style={{ fontSize: 9, letterSpacing: '0.09em', color: t.faint, marginTop: 5 }}>
+            <div style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, marginTop: 5 }}>
                 {String(label).toUpperCase()}
             </div>
-            {note && <div style={{ fontSize: 9.5, color: t.ghost, marginTop: 3 }}>{note}</div>}
+            {note && <div style={{ fontSize: 11, color: t.ghost, marginTop: 3 }}>{note}</div>}
         </div>
     );
 }
@@ -398,7 +398,7 @@ export function Table({ cols, children, empty }) {
                             {cols.map((c) => (
                                 <th key={c.key} scope="col" style={{
                                     textAlign: c.align || 'left', padding: '9px 13px',
-                                    fontSize: 9, letterSpacing: '0.09em', fontWeight: 400, color: t.faint,
+                                    fontSize: 10.5, letterSpacing: '0.09em', fontWeight: 400, color: t.faint,
                                     borderBottom: '1px solid ' + t.line, whiteSpace: 'nowrap',
                                     width: c.width,
                                 }}>{c.label.toUpperCase()}</th>
@@ -418,7 +418,7 @@ export function Td({ children, align, nowrap, muted, width }) {
     return (
         <td style={{
             padding: '10px 13px', textAlign: align || 'left', width,
-            fontSize: 11.5, color: muted ? t.dim : t.text,
+            fontSize: 13, color: muted ? t.dim : t.text,
             borderBottom: '1px solid ' + t.lineSoft,
             whiteSpace: nowrap ? 'nowrap' : undefined,
         }}>{children}</td>
@@ -451,7 +451,7 @@ export function Empty({ children, action }) {
     const t = useT();
     return (
         <div style={{ padding: '38px 20px', textAlign: 'center' }}>
-            <div style={{ fontSize: 11.5, color: t.faint, lineHeight: 1.7, maxWidth: 380, margin: '0 auto' }}>
+            <div style={{ fontSize: 13, color: t.faint, lineHeight: 1.7, maxWidth: 380, margin: '0 auto' }}>
                 {children}
             </div>
             {action && <div style={{ marginTop: 14 }}>{action}</div>}
@@ -461,7 +461,7 @@ export function Empty({ children, action }) {
 
 export function Loading({ children = 'Loading…' }) {
     const t = useT();
-    return <div role="status" aria-live="polite" style={{ padding: '48px 20px', textAlign: 'center', fontSize: 11, color: t.faint }}>{children}</div>;
+    return <div role="status" aria-live="polite" style={{ padding: '48px 20px', textAlign: 'center', fontSize: 12.5, color: t.faint }}>{children}</div>;
 }
 
 /** A centred sheet. One at a time, dismissed on Escape or a click outside,
@@ -496,13 +496,13 @@ export function Modal({ open, onClose, title, note, children, footer, width = 52
                     padding: '13px 15px', borderBottom: '1px solid ' + t.lineSoft, flexShrink: 0,
                 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <h2 id={titleId} style={{ margin: 0, fontSize: 12.5, fontWeight: 400, color: t.text }}>{title}</h2>
-                        {note && <div style={{ fontSize: 10, color: t.faint, marginTop: 2 }}>{note}</div>}
+                        <h2 id={titleId} style={{ margin: 0, fontSize: 14, fontWeight: 400, color: t.text }}>{title}</h2>
+                        {note && <div style={{ fontSize: 11.5, color: t.faint, marginTop: 2 }}>{note}</div>}
                     </div>
                     <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" className="edge-btn" style={{
                         width: 28, height: 28, borderRadius: 6, cursor: 'pointer',
                         background: 'transparent', border: '1px solid transparent',
-                        color: t.faint, fontFamily: MONO, fontSize: 14, lineHeight: 1,
+                        color: t.faint, fontFamily: MONO, fontSize: 15.5, lineHeight: 1,
                     }}>×</button>
                 </header>
                 <div className="edge-scroll" style={{ padding: 15, overflowY: 'auto', flex: 1, minHeight: 0 }}>

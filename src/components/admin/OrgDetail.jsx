@@ -137,7 +137,7 @@ function ProfileTab({ t, data }) {
           <KeyVal label="Org ID" mono>{org.id}</KeyVal>
         </Grid>
         {org.company_description && (
-          <p style={{ margin: '14px 0 0', fontSize: 11, color: t.dim, lineHeight: 1.7 }}>
+          <p style={{ margin: '14px 0 0', fontSize: 12.5, color: t.dim, lineHeight: 1.7 }}>
             {org.company_description}
           </p>
         )}
@@ -188,7 +188,7 @@ function PeopleTab({ t, data, onMailTo }) {
             <Tr key={m.id}>
               <Td>
                 <span style={{ display: 'block' }}>{m.email || m.id.slice(0, 8)}</span>
-                <span style={{ display: 'block', fontSize: 9.5, color: t.ghost, marginTop: 2 }}>
+                <span style={{ display: 'block', fontSize: 11, color: t.ghost, marginTop: 2 }}>
                   {m.name || '—'}{m.isOwner && ' · owner'}
                 </span>
               </Td>
@@ -215,7 +215,7 @@ function PeopleTab({ t, data, onMailTo }) {
               <Tr key={e.id}>
                 <Td>
                   <span style={{ color: e.exited_at ? t.faint : t.text }}>{e.full_name}</span>
-                  <span style={{ display: 'block', fontSize: 9.5, color: t.ghost, marginTop: 2 }}>
+                  <span style={{ display: 'block', fontSize: 11, color: t.ghost, marginTop: 2 }}>
                     {e.email || '—'}
                   </span>
                 </Td>
@@ -283,7 +283,7 @@ function RevenueTab({ t, data }) {
               <Td muted>
                 <span style={{ display: 'block' }}>{d.bill_to_name}</span>
                 {d.bill_to_email && (
-                  <span style={{ display: 'block', fontSize: 9.5, color: t.ghost, marginTop: 2 }}>{d.bill_to_email}</span>
+                  <span style={{ display: 'block', fontSize: 11, color: t.ghost, marginTop: 2 }}>{d.bill_to_email}</span>
                 )}
               </Td>
               <Td>
@@ -465,7 +465,7 @@ function PlanTab({ t, data, toast, deletedAt, onSaved, onLifecycle }) {
       <Panel title="Lifecycle" pad={14}>
         {deletedAt ? (
           <Row gap={12} wrap>
-            <div style={{ flex: 1, minWidth: 220, fontSize: 11, color: t.dim, lineHeight: 1.7 }}>
+            <div style={{ flex: 1, minWidth: 220, fontSize: 12.5, color: t.dim, lineHeight: 1.7 }}>
               Deleted {ago(deletedAt)}. The rows are intact — restoring makes the
               workspace visible to its members again.
             </div>
@@ -475,7 +475,7 @@ function PlanTab({ t, data, toast, deletedAt, onSaved, onLifecycle }) {
           </Row>
         ) : (
           <Row gap={12} wrap>
-            <div style={{ flex: 1, minWidth: 220, fontSize: 11, color: t.dim, lineHeight: 1.7 }}>
+            <div style={{ flex: 1, minWidth: 220, fontSize: 12.5, color: t.dim, lineHeight: 1.7 }}>
               A soft delete. The tenant disappears from every member's app at once,
               and nothing is erased — you can restore it from this same panel.
             </div>

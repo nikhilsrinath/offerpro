@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate, useParams } from 'react-router-dom';
 import {
-  LayoutDashboard, Briefcase, Award, Scale, ShieldCheck,
+  LayoutDashboard, Briefcase, Award, Scale,
   Layers, Archive, Users,
-  UploadCloud, FileCheck, FileSignature, History,
+  FileCheck, LayoutTemplate,
   Activity, Receipt, FilePlus, RotateCcw,
-  GitBranch, UserX, Kanban, Package,
-  Truck, FileInput, TrendingUp, CalendarCheck, Plane, Megaphone,
+  GitBranch, Kanban, Package,
+  Truck, FileInput, TrendingUp, CalendarCheck, Megaphone,
   BrainCircuit, Banknote, FolderKanban, ListChecks, PieChart, Clock, FolderOpen,
   Wallet, BarChart3, UsersRound, FileStack, Gauge
 } from 'lucide-react';
@@ -20,6 +20,8 @@ import LandingPage from './components/LandingPage';
 import CertificateForm from './components/CertificateForm';
 import NdaForm from './components/NdaForm';
 import MoUForm from './components/MoUForm';
+import AgreementForm from './components/agreements/AgreementForm';
+import TemplatesGallery from './components/agreements/TemplatesGallery';
 import InvoiceForm from './components/InvoiceForm';
 import Overview from './components/overview/Overview';
 import FinanceDash from './components/overview/FinanceDash';
@@ -47,7 +49,11 @@ import TeamHierarchy from './components/TeamHierarchy';
 import TasksPage from './components/tasks/TasksPage';
 import ProjectsPage from './components/projects/ProjectsPage';
 import ProjectForm from './components/projects/ProjectForm';
-import ProjectDetail from './components/projects/ProjectDetail';
+import ProjectDetail, { projectSections, activeSection, projectRail } from './components/projects/ProjectDetail';
+import { projectBillingPath } from './components/projects/projectScope';
+import ProjectDashboardPage from './components/projects/ProjectDashboards';
+import { projectDashboardGroup } from './components/projects/projectDashboardNav';
+import { useSection } from './components/financial/financeHooks';
 import Portfolio from './components/projects/Portfolio';
 import Timesheets from './components/projects/Timesheets';
 import AIAssistant from './components/assistant/AIAssistant';
@@ -61,7 +67,7 @@ import BulkOfferLetters from './components/bulk/BulkOfferLetters';
 import BulkCertificates from './components/bulk/BulkCertificates';
 import BulkTeamMembers from './components/bulk/BulkTeamMembers';
 import OfferTracker from './components/OfferTracker';
-import BulkHistory from './components/bulk/BulkHistory';
+import SectionTabs from './components/shell/SectionTabs';
 import RecipientPortal from './components/portal/RecipientPortal';
 import EmployeePortal from './components/portal/EmployeePortal';
 import JoinPortal from './components/portal/JoinPortal';
@@ -94,12 +100,12 @@ const MODULE_FILTER = {
   overall: ['dashboard', 'dashboard/finance', 'dashboard/sales', 'dashboard/team', 'dashboard/projects',
             'dashboard/documents', 'dashboard/usage'],
   brain: ['edgebrain'],
-  team: ['team-hierarchy', 'employees', 'offer-tracker', 'ex-employees', 'bulk-team',
-         'attendance', 'leave', 'announcements'],
+  // Ex-employees and leave are tabs of Employees and Attendance, not rail items.
+  team: ['team-hierarchy', 'employees', 'attendance', 'offer-tracker', 'announcements'],
   // Tasks moved here from Team: work belongs to the thing being delivered.
   // Portfolio (Phase 2) and Timesheets (Phase 3) join the rail when they ship.
   projects: ['projects', 'tasks', 'portfolio', 'timesheets'],
-  documents: ['records', 'library', 'offers', 'new-certificates', 'certificates', 'ndas', 'mous', 'bulk-offers', 'bulk-certificates', 'bulk-history'],
+  documents: ['records', 'library', 'offers', 'new-certificates', 'certificates', 'templates'],
   finance: ['finance-status', 'cashbook', 'invoices', 'quotations', 'proforma', 'recurring', 'vendors', 'purchases', 'tax-summary', 'profit-loss'],
   business: ['crm', 'customers', 'products', 'planner'],
 };
@@ -109,19 +115,28 @@ const MODULE_FILTER = {
 const MODULE_EXTRA_PAGES = {
   finance: ['new-invoice', 'new-quotation', 'new-proforma'],
   projects: ['project-detail', 'new-project'],
+  documents: ['templates/nda', 'templates/mou', 'templates/partnership', 'templates/custom'],
 };
+
+// Inside an open project the rail's top arrow leads back to the project list.
+const PROJECTS_BACK = { to: '/projects', label: 'All projects' };
 
 // Pages whose content manages its own scrolling edge to edge: the org chart's
 // canvas and the form-beside-preview document editors.
 const FLUSH_PAGES = new Set([
-  'team-hierarchy', 'offers', 'new-certificates', 'certificates', 'ndas', 'mous',
+  'team-hierarchy', 'offers', 'new-certificates', 'certificates',
+  'templates/nda', 'templates/mou', 'templates/partnership', 'templates/custom',
   'new-invoice', 'new-quotation', 'new-proforma',
   'edgebrain',
 ]);
 
+// Pages split into tabs by SectionTabs, which owns their scrolling. Matched on
+// the exact path: /employees/new is an ordinary padded page.
+const TABBED_PATHS = new Set(['/offers', '/new-certificates', '/certificates', '/employees', '/attendance']);
+
 const MODULE_META = {
   brain:     { id: 'brain', label: 'EdgeBrain' },
-  team:      { id: 'team', label: 'Team' },
+  team:      { id: 'team', label: 'Company' },
   documents: { id: 'documents', label: 'Documents' },
   finance:   { id: 'finance', label: 'Finance' },
   business:  { id: 'business', label: 'Client Management' },
@@ -141,21 +156,17 @@ const NAV_ITEMS = [
   { section: 'EDGEBRAIN' },
   { id: 'edgebrain', label: 'Company Brain', icon: BrainCircuit },
   { section: 'TEAM' },
-  { id: 'team-hierarchy', label: 'Team Hierarchy', icon: GitBranch },
+  { id: 'team-hierarchy', label: 'Company Hierarchy', icon: GitBranch },
   { id: 'employees', label: 'Employees', icon: Users },
-  { id: 'offer-tracker', label: 'Recruitment Tracker', icon: Activity },
-  { id: 'ex-employees', label: 'Ex-Employees', icon: UserX },
-  { section: 'PEOPLE OPS' },
   { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
-  { id: 'leave', label: 'Leave', icon: Plane },
+  { id: 'offer-tracker', label: 'Recruitment Tracker', icon: Activity },
   { id: 'announcements', label: 'Announcements', icon: Megaphone },
   { section: 'DOCUMENTS' },
   { id: 'records', label: 'Records', icon: Archive },
-  { id: 'library', label: 'General Documents', icon: FolderOpen },
+  { id: 'library', label: 'Document Library', icon: FolderOpen },
   { id: 'offers', label: 'Offer Letters', icon: Briefcase },
   { id: 'new-certificates', label: 'Certificates', icon: Award },
-  { id: 'ndas', label: 'NDA', icon: ShieldCheck },
-  { id: 'mous', label: 'MoU', icon: Scale },
+  { id: 'templates', label: 'Templates', icon: LayoutTemplate },
   { section: 'FINANCE' },
   { id: 'finance-status', label: 'Finance Status', icon: Activity },
   { id: 'cashbook', label: 'Cash Book', icon: Banknote },
@@ -177,11 +188,6 @@ const NAV_ITEMS = [
   { id: 'tasks', label: 'Tasks', icon: ListChecks },
   { id: 'portfolio', label: 'Portfolio', icon: PieChart },
   { id: 'timesheets', label: 'Timesheets', icon: Clock },
-  { section: 'BULK OPERATIONS' },
-  { id: 'bulk-offers', label: 'Bulk Offers', icon: UploadCloud },
-  { id: 'bulk-certificates', label: 'Bulk Certificates', icon: FileCheck },
-  { id: 'bulk-team', label: 'Bulk Team Members', icon: FileSignature },
-  { id: 'bulk-history', label: 'Bulk History', icon: History },
 ];
 
 const PAGE_META = {
@@ -194,11 +200,14 @@ const PAGE_META = {
   'dashboard/documents': { title: 'Documents dashboard', subtitle: 'Everything issued, every reply, and the library EdgeBrain reads' },
   'dashboard/usage': { title: 'Usage', subtitle: 'AI messages and plan limits — how much you have used and what is left' },
   profile: { title: 'Company Profile', subtitle: 'The details every document you issue is signed with' },
-  offers: { title: 'Offer Letters', subtitle: 'Generate employment and internship offers' },
-  'new-certificates': { title: 'Certificates', subtitle: 'Issue professional attainment certificates' },
-  certificates: { title: 'Certificates', subtitle: 'Issue professional attainment certificates' },
-  ndas: { title: 'Non-Disclosure Agreements', subtitle: 'Draft legal-grade confidentiality agreements' },
-  mous: { title: 'Memorandum of Understanding', subtitle: 'Establish collaboration frameworks and partnerships' },
+  offers: { title: 'Offer Letters', subtitle: 'One offer at a time, or a whole batch from a CSV' },
+  'new-certificates': { title: 'Certificates', subtitle: 'Issue one certificate, or a whole batch from a CSV' },
+  certificates: { title: 'Certificates', subtitle: 'Issue one certificate, or a whole batch from a CSV' },
+  templates: { title: 'Templates', subtitle: 'Agreements drafted on your letterhead — pick one to start' },
+  'templates/nda': { title: 'Non-Disclosure Agreements', subtitle: 'Draft legal-grade confidentiality agreements' },
+  'templates/mou': { title: 'Memorandum of Understanding', subtitle: 'Establish collaboration frameworks and partnerships' },
+  'templates/partnership': { title: 'Partnership Agreement', subtitle: 'Contributions, profit sharing and terms between partners' },
+  'templates/custom': { title: 'Custom Template', subtitle: 'Your own title and clauses on the company letterhead' },
   'finance-status': { title: 'Finance Status', subtitle: 'Track all financial documents through their lifecycle' },
   cashbook: { title: 'Cash Book', subtitle: 'Record money in and money out — everything no invoice or vendor bill already covers' },
   invoices: { title: 'Invoices', subtitle: 'View and manage your invoices' },
@@ -218,19 +227,15 @@ const PAGE_META = {
   revenue: { title: 'Billing & Revenue', subtitle: 'Track revenue, expenses, and profitability' },
   planner: { title: 'Product Planner', subtitle: 'Plan and track products and projects' },
   records: { title: 'Records', subtitle: 'Manage and download issued documents' },
-  library: { title: 'General Documents', subtitle: 'Any file the company keeps — read by EdgeBrain so the AI can answer from it' },
+  library: { title: 'Document Library', subtitle: 'General documents, process assets and lessons learned — read by EdgeBrain so the AI can answer from them' },
   employees: { title: 'Employee Registry', subtitle: 'Manage your internal team and onboarding' },
   'ex-employees': { title: 'Ex-Employees', subtitle: 'Archive of employees who have left the organization' },
   me: { title: 'My Portal', subtitle: 'Your attendance, leave and announcements' },
-  attendance: { title: 'Attendance', subtitle: 'Daily sheet, monthly calendar and export' },
+  attendance: { title: 'Attendance', subtitle: 'Daily sheet, monthly calendar, export and leave' },
   leave: { title: 'Leave', subtitle: 'Approve requests, track balances and set quotas' },
   announcements: { title: 'Announcements', subtitle: 'Broadcast to the whole team or one department' },
-  'team-hierarchy': { title: 'Team Hierarchy', subtitle: 'Visual org chart — drag nodes and connect reporting lines' },
+  'team-hierarchy': { title: 'Company Hierarchy', subtitle: 'Visual org chart — drag nodes and connect reporting lines' },
   'offer-tracker': { title: 'Recruitment Tracker', subtitle: 'Real-time acceptance status for all sent offer letters' },
-  'bulk-offers': { title: 'Bulk Offer Letters', subtitle: 'Generate and distribute multiple offer letters at once' },
-  'bulk-certificates': { title: 'Bulk Certificates', subtitle: 'Issue batches of certificates efficiently' },
-  'bulk-team': { title: 'Bulk Team Members', subtitle: 'Import your team registry from a CSV file' },
-  'bulk-history': { title: 'Bulk History', subtitle: 'Track and review past bulk generation jobs' },
   tasks: { title: 'Tasks', subtitle: 'Assign and track work — by project, or General' },
   projects: { title: 'Projects', subtitle: 'What the company is delivering, for whom, and whether it pays' },
   'new-project': { title: 'New project', subtitle: 'Client or internal work, its team, budget and plan' },
@@ -239,9 +244,41 @@ const PAGE_META = {
   timesheets: { title: 'Timesheets', subtitle: 'Hours by person and project — submitted, approved, billed' },
 };
 
+/* One page, several ways of working: the single-document editor, its batch
+   tool. */
+const OffersSection = () => (
+  <SectionTabs label="Offer letters" tabs={[
+    { id: 'single', label: 'Single offer', flush: true, render: () => <OfferForm /> },
+    { id: 'bulk', label: 'Bulk offers', note: 'Generate and send a batch from a CSV', render: () => <BulkOfferLetters /> },
+  ]} />
+);
+
+const CertificatesSection = () => (
+  <SectionTabs label="Certificates" tabs={[
+    { id: 'single', label: 'Single certificate', flush: true, render: () => <CertificateForm /> },
+    { id: 'bulk', label: 'Bulk certificates', note: 'Issue a batch from a CSV', render: () => <BulkCertificates /> },
+  ]} />
+);
+
+const EmployeesSection = () => (
+  <SectionTabs label="Employees" tabs={[
+    { id: 'registry', label: 'Registry', render: () => <Employees /> },
+    { id: 'former', label: 'Ex-Employees', note: 'Everyone who has left the organisation', render: () => <ExEmployees /> },
+    { id: 'bulk', label: 'Bulk import', note: 'Add team members from a CSV', render: () => <BulkTeamMembers /> },
+  ]} />
+);
+
+const AttendanceSection = () => (
+  <SectionTabs label="Attendance" tabs={[
+    { id: 'sheet', label: 'Attendance', render: () => <AttendanceSheet /> },
+    { id: 'leave', label: 'Leave', note: 'Approve requests, track balances and set quotas', render: () => <LeaveRequests /> },
+  ]} />
+);
+
 function AppContent() {
   const location = useLocation();
   const routerNavigate = useNavigate();
+  const allProjects = useSection('projects');
   useTaskDeadlineMonitor();
 
   let activePage = location.pathname.substring(1);
@@ -250,12 +287,8 @@ function AppContent() {
   if (activePage.startsWith('new-quotation/')) {
     editingDocId = activePage.split('/')[1];
     activePage = 'new-quotation';
-  } else if (activePage === 'bulk-offers') activePage = 'bulk-offers';
-  else if (activePage === 'bulk-certificates') activePage = 'bulk-certificates';
-  else if (activePage === 'bulk-team') activePage = 'bulk-team';
-  else if (activePage === 'bulk-history') activePage = 'bulk-history';
-  else if (activePage === 'projects/new') activePage = 'new-project';
-  else if (activePage.startsWith('dashboard/')) activePage = activePage.replace(/\/+$/, '');
+  } else if (activePage === 'projects/new') activePage = 'new-project';
+  else if (activePage.startsWith('dashboard/') || activePage.startsWith('templates/')) activePage = activePage.replace(/\/+$/, '');
   else if (activePage.startsWith('projects/')) activePage = 'project-detail';
   else if (activePage.includes('/')) activePage = activePage.split('/')[0];
 
@@ -393,10 +426,46 @@ function AppContent() {
   // /recurring/edit/:id reduces to 'recurring' above; its form is split too.
   const onProfile = activePage === 'profile';
   const framed = (!!activeModule || onProfile) && activePage !== 'hub';
-  const moduleItems = activeModule
+  // Inside one project the rail is that project's own sections; the heading
+  // is its name and the first item leads back to the list.
+  const openProjectId = activePage === 'project-detail' ? location.pathname.split('/')[2] : null;
+  const openProject = openProjectId && allProjects.find((p) => p.id === openProjectId);
+  let moduleItems = activeModule
     ? NAV_ITEMS.filter((i) => i.id && MODULE_FILTER[activeModule]?.includes(i.id))
     : [];
-  const flush = FLUSH_PAGES.has(activePage) || /^\/recurring\/(new|edit)/.test(location.pathname);
+  let moduleMeta = onProfile ? { label: 'Settings' } : MODULE_META[activeModule];
+  if (activeModule === 'projects' && !openProject) {
+    // The Projects item opens into every live project, in code order
+    // (PRJ-2, PRJ-10 — numeric-aware), so any one is a click from anywhere.
+    const listed = allProjects
+      .filter((p) => !p.archived_at)
+      .sort((a, b) => String(a.code || a.name || '').localeCompare(String(b.code || b.name || ''), undefined, { numeric: true }));
+    moduleItems = moduleItems.map((i) => (i.id !== 'projects' ? i : {
+      ...i,
+      children: listed.map((p) => ({ id: 'project-' + p.id, label: p.name || p.code || 'Untitled', note: p.code, to: `/projects/${p.id}` })),
+    }));
+  }
+  if (openProject) {
+    const sections = projectSections();
+    const current = activeSection(new URLSearchParams(location.search), sections);
+    moduleMeta = { id: 'projects', label: openProject.name || openProject.code || 'Project' };
+    // Dashboard and Finance each fold their pages under one item.
+    moduleItems = projectRail(openProject.id, sections, current).map((i) => (
+      i.id === 'project-dashboard' ? projectDashboardGroup(openProject.id, location.pathname) : i));
+  }
+  // An open project is its own workspace, laid out like the hub: its page
+  // scrolls itself and carries the heading and footer (ProjectDetail).
+  // A document form opened from a project's Billing page (?project=) leads
+  // back to that page.
+  const formProjectId = /^\/(new-(invoice|quotation|proforma)|recurring\/(new|edit))/.test(location.pathname)
+    ? new URLSearchParams(location.search).get('project') : null;
+  const formProject = formProjectId && allProjects.find((p) => p.id === formProjectId);
+  const formKind = (location.pathname.match(/^\/new-(invoice|quotation|proforma)/) || [])[1] || 'recurring';
+  const back = openProject ? PROJECTS_BACK
+    : formProject ? { to: projectBillingPath(formProject.id, formKind), label: formProject.name || 'Project' }
+      : undefined;
+  const flush = FLUSH_PAGES.has(activePage) || TABBED_PATHS.has(location.pathname)
+    || /^\/recurring\/(new|edit)/.test(location.pathname) || !!openProject;
 
   // Until the first build completes, or when there is no active org. Shaped
   // identically so the assistant never reads undefined.
@@ -417,11 +486,13 @@ function AppContent() {
           <ShellFrame
             on={framed}
             theme={theme} user={user}
-            module={onProfile ? { label: 'Settings' } : MODULE_META[activeModule]}
+            module={moduleMeta}
             items={moduleItems}
             title={meta.title} subtitle={meta.subtitle}
             flush={flush}
             railSlot={onProfile}
+            workspace={!!openProject}
+            back={back}
             onToggleTheme={toggleTheme} onLogout={logout}
           >
           <Routes>
@@ -436,11 +507,17 @@ function AppContent() {
             <Route path="dashboard/usage" element={<UsageDash />} />
             <Route path="edgebrain" element={<EdgeBrain />} />
             <Route path="profile" element={<CompanyProfile />} />
-            <Route path="offers" element={<OfferForm />} />
-            <Route path="new-certificates" element={<CertificateForm />} />
-            <Route path="certificates" element={<CertificateForm />} />
-            <Route path="ndas" element={<NdaForm />} />
-            <Route path="mous" element={<MoUForm />} />
+            <Route path="offers" element={<OffersSection />} />
+            <Route path="new-certificates" element={<CertificatesSection />} />
+            <Route path="certificates" element={<CertificatesSection />} />
+            <Route path="templates" element={<TemplatesGallery />} />
+            <Route path="templates/nda" element={<NdaForm />} />
+            <Route path="templates/mou" element={<MoUForm />} />
+            <Route path="templates/partnership" element={<AgreementForm key="partnership" kind="partnership" />} />
+            <Route path="templates/custom" element={<AgreementForm key="custom" kind="custom" />} />
+            {/* The agreements moved under Templates; old links still land. */}
+            <Route path="ndas" element={<Navigate to="/templates/nda" replace />} />
+            <Route path="mous" element={<Navigate to="/templates/mou" replace />} />
             <Route path="finance-status" element={<FinanceStatus />} />
             <Route path="cashbook" element={<CashBook />} />
             <Route path="invoices" element={<InvoiceList type="invoice" />} />
@@ -464,12 +541,12 @@ function AppContent() {
             <Route path="planner" element={<ProductPlanner />} />
             <Route path="records" element={<InternRecords />} />
             <Route path="library" element={<DocumentLibrary />} />
-            <Route path="employees" element={<Employees />} />
+            <Route path="employees" element={<EmployeesSection />} />
             <Route path="employees/new" element={<EmployeeForm />} />
-            <Route path="ex-employees" element={<ExEmployees />} />
+            <Route path="ex-employees" element={<Navigate to="/employees?mode=former" replace />} />
             <Route path="me" element={<EmployeePortal />} />
-            <Route path="attendance" element={<AttendanceSheet />} />
-            <Route path="leave" element={<LeaveRequests />} />
+            <Route path="attendance" element={<AttendanceSection />} />
+            <Route path="leave" element={<Navigate to="/attendance?mode=leave" replace />} />
             <Route path="announcements" element={<Announcements />} />
             <Route path="team-hierarchy" element={<TeamHierarchy />} />
             <Route path="offer-tracker" element={<OfferTracker onNavigate={routerNavigate} />} />
@@ -477,12 +554,15 @@ function AppContent() {
             <Route path="projects" element={<ProjectsPage />} />
             <Route path="projects/new" element={<ProjectForm />} />
             <Route path="projects/:projectId" element={<ProjectDetail />} />
+            <Route path="projects/:projectId/dashboard" element={<ProjectDashboardPage />} />
+            <Route path="projects/:projectId/dashboard/:view" element={<ProjectDashboardPage />} />
             <Route path="portfolio" element={<Portfolio />} />
             <Route path="timesheets" element={<Timesheets />} />
-            <Route path="bulk-offers" element={<BulkOfferLetters />} />
-            <Route path="bulk-certificates" element={<BulkCertificates />} />
-            <Route path="bulk-team" element={<BulkTeamMembers />} />
-            <Route path="bulk-history" element={<BulkHistory />} />
+            {/* The bulk tools now live inside the page they batch. */}
+            <Route path="bulk-offers" element={<Navigate to="/offers?mode=bulk" replace />} />
+            <Route path="bulk-certificates" element={<Navigate to="/new-certificates?mode=bulk" replace />} />
+            <Route path="bulk-team" element={<Navigate to="/employees?mode=bulk" replace />} />
+            <Route path="bulk-history" element={<Navigate to="/records" replace />} />
             <Route path="*" element={<Navigate to="/hub" replace />} />
           </Routes>
           </ShellFrame>
@@ -524,8 +604,8 @@ function RecurringInvoiceFormWrapper() {
     setLoading(false);
   }, [id]);
 
-  if (loading) return <div role="status" style={{ padding: 24, fontSize: 11.5 }}>Loading…</div>;
-  if (!item) return <div role="alert" style={{ padding: 24, fontSize: 11.5 }}>Recurring invoice not found.</div>;
+  if (loading) return <div role="status" style={{ padding: 24, fontSize: 13 }}>Loading…</div>;
+  if (!item) return <div role="alert" style={{ padding: 24, fontSize: 13 }}>Recurring invoice not found.</div>;
   return <RecurringInvoiceForm editItem={item} />;
 }
 

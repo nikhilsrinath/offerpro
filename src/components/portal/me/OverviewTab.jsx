@@ -54,9 +54,9 @@ export default function OverviewTab({
           <div style={{ display: 'flex', gap: 14, alignItems: 'center', minWidth: 0 }}>
             <PhotoAvatar name={me.full_name} path={me.photo_path} size={58} />
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 10.5, color: t.faint }}>{greeting()},</div>
+              <div style={{ fontSize: 12, color: t.faint }}>{greeting()},</div>
               <div style={{ fontSize: 21, fontWeight: 500, letterSpacing: '-0.03em', color: t.text, marginTop: 2 }}>{firstName || me.full_name}</div>
-              <div style={{ fontSize: 10.5, color: t.dim, marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: t.dim, marginTop: 4 }}>
                 {[me.role, me.department_name].filter(Boolean).join(' · ') || 'Team member'}
                 {me.manager && <span style={{ color: t.faint }}> · reports to {me.manager.full_name}</span>}
               </div>
@@ -76,8 +76,8 @@ export default function OverviewTab({
             }}>
               <UserRound size={15} style={{ color: t.dim, flexShrink: 0 }} />
               <div style={{ flex: '1 1 180px', minWidth: 0 }}>
-                <div style={{ fontSize: 11, color: t.text }}>Your profile is {profile.done} of {profile.total} complete</div>
-                <div style={{ fontSize: 9.5, color: t.faint, margin: '3px 0 6px' }}>Missing: {profile.missing.join(', ')}</div>
+                <div style={{ fontSize: 12.5, color: t.text }}>Your profile is {profile.done} of {profile.total} complete</div>
+                <div style={{ fontSize: 11, color: t.faint, margin: '3px 0 6px' }}>Missing: {profile.missing.join(', ')}</div>
                 <Bar value={profile.done} max={profile.total} />
               </div>
               <Btn size="sm" onClick={() => go('profile')}>Complete profile <ArrowRight size={12} /></Btn>
@@ -139,16 +139,16 @@ export default function OverviewTab({
               return (
                 <div key={b.leave_type_id}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 5 }}>
-                    <span style={{ flex: 1, fontSize: 11.5, color: t.text }}>{b.leave_type_name}</span>
-                    <span style={{ fontSize: 13, color: t.text }}>{Number(b.remaining)}</span>
-                    <span style={{ fontSize: 9.5, color: t.faint }}>left of {total}</span>
+                    <span style={{ flex: 1, fontSize: 13, color: t.text }}>{b.leave_type_name}</span>
+                    <span style={{ fontSize: 14.5, color: t.text }}>{Number(b.remaining)}</span>
+                    <span style={{ fontSize: 11, color: t.faint }}>left of {total}</span>
                   </div>
                   <Bar value={Number(b.taken)} max={total || 1} />
                 </div>
               );
             }) : <Empty>No leave types configured yet.</Empty>}
             {pending.length > 0 && (
-              <div style={{ fontSize: 10, color: t.dim, borderTop: '1px solid ' + t.lineSoft, paddingTop: 10 }}>
+              <div style={{ fontSize: 11.5, color: t.dim, borderTop: '1px solid ' + t.lineSoft, paddingTop: 10 }}>
                 {pending.length} request{pending.length === 1 ? '' : 's'} waiting for a decision
               </div>
             )}
@@ -195,8 +195,8 @@ function QuickAction({ icon: Icon, label, note, onClick, dot }) {
         background: t.panelAlt, border: '1px solid ' + t.lineSoft, color: t.dim,
       }}><Icon size={15} strokeWidth={1.8} /></span>
       <span style={{ minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 11.5 }}>{label}</span>
-        <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{note}</span>
+        <span style={{ display: 'block', fontSize: 13 }}>{label}</span>
+        <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{note}</span>
       </span>
       {dot && <span style={{ position: 'absolute', top: 8, right: 8, width: 6, height: 6, borderRadius: '50%', background: t.down }} />}
     </button>
@@ -213,8 +213,8 @@ function FeedRow({ title, meta, dot, icon, onClick }) {
     }}>
       <span style={{ width: 5, height: 5, borderRadius: '50%', background: dot || 'transparent', flexShrink: 0 }} />
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{icon}{title}</span>
-        <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 2 }}>{meta}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{icon}{title}</span>
+        <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 2 }}>{meta}</span>
       </span>
     </button>
   );

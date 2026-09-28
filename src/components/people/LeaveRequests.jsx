@@ -132,7 +132,7 @@ export default function LeaveRequests() {
             <Avatar name={nameOf(r.employee_id)} size={26} />
             <span style={{ minWidth: 0 }}>
                 <span style={{ display: 'block' }}>{nameOf(r.employee_id)}</span>
-                <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 1 }}>
+                <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>
                     {byId[r.employee_id]?.role || '—'}
                 </span>
             </span>
@@ -143,7 +143,7 @@ export default function LeaveRequests() {
         const ty = typeById[r.leave_type_id];
         return ty
             ? <Row gap={7}><span style={{ width: 5, height: 5, borderRadius: '50%', background: ty.color, flexShrink: 0 }} />
-                <span style={{ color: t.dim, fontSize: 11 }}>{ty.name}</span></Row>
+                <span style={{ color: t.dim, fontSize: 12.5 }}>{ty.name}</span></Row>
             : <span style={{ color: t.ghost }}>Leave</span>;
     };
 
@@ -221,7 +221,7 @@ export default function LeaveRequests() {
                                         {LEAVE_STATUSES[r.status]?.label || r.status}
                                     </Status>
                                     {r.decision_comment && (
-                                        <div style={{ fontSize: 9.5, color: t.faint, marginTop: 3, lineHeight: 1.6 }}>
+                                        <div style={{ fontSize: 11, color: t.faint, marginTop: 3, lineHeight: 1.6 }}>
                                             “{r.decision_comment}”
                                         </div>
                                     )}
@@ -249,11 +249,11 @@ export default function LeaveRequests() {
                                         <Row gap={8}>
                                             <span style={{ width: 6, height: 6, borderRadius: '50%', background: ty.color, flexShrink: 0 }} />
                                             <span>{ty.name}</span>
-                                            {ty.code && <span style={{ fontSize: 9.5, color: t.ghost }}>{ty.code}</span>}
+                                            {ty.code && <span style={{ fontSize: 11, color: t.ghost }}>{ty.code}</span>}
                                         </Row>
                                     </Td>
                                     <Td>
-                                        <div style={{ fontSize: 10.5, color: t.dim, marginBottom: 5 }}>
+                                        <div style={{ fontSize: 12, color: t.dim, marginBottom: 5 }}>
                                             {taken} of {quota || '∞'} day{quota === 1 ? '' : 's'}
                                         </div>
                                         {quota > 0 && <Bar value={taken} max={quota} tone={taken > quota ? t.down : undefined} />}
@@ -270,7 +270,7 @@ export default function LeaveRequests() {
                             );
                         })}
                     </Table>
-                    <p style={{ margin: '10px 2px 0', fontSize: 10, color: t.faint, lineHeight: 1.7 }}>
+                    <p style={{ margin: '10px 2px 0', fontSize: 11.5, color: t.faint, lineHeight: 1.7 }}>
                         {/* on delete restrict on leave_requests.leave_type_id — a type that has
                             been used cannot be deleted without erasing the leave taken under it. */}
                         Retiring a type hides it from new applications and keeps the history intact.
@@ -292,7 +292,7 @@ export default function LeaveRequests() {
                         </>
                     }>
                     {deciding.request.reason && (
-                        <p style={{ margin: '0 0 13px', fontSize: 11, color: t.dim, lineHeight: 1.7 }}>
+                        <p style={{ margin: '0 0 13px', fontSize: 12.5, color: t.dim, lineHeight: 1.7 }}>
                             They wrote: “{deciding.request.reason}”
                         </p>
                     )}

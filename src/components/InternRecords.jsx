@@ -11,6 +11,7 @@ const TYPE_CONFIG = {
   certificate: { icon: Award, color: '#f59e0b', bg: '#f59e0b12', bgSolid: 'rgba(245,158,11,0.08)', label: 'Certificate' },
   nda: { icon: FileCode, color: '#10b981', bg: '#10b98112', bgSolid: 'rgba(16,185,129,0.08)', label: 'NDA' },
   mou: { icon: FileCode, color: '#14b8a6', bg: '#14b8a612', bgSolid: 'rgba(20,184,166,0.08)', label: 'MoU' },
+  agreement: { icon: FileCode, color: '#0ea5e9', bg: '#0ea5e912', bgSolid: 'rgba(14,165,233,0.08)', label: 'Agreement' },
   invoice: { icon: FileText, color: '#8b5cf6', bg: '#8b5cf612', bgSolid: 'rgba(139,92,246,0.08)', label: 'Invoice' }
 };
 
@@ -20,6 +21,7 @@ const TABS = [
   { id: 'certificate', label: 'Certificates' },
   { id: 'nda', label: 'NDAs' },
   { id: 'mou', label: 'MoUs' },
+  { id: 'agreement', label: 'Templates' },
   { id: 'invoice', label: 'Invoices' },
 ];
 
@@ -64,6 +66,7 @@ export default function InternRecords() {
     else if (record.type === 'certificate') pdfService.generateCertificate(record.data);
     else if (record.type === 'nda') await pdfService.generateNda(record.data);
     else if (record.type === 'mou') await pdfService.generateMoU(record.data);
+    else if (record.type === 'agreement') await pdfService.generateAgreement(record.data);
     else if (record.type === 'invoice') pdfService.generateInvoice(record.data);
   };
 
@@ -94,6 +97,7 @@ export default function InternRecords() {
     certificate: records.filter(r => r.type === 'certificate').length,
     nda: records.filter(r => r.type === 'nda').length,
     mou: records.filter(r => r.type === 'mou').length,
+    agreement: records.filter(r => r.type === 'agreement').length,
     invoice: records.filter(r => r.type === 'invoice').length,
   }), [records]);
 
@@ -123,7 +127,7 @@ export default function InternRecords() {
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '8rem 2rem' }}>
         <div style={{ textAlign: 'center' }}>
           <div className="pro-spinner" />
-          <p style={{ color: 'var(--text-muted)', marginTop: '1rem', fontSize: '0.875rem' }}>Loading records...</p>
+          <p style={{ color: 'var(--text-muted)', marginTop: '1rem', fontSize: '15.5px' }}>Loading records...</p>
         </div>
       </div>
     );
@@ -181,7 +185,7 @@ export default function InternRecords() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pro-input"
-              style={{ paddingLeft: '2rem', height: '36px', fontSize: '0.8125rem' }}
+              style={{ paddingLeft: '2rem', height: '36px', fontSize: '14.5px' }}
             />
           </div>
           <select
@@ -195,7 +199,7 @@ export default function InternRecords() {
               border: '1px solid var(--border-default)',
               background: 'var(--background)',
               color: 'var(--text-secondary)',
-              fontSize: '0.8rem', cursor: 'pointer', outline: 'none', flexShrink: 0,
+              fontSize: '14.3px', cursor: 'pointer', outline: 'none', flexShrink: 0,
             }}
           >
             <option value="date_desc">Newest first</option>
@@ -261,6 +265,9 @@ export default function InternRecords() {
                   {record.type === 'mou' && (
                     <span>{record.data?.secondPartyName ? `with ${record.data.secondPartyName}` : 'MoU Agreement'}</span>
                   )}
+                  {record.type === 'agreement' && (
+                    <span>{record.data?.title || 'Agreement'}</span>
+                  )}
                   {record.type === 'invoice' && (
                     <span>₹{record.data?.totals?.grandTotal?.toLocaleString() || '0'}{record.data?.invoiceNumber ? ` · ${record.data.invoiceNumber}` : ''}</span>
                   )}
@@ -322,37 +329,39 @@ export default function InternRecords() {
                           <Icon size={16} />
                         </div>
                         <div>
-                          <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{record.title}</div>
-                          <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
+                          <div style={{ fontWeight: 700, fontSize: '15.5px' }}>{record.title}</div>
+                          <div style={{ fontSize: '12.5px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
                             {cfg.label}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td style={{ padding: '1rem' }}>
-                      <div style={{ fontWeight: 500, fontSize: '0.8125rem' }}>
+                      <div style={{ fontWeight: 500, fontSize: '14.5px' }}>
                         {record.type === 'offer' ? record.data?.role
                           : record.type === 'certificate' ? record.data?.achievementTitle
                           : record.type === 'nda' ? 'NDA Agreement'
                           : record.type === 'mou' ? 'MoU Agreement'
+                          : record.type === 'agreement' ? (record.data?.title || 'Agreement')
                           : `₹${record.data?.totals?.grandTotal?.toLocaleString()}`}
                       </div>
-                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                      <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
                         {record.type === 'offer' ? record.data?.department
                           : record.type === 'certificate' ? record.data?.issuingOrganization
                           : record.type === 'nda' ? (record.data?.arbitrationCity ? `${record.data.arbitrationCity}, ${record.data.arbitrationState}` : '')
                           : record.type === 'mou' ? (record.data?.arbitrationCity || '')
+                          : record.type === 'agreement' ? (record.data?.templateKind === 'partnership' ? 'Partnership' : 'Custom template')
                           : `Due: ${record.data?.dueDate}`}
                       </div>
                     </td>
                     <td style={{ padding: '1rem' }}>
-                      <div style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>
+                      <div style={{ fontSize: '14.5px', color: 'var(--text-tertiary)' }}>
                         {new Date(record.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </div>
                     </td>
                     <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                        <button onClick={() => handleDownloadPDF(record)} className="btn btn-outline" style={{ padding: '0.375rem 0.75rem', height: '30px', fontSize: '0.75rem' }} title="Download PDF">
+                        <button onClick={() => handleDownloadPDF(record)} className="btn btn-outline" style={{ padding: '0.375rem 0.75rem', height: '30px', fontSize: '13.5px' }} title="Download PDF">
                           <Download size={13} /> PDF
                         </button>
                         {record.type === 'offer' && record.data?.email && (
@@ -361,7 +370,7 @@ export default function InternRecords() {
                             className={`records-action-btn notify compact ${emailStatus?.id === record.id ? (emailStatus.success ? 'sent' : 'failed') : ''}`}
                             title={`Send offer to ${record.data.email}`}
                             disabled={sendingEmail === record.id}
-                            style={{ padding: '0.375rem 0.625rem', height: '30px', fontSize: '0.75rem' }}
+                            style={{ padding: '0.375rem 0.625rem', height: '30px', fontSize: '13.5px' }}
                           >
                             {sendingEmail === record.id ? <Loader size={12} className="spin-icon" />
                               : emailStatus?.id === record.id && emailStatus.success ? <CheckCircle size={12} />
@@ -398,10 +407,10 @@ export default function InternRecords() {
                       <Icon size={18} />
                     </div>
                     <div style={{ minWidth: 0 }}>
-                      <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <h4 style={{ fontSize: '16.5px', fontWeight: 700, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {record.title}
                       </h4>
-                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      <div style={{ fontSize: '12.5px', color: 'var(--text-muted)', fontWeight: 600 }}>
                         {cfg.label} · {new Date(record.created_at).toLocaleDateString()}
                       </div>
                     </div>
@@ -435,7 +444,7 @@ export default function InternRecords() {
 
       {/* Footer count */}
       {filteredRecords.length > 0 && (
-        <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+        <div style={{ textAlign: 'center', fontSize: '13.5px', color: 'var(--text-muted)', fontWeight: 500 }}>
           Showing {filteredRecords.length} of {records.length} record{records.length !== 1 ? 's' : ''}
         </div>
       )}

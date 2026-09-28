@@ -93,7 +93,7 @@ export default function ProjectOverview({ project, onTab }) {
                                 return (
                                     <div key={m.id}>
                                         <Row gap={8}>
-                                            <span style={{ flex: 1, fontSize: 11.5 }}>{m.title}</span>
+                                            <span style={{ flex: 1, fontSize: 13 }}>{m.title}</span>
                                             <Status tone={late ? 'down' : 'mute'}>{m.due_date ? fmtDate(m.due_date) : 'No date'}</Status>
                                         </Row>
                                         <Muted>{Math.round(milestoneProgress(m, projectTasks) * 100)}% done</Muted>
@@ -110,8 +110,8 @@ export default function ProjectOverview({ project, onTab }) {
                             {team.map((m) => (
                                 <Row key={m.id} gap={9}>
                                     <Avatar name={empName(m.employee_id)} size={22} />
-                                    <span style={{ flex: 1, fontSize: 11.5, minWidth: 0 }}>{empName(m.employee_id)}
-                                        <span style={{ color: t.faint, fontSize: 10 }}> · {m.role}</span></span>
+                                    <span style={{ flex: 1, fontSize: 13, minWidth: 0 }}>{empName(m.employee_id)}
+                                        <span style={{ color: t.faint, fontSize: 11.5 }}> · {m.role}</span></span>
                                     <AllocationBar pct={m.allocation_pct} width={60} />
                                 </Row>
                             ))}
@@ -123,9 +123,9 @@ export default function ProjectOverview({ project, onTab }) {
                     {recent.length === 0 ? <EmptyNote>Nothing yet.</EmptyNote> : (
                         <div style={{ display: 'grid', gap: 8 }}>
                             {recent.map((a) => (
-                                <div key={a.id} style={{ fontSize: 11, color: t.dim, lineHeight: 1.5 }}>
+                                <div key={a.id} style={{ fontSize: 12.5, color: t.dim, lineHeight: 1.5 }}>
                                     {describeActivity(a)}
-                                    <span style={{ display: 'block', fontSize: 9.5, color: t.ghost }}>{new Date(a.created_at).toLocaleString('en-IN')}</span>
+                                    <span style={{ display: 'block', fontSize: 11, color: t.ghost }}>{new Date(a.created_at).toLocaleString('en-IN')}</span>
                                 </div>
                             ))}
                         </div>

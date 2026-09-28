@@ -11,6 +11,7 @@ import { productToLineItem } from '../../services/catalogService';
 import CountrySelect from '../shared/CountrySelect';
 import { useToast } from '../shared/Toast';
 import A4Stage from '../shared/A4Stage';
+import { useFormProject, projectStartLines, linkToProject, projectFormNote } from '../projects/projectScope';
 
 const GST_RATES = [0, 5, 12, 18, 28];
 const ADVANCE_PRESETS = [25, 50, 75, 100];
@@ -21,6 +22,10 @@ export default function ProformaInvoiceForm() {
   const toast = useToast();
   const { activeOrg } = useOrg();
   const savedClients = documentStore.getSavedClients();
+  // Opened from a project's Billing page (?project=): the proforma starts on
+  // the project's client and its latest quotation, is linked to the project
+  // when saved, and every way out returns there.
+  const fromProject = useFormProject('proforma', '/proforma');
 
   // Build company info from activeOrg (dynamic, not stale localStorage)
   const company = {
@@ -119,6 +124,30 @@ export default function ProformaInvoiceForm() {
       clientEmail: client.email || '',
     }));
   };
+
+  // A new proforma for a project: its client, and the lines of its latest
+  // live quotation (or the contract), each filled once.
+  const prefilled = useRef({ client: false, lines: false });
+  useEffect(() => {
+    if (!fromProject.project) return;
+    if (fromProject.client && !prefilled.current.client) {
+      prefilled.current.client = true;
+      handleSelectClient(fromProject.client);
+    }
+    if (!prefilled.current.lines) {
+      prefilled.current.lines = true;
+      const lines = projectStartLines(fromProject.project, 'proforma') || [];
+      if (lines.length) {
+        setFormData((prev) => ({
+          ...prev,
+          items: lines.map((l, i) => ({
+            id: Date.now() + i, description: l.description, hsnSac: l.hsn || '', quantity: l.quantity,
+            unit: l.unit || 'Nos', rate: l.rate, gstRate: 18, catalog_item_id: l.catalog_item_id || null,
+          })),
+        }));
+      }
+    }
+  }, [fromProject.project, fromProject.client]);
 
   const handleClientSearchChange = (value) => {
     setClientSearch(value);
@@ -300,10 +329,15 @@ export default function ProformaInvoiceForm() {
   };
 
   const handleSaveDraft = async () => {
-    const customerId = await syncCustomer();
-    await documentStore.save(buildDocument('draft', customerId));
-    toast('Proforma invoice saved as draft', 'success');
-    navigate('/proforma');
+    try {
+      const customerId = await syncCustomer();
+      const saved = await documentStore.save(buildDocument('draft', customerId));
+      const linkError = await linkToProject(fromProject.projectId, saved?.id);
+      toast(linkError ? `Proforma saved as draft, but ${linkError}` : 'Proforma invoice saved as draft', linkError ? 'error' : 'success');
+      navigate(fromProject.returnTo);
+    } catch (err) {
+      toast(err.message || 'Could not save the proforma', 'error');
+    }
   };
 
   const handleSendToClient = async () => {
@@ -313,8 +347,16 @@ export default function ProformaInvoiceForm() {
     }
     // The row id and the document number are assigned by the database, so the
     // save has to complete before there is anything to link to.
-    const customerId = await syncCustomer();
-    const doc = await documentStore.save(buildDocument('sent', customerId));
+    let doc;
+    try {
+      const customerId = await syncCustomer();
+      doc = await documentStore.save(buildDocument('sent', customerId));
+    } catch (err) {
+      toast(err.message || 'Could not send the proforma', 'error');
+      return;
+    }
+    const linkError = await linkToProject(fromProject.projectId, doc?.id);
+    if (linkError) toast(`Proforma saved, but ${linkError}`, 'error');
     documentStore.addNotification({
       type: 'proforma_sent',
       title: 'Proforma Invoice Sent',
@@ -344,7 +386,7 @@ export default function ProformaInvoiceForm() {
     setPortalLink(issued);
     setShowPortalLink(true);
     toast('Proforma sent — WhatsApp opened', 'success');
-    setTimeout(() => navigate('/proforma'), 2000);
+    setTimeout(() => navigate(fromProject.returnTo), 2000);
   };
 
   return (
@@ -356,7 +398,7 @@ export default function ProformaInvoiceForm() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
             <button
               type="button"
-              onClick={() => navigate('/proforma')}
+              onClick={() => navigate(fromProject.returnTo)}
               style={{
                 background: 'none', border: '1px solid var(--border-default)', borderRadius: '8px',
                 padding: '0.5rem 0.75rem', cursor: 'pointer', color: 'var(--text-secondary)',
@@ -367,6 +409,9 @@ export default function ProformaInvoiceForm() {
             </button>
             <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>New Proforma Invoice</h2>
           </div>
+          {fromProject.project && (
+            <p style={{ margin: '-0.5rem 0 1.25rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{projectFormNote(fromProject.project)}</p>
+          )}
 
           {/* 1. Client Details */}
           <div className="easy-section">

@@ -162,6 +162,11 @@ begin
     insert into timesheet_entries (org_id, employee_id, project_id, work_date, minutes)
       values (o, e, pj, current_date, 60);
 
+    -- Work breakdown and PDM links (0072): two tasks of the project, linked.
+    with w as (insert into tasks (org_id, title, project_id) values (o, 'WBS A ' || s, pj), (o, 'WBS B ' || s, pj) returning id)
+    insert into task_dependencies (org_id, predecessor_id, successor_id)
+      select o, min(id::text)::uuid, max(id::text)::uuid from w;
+
     -- AI call log (0067), written by the API.
     insert into ai_usage_events (org_id, surface) values (o, 'copilot');
 
@@ -276,6 +281,7 @@ select c.table_name as tbl,
                   where key = case c.table_name
                                 when 'project_code_counters' then 'projects'
                                 when 'timesheet_entries' then 'timesheets'
+                                when 'task_dependencies' then 'tasks'
                                 when 'library_chunks'  then 'library_documents'
                                 when 'ai_usage_events' then 'usage_counters'
                                 when 'document_negotiation_events' then 'document_negotiation'

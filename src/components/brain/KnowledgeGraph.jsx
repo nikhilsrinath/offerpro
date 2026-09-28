@@ -834,8 +834,8 @@ const KnowledgeGraph = forwardRef(function KnowledgeGraph({
                     background: t.panel, border: `1px solid ${t.lineStrong}`,
                     borderRadius: 8, padding: '7px 10px', boxShadow: t.shadow, fontFamily: MONO,
                 }}>
-                    <div style={{ fontSize: 11.5, color: t.text, marginBottom: 2 }}>{hover.label}</div>
-                    <div style={{ fontSize: 9.5, color: t.faint }}>
+                    <div style={{ fontSize: 13, color: t.text, marginBottom: 2 }}>{hover.label}</div>
+                    <div style={{ fontSize: 11, color: t.faint }}>
                         {kindLabel(hover.kind)}{hover.state ? ` · ${hover.state}` : ''} · {hover.deg} link(s)
                     </div>
                 </div>
@@ -861,6 +861,6 @@ function ctlBtn(t) {
     return {
         height: 25, padding: '0 9px', borderRadius: 6, cursor: 'pointer',
         border: `1px solid ${t.line}`, background: t.panel, color: t.dim,
-        fontFamily: MONO, fontSize: 10.5,
+        fontFamily: MONO, fontSize: 12,
     };
 }

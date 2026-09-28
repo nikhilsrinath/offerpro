@@ -100,14 +100,14 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
                 spark={k.net.spark} onClick={() => open({ kind: 'metric', id: 'net' })} />
             <Tile icon={Hourglass} label="Receivables" value={fmtShort(k.outstanding.value)} exact={fmtInr(k.outstanding.value)}
                 delta={k.outstanding.overdue > 0
-                    ? <span style={{ fontSize: 10.5, fontWeight: 600, color: t.down }}>{fmtShort(k.outstanding.overdue)} late</span>
-                    : <span style={{ fontSize: 10.5, color: t.faint }}>none late</span>}
+                    ? <span style={{ fontSize: 12, fontWeight: 600, color: t.down }}>{fmtShort(k.outstanding.overdue)} late</span>
+                    : <span style={{ fontSize: 12, color: t.faint }}>none late</span>}
                 foot="owed to you · today" spark={k.outstanding.spark} sparkBars color={ramp[3]}
                 onClick={() => open({ kind: 'metric', id: 'outstanding' })} />
             <Tile icon={Truck} label="Payables" value={fmtShort(payables.total)} exact={fmtInr(payables.total)}
                 delta={payables.overdue > 0
-                    ? <span style={{ fontSize: 10.5, fontWeight: 600, color: t.down }}>{fmtShort(payables.overdue)} late</span>
-                    : <span style={{ fontSize: 10.5, color: t.faint }}>none late</span>}
+                    ? <span style={{ fontSize: 12, fontWeight: 600, color: t.down }}>{fmtShort(payables.overdue)} late</span>
+                    : <span style={{ fontSize: 12, color: t.faint }}>none late</span>}
                 foot={`you owe ${payables.rows.length} vendor${payables.rows.length === 1 ? '' : 's'} · today`}
                 onClick={() => navigate('/purchases')} />
             <Tile icon={Landmark} label="Net cash" value={fmtShort(cash.net)} exact={fmtInr(cash.net)} tone={cash.net < 0 ? 'down' : null}
@@ -139,7 +139,7 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
                     <div style={{ flex: 1, minWidth: 130, display: 'grid', gap: 10 }}>
                         <Figure big label="outstanding" value={fmtShort(k.outstanding.value)} />
                         <Figure big label="overdue" value={fmtShort(k.outstanding.overdue)} tone={k.outstanding.overdue > 0 ? 'down' : null} />
-                        <div style={{ fontSize: 10, color: t.faint, lineHeight: 1.5 }}>Gauge: share of this period’s invoicing already paid.</div>
+                        <div style={{ fontSize: 11.5, color: t.faint, lineHeight: 1.5 }}>Gauge: share of this period’s invoicing already paid.</div>
                     </div>
                 </div>
                 <SplitBar format={fmtShort} unit="Balance" parts={model.aging.map((a, i) => ({ id: a.id, label: a.label, value: a.amount, color: ramp[i], note: `${a.count}` }))}
@@ -185,9 +185,9 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
                     <Figure big label="paid out" value={fmtShort(cash.paidOut)} />
                     <Figure big label="net" value={fmtShort(cash.net)} tone={cash.net < 0 ? 'down' : 'up'} />
                 </div>
-                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: t.faint, marginBottom: 4 }}>MONEY IN</div>
+                <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, marginBottom: 4 }}>MONEY IN</div>
                 <RankBars rows={inRows} format={fmtShort} color={cat[2]} max={4} empty="Nothing received yet" />
-                <div style={{ fontSize: 9, letterSpacing: '0.1em', color: t.faint, margin: '10px 0 4px' }}>MONEY OUT</div>
+                <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, margin: '10px 0 4px' }}>MONEY OUT</div>
                 <RankBars rows={outRows} format={fmtShort} color={cat[1]} max={2} empty="Nothing paid out yet" />
             </Card>
 
@@ -204,7 +204,7 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
             </Card>
         </CardGrid>
 
-        <div style={{ fontSize: 10, color: t.faint, marginTop: 16, lineHeight: 1.6 }}>
+        <div style={{ fontSize: 11.5, color: t.faint, marginTop: 16, lineHeight: 1.6 }}>
             Profit is taxable income less expenses and purchase bills, net of GST. Receivables, payables and cash position are as of today and do not follow the period.
         </div>
     </>);

@@ -98,19 +98,19 @@ function EmployeeNode({ data, selected }) {
                 width: 28, height: 28, borderRadius: 6,
                 background: t.panelAlt, border: '1px solid ' + t.line,
                 display: 'grid', placeItems: 'center',
-                fontSize: 10, fontWeight: 600, color: t.dim,
+                fontSize: 11.5, fontWeight: 600, color: t.dim,
               }}>
                 {initials(data.name)}
                 <EmployeePhotoFill photoPath={data.photo_path} />
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{
-                  fontSize: 12, fontWeight: 500, color: t.text, letterSpacing: '-0.01em',
+                  fontSize: 13.5, fontWeight: 500, color: t.text, letterSpacing: '-0.01em',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>{data.name}</div>
                 {data.role && (
                   <div style={{
-                    fontSize: 9.5, color: t.faint, marginTop: 2,
+                    fontSize: 11, color: t.faint, marginTop: 2,
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   }}>{data.role}</div>
                 )}
@@ -120,7 +120,7 @@ function EmployeeNode({ data, selected }) {
               <div style={{
                 marginTop: 8, paddingTop: 7, borderTop: '1px solid ' + t.lineSoft,
                 display: 'flex', alignItems: 'center', gap: 6,
-                fontSize: 9, letterSpacing: '0.05em', color: t.faint,
+                fontSize: 10.5, letterSpacing: '0.05em', color: t.faint,
               }}>
                 <span style={{ width: 5, height: 5, borderRadius: '50%', background: accent || t.ghost, flexShrink: 0 }} />
                 {data.department.toUpperCase()}
@@ -218,7 +218,7 @@ function Btn({ t, children, onClick, primary, disabled, title, danger }) {
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 6,
         height: 29, padding: '0 12px', borderRadius: 7,
-        fontFamily: MONO, fontSize: 11.5, whiteSpace: 'nowrap',
+        fontFamily: MONO, fontSize: 13, whiteSpace: 'nowrap',
         cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
         border: '1px solid ' + (primary ? t.text : t.line),
         background: primary ? t.text : t.panel,
@@ -232,8 +232,8 @@ function Btn({ t, children, onClick, primary, disabled, title, danger }) {
 function Stat({ t, label, value }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, whiteSpace: 'nowrap' }}>
-      <span style={{ fontSize: 14, fontWeight: 500, color: t.text, letterSpacing: '-0.02em' }}>{value}</span>
-      <span style={{ fontSize: 9, letterSpacing: '0.09em', color: t.faint }}>{label}</span>
+      <span style={{ fontSize: 15.5, fontWeight: 500, color: t.text, letterSpacing: '-0.02em' }}>{value}</span>
+      <span style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint }}>{label}</span>
     </div>
   );
 }
@@ -264,8 +264,8 @@ function PeoplePanel({ t, employees, nodes, deptMap, editMode, onPlace, onFocus,
     }}>
       <div style={{ padding: '12px 12px 10px', borderBottom: '1px solid ' + t.lineSoft }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
-          <span style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.faint, flex: 1 }}>PEOPLE</span>
-          <span style={{ fontSize: 9.5, color: t.ghost }}>{placed.size}/{employees.length} placed</span>
+          <span style={{ fontSize: 11, letterSpacing: '0.1em', color: t.faint, flex: 1 }}>PEOPLE</span>
+          <span style={{ fontSize: 11, color: t.ghost }}>{placed.size}/{employees.length} placed</span>
         </div>
         <input
           value={q} onChange={(e) => setQ(e.target.value)}
@@ -274,14 +274,14 @@ function PeoplePanel({ t, employees, nodes, deptMap, editMode, onPlace, onFocus,
           style={{
             width: '100%', boxSizing: 'border-box', height: 29, padding: '0 10px',
             background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 7,
-            color: t.text, fontFamily: MONO, fontSize: 11, outline: 'none',
+            color: t.text, fontFamily: MONO, fontSize: 12.5, outline: 'none',
           }}
         />
       </div>
 
       <div className="edge-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 7 }}>
         {list.length === 0 && (
-          <div style={{ padding: '26px 10px', textAlign: 'center', fontSize: 10.5, color: t.faint }}>
+          <div style={{ padding: '26px 10px', textAlign: 'center', fontSize: 12, color: t.faint }}>
             No one matches “{q}”
           </div>
         )}
@@ -316,21 +316,21 @@ function PeoplePanel({ t, employees, nodes, deptMap, editMode, onPlace, onFocus,
                 <span style={{
                   width: 24, height: 24, borderRadius: 6, flexShrink: 0,
                   background: t.panelAlt, border: '1px solid ' + t.line,
-                  display: 'grid', placeItems: 'center', fontSize: 9, fontWeight: 600,
+                  display: 'grid', placeItems: 'center', fontSize: 10.5, fontWeight: 600,
                   color: on ? t.text : t.faint,
                 }}>{initials(name)}</span>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{
-                    display: 'block', fontSize: 11, color: on ? t.text : t.dim,
+                    display: 'block', fontSize: 12.5, color: on ? t.text : t.dim,
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   }}>{name}</span>
                   <span style={{
-                    display: 'block', fontSize: 9, color: t.faint, marginTop: 1,
+                    display: 'block', fontSize: 10.5, color: t.faint, marginTop: 1,
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   }}>{emp.role || (on ? 'On chart' : 'Not placed')}</span>
                 </span>
                 {accent && <span style={{ width: 4, height: 4, borderRadius: '50%', background: accent, flexShrink: 0 }} />}
-                {!on && editMode && <span style={{ fontSize: 13, color: t.ghost, flexShrink: 0, lineHeight: 1 }}>+</span>}
+                {!on && editMode && <span style={{ fontSize: 14.5, color: t.ghost, flexShrink: 0, lineHeight: 1 }}>+</span>}
               </button>
               {on && editMode && (
                 <button
@@ -339,7 +339,7 @@ function PeoplePanel({ t, employees, nodes, deptMap, editMode, onPlace, onFocus,
                   style={{
                     width: 24, flexShrink: 0, borderRadius: 6, cursor: 'pointer',
                     background: 'transparent', border: '1px solid transparent',
-                    color: t.ghost, fontFamily: MONO, fontSize: 13, lineHeight: 1,
+                    color: t.ghost, fontFamily: MONO, fontSize: 14.5, lineHeight: 1,
                   }}
                 >×</button>
               )}
@@ -350,7 +350,7 @@ function PeoplePanel({ t, employees, nodes, deptMap, editMode, onPlace, onFocus,
 
       <div style={{
         padding: '9px 12px', borderTop: '1px solid ' + t.lineSoft,
-        fontSize: 9.5, color: t.faint, lineHeight: 1.6,
+        fontSize: 11, color: t.faint, lineHeight: 1.6,
       }}>
         {editMode
           ? <>Click a name to place it · drag from a dot to link<br />Select a card or line and press <b style={{ color: t.dim }}>Delete</b></>
@@ -392,18 +392,18 @@ function DeptDrawer({ t, departments, employees, orgId, onClose, onChange }) {
         display: 'flex', alignItems: 'center', gap: 8,
         padding: '12px 12px 10px', borderBottom: '1px solid ' + t.lineSoft,
       }}>
-        <span style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.faint, flex: 1 }}>DEPARTMENTS</span>
+        <span style={{ fontSize: 11, letterSpacing: '0.1em', color: t.faint, flex: 1 }}>DEPARTMENTS</span>
         <button type="button" className="th-btn" onClick={onClose} aria-label="Close departments"
           style={{
             width: 22, height: 22, borderRadius: 5, cursor: 'pointer',
             background: 'transparent', border: '1px solid transparent',
-            color: t.faint, fontFamily: MONO, fontSize: 13, lineHeight: 1,
+            color: t.faint, fontFamily: MONO, fontSize: 14.5, lineHeight: 1,
           }}>×</button>
       </div>
 
       <div className="edge-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 7 }}>
         {departments.length === 0 && (
-          <div style={{ padding: '22px 10px', textAlign: 'center', fontSize: 10.5, color: t.faint }}>
+          <div style={{ padding: '22px 10px', textAlign: 'center', fontSize: 12, color: t.faint }}>
             No departments yet
           </div>
         )}
@@ -414,10 +414,10 @@ function DeptDrawer({ t, departments, employees, orgId, onClose, onChange }) {
           }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: d.color, flexShrink: 0 }} />
             <span style={{
-              flex: 1, minWidth: 0, fontSize: 11, color: t.text,
+              flex: 1, minWidth: 0, fontSize: 12.5, color: t.text,
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             }}>{d.name}</span>
-            <span style={{ fontSize: 9.5, color: t.ghost, flexShrink: 0 }}>{counts[d.name] || 0}</span>
+            <span style={{ fontSize: 11, color: t.ghost, flexShrink: 0 }}>{counts[d.name] || 0}</span>
             <button
               type="button" className="th-btn"
               onClick={async () => {
@@ -431,7 +431,7 @@ function DeptDrawer({ t, departments, employees, orgId, onClose, onChange }) {
               style={{
                 width: 20, flexShrink: 0, borderRadius: 5, cursor: 'pointer',
                 background: 'transparent', border: '1px solid transparent',
-                color: t.ghost, fontFamily: MONO, fontSize: 12, lineHeight: 1,
+                color: t.ghost, fontFamily: MONO, fontSize: 13.5, lineHeight: 1,
               }}
             >×</button>
           </div>
@@ -446,7 +446,7 @@ function DeptDrawer({ t, departments, employees, orgId, onClose, onChange }) {
           style={{
             width: '100%', boxSizing: 'border-box', height: 29, padding: '0 10px',
             background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 7,
-            color: t.text, fontFamily: MONO, fontSize: 11, outline: 'none', marginBottom: 9,
+            color: t.text, fontFamily: MONO, fontSize: 12.5, outline: 'none', marginBottom: 9,
           }}
         />
         <div role="radiogroup" aria-label="Department colour" style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -496,15 +496,15 @@ function MobileTree({ t, nodes, edges, deptMap, employees, onEdit }) {
           <span style={{
             width: 26, height: 26, borderRadius: 6, flexShrink: 0,
             background: t.panelAlt, border: '1px solid ' + t.line,
-            display: 'grid', placeItems: 'center', fontSize: 9.5, color: t.dim,
+            display: 'grid', placeItems: 'center', fontSize: 11, color: t.dim,
           }}>{initials(n.data.name)}</span>
           <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: 'block', fontSize: 12, color: t.text }}>{n.data.name}</span>
-            <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 1 }}>
+            <span style={{ display: 'block', fontSize: 13.5, color: t.text }}>{n.data.name}</span>
+            <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>
               {n.data.role || '—'}{n.data.department ? ' · ' + n.data.department : ''}
             </span>
           </span>
-          {kids.length > 0 && <span style={{ fontSize: 9.5, color: t.ghost }}>{kids.length}</span>}
+          {kids.length > 0 && <span style={{ fontSize: 11, color: t.ghost }}>{kids.length}</span>}
         </div>
         {kids.map((k) => <Row key={k} id={k} depth={depth + 1} />)}
       </div>
@@ -525,7 +525,7 @@ function MobileTree({ t, nodes, edges, deptMap, employees, onEdit }) {
       </div>
       <div style={{ border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden' }}>
         {nodes.length === 0 ? (
-          <div style={{ padding: '30px 14px', textAlign: 'center', fontSize: 11, color: t.faint }}>
+          <div style={{ padding: '30px 14px', textAlign: 'center', fontSize: 12.5, color: t.faint }}>
             Nobody is on the chart yet. {employees.length} {employees.length === 1 ? 'person' : 'people'} available.
           </div>
         ) : (roots.length ? roots : nodes).map((n) => <Row key={n.id} id={n.id} depth={0} />)}
@@ -549,8 +549,8 @@ function MobileEdit({ t, employees, initialMembers, onSave, onCancel, saving }) 
         paddingBottom: 12, borderBottom: '1px solid ' + t.lineSoft,
       }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, color: t.text }}>Edit structure</div>
-          <div style={{ fontSize: 10, color: t.faint, marginTop: 2 }}>
+          <div style={{ fontSize: 14.5, color: t.text }}>Edit structure</div>
+          <div style={{ fontSize: 11.5, color: t.faint, marginTop: 2 }}>
             {members.length} of {employees.length} on the chart
           </div>
         </div>
@@ -569,8 +569,8 @@ function MobileEdit({ t, employees, initialMembers, onSave, onCancel, saving }) 
             <div key={emp.id} style={{ borderBottom: i < employees.length - 1 ? '1px solid ' + t.lineSoft : 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px' }}>
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 12, color: on ? t.text : t.dim }}>{name}</span>
-                  <span style={{ display: 'block', fontSize: 9.5, color: t.faint, marginTop: 1 }}>
+                  <span style={{ display: 'block', fontSize: 13.5, color: on ? t.text : t.dim }}>{name}</span>
+                  <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>
                     {emp.role || '—'}{emp.department ? ' · ' + emp.department : ''}
                   </span>
                 </span>
@@ -579,7 +579,7 @@ function MobileEdit({ t, employees, initialMembers, onSave, onCancel, saving }) 
                   aria-pressed={on} aria-label={(on ? 'Remove ' : 'Add ') + name}
                   style={{
                     height: 26, padding: '0 10px', borderRadius: 6, cursor: 'pointer',
-                    fontFamily: MONO, fontSize: 10.5,
+                    fontFamily: MONO, fontSize: 12,
                     border: '1px solid ' + (on ? t.text : t.line),
                     background: on ? t.text : t.panel,
                     color: on ? t.panel : t.dim,
@@ -588,7 +588,7 @@ function MobileEdit({ t, employees, initialMembers, onSave, onCancel, saving }) 
               </div>
               {on && (
                 <div style={{ padding: '0 10px 10px' }}>
-                  <label style={{ display: 'block', fontSize: 9, letterSpacing: '0.08em', color: t.faint, marginBottom: 4 }}>
+                  <label style={{ display: 'block', fontSize: 10.5, letterSpacing: '0.08em', color: t.faint, marginBottom: 4 }}>
                     REPORTS TO
                   </label>
                   <select
@@ -597,7 +597,7 @@ function MobileEdit({ t, employees, initialMembers, onSave, onCancel, saving }) 
                     style={{
                       width: '100%', boxSizing: 'border-box', height: 30, padding: '0 8px',
                       background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 6,
-                      color: t.text, fontFamily: MONO, fontSize: 11, outline: 'none',
+                      color: t.text, fontFamily: MONO, fontSize: 12.5, outline: 'none',
                     }}
                   >
                     <option value="">Nobody — top level</option>
@@ -837,7 +837,7 @@ export default function TeamHierarchy() {
   );
 
   if (loading) return frame(
-    <div style={{ flex: 1, display: 'grid', placeItems: 'center', fontSize: 11, color: t.faint }}>
+    <div style={{ flex: 1, display: 'grid', placeItems: 'center', fontSize: 12.5, color: t.faint }}>
       Loading team…
     </div>
   );
@@ -845,8 +845,8 @@ export default function TeamHierarchy() {
   if (employees.length === 0) return frame(
     <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 24 }}>
       <div style={{ textAlign: 'center', maxWidth: 320 }}>
-        <div style={{ fontSize: 14, color: t.text, marginBottom: 6 }}>No employees yet</div>
-        <p style={{ margin: 0, fontSize: 11, color: t.faint, lineHeight: 1.7 }}>
+        <div style={{ fontSize: 15.5, color: t.text, marginBottom: 6 }}>No employees yet</div>
+        <p style={{ margin: 0, fontSize: 12.5, color: t.faint, lineHeight: 1.7 }}>
           Add people to the registry first — the chart is built from the same records.
         </p>
       </div>
@@ -892,7 +892,7 @@ export default function TeamHierarchy() {
 
         {editMode && (
           <span style={{
-            fontSize: 9.5, letterSpacing: '0.08em', color: t.faint,
+            fontSize: 11, letterSpacing: '0.08em', color: t.faint,
             padding: '3px 8px', borderRadius: 999, border: '1px dashed ' + t.lineStrong,
           }}>EDITING</span>
         )}
@@ -932,8 +932,8 @@ export default function TeamHierarchy() {
               zIndex: 5, pointerEvents: 'none', padding: 24,
             }}>
               <div style={{ textAlign: 'center', maxWidth: 340 }}>
-                <div style={{ fontSize: 13, color: t.text, marginBottom: 6 }}>The chart is empty</div>
-                <p style={{ margin: 0, fontSize: 11, color: t.faint, lineHeight: 1.7 }}>
+                <div style={{ fontSize: 14.5, color: t.text, marginBottom: 6 }}>The chart is empty</div>
+                <p style={{ margin: 0, fontSize: 12.5, color: t.faint, lineHeight: 1.7 }}>
                   {editMode
                     ? 'Click a name in the people panel to put them on the chart, then drag from the dot under one card to the dot above another to set who reports to whom.'
                     : 'Choose Edit structure to start placing people.'}

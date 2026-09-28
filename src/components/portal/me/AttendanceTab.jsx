@@ -36,7 +36,7 @@ export default function AttendanceTab({ monthKey, setMonthKey, rows, loading, na
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
           <Btn size="sm" onClick={() => setMonthKey(shiftMonth(monthKey, -1))} title="Previous month"><ChevronLeft size={13} /></Btn>
-          <span style={{ minWidth: 150, textAlign: 'center', fontSize: 13, color: t.text }}>{monthLabel(monthKey)}</span>
+          <span style={{ minWidth: 150, textAlign: 'center', fontSize: 14.5, color: t.text }}>{monthLabel(monthKey)}</span>
           <Btn size="sm" onClick={() => setMonthKey(shiftMonth(monthKey, 1))} disabled={monthKey >= currentMonthKey()} title="Next month">
             <ChevronRight size={13} />
           </Btn>
@@ -59,7 +59,7 @@ export default function AttendanceTab({ monthKey, setMonthKey, rows, loading, na
             <div style={{ padding: 12 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 4 }}>
                 {WEEKDAYS.map((w) => (
-                  <div key={w} style={{ fontSize: 9, letterSpacing: '0.08em', color: t.faint, textAlign: 'center', padding: '2px 0 6px' }}>{w.toUpperCase()}</div>
+                  <div key={w} style={{ fontSize: 10.5, letterSpacing: '0.08em', color: t.faint, textAlign: 'center', padding: '2px 0 6px' }}>{w.toUpperCase()}</div>
                 ))}
                 {cells.map((key, i) => {
                   if (!key) return <div key={`pad-${i}`} />;
@@ -74,11 +74,11 @@ export default function AttendanceTab({ monthKey, setMonthKey, rows, loading, na
                       background: color ? `${color}1f` : future ? 'transparent' : t.panelAlt,
                       opacity: future ? 0.45 : 1, minWidth: 0,
                     }}>
-                      <span style={{ fontSize: 10.5, color: t.text }}>{Number(key.slice(-2))}</span>
+                      <span style={{ fontSize: 12, color: t.text }}>{Number(key.slice(-2))}</span>
                       {row && (
                         <span style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
                           <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, flexShrink: 0 }} />
-                          {!narrow && <span style={{ fontSize: 9, color: t.dim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {!narrow && <span style={{ fontSize: 10.5, color: t.dim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {workedMinutes(row) != null ? hoursLabel(workedMinutes(row)) : statusLabel(row.status)}
                           </span>}
                         </span>
@@ -89,7 +89,7 @@ export default function AttendanceTab({ monthKey, setMonthKey, rows, loading, na
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', marginTop: 12 }}>
                 {ATTENDANCE_STATUSES.map((s) => (
-                  <span key={s.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, color: t.dim }}>
+                  <span key={s.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: t.dim }}>
                     <span style={{ width: 7, height: 7, borderRadius: 2, background: s.color }} />{s.label}
                   </span>
                 ))}

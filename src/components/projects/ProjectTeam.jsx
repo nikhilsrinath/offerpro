@@ -210,7 +210,7 @@ function AddMember({ project, fin, onClose }) {
                 <Field label="Until" hint="Blank = ongoing"><Input type="date" value={form.end_date} onChange={set('end_date')} /></Field>
                 {fin && <Field label="Bill rate (₹/h)" hint="For time & materials"><Input type="number" min="0" step="0.01" value={form.bill_rate} onChange={set('bill_rate')} /></Field>}
             </Grid>
-            {error && <div role="alert" style={{ marginTop: 12, fontSize: 11, color: t.down }}>{error}</div>}
+            {error && <div role="alert" style={{ marginTop: 12, fontSize: 12.5, color: t.down }}>{error}</div>}
         </Modal>
     );
 }

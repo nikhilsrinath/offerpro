@@ -70,10 +70,10 @@ export default function AdminLogin({ wrongAccount }) {
           }}>
             <ShieldCheck size={15} aria-hidden="true" />
           </div>
-          <h1 style={{ margin: 0, fontSize: 14, fontWeight: 500, color: t.text, letterSpacing: '-0.01em' }}>
+          <h1 style={{ margin: 0, fontSize: 15.5, fontWeight: 500, color: t.text, letterSpacing: '-0.01em' }}>
             EdgeOS Platform Console
           </h1>
-          <p style={{ margin: '6px 0 0', fontSize: 10.5, color: t.faint, lineHeight: 1.6 }}>
+          <p style={{ margin: '6px 0 0', fontSize: 12, color: t.faint, lineHeight: 1.6 }}>
             Every tenant, their revenue and their contacts. Restricted to the
             platform operator.
           </p>
@@ -105,7 +105,7 @@ export default function AdminLogin({ wrongAccount }) {
 
           {error && (
             <div role="alert" style={{
-              fontSize: 10.5, color: t.down, lineHeight: 1.6,
+              fontSize: 12, color: t.down, lineHeight: 1.6,
               padding: '8px 10px', borderRadius: 7,
               border: '1px solid ' + t.line, background: t.panelAlt,
             }}>{error}</div>
@@ -117,7 +117,7 @@ export default function AdminLogin({ wrongAccount }) {
               : 'Open console'}
           </Btn>
 
-          <p style={{ margin: 0, fontSize: 9.5, color: t.ghost, lineHeight: 1.7, textAlign: 'center' }}>
+          <p style={{ margin: 0, fontSize: 11, color: t.ghost, lineHeight: 1.7, textAlign: 'center' }}>
             Signing in here replaces any workspace session in this browser.
           </p>
         </div>
@@ -131,7 +131,7 @@ export default function AdminLogin({ wrongAccount }) {
 function Notice({ t, children }) {
   return (
     <div style={{
-      fontSize: 10.5, color: t.dim, lineHeight: 1.6,
+      fontSize: 12, color: t.dim, lineHeight: 1.6,
       padding: '9px 11px', borderRadius: 7,
       border: '1px solid ' + t.line, background: t.panelAlt,
     }}>{children}</div>

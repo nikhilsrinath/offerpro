@@ -194,18 +194,18 @@ export default function TasksPage({ projectId = null, embedded = false }) {
                 <button type="button" onClick={() => openEdit(task)} className="edge-tr" style={{
                     display: 'block', width: '100%', textAlign: 'left', padding: 0, marginBottom: 9,
                     background: 'transparent', border: 'none', cursor: 'pointer',
-                    fontFamily: MONO, fontSize: 11.5, color: t.text, lineHeight: 1.5,
+                    fontFamily: MONO, fontSize: 13, color: t.text, lineHeight: 1.5,
                 }}>
                     {task.title}
                 </button>
 
                 {!projectId && task.projectId && (
-                    <div style={{ fontSize: 10, marginBottom: 7 }}><ProjectBadge project={projectById[task.projectId]} /></div>
+                    <div style={{ fontSize: 11.5, marginBottom: 7 }}><ProjectBadge project={projectById[task.projectId]} /></div>
                 )}
 
                 {task.description && (
                     <p style={{
-                        margin: '0 0 9px', fontSize: 10, color: t.faint, lineHeight: 1.6,
+                        margin: '0 0 9px', fontSize: 11.5, color: t.faint, lineHeight: 1.6,
                         display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
                     }}>{task.description}</p>
                 )}
@@ -213,11 +213,11 @@ export default function TasksPage({ projectId = null, embedded = false }) {
                 <Row gap={8} style={{ marginBottom: 9 }}>
                     <Avatar name={empName(person) || '?'} size={20} />
                     <span style={{
-                        flex: 1, minWidth: 0, fontSize: 10, color: t.faint,
+                        flex: 1, minWidth: 0, fontSize: 11.5, color: t.faint,
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{empName(person) || 'Unassigned'}</span>
                     {task.priority === 'high' && (
-                        <span style={{ fontSize: 9, letterSpacing: '0.06em', color: t.dim }}>HIGH</span>
+                        <span style={{ fontSize: 10.5, letterSpacing: '0.06em', color: t.dim }}>HIGH</span>
                     )}
                 </Row>
 
@@ -291,10 +291,10 @@ export default function TasksPage({ projectId = null, embedded = false }) {
                     padding: '13px 15px', marginBottom: 14,
                 }}>
                     <Row gap={14} wrap style={{ marginBottom: 10 }}>
-                        <span style={{ fontSize: 18, fontWeight: 500, letterSpacing: '-0.03em' }}>
+                        <span style={{ fontSize: 19.5, fontWeight: 500, letterSpacing: '-0.03em' }}>
                             {Math.round((stats.done / stats.total) * 100)}%
                         </span>
-                        <span style={{ fontSize: 10, letterSpacing: '0.09em', color: t.faint, alignSelf: 'center' }}>
+                        <span style={{ fontSize: 11.5, letterSpacing: '0.09em', color: t.faint, alignSelf: 'center' }}>
                             DONE — {stats.done} of {stats.total}
                         </span>
                         <div style={{ flex: 1 }} />
@@ -326,12 +326,12 @@ export default function TasksPage({ projectId = null, embedded = false }) {
                                     display: 'flex', alignItems: 'center', gap: 8,
                                     padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft,
                                 }}>
-                                    <span style={{ fontSize: 11.5, color: t.text, flex: 1 }}>{col.label}</span>
-                                    <span style={{ fontSize: 10, color: t.ghost }}>{items.length}</span>
+                                    <span style={{ fontSize: 13, color: t.text, flex: 1 }}>{col.label}</span>
+                                    <span style={{ fontSize: 11.5, color: t.ghost }}>{items.length}</span>
                                 </header>
                                 <div style={{ display: 'grid', gap: 8, padding: 10 }}>
                                     {items.length === 0
-                                        ? <div style={{ padding: '20px 6px', textAlign: 'center', fontSize: 10, color: t.ghost }}>Nothing here</div>
+                                        ? <div style={{ padding: '20px 6px', textAlign: 'center', fontSize: 11.5, color: t.ghost }}>Nothing here</div>
                                         : items.map((task) => <Card key={task.id} task={task} />)}
                                 </div>
                             </section>
@@ -367,7 +367,7 @@ export default function TasksPage({ projectId = null, embedded = false }) {
                                     <span style={{ display: 'block' }}>{task.title}</span>
                                     {task.description && (
                                         <span style={{
-                                            display: 'block', fontSize: 9.5, color: t.faint, marginTop: 2,
+                                            display: 'block', fontSize: 11, color: t.faint, marginTop: 2,
                                             maxWidth: 420, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                                         }}>{task.description}</span>
                                     )}
@@ -376,7 +376,7 @@ export default function TasksPage({ projectId = null, embedded = false }) {
                                 <Td nowrap>
                                     <Row gap={8}>
                                         <Avatar name={empName(person) || '?'} size={22} />
-                                        <span style={{ fontSize: 11, color: t.dim }}>{empName(person) || 'Unassigned'}</span>
+                                        <span style={{ fontSize: 12.5, color: t.dim }}>{empName(person) || 'Unassigned'}</span>
                                     </Row>
                                 </Td>
                                 <Td nowrap>

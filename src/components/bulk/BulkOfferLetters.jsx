@@ -201,11 +201,11 @@ export default function BulkOfferLetters() {
                             </Field>
                         </div>
                         <div style={{ marginTop: 14 }}>
-                            <div style={{ fontSize: 9.5, letterSpacing: '0.09em', color: t.faint, marginBottom: 6 }}>COLUMNS THE TEMPLATE FILLS IN</div>
+                            <div style={{ fontSize: 11, letterSpacing: '0.09em', color: t.faint, marginBottom: 6 }}>COLUMNS THE TEMPLATE FILLS IN</div>
                             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                 {VARIABLES.map((v) => (
                                     <li key={v} style={{
-                                        fontSize: 10.5, color: t.dim, padding: '3px 7px', borderRadius: 5,
+                                        fontSize: 12, color: t.dim, padding: '3px 7px', borderRadius: 5,
                                         border: '1px solid ' + t.line, background: t.panelAlt,
                                     }}>{v}</li>
                                 ))}
@@ -221,7 +221,7 @@ export default function BulkOfferLetters() {
                     <Step n={3} title="Check and fix rows" actions={<Btn size="sm" onClick={() => setStep(1)}>Upload a different file</Btn>}>
                         <ValidationTable data={data} columns={COLUMNS} onEdit={handleEdit} validationConfig={VALIDATION_CONFIG} />
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 14, paddingTop: 14, borderTop: '1px solid ' + t.lineSoft }}>
-                            <Muted size={11}>Rows with errors are left out.</Muted>
+                            <Muted size={12.5}>Rows with errors are left out.</Muted>
                             <div style={{ flex: 1 }} />
                             <Btn primary onClick={startGeneration} disabled={validCount === 0}>
                                 <Play aria-hidden="true" size={13} strokeWidth={2} /> Generate {validCount} offer letter{validCount === 1 ? '' : 's'}
@@ -236,7 +236,7 @@ export default function BulkOfferLetters() {
                         <Outcome ok={`${processed} offer letter${processed === 1 ? '' : 's'} created and added to the tracker`} failed={failed}>
                             {failed} row{failed === 1 ? '' : 's'} failed.
                         </Outcome>
-                        <h2 style={{ margin: '0 0 10px', fontSize: 12.5, fontWeight: 500, color: t.text }}>Generated documents</h2>
+                        <h2 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 500, color: t.text }}>Generated documents</h2>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
                             {results.map((res, i) => (
                                 <DocumentCard
