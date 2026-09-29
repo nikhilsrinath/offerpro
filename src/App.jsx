@@ -106,8 +106,9 @@ const MODULE_FILTER = {
   // Portfolio (Phase 2) and Timesheets (Phase 3) join the rail when they ship.
   projects: ['projects', 'tasks', 'portfolio', 'timesheets'],
   documents: ['records', 'library', 'offers', 'new-certificates', 'certificates', 'templates'],
-  finance: ['finance-status', 'cashbook', 'invoices', 'quotations', 'proforma', 'recurring', 'vendors', 'purchases', 'tax-summary', 'profit-loss'],
-  business: ['crm', 'customers', 'products', 'planner'],
+  finance: ['finance-status', 'cashbook', 'invoices', 'quotations', 'proforma', 'recurring', 'purchases', 'tax-summary', 'profit-loss'],
+  // Vendors sit with clients: both are the parties the company deals with.
+  business: ['crm', 'customers', 'vendors', 'products', 'planner'],
 };
 
 // Pages that belong to a module without having a place in its rail — the
@@ -117,6 +118,31 @@ const MODULE_EXTRA_PAGES = {
   projects: ['project-detail', 'new-project'],
   documents: ['templates/nda', 'templates/mou', 'templates/partnership', 'templates/custom'],
 };
+
+// The Finance rail folds the sales documents under one item, as a project's
+// rail folds its documents: each list, and the editor it opens, is one page
+// of the group.
+const BILLING_GROUP = {
+  id: 'billing', label: 'Invoices & Quotes', icon: Receipt,
+  pages: ['invoices', 'quotations', 'proforma', 'recurring'],
+  editors: { 'new-invoice': 'invoices', 'new-quotation': 'quotations', 'new-proforma': 'proforma' },
+};
+
+function foldBilling(items, activePage) {
+  const current = BILLING_GROUP.editors[activePage] || activePage;
+  const inside = BILLING_GROUP.pages.includes(current);
+  const children = items.filter((i) => BILLING_GROUP.pages.includes(i.id))
+    .map((i) => ({ id: i.id, label: i.label, to: '/' + i.id, active: current === i.id }));
+  if (!children.length) return items;
+  const group = {
+    id: BILLING_GROUP.id, label: BILLING_GROUP.label, icon: BILLING_GROUP.icon,
+    to: children[0].to, active: inside, open: inside, children,
+  };
+  const at = items.findIndex((i) => BILLING_GROUP.pages.includes(i.id));
+  const rest = items.filter((i) => !BILLING_GROUP.pages.includes(i.id));
+  rest.splice(at, 0, group);
+  return rest;
+}
 
 // Inside an open project the rail's top arrow leads back to the project list.
 const PROJECTS_BACK = { to: '/projects', label: 'All projects' };
@@ -147,10 +173,10 @@ const MODULE_META = {
 const NAV_ITEMS = [
   // `end`: /dashboard must not also light up on /dashboard/finance.
   { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
+  { id: 'dashboard/projects', label: 'Projects', icon: FolderKanban },
   { id: 'dashboard/finance', label: 'Finance', icon: Wallet },
   { id: 'dashboard/sales', label: 'Sales & Clients', icon: BarChart3 },
   { id: 'dashboard/team', label: 'Team', icon: UsersRound },
-  { id: 'dashboard/projects', label: 'Projects', icon: FolderKanban },
   { id: 'dashboard/documents', label: 'Documents', icon: FileStack },
   { id: 'dashboard/usage', label: 'Usage', icon: Gauge },
   { section: 'EDGEBRAIN' },
@@ -174,13 +200,13 @@ const NAV_ITEMS = [
   { id: 'quotations', label: 'Quotations', icon: FilePlus },
   { id: 'proforma', label: 'Proforma Invoice', icon: FileCheck },
   { id: 'recurring', label: 'Recurring', icon: RotateCcw },
-  { id: 'vendors', label: 'Vendors', icon: Truck },
   { id: 'purchases', label: 'Purchase Bills', icon: FileInput },
   { id: 'tax-summary', label: 'Tax Summary', icon: Scale },
   { id: 'profit-loss', label: 'Profit & Loss', icon: TrendingUp },
   { section: 'BUSINESS' },
   { id: 'crm', label: 'CRM', icon: Kanban },
   { id: 'customers', label: 'Client Directory', icon: Users },
+  { id: 'vendors', label: 'Vendors', icon: Truck },
   { id: 'products', label: 'Products', icon: Package },
   { id: 'planner', label: 'Product Planner', icon: Layers },
   { section: 'PROJECTS' },
@@ -433,6 +459,7 @@ function AppContent() {
   let moduleItems = activeModule
     ? NAV_ITEMS.filter((i) => i.id && MODULE_FILTER[activeModule]?.includes(i.id))
     : [];
+  if (activeModule === 'finance') moduleItems = foldBilling(moduleItems, activePage);
   let moduleMeta = onProfile ? { label: 'Settings' } : MODULE_META[activeModule];
   if (activeModule === 'projects' && !openProject) {
     // The Projects item opens into every live project, in code order

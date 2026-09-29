@@ -9,6 +9,7 @@ import { usePlanStatus } from '../hooks/usePlanStatus';
 import MoUPreview from './MoUPreview';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 import A4Stage from './shared/A4Stage';
+import { useFormProject, useClientAsParty, linkRecordToProject, projectFormNote } from './projects/projectScope';
 
 export default function MoUForm() {
   const navigate = useNavigate();
@@ -54,6 +55,10 @@ export default function MoUForm() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Opened from a project's Documents: the client is the second party, and
+  // the saved MoU is put on the project.
+  const fromProject = useFormProject('record', '/records');
+  useClientAsParty(fromProject.client, setFormData, { name: 'secondPartyName', address: 'secondPartyAddress' });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -81,12 +86,14 @@ export default function MoUForm() {
       if (resolved.stampType === 'generated') {
         resolved.stampPng = await generateStampPng(resolved.firstPartyName, resolved.stampCity);
       }
-      await storageService.save(formData, 'mou', activeOrg?.id, user?.id);
+      const saved = await storageService.save(formData, 'mou', activeOrg?.id, user?.id);
+      const linkError = await linkRecordToProject(fromProject.projectId, saved?.id);
+      if (linkError) alert(`MoU saved, but ${linkError}. Link it from the project's Documents.`);
       await pdfService.generateMoU(resolved);
       await refreshUsage();
       setTimeout(() => {
         setIsSubmitting(false);
-        navigate('/records');
+        navigate(fromProject.returnTo);
       }, 800);
     } catch (err) {
       console.error(err);
@@ -109,6 +116,10 @@ export default function MoUForm() {
       {/* LEFT: Form */}
       <div className="mou-form-pane">
         <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
+
+          {fromProject.project && (
+            <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{projectFormNote(fromProject.project)}</p>
+          )}
 
           {/* Plan Usage */}
           {currentPlan !== 'max' && (

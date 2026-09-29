@@ -16,8 +16,11 @@ import Copilot from './assistant/Copilot';
 import { useAssistant } from './assistant/assistantStore';
 import { useHubData } from './hub/useHubData';
 import { useWidgetLayout } from './hub/useWidgetLayout';
-import { WIDGETS, WIDGET_BY_ID, DEFAULT_LAYOUT } from './hub/widgetCatalog';
+import { WIDGETS, WIDGET_BY_ID, DEFAULT_LAYOUT, WIDGET_GROUPS } from './hub/widgetCatalog';
+import { previewHubData } from './hub/previewData';
 import WidgetBoard from './hub/WidgetBoard';
+import WidgetDrill from './hub/WidgetDrill';
+import HubActivity from './hub/HubActivity';
 import '../theme/surface.css';
 import './assistant/copilot.css';
 import './hub/hub.css';
@@ -160,8 +163,15 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
 
     const [openCountry, setOpenCountry] = useState(null);
     const [geoMap, setGeoMap] = useState(null);
+    const [galleryOpen, setGalleryOpen] = useState(false); // the widget gallery previews the map too
     const [announce, setAnnounce] = useState('');
     const say = (msg) => setAnnounce(msg);
+
+    // The Dashboard's drill-down sheet, opened by clicking a widget.
+    const [drill, setDrill] = useState([]);
+    const pushDrill = useCallback((v) => setDrill((s) => [...s, v]), []);
+    const popDrill = useCallback(() => setDrill((s) => s.slice(0, -1)), []);
+    const closeDrill = useCallback(() => setDrill([]), []);
 
     // One dismiss path for the account and notification menus: a click
     // outside the rail foot (or the phone bar), or Escape.
@@ -181,7 +191,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
     }, [menu]);
 
     // World geometry is its own chunk; only fetch it once something needs it.
-    const needsMap = layout.some((w) => w.id === 'geomap') || !!openCountry;
+    const needsMap = layout.some((w) => w.id === 'geomap') || !!openCountry || galleryOpen;
     useEffect(() => {
         if (!needsMap || geoMap) return undefined;
         let cancelled = false;
@@ -211,7 +221,6 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
     const rawName = user?.email?.split('@')[0] || 'operator';
     const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
     const orgName = activeOrg?.company_name || activeOrg?.name || 'Workspace';
-    const dateStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
 
     const plan = getPlanConfig(activeOrg?.plan || DEFAULT_PLAN);
     const notifs = d.notifications;
@@ -235,6 +244,12 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
         d, nav: navigate, ask: askCopilot, geoMap, countryNames: names,
         openCountry: (code) => setOpenCountry(code),
         geoPeriod, setGeoPeriod,
+    };
+    // What the widget gallery draws each widget with: the same props on sample
+    // figures, and every action a no-op.
+    const previewProps = {
+        ...widgetProps, d: previewHubData(), nav: () => {}, ask: () => false,
+        openCountry: () => {}, setGeoPeriod: () => {},
     };
     const gap = isMobile ? 12 : 16;
 
@@ -648,21 +663,11 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                             isMobile={isMobile} say={say}
                             emptyText="Add widgets to keep revenue, cash, clients and EdgeBrain in one view."
                             pickerNote="Choose what the hub shows"
+                            onDrill={(v) => setDrill([v])}
+                            groups={WIDGET_GROUPS} previewProps={previewProps} onGallery={setGalleryOpen}
                         />
-                    </div>
 
-                    {/* ── FOOTER ──────────────────────────────────────────── */}
-                    <div style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        gap: 10, padding: '12px 24px', borderTop: '1px solid ' + t.line,
-                        fontSize: 12.5, color: t.dim, flexWrap: 'wrap',
-                    }}>
-                        <span>EdgeOS · ENTERPRISE OPERATING SYSTEM</span>
-                        <span style={{ display: 'flex', gap: 16 }}>
-                            <span>ORG {orgName.toUpperCase()}</span>
-                            <span>REC {d.docs.total}</span>
-                            <span>{dateStr}</span>
-                        </span>
+                        <HubActivity onDrill={(v) => setDrill([v])} />
                     </div>
                 </div>
             </div>
@@ -677,6 +682,8 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
             )}
 
             {isMobile && <MobileNav t={{ ...t, isDark }} active="hub" />}
+
+            {drill.length > 0 && <WidgetDrill stack={drill} push={pushDrill} pop={popDrill} close={closeDrill} />}
 
             {openCountry && (
                 <CountryDialog

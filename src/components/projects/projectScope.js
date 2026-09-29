@@ -6,7 +6,7 @@
 // only what is linked to that project and total only the project's share of
 // it. Nothing here writes: links are made by the forms (ProjectPicker, or a
 // project_documents row) and by the database (0054).
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { useSection } from '../financial/financeHooks';
 import { netOfTax } from '../../services/financeAnalytics';
@@ -113,10 +113,25 @@ const BILLING_DOC = { invoice: 'invoice', quotation: 'quotation', proforma: 'pro
 export const projectBillingPath = (projectId, kind) =>
     `/projects/${projectId}?tab=billing&doc=${BILLING_DOC[kind] || 'quotation'}`;
 
+/** Documents Management › Project Documents, on its business-documents view. */
+export const projectDocumentsPath = (projectId) => `/projects/${projectId}?tab=documents&view=business`;
+
+/**
+ * Where "new <kind>" opens for a project. `from: 'documents'` sends the form
+ * back to Documents Management when it is saved or cancelled, instead of to
+ * Billing.
+ */
+export function projectFormPath(projectId, path, { from } = {}) {
+    const q = new URLSearchParams({ project: projectId });
+    if (from) q.set('from', from);
+    return `${path}${path.includes('?') ? '&' : '?'}${q}`;
+}
+
 /**
  * The project a document form was opened for (`?project=` or the navigation
  * state), with its client, and where the form should return to. Without one
- * the form behaves exactly as it always did.
+ * the form behaves exactly as it always did. Agreements (kind 'record') have
+ * no Billing page, so they always return to the project's documents.
  */
 export function useFormProject(kind, fallbackPath) {
     const location = useLocation();
@@ -126,12 +141,46 @@ export function useFormProject(kind, fallbackPath) {
     const customers = useSection('customers');
     const project = projectId ? projects.find((p) => p.id === projectId) || null : null;
     const client = project?.client_id ? customers.find((c) => c.id === project.client_id) || null : null;
+    const toDocuments = kind === 'record' || params.get('from') === 'documents';
     return {
         projectId: project ? projectId : null,
         project,
         client,
-        returnTo: project ? projectBillingPath(projectId, kind) : fallbackPath,
+        returnTo: !project ? fallbackPath : toDocuments ? projectDocumentsPath(projectId) : projectBillingPath(projectId, kind),
     };
+}
+
+/**
+ * Fills the other party of an agreement from the project's client, once, when
+ * the client is known (it can load after the form mounts). Only blank fields
+ * are filled, so nothing typed is overwritten.
+ */
+export function useClientAsParty(client, setFormData, { name, address }) {
+    const done = useRef(false);
+    useEffect(() => {
+        if (!client || done.current) return;
+        done.current = true;
+        setFormData((prev) => ({
+            ...prev,
+            [name]: prev[name] || client.name || client.clientName || '',
+            [address]: prev[address] || client.address || client.clientAddress || '',
+        }));
+    }, [client, setFormData, name, address]);
+}
+
+/**
+ * Puts an NDA, MoU or agreement saved from a project on that project. Like
+ * linkToProject, resolves to an error message or '' — the record is kept
+ * either way.
+ */
+export async function linkRecordToProject(projectId, recordId) {
+    if (!projectId || !recordId) return '';
+    try {
+        await linkDocument(projectId, { recordId });
+        return '';
+    } catch (e) {
+        return e.message || 'it could not be linked to the project';
+    }
 }
 
 /**

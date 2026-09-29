@@ -12,7 +12,9 @@ import { DEFAULT_LAYOUT, WIDGET_BY_ID } from './widgetCatalog';
    The hub's catalog is the default; a project workspace passes its own
    (projects/projectWidgets.jsx), stored under its own key. */
 
-export const HUB_CATALOG = { key: 'edgeos.hub.layout.v1', byId: WIDGET_BY_ID, defaults: DEFAULT_LAYOUT };
+// v2: the default board became the project widgets; boards saved under v1
+// start again from it once.
+export const HUB_CATALOG = { key: 'edgeos.hub.layout.v2', byId: WIDGET_BY_ID, defaults: DEFAULT_LAYOUT };
 
 /** A stored size the widget can take, or its default. Old layouts stored 'wide'. */
 const sizeIn = (byId, id, size) => {
@@ -65,7 +67,7 @@ export function useWidgetLayout(orgId, catalog = HUB_CATALOG) {
     const sizeOf = (id) => catalog.byId.get(id)?.size || 'sm';
     const api = {
         has: (id) => layout.some((w) => w.id === id),
-        add: (id) => commit((l) => (l.some((w) => w.id === id) ? l : [...l, { id, size: sizeOf(id) }])),
+        add: (id, size) => commit((l) => (l.some((w) => w.id === id) ? l : [...l, { id, size: sizeIn(catalog.byId, id, size || sizeOf(id)) }])),
         remove: (id) => commit((l) => l.filter((w) => w.id !== id)),
         toggle: (id) => commit((l) => (l.some((w) => w.id === id)
             ? l.filter((w) => w.id !== id)

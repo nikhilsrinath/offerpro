@@ -9,6 +9,7 @@ import { initialAgreement, partiesShown, TEMPLATE_KINDS } from '../../services/a
 import { resolveFormImages, generateStampPng } from '../../utils/imageUtils';
 import A4Stage from '../shared/A4Stage';
 import AgreementPreview from './AgreementPreview';
+import { useFormProject, useClientAsParty, linkRecordToProject, projectFormNote } from '../projects/projectScope';
 
 const IMAGE_FIELDS = ['firstPartySignature', 'secondPartySignature', 'companyLogo', 'stampUrl'];
 
@@ -46,6 +47,10 @@ export default function AgreementForm({ kind }) {
   const { activeOrg } = useOrg();
   const [formData, setFormData] = useState(() => initialAgreement(kind, activeOrg || {}));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Opened from a project's Documents: the client is the second party, and
+  // the saved agreement is put on the project.
+  const fromProject = useFormProject('record', '/records');
+  useClientAsParty(fromProject.client, setFormData, { name: 'secondPartyName', address: 'secondPartyAddress' });
 
   // The org can finish loading after the form mounts. When it arrives, fill
   // the letterhead and first-party fields that are still blank.
@@ -100,11 +105,13 @@ export default function AgreementForm({ kind }) {
     setIsSubmitting(true);
     try {
       const r = await resolved();
-      await storageService.save(formData, 'agreement', activeOrg?.id, user?.id);
+      const saved = await storageService.save(formData, 'agreement', activeOrg?.id, user?.id);
+      const linkError = await linkRecordToProject(fromProject.projectId, saved?.id);
+      if (linkError) alert(`Saved, but ${linkError}. Link it from the project's Documents.`);
       await pdfService.generateAgreement(r);
       setTimeout(() => {
         setIsSubmitting(false);
-        navigate('/records');
+        navigate(fromProject.returnTo);
       }, 800);
     } catch (err) {
       console.error(err);
@@ -123,6 +130,10 @@ export default function AgreementForm({ kind }) {
 
       <div className="mou-form-pane">
         <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
+
+          {fromProject.project && (
+            <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{projectFormNote(fromProject.project)}</p>
+          )}
 
           <Section num={next()} title="Document details">
             <div className="easy-row">

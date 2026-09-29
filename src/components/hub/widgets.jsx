@@ -21,8 +21,8 @@ import { inr, inrShort, headline, monthShort } from './format';
 
 /* ── primitives ─────────────────────────────────────────────────────────── */
 
-/** Money sized for the tile: full grouping where it fits, lakh/crore where not. */
-const money = (v, size) => (size === 'sm' && Math.abs(v) >= 100000 ? inrShort(v) : headline(v));
+/** Money sized for the tile: full grouping where it fits (large), lakh/crore where not. */
+const money = (v, size) => (size !== 'lg' && Math.abs(v) >= 100000 ? inrShort(v) : headline(v));
 
 function Value({ children, unit, neg, size }) {
     return (

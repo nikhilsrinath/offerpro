@@ -1,10 +1,11 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-    Panel, Row, Btn, Seg, Select, Empty, Loading, Modal, Field, Input, Avatar, ConfirmBtn, Muted, StatBand,
+    Panel, Row, Btn, Seg, Select, Empty, Loading, Modal, Field, Input, Avatar, Muted,
 } from '../../ui/edge';
 import { useT, MONO } from '../../ui/edgeUtils';
 import { useSection } from '../../financial/financeHooks';
 import { useToast } from '../../shared/Toast';
+import { confirmDialog } from '../../../services/confirm';
 import { supabase } from '../../../lib/supabase';
 import { orgStore } from '../../../services/orgStore';
 import { downloadCsv } from '../../../services/financeAnalytics';
@@ -40,7 +41,6 @@ export default function RaciPage({ project, onOpen }) {
     const [probe, setProbe] = useState(0);
     const [view, setView] = useState('matrix');
     const [who, setWho] = useState('');
-    const [role, setRole] = useState('');
     const [onlyBad, setOnlyBad] = useState('all');
     const [adding, setAdding] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -90,13 +90,7 @@ export default function RaciPage({ project, onOpen }) {
     const badCount = [...problems.values()].filter((p) => p.length).length;
 
     const shownCols = who ? columns.filter((p) => p.id === who) : columns;
-    const shownRows = items.filter((it) => {
-        if (onlyBad === 'bad' && !problems.get(it.id).length) return false;
-        if (!role) return true;
-        const row = cells.get(it.id);
-        return shownCols.some((p) => row?.get(p.id)?.role === role);
-    });
-    const filtered = !!(who || role || onlyBad === 'bad');
+    const shownRows = onlyBad === 'bad' ? items.filter((it) => problems.get(it.id).length) : items;
 
     const setCell = async (item, person, next) => {
         const current = cells.get(item.id)?.get(person.id);
@@ -153,75 +147,68 @@ export default function RaciPage({ project, onOpen }) {
     }
 
     return (
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gap: 12 }}>
             <Row gap={8} wrap>
                 <Seg value={view} onChange={setView} label="View" options={[
-                    { id: 'matrix', label: 'RACI matrix' }, { id: 'org', label: 'Reporting structure' },
+                    { id: 'matrix', label: 'Who does what' }, { id: 'org', label: 'Reporting structure' },
                 ]} />
                 <div style={{ flex: 1 }} />
-                {view === 'matrix' && items.length > 0 && (
-                    <>
-                        <Btn size="sm" onClick={() => exportAs('csv')}>Export CSV</Btn>
-                        <Btn size="sm" onClick={() => exportAs('xlsx')}>Export Excel</Btn>
-                    </>
-                )}
+                {view === 'matrix' && items.length > 0 && <ExportMenu onPick={exportAs} />}
+                {view === 'matrix' && canCreate && items.length > 0 && <ImportBtn project={project} items={items} busy={busy} setBusy={setBusy} />}
                 {view === 'matrix' && canCreate && <Btn size="sm" primary onClick={() => setAdding(true)}>Add row</Btn>}
             </Row>
 
             {view === 'org' ? <OrgView team={team} cells={assignments} /> : (
                 <>
                     <Legend />
-                    {items.length > 0 && (
-                        <StatBand items={[
-                            { label: 'Rows', value: items.length },
-                            { label: 'People', value: columns.length },
-                            { label: 'Need fixing', value: badCount, tone: badCount ? 'down' : 'up', note: badCount ? 'one A and at least one R each' : 'every row is sound' },
-                        ]} />
-                    )}
 
                     {columns.length === 0 ? (
                         <Panel>
                             <Empty action={onOpen && <Btn primary onClick={() => onOpen('team')}>Go to Team Members</Btn>}>
-                                The matrix has a column per person on the project, and no one is on it yet.
+                                Add people to the project first — each person gets a column here.
                             </Empty>
                         </Panel>
                     ) : items.length === 0 ? (
                         <Panel>
                             <Empty action={canCreate && (
                                 <Row gap={8} style={{ justifyContent: 'center' }} wrap>
-                                    <Btn primary onClick={() => setAdding(true)}>Add the first row</Btn>
-                                    <ImportBtn project={project} items={items} busy={busy} setBusy={setBusy} />
+                                    <ImportBtn project={project} items={items} busy={busy} setBusy={setBusy} primary />
+                                    <Btn onClick={() => setAdding(true)}>Add a row by hand</Btn>
                                 </Row>
                             )}>
-                                No rows yet. Each row is a task, deliverable or milestone; each cell says who is
-                                Responsible, Accountable, Consulted or Informed for it.
+                                List the work, then click a cell to say who does what.
                             </Empty>
                         </Panel>
                     ) : (
                         <Panel pad={0}>
-                            <div style={{ padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft }}>
+                            <div style={{ padding: '9px 13px', borderBottom: '1px solid ' + t.lineSoft }}>
                                 <Row gap={8} wrap>
-                                    <Select aria-label="Filter by member" value={who} onChange={(e) => setWho(e.target.value)} style={{ width: 190, height: 29 }}>
-                                        <option value="">Every member</option>
-                                        {columns.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                    </Select>
-                                    <Select aria-label="Filter by role" value={role} onChange={(e) => setRole(e.target.value)} style={{ width: 170, height: 29 }}>
-                                        <option value="">Every role</option>
-                                        {RACI_ROLES.map((r) => <option key={r.id} value={r.id}>{r.id} — {r.label}</option>)}
-                                    </Select>
-                                    <Seg size="sm" value={onlyBad} onChange={setOnlyBad} label="Rows" options={[
-                                        { id: 'all', label: 'All rows', count: items.length },
-                                        { id: 'bad', label: 'Need fixing', count: badCount },
-                                    ]} />
-                                    {filtered && <Btn size="sm" onClick={() => { setWho(''); setRole(''); setOnlyBad('all'); }}>Clear</Btn>}
+                                    <span role="status" style={{ fontSize: 12.5, color: badCount ? t.down : t.up }}>
+                                        {badCount
+                                            ? `${badCount} of ${items.length} row${items.length === 1 ? '' : 's'} need one A and at least one R`
+                                            : `All ${items.length} row${items.length === 1 ? '' : 's'} have an owner and a doer`}
+                                    </span>
                                     <div style={{ flex: 1 }} />
-                                    {canCreate && <ImportBtn project={project} items={items} busy={busy} setBusy={setBusy} />}
+                                    {columns.length > 4 && (
+                                        <Select aria-label="Show one person" value={who} onChange={(e) => setWho(e.target.value)} style={{ width: 180, height: 27 }}>
+                                            <option value="">Everyone</option>
+                                            {columns.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                        </Select>
+                                    )}
+                                    {badCount > 0 && badCount < items.length && (
+                                        <Seg size="sm" value={onlyBad} onChange={setOnlyBad} label="Rows" options={[
+                                            { id: 'all', label: 'All', count: items.length },
+                                            { id: 'bad', label: 'To fix', count: badCount },
+                                        ]} />
+                                    )}
                                 </Row>
                             </div>
                             {shownRows.length === 0 ? (
-                                <Empty>No rows match these filters.</Empty>
+                                <Empty action={<Btn size="sm" onClick={() => { setWho(''); setOnlyBad('all'); }}>Show all</Btn>}>
+                                    Nothing to show with this filter.
+                                </Empty>
                             ) : (
-                                <Matrix rows={shownRows} cols={shownCols} cells={cells} problems={problems} role={role}
+                                <Matrix rows={shownRows} cols={shownCols} cells={cells} problems={problems}
                                     canEdit={canEdit} canDelete={canDelete} onSet={setCell} onRemove={removeRow} />
                             )}
                         </Panel>
@@ -238,22 +225,30 @@ export default function RaciPage({ project, onOpen }) {
 function Legend() {
     const t = useT();
     return (
-        <div role="list" aria-label="RACI legend" style={{
-            display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+        <div role="list" aria-label="What the letters mean" style={{
+            display: 'flex', flexWrap: 'wrap', gap: '6px 18px', alignItems: 'center', fontSize: 12, color: t.dim,
         }}>
             {RACI_ROLES.map((r) => (
-                <div key={r.id} role="listitem" style={{
-                    display: 'flex', gap: 10, alignItems: 'flex-start', padding: '9px 11px',
-                    border: '1px solid ' + t.line, borderRadius: 9,
-                }}>
-                    <Letter id={r.id} />
-                    <span style={{ minWidth: 0 }}>
-                        <span style={{ display: 'block', fontSize: 12.5, color: t.text }}>{r.label}</span>
-                        <span style={{ display: 'block', fontSize: 11.5, color: t.faint, lineHeight: 1.5 }}>{r.desc}</span>
-                    </span>
-                </div>
+                <span key={r.id} role="listitem" title={r.desc} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Letter id={r.id} size={20} />
+                    <span><span style={{ color: t.text }}>{r.label}</span> — {SHORT[r.id]}</span>
+                </span>
             ))}
         </div>
+    );
+}
+
+const SHORT = { R: 'does the work', A: 'owns it (one per row)', C: 'gives input', I: 'kept informed' };
+
+/** One control for both downloads; it resets so the same format can be picked again. */
+function ExportMenu({ onPick }) {
+    return (
+        <Select aria-label="Export the matrix" value="" style={{ width: 112, height: 25, fontSize: 12 }}
+            onChange={(e) => { const v = e.target.value; e.target.value = ''; if (v) onPick(v); }}>
+            <option value="">Export…</option>
+            <option value="xlsx">Excel (.xlsx)</option>
+            <option value="csv">CSV</option>
+        </Select>
     );
 }
 
@@ -271,11 +266,11 @@ function Letter({ id, size = 24 }) {
 
 /* ── the matrix ───────────────────────────────────────────────────────────── */
 
-function Matrix({ rows, cols, cells, problems, role, canEdit, canDelete, onSet, onRemove }) {
+function Matrix({ rows, cols, cells, problems, canEdit, canDelete, onSet, onRemove }) {
     const t = useT();
     const firstW = 260;
     const head = {
-        position: 'sticky', top: 0, zIndex: 2, background: t.panelAlt,
+        position: 'sticky', top: 0, zIndex: 2, background: t.panelAlt, textTransform: 'none', letterSpacing: 'normal',
         borderBottom: '1px solid ' + t.line, padding: '8px 6px', fontWeight: 400,
     };
     return (
@@ -288,8 +283,8 @@ function Matrix({ rows, cols, cells, problems, role, canEdit, canDelete, onSet, 
                         <th scope="col" style={{
                             ...head, left: 0, zIndex: 3, textAlign: 'left', padding: '8px 13px',
                             minWidth: firstW, maxWidth: firstW, borderRight: '1px solid ' + t.line,
-                            fontSize: 10.5, letterSpacing: '0.09em', color: t.faint,
-                        }}>TASK / DELIVERABLE</th>
+                            fontSize: 11.5, color: t.faint,
+                        }}>Work</th>
                         {cols.map((p) => (
                             <th key={p.id} scope="col" style={{ ...head, minWidth: 92, maxWidth: 120, textAlign: 'center' }}>
                                 <span style={{ display: 'grid', justifyItems: 'center', gap: 4 }}>
@@ -310,40 +305,31 @@ function Matrix({ rows, cols, cells, problems, role, canEdit, canDelete, onSet, 
                     {rows.map((it) => {
                         const bad = problems.get(it.id);
                         const row = cells.get(it.id) || new Map();
-                        const rowBg = bad.length ? tint(t.isDark ? '#f87171' : '#b91c1c', 0.07) : undefined;
                         return (
-                            <tr key={it.id} style={{ background: rowBg }}>
+                            <tr key={it.id}>
                                 <th scope="row" style={{
                                     position: 'sticky', left: 0, zIndex: 1, textAlign: 'left', fontWeight: 400,
-                                    background: bad.length ? `linear-gradient(${rowBg}, ${rowBg}), ${t.panel}` : t.panel,
+                                    textTransform: 'none', letterSpacing: 'normal', background: t.panel,
                                     minWidth: firstW, maxWidth: firstW, padding: '8px 10px 8px 13px',
                                     borderRight: '1px solid ' + t.line, borderBottom: '1px solid ' + t.lineSoft,
                                     boxShadow: bad.length ? `inset 3px 0 0 ${t.down}` : undefined,
                                 }}>
-                                    <Row gap={8} align="flex-start">
+                                    <Row gap={6} align="flex-start">
                                         <span style={{ flex: 1, minWidth: 0 }}>
                                             <span style={{ display: 'block', fontSize: 13, color: t.text, lineHeight: 1.4, overflowWrap: 'anywhere' }}>{it.title}</span>
-                                            <span style={{ display: 'block', fontSize: 11, color: t.faint }}>
+                                            <span style={{ display: 'block', fontSize: 11, color: bad.length ? t.down : t.faint, marginTop: 1 }}>
                                                 {RACI_KINDS.find((k) => k.id === it.kind)?.label}
+                                                {bad.length > 0 && ` · ${bad.join(', ').toLowerCase().replace(/^./, (c) => c.toUpperCase())}`}
                                             </span>
-                                            {bad.map((b) => (
-                                                <span key={b} style={{ display: 'block', fontSize: 11, color: t.down, marginTop: 2 }}>{b}</span>
-                                            ))}
                                         </span>
-                                        {canDelete && (
-                                            <ConfirmBtn label="Remove" title="Remove this row?"
-                                                message={`“${it.title}” and its letters are removed from the matrix. The task or milestone itself is not touched.`}
-                                                onConfirm={() => onRemove(it)} />
-                                        )}
+                                        {canDelete && <RemoveRowBtn item={it} onRemove={onRemove} />}
                                     </Row>
                                 </th>
                                 {cols.map((p) => {
                                     const value = row.get(p.id)?.role || '';
-                                    const dim = role && value !== role;
                                     return (
                                         <td key={p.id} style={{
                                             textAlign: 'center', padding: 5, borderBottom: '1px solid ' + t.lineSoft,
-                                            opacity: dim ? 0.35 : 1,
                                         }}>
                                             <RolePicker value={value} disabled={!canEdit || (!isCurrent(p) && !value)}
                                                 label={`${p.name} on ${it.title}`} onPick={(next) => onSet(it, p, next)} />
@@ -356,6 +342,26 @@ function Matrix({ rows, cols, cells, problems, role, canEdit, canDelete, onSet, 
                 </tbody>
             </table>
         </div>
+    );
+}
+
+/** A quiet × at the end of a row; asks before removing. */
+function RemoveRowBtn({ item, onRemove }) {
+    const t = useT();
+    const ask = async () => {
+        const ok = await confirmDialog({
+            title: 'Remove this row?',
+            message: `“${item.title}” and its letters are removed from the matrix. The task or milestone itself is not touched.`,
+            confirmLabel: 'Remove', tone: 'danger',
+        });
+        if (ok) onRemove(item);
+    };
+    return (
+        <button type="button" onClick={ask} aria-label={`Remove ${item.title}`} title="Remove row" className="edge-btn"
+            style={{
+                width: 22, height: 22, flexShrink: 0, borderRadius: 6, border: '1px solid transparent',
+                background: 'transparent', color: t.faint, cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: 0,
+            }}>×</button>
     );
 }
 
@@ -424,12 +430,12 @@ function RolePicker({ value, onPick, label, disabled }) {
                 }}
                 className="edge-btn"
                 style={{
-                    width: 40, height: 30, borderRadius: 7, fontFamily: MONO, fontSize: 13, fontWeight: 700,
+                    width: 40, height: 30, borderRadius: 7, fontFamily: MONO, fontSize: 13,
                     cursor: disabled ? 'default' : 'pointer',
-                    border: '1px solid ' + (r ? tint(r.color, 0.6) : t.line),
+                    border: r ? '1px solid ' + tint(r.color, 0.6) : disabled ? '1px solid transparent' : '1px dashed ' + t.line,
                     background: r ? tint(r.color, t.isDark ? 0.26 : 0.16) : 'transparent',
-                    color: r ? t.text : t.ghost,
-                }}>{value || (disabled ? '' : '·')}</button>
+                    color: r ? t.text : t.ghost, fontWeight: r ? 700 : 400,
+                }}>{value || (disabled ? '' : '+')}</button>
             {open && pos && (
                 <div ref={list} role="menu" aria-label={`Role for ${label}`} onKeyDown={onKey} style={{
                     position: 'fixed', left: pos.left, top: pos.top, zIndex: 60, width: 220,
@@ -504,39 +510,38 @@ function AddRow({ project, items, onClose }) {
     };
 
     return (
-        <Modal open onClose={onClose} title="Add a row" width={500}
-            note="A row is one piece of work; its cells say who does what for it"
+        <Modal open onClose={onClose} title="Add a row" width={460}
             footer={<>
                 <Btn onClick={onClose}>Cancel</Btn>
                 <Btn primary disabled={saving || !title.trim()} onClick={save}>{saving ? 'Adding…' : 'Add row'}</Btn>
             </>}>
-            <Field label="Kind">
-                <Seg value={kind} onChange={(k) => { setKind(k); setLink(''); }} label="Kind" options={RACI_KINDS} />
+            <Field label="Name">
+                <Input autoFocus value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && title.trim() && !saving) save(); }}
+                    placeholder="e.g. Design specification" />
             </Field>
-            {kind !== 'deliverable' && (
+            <div style={{ height: 12 }} />
+            <Field label="Type">
+                <Seg value={kind} onChange={(k) => { setKind(k); setLink(''); }} label="Type" options={RACI_KINDS} />
+            </Field>
+            {options.length > 0 && (
                 <>
                     <div style={{ height: 12 }} />
-                    <Field label={kind === 'task' ? 'From the plan (optional)' : 'Milestone (optional)'}
-                        hint={options.length ? 'Or leave it and type a name below' : `No ${kind === 'task' ? 'tasks' : 'milestones'} left to add from this project`}>
-                        <Select value={link} onChange={(e) => choose(e.target.value)} disabled={!options.length}>
-                            <option value="">None — just a name</option>
+                    <Field label={kind === 'task' ? 'Link to a task (optional)' : 'Link to a milestone (optional)'}>
+                        <Select value={link} onChange={(e) => choose(e.target.value)}>
+                            <option value="">Not linked</option>
                             {options.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
                         </Select>
                     </Field>
                 </>
             )}
-            <div style={{ height: 12 }} />
-            <Field label="Name">
-                <Input value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)}
-                    placeholder={kind === 'deliverable' ? 'Design specification' : 'Name'} />
-            </Field>
             {error && <div role="alert" style={{ marginTop: 12, fontSize: 12.5, color: t.down }}>{error}</div>}
         </Modal>
     );
 }
 
 /** One click: a row for each milestone and each top-level WBS item not already on the matrix. */
-function ImportBtn({ project, items, busy, setBusy }) {
+function ImportBtn({ project, items, busy, setBusy, primary }) {
     const toast = useToast();
     const tasks = useSection('tasks');
     const milestones = useSection('project_milestones');
@@ -567,7 +572,7 @@ function ImportBtn({ project, items, busy, setBusy }) {
         }
     };
     return (
-        <Btn size="sm" disabled={busy} onClick={run} title="Top-level WBS items and milestones not yet on the matrix">
+        <Btn size={primary ? 'md' : 'sm'} primary={primary} disabled={busy} onClick={run} title="Top-level WBS items and milestones not yet on the matrix">
             {busy ? 'Adding…' : `Add ${fresh.length} from the plan`}
         </Btn>
     );

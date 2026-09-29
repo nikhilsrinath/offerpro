@@ -16,10 +16,16 @@ const QUESTIONS = [
     { id: 'welcome', type: 'welcome', category: 'Welcome' },
     { id: 'company_email', type: 'email', label: "What is your work email?", subtitle: "This becomes your sign-in and your organization's identity.", category: 'Work email' },
     { id: 'password', type: 'password', label: "Create a password.", subtitle: "Minimum 6 characters.", category: 'Password' },
-    { id: 'company_name', type: 'text', label: "What is your company called?", subtitle: "The name that appears on everything you issue.", category: 'Company name' },
-    { id: 'owner_full_name', type: 'text', label: "What is your full name?", subtitle: "As the primary account administrator.", category: 'Your name' },
+    { id: 'company_name', type: 'text', label: "What is your organization / company called?", subtitle: "The name that appears on everything you issue.", category: 'Company name', required: true },
+    { id: 'owner_full_name', type: 'text', label: "What is your full name / profile name?", subtitle: "As the primary account administrator.", category: 'Your name', required: true },
     { id: 'owner_role', type: 'select', label: "What is your role?", options: ['Founder', 'HR', 'Admin', 'Manager', 'Other'], category: 'Your role' },
-    { id: 'industry', type: 'select', label: "Which industry fits you best?", options: ['Technology', 'Finance', 'Healthcare', 'Education', 'E-commerce', 'Agency/Consulting', 'Real Estate', 'Other'], category: 'Industry' }
+    { id: 'industry', type: 'dropdown', label: "Which industry fits you best?", placeholder: 'Select your industry', options: [
+        'Technology / Software', 'IT Services', 'Finance / Banking', 'Insurance', 'Healthcare', 'Pharmaceuticals',
+        'Education', 'E-commerce', 'Retail', 'Manufacturing', 'Construction / Infrastructure', 'Architecture / Interior Design',
+        'Engineering', 'Real Estate', 'Agency / Consulting', 'Legal', 'Accounting / Audit', 'Marketing / Advertising',
+        'Media / Entertainment', 'Hospitality / Travel', 'Food & Beverage', 'Logistics / Supply Chain', 'Automotive',
+        'Energy / Utilities', 'Agriculture', 'Telecommunications', 'Government / Public Sector', 'Non-profit / NGO', 'Other'
+    ], category: 'Industry' }
 ];
 
 // Questions for Google-authenticated users (skip email/password)
@@ -92,7 +98,8 @@ export default function Registration({ onBack, isGoogleUser }) {
         setError(null);
         if (!currentQ.optional && currentQ.type !== 'welcome') {
             const val = formData[currentQ.id];
-            if (!val || (Array.isArray(val) && val.length === 0)) {
+            // A name of only spaces is still blank.
+            if (!val || (typeof val === 'string' && !val.trim()) || (Array.isArray(val) && val.length === 0)) {
                 setError('This field is required.');
                 return;
             }
@@ -212,6 +219,28 @@ export default function Registration({ onBack, isGoogleUser }) {
                     className="reg-textarea-v2"
                     autoFocus
                 />
+            );
+        }
+
+        if (currentQ.type === 'dropdown') {
+            return (
+                <select
+                    ref={inputRef}
+                    disabled={loading}
+                    aria-label={currentQ.label}
+                    value={formData[currentQ.id]}
+                    onChange={(e) => {
+                        setFormData({ ...formData, [currentQ.id]: e.target.value });
+                        setError(null);
+                    }}
+                    onKeyDown={handleKeyDown}
+                    className="reg-text-input-v2 reg-select-v2"
+                >
+                    <option value="" disabled>{currentQ.placeholder}</option>
+                    {currentQ.options.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                    ))}
+                </select>
             );
         }
 
@@ -337,6 +366,7 @@ export default function Registration({ onBack, isGoogleUser }) {
                                 {/* Question Title */}
                                 <h2 className="reg-question-title-v2">
                                     {currentQ.label}
+                                    {currentQ.required && <span className="reg-required-v2" aria-label="required"> *</span>}
                                 </h2>
 
                                 {/* Input Field */}

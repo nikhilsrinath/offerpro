@@ -452,6 +452,8 @@ export function CalendarHeat({ days, onSelect }) {
     for (let wk = 0; wk < weeks; wk += 1) {
         const d = days[wk * 7];
         if (d && (wk === 0 || d.date.slice(5, 7) !== days[(wk - 1) * 7].date.slice(5, 7))) {
+            // A partial first month too narrow for its label gives way to the next.
+            if (monthMarks.length && wk - monthMarks[monthMarks.length - 1].wk < 3) monthMarks.pop();
             monthMarks.push({ wk, text: new Date(`${d.date}T00:00:00`).toLocaleDateString('en-IN', { month: 'short' }) });
         }
     }

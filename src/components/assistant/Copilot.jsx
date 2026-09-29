@@ -355,7 +355,6 @@ function Welcome({ a, compact }) {
             <div className="cp-welcome-inner">
                 <div className="cp-big-orb" aria-hidden="true" />
                 <h2>Ask EdgeAI</h2>
-                <p>Answers come from everything in EdgeBrain.</p>
                 <div className="cp-prompts">
                     {(compact ? promptsFor().slice(0, 3) : promptsFor()).map((p) => (
                         <button key={p} type="button" onClick={() => a.send(p)} disabled={a.streaming}>

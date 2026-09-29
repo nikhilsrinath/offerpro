@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     Panel, Row, Btn, Seg, Search, Select, Field, Input, Empty, Modal, Muted, Table, Tr, Td,
 } from '../../ui/edge';
@@ -28,6 +29,10 @@ import { SetupGate, Bar } from '../parties/partyUi';
    approvals, invoices, vendors, generated documents) sit in "Attached
    elsewhere", so this is the one place they can all be found.
 
+   It opens on Business documents (ProjectDocuments): the quotations,
+   proformas, invoices, agreements and vendor bills, each startable from
+   "New document" already pointed at this project.
+
    A folder or file can be limited to some roles. Owners and admins always
    see everything; the database hides the rest, including whatever is inside
    a hidden folder.
@@ -46,14 +51,22 @@ const LINK_LABEL = {
 const KIND_ICON = { pdf: 'PDF', image: 'IMG', doc: 'DOC', sheet: 'XLS', slides: 'PPT', text: 'TXT', archive: 'ZIP', other: 'FILE' };
 
 export default function ProjectFiles({ project }) {
-    const [tab, setTab] = useState('files');
+    // ?view= keeps the choice in the URL, so a form opened from Business
+    // documents comes back to it.
+    const [params, setParams] = useSearchParams();
+    const tab = params.get('view') === 'files' ? 'files' : 'business';
+    const choose = (id) => setParams((p) => {
+        const next = new URLSearchParams(p);
+        next.set('view', id);
+        return next;
+    }, { replace: true });
     return (
         <div style={{ display: 'grid', gap: 14 }}>
-            <Seg value={tab} onChange={setTab} label="Documents" options={[
-                { id: 'files', label: 'Files' },
-                { id: 'linked', label: 'Linked records' },
+            <Seg value={tab} onChange={choose} label="Documents" options={[
+                { id: 'business', label: 'Business documents' },
+                { id: 'files', label: 'Files & folders' },
             ]} />
-            {tab === 'files' ? <FilesView project={project} /> : <ProjectDocuments project={project} />}
+            {tab === 'files' ? <FilesView project={project} /> : <ProjectDocuments project={project} onUploaded={() => choose('files')} />}
         </div>
     );
 }

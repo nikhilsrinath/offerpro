@@ -1,13 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { MONO, useT } from '../ui/edgeUtils';
 import { useOrg } from '../../context/OrgContext';
 import { documentStore } from '../../services/documentStore';
-import { useSection } from '../financial/financeHooks';
-import { loadFinanceCategories } from '../../services/financeCategories';
 import { todayIso } from '../../services/financeAnalytics';
-import { buildOverview, PERIODS, fmtDay } from './overviewModel';
+import { PERIODS, fmtDay } from './overviewModel';
+import { useOverviewModel } from './useOverviewModel';
 import { TipProvider, Spark } from './vizKit';
 import Drilldown from './Drilldown';
 import { useViz, useWinW } from './vizHooks';
@@ -68,29 +67,8 @@ function DashboardBody({ children, orgId, periodic, snapshotNote }) {
     });
     useEffect(() => { try { localStorage.setItem(PERIOD_KEY, periodId); } catch { /* ignore */ } }, [periodId]);
 
-    const finDocs = useSection('fin_docs');
-    const records = useSection('records');
-    const employees = useSection('employees');
-    const exEmployees = useSection('ex_employees');
-    const expenses = useSection('expenses');
-    const income = useSection('income_entries');
-    const purchases = useSection('purchase_invoices');
-    const vendors = useSection('vendors');
-    const leads = useSection('crm_leads');
-    const tasks = useSection('tasks');
-    const catalog = useSection('catalog');
-
-    // Reference data, not tenant data, so it is not in orgStore's cache. Only
-    // the category LABELS need it; every figure is computed from the treatment
-    // already stamped on each row, so a slow fetch cannot move a number.
-    const [, setCatsReady] = useState(false);
-    useEffect(() => { loadFinanceCategories().then(() => setCatsReady(true)); }, []);
-
     const today = todayIso();
-    const model = useMemo(() => buildOverview(
-        { finDocs, records, employees, exEmployees, expenses, income, purchases, vendors, leads, tasks, catalog },
-        periodId, today,
-    ), [finDocs, records, employees, exEmployees, expenses, income, purchases, vendors, leads, tasks, catalog, periodId, today]);
+    const model = useOverviewModel(periodId, today);
 
     const [stack, setStack] = useState([]);
     const open = useCallback((v) => setStack([v]), []);
