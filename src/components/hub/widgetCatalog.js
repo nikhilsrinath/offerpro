@@ -38,7 +38,7 @@ export const WIDGETS = [
     { id: 'project_workload', group: 'projects', title: 'Project tasks', desc: 'Open tasks across projects, busiest first', icon: ListChecks, size: 'sm', sizes: ALL, render: ProjectWorkload },
     { id: 'team_utilisation', group: 'projects', title: 'Utilisation', desc: 'Who is over- or under-booked on projects', icon: Gauge, size: 'sm', sizes: ALL, render: TeamUtilisation },
     { id: 'project_margin', group: 'projects', title: 'Project margin', desc: 'Best and worst projects by net margin', icon: TrendingUp, size: 'md', sizes: MD_LG, render: ProjectMargin },
-    { id: 'project_shortcuts', group: 'projects', title: 'Project shortcuts', desc: 'New project, portfolio, timesheets', icon: Rocket, size: 'sm', sizes: ['sm'], render: ProjectShortcuts },
+    { id: 'project_shortcuts', group: 'projects', title: 'Project shortcuts', desc: 'New project, kanban chart, portfolio', icon: Rocket, size: 'sm', sizes: ['sm'], render: ProjectShortcuts },
     // Business — available from the picker.
     { id: 'revenue', group: 'finance', title: 'Revenue', desc: 'This month, against last month to date', icon: IndianRupee, size: 'sm', sizes: SM_MD, meta: () => monthShort(), drill: { kind: 'metric', id: 'invoiced' }, render: Revenue },
     { id: 'expenses', group: 'finance', title: 'Expenses', desc: 'Money out this month', icon: TrendingDown, size: 'sm', sizes: SM_MD, meta: () => monthShort(), drill: { kind: 'metric', id: 'net' }, render: Expenses },

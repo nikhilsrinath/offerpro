@@ -346,7 +346,7 @@ export function ProjectShortcuts({ nav }) {
         ['New project', '/projects/new', can('projects', 'create')],
         ['All projects', '/projects', can('projects', 'view')],
         ['Portfolio', '/portfolio', can('projects', 'view')],
-        ['Timesheets', '/timesheets', true],
+        ['Kanban chart', '/kanban', can('projects', 'view')],
     ].filter((l) => l[2]);
     return (
         <div className="w-list">

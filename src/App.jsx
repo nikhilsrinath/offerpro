@@ -7,7 +7,7 @@ import {
   Activity, Receipt, FilePlus, RotateCcw,
   GitBranch, Kanban, Package,
   Truck, FileInput, TrendingUp, CalendarCheck, Megaphone,
-  BrainCircuit, Banknote, FolderKanban, ListChecks, PieChart, Clock, FolderOpen,
+  BrainCircuit, Banknote, FolderKanban, SquareKanban, PieChart, FolderOpen,
   Wallet, BarChart3, UsersRound, FileStack, Gauge
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
@@ -56,6 +56,7 @@ import { projectDashboardGroup } from './components/projects/projectDashboardNav
 import { useSection } from './components/financial/financeHooks';
 import Portfolio from './components/projects/Portfolio';
 import Timesheets from './components/projects/Timesheets';
+import KanbanChart from './components/projects/KanbanChart';
 import AIAssistant from './components/assistant/AIAssistant';
 import { AssistantProvider } from './components/assistant/AssistantContext';
 import EdgeBrain from './components/brain/EdgeBrain';
@@ -102,9 +103,9 @@ const MODULE_FILTER = {
   brain: ['edgebrain'],
   // Ex-employees and leave are tabs of Employees and Attendance, not rail items.
   team: ['team-hierarchy', 'employees', 'attendance', 'offer-tracker', 'announcements'],
-  // Tasks moved here from Team: work belongs to the thing being delivered.
-  // Portfolio (Phase 2) and Timesheets (Phase 3) join the rail when they ship.
-  projects: ['projects', 'tasks', 'portfolio', 'timesheets'],
+  // Tasks live inside each project (Project Management); Tasks and Timesheets
+  // keep their routes but are no longer rail items (MODULE_EXTRA_PAGES).
+  projects: ['projects', 'kanban', 'portfolio'],
   documents: ['records', 'library', 'offers', 'new-certificates', 'certificates', 'templates'],
   finance: ['finance-status', 'cashbook', 'invoices', 'quotations', 'proforma', 'recurring', 'purchases', 'tax-summary', 'profit-loss'],
   // Vendors sit with clients: both are the parties the company deals with.
@@ -115,7 +116,7 @@ const MODULE_FILTER = {
 // editors reached from a list. They still wear that module's frame.
 const MODULE_EXTRA_PAGES = {
   finance: ['new-invoice', 'new-quotation', 'new-proforma'],
-  projects: ['project-detail', 'new-project'],
+  projects: ['project-detail', 'new-project', 'tasks', 'timesheets'],
   documents: ['templates/nda', 'templates/mou', 'templates/partnership', 'templates/custom'],
 };
 
@@ -211,9 +212,8 @@ const NAV_ITEMS = [
   { id: 'planner', label: 'Product Planner', icon: Layers },
   { section: 'PROJECTS' },
   { id: 'projects', label: 'Projects', icon: FolderKanban },
-  { id: 'tasks', label: 'Tasks', icon: ListChecks },
+  { id: 'kanban', label: 'Kanban Chart', icon: SquareKanban },
   { id: 'portfolio', label: 'Portfolio', icon: PieChart },
-  { id: 'timesheets', label: 'Timesheets', icon: Clock },
 ];
 
 const PAGE_META = {
@@ -266,6 +266,7 @@ const PAGE_META = {
   projects: { title: 'Projects', subtitle: 'What the company is delivering, for whom, and whether it pays' },
   'new-project': { title: 'New project', subtitle: 'Client or internal work, its team, budget and plan' },
   'project-detail': { title: 'Project', subtitle: 'Money in, money out, people, plan and work' },
+  kanban: { title: 'Kanban Chart', subtitle: 'Every project by status — what has started, what is due and what has ended' },
   portfolio: { title: 'Portfolio', subtitle: 'Every project: health, margin and team load' },
   timesheets: { title: 'Timesheets', subtitle: 'Hours by person and project — submitted, approved, billed' },
 };
@@ -583,6 +584,7 @@ function AppContent() {
             <Route path="projects/:projectId" element={<ProjectDetail />} />
             <Route path="projects/:projectId/dashboard" element={<ProjectDashboardPage />} />
             <Route path="projects/:projectId/dashboard/:view" element={<ProjectDashboardPage />} />
+            <Route path="kanban" element={<KanbanChart />} />
             <Route path="portfolio" element={<Portfolio />} />
             <Route path="timesheets" element={<Timesheets />} />
             {/* The bulk tools now live inside the page they batch. */}
