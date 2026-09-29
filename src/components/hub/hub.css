@@ -60,6 +60,26 @@
   transition: transform .32s cubic-bezier(.16, 1, .3, 1), box-shadow .25s, opacity .15s;
 }
 .w:hover { transform: scale(1.012); box-shadow: 0 0 0 .5px var(--line), 0 2px 4px rgba(0, 0, 0, .05), 0 18px 36px -18px rgba(0, 0, 0, .32); }
+/* iOS dark widgets: systemGray6-style tiles lifted clearly off the board,
+   with a faint top highlight instead of an outline */
+.eo-surface[data-theme="dark"] .w {
+  --w-bg: #232326;
+  background: linear-gradient(165deg, #2c2c30 0%, #222226 55%, #1d1d20 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, .10),
+    inset 0 1.5px 0 rgba(255, 255, 255, .20),
+    inset 0 -2px 3px rgba(0, 0, 0, .45),
+    0 2px 4px rgba(0, 0, 0, .7),
+    0 18px 30px -10px rgba(0, 0, 0, .95);
+}
+.eo-surface[data-theme="dark"] .w:hover {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, .16),
+    inset 0 1.5px 0 rgba(255, 255, 255, .26),
+    inset 0 -2px 3px rgba(0, 0, 0, .5),
+    0 4px 8px rgba(0, 0, 0, .7),
+    0 26px 42px -12px rgba(0, 0, 0, 1);
+}
 .w.is-md { grid-column: span 2; }
 .w.is-lg { grid-column: span 2; grid-row: span 2; padding: 18px 18px 18px; }
 .w.is-open { z-index: 20; }
