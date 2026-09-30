@@ -782,16 +782,13 @@ function ShellStyle({ t }) {
             .edge-shell .edge-icon:hover { color: ${t.text} !important; border-color: ${t.line} !important; }
             .edge-shell .edge-chip:hover { border-color: ${t.lineStrong} !important; }
             .edge-shell .edge-row:hover { background: ${t.panelAlt}; }
-            .edge-shell .edge-navitem { transition: background .15s, box-shadow .15s, color .15s, transform .15s; }
+            .edge-shell .edge-navitem { transition: background .15s, box-shadow .15s, color .15s; }
             .edge-shell .edge-navitem:hover {
                 color: ${t.text} !important;
-                background: ${t.isDark ? 'linear-gradient(180deg, #3a3a40 0%, #2a2a2f 48%, #222226 100%)' : 'linear-gradient(180deg, #ffffff 0%, #f1f4f5 100%)'} !important;
-                transform: translateY(-2px);
-                box-shadow: ${t.isDark
-                    ? '0 0 0 1px rgba(255,255,255,.14), inset 0 1.5px 0 rgba(255,255,255,.30), inset 0 -2px 2px rgba(0,0,0,.55), 0 2px 0 rgba(0,0,0,.6), 0 8px 16px rgba(0,0,0,.85)'
-                    : '0 0 0 1px rgba(0,0,0,.10), inset 0 1.5px 0 #ffffff, inset 0 -2px 2px rgba(0,0,0,.10), 0 2px 0 rgba(0,0,0,.10), 0 8px 14px rgba(20,28,32,.22)'} !important;
+                background: ${t.panelAlt} !important;
+                box-shadow: ${t.isDark ? '0 1px 3px rgba(0,0,0,.35)' : '0 1px 3px rgba(0,0,0,.08)'} !important;
             }
-            .edge-shell .edge-navitem:active { transform: translateY(0); box-shadow: inset 0 2px 5px rgba(0,0,0,.55) !important; }
+            .edge-shell .edge-navitem:active { box-shadow: none !important; }
             .edge-shell ::selection { background: ${t.text}; color: ${t.panel}; }
             .edge-shell :focus-visible { outline: 2px solid ${t.text}; outline-offset: 2px; }
             .edge-shell .edge-skip {
