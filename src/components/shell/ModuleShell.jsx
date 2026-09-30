@@ -785,9 +785,9 @@ function ShellStyle({ t }) {
             .edge-shell .edge-navitem { transition: background .15s, box-shadow .15s, color .15s, transform .15s; }
             .edge-shell .edge-navitem:hover {
                 color: ${t.text} !important;
-                background: ${isDark ? 'linear-gradient(180deg, #3a3a40 0%, #2a2a2f 48%, #222226 100%)' : 'linear-gradient(180deg, #ffffff 0%, #f1f4f5 100%)'} !important;
+                background: ${t.isDark ? 'linear-gradient(180deg, #3a3a40 0%, #2a2a2f 48%, #222226 100%)' : 'linear-gradient(180deg, #ffffff 0%, #f1f4f5 100%)'} !important;
                 transform: translateY(-2px);
-                box-shadow: ${isDark
+                box-shadow: ${t.isDark
                     ? '0 0 0 1px rgba(255,255,255,.14), inset 0 1.5px 0 rgba(255,255,255,.30), inset 0 -2px 2px rgba(0,0,0,.55), 0 2px 0 rgba(0,0,0,.6), 0 8px 16px rgba(0,0,0,.85)'
                     : '0 0 0 1px rgba(0,0,0,.10), inset 0 1.5px 0 #ffffff, inset 0 -2px 2px rgba(0,0,0,.10), 0 2px 0 rgba(0,0,0,.10), 0 8px 14px rgba(20,28,32,.22)'} !important;
             }
