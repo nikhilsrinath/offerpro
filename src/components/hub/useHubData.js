@@ -3,7 +3,10 @@ import { orgStore } from '../../services/orgStore';
 import { documentStore } from '../../services/documentStore';
 import { salesGeoService, periodRange } from '../../services/salesGeoService';
 import { countsAsIncome, loadFinanceCategories } from '../../services/financeCategories';
-import { cashPosition } from '../../services/financeAnalytics';
+import { cashPosition, profitAndLoss } from '../../services/financeAnalytics';
+import { annualRecurring, acquisitionSpend } from '../../services/salesMetrics';
+import { expenseEvents } from '../overview/overviewModel';
+import { PERIODS, windowOf } from './periods';
 import { getStatus as getBrainStatus } from '../../services/brainService';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -74,6 +77,7 @@ export function useHubData(activeOrg, geoPeriod = '12M') {
     const tasks = useLive('tasks', ready);
     const leads = useLive('crm_leads', ready);
     const notifs = useLive('fin_notifs', ready);
+    const recurring = useLive('fin_recurring', ready);
 
     /* ── money ──────────────────────────────────────────────────────────── */
     const money = useMemo(() => {
@@ -201,9 +205,25 @@ export function useHubData(activeOrg, geoPeriod = '12M') {
         const byType = {};
         all.forEach((d) => { byType[d.type] = (byType[d.type] || 0) + 1; });
         const thisMonth = months[11].value;
+        // Per day, for the 1M/3M/6M/1Y windows (periods.js) the widgets offer.
+        const keyed = all.map((d) => ({ type: d.type, day: dayKey(d.at) }));
+        const byDay = new Map();
+        keyed.forEach((d) => byDay.set(d.day, (byDay.get(d.day) || 0) + 1));
+        const windows = Object.fromEntries(PERIODS.map((p) => {
+            const w = windowOf(p.id, today);
+            const inWin = keyed.filter((d) => d.day >= w.from && d.day <= w.to);
+            const types = {};
+            inWin.forEach((d) => { types[d.type] = (types[d.type] || 0) + 1; });
+            return [p.id, {
+                count: inWin.length,
+                prev: keyed.filter((d) => d.day >= w.prevFrom && d.day <= w.prevTo).length,
+                byType: Object.entries(types).sort((a, b) => b[1] - a[1]),
+            }];
+        }));
         return {
             total: all.length, thisMonth, delta: pct(thisMonth, months[10].value), months,
             byType: Object.entries(byType).sort((a, b) => b[1] - a[1]),
+            byDay, windows,
         };
     }, [records, finDocs]);
 
@@ -221,6 +241,12 @@ export function useHubData(activeOrg, geoPeriod = '12M') {
             const k = e.department || e.dept || e.department_name || 'Unassigned';
             byDept[k] = (byDept[k] || 0) + 1;
         });
+        // employees.location (0076); anyone without one is counted as such.
+        const byLocation = {};
+        active.forEach((e) => {
+            const k = String(e.location || '').trim() || 'Not set';
+            byLocation[k] = (byLocation[k] || 0) + 1;
+        });
 
         const todayKey = new Date().toISOString().slice(0, 10);
         const openTasks = tasks.filter((x) => x.status !== 'done');
@@ -229,6 +255,8 @@ export function useHubData(activeOrg, geoPeriod = '12M') {
         return {
             headcount: active.length, departments: departments.length || Object.keys(byDept).length, joined,
             byDept: Object.entries(byDept).sort((a, b) => b[1] - a[1]),
+            // 'Not set' last, whatever its size: it is a gap, not a place.
+            byLocation: Object.entries(byLocation).sort((a, b) => (a[0] === 'Not set') - (b[0] === 'Not set') || b[1] - a[1]),
             tasks: {
                 total: tasks.length, open: openTasks.length, overdue: overdueTasks.length, today: dueToday.length,
                 done: tasks.length - openTasks.length,
@@ -259,6 +287,48 @@ export function useHubData(activeOrg, geoPeriod = '12M') {
             winRate: decided ? (counts.deal / decided) * 100 : null,
         };
     }, [leads]);
+
+    /* ── profit, per head, by period ─────────────────────────────────────── */
+    // The P&L's own figures (financeAnalytics.profitAndLoss — net of GST,
+    // accrual), for each 1M/3M/6M/1Y window and the one before it. Gross
+    // profit takes off the "Product & delivery" costs of making and delivering
+    // what was sold; the operating ratio is every running cost against income,
+    // leaving out the non-operating ones (interest, forex, penalties).
+    const pnl = useMemo(() => {
+        const data = { docs: finDocs, purchases, expenses, income };
+        const figures = (from, to) => {
+            const pl = profitAndLoss(data, from, to);
+            const group = (g) => pl.byGroup.find((x) => x.name === g)?.value || 0;
+            const cogs = group('Product & delivery');
+            const opex = pl.expenses - group('Financing & tax');
+            return {
+                income: pl.income, expenses: pl.expenses, cogs, gross: pl.income - cogs, opex,
+                grossPct: pl.income > 0 ? ((pl.income - cogs) / pl.income) * 100 : null,
+                opRatio: pl.income > 0 ? (opex / pl.income) * 100 : null,
+            };
+        };
+        return Object.fromEntries(PERIODS.map((p) => {
+            const w = windowOf(p.id);
+            return [p.id, { ...figures(w.from, w.to), prev: figures(w.prevFrom, w.prevTo) }];
+        }));
+    }, [finDocs, purchases, expenses, income]);
+
+    /* ── sales & marketing ─────────────────────────────────────────────────── */
+    // ARR and acquisition spend as the Sales & Marketing dashboard counts them
+    // (salesMetrics), so the widget and the page agree.
+    const sales = useMemo(() => {
+        const today = dayKey(new Date());
+        const spend = expenseEvents({ expenses, purchases });
+        return {
+            arr: annualRecurring(recurring, today),
+            acq: Object.fromEntries(PERIODS.map((p) => {
+                const w = windowOf(p.id);
+                return [p.id, { ...acquisitionSpend(spend, leads, w.from, w.to), prev: acquisitionSpend(spend, leads, w.prevFrom, w.prevTo).total }];
+            })),
+            // Against every lead on the board — the pipeline widget is not periodised.
+            allTime: acquisitionSpend(spend, leads, '0000-01-01', today),
+        };
+    }, [recurring, expenses, purchases, leads]);
 
     /* ── geography ──────────────────────────────────────────────────────── */
     const [geoRows, setGeoRows] = useState(null);
@@ -337,7 +407,7 @@ export function useHubData(activeOrg, geoPeriod = '12M') {
     );
 
     return {
-        ready, loadError, money, docs, team, pipeline, geo, brain, notifications,
+        ready, loadError, money, docs, team, pipeline, geo, brain, notifications, pnl, sales,
         finDocs, income, expenses,
     };
 }

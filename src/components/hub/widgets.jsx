@@ -3,7 +3,9 @@ import { ArrowUpRight, ArrowRight, Globe } from 'lucide-react';
 import { usePanZoom } from '../../hooks/usePanZoom';
 import { MODULES } from '../shell/modules';
 import { kindLabel } from '../../services/brainService';
-import { inr, inrShort, headline, monthShort } from './format';
+import { categoryLabel } from '../../services/financeCategories';
+import { inr, inrShort, headline } from './format';
+import { PERIOD_IDS, periodOf, windowOf, daysIn, sumDays, bucketsOf, change } from './periods';
 
 /* ══════════════════════════════════════════════════════════════════════════
    The hub's widget catalog.
@@ -97,6 +99,18 @@ function Tabs({ value, options, onChange, label }) {
     );
 }
 
+/** The 1M/3M/6M/1Y switch a period widget shows where it has room. */
+function PeriodTabs({ period, setPeriod, compact }) {
+    if (!setPeriod) return null;
+    return (
+        <div className={`w-tabs${compact ? ' is-compact' : ''}`} role="group" aria-label="Period">
+            {PERIOD_IDS.map((o) => (
+                <button key={o} type="button" aria-pressed={o === period} title={periodOf(o).label} onClick={() => setPeriod(o)}>{o}</button>
+            ))}
+        </div>
+    );
+}
+
 function Empty({ children, action }) {
     return (
         <div className="w-empty">
@@ -151,34 +165,46 @@ function Duo({ stat, children }) {
 
 /* ── money ──────────────────────────────────────────────────────────────── */
 
-function MoneyTile({ value, delta, invert, spark, muted, label, size, cap }) {
-    const vs = `vs ${monthShort(-1)}`;
+function MoneyTile({ value, delta, invert, spark, muted, label, size, cap, tabs }) {
     if (size === 'sm') {
         return (
             <>
                 <Value size={size}>{money(value, size)}</Value>
-                <Delta value={delta} invert={invert} vs={cap || vs} />
+                <Delta value={delta} invert={invert} vs={cap} />
                 <Spark values={spark} muted={muted} label={label} />
             </>
         );
     }
     return (
-        <Duo stat={<><Value size={size} neg={value < 0}>{money(value, size)}</Value><Delta value={delta} invert={invert} vs={cap || `${vs} to date`} /></>}>
+        <Duo stat={<><Value size={size} neg={value < 0}>{money(value, size)}</Value><Delta value={delta} invert={invert} vs={cap} />
+            {tabs && <div className="w-bottom">{tabs}</div>}</>}>
             <Spark values={spark} muted={muted} label={label} />
         </Duo>
     );
 }
 
-function Revenue({ d, size }) {
-    const m = d.money;
-    return <MoneyTile size={size} value={m.revMonth} delta={m.revPrev > 0 || m.revMonth > 0 ? m.revDelta : null}
-        spark={m.sparkRev} label={`Revenue so far this month, ${inr(m.revMonth)}`} />;
+/** A day-keyed money Map over a period: the total, the stretch before, and a running line. */
+function periodMoney(map, period) {
+    const w = windowOf(period);
+    let run = 0;
+    const spark = daysIn(w.from, w.to).map((k) => (run += map.get(k) || 0));
+    return { value: run, prev: sumDays(map, w.prevFrom, w.prevTo), spark };
 }
 
-function Expenses({ d, size }) {
-    const m = d.money;
-    return <MoneyTile size={size} value={m.spendMonth} delta={m.spendPrev > 0 || m.spendMonth > 0 ? m.spendDelta : null} invert muted
-        spark={m.sparkSpend} label={`Spend so far this month, ${inr(m.spendMonth)}`} />;
+function Revenue({ d, size, period, setPeriod }) {
+    const p = periodOf(period);
+    const r = useMemo(() => periodMoney(d.money.inByDay, period), [d.money.inByDay, period]);
+    return <MoneyTile size={size} value={r.value} delta={change(r.value, r.prev)} cap={size === 'sm' ? period : p.vs} spark={r.spark}
+        tabs={<PeriodTabs period={period} setPeriod={setPeriod} compact />}
+        label={`Revenue, ${p.label.toLowerCase()}: ${inr(r.value)}`} />;
+}
+
+function Expenses({ d, size, period, setPeriod }) {
+    const p = periodOf(period);
+    const r = useMemo(() => periodMoney(d.money.outByDay, period), [d.money.outByDay, period]);
+    return <MoneyTile size={size} value={r.value} delta={change(r.value, r.prev)} cap={size === 'sm' ? period : p.vs} spark={r.spark} invert muted
+        tabs={<PeriodTabs period={period} setPeriod={setPeriod} compact />}
+        label={`Spend, ${p.label.toLowerCase()}: ${inr(r.value)}`} />;
 }
 
 function NetCash({ d, size }) {
@@ -187,13 +213,82 @@ function NetCash({ d, size }) {
         cap={`${inrShort(m.totalIn)} in · ${inrShort(m.totalOut)} out`} label="Net cash, all time — every receipt less every payment. The line shows the last 30 days." />;
 }
 
+/** Revenue or spend per person on the team, from the P&L for the period. */
+function PerHead({ d, size, period, setPeriod, pick, invert, noun }) {
+    const p = periodOf(period);
+    const heads = d.team.headcount;
+    if (!heads) return <Empty>No one on the team yet.</Empty>;
+    const f = d.pnl[period];
+    const value = f[pick] / heads;
+    const stat = (
+        <>
+            <Value size={size}>{money(value, size)}</Value>
+            <Delta value={change(f[pick], f.prev[pick])} invert={invert} vs={size === 'sm' ? `per head · ${period}` : p.vs} />
+        </>
+    );
+    if (size === 'sm') return <>{stat}<div className="w-bottom"><div className="w-cap">{heads} people · net of GST</div></div></>;
+    const kv = (
+        <div className="w-kv">
+            <div>{noun}<b>{inrShort(f[pick])}</b></div>
+            <div>Headcount<b>{heads}</b></div>
+            <div>Per head<b>{inrShort(value)}</b></div>
+        </div>
+    );
+    if (size === 'md') return <Duo stat={<>{stat}<div className="w-bottom"><PeriodTabs period={period} setPeriod={setPeriod} compact /></div></>}>{kv}</Duo>;
+    return (
+        <>
+            {stat}
+            <div className="w-cap">{p.label} · net of GST · today's headcount</div>
+            <div style={{ marginTop: 12 }}>{kv}</div>
+            <div className="w-foot"><PeriodTabs period={period} setPeriod={setPeriod} /></div>
+        </>
+    );
+}
+
+const RevenuePerHead = (props) => <PerHead {...props} pick="income" noun="Revenue" />;
+const ExpensesPerHead = (props) => <PerHead {...props} pick="expenses" noun="Expenses" invert />;
+
+/** Gross profit as a share of income, with the operating ratio beside it. */
+function GrossProfit({ d, size, period, setPeriod }) {
+    const p = periodOf(period);
+    const f = d.pnl[period];
+    if (!f.income) return <Empty>No income {p.label.toLowerCase()}.</Empty>;
+    const gp = Math.round(f.grossPct);
+    const op = Math.round(f.opRatio);
+    const ring = (
+        <Ring value={f.grossPct} small={size === 'sm'} label={`Gross profit ${gp}% of income, operating ratio ${op}%, ${p.label.toLowerCase()}`}>
+            {gp}<small>%</small>
+        </Ring>
+    );
+    if (size === 'sm') {
+        return <div className="w-center">{ring}<div className="w-cap">Gross · op. ratio {op}%</div></div>;
+    }
+    const kv = (
+        <div className="w-kv">
+            <div><i style={{ background: 'var(--chart-a)' }} />Gross profit<b>{inrShort(f.gross)}</b></div>
+            <div><i style={{ background: 'var(--chart-b)' }} />Direct costs<b>{inrShort(f.cogs)}</b></div>
+            <div>Operating ratio<b className={op > 100 ? 'down' : ''}>{op}%</b></div>
+            {size === 'lg' && <div>Operating costs<b>{inrShort(f.opex)}</b></div>}
+            {size === 'lg' && <div>Income<b>{inrShort(f.income)}</b></div>}
+        </div>
+    );
+    if (size === 'md') return <Duo stat={<><div className="w-center">{ring}</div><PeriodTabs period={period} setPeriod={setPeriod} compact /></>}>{kv}</Duo>;
+    return (
+        <>
+            <Duo stat={<div className="w-center">{ring}<div className="w-cap">Gross profit</div></div>}>{kv}</Duo>
+            <div className="w-foot"><span className="w-note">{p.label} · net of GST</span><PeriodTabs period={period} setPeriod={setPeriod} /></div>
+        </>
+    );
+}
+
 const CF_RANGES = ['7D', '1M', '3M', '1Y'];
 const CF_SPAN = { '7D': 'Last 7 days', '1M': 'Last 5 weeks', '3M': 'Last 13 weeks', '1Y': 'Last 12 months' };
+const CF_DAYS = { '7D': 7, '1M': 35, '3M': 91, '1Y': 365 };
 
 /** Buckets money in and out for the chosen window. */
 function cashBuckets(m, range) {
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const sumDays = (from, days) => {
+    const sumSpan = (from, days) => {
         let a = 0; let b = 0;
         for (let i = 0; i < days; i++) {
             const d = new Date(from); d.setDate(d.getDate() + i);
@@ -207,21 +302,21 @@ function cashBuckets(m, range) {
     if (range === '7D') {
         for (let i = 6; i >= 0; i--) {
             const d = new Date(today); d.setDate(d.getDate() - i);
-            const [a, b] = sumDays(d, 1);
+            const [a, b] = sumSpan(d, 1);
             out.push({ label: d.toLocaleDateString('en-IN', { weekday: 'short' }), full: d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }), in: a, out: b });
         }
     } else if (range === '1Y') {
         for (let i = 11; i >= 0; i--) {
             const from = new Date(today.getFullYear(), today.getMonth() - i, 1);
             const days = new Date(from.getFullYear(), from.getMonth() + 1, 0).getDate();
-            const [a, b] = sumDays(from, days);
+            const [a, b] = sumSpan(from, days);
             out.push({ label: from.toLocaleDateString('en-IN', { month: 'short' }), full: from.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }), in: a, out: b });
         }
     } else {
         const weeks = range === '1M' ? 5 : 13;
         for (let i = weeks - 1; i >= 0; i--) {
             const from = new Date(today); from.setDate(from.getDate() - i * 7 - 6);
-            const [a, b] = sumDays(from, 7);
+            const [a, b] = sumSpan(from, 7);
             const lab = from.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
             out.push({ label: lab, full: `Week of ${lab}`, in: a, out: b });
         }
@@ -268,7 +363,10 @@ function CashFlow({ d, size }) {
     const totIn = buckets.reduce((a, x) => a + x.in, 0);
     const totOut = buckets.reduce((a, x) => a + x.out, 0);
     const net = totIn - totOut;
-    const label = `Money in and out, ${CF_SPAN[r].toLowerCase()}: ${inrShort(totIn)} in, ${inrShort(totOut)} out`;
+    // Net cash burn: how much more went out than came in, as a monthly rate.
+    const burn = net < 0 ? (-net / CF_DAYS[r]) * 30.44 : 0;
+    const burnText = burn > 0 ? `${inrShort(burn)}/mo` : 'none';
+    const label = `Money in and out, ${CF_SPAN[r].toLowerCase()}: ${inrShort(totIn)} in, ${inrShort(totOut)} out, net cash burn ${burn > 0 ? `${inr(burn)} a month` : 'none'}`;
     const legend = (
         <div className="w-legend">
             <span><i style={{ background: 'var(--chart-a)' }} />In <b>{inrShort(totIn)}</b></span>
@@ -278,7 +376,8 @@ function CashFlow({ d, size }) {
 
     if (size !== 'lg') {
         return (
-            <Duo stat={<><Value size={size} neg={net < 0}>{money(net, size)}</Value><div className="w-cap">Net · {CF_SPAN[r].toLowerCase()}</div>{legend}</>}>
+            <Duo stat={<><Value size={size} neg={net < 0}>{money(net, size)}</Value>
+                <div className="w-cap">{burn > 0 ? <b className="down">Net burn {burnText}</b> : `Net · no burn · ${CF_SPAN[r].toLowerCase()}`}</div>{legend}</>}>
                 <PairBars buckets={buckets} label={label} />
             </Duo>
         );
@@ -286,7 +385,7 @@ function CashFlow({ d, size }) {
     return (
         <>
             <Value size={size} neg={net < 0}>{headline(net)}</Value>
-            <div className="w-cap">Net · {CF_SPAN[r].toLowerCase()}</div>
+            <div className="w-cap">Net · {CF_SPAN[r].toLowerCase()} · net cash burn {burn > 0 ? <b className="down">{burnText}</b> : 'none'}</div>
             {legend}
             <PairBars buckets={buckets} label={label} axis />
             <div className="w-foot"><Tabs value={range} options={CF_RANGES} onChange={setRange} label="Cash flow range" /></div>
@@ -619,19 +718,22 @@ function Brain({ d, nav, ask, size }) {
 
 /* ── people & work ──────────────────────────────────────────────────────── */
 
+/** "12 · 25%" — a count and its share of the whole. */
+const countShare = (n, of) => `${n} · ${of ? Math.round((n / of) * 100) : 0}%`;
+
 function Team({ d, nav, size }) {
     const tm = d.team;
     if (!tm.headcount) {
         return <Empty action={<LinkBtn onClick={() => nav('/employees')}>Add people</LinkBtn>}>No one yet.</Empty>;
     }
-    const max = tm.byDept[0]?.[1] || 1;
+    const depts = `${tm.departments} dept${tm.departments === 1 ? '' : 's'}`;
+    const joined = tm.joined > 0 && <><b className="up">+{tm.joined}</b> joined this month</>;
     const stat = (
         <>
             <Value size={size} unit=" people">{tm.headcount}</Value>
-            <div className="w-cap">
-                {tm.departments} dept{tm.departments === 1 ? '' : 's'}
-                {tm.joined > 0 ? <> · <b className="up">+{tm.joined}</b></> : ''}
-            </div>
+            {size === 'sm'
+                ? <div className="w-cap">{joined || depts}</div>
+                : <><div className="w-cap">{depts}</div>{joined && <div className="w-cap">{joined}</div>}</>}
         </>
     );
     if (size === 'sm') {
@@ -639,16 +741,48 @@ function Team({ d, nav, size }) {
         return (
             <>
                 {stat}
-                {name && <div className="w-bottom"><Bar name={name} value={n} pct={(n / tm.headcount) * 100} /></div>}
+                {name && <div className="w-bottom"><Bar name={name} value={countShare(n, tm.headcount)} pct={(n / tm.headcount) * 100} /></div>}
             </>
         );
     }
     const bars = (
         <div className="w-bars">
-            {tm.byDept.slice(0, size === 'lg' ? 6 : 3).map(([name, n]) => <Bar key={name} name={name} value={n} pct={(n / max) * 100} />)}
+            {tm.byDept.slice(0, size === 'lg' ? 6 : 3).map(([name, n]) => (
+                <Bar key={name} name={name} value={countShare(n, tm.headcount)} pct={(n / tm.headcount) * 100} />
+            ))}
         </div>
     );
     return size === 'md' ? <Duo stat={stat}>{bars}</Duo> : <>{stat}{bars}</>;
+}
+
+function PeopleByLocation({ d, nav, size }) {
+    const tm = d.team;
+    if (!tm.headcount) {
+        return <Empty action={<LinkBtn onClick={() => nav('/employees')}>Add people</LinkBtn>}>No one yet.</Empty>;
+    }
+    const places = tm.byLocation.filter(([k]) => k !== 'Not set');
+    if (!places.length) {
+        return <Empty action={<LinkBtn onClick={() => nav('/employees')}>Employees</LinkBtn>}>No work locations set yet.</Empty>;
+    }
+    const unset = tm.headcount - places.reduce((a, [, n]) => a + n, 0);
+    const stat = (
+        <>
+            <Value size={size} unit={places.length === 1 ? ' location' : ' locations'}>{places.length}</Value>
+            <div className="w-cap">{unset > 0 ? `${unset} not set` : `${tm.headcount} people`}</div>
+        </>
+    );
+    if (size === 'sm') {
+        const [name, n] = places[0];
+        return <>{stat}<div className="w-bottom"><Bar name={name} value={countShare(n, tm.headcount)} pct={(n / tm.headcount) * 100} strong /></div></>;
+    }
+    const bars = (
+        <div className="w-bars">
+            {tm.byLocation.slice(0, size === 'lg' ? 6 : 3).map(([name, n], i) => (
+                <Bar key={name} name={name} value={countShare(n, tm.headcount)} pct={(n / tm.headcount) * 100} strong={i === 0 && name !== 'Not set'} />
+            ))}
+        </div>
+    );
+    return size === 'md' ? <Duo stat={stat}>{bars}</Duo> : <>{stat}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/employees')}>Employees</LinkBtn></div></>;
 }
 
 function Tasks({ d, nav, size }) {
@@ -684,10 +818,14 @@ function Pipeline({ d, nav, size }) {
     const p = d.pipeline;
     if (!p.total) return <Empty action={<LinkBtn onClick={() => nav('/crm')}>Open CRM</LinkBtn>}>No leads yet.</Empty>;
     const max = Math.max(1, ...p.stages.map((s) => s.count));
+    // Average expenses per lead: sales & marketing spend over every lead on the
+    // board (salesMetrics), net of GST.
+    const perLead = d.sales.allTime.perLead;
     const stat = (
         <>
             <Value size={size} unit=" leads">{p.total}</Value>
             <div className="w-cap">{p.winRate === null ? 'No decided deals' : `${Math.round(p.winRate)}% win rate`}</div>
+            {perLead !== null && <div className="w-cap">{inrShort(perLead)} spent per lead</div>}
         </>
     );
     if (size === 'sm') {
@@ -697,6 +835,7 @@ function Pipeline({ d, nav, size }) {
                     {p.total}
                 </Ring>
                 <div className="w-cap">{p.winRate === null ? 'leads' : `leads · ${Math.round(p.winRate)}% won`}</div>
+                {perLead !== null && <div className="w-cap">{inrShort(perLead)} / lead</div>}
             </div>
         );
     }
@@ -706,6 +845,73 @@ function Pipeline({ d, nav, size }) {
         </div>
     );
     return size === 'md' ? <Duo stat={stat}>{bars}</Duo> : <>{stat}{bars}</>;
+}
+
+/* ── sales & marketing ──────────────────────────────────────────────────── */
+
+function Arr({ d, nav, size }) {
+    const a = d.sales.arr;
+    if (!a.count) {
+        return <Empty action={<LinkBtn onClick={() => nav('/recurring')}>Recurring</LinkBtn>}>No active recurring invoices.</Empty>;
+    }
+    const stat = (
+        <>
+            <Value size={size}>{money(a.value, size)}</Value>
+            <div className="w-cap">{a.count} recurring · {a.clients} client{a.clients === 1 ? '' : 's'}</div>
+        </>
+    );
+    if (size === 'sm') return <>{stat}<div className="w-bottom"><div className="w-cap">{inrShort(a.value / 12)} a month · net of GST</div></div></>;
+    const kv = (
+        <div className="w-kv">
+            <div>Monthly run-rate<b>{inrShort(a.value / 12)}</b></div>
+            <div>Active recurring<b>{a.count}</b></div>
+            <div>Clients<b>{a.clients}</b></div>
+        </div>
+    );
+    return <Duo stat={<>{stat}<div className="w-bottom"><LinkBtn onClick={() => nav('/recurring')}>Recurring</LinkBtn></div></>}>{kv}</Duo>;
+}
+
+function AcquisitionSpend({ d, nav, size, period, setPeriod }) {
+    const p = periodOf(period);
+    const a = d.sales.acq[period];
+    const both = a.sales + a.marketing;
+    const stat = (
+        <>
+            <Value size={size}>{money(a.total, size)}</Value>
+            <Delta value={change(a.total, a.prev)} invert vs={size === 'sm' ? period : p.vs} />
+        </>
+    );
+    const split = (
+        <div className="w-split" role="img" aria-label={`Sales spend ${inr(a.sales)}, marketing spend ${inr(a.marketing)}`}>
+            <span className="is-a" style={{ flex: Math.max(both ? a.sales / both : 0.5, 0.0001) }} />
+            <span className="is-b" style={{ flex: Math.max(both ? a.marketing / both : 0.5, 0.0001) }} />
+        </div>
+    );
+    if (size === 'sm') {
+        return <>{stat}<div className="w-bottom">{split}<div className="w-cap">{inrShort(a.sales)} sales · {inrShort(a.marketing)} mktg</div></div></>;
+    }
+    const kv = (
+        <div className="w-kv">
+            <div><i style={{ background: 'var(--chart-a)' }} />Sales spend<b>{inrShort(a.sales)}</b></div>
+            <div><i style={{ background: 'var(--chart-b)' }} />Marketing spend<b>{inrShort(a.marketing)}</b></div>
+            <div>Per lead<b>{a.perLead === null ? '—' : inrShort(a.perLead)}</b></div>
+        </div>
+    );
+    if (size === 'md') return <Duo stat={<>{stat}<div className="w-bottom"><PeriodTabs period={period} setPeriod={setPeriod} compact /></div></>}>{kv}</Duo>;
+    const peak = a.byCat[0]?.value || 1;
+    return (
+        <>
+            <Duo stat={stat}>{kv}</Duo>
+            {a.byCat.length > 0 ? (
+                <div className="w-bars" style={{ marginTop: 10 }}>
+                    {a.byCat.slice(0, 4).map((c) => (
+                        <Bar key={c.key} name={c.key === 'Marketing' ? 'Marketing (legacy)' : categoryLabel(c.key)} value={inrShort(c.value)} pct={(c.value / peak) * 100} />
+                    ))}
+                </div>
+            ) : <div className="w-cap" style={{ marginTop: 10 }}>No sales or marketing expenses {p.label.toLowerCase()}.</div>}
+            <div className="w-foot"><LinkBtn onClick={() => nav('/dashboard/sales')}>Dashboard</LinkBtn><PeriodTabs period={period} setPeriod={setPeriod} /></div>
+        </>
+    );
 }
 
 /* ── documents ──────────────────────────────────────────────────────────── */
@@ -737,21 +943,30 @@ function MonthBars({ months, label, axis }) {
     );
 }
 
-function Documents({ d, size }) {
+/** Documents issued per bar of a period (periods.bucketsOf). */
+function docBuckets(byDay, period) {
+    return bucketsOf(period).map((b) => ({ label: b.label, full: b.full, value: sumDays(byDay, b.from, b.to) }));
+}
+
+function Documents({ d, size, period, setPeriod }) {
     const dc = d.docs;
-    const delta = dc.thisMonth || dc.months[10].value ? dc.delta : null;
+    const p = periodOf(period);
+    const win = dc.windows[period];
+    const bars = useMemo(() => docBuckets(dc.byDay, period), [dc.byDay, period]);
+    const label = `Documents issued, ${p.label.toLowerCase()}: ${win.count}`;
     if (size === 'sm') {
         return (
             <>
-                <Value size={size} unit=" docs">{dc.thisMonth}</Value>
-                <Delta value={delta} vs="this month" />
-                <MonthBars months={dc.months.slice(-6)} label={`Documents issued per month, ${dc.thisMonth} this month`} />
+                <Value size={size} unit=" docs">{win.count}</Value>
+                <Delta value={change(win.count, win.prev)} vs={period} />
+                <MonthBars months={bars} label={label} />
             </>
         );
     }
     return (
-        <Duo stat={<><Value size={size} unit=" docs">{dc.thisMonth}</Value><Delta value={delta} vs={`${dc.total} all time`} /></>}>
-            <MonthBars months={dc.months} label={`Documents issued per month, ${dc.thisMonth} this month`} axis />
+        <Duo stat={<><Value size={size} unit=" docs">{win.count}</Value><Delta value={change(win.count, win.prev)} vs={p.vs} />
+            <div className="w-bottom"><PeriodTabs period={period} setPeriod={setPeriod} compact /></div></>}>
+            <MonthBars months={bars} label={label} axis />
         </Duo>
     );
 }
@@ -761,19 +976,22 @@ const TYPE_LABEL = {
     certificate: 'Certificates', nda: 'NDAs', mou: 'MoUs', agreement: 'Agreements',
 };
 
-function Volume({ d, size }) {
+function Volume({ d, size, period, setPeriod }) {
     const dc = d.docs;
-    const total = dc.months.reduce((a, m) => a + m.value, 0);
-    const bars = <MonthBars months={dc.months} label={`Documents issued per month, ${total} in 12 months`} axis />;
-    const stat = <><Value size={size}>{total.toLocaleString('en-IN')}</Value><div className="w-cap">Last 12 months</div></>;
-    if (size === 'md') return <Duo stat={stat}>{bars}</Duo>;
+    const p = periodOf(period);
+    const win = dc.windows[period];
+    const buckets = useMemo(() => docBuckets(dc.byDay, period), [dc.byDay, period]);
+    const bars = <MonthBars months={buckets} label={`Documents issued, ${p.label.toLowerCase()}: ${win.count}`} axis />;
+    const stat = <><Value size={size}>{win.count.toLocaleString('en-IN')}</Value><div className="w-cap">{p.label}</div></>;
+    if (size === 'md') return <Duo stat={<>{stat}<div className="w-bottom"><PeriodTabs period={period} setPeriod={setPeriod} compact /></div></>}>{bars}</Duo>;
     return (
         <>
             {stat}
             <div className="w-legend">
-                {dc.byType.slice(0, 3).map(([k, n]) => <span key={k}>{TYPE_LABEL[k] || k} <b>{n}</b></span>)}
+                {win.byType.slice(0, 3).map(([k, n]) => <span key={k}>{TYPE_LABEL[k] || k} <b>{n}</b></span>)}
             </div>
             {bars}
+            <div className="w-foot"><PeriodTabs period={period} setPeriod={setPeriod} /></div>
         </>
     );
 }
@@ -852,6 +1070,7 @@ function Shortcuts({ nav, size }) {
 export {
     Revenue, Expenses, NetCash, CashFlow, Receivables, Settlement, Markets, GeoMap, Brain,
     Team, Tasks, Pipeline, Documents, Volume, Activity, Payables, Shortcuts,
+    RevenuePerHead, ExpensesPerHead, GrossProfit, Arr, AcquisitionSpend, PeopleByLocation,
     // Primitives the project widgets (projectWidgets.jsx) share.
     Empty as WidgetEmpty, LinkBtn, Meter, Value, Duo, Bar, Ring,
 };

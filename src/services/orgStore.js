@@ -947,6 +947,7 @@ function employeeFromRow(r) {
     id: r.id,
     studentName: r.full_name, name: r.full_name, full_name: r.full_name,
     email: r.email, phone: r.phone, address: r.address, studentAddress: r.address,
+    location: r.location, // 0076
     role: r.role,
     department: deptNameById(r.department_id), department_id: r.department_id,
     offerType: r.employment_type,
@@ -988,6 +989,9 @@ function employeeToRow(i) {
     full_name: String(i.studentName ?? i.name ?? i.full_name ?? '').trim() || 'Unnamed',
     email: nn(i.email), phone: nn(i.phone),
     address: nn(i.studentAddress ?? i.address),
+    // 0076. Sent only once the form has a value for it: a database without
+    // the column would otherwise reject every employee save.
+    ...(i.location !== undefined ? { location: nn(String(i.location ?? '').trim()) } : {}),
     role: nn(i.role),
     department_id: i.department_id ?? deptIdByName(i.department),
     employment_type: EMPLOYMENT_TYPES.includes(i.offerType) ? i.offerType : 'fulltime',

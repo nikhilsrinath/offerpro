@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { DEFAULT_LAYOUT, WIDGET_BY_ID } from './widgetCatalog';
+import { PERIOD_IDS } from './periods';
 
 /* Which widgets a board shows, in what order and at what size.
 
@@ -36,7 +37,11 @@ function read(catalog, orgId) {
             if (!w || !catalog.byId.has(w.id) || seen.has(w.id)) return false;
             seen.add(w.id);
             return true;
-        }).map((w) => ({ id: w.id, size: sizeIn(catalog.byId, w.id, w.size) }));
+        }).map((w) => ({
+            id: w.id, size: sizeIn(catalog.byId, w.id, w.size),
+            // The look-back a period widget is set to (periods.js), when one was chosen.
+            ...(PERIOD_IDS.includes(w.period) ? { period: w.period } : {}),
+        }));
     } catch {
         return catalog.defaults;
     }
@@ -72,6 +77,7 @@ export function useWidgetLayout(orgId, catalog = HUB_CATALOG) {
         toggle: (id) => commit((l) => (l.some((w) => w.id === id)
             ? l.filter((w) => w.id !== id)
             : [...l, { id, size: sizeOf(id) }])),
+        setPeriod: (id, period) => commit((l) => l.map((w) => (w.id === id && PERIOD_IDS.includes(period) ? { ...w, period } : w))),
         resize: (id, size) => commit((l) => l.map((w) => (w.id === id ? { ...w, size: sizeIn(catalog.byId, id, size) } : w))),
         move: (id, delta) => commit((l) => {
             const i = l.findIndex((w) => w.id === id);

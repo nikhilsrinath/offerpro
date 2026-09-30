@@ -1,16 +1,35 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Target, Trophy, FileSignature, Users, IndianRupee, Globe } from 'lucide-react';
+import { Target, Repeat, Users, IndianRupee, Globe } from 'lucide-react';
 import { salesGeoService } from '../../services/salesGeoService';
-import { fmtShort, fmtInr } from './overviewModel';
+import { useSection } from '../financial/financeHooks';
+import { categoryLabel } from '../../services/financeCategories';
+import { annualRecurring, acquisitionSpend, SALES_KEYS } from '../../services/salesMetrics';
+import { fmtShort, fmtInr, iso } from './overviewModel';
 import { RankBars, SplitBar, Funnel, EmptyNote, TipBody, Delta } from './vizKit';
-import { Dashboard, Card, Tile, BigCount, More, TileRow, CardGrid, ListRow } from './dashKit';
+import { Dashboard, Card, Tile, BigCount, Figure, More, TileRow, CardGrid, ListRow, MiniSeg } from './dashKit';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Dashboard · Sales & clients — where the next rupee comes from.
+   Dashboard · Sales & marketing — where the next rupee comes from, and what
+   it costs to find it.
 
-   The CRM board is a snapshot (it keeps no stage history) and says so; the
-   quotations, customers, products and countries follow the period.
+   The CRM board and recurring revenue are snapshots and say so; quotations,
+   customers and countries follow the period. Sales & marketing spend has its
+   own trailing window (1M/3M/6M/1Y), because acquisition cost is read over a
+   fixed look-back rather than whatever period the page is set to.
    ══════════════════════════════════════════════════════════════════════════ */
+
+const WINDOWS = [
+    { id: '1m', label: '1M', months: 1, note: 'last month' },
+    { id: '3m', label: '3M', months: 3, note: 'last 3 months' },
+    { id: '6m', label: '6M', months: 6, note: 'last 6 months' },
+    { id: '1y', label: '1Y', months: 12, note: 'last 12 months' },
+];
+const windowStart = (today, months) => {
+    const d = new Date(`${today}T00:00:00`);
+    d.setMonth(d.getMonth() - months);
+    d.setDate(d.getDate() + 1);
+    return iso(d);
+};
 
 let regionNames = null;
 const countryName = (code) => {
@@ -24,7 +43,7 @@ export default function SalesDash() {
     return <Dashboard>{(ctx) => <SalesBody {...ctx} />}</Dashboard>;
 }
 
-function SalesBody({ model, open, t, cat, ramp, status, cols, tileCols, orgId }) {
+function SalesBody({ model, open, navigate, t, cat, ramp, status, cols, tileCols, orgId }) {
     const k = model.kpis;
     const { period } = model;
 
@@ -46,23 +65,29 @@ function SalesBody({ model, open, t, cat, ramp, status, cols, tileCols, orgId })
         .sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0)), [model.stages]);
     const activeClients = model.customers.length;
     const avgInvoice = k.invoiced.count ? k.invoiced.value / k.invoiced.count : null;
-    const quoted = model.quotes.reduce((s, q) => s + q.amount, 0);
+    const { today } = model.raw;
+
+    // ARR, and sales & marketing spend over a trailing window ending today —
+    // salesMetrics, the same figures the hub's widgets show.
+    const recurring = useSection('fin_recurring');
+    const recur = useMemo(() => annualRecurring(recurring, today), [recurring, today]);
+    const [win, setWin] = useState('3m');
+    const winDef = WINDOWS.find((w) => w.id === win);
+    const acq = useMemo(() => {
+        const a = acquisitionSpend(model.raw.spend, model.raw.leads, windowStart(today, winDef.months), today);
+        return { ...a, cats: a.byCat.map((c) => ({ ...c, name: c.key === 'Marketing' ? 'Marketing (legacy)' : categoryLabel(c.key) })) };
+    }, [model.raw, today, winDef]);
     const quoteColor = { accepted: status.good, open: t.faint, lost: status.critical, draft: t.ghost };
 
     return (<>
-        <TileRow cols={tileCols(6)}>
+        <TileRow cols={tileCols(5)}>
             <Tile icon={Target} label="Pipeline" value={fmtShort(k.pipeline.value)} exact={fmtInr(k.pipeline.value)}
                 delta={<span style={{ fontSize: 12, color: t.dim }}>{k.pipeline.open} open</span>}
                 foot="open leads on the CRM board · today" spark={k.pipeline.spark} sparkBars color={ramp[2]}
                 onClick={() => open({ kind: 'metric', id: 'pipeline' })} />
-            <Tile icon={Trophy} label="Deal win rate" value={k.pipeline.winRate === null ? '—' : `${k.pipeline.winRate.toFixed(0)}%`}
-                exact={k.pipeline.winRate === null ? 'no closed deals' : `${k.pipeline.winRate.toFixed(1)}%`}
-                foot={`${model.stages[2].count} won · ${model.stages[3].count} lost`}
-                onClick={() => open({ kind: 'stage', id: 'deal' })} />
-            <Tile icon={FileSignature} label="Quote win rate" value={model.quoteWinRate === null ? '—' : `${model.quoteWinRate.toFixed(0)}%`}
-                exact={model.quoteWinRate === null ? 'no decided quotations' : `${model.quoteWinRate.toFixed(1)}%`}
-                foot={`${fmtShort(quoted)} quoted in period`}
-                onClick={() => open({ kind: 'quotes', id: 'accepted' })} />
+            <Tile icon={Repeat} label="Annual recurring revenue" value={fmtShort(recur.value)} exact={fmtInr(recur.value)}
+                foot={recur.count ? `${recur.count} active recurring invoice${recur.count === 1 ? '' : 's'} · ${recur.clients} client${recur.clients === 1 ? '' : 's'} · today` : 'no active recurring invoices'}
+                color={cat[1]} onClick={() => navigate('/recurring')} />
             <Tile icon={Users} label="Billed clients" value={String(activeClients)} exact={`${activeClients} clients`}
                 foot={model.customers[0] ? `top: ${model.customers[0].name}` : 'no invoices in period'}
                 onClick={() => open({ kind: 'metric', id: 'invoiced' })} />
@@ -111,12 +136,21 @@ function SalesBody({ model, open, t, cat, ramp, status, cols, tileCols, orgId })
                     onSelect={(r) => open({ kind: 'customer', key: r.key })} empty="No invoices in this period" />
             </Card>
 
-            <Card title="What sells" note="line items billed" right={<More label="Products" to="/products" />}>
-                <RankBars rows={model.products.map((p) => ({
-                    ...p, value: p.revenue,
-                    tip: <TipBody title={p.name} rows={[{ label: 'Revenue', value: fmtInr(p.revenue), color: cat[0] }, { label: 'Units', value: p.units.toLocaleString('en-IN') }, { label: 'Invoices', value: String(p.invoiceCount) }]} />,
-                }))} format={fmtShort} color={cat[0]} sub={(r) => `${r.units.toLocaleString('en-IN')} u`}
-                    onSelect={(r) => open({ kind: 'product', key: r.key })} empty="No line items in this period" />
+            <Card title="Sales & marketing spend" note={`net of GST · ${winDef.note}`}
+                right={<MiniSeg label="Spend window" value={win} onChange={setWin} options={WINDOWS} />}>
+                <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 12 }}>
+                    <Figure big label="sales spend" value={fmtShort(acq.sales)} />
+                    <Figure big label="marketing spend" value={fmtShort(acq.marketing)} />
+                    <Figure big label="avg expenses / lead" value={acq.perLead === null ? '—' : fmtShort(acq.perLead)} />
+                </div>
+                <RankBars rows={acq.cats.map((c) => ({
+                    ...c,
+                    tip: <TipBody title={c.name} rows={[{ label: SALES_KEYS.has(c.key) ? 'Sales' : 'Marketing', value: fmtInr(c.value), color: cat[4] }, { label: 'Share', value: `${((c.value / acq.total) * 100).toFixed(0)}%` }]} />,
+                }))} format={fmtShort} total={acq.total} color={cat[4]}
+                    onSelect={(r) => open({ kind: 'category', name: r.key })} empty="No sales or marketing expenses in this window" />
+                <div style={{ fontSize: 11.5, color: t.faint, marginTop: 10 }}>
+                    {acq.leads} new lead{acq.leads === 1 ? '' : 's'} on the CRM board · {fmtShort(acq.total)} spent in all
+                </div>
             </Card>
 
             <Card title="Revenue by country" note="invoiced + earned without an invoice, by client country">

@@ -189,6 +189,9 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                                     <Input type="email" value={form.email} onChange={set('email')} />
                                 </Field>
                                 <Field label="Phone"><Input value={form.phone} onChange={set('phone')} /></Field>
+                                <Field label="Work location" hint="City, office or Remote">
+                                    <Input value={form.location || ''} onChange={set('location')} placeholder="Bengaluru" />
+                                </Field>
                                 <Field label="Address" wide>
                                     <Input value={form.studentAddress} onChange={set('studentAddress')} />
                                 </Field>

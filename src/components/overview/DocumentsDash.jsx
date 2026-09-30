@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FileText, Briefcase, Award, ShieldCheck, Receipt, FolderOpen, ChevronRight } from 'lucide-react';
 import { MONO } from '../ui/edgeUtils';
 import { libraryService, categoryLabel } from '../../services/libraryService';
-import { DOC_GROUPS, docGroupOf, fmtDay, fmtShort } from './overviewModel';
+import { DOC_GROUPS, fmtDay } from './overviewModel';
 import { Columns, CalendarHeat, RankBars, SplitBar, EmptyNote } from './vizKit';
-import { Dashboard, Card, Tile, Figure, More, TileRow, CardGrid, ListRow } from './dashKit';
+import { Dashboard, Card, Tile, Figure, More, TileRow, CardGrid } from './dashKit';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Dashboard · Documents — everything the company has issued or keeps.
@@ -18,8 +18,6 @@ const OFFER_STATE = (s) => (['signed', 'accepted', 'acknowledged', 'fully_signed
     : s === 'declined' ? 'declined'
         : ['sent', 'viewed'].includes(s) ? 'awaiting'
             : s === 'cancelled' ? 'cancelled' : 'unsent');
-
-const ROUTE = { invoice: '/invoices', quotation: '/quotations', proforma: '/proforma' };
 
 export default function DocumentsDash() {
     return <Dashboard>{(ctx) => <DocumentsBody {...ctx} />}</Dashboard>;
@@ -66,9 +64,6 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
         };
     }, [library]);
 
-    const { from, to } = model.period;
-    const recent = model.raw.docsTimeline.filter((e) => e.date >= from && e.date <= to)
-        .sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
     const finCount = group('invoice') + group('quotation') + group('proforma');
 
     return (<>
@@ -159,15 +154,6 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
                             { id: 'other', label: 'Stored, not readable', value: lib.st.other, color: t.faint },
                         ].filter((p) => p.value > 0)} onSelect={() => navigate('/library')} />
                     </>)}
-            </Card>
-
-            <Card title="Latest issued" note="most recent in period" right={<More label="Records" to="/records" />}>
-                {recent.length === 0 ? <EmptyNote>Nothing issued in this period</EmptyNote> : recent.map((e) => (
-                    <ListRow key={e.type + e.id} label={e.title}
-                        sub={`${DOC_GROUPS.find((g) => g.id === docGroupOf(e.type))?.label || e.type}${e.number ? ' · ' + e.number : ''} · ${fmtDay(e.date)}`}
-                        value={e.amount ? fmtShort(e.amount) : e.status || null}
-                        onClick={() => navigate(ROUTE[e.type] || '/records')} />
-                ))}
             </Card>
         </CardGrid>
     </>);

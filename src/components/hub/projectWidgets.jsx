@@ -3,7 +3,6 @@ import { WidgetEmpty as Empty, LinkBtn, Value, Duo, Bar, Meter } from './widgets
 import { inr, inrShort } from './format';
 import { orgStore } from '../../services/orgStore';
 import { portfolio, employeeAllocation, canSeeFinancials } from '../../services/projectService';
-import { useSection } from '../financial/financeHooks';
 import { usePreview, PREVIEW_PROJECTS } from './previewData';
 
 /* Project widgets for the hub — its default board. Each one fetches what it
@@ -121,43 +120,6 @@ export function ProjectMargin({ nav, size }) {
     );
     if (size === 'md') return <Duo stat={stat}>{bars}</Duo>;
     return <>{stat}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/portfolio')}>Portfolio</LinkBtn></div></>;
-}
-
-export function MilestonesDue({ nav, size }) {
-    const { can } = useAccess();
-    const preview = usePreview();
-    const liveMilestones = useSection('project_milestones');
-    const liveProjects = useSection('projects');
-    const milestones = preview ? PREVIEW_PROJECTS.milestones : liveMilestones;
-    const projects = preview ? PREVIEW_PROJECTS.projects : liveProjects;
-    if (!can('project_milestones', 'view')) return <Locked />;
-    const today = new Date();
-    const key = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const until = new Date(today.getTime() + 14 * 86400000);
-    const byId = Object.fromEntries(projects.map((p) => [p.id, p]));
-    const due = milestones
-        .filter((m) => (m.status === 'pending' || m.status === 'in_progress') && m.due_date && m.due_date <= key(until))
-        .sort((a, b) => a.due_date.localeCompare(b.due_date));
-    if (!due.length) return <Empty>Nothing due in 14 days.</Empty>;
-    const isLate = (m) => m.due_date < key(today);
-    const late = due.filter(isLate).length;
-    const when = (m) => (isLate(m) ? 'Late' : new Date(`${m.due_date}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }));
-    const stat = <><Value size={size} unit=" due">{due.length}</Value><div className="w-cap">{late ? <b className="down">{late} late</b> : 'Next 14 days'}</div></>;
-    if (size === 'sm') {
-        return <>{stat}<div className="w-bottom"><div className="w-cap w-clip">{due[0].title} · {when(due[0])}</div></div></>;
-    }
-    const list = (
-        <div className="w-list">
-            {due.slice(0, size === 'lg' ? 7 : 3).map((m) => (
-                <button key={m.id} type="button" className="w-li" onClick={() => nav(`/projects/${m.project_id}?tab=milestones`)}
-                    title={`${m.title} · ${byId[m.project_id]?.name || ''}`}>
-                    <span className="w-t">{m.title}</span>
-                    <span className={`w-when${isLate(m) ? ' down' : ''}`}>{when(m)}</span>
-                </button>
-            ))}
-        </div>
-    );
-    return size === 'md' ? <Duo stat={stat}>{list}</Duo> : <>{stat}{list}</>;
 }
 
 export function TeamUtilisation({ nav, size }) {
@@ -294,7 +256,7 @@ export function ProjectBilling({ nav, size }) {
     const stat = (
         <>
             <Value size={size}>{inrShort(unbilled)}</Value>
-            <div className="w-cap">Unbilled · {late > 0 ? <b className="down">{inrShort(late)} overdue</b> : `${inrShort(owed)} owed`}</div>
+            <div className="w-cap">Collections · {late > 0 ? <b className="down">{inrShort(late)} overdue</b> : `${inrShort(owed)} owed`}</div>
         </>
     );
     if (size === 'sm') return stat;
@@ -312,6 +274,87 @@ export function ProjectBilling({ nav, size }) {
     ) : <Empty>Everything billed and paid.</Empty>;
     if (size === 'md') return <Duo stat={stat}>{bars}</Duo>;
     return <>{stat}{bars}<div className="w-foot"><span className="w-note">{inrShort(owed)} owed in all</span><LinkBtn onClick={() => nav('/portfolio')}>Portfolio</LinkBtn></div></>;
+}
+
+/** What open projects have spent against what they were budgeted, in rupees. */
+export function ProjectSpendBudget({ nav, size }) {
+    const { fin } = useAccess();
+    const rows = usePortfolio();
+    if (!fin()) return <Locked />;
+    if (!rows) return <Empty>Loading…</Empty>;
+    const budgeted = rows.filter((r) => open(r) && Number(r.budget_total) > 0)
+        .sort((a, b) => Number(b.budget_total) - Number(a.budget_total));
+    if (!budgeted.length) return <Empty>No project budgets set.</Empty>;
+    const spent = budgeted.reduce((a, r) => a + Number(r.cost_to_date || 0), 0);
+    const budget = budgeted.reduce((a, r) => a + Number(r.budget_total || 0), 0);
+    const left = budget - spent;
+    const stat = (
+        <>
+            <Value size={size} neg={left < 0}>{inrShort(spent)}</Value>
+            <div className="w-cap">of {inrShort(budget)} · {left < 0 ? <b className="down">{inrShort(-left)} over</b> : `${inrShort(left)} left`}</div>
+        </>
+    );
+    const split = (
+        <div className="w-split" role="img" aria-label={`${inr(spent)} spent of ${inr(budget)} budgeted`}>
+            <span className={left < 0 ? 'is-neg' : 'is-a'} style={{ flex: Math.max(Math.min(spent, budget), 0.0001) }} />
+            <span className="is-b" style={{ flex: Math.max(left, 0.0001) }} />
+        </div>
+    );
+    if (size === 'sm') return <>{stat}<div className="w-bottom">{split}</div></>;
+    const bars = (
+        <div className="w-bars">
+            {budgeted.slice(0, size === 'lg' ? 6 : 3).map((r) => {
+                const s = Number(r.cost_to_date || 0);
+                const b = Number(r.budget_total);
+                return (
+                    <Bar key={r.project_id} name={r.name} value={`${inrShort(s)} / ${inrShort(b)}`} neg={s > b} pct={Math.min(100, (s / b) * 100)} strong={s > b}
+                        onClick={() => nav(`/projects/${r.project_id}?tab=finance`)}
+                        label={`${r.name}: ${inr(s)} spent of ${inr(b)} budgeted`} />
+                );
+            })}
+        </div>
+    );
+    if (size === 'md') return <Duo stat={stat}>{bars}</Duo>;
+    return <>{stat}{split}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/portfolio')}>Portfolio</LinkBtn></div></>;
+}
+
+/** Net margin as a percentage of what each project has invoiced. */
+export function ProjectMarginPct({ nav, size }) {
+    const { fin } = useAccess();
+    const rows = usePortfolio();
+    if (!fin()) return <Locked />;
+    if (!rows) return <Empty>Loading…</Empty>;
+    const pctOf = (r) => (Number(r.net_margin) / Number(r.revenue_invoiced)) * 100;
+    const withMoney = rows.filter((r) => r.net_margin != null && Number(r.revenue_invoiced) > 0)
+        .sort((a, b) => pctOf(b) - pctOf(a));
+    if (!withMoney.length) return <Empty>No invoiced projects yet.</Empty>;
+    const revenue = withMoney.reduce((a, r) => a + Number(r.revenue_invoiced), 0);
+    const net = withMoney.reduce((a, r) => a + Number(r.net_margin), 0);
+    const overall = (net / revenue) * 100;
+    const stat = (
+        <>
+            <Value size={size} neg={overall < 0} unit="%">{Math.round(overall)}</Value>
+            <div className="w-cap">Net margin · {withMoney.length} project{withMoney.length === 1 ? '' : 's'}</div>
+        </>
+    );
+    if (size === 'sm') return <>{stat}<div className="w-bottom"><Meter value={Math.max(0, overall)} strong={overall >= 0} /></div></>;
+    const n = size === 'lg' ? 6 : 3;
+    // Best first, and always the worst last.
+    const pick = withMoney.length <= n ? withMoney : [...withMoney.slice(0, n - 1), ...withMoney.slice(-1)];
+    const bars = (
+        <div className="w-bars">
+            {pick.map((r) => {
+                const m = pctOf(r);
+                return (
+                    <Bar key={r.project_id} name={r.name} value={`${Math.round(m)}%`} neg={m < 0} pct={Math.min(100, Math.abs(m))} strong={m >= 0}
+                        onClick={() => nav(`/projects/${r.project_id}?tab=finance`)}
+                        label={`${r.name}: ${Math.round(m)}% net margin on ${inr(r.revenue_invoiced)} invoiced`} />
+                );
+            })}
+        </div>
+    );
+    if (size === 'md') return <Duo stat={stat}>{bars}</Duo>;
+    return <>{stat}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/portfolio')}>Portfolio</LinkBtn></div></>;
 }
 
 /** Open tasks across projects, busiest first. */

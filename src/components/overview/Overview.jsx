@@ -63,7 +63,7 @@ function OverviewBody({ model, open, navigate, t, status, winW, today }) {
                 ],
             },
             {
-                id: 'sales', to: '/dashboard/sales', icon: BarChart3, label: 'Sales & clients',
+                id: 'sales', to: '/dashboard/sales', icon: BarChart3, label: 'Sales & Marketing',
                 figs: [
                     { label: 'pipeline', value: fmtShort(k.pipeline.value) },
                     { label: 'open leads', value: String(k.pipeline.open) },

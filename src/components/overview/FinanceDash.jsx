@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { IndianRupee, Wallet, TrendingUp, Hourglass, Truck, Landmark } from 'lucide-react';
+import { IndianRupee, Wallet, TrendingUp, Hourglass, Truck, Landmark, Users, Receipt, Percent } from 'lucide-react';
 import { useSection } from '../financial/financeHooks';
 import { balanceOf, cashPosition, taxSummary } from '../../services/financeAnalytics';
 import { fmtShort, fmtInr, customerKey } from './overviewModel';
@@ -21,6 +21,9 @@ const SOURCE_LABEL = {
     cash_book_revenue: 'Cash book · earned', cash_book_funding: 'Cash book · funding', cash_book_other: 'Cash book · other',
     expenses: 'Expenses', vendor_bills: 'Vendor bills',
 };
+
+// A delta with nothing to compare against shows nothing rather than "no comparison".
+const deltaOf = (v) => (v === null || v === undefined || !Number.isFinite(v) ? null : <Delta value={v} />);
 
 export default function FinanceDash() {
     return <Dashboard>{(ctx) => <FinanceBody {...ctx} />}</Dashboard>;
@@ -86,33 +89,51 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
     const outRows = ['expenses', 'vendor_bills'].filter((s) => cash.bySource[s])
         .map((s) => ({ key: s, name: SOURCE_LABEL[s], value: cash.bySource[s] }));
 
+    // People on the team at the end of the period; per-head figures follow the same period as the P&L.
+    const heads = k.headcount?.value || 0;
+    const perHead = heads > 0 ? heads : null;
+    const opRatio = model.pl.income > 0 ? (model.pl.expenses / model.pl.income) * 100 : null;
+
     return (<>
         <TileRow cols={tileCols(6)}>
             <Tile icon={IndianRupee} label="Revenue" value={fmtShort(k.revenue.value)} exact={fmtInr(k.revenue.value)}
-                delta={<Delta value={k.revenue.delta} />}
+                delta={deltaOf(k.revenue.delta)}
                 foot={k.revenue.direct > 0 ? `${fmtShort(k.revenue.direct)} without an invoice` : `${k.invoiced.count} invoices`}
                 spark={k.revenue.spark} color={cat[0]} onClick={() => open({ kind: 'metric', id: 'invoiced' })} />
             <Tile icon={Wallet} label="Collected" value={fmtShort(k.collected.value)} exact={fmtInr(k.collected.value)}
-                delta={<Delta value={k.collected.delta} />} foot={model.avgDaysToPay === null ? 'no settled invoices yet' : `paid in ${model.avgDaysToPay.toFixed(0)} days on average`}
+                delta={deltaOf(k.collected.delta)} foot={model.avgDaysToPay === null ? 'no settled invoices yet' : `paid in ${model.avgDaysToPay.toFixed(0)} days on average`}
                 spark={k.collected.spark} color={cat[2]} onClick={() => open({ kind: 'metric', id: 'collected' })} />
             <Tile icon={TrendingUp} label="Net profit" value={fmtShort(k.net.value)} exact={fmtInr(k.net.value)} tone={k.net.value < 0 ? 'down' : null}
-                delta={<Delta value={k.net.delta} />} foot={k.net.margin === null ? 'no income in period' : `${k.net.margin.toFixed(1)}% margin`}
+                delta={deltaOf(k.net.delta)} foot={k.net.margin === null ? 'no income in period' : `${k.net.margin.toFixed(1)}% margin`}
                 spark={k.net.spark} onClick={() => open({ kind: 'metric', id: 'net' })} />
             <Tile icon={Hourglass} label="Receivables" value={fmtShort(k.outstanding.value)} exact={fmtInr(k.outstanding.value)}
                 delta={k.outstanding.overdue > 0
-                    ? <span style={{ fontSize: 12, fontWeight: 600, color: t.down }}>{fmtShort(k.outstanding.overdue)} late</span>
-                    : <span style={{ fontSize: 12, color: t.faint }}>none late</span>}
+                    ? <span style={{ fontSize: 12, fontWeight: 600, color: t.down }}>{fmtShort(k.outstanding.overdue)} late</span> : null}
                 foot="owed to you · today" spark={k.outstanding.spark} sparkBars color={ramp[3]}
                 onClick={() => open({ kind: 'metric', id: 'outstanding' })} />
             <Tile icon={Truck} label="Payables" value={fmtShort(payables.total)} exact={fmtInr(payables.total)}
                 delta={payables.overdue > 0
-                    ? <span style={{ fontSize: 12, fontWeight: 600, color: t.down }}>{fmtShort(payables.overdue)} late</span>
-                    : <span style={{ fontSize: 12, color: t.faint }}>none late</span>}
+                    ? <span style={{ fontSize: 12, fontWeight: 600, color: t.down }}>{fmtShort(payables.overdue)} late</span> : null}
                 foot={`you owe ${payables.rows.length} vendor${payables.rows.length === 1 ? '' : 's'} · today`}
                 onClick={() => navigate('/purchases')} />
             <Tile icon={Landmark} label="Net cash" value={fmtShort(cash.net)} exact={fmtInr(cash.net)} tone={cash.net < 0 ? 'down' : null}
                 foot={`${fmtShort(cash.received)} in · ${fmtShort(cash.paidOut)} out · all time`}
                 onClick={() => navigate('/cashbook')} />
+        </TileRow>
+
+        <TileRow cols={tileCols(3)}>
+            <Tile icon={Users} label="Avg revenue / head" value={perHead === null ? '—' : fmtShort(model.pl.income / heads)}
+                exact={perHead === null ? 'no headcount' : fmtInr(model.pl.income / heads)}
+                foot={perHead === null ? 'no employees on the team' : `${fmtShort(model.pl.income)} income · ${heads} people`}
+                onClick={() => navigate('/dashboard/team')} />
+            <Tile icon={Receipt} label="Avg expenses / head" value={perHead === null ? '—' : fmtShort(model.pl.expenses / heads)}
+                exact={perHead === null ? 'no headcount' : fmtInr(model.pl.expenses / heads)}
+                foot={perHead === null ? 'no employees on the team' : `${fmtShort(model.pl.expenses)} expenses · ${heads} people`}
+                onClick={() => navigate('/dashboard/team')} />
+            <Tile icon={Percent} label="Gross profit operating ratio" value={opRatio === null ? '—' : `${opRatio.toFixed(1)}%`}
+                exact={opRatio === null ? 'no income in period' : `expenses are ${opRatio.toFixed(1)}% of income`} tone={opRatio !== null && opRatio > 100 ? 'down' : null}
+                foot={opRatio === null ? 'no income in period' : `gross profit ${fmtShort(model.pl.net)} · ${(100 - opRatio).toFixed(1)}% margin`}
+                onClick={() => open({ kind: 'metric', id: 'net' })} />
         </TileRow>
 
         <CardGrid cols={cols}>

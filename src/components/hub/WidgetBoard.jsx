@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { SIZE_LABEL } from './widgetCatalog';
 import { PreviewCtx } from './previewData';
+import { PERIODS, DEFAULT_PERIOD, periodOf } from './periods';
 import './hub.css';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -117,6 +118,7 @@ export default function WidgetBoard({
         const w = byId.get(id);
         setWidgetMenu(null);
         if (action === 'remove') { lay.remove(id); say(`${w.title} removed.`); }
+        if (action === 'period') { lay.setPeriod(id, arg); say(`${w.title} now shows ${periodOf(arg).label.toLowerCase()}.`); }
         if (action === 'size') { lay.resize(id, arg); say(`${w.title} is now ${SIZE_LABEL[arg].toLowerCase()}.`); }
         if (action === 'up') { lay.move(id, -1); say(`${w.title} moved earlier.`); }
         if (action === 'down') { lay.move(id, 1); say(`${w.title} moved later.`); }
@@ -178,7 +180,10 @@ export default function WidgetBoard({
                     {layout.map((item, i) => {
                         const w = byId.get(item.id);
                         const Body = w.render;
-                        const meta = w.meta?.(widgetProps.d, metaArgs || {});
+                        // A period widget's look-back (periods.js), kept with the layout.
+                        const period = w.periods ? (item.period || w.period || DEFAULT_PERIOD) : undefined;
+                        const setPeriod = w.periods ? (p) => lay.setPeriod(item.id, p) : undefined;
+                        const meta = w.meta?.(widgetProps.d, { ...metaArgs, period }) ?? (period ? periodOf(period).label : null);
                         const drill = !editing && onDrill && w.drill ? () => onDrill(w.drill) : null;
                         return (
                             <article
@@ -215,7 +220,7 @@ export default function WidgetBoard({
                                 </div>
                                 {widgetMenu === item.id && (
                                     <WidgetMenu
-                                        widget={w} size={item.size} first={i === 0} last={i === layout.length - 1}
+                                        widget={w} size={item.size} period={period} first={i === 0} last={i === layout.length - 1}
                                         onAction={(a, arg) => widgetAction(item.id, a, arg)}
                                         onClose={() => { setWidgetMenu(null); document.getElementById(`wbtn-${item.id}`)?.focus(); }}
                                     />
@@ -227,7 +232,7 @@ export default function WidgetBoard({
                                 <div
                                     className={`w-body${drill ? ' is-drill' : ''}`}
                                     onClick={drill ? (e) => { if (!e.target.closest('button, a, input, select, textarea, [role="button"]')) drill(); } : undefined}
-                                ><Body {...widgetProps} size={item.size} /></div>
+                                ><Body {...widgetProps} size={item.size} period={period} setPeriod={setPeriod} /></div>
                                 {editing && (
                                     <button type="button" className="w-remove" aria-label={`Remove ${w.title}`}
                                         onClick={() => widgetAction(item.id, 'remove')}>
@@ -268,7 +273,7 @@ function SizeGlyph({ size }) {
     );
 }
 
-function WidgetMenu({ widget, size, first, last, onAction, onClose }) {
+function WidgetMenu({ widget, size, period, first, last, onAction, onClose }) {
     const ref = useRef(null);
     const close = useLatest(onClose);
     // Opens to the right of its button; flips left, before paint, where that
@@ -306,6 +311,16 @@ function WidgetMenu({ widget, size, first, last, onAction, onClose }) {
                         <button key={s} type="button" role="menuitemradio" aria-checked={s === size}
                             onClick={() => (s === size ? onClose() : onAction('size', s))}>
                             <SizeGlyph size={s} />{SIZE_LABEL[s]}
+                        </button>
+                    ))}
+                </div>
+            )}
+            {widget.periods && (
+                <div className="hx-wsizes is-period" role="group" aria-label="Period">
+                    {PERIODS.map((p) => (
+                        <button key={p.id} type="button" role="menuitemradio" aria-checked={p.id === period} title={p.label}
+                            onClick={() => (p.id === period ? onClose() : onAction('period', p.id))}>
+                            {p.id}
                         </button>
                     ))}
                 </div>
@@ -421,7 +436,7 @@ function WidgetPicker({ layout, lay, widgets, defaultCount, groups, previewProps
                                     <div className="hx-gprev">
                                         <div className={`w is-${size}`} inert aria-hidden="true">
                                             <div className="w-head"><span className="w-title">{w.title}</span></div>
-                                            <div className="w-body"><Body {...props} size={size} /></div>
+                                            <div className="w-body"><Body {...props} size={size} period={w.periods ? (w.period || DEFAULT_PERIOD) : undefined} setPeriod={() => {}} /></div>
                                         </div>
                                         <button type="button" className="hx-gtoggle" aria-pressed={on}
                                             aria-label={`${w.title}, ${SIZE_LABEL[size].toLowerCase()}. ${w.desc}. ${on ? 'On your board — tap to remove' : 'Tap to add'}`}

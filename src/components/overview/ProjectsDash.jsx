@@ -86,22 +86,20 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
     return (<>
         <TileRow cols={tileCols(6)}>
             <Tile icon={FolderKanban} label="Open projects" value={String(openP.length)} exact={`${openP.length} open`}
-                foot={Number.isFinite(limit) ? `${openP.length} of ${limit} on the ${plan.name} plan` : `${live.length} in total`}
                 tone={Number.isFinite(limit) && openP.length >= limit ? 'down' : null}
                 onClick={() => navigate('/projects')} />
             <Tile icon={AlertTriangle} label="Need attention" value={risky === null ? '—' : String(risky)}
                 exact={risky === null ? 'health needs Pro' : `${risky} at risk or off track`} tone={risky ? 'down' : null}
-                foot={!withHealth ? 'health is part of Pro and Max' : rows === undefined ? 'loading…' : 'at risk or off track'}
                 onClick={() => navigate(withHealth ? '/portfolio' : '/pricing')} />
             <Tile icon={Flag} label="Late milestones" value={String(lateMs.length)} exact={`${lateMs.length} late`} tone={lateMs.length ? 'down' : null}
-                foot={lateMs[0] ? `oldest due ${fmtDay(lateMs[0].due_date)}` : 'nothing past its date'} onClick={() => navigate('/projects')} />
+                onClick={() => navigate('/projects')} />
             <Tile icon={CalendarClock} label="Due in 14 days" value={String(soonMs.length)} exact={`${soonMs.length} milestones`}
-                foot={soonMs[0] ? `next: ${fmtDay(soonMs[0].due_date)}` : 'nothing due soon'} onClick={() => navigate('/projects')} />
+                onClick={() => navigate('/projects')} />
             <Tile icon={ListChecks} label="Project tasks" value={String(openTasks.length)} exact={`${openTasks.length} open`}
-                foot={lateTasks.length ? `${lateTasks.length} past deadline` : 'none past deadline'} tone={lateTasks.length ? 'down' : null}
+                tone={lateTasks.length ? 'down' : null}
                 onClick={() => navigate('/tasks')} />
             <Tile icon={IndianRupee} label="Open contract value" value={fmtShort(contract)} exact={fmtInr(contract)}
-                foot={`across ${openP.filter((p) => Number(p.contract_value) > 0).length} priced projects`} onClick={() => navigate('/portfolio')} />
+                onClick={() => navigate('/portfolio')} />
         </TileRow>
 
         <CardGrid cols={cols}>
@@ -111,13 +109,6 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
                         id: s.id, label: s.label, value: live.filter((p) => p.status === s.id).length, color: statusColor[s.id],
                     }))} onSelect={() => navigate('/projects')} />
                 )}
-                <div style={{ marginTop: 14 }}>
-                    <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, marginBottom: 6 }}>HEALTH OF OPEN PROJECTS</div>
-                    {!withHealth ? <EmptyNote>Project health is part of Pro and Max.</EmptyNote>
-                        : rows === undefined ? <EmptyNote>Loading…</EmptyNote>
-                            : !health ? <EmptyNote>Health could not be loaded</EmptyNote>
-                                : <SplitBar format={(v) => String(v)} unit="Projects" parts={health} onSelect={() => navigate('/portfolio')} />}
-                </div>
             </Card>
 
             <Card title="Progress" note="open projects · milestones, or tasks where there are none">
@@ -155,7 +146,7 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
             </Card>
 
             <Card style={grid(margins ? 2 : 1)} title="Margin by project" note="net margin to date · revenue less direct and labour cost" right={withHealth ? <More label="Portfolio" to="/portfolio" /> : null}>
-                {!withHealth ? <EmptyNote>Project margins are part of Pro and Max.</EmptyNote>
+                {!withHealth ? null
                     : !fin ? <EmptyNote>Margins need the Project financials permission.</EmptyNote>
                         : rows === undefined ? <EmptyNote>Loading…</EmptyNote>
                             : !margins?.length ? <EmptyNote>No project has money booked against it yet</EmptyNote>

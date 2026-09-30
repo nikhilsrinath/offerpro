@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import { PERIODS } from './periods';
 
 /* Sample data for the widget gallery. The picker draws every widget with its
    real body, fed these figures instead of the org's, so a person sees what a
@@ -25,6 +26,19 @@ function cashDays() {
     }
     return { inByDay, outByDay };
 }
+
+/** Documents issued per day over the last two years, for the period widgets. */
+function docDays() {
+    const byDay = new Map();
+    for (let i = 0; i < 740; i++) {
+        const n = Math.max(0, wave(i, 1, 1.2));
+        if (n) byDay.set(dayKey(daysFrom(-i)), n);
+    }
+    return byDay;
+}
+
+// Each window scales with its length; the stretch before runs a little lower.
+const byPeriod = (fn) => Object.fromEntries(PERIODS.map((p) => [p.id, fn(p.months)]));
 
 const rise = (n, to) => Array.from({ length: n }, (_, i) => Math.round((to * (i + 1)) / n + wave(i, 0, to / 18)));
 
@@ -73,10 +87,34 @@ export function previewHubData() {
         docs: {
             total: 486, thisMonth: months[11].value, delta: 18, months,
             byType: [['invoice', 212], ['quotation', 118], ['offer_letter', 64], ['certificate', 52], ['nda', 40]],
+            byDay: docDays(),
+            windows: byPeriod((k) => ({
+                count: 24 * k, prev: 21 * k,
+                byType: [['invoice', 11 * k], ['quotation', 6 * k], ['offer_letter', 4 * k], ['certificate', 3 * k]],
+            })),
+        },
+        pnl: byPeriod((k) => {
+            const f = (income, cogs, opex) => ({
+                income, expenses: opex, cogs, gross: income - cogs, opex,
+                grossPct: ((income - cogs) / income) * 100, opRatio: (opex / income) * 100,
+            });
+            return { ...f(1180000 * k, 430000 * k, 810000 * k), prev: f(1060000 * k, 400000 * k, 790000 * k) };
+        }),
+        sales: {
+            arr: { value: 5760000, count: 9, clients: 7 },
+            acq: byPeriod((k) => ({
+                total: 146000 * k, sales: 52000 * k, marketing: 94000 * k, leads: 5 * k, perLead: 29200, prev: 158000 * k,
+                byCat: [
+                    { key: 'advertising', value: 61000 * k }, { key: 'sales_commission', value: 38000 * k },
+                    { key: 'marketing_content', value: 33000 * k }, { key: 'client_travel', value: 14000 * k },
+                ],
+            })),
+            allTime: { total: 1690000, leads: 58, perLead: 29138 },
         },
         team: {
             headcount: 48, departments: 6, joined: 3,
             byDept: [['Engineering', 18], ['Design', 8], ['Sales', 7], ['Operations', 6], ['Finance', 5], ['People', 4]],
+            byLocation: [['Bengaluru', 21], ['Mumbai', 14], ['Remote', 9], ['Dubai', 4]],
             tasks: {
                 total: 124, open: 37, overdue: 4, today: 6, done: 87,
                 next: [

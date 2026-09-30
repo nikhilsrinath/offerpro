@@ -7,10 +7,10 @@ import { canSeeFinancials } from '../../services/projectService';
 
 const DASHBOARDS = [
     { id: 'overview', label: 'Overview', title: 'Dashboard', icon: LayoutDashboard },
-    { id: 'finance', label: 'Finance', title: 'Finance dashboard', icon: Wallet, fin: true },
-    { id: 'sales', label: 'Sales', title: 'Sales dashboard', icon: BarChart3, fin: true },
-    { id: 'team', label: 'Team', title: 'Team dashboard', icon: UsersRound },
-    { id: 'documents', label: 'Documents', title: 'Documents dashboard', icon: FileStack },
+    { id: 'finance', label: 'Finance', title: 'Finance Dashboard', icon: Wallet, fin: true },
+    { id: 'sales', label: 'Sales', title: 'Sales Dashboard', icon: BarChart3, fin: true },
+    { id: 'team', label: 'Team', title: 'Team Dashboard', icon: UsersRound },
+    { id: 'documents', label: 'Documents', title: 'Documents Dashboard', icon: FileStack },
 ];
 
 /** The dashboards this user may open. */
