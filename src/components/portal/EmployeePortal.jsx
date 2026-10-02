@@ -12,12 +12,12 @@
 // on a phone, under the thumb), and check-in/out always in the top bar, since
 // it is the one thing people do here every single day.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, Plane, Megaphone, UserRound, LogIn, LogOut, Sun, Moon,
   ArrowLeft, UserCircle, FolderKanban, Clock,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useGoBack } from '../shell/navHistory';
 import { useOrg } from '../../context/OrgContext';
 import { useToast } from '../shared/Toast';
 import { useTheme } from '../../hooks/useTheme';
@@ -53,6 +53,8 @@ export default function EmployeePortal() {
   const { activeOrg } = useOrg();
   const toast = useToast();
   const { theme, toggleTheme } = useTheme();
+  // Back returns to the page this was opened from; the hub if none.
+  const goBack = useGoBack();
   const t = makeTokens(theme === 'dark');
   const orgId = activeOrg?.id;
   const width = useWindowWidth();
@@ -195,7 +197,7 @@ export default function EmployeePortal() {
             attendance or leave to show. Ask an admin to link your record from the Employees page.
           </Empty>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-            {role && role !== 'employee' && <Link to="/hub" style={{ textDecoration: 'none' }}><Btn><ArrowLeft size={13} /> Back to hub</Btn></Link>}
+            {role && role !== 'employee' && <Btn onClick={() => goBack('/hub')}><ArrowLeft size={13} /> Back</Btn>}
             <Btn onClick={logout}><LogOut size={13} /> Sign out</Btn>
           </div>
         </div>
@@ -270,9 +272,9 @@ export default function EmployeePortal() {
 
             <div style={{ padding: 9, borderTop: '1px solid ' + t.line, display: 'grid', gap: 2 }}>
               {role && role !== 'employee' && (
-                <Link to="/hub" title="Back to hub" className="edge-seg" style={railLink(t, narrow)}>
-                  <ArrowLeft size={15} strokeWidth={1.8} />{!narrow && 'Back to hub'}
-                </Link>
+                <button type="button" onClick={() => goBack('/hub')} title="Back" className="edge-seg" style={railLink(t, narrow)}>
+                  <ArrowLeft size={15} strokeWidth={1.8} />{!narrow && 'Back'}
+                </button>
               )}
               <button type="button" onClick={toggleTheme} title={theme === 'dark' ? 'Light mode' : 'Dark mode'} className="edge-seg" style={railLink(t, narrow)}>
                 {theme === 'dark' ? <Sun size={15} strokeWidth={1.8} /> : <Moon size={15} strokeWidth={1.8} />}

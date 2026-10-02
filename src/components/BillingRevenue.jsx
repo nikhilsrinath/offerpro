@@ -533,7 +533,7 @@ export default function BillingRevenue() {
             <div className="pro-empty" style={{ padding: '3rem' }}>
               <Wallet size={40} strokeWidth={1} />
               <p>No expenses recorded</p>
-              <span>Add one in the Cash Book — it asks what the money was for and works out whether it cuts profit or only cash.</span>
+              <span>Add one in the General Ledger — it asks what the money was for and works out whether it cuts profit or only cash.</span>
             </div>
           ) : (
             expenses.map(exp => (

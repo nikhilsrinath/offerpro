@@ -3,6 +3,8 @@ import { useSection } from '../../financial/financeHooks';
 import { orgStore } from '../../../services/orgStore';
 import { taskStore } from '../../../services/taskStore';
 import { memberActive } from '../../../services/projectAnalytics';
+import { isOwnerOrAdmin } from '../../../services/projectService';
+import { importantSupported } from '../../../services/importantTasks';
 import {
     buildTree, rollups, projectRollup, schedule, descendants, nextPosition, todayDay,
 } from '../../../services/wbs';
@@ -55,6 +57,8 @@ export function usePmData(project) {
                 create: orgStore.can('tasks', 'create'),
                 edit: orgStore.can('tasks', 'update'),
                 remove: orgStore.can('tasks', 'delete'),
+                // Marking a task important is an owner's or admin's call (0077).
+                flag: isOwnerOrAdmin() && importantSupported(tasks),
             },
         };
     }, [allTasks, allLinks, employees, members, allMilestones, project]);
@@ -71,6 +75,8 @@ export function pmError(e) {
     if (/DEPENDENCY_CYCLE/.test(m)) return 'That link would make the schedule loop back on itself.';
     if (/DEPENDENCY_PROJECT_MISMATCH/.test(m)) return 'Both tasks of a link must be in this project.';
     if (/task_dependencies_pair|duplicate key/.test(m)) return 'Those two tasks are already linked.';
+    if (/TASK_IMPORTANT_ADMIN_ONLY/.test(m)) return 'Only an owner or admin can mark a task important.';
+    if (/important/.test(m) && /column|schema cache/.test(m)) return 'Important tasks are not set up on this workspace yet (migration 0077).';
     if (/tasks_start_before_deadline/.test(m)) return 'The start date has to be on or before the finish date.';
     if (/parent_id|start_date|task_dependencies/.test(m) && /column|relation|schema cache/.test(m)) {
         return 'Work breakdown is not set up on this workspace yet (migration 0072).';
@@ -79,7 +85,7 @@ export function pmError(e) {
 }
 
 /** Add a node under `parentId` (null: a sub-project at the top). */
-export function createNode(data, { parentId = null, title, assignedTo = '', startDate = null, deadline = null, description = '', priority = 'medium', position }) {
+export function createNode(data, { parentId = null, title, assignedTo = '', startDate = null, deadline = null, description = '', priority = 'medium', important, position }) {
     const siblings = parentId ? data.tree.kids.get(parentId) || [] : data.tree.roots;
     const emp = data.empById.get(assignedTo) || {};
     return taskStore.create({
@@ -98,6 +104,7 @@ export function createNode(data, { parentId = null, title, assignedTo = '', star
         parentId,
         startDate: startDate || null,
         progress: 0,
+        ...(important ? { important: true } : {}),
         position: position ?? nextPosition(siblings),
     });
 }
@@ -107,6 +114,20 @@ export async function applyWrites(writes) {
     for (const w of writes) {
         const { id, ...rest } = w;
         await taskStore.update(id, rest);
+    }
+}
+
+/**
+ * Mark a task important, or not — it then shows (or stops showing) under
+ * "Needs attention" on the project dashboards. The cache is written first;
+ * if the database refuses, the tasks are re-read so the star goes back.
+ */
+export async function setImportant(task, on) {
+    try {
+        await taskStore.update(task.id, { important: !!on });
+    } catch (e) {
+        await orgStore.refreshSection('tasks').catch(() => {});
+        throw e;
     }
 }
 

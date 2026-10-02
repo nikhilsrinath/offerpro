@@ -83,7 +83,7 @@ export default function ProfitLoss() {
         taxable value plus cash-book receipts at net value (GST collected is not income). Expenses are expense entries
         and purchase invoices, net of input GST. Drafts, cancelled invoices and voided bills are excluded — and so is
         anything that moves cash without changing profit: funding taken in, assets bought, loan principal repaid,
-        owner drawings and tax remitted. Those are on the Cash Book.
+        owner drawings and tax remitted. Those are on the General Ledger.
       </p>
 
       <div className="pro-card" style={{ marginBottom: '1rem' }}>

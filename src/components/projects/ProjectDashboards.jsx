@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
     IndianRupee, Wallet, Hourglass, TrendingUp, Receipt, FileSignature, FileText, Users, Gauge,
-    ListChecks, AlertTriangle, Briefcase, HeartPulse, CircleDashed,
+    ListChecks, AlertTriangle, Briefcase, HeartPulse, CircleDashed, Star,
 } from 'lucide-react';
 import { Page, Panel, Empty, Btn } from '../ui/edge';
 import { MONO } from '../ui/edgeUtils';
@@ -10,7 +10,8 @@ import { useSection } from '../financial/financeHooks';
 import { balanceOf } from '../../services/financeAnalytics';
 import { categoryLabel } from '../../services/financeCategories';
 import { memberActive, formatHealthReasons } from '../../services/projectAnalytics';
-import { health as fetchHealth } from '../../services/projectService';
+import { health as fetchHealth, isOwnerOrAdmin } from '../../services/projectService';
+import { needsAttention } from '../../services/importantTasks';
 import { projectDashboards } from './projectDashboardNav';
 import { fmtShort, fmtInr, fmtDay, invoiceStateOf, INVOICE_STATES } from '../overview/overviewModel';
 import { TipProvider, RankBars, SplitBar, EmptyNote } from '../overview/vizKit';
@@ -18,11 +19,13 @@ import { useViz, useWinW } from '../overview/vizHooks';
 import { Card, Tile, Figure, More, TileRow, CardGrid, ListRow, DashStyle } from '../overview/dashKit';
 import { useProjectBoardData } from './projectBoard';
 import { describeActivity } from './activityText';
+import ProjectActions from './ProjectActions';
+import PageTabs from './PageTabs';
 
 /* ══════════════════════════════════════════════════════════════════════════
    One project's Dashboard — the company Dashboard's flow, for one project.
-   It is its own set of pages, /projects/:id/dashboard/:view, folded under
-   Dashboard in the project's rail (projectDashboardGroup). Each page is a row of figures and a few cards, built from the
+   It is its own set of pages, /projects/:id/dashboard/:view, switched between
+   by the tabs at the top (PageTabs). Each page is a row of figures and a few cards, built from the
    same kit as the company dashboards, so they read the same way.
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -82,7 +85,8 @@ function DashboardPage({ project, page, navigate }) {
             <div className="edge-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable' }}>
                 <TipProvider>
                     <div className="ov-page" style={{ padding: pad, fontFamily: MONO, color: t.text, minWidth: 0 }}>
-                        <div style={{ padding: '2px 2px 18px' }}>
+                        <div style={{ padding: '2px 2px 18px', display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{
                                 fontSize: 13.5, fontWeight: 600, letterSpacing: '0.08em', marginBottom: 6,
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -92,7 +96,11 @@ function DashboardPage({ project, page, navigate }) {
                             <h1 style={{
                                 margin: 0, fontSize: winW < 760 ? 24 : 32, fontWeight: 700, letterSpacing: '-0.045em', lineHeight: 1.05,
                             }}>{page.title}</h1>
+                          </div>
+                          {view === 'overview' && <ProjectActions project={project} />}
                         </div>
+                        <PageTabs label="Dashboard pages" current={view} pages={projectDashboards()}
+                            onOpen={(id) => navigate(`/projects/${project.id}/dashboard/${id}`)} />
                         {view === 'overview' && <OverviewView {...ctx} />}
                         {view === 'finance' && <FinanceView {...ctx} />}
                         {view === 'sales' && <SalesView {...ctx} />}
@@ -126,6 +134,10 @@ const Loading = () => <EmptyNote>Loading…</EmptyNote>;
 
 function OverviewView({ board, open, navigate, t, status, cols, tileCols }) {
     const { project, today, fin, f, tasks: tk } = board;
+    const employees = useSection('employees');
+    const personOf = useMemo(() => Object.fromEntries(employees.map((e) => [e.id, e.name])), [employees]);
+    // Tasks an owner or admin marked important (0077), until done — late first.
+    const attention = useMemo(() => needsAttention(tk.all, today), [tk.all, today]);
     const pct = board.progress == null ? null : Math.round(board.progress * 100);
     const h = board.health;
     const reasons = h ? formatHealthReasons(h.reasons || []) : [];
@@ -156,6 +168,28 @@ function OverviewView({ board, open, navigate, t, status, cols, tileCols }) {
         </TileRow>
 
         <CardGrid cols={cols}>
+            <Card style={{ gridColumn: `span ${cols}` }} title="Needs attention"
+                note="tasks marked important, until they are done · late first"
+                right={<More label="Tasks" onClick={() => open('wbs')} />}>
+                {attention.length === 0 ? (
+                    <EmptyNote>{isOwnerOrAdmin()
+                        ? 'Nothing marked important. Star a task on Tasks (WBS) to list it here.'
+                        : 'Nothing marked important. An owner or admin chooses what goes here.'}</EmptyNote>
+                ) : attention.slice(0, 10).map(({ task, late: isLate, due }) => (
+                    <ListRow key={task.id}
+                        label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
+                            <Star size={12} fill="currentColor" aria-hidden="true" style={{ color: t.down, flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</span>
+                        </span>}
+                        sub={[personOf[task.assignedTo] || 'Unassigned', task.status === 'in-progress' ? 'in progress' : null].filter(Boolean).join(' · ')}
+                        value={due ? `${isLate ? 'late · ' : ''}${fmtDay(due).slice(0, 6)}` : 'no date'} tone={isLate ? 'down' : null}
+                        onClick={() => navigate(`/projects/${project.id}?tab=wbs&task=${task.id}`)} />
+                ))}
+                {attention.length > 10 && (
+                    <div style={{ fontSize: 11.5, color: t.faint, marginTop: 8 }}>and {attention.length - 10} more</div>
+                )}
+            </Card>
+
             <Card title="Schedule" note={end ? `due ${fmtDay(end)}` : 'no end date set'}>
                 <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginBottom: 14 }}>
                     <Figure big label={daysLeft != null && daysLeft < 0 ? 'days over' : 'days left'}

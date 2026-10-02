@@ -6,7 +6,7 @@
 // the browser.
 //
 // Note on names: `catalog` here is NOT orgStore's `products` section. That one
-// is ProductPlanner's roadmap and has no price. 0011_product_catalog.sql
+// is the retired Product Planner's roadmap and has no price. 0011_product_catalog.sql
 // explains why they are separate tables.
 import { supabase } from '../lib/supabase';
 import { orgStore } from './orgStore';

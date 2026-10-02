@@ -146,7 +146,7 @@
 .edge-shell main :where(
   .pro-card, .glass-panel, .glass-card, .fin-status-stat-card, .pro-stat-card, .prod-stat,
   .prod-perf-table-wrap, .portal-link-gen, .bulk-side-panel,
-  .crm-column, .crm-card, .customer-card, .billing-card, .records-card, .planner-card,
+  .crm-column, .crm-card, .customer-card, .billing-card, .records-card,
   .sbc-card, .payment-conf, .line-items-editor, .easy-upload
 ) {
   border-radius: 10px;

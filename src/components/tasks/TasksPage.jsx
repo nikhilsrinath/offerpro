@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSection } from '../financial/financeHooks';
 import ProjectBadge from '../projects/ProjectBadge';
 import TaskModal from './TaskModal';
+import { Star } from 'lucide-react';
 import {
     Page, Toolbar, Panel, Row, Btn, Seg, Search, Select, Table, Tr, Td,
     Avatar, Status, Bar, Breakdown, Empty, Muted,
@@ -37,6 +38,14 @@ const COLUMNS = [
 ];
 
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
+
+/** Marked important by an owner or admin (0077) — listed under Needs attention. */
+const Important = ({ t }) => (
+    <span title="Important — listed under Needs attention" style={{ display: 'inline-flex', flexShrink: 0, marginTop: 3, color: t.down }}>
+        <Star size={13} fill="currentColor" aria-hidden="true" />
+        <span className="eo-sr">Important</span>
+    </span>
+);
 const PRIORITY_LABEL = { high: 'High', medium: 'Medium', low: 'Low' };
 
 function empName(emp) {
@@ -157,7 +166,7 @@ export default function TasksPage({ projectId = null, embedded = false }) {
 
     const move = async (task, next) => {
         try {
-            await taskStore.update(task.id, { ...task, status: next });
+            await taskStore.update(task.id, { status: next });
             reload();
         } catch {
             /* the store repaints on its own change event */
@@ -192,11 +201,12 @@ export default function TasksPage({ projectId = null, embedded = false }) {
                 opacity: task.status === 'done' ? 0.62 : 1,
             }}>
                 <button type="button" onClick={() => openEdit(task)} className="edge-tr" style={{
-                    display: 'block', width: '100%', textAlign: 'left', padding: 0, marginBottom: 9,
+                    display: 'flex', gap: 6, alignItems: 'flex-start', width: '100%', textAlign: 'left', padding: 0, marginBottom: 9,
                     background: 'transparent', border: 'none', cursor: 'pointer',
                     fontFamily: MONO, fontSize: 13, color: t.text, lineHeight: 1.5,
                 }}>
-                    {task.title}
+                    <span style={{ flex: 1, minWidth: 0 }}>{task.title}</span>
+                    {task.important && <Important t={t} />}
                 </button>
 
                 {!projectId && task.projectId && (
@@ -364,7 +374,7 @@ export default function TasksPage({ projectId = null, embedded = false }) {
                         return (
                             <Tr key={task.id}>
                                 <Td>
-                                    <span style={{ display: 'block' }}>{task.title}</span>
+                                    <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{task.title}{task.important && <Important t={t} />}</span>
                                     {task.description && (
                                         <span style={{
                                             display: 'block', fontSize: 11, color: t.faint, marginTop: 2,

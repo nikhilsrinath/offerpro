@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { taskStore } from '../../services/taskStore';
 import { orgStore } from '../../services/orgStore';
-import { addMember } from '../../services/projectService';
+import { addMember, isOwnerOrAdmin } from '../../services/projectService';
 import { isOpen, memberActive } from '../../services/projectAnalytics';
 import {
     Btn, Seg, Field, Input, Select, Textarea, Modal, ConfirmBtn,
@@ -14,7 +14,10 @@ import { useT } from '../ui/edgeUtils';
    A task belongs to a project (optionally one of its milestones) or to
    nobody — "General". With a project chosen, its current team is listed first
    among the assignees; picking someone outside it offers to add them to the
-   team, since a project's tasks are its members' work. */
+   team, since a project's tasks are its members' work.
+
+   An owner or admin can mark a project task important (0077): while open it
+   is listed under Needs attention on the project dashboards. */
 
 // The smallest time share a membership can carry (project_members checks
 // allocation_pct > 0). Enough to show on the team; adjust it on the Team tab.
@@ -60,6 +63,7 @@ export default function TaskModal({ task, onClose, onSaved, defaultProjectId = n
         notes: task?.notes || '',
         projectId: task ? task.projectId || '' : defaultProjectId || '',
         milestoneId: task ? task.milestoneId || '' : defaultMilestoneId || '',
+        important: !!task?.important,
     });
     const [addToTeam, setAddToTeam] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -76,6 +80,9 @@ export default function TaskModal({ task, onClose, onSaved, defaultProjectId = n
         .map((m) => m.employee_id));
     const onTeam = employees.filter((e) => teamIds.has(e.id));
     const offTeam = employees.filter((e) => !teamIds.has(e.id));
+    // Only once the column exists: rows read before 0077 carry no `important`.
+    const flagReady = orgStore.getSectionAsList('tasks').some((x) => x.important !== undefined);
+    const canFlag = isOwnerOrAdmin() && flagReady && !!form.projectId;
     const outsider = !!form.projectId && !!form.assignedTo && !teamIds.has(form.assignedTo);
 
     const set = (key) => (v) => setForm((f) => ({ ...f, [key]: v?.target ? v.target.value : v }));
@@ -87,8 +94,9 @@ export default function TaskModal({ task, onClose, onSaved, defaultProjectId = n
         setError('');
         try {
             const emp = employees.find((e) => e.id === form.assignedTo) || {};
+            const { important, ...rest } = form;
             const payload = {
-                ...form,
+                ...rest,
                 title: form.title.trim(),
                 assignedName: empName(emp),
                 assignedEmail: emp.email || '',
@@ -100,6 +108,7 @@ export default function TaskModal({ task, onClose, onSaved, defaultProjectId = n
             };
             payload.projectId = form.projectId || null;
             payload.milestoneId = form.projectId ? form.milestoneId || null : null;
+            if (canFlag && important !== !!task?.important) payload.important = important;
             if (isEdit) await taskStore.update(task.id, payload);
             else await taskStore.create(payload);
             // Joining the team is a second write; the task is already saved
@@ -118,7 +127,9 @@ export default function TaskModal({ task, onClose, onSaved, defaultProjectId = n
             onSaved();
             onClose();
         } catch (e) {
-            setError(/MILESTONE|project/i.test(e?.message || '')
+            setError(/TASK_IMPORTANT_ADMIN_ONLY/.test(e?.message || '')
+                ? 'Only an owner or admin can mark a task important.'
+                : /MILESTONE|project/i.test(e?.message || '')
                 ? 'That milestone belongs to a different project.'
                 : 'Could not save the task. Try again.');
         } finally {
@@ -202,6 +213,16 @@ export default function TaskModal({ task, onClose, onSaved, defaultProjectId = n
             <Field label="Priority">
                 <Seg value={form.priority} onChange={set('priority')} options={PRIORITIES} />
             </Field>
+            {canFlag && (
+                <>
+                    <div style={{ height: 13 }} />
+                    <Field label="Needs attention" hint="Important tasks are listed under Needs attention on the project dashboards until they are done">
+                        <Seg value={form.important ? 'yes' : 'no'} onChange={(v) => set('important')(v === 'yes')} label="Important" options={[
+                            { id: 'no', label: 'Normal' }, { id: 'yes', label: 'Important' },
+                        ]} />
+                    </Field>
+                </>
+            )}
             <div style={{ height: 13 }} />
             <Field label="Deadline" hint="Leave blank if there is no date">
                 <Input type="date" value={form.deadline} onChange={set('deadline')} />

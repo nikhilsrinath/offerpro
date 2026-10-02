@@ -1,6 +1,7 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Panel, Row, Btn, Seg, Search, Select, Field, Input, Textarea, Empty, Modal, ConfirmBtn, Grid, Muted,
+    Table, Tr, Td,
 } from '../../ui/edge';
 import { useT, fmtDate } from '../../ui/edgeUtils';
 import { useToast } from '../../shared/Toast';
@@ -30,6 +31,14 @@ const SORTS = [
     { id: 'contract', label: 'Contract end' },
     { id: 'value', label: 'Contract value' },
 ];
+const VIEW_KEY = 'eo-vendors-view';
+const LIST_COLS = [
+    { key: 'vendor', label: 'Vendor' },
+    { key: 'contact', label: 'Contact' },
+    { key: 'status', label: 'Status' },
+    { key: 'contract', label: 'Contract end' },
+    { key: 'value', label: 'Contract value', align: 'right' },
+];
 const maskAccount = (n) => (n ? `•••• ${String(n).slice(-4)}` : '');
 
 export default function VendorDirectory({ project }) {
@@ -39,9 +48,12 @@ export default function VendorDirectory({ project }) {
     const [status, setStatus] = useState('all');
     const [category, setCategory] = useState('');
     const [sort, setSort] = useState('name');
+    const [view, setView] = useState(() => { try { return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'grid'; } catch { return 'grid'; } });
     const [open, setOpen] = useState(null);
     const [editing, setEditing] = useState(null);
     const [adding, setAdding] = useState(false);
+
+    useEffect(() => { try { localStorage.setItem(VIEW_KEY, view); } catch { /* private mode */ } }, [view]);
 
     const canCreate = orgStore.can('vendors', 'create');
     const canEdit = orgStore.can('vendors', 'edit');
@@ -93,9 +105,19 @@ export default function VendorDirectory({ project }) {
                             <Select aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} style={{ width: 170, height: 29 }}>
                                 {SORTS.map((s) => <option key={s.id} value={s.id}>Sort: {s.label}</option>)}
                             </Select>
+                            <div style={{ flex: 1 }} />
+                            <Seg size="sm" value={view} onChange={setView} label="Layout" options={[
+                                { id: 'grid', label: 'Grid' }, { id: 'list', label: 'List' },
+                            ]} />
                         </Bar>
                         {shown.length === 0 ? (
                             <Empty action={filtered && <Btn onClick={() => { setQuery(''); setCategory(''); setStatus('all'); }}>Clear filters</Btn>}>No vendor matches these filters.</Empty>
+                        ) : view === 'list' ? (
+                            <div style={{ padding: 12 }}>
+                                <Table cols={LIST_COLS}>
+                                    {shown.map((v) => <VendorRow key={v.id} vendor={v} currency={project.currency} onOpen={() => setOpen(v.id)} />)}
+                                </Table>
+                            </div>
                         ) : (
                             <div style={{ padding: 12 }}>
                                 <Grid min={260} gap={10}>
@@ -145,6 +167,42 @@ function VendorCard({ vendor: v, currency, onOpen }) {
                 {v.contract_value != null && <span style={{ fontSize: 11.5, color: t.faint }}>{fmtMoney(v.contract_value, currency || 'INR')}</span>}
             </Row>
         </button>
+    );
+}
+
+function VendorRow({ vendor: v, currency, onOpen }) {
+    const t = useT();
+    const active = (v.status || 'active') === 'active';
+    const contact = (v.contacts || []).find((c) => c.primary);
+    const who = contact?.name || v.contact_name;
+    const reach = contact ? (contact.email || contact.phone) : (v.email || v.phone);
+    const ended = v.contract_end && v.contract_end < todayIso();
+    const clip = { display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+    return (
+        <Tr onClick={onOpen} label={`Open ${v.company_name}`}>
+            <Td>
+                <Row gap={10} style={{ minWidth: 200, maxWidth: 320 }}>
+                    <Logo path={v.logo_path} name={v.company_name} size={30} />
+                    <span style={{ minWidth: 0, flex: 1 }}>
+                        <span style={{ ...clip, fontSize: 13, fontWeight: 500 }}>{v.company_name}</span>
+                        <span style={{ ...clip, fontSize: 11.5, color: t.faint }}>{v.category || 'Category not set'}</span>
+                    </span>
+                </Row>
+            </Td>
+            <Td muted>
+                <span style={{ ...clip, maxWidth: 240 }}>{who || reach || <span style={{ color: t.ghost }}>No contact yet</span>}</span>
+                {who && reach && <span style={{ ...clip, maxWidth: 240, fontSize: 11.5, color: t.faint }}>{reach}</span>}
+            </Td>
+            <Td nowrap><Badge color={active ? ACTIVE : INACTIVE}>{active ? 'Active' : 'Inactive'}</Badge></Td>
+            <Td nowrap>
+                {v.contract_end
+                    ? <span style={{ color: ended ? t.down : t.text }}>{fmtDate(v.contract_end)}{ended && <span style={{ fontSize: 11.5 }}> · ended</span>}</span>
+                    : <span style={{ color: t.ghost }}>—</span>}
+            </Td>
+            <Td nowrap align="right">
+                {v.contract_value != null ? fmtMoney(v.contract_value, currency || 'INR') : <span style={{ color: t.ghost }}>—</span>}
+            </Td>
+        </Tr>
     );
 }
 

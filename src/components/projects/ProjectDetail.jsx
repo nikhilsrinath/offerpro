@@ -1,24 +1,19 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import {
-    Page, Panel, Row, Btn, Status, Avatar, Empty, Modal, Field, Textarea, Select, Muted,
-} from '../ui/edge';
+import { Page, Panel, Row, Btn, Status, Avatar, Empty, Muted } from '../ui/edge';
 import { useT, MONO } from '../ui/edgeUtils';
 import { useSection } from '../financial/financeHooks';
-import { useToast } from '../shared/Toast';
 import { useOrg } from '../../context/OrgContext';
-import { PROJECT_STATUSES, statusLabel, isClosed } from '../../services/projectAnalytics';
-import {
-    closeProject, updateProject, reopenProject, archiveProject, unarchiveProject, duplicateProject,
-    canEditProjects, canSeeFinancials, isOwnerOrAdmin, health as fetchHealth,
-} from '../../services/projectService';
+import { statusLabel, isClosed } from '../../services/projectAnalytics';
+import { canSeeFinancials, health as fetchHealth } from '../../services/projectService';
 import { useAssistant } from '../assistant/assistantStore';
 import { useWidgetLayout } from '../hub/useWidgetLayout';
 import WidgetBoard from '../hub/WidgetBoard';
 import { PROJECT_WIDGETS, PROJECT_CATALOG, useProjectBoardData } from './projectBoard';
 import HealthChip from './HealthChip';
 import ProjectMilestones from './ProjectMilestones';
-import ProjectForm from './ProjectForm';
+import ProjectActions from './ProjectActions';
+import PageTabs from './PageTabs';
 import ProjectFinanceStatus, { ProjectProfitLoss } from './ProjectFinance';
 import ProjectBilling from './ProjectBilling';
 import CashBook from '../financial/CashBook';
@@ -34,6 +29,7 @@ import GanttPage from './pm/GanttPage';
 import RaciPage from './team/RaciPage';
 import ProjectAttendance from './team/ProjectAttendance';
 import ProjectAnnouncements from './team/ProjectAnnouncements';
+import CRM from '../CRM';
 import ClientDirectory from './parties/ClientDirectory';
 import ClientCommunication from './parties/ClientCommunication';
 import PaymentStatus from './parties/PaymentStatus';
@@ -47,7 +43,7 @@ import {
     Gauge, BookOpen, Receipt, ShoppingCart, Scale, TrendingUp,
     FolderKanban, Briefcase, ListTree, SquareKanban, ChartGantt,
     UsersRound, Network, CalendarCheck, Megaphone,
-    Handshake, Building2, MessagesSquare, BadgeIndianRupee, Truck, FolderOpen, FilePen, Contact,
+    Handshake, Building2, MessagesSquare, BadgeIndianRupee, Truck, FolderOpen, FilePen, Contact, Kanban,
 } from 'lucide-react';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -92,6 +88,7 @@ const TABS = [
     // Project Documents keeps the id 'documents', so older ?tab=documents
     // links land on it; the links it used to be are its Linked records view.
     { id: 'clients', parent: 'cm', label: 'Client Directory', icon: Contact },
+    { id: 'crm', parent: 'cm', label: 'CRM', icon: Kanban },
     { id: 'comms', parent: 'cm', label: "Client's Communication", icon: MessagesSquare },
     { id: 'payments', parent: 'cm', label: 'Payment Status & Pendings', icon: BadgeIndianRupee, fin: true, pay: true },
     { id: 'vendors', parent: 'vm', label: 'Vendor Directory', icon: Truck },
@@ -123,27 +120,25 @@ const GROUPS = {
 };
 
 /**
- * The rail inside one project, with the finance pages folded under one
- * Finance item and the project-management pages under another, each open
- * while one of its pages is showing.
+ * The rail inside one project: one item per group, opening its first page.
+ * A group's pages are a switcher at the top of the page (GroupTabs), not a
+ * drop-down in the rail.
  */
 export function projectRail(projectId, sections, current) {
     const to = (id) => (id === 'dashboard' ? `/projects/${projectId}/dashboard/overview` : `/projects/${projectId}?tab=${id}`);
     const items = [];
-    const parents = {};
+    const seen = new Set();
     sections.forEach((x) => {
-        const item = { id: 'project-' + x.id, label: x.label, icon: x.icon, to: to(x.id), active: current === x.id };
-        if (!x.parent) { items.push(item); return; }
-        let parent = parents[x.parent];
-        if (!parent) {
-            const inside = sections.some((y) => y.parent === x.parent && y.id === current);
-            parent = parents[x.parent] = {
-                id: 'project-group-' + x.parent, label: GROUPS[x.parent].label, icon: GROUPS[x.parent].icon, to: to(x.id),
-                active: inside, open: inside, children: [],
-            };
-            items.push(parent);
+        if (!x.parent) {
+            items.push({ id: 'project-' + x.id, label: x.label, icon: x.icon, to: to(x.id), active: current === x.id });
+            return;
         }
-        parent.children.push(item);
+        if (seen.has(x.parent)) return;
+        seen.add(x.parent);
+        items.push({
+            id: 'project-group-' + x.parent, label: GROUPS[x.parent].label, icon: GROUPS[x.parent].icon, to: to(x.id),
+            active: sections.some((y) => y.parent === x.parent && y.id === current),
+        });
     });
     return items;
 }
@@ -162,7 +157,6 @@ function useWindowWidth() {
 
 export default function ProjectDetail() {
     const t = useT();
-    const toast = useToast();
     const navigate = useNavigate();
     const location = useLocation();
     const { projectId } = useParams();
@@ -185,13 +179,13 @@ export default function ProjectDetail() {
     }
     return (
         <ProjectWorkspace
-            key={project.id} project={project} t={t} toast={toast} navigate={navigate}
+            key={project.id} project={project} t={t} navigate={navigate}
             location={location} params={params} setParams={setParams}
         />
     );
 }
 
-function ProjectWorkspace({ project, t, toast, navigate, location, params, setParams }) {
+function ProjectWorkspace({ project, t, navigate, location, params, setParams }) {
     const clients = useSection('customers');
     const employees = useSection('employees');
     const { activeOrg } = useOrg();
@@ -199,11 +193,6 @@ function ProjectWorkspace({ project, t, toast, navigate, location, params, setPa
     const winW = useWindowWidth();
     const isMobile = winW < 760;
 
-    const [editing, setEditing] = useState(false);
-    const [closing, setClosing] = useState(null);   // 'completed' | 'cancelled'
-    const [reopening, setReopening] = useState(false);
-    const [reason, setReason] = useState('');
-    const [busy, setBusy] = useState(false);
     const [health, setHealth] = useState(null);
     const [announce, setAnnounce] = useState('');
 
@@ -240,21 +229,7 @@ function ProjectWorkspace({ project, t, toast, navigate, location, params, setPa
     const client = clients.find((c) => c.id === project.client_id);
     const manager = employees.find((e) => e.id === project.manager_employee_id);
     const closed = isClosed(project);
-    const editable = canEditProjects();
     const theme = t.isDark ? 'dark' : 'light';
-
-    const act = async (fn, done) => {
-        setBusy(true);
-        try { await fn(); if (done) toast(done, 'success'); }
-        catch (e) { toast(e.message, 'error'); }
-        finally { setBusy(false); }
-    };
-
-    const changeStatus = (next) => {
-        if (next === project.status) return;
-        if (next === 'completed' || next === 'cancelled') { setClosing(next); return; }
-        act(() => updateProject(project.id, { status: next }), `Marked ${statusLabel(next).toLowerCase()}`);
-    };
 
     const problems = location.state?.problems;
     const now = new Date();
@@ -297,27 +272,7 @@ function ProjectWorkspace({ project, t, toast, navigate, location, params, setPa
                                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                             }}>{tab === 'home' ? name : section.label}</h1>
                         </div>
-                        <Row gap={6} wrap>
-                            {editable && !closed && (
-                                <Select aria-label="Project status" value={project.status} disabled={busy}
-                                    onChange={(e) => changeStatus(e.target.value)} style={{ width: 130, height: 29 }}>
-                                    {PROJECT_STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-                                </Select>
-                            )}
-                            {closed && isOwnerOrAdmin() && (
-                                <Btn size="sm" onClick={() => { setReason(''); setReopening(true); }}>Reopen</Btn>
-                            )}
-                            {editable && !closed && <Btn size="sm" onClick={() => setEditing(true)}>Edit</Btn>}
-                            {editable && (
-                                <Btn size="sm" disabled={busy} onClick={() => act(async () => {
-                                    const { project: copy } = await duplicateProject(project.id);
-                                    navigate(`/projects/${copy.id}`);
-                                }, 'Duplicated')}>Duplicate</Btn>
-                            )}
-                            {editable && (project.archived_at
-                                ? <Btn size="sm" disabled={busy} onClick={() => act(() => unarchiveProject(project.id), 'Restored')}>Unarchive</Btn>
-                                : <Btn size="sm" disabled={busy} onClick={() => act(() => archiveProject(project.id), 'Archived')}>Archive</Btn>)}
-                        </Row>
+                        {tab === 'home' && <ProjectActions project={project} />}
                     </div>
 
                     {/* — who and where: code, state, client, manager — */}
@@ -359,8 +314,9 @@ function ProjectWorkspace({ project, t, toast, navigate, location, params, setPa
                         </div>
                     ) : (
                         <div style={{ minWidth: 0 }}>
-                            {section.parent && isMobile && (
-                                <GroupChips sections={sections} group={section.parent} current={tab} onOpen={openTab} />
+                            {section.parent && (
+                                <PageTabs label={`${GROUPS[section.parent].label} pages`} current={tab} onOpen={openTab}
+                                    pages={sections.filter((x) => x.parent === section.parent)} />
                             )}
                             {tab === 'finance' && fin && <ProjectFinanceStatus project={project} onOpen={openTab} />}
                             {tab === 'cashbook' && fin && <CashBook projectId={project.id} />}
@@ -378,6 +334,7 @@ function ProjectWorkspace({ project, t, toast, navigate, location, params, setPa
                             {tab === 'tasks' && <TasksPage projectId={project.id} embedded />}
                             {tab === 'gantt' && <GanttPage project={project} />}
                             {tab === 'clients' && <ClientDirectory project={project} onOpen={openTab} />}
+                            {tab === 'crm' && <CRM project={project} />}
                             {tab === 'comms' && <ClientCommunication key={params.get('client') || 'all'} project={project} />}
                             {tab === 'payments' && fin && <PaymentStatus project={project} />}
                             {tab === 'vendors' && <VendorDirectory project={project} />}
@@ -403,65 +360,6 @@ function ProjectWorkspace({ project, t, toast, navigate, location, params, setPa
                     </span>
                 </div>
             </div>
-
-            <Modal open={editing} onClose={() => setEditing(false)} title={`Edit ${project.code}`} width={760}>
-                {editing && <ProjectForm project={project} onDone={() => setEditing(false)} />}
-            </Modal>
-
-            <Modal open={!!closing} onClose={() => setClosing(null)}
-                title={closing === 'cancelled' ? 'Cancel this project?' : 'Mark this project complete?'}
-                note="Its team, milestones and money links lock until an owner or admin reopens it"
-                footer={<>
-                    <Btn onClick={() => setClosing(null)}>Not now</Btn>
-                    <Btn primary disabled={busy} onClick={() => act(async () => {
-                        await closeProject(project.id, closing);
-                        setClosing(null);
-                    }, closing === 'cancelled' ? 'Project cancelled' : 'Project completed')}>
-                        {closing === 'cancelled' ? 'Cancel project' : 'Mark complete'}
-                    </Btn>
-                </>}>
-                <p style={{ margin: 0, fontSize: 13, color: t.dim, lineHeight: 1.7 }}>
-                    The end date is recorded as today unless one is already set. Invoices can still be
-                    linked to its milestones afterwards.
-                </p>
-            </Modal>
-
-            <Modal open={reopening} onClose={() => setReopening(false)} title={`Reopen ${project.code}`}
-                note="The reason is kept in the project's activity"
-                footer={<>
-                    <Btn onClick={() => setReopening(false)}>Cancel</Btn>
-                    <Btn primary disabled={busy || !reason.trim()} onClick={() => act(async () => {
-                        await reopenProject(project.id, reason.trim());
-                        setReopening(false);
-                    }, 'Project reopened')}>Reopen</Btn>
-                </>}>
-                <Field label="Why is it reopening?">
-                    <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
-                </Field>
-            </Modal>
         </Page>
-    );
-}
-
-/* The rail carries a group's pages; a phone has no rail, so there the same
-   pages are a row of chips above the page. */
-function GroupChips({ sections, group, current, onOpen }) {
-    const t = useT();
-    return (
-        <nav aria-label={`${GROUPS[group].label} pages`} className="edge-scroll" style={{
-            display: 'flex', gap: 6, overflowX: 'auto', margin: '-4px 0 12px', paddingBottom: 2,
-        }}>
-            {sections.filter((x) => x.parent === group).map((x) => {
-                const on = x.id === current;
-                return (
-                    <button key={x.id} type="button" onClick={() => onOpen(x.id)} aria-current={on ? 'page' : undefined}
-                        style={{
-                            flexShrink: 0, height: 30, padding: '0 11px', borderRadius: 7, cursor: 'pointer',
-                            border: '1px solid ' + (on ? t.lineStrong : t.line), background: on ? t.panelAlt : 'transparent',
-                            color: on ? t.text : t.dim, fontFamily: 'inherit', fontSize: 12.5, whiteSpace: 'nowrap',
-                        }}>{x.label}</button>
-                );
-            })}
-        </nav>
     );
 }

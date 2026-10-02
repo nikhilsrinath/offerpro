@@ -1,4 +1,5 @@
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Btn, Seg, Field, Input, Select, Textarea, Modal, Row, Muted, Status,
 } from '../../ui/edge';
@@ -9,8 +10,9 @@ import {
     LINK_KINDS, levelName, isLeaf, descendants, pathOf, ownProgress, nextPosition,
 } from '../../../services/wbs';
 import {
-    empName, createNode, applyWrites, deleteBranch, addLink, removeLink, pmError, fmtD,
+    empName, createNode, applyWrites, deleteBranch, addLink, removeLink, pmError, fmtD, setImportant,
 } from './pmData';
+import { Star } from 'lucide-react';
 
 /* ── a menu behind one button ─────────────────────────────────────────────── */
 
@@ -26,6 +28,23 @@ export function RowMenu({ label, items, children = 'More' }) {
     const list = useRef(null);
     const id = useId();
 
+    // The menu is portalled to <body> with fixed coordinates, so a panel with
+    // overflow: hidden (tables, cards) can never clip it. It opens upward when
+    // there is no room below.
+    useLayoutEffect(() => {
+        if (!open) return;
+        const r = btn.current?.getBoundingClientRect();
+        const h = list.current?.offsetHeight || 0;
+        const el = list.current;
+        if (!r || !el) return;
+        const below = window.innerHeight - r.bottom;
+        const up = below < h + 8 && r.top > below;
+        el.style.right = `${Math.max(4, window.innerWidth - r.right)}px`;
+        el.style.top = up ? 'auto' : `${r.bottom + 4}px`;
+        el.style.bottom = up ? `${window.innerHeight - r.top + 4}px` : 'auto';
+        el.style.visibility = 'visible';
+    }, [open]);
+
     useEffect(() => {
         if (!open) return undefined;
         const first = list.current?.querySelector('[role="menuitem"]:not([disabled])');
@@ -33,8 +52,15 @@ export function RowMenu({ label, items, children = 'More' }) {
         const away = (e) => {
             if (!list.current?.contains(e.target) && !btn.current?.contains(e.target)) setOpen(false);
         };
+        const close = (e) => { if (!list.current?.contains(e.target)) setOpen(false); };
         document.addEventListener('mousedown', away);
-        return () => document.removeEventListener('mousedown', away);
+        window.addEventListener('scroll', close, true);
+        window.addEventListener('resize', close);
+        return () => {
+            document.removeEventListener('mousedown', away);
+            window.removeEventListener('scroll', close, true);
+            window.removeEventListener('resize', close);
+        };
     }, [open]);
 
     const onKey = (e) => {
@@ -51,9 +77,10 @@ export function RowMenu({ label, items, children = 'More' }) {
         <span style={{ position: 'relative', display: 'inline-flex' }}>
             <Btn size="sm" ref={btn} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined}
                 aria-label={label} onClick={() => setOpen((v) => !v)}>{children}</Btn>
-            {open && (
+            {open && createPortal(
                 <div id={id} ref={list} role="menu" aria-label={label} onKeyDown={onKey} style={{
-                    position: 'absolute', right: 0, top: 'calc(100% + 4px)', zIndex: 40, minWidth: 200,
+                    position: 'fixed', top: 0, right: 0, visibility: 'hidden',
+                    zIndex: 1000, minWidth: 200,
                     background: t.panel, border: '1px solid ' + t.lineStrong, borderRadius: 9,
                     boxShadow: t.shadow, padding: 4, display: 'grid',
                 }}>
@@ -71,7 +98,8 @@ export function RowMenu({ label, items, children = 'More' }) {
                             {it.hint && <span style={{ fontSize: 11, color: t.faint }}>{it.hint}</span>}
                         </button>
                     ))}
-                </div>
+                </div>,
+                document.body,
             )}
         </span>
     );
@@ -114,6 +142,47 @@ export function Progress({ value, width = 90, tone }) {
     );
 }
 
+/**
+ * The important mark (0077). An owner or admin gets a toggle; everyone else
+ * sees the star only on tasks that are marked, as a plain label.
+ */
+export function ImportantStar({ data, node, size = 14 }) {
+    const t = useT();
+    const toast = useToast();
+    const [busy, setBusy] = useState(false);
+    const on = !!node.important;
+    if (!data.can.flag) {
+        if (!on) return null;
+        return (
+            <span title="Important — listed under Needs attention" style={{ display: 'inline-flex', flexShrink: 0, color: t.down }}>
+                <Star size={size} fill="currentColor" aria-hidden="true" />
+                <span className="eo-sr">Important</span>
+            </span>
+        );
+    }
+    const flip = async (e) => {
+        e.stopPropagation();
+        if (busy) return;
+        setBusy(true);
+        try {
+            await setImportant(node, !on);
+            toast(on ? `${node.title} is no longer important` : `${node.title} marked important — it shows under Needs attention`, 'success');
+        } catch (err) { toast(pmError(err), 'error'); } finally { setBusy(false); }
+    };
+    return (
+        <button type="button" onClick={flip} disabled={busy} aria-pressed={on}
+            aria-label={on ? `${node.title} is important. Unmark it` : `Mark ${node.title} important`}
+            title={on ? 'Important — click to unmark' : 'Mark important — list it under Needs attention'}
+            style={{
+                width: 24, height: 24, flexShrink: 0, display: 'grid', placeItems: 'center', padding: 0,
+                border: '1px solid transparent', borderRadius: 6, background: 'transparent',
+                color: on ? t.down : t.ghost, cursor: busy ? 'wait' : 'pointer',
+            }}>
+            <Star size={size} fill={on ? 'currentColor' : 'none'} aria-hidden="true" />
+        </button>
+    );
+}
+
 export function LevelTag({ depth }) {
     const t = useT();
     return (
@@ -150,6 +219,7 @@ export function NodeSheet({ data, node, parentId = null, onClose }) {
         progress: node ? ownProgress(node) : 0,
         priority: node?.priority || 'medium',
         notes: node?.notes || '',
+        important: !!node?.important,
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -174,6 +244,7 @@ export function NodeSheet({ data, node, parentId = null, onClose }) {
                     parentId: parentId || null, title: form.title, assignedTo: form.assignedTo,
                     startDate: leaf ? form.startDate : null, deadline: leaf ? form.deadline : null,
                     description: form.description, priority: form.priority,
+                    important: data.can.flag ? form.important : undefined,
                 });
             } else {
                 const emp = data.empById.get(form.assignedTo) || {};
@@ -182,6 +253,7 @@ export function NodeSheet({ data, node, parentId = null, onClose }) {
                     assignedTo: form.assignedTo || null, assignedName: empName(emp) || null,
                     priority: form.priority,
                 };
+                if (data.can.flag && form.important !== !!node.important) patch.important = form.important;
                 if (leaf) {
                     patch.startDate = form.startDate || null;
                     patch.deadline = form.deadline || null;
@@ -307,6 +379,16 @@ export function NodeSheet({ data, node, parentId = null, onClose }) {
                     {' '}<strong style={{ color: t.text, fontWeight: 500 }}>{fmtD(roll.start)} → {fmtD(roll.finish)}</strong>,
                     {' '}{roll.done} of {roll.leaves} done, {roll.progress}% complete.
                 </div>
+            )}
+            {data.can.flag && (
+                <>
+                    {gap}
+                    <Field label="Needs attention" hint="Important tasks are listed under Needs attention on the Projects dashboard and this project's dashboard until they are done">
+                        <Seg value={form.important ? 'yes' : 'no'} onChange={(v) => set('important')(v === 'yes')} label="Important" options={[
+                            { id: 'no', label: 'Normal' }, { id: 'yes', label: 'Important' },
+                        ]} />
+                    </Field>
+                </>
             )}
             {gap}
             <Field label="Details" hint="Optional — what done looks like">

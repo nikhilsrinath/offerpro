@@ -89,14 +89,13 @@ function useSquareGrid(gap) {
  * @param defaultCount how many widgets "Reset to default" restores
  * @param emptyText    what an empty board says it is for
  * @param pickerNote   the picker's subtitle ("Choose what the hub shows")
- * @param onDrill      optional; called with a widget's `drill` when it is clicked
  * @param groups       optional gallery sections ({ id, label }), matched on each widget's `group`
  * @param previewProps optional sample props the gallery draws widgets with; without
  *                     them the gallery previews each widget on the board's own data
  */
 export default function WidgetBoard({
     layout, lay, widgets, byId, defaultCount, widgetProps, metaArgs, isMobile, say,
-    emptyText, pickerNote, onDrill, groups, previewProps, onGallery,
+    emptyText, pickerNote, groups, previewProps, onGallery,
 }) {
     const [picker, setPicker] = useState(false);
     const galleryCb = useLatest(onGallery);
@@ -184,7 +183,11 @@ export default function WidgetBoard({
                         const period = w.periods ? (item.period || w.period || DEFAULT_PERIOD) : undefined;
                         const setPeriod = w.periods ? (p) => lay.setPeriod(item.id, p) : undefined;
                         const meta = w.meta?.(widgetProps.d, { ...metaArgs, period }) ?? (period ? periodOf(period).label : null);
-                        const drill = !editing && onDrill && w.drill ? () => onDrill(w.drill) : null;
+                        // The widget's page (`to`: a path, or one worked out from the
+                        // board's props), opened through the board's own `nav`.
+                        const to = typeof w.to === 'function' ? w.to(widgetProps) : w.to;
+                        const open = !editing && to && widgetProps.nav ? () => widgetProps.nav(to) : null;
+                        const tapBody = open && w.tapBody !== false;
                         return (
                             <article
                                 key={item.id}
@@ -204,9 +207,9 @@ export default function WidgetBoard({
                                 onDragEnd={() => setDrag({ id: null, over: null })}
                             >
                                 <div className="w-head">
-                                    {drill ? (
+                                    {open ? (
                                         <button type="button" className="w-title w-title-btn" id={`wt-${item.id}`}
-                                            aria-label={`${w.title} — open detail`} onClick={drill}>{w.title}</button>
+                                            aria-label={`${w.title} — open page`} onClick={open}>{w.title}</button>
                                     ) : (
                                         <span className="w-title" id={`wt-${item.id}`}>{w.title}</span>
                                     )}
@@ -225,13 +228,13 @@ export default function WidgetBoard({
                                         onClose={() => { setWidgetMenu(null); document.getElementById(`wbtn-${item.id}`)?.focus(); }}
                                     />
                                 )}
-                                {/* A click anywhere on a drillable body opens its detail —
+                                {/* A tap anywhere on the body opens the widget's page —
                                     except on the body's own buttons and links, which
                                     keep doing what they say. The title button above is
-                                    the keyboard route to the same sheet. */}
+                                    the keyboard route to the same page. */}
                                 <div
-                                    className={`w-body${drill ? ' is-drill' : ''}`}
-                                    onClick={drill ? (e) => { if (!e.target.closest('button, a, input, select, textarea, [role="button"]')) drill(); } : undefined}
+                                    className={`w-body${tapBody ? ' is-drill' : ''}`}
+                                    onClick={tapBody ? (e) => { if (!e.target.closest('button, a, input, select, textarea, label, [role="button"]')) open(); } : undefined}
                                 ><Body {...widgetProps} size={item.size} period={period} setPeriod={setPeriod} /></div>
                                 {editing && (
                                     <button type="button" className="w-remove" aria-label={`Remove ${w.title}`}

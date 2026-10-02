@@ -20,18 +20,13 @@ export function projectDashboards() {
 }
 
 /**
- * The project rail's Dashboard item, folded like Finance: its pages drop
- * down under it, and it is open while one of them is showing.
+ * The project rail's Dashboard item. Its pages are a switcher at the top of
+ * the dashboard (PageTabs), not a drop-down in the rail.
  */
 export function projectDashboardGroup(projectId, pathname) {
-    const [, , , part, view] = pathname.split('/');
-    const inside = part === 'dashboard';
+    const [, , , part] = pathname.split('/');
     return {
         id: 'project-group-dashboard', label: 'Dashboard', icon: LayoutDashboard,
-        to: `/projects/${projectId}/dashboard/overview`, active: inside, open: inside,
-        children: projectDashboards().map((x) => ({
-            id: 'project-dash-' + x.id, label: x.label,
-            to: `/projects/${projectId}/dashboard/${x.id}`, active: inside && x.id === view,
-        })),
+        to: `/projects/${projectId}/dashboard/overview`, active: part === 'dashboard',
     };
 }

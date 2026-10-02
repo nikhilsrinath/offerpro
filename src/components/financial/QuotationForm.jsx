@@ -12,6 +12,7 @@ import CountrySelect from '../shared/CountrySelect';
 import { useToast } from '../shared/Toast';
 import A4Stage from '../shared/A4Stage';
 import { useFormProject, projectStartLines, linkToProject, projectFormNote } from '../projects/projectScope';
+import { useGoBack } from '../shell/navHistory';
 
 const UNIT_OPTIONS = ['Hrs', 'Units', 'Nos', 'Kg', 'Ltr'];
 const GST_RATES = [0, 5, 12, 18, 28];
@@ -60,6 +61,9 @@ export default function QuotationForm({ editDocId }) {
   // the project's client and contract, is linked to the project when saved,
   // and every way out returns there.
   const fromProject = useFormProject('quotation', '/quotations');
+  // Back returns to the page the form was opened from; the list (or the
+  // project's page) only when there is none.
+  const goBack = useGoBack();
 
   // Build company info from activeOrg (dynamic, not stale localStorage)
   const company = {
@@ -582,7 +586,7 @@ export default function QuotationForm({ editDocId }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
             <button
               type="button"
-              onClick={() => navigate(fromProject.returnTo)}
+              onClick={() => goBack(fromProject.returnTo)}
               style={{
                 background: 'none', border: '1px solid var(--border-default)', borderRadius: '8px',
                 padding: '0.5rem 0.75rem', cursor: 'pointer', color: 'var(--text-secondary)',

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { DialogSheet } from './ui/edge';
 import {
   Plus, X, Edit3, Trash2, Search, GripVertical,
-  User, Phone, Mail, Building2, StickyNote, ChevronRight,
+  User, Phone, Mail, Building2, StickyNote, ChevronRight, FolderKanban,
 } from 'lucide-react';
 import { orgStore } from '../services/orgStore';
 import { useOrg } from '../context/OrgContext';
@@ -10,6 +10,9 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from './shared/Toast';
 import { canCreateProjects } from '../services/projectService';
 import { confirmDialog } from '../services/confirm';
+import ClientProjectSelect, { ProjectScopeFilter } from './shared/ClientProjectSelect';
+import { useClientProjects } from './shared/useClientProjects';
+import { OTHERS, initialProject, assignProject, filterByProject } from '../services/clientProjects';
 
 const COLUMNS = [
   { id: 'lead',      label: 'Lead',      color: '#6366f1' },
@@ -45,7 +48,10 @@ function useWindowWidth() {
   return w;
 }
 
-export default function CRM() {
+// `project` given (the project's Client Management › CRM tab): the board shows
+// only that project's leads, and a new lead lands on it. Without it (/crm) the
+// board shows everyone, with a filter for one project or the unallocated.
+export default function CRM({ project = null }) {
   const navigate = useNavigate();
   const toast = useToast();
   // A won deal's next step is usually a project; offered, never automatic.
@@ -61,6 +67,11 @@ export default function CRM() {
   const [dragOverCol, setDragOverCol] = useState(null);
   const [mobileTab, setMobileTab] = useState('lead');
   const [moveMenuId, setMoveMenuId] = useState(null);
+  const cp = useClientProjects();
+  const [projectScope, setProjectScope] = useState('');
+  const scope = project ? project.id : projectScope;
+  // What the project dropdown opened on, so an edit that changes it moves them.
+  const [fromProject, setFromProject] = useState(OTHERS);
   const dragItem = useRef(null);
   const winW = useWindowWidth();
   const isMobile = winW < 768;
@@ -79,7 +90,7 @@ export default function CRM() {
   const grouped = useMemo(() => {
     const map = { lead: [], contacted: [], deal: [], not_deal: [] };
     const term = searchTerm.toLowerCase();
-    leads.forEach(l => {
+    filterByProject(leads, scope, cp.projects, cp.links).forEach(l => {
       if (term && !(l.company_name || '').toLowerCase().includes(term)
         && !(l.person_name || '').toLowerCase().includes(term)
         && !(l.email || '').toLowerCase().includes(term)) return;
@@ -87,12 +98,13 @@ export default function CRM() {
     });
     Object.values(map).forEach(arr => arr.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
     return map;
-  }, [leads, searchTerm]);
+  }, [leads, searchTerm, scope, cp]);
 
   // ── CRUD ──────────────────────────────────────────────────────────────────────
   const openAdd = (status = 'lead') => {
     setEditingLead(null);
-    setFormData({ ...EMPTY_LEAD, _stage: status });
+    setFormData({ ...EMPTY_LEAD, _stage: status, project: scope && scope !== OTHERS ? scope : OTHERS });
+    setFromProject(OTHERS);
     setModalOpen(true);
   };
 
@@ -104,7 +116,9 @@ export default function CRM() {
       phone: lead.phone || '',
       company_name: lead.company_name || '',
       notes: lead.notes || '',
+      project: initialProject(lead.id, cp.projects, cp.links),
     });
+    setFromProject(initialProject(lead.id, cp.projects, cp.links));
     setModalOpen(true);
   };
 
@@ -113,22 +127,36 @@ export default function CRM() {
     setSaving(true);
     try {
       const now = new Date().toISOString();
+      // `project` is not a column; it is applied through the project links.
+      const { project: chosen, ...form } = formData;
+      let leadId = editingLead?.id;
       if (editingLead) {
         await orgStore.updateItem('crm_leads', editingLead.id, {
-          ...formData, updated_at: now,
+          ...form, updated_at: now,
         });
       } else {
-        const { _stage, ...fields } = formData;
+        const { _stage, ...fields } = form;
         const stage = _stage || 'lead';
         // Only `stage` is sent. The clients.status column is derived from it by
         // the crm_leads adapter in orgStore; passing a second `status` alongside
         // it used to land in the clients.extra jsonb and shadow the real column.
-        await orgStore.addItem('crm_leads', {
+        leadId = (await orgStore.addItem('crm_leads', {
           ...fields,
           stage,
           created_at: now,
           updated_at: now,
-        });
+        }))?.id;
+      }
+      if (leadId) {
+        try {
+          const { keptPrimary } = await assignProject(leadId, chosen, fromProject, cp.projects, cp.links);
+          if (keptPrimary) {
+            const p = cp.projects.find(x => x.id === keptPrimary);
+            toast(`Still the main client of ${p?.name || 'their project'} — change that from the project`, 'info');
+          }
+        } catch (err) {
+          toast('Lead saved, but the project could not be set: ' + err.message, 'error');
+        }
       }
       setModalOpen(false);
     } catch (err) {
@@ -241,6 +269,11 @@ export default function CRM() {
           <User size={12} />
           {lead.person_name || '—'}
         </div>
+        {!project && (
+          <div className="crm-card-detail" style={cp.namesOf(lead.id).length ? undefined : { opacity: 0.6 }}>
+            <FolderKanban size={11} /> {cp.namesOf(lead.id).join(', ') || 'Others'}
+          </div>
+        )}
         {lead.email && (
           <div className="crm-card-detail">
             <Mail size={11} /> {lead.email}
@@ -337,6 +370,10 @@ export default function CRM() {
               style={{ paddingLeft: '2rem', height: '36px', fontSize: '0.8rem' }}
             />
           </div>
+          {!project && (
+            <ProjectScopeFilter cp={cp} value={projectScope} onChange={setProjectScope}
+              style={{ height: '36px', padding: '0 0.5rem', borderRadius: '0.5rem', border: '1px solid var(--border-default)', background: 'var(--background)', color: 'var(--text-secondary)', fontSize: '0.78rem', maxWidth: '9rem' }} />
+          )}
           <button onClick={() => openAdd(mobileTab)} className="easy-submit" style={{ width: 'auto', padding: '0.45rem 0.875rem', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
             <Plus size={15} /> Add
           </button>
@@ -397,14 +434,22 @@ export default function CRM() {
           <form onSubmit={handleSave}>
             <div className="easy-row" style={{ gap: '1rem' }}>
               <div className="easy-field full">
+                <label className="easy-lbl">Contact Person *</label>
+                <input aria-label="Contact Person" required type="text" placeholder="e.g. John Doe" value={formData.person_name}
+                  onChange={e => setFormData({ ...formData, person_name: e.target.value })} className="easy-inp" autoFocus />
+              </div>
+              <div className="easy-field full">
                 <label className="easy-lbl">Company Name *</label>
                 <input aria-label="Company Name" required type="text" placeholder="e.g. Acme Corp" value={formData.company_name}
                   onChange={e => setFormData({ ...formData, company_name: e.target.value })} className="easy-inp" />
               </div>
               <div className="easy-field full">
-                <label className="easy-lbl">Contact Person *</label>
-                <input aria-label="Contact Person" required type="text" placeholder="e.g. John Doe" value={formData.person_name}
-                  onChange={e => setFormData({ ...formData, person_name: e.target.value })} className="easy-inp" />
+                <label className="easy-lbl" htmlFor="lead-project">Project</label>
+                <ClientProjectSelect id="lead-project" cp={cp} value={formData.project}
+                  onChange={p => setFormData({ ...formData, project: p })} />
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem', display: 'block' }}>
+                  Choose Others when they are not on a project yet — you can move them onto one any time.
+                </span>
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Email</label>
@@ -463,6 +508,10 @@ export default function CRM() {
             style={{ paddingLeft: '2rem', height: '38px', fontSize: '0.8125rem' }}
           />
         </div>
+        {!project && (
+          <ProjectScopeFilter cp={cp} value={projectScope} onChange={setProjectScope}
+            style={{ height: '38px', padding: '0 0.625rem', borderRadius: '0.5rem', border: '1px solid var(--border-default)', background: 'var(--background)', color: 'var(--text-secondary)', fontSize: '0.8rem', cursor: 'pointer', outline: 'none', flexShrink: 0, maxWidth: '14rem' }} />
+        )}
         {/* Summary pills */}
         <div className="crm-summary-pills">
           {COLUMNS.map(col => (

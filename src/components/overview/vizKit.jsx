@@ -445,7 +445,11 @@ export function CalendarHeat({ days, onSelect }) {
     const weeks = Math.ceil(days.length / 7);
     const labelW = 22;
     const gap = 3;
-    const cell = Math.max(6, Math.min(16, Math.floor((w - labelW - gap * weeks) / weeks)));
+    // Columns stretch to fill the full width; rows stay compact (square
+    // until the cells pass 20px, then wider than tall).
+    const pitch = Math.max(6 + gap, (w - labelW + gap) / weeks);
+    const cellW = pitch - gap;
+    const cell = Math.min(cellW, 20);
     const peak = Math.max(1, ...days.map((d) => d.count));
     const level = (c) => (c === 0 ? 0 : Math.min(4, Math.ceil((c / peak) * 4)));
     const monthMarks = [];
@@ -463,7 +467,7 @@ export function CalendarHeat({ days, onSelect }) {
             {w > 0 && (
                 <svg width={w} height={height} style={{ display: 'block' }}>
                     {monthMarks.map((m) => (
-                        <text key={m.wk} x={labelW + m.wk * (cell + gap)} y={10} fontSize="11" fill={t.faint} fontFamily={MONO}>{m.text}</text>
+                        <text key={m.wk} x={labelW + m.wk * pitch} y={10} fontSize="11" fill={t.faint} fontFamily={MONO}>{m.text}</text>
                     ))}
                     {['M', '', 'W', '', 'F', '', ''].map((l, i) => l && (
                         <text key={i} x={0} y={16 + i * (cell + gap) + cell - 2} fontSize="10.5" fill={t.ghost} fontFamily={MONO}>{l}</text>
@@ -473,7 +477,7 @@ export function CalendarHeat({ days, onSelect }) {
                         const wd = i % 7;
                         const title = new Date(`${d.date}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
                         return (
-                            <rect key={d.date} x={labelW + wk * (cell + gap)} y={16 + wd * (cell + gap)} width={cell} height={cell} rx={2.5}
+                            <rect key={d.date} x={labelW + wk * pitch} y={16 + wd * (cell + gap)} width={cellW} height={cell} rx={2.5}
                                 fill={heat[level(d.count)]}
                                 stroke={d.count === 0 ? t.line : 'none'}
                                 aria-label={`${title}: ${d.count} documents`}
@@ -583,7 +587,8 @@ export function EmptyNote({ children }) {
 
 export function Delta({ value, suffix = '%', invert = false, abs = false }) {
     const { t } = useViz();
-    if (value === null || value === undefined || !Number.isFinite(value)) return <span style={{ fontSize: 11.5, color: t.faint }}>no comparison</span>;
+    // Nothing to compare against: show nothing rather than a placeholder.
+    if (value === null || value === undefined || !Number.isFinite(value)) return null;
     const up = value >= 0;
     const good = invert ? !up : up;
     const color = Math.abs(value) < 0.05 ? t.dim : good ? t.up : t.down;

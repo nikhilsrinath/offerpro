@@ -15,10 +15,10 @@ import {
     ProjectSpendBudget, ProjectMarginPct,
 } from './projectWidgets';
 
-/* `drill` is the Dashboard drill-down a widget opens when clicked — a view,
-   or a function of the overview model that picks one. Widgets without it
-   (the map, EdgeBrain, shortcuts…) act through their own controls. */
-const topDocs = (m) => ({ kind: 'docs', id: [...m.docGroups].sort((a, b) => b.count - a.count)[0]?.id || 'invoice' });
+/* `to` is the page a widget opens when it is tapped — the one that holds the
+   rest of what it shows. Its own buttons and links keep doing what they say.
+   `tapBody: false` keeps a widget whose body is itself interactive (the map
+   pans and zooms) to its title, so a drag is never read as a tap. */
 
 /* ── catalog ────────────────────────────────────────────────────────────── */
 
@@ -36,44 +36,44 @@ const MD_LG = ['md', 'lg'];
 
 export const WIDGETS = [
     // Projects — the default board.
-    { id: 'projects_list', group: 'projects', title: 'Projects', desc: 'Every open project and how far through its milestones it is', icon: FolderOpen, size: 'lg', sizes: ALL, render: ProjectsList },
-    { id: 'projects_health', group: 'projects', title: 'Project health', desc: 'Open projects by health, and the ones at risk', icon: FolderKanban, size: 'md', sizes: ALL, render: ProjectsHealth },
-    { id: 'project_budget', group: 'projects', title: 'Budget burn', desc: 'Budget spent so far on open projects, worst first', icon: PieChart, size: 'sm', sizes: ALL, render: ProjectBudget },
-    { id: 'project_spend_budget', group: 'projects', title: 'Spent vs budget', desc: 'What open projects have spent against their budgets', icon: Scale, size: 'md', sizes: ALL, render: ProjectSpendBudget },
-    { id: 'project_billing', group: 'projects', title: 'Project billing', desc: 'Collections due on projects, and invoices not yet paid', icon: Receipt, size: 'md', sizes: ALL, render: ProjectBilling },
-    { id: 'project_workload', group: 'projects', title: 'Project tasks', desc: 'Open tasks across projects, busiest first', icon: ListChecks, size: 'sm', sizes: ALL, render: ProjectWorkload },
-    { id: 'team_utilisation', group: 'projects', title: 'Utilisation', desc: 'Who is over- or under-booked on projects', icon: Gauge, size: 'sm', sizes: ALL, render: TeamUtilisation },
-    { id: 'project_margin', group: 'projects', title: 'Project margin', desc: 'Best and worst projects by net margin', icon: TrendingUp, size: 'md', sizes: MD_LG, render: ProjectMargin },
-    { id: 'project_margin_pct', group: 'projects', title: 'Project margin %', desc: 'Net margin as a share of what each project invoiced', icon: Percent, size: 'md', sizes: ALL, render: ProjectMarginPct },
-    { id: 'project_shortcuts', group: 'projects', title: 'Project shortcuts', desc: 'New project, kanban chart, portfolio', icon: Rocket, size: 'sm', sizes: ['sm'], render: ProjectShortcuts },
+    { id: 'projects_list', to: '/projects', group: 'projects', title: 'Projects', desc: 'Every open project and how far through its milestones it is', icon: FolderOpen, size: 'lg', sizes: ALL, render: ProjectsList },
+    { id: 'projects_health', to: '/projects', group: 'projects', title: 'Project health', desc: 'Open projects by health, and the ones at risk', icon: FolderKanban, size: 'md', sizes: ALL, render: ProjectsHealth },
+    { id: 'project_budget', to: '/portfolio', group: 'projects', title: 'Budget burn', desc: 'Budget spent so far on open projects, worst first', icon: PieChart, size: 'sm', sizes: ALL, render: ProjectBudget },
+    { id: 'project_spend_budget', to: '/portfolio', group: 'projects', title: 'Spent vs budget', desc: 'What open projects have spent against their budgets', icon: Scale, size: 'md', sizes: ALL, render: ProjectSpendBudget },
+    { id: 'project_billing', to: '/portfolio', group: 'projects', title: 'Project billing', desc: 'Collections due on projects, and invoices not yet paid', icon: Receipt, size: 'md', sizes: ALL, render: ProjectBilling },
+    { id: 'project_workload', to: '/tasks', group: 'projects', title: 'Project tasks', desc: 'Open tasks across projects, busiest first', icon: ListChecks, size: 'sm', sizes: ALL, render: ProjectWorkload },
+    { id: 'team_utilisation', to: '/portfolio', group: 'projects', title: 'Utilisation', desc: 'Who is over- or under-booked on projects', icon: Gauge, size: 'sm', sizes: ALL, render: TeamUtilisation },
+    { id: 'project_margin', to: '/portfolio', group: 'projects', title: 'Project margin', desc: 'Best and worst projects by net margin', icon: TrendingUp, size: 'md', sizes: MD_LG, render: ProjectMargin },
+    { id: 'project_margin_pct', to: '/portfolio', group: 'projects', title: 'Project margin %', desc: 'Net margin as a share of what each project invoiced', icon: Percent, size: 'md', sizes: ALL, render: ProjectMarginPct },
+    { id: 'project_shortcuts', to: '/projects', group: 'projects', title: 'Project shortcuts', desc: 'New project, kanban chart, portfolio', icon: Rocket, size: 'sm', sizes: ['sm'], render: ProjectShortcuts },
     // Business — available from the picker.
-    { id: 'revenue', group: 'finance', title: 'Revenue', desc: 'Money in over 1, 3, 6 or 12 months, against the stretch before', icon: IndianRupee, size: 'sm', sizes: SM_MD, periods: true, drill: { kind: 'metric', id: 'invoiced' }, render: Revenue },
-    { id: 'expenses', group: 'finance', title: 'Expenses', desc: 'Money out over 1, 3, 6 or 12 months, against the stretch before', icon: TrendingDown, size: 'sm', sizes: SM_MD, periods: true, drill: { kind: 'metric', id: 'net' }, render: Expenses },
-    { id: 'revenue_per_head', group: 'finance', title: 'Revenue per head', desc: 'Average revenue per person on the team', icon: UserRound, size: 'sm', sizes: ALL, periods: true, period: '1Y', drill: { kind: 'metric', id: 'invoiced' }, render: RevenuePerHead },
-    { id: 'expenses_per_head', group: 'finance', title: 'Expenses per head', desc: 'Average expenses per person on the team', icon: UserRound, size: 'sm', sizes: ALL, periods: true, period: '1Y', drill: { kind: 'metric', id: 'net' }, render: ExpensesPerHead },
-    { id: 'gross_profit', group: 'finance', title: 'Gross profit & operating ratio', desc: 'Gross profit as a share of income, and running costs against it', icon: Percent, size: 'md', sizes: ALL, periods: true, period: '3M', drill: { kind: 'metric', id: 'net' }, render: GrossProfit },
-    { id: 'netcash', group: 'finance', title: 'Net cash', desc: 'Everything received less everything paid', icon: Wallet, size: 'sm', sizes: SM_MD, meta: () => 'All time', drill: { kind: 'metric', id: 'net' }, render: NetCash },
-    { id: 'settlement', group: 'finance', title: 'Settlement', desc: 'Share of invoices paid in full', icon: CircleCheck, size: 'sm', sizes: SM_MD, drill: { kind: 'state' }, render: Settlement },
-    { id: 'cashflow', group: 'finance', title: 'Cash flow', desc: 'Money in and out over time, and the net cash burn', icon: BarChart3, size: 'md', sizes: MD_LG, drill: { kind: 'metric', id: 'collected' }, render: CashFlow },
+    { id: 'revenue', to: '/invoices', group: 'finance', title: 'Revenue', desc: 'Money in over 1, 3, 6 or 12 months, against the stretch before', icon: IndianRupee, size: 'sm', sizes: SM_MD, periods: true, render: Revenue },
+    { id: 'expenses', to: '/cashbook', group: 'finance', title: 'Expenses', desc: 'Money out over 1, 3, 6 or 12 months, against the stretch before', icon: TrendingDown, size: 'sm', sizes: SM_MD, periods: true, render: Expenses },
+    { id: 'revenue_per_head', to: '/dashboard/finance', group: 'finance', title: 'Revenue per head', desc: 'Average revenue per person on the team', icon: UserRound, size: 'sm', sizes: ALL, periods: true, period: '1Y', render: RevenuePerHead },
+    { id: 'expenses_per_head', to: '/dashboard/finance', group: 'finance', title: 'Expenses per head', desc: 'Average expenses per person on the team', icon: UserRound, size: 'sm', sizes: ALL, periods: true, period: '1Y', render: ExpensesPerHead },
+    { id: 'gross_profit', to: '/profit-loss', group: 'finance', title: 'Gross profit & operating ratio', desc: 'Gross profit as a share of income, and running costs against it', icon: Percent, size: 'md', sizes: ALL, periods: true, period: '3M', render: GrossProfit },
+    { id: 'netcash', to: '/cashbook', group: 'finance', title: 'Net cash', desc: 'Everything received less everything paid', icon: Wallet, size: 'sm', sizes: SM_MD, meta: () => 'All time', render: NetCash },
+    { id: 'settlement', to: '/invoices', group: 'finance', title: 'Settlement', desc: 'Share of invoices paid in full', icon: CircleCheck, size: 'sm', sizes: SM_MD, render: Settlement },
+    { id: 'cashflow', to: '/cashbook', group: 'finance', title: 'Cash flow', desc: 'Money in and out over time, and the net cash burn', icon: BarChart3, size: 'md', sizes: MD_LG, render: CashFlow },
     {
-        id: 'receivables', group: 'finance', title: 'Awaiting payment', desc: 'Open invoices, soonest due first', icon: Clock, size: 'md', sizes: ALL,
-        meta: (d) => (d.money.open.length ? `${d.money.open.length} open` : ''), drill: { kind: 'aging' }, render: Receivables,
+        id: 'receivables', to: '/invoices', group: 'finance', title: 'Awaiting payment', desc: 'Open invoices, soonest due first', icon: Clock, size: 'md', sizes: ALL,
+        meta: (d) => (d.money.open.length ? `${d.money.open.length} open` : ''), render: Receivables,
     },
-    { id: 'geomap', group: 'sales', title: 'Geography', desc: 'World map of revenue — zoom, pan, click a country', icon: MapIcon, size: 'lg', sizes: MD_LG, render: GeoMap },
-    { id: 'edgebrain', group: 'general', title: 'EdgeBrain', desc: 'Brain health, and a quick question to the copilot', icon: BrainCircuit, size: 'sm', sizes: ALL, render: Brain },
-    { id: 'team', group: 'people', title: 'Team', desc: 'Headcount, and each department\'s share of it', icon: Users, size: 'sm', sizes: ALL, drill: { kind: 'metric', id: 'headcount' }, render: Team },
-    { id: 'people_location', group: 'people', title: 'People by location', desc: 'Where the team works', icon: MapPin, size: 'md', sizes: ALL, render: PeopleByLocation },
-    { id: 'documents', group: 'documents', title: 'Documents', desc: 'Issued over 1, 3, 6 or 12 months', icon: FileText, size: 'sm', sizes: SM_MD, periods: true, drill: topDocs, render: Documents },
+    { id: 'geomap', to: '/dashboard/sales', tapBody: false, group: 'sales', title: 'Geography', desc: 'World map of revenue — zoom, pan, click a country', icon: MapIcon, size: 'lg', sizes: MD_LG, render: GeoMap },
+    { id: 'edgebrain', to: '/edgebrain', group: 'general', title: 'EdgeBrain', desc: 'Brain health, and a quick question to the copilot', icon: BrainCircuit, size: 'sm', sizes: ALL, render: Brain },
+    { id: 'team', to: '/employees', group: 'people', title: 'Team', desc: 'Headcount, and each department\'s share of it', icon: Users, size: 'sm', sizes: ALL, render: Team },
+    { id: 'people_location', to: '/employees', group: 'people', title: 'People by location', desc: 'Where the team works', icon: MapPin, size: 'md', sizes: ALL, render: PeopleByLocation },
+    { id: 'documents', to: '/records', group: 'documents', title: 'Documents', desc: 'Issued over 1, 3, 6 or 12 months', icon: FileText, size: 'sm', sizes: SM_MD, periods: true, render: Documents },
     // Available from the picker.
-    { id: 'markets', group: 'sales', title: 'Top markets', desc: 'Revenue by country, top five', icon: Globe, size: 'sm', sizes: ALL, meta: (d, x) => x.geoPeriod, render: Markets },
-    { id: 'tasks', group: 'people', title: 'Tasks', desc: 'Open, overdue and next due', icon: CheckSquare, size: 'sm', sizes: ALL, drill: { kind: 'tasks' }, render: Tasks },
-    { id: 'pipeline', group: 'sales', title: 'Pipeline', desc: 'CRM leads by stage, win rate and spend per lead', icon: Kanban, size: 'sm', sizes: ALL, drill: { kind: 'metric', id: 'pipeline' }, render: Pipeline },
-    { id: 'arr', group: 'sales', title: 'Annual recurring revenue', desc: 'Active recurring invoices, annualised', icon: Repeat, size: 'sm', sizes: SM_MD, render: Arr },
-    { id: 'acquisition_spend', group: 'sales', title: 'Sales & marketing spend', desc: 'Sales spend and marketing spend over 1, 3, 6 or 12 months', icon: Megaphone, size: 'md', sizes: ALL, periods: true, period: '3M', render: AcquisitionSpend },
-    { id: 'payables', group: 'finance', title: 'Payables', desc: 'What you owe vendors against what you are owed', icon: CalendarRange, size: 'sm', sizes: SM_MD, drill: { kind: 'metric', id: 'net' }, render: Payables },
-    { id: 'volume', group: 'documents', title: 'Issuance', desc: 'Documents over 1, 3, 6 or 12 months, by type', icon: FileText, size: 'md', sizes: MD_LG, periods: true, period: '1Y', drill: topDocs, render: Volume },
-    { id: 'activity', group: 'general', title: 'Activity', desc: 'Latest notifications', icon: Bell, size: 'md', sizes: ALL, render: Activity },
-    { id: 'shortcuts', group: 'general', title: 'Shortcuts', desc: 'Jump into any module', icon: LayoutGrid, size: 'sm', sizes: ALL, render: Shortcuts },
+    { id: 'markets', to: '/dashboard/sales', group: 'sales', title: 'Top markets', desc: 'Revenue by country, top five', icon: Globe, size: 'sm', sizes: ALL, meta: (d, x) => x.geoPeriod, render: Markets },
+    { id: 'tasks', to: '/tasks', group: 'people', title: 'Tasks', desc: 'Open, overdue and next due', icon: CheckSquare, size: 'sm', sizes: ALL, render: Tasks },
+    { id: 'pipeline', to: '/crm', group: 'sales', title: 'Pipeline', desc: 'CRM leads by stage, win rate and spend per lead', icon: Kanban, size: 'sm', sizes: ALL, render: Pipeline },
+    { id: 'arr', to: '/recurring', group: 'sales', title: 'Annual recurring revenue', desc: 'Active recurring invoices, annualised', icon: Repeat, size: 'sm', sizes: SM_MD, render: Arr },
+    { id: 'acquisition_spend', to: '/dashboard/sales', group: 'sales', title: 'Sales & marketing spend', desc: 'Sales spend and marketing spend over 1, 3, 6 or 12 months', icon: Megaphone, size: 'md', sizes: ALL, periods: true, period: '3M', render: AcquisitionSpend },
+    { id: 'payables', to: '/purchases', group: 'finance', title: 'Payables', desc: 'What you owe vendors against what you are owed', icon: CalendarRange, size: 'sm', sizes: SM_MD, render: Payables },
+    { id: 'volume', to: '/records', group: 'documents', title: 'Issuance', desc: 'Documents over 1, 3, 6 or 12 months, by type', icon: FileText, size: 'md', sizes: MD_LG, periods: true, period: '1Y', render: Volume },
+    { id: 'activity', to: '/offer-tracker', group: 'general', title: 'Activity', desc: 'Latest notifications', icon: Bell, size: 'md', sizes: ALL, render: Activity },
+    { id: 'shortcuts', to: '/dashboard', group: 'general', title: 'Shortcuts', desc: 'Jump into any module', icon: LayoutGrid, size: 'sm', sizes: ALL, render: Shortcuts },
 ];
 
 /** The gallery's sections, in order. */

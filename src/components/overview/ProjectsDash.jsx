@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FolderKanban, AlertTriangle, Flag, CalendarClock, ListChecks, IndianRupee } from 'lucide-react';
+import { FolderKanban, AlertTriangle, Flag, CalendarClock, ListChecks, IndianRupee, Star } from 'lucide-react';
 import { useOrg } from '../../context/OrgContext';
 import { useSection } from '../financial/financeHooks';
 import { orgStore } from '../../services/orgStore';
 import { getPlanConfig, hasFeature, DEFAULT_PLAN } from '../../services/planConfig';
 import { PROJECT_STATUSES, isClosed, projectProgress, statusLabel } from '../../services/projectAnalytics';
-import { portfolio, canSeeFinancials } from '../../services/projectService';
+import { portfolio, canSeeFinancials, isOwnerOrAdmin } from '../../services/projectService';
+import { needsAttention } from '../../services/importantTasks';
 import { fmtShort, fmtInr, fmtDay, addDays } from './overviewModel';
 import { RankBars, SplitBar, EmptyNote, TipBody } from './vizKit';
 import { Dashboard, Card, Tile, More, TileRow, CardGrid, ListRow } from './dashKit';
@@ -19,6 +20,10 @@ import { Dashboard, Card, Tile, More, TileRow, CardGrid, ListRow } from './dashK
    come from project_portfolio() (0053) and follow the plan exactly as the
    Portfolio page does — Pro and Max see health, and margins additionally
    need Project financials.
+
+   Needs attention is the tasks an owner or admin has marked important
+   (0077) on the open projects, until each is done — late first. The
+   projects whose health is at risk or off track follow under it.
    ══════════════════════════════════════════════════════════════════════════ */
 
 const DONE_MS = new Set(['completed', 'invoiced', 'cancelled']);
@@ -33,6 +38,8 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
     const milestones = useSection('project_milestones');
     const clients = useSection('customers');
     const tasks = model.raw.tasks;
+    const liveTasks = useSection('tasks');
+    const employees = useSection('employees');
     const planId = activeOrg?.plan || orgStore.getProfile().plan || DEFAULT_PLAN;
     const plan = getPlanConfig(planId);
     const withHealth = hasFeature(planId, 'projectPortfolio');
@@ -60,6 +67,9 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
     const projTasks = tasks.filter((x) => x.projectId && openIds.has(x.projectId));
     const openTasks = projTasks.filter((x) => x.status !== 'done');
     const lateTasks = openTasks.filter((x) => x.deadline && String(x.deadline).slice(0, 10) < today);
+    const attention = needsAttention(liveTasks, today, openIds);
+    const attentionLate = attention.filter((a) => a.late).length;
+    const personOf = Object.fromEntries(employees.map((e) => [e.id, e.name]));
 
     const nameOf = Object.fromEntries(projects.map((p) => [p.id, [p.code, p.name].filter(Boolean).join(' · ')]));
     const progressOf = (p) => projectProgress(milestones.filter((m) => m.project_id === p.id), tasks.filter((x) => x.projectId === p.id));
@@ -88,9 +98,11 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
             <Tile icon={FolderKanban} label="Open projects" value={String(openP.length)} exact={`${openP.length} open`}
                 tone={Number.isFinite(limit) && openP.length >= limit ? 'down' : null}
                 onClick={() => navigate('/projects')} />
-            <Tile icon={AlertTriangle} label="Need attention" value={risky === null ? '—' : String(risky)}
-                exact={risky === null ? 'health needs Pro' : `${risky} at risk or off track`} tone={risky ? 'down' : null}
-                onClick={() => navigate(withHealth ? '/portfolio' : '/pricing')} />
+            <Tile icon={AlertTriangle} label="Need attention" value={String(attention.length)}
+                exact={`${attention.length} important task${attention.length === 1 ? '' : 's'} open`}
+                foot={attentionLate ? `${attentionLate} late` : risky ? `${risky} project${risky === 1 ? '' : 's'} at risk` : 'important tasks'}
+                tone={attentionLate || risky ? 'down' : null}
+                onClick={() => document.getElementById('needs-attention')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
             <Tile icon={Flag} label="Late milestones" value={String(lateMs.length)} exact={`${lateMs.length} late`} tone={lateMs.length ? 'down' : null}
                 onClick={() => navigate('/projects')} />
             <Tile icon={CalendarClock} label="Due in 14 days" value={String(soonMs.length)} exact={`${soonMs.length} milestones`}
@@ -103,6 +115,33 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
         </TileRow>
 
         <CardGrid cols={cols}>
+            <div id="needs-attention" style={{ ...grid(cols), scrollMarginTop: 12, minWidth: 0, display: 'flex' }}>
+                <Card style={{ flex: 1 }} title="Needs attention"
+                    note="tasks marked important, until they are done · late first">
+                    {attention.length === 0 ? (
+                        <EmptyNote>{isOwnerOrAdmin()
+                            ? 'Nothing marked important. Star a task on a project’s Tasks (WBS) or in its task sheet to list it here.'
+                            : 'Nothing marked important. An owner or admin chooses what goes here.'}</EmptyNote>
+                    ) : attention.slice(0, 12).map(({ task, late, due }) => (
+                        <ListRow key={task.id}
+                            label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
+                                <Star size={12} fill="currentColor" aria-hidden="true" style={{ color: t.down, flexShrink: 0 }} />
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</span>
+                            </span>}
+                            sub={[nameOf[task.projectId], personOf[task.assignedTo] || 'Unassigned', task.status === 'in-progress' ? 'in progress' : null].filter(Boolean).join(' · ')}
+                            value={due ? `${late ? 'late · ' : ''}${fmtDay(due).slice(0, 6)}` : 'no date'} tone={late ? 'down' : null}
+                            onClick={() => navigate(`/projects/${task.projectId}?tab=wbs&task=${task.id}`)} />
+                    ))}
+                    {attention.length > 12 && (
+                        <div style={{ fontSize: 11.5, color: t.faint, marginTop: 8 }}>and {attention.length - 12} more</div>
+                    )}
+                    {risky > 0 && (
+                        <ListRow label={`${risky} project${risky === 1 ? '' : 's'} at risk or off track`} sub="project health"
+                            tone="down" value="Portfolio" onClick={() => navigate('/portfolio')} />
+                    )}
+                </Card>
+            </div>
+
             <Card title="By status" note="every project not archived" right={<More label="Projects" to="/projects" />}>
                 {live.length === 0 ? <EmptyNote>No projects yet</EmptyNote> : (
                     <SplitBar format={(v) => String(v)} unit="Projects" parts={PROJECT_STATUSES.map((s) => ({

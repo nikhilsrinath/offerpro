@@ -167,7 +167,8 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
     const [announce, setAnnounce] = useState('');
     const say = (msg) => setAnnounce(msg);
 
-    // The Dashboard's drill-down sheet, opened by clicking a widget.
+    // The Dashboard's drill-down sheet, opened from a day on the activity
+    // calendar. Widgets open their own pages instead (widgetCatalog `to`).
     const [drill, setDrill] = useState([]);
     const pushDrill = useCallback((v) => setDrill((s) => [...s, v]), []);
     const popDrill = useCallback(() => setDrill((s) => s.slice(0, -1)), []);
@@ -663,7 +664,6 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                             isMobile={isMobile} say={say}
                             emptyText="Add widgets to keep revenue, cash, clients and EdgeBrain in one view."
                             pickerNote="Choose what the hub shows"
-                            onDrill={(v) => setDrill([v])}
                             groups={WIDGET_GROUPS} previewProps={previewProps} onGallery={setGalleryOpen}
                         />
 

@@ -22,7 +22,7 @@ import { useSection, money } from '../financial/financeHooks';
    ══════════════════════════════════════════════════════════════════════════ */
 
 
-export default function ProjectPicker({ value, onChange, net = 0, clientId = null, label = 'Project' }) {
+export default function ProjectPicker({ value, onChange, net = 0, clientId = null, label = 'Project', noneLabel = 'No project — overhead', note = '' }) {
     const id = useId();
     const projects = useSection('projects');
     const clients = useSection('customers');
@@ -47,7 +47,7 @@ export default function ProjectPicker({ value, onChange, net = 0, clientId = nul
     const projectSelect = (row, i, aria) => (
         <select id={i === 0 ? id : undefined} aria-label={aria} value={row.project_id}
             onChange={(e) => setRow(i, { project_id: e.target.value })}>
-            <option value="">{split ? 'Choose a project…' : 'No project — overhead'}</option>
+            <option value="">{split ? 'Choose a project…' : noneLabel}</option>
             {optionList(row.project_id).map((p) => (
                 <option key={p.id} value={p.id}>
                     {projectLabel(p)}{p.client_id && names[p.client_id] ? ` — ${names[p.client_id]}` : ''}
@@ -90,6 +90,7 @@ export default function ProjectPicker({ value, onChange, net = 0, clientId = nul
                 </div>
             )}
             <p className="prod-field-note" style={{ marginTop: 6 }}>
+                {note && !split ? <span style={{ marginRight: 8 }}>{note}</span> : null}
                 <button type="button" className="prod-btn-ghost" onClick={() => set(split
                     ? { mode: 'single', rows: [{ project_id: value.rows[0]?.project_id || '', amount: '' }] }
                     : { mode: 'split', rows: value.rows[0]?.project_id

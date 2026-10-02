@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGoBack } from './shell/navHistory';
 import { storageService } from '../services/storageService';
 import { uploadOrgImage } from '../services/imageUploadService';
 import EmployeeAvatar from './shared/EmployeeAvatar';
@@ -52,6 +53,7 @@ const blank = (org) => ({
 export default function EmployeeForm({ onBack, onSuccess, employee }) {
     const t = useT();
     const navigate = useNavigate();
+    const goBack = useGoBack();
     const { user } = useAuth();
     const { activeOrg } = useOrg();
     const org = activeOrg || {};
@@ -133,7 +135,8 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
         }
     };
 
-    const leave = () => { if (onBack) onBack(); else navigate('/employees'); };
+    // Cancel returns to the page the form was opened from.
+    const leave = () => { if (onBack) onBack(); else goBack('/employees'); };
 
     if (done) {
         return (

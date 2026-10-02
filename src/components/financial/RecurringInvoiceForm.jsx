@@ -10,6 +10,7 @@ import { useToast } from '../shared/Toast';
 import A4Stage from '../shared/A4Stage';
 import { confirmDialog } from '../../services/confirm';
 import { useFormProject, projectStartLines } from '../projects/projectScope';
+import { useGoBack } from '../shell/navHistory';
 
 /* ─── Constants ─── */
 const GST_RATES = [0, 5, 12, 18, 28];
@@ -138,6 +139,9 @@ function RecurringInvoiceForm({ editItem }) {
   // Opened from a project's Billing page: the template starts on that project
   // and its client, and saving returns there.
   const fromProject = useFormProject('recurring', '/recurring');
+  // Back returns to the page the form was opened from; the list (or the
+  // project's page) only when there is none.
+  const goBack = useGoBack();
 
   const [formData, setFormData] = useState(() => {
     if (editItem) {
@@ -343,7 +347,7 @@ function RecurringInvoiceForm({ editItem }) {
 
           {/* Back / Title */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-            <button type="button" onClick={() => navigate(fromProject.returnTo)}
+            <button type="button" onClick={() => goBack(fromProject.returnTo)}
               style={{ background: 'none', border: '1px solid var(--border-default)', borderRadius: '8px', padding: '0.375rem 0.75rem', cursor: 'pointer', color: 'var(--text-secondary)', fontFamily: 'var(--font-main)', fontSize: '0.8125rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
               <XIcon size={14} /> Back
             </button>

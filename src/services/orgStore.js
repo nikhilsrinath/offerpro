@@ -50,6 +50,9 @@ function optional(item, converters) {
   return out;
 }
 
+// 0078's belongs_to: anything but 'internal' is general.
+const belongsTo = (v) => (v === 'internal' ? 'internal' : 'general');
+
 function stripNulls(row) {
   const out = {};
   for (const [k, v] of Object.entries(row)) if (v !== undefined) out[k] = v;
@@ -126,6 +129,11 @@ const SECTIONS = {
   // breakdown and on the Gantt chart. They stay undefined — and so are never
   // sent — against a database without those columns, so task writes keep
   // working until 0072 is applied.
+  //
+  // important (0077) is set by an owner or admin and puts an open task under
+  // "Needs attention" on the project dashboards. Same rule: undefined, and
+  // never sent, until the column exists. important_at / important_by are
+  // stamped by the database and only read.
   tasks: {
     table: 'tasks',
     order: 'position',
@@ -139,6 +147,8 @@ const SECTIONS = {
       parentId: 'parent_id' in r ? r.parent_id || null : undefined,
       startDate: 'start_date' in r ? r.start_date || null : undefined,
       progress: 'progress' in r ? r.progress ?? 0 : undefined,
+      important: 'important' in r ? !!r.important : undefined,
+      importantAt: r.important_at || null,
       created_at: r.created_at, createdAt: r.created_at,
     }),
     toRow: (i) => ({
@@ -153,6 +163,7 @@ const SECTIONS = {
       parent_id: i.parentId === undefined ? undefined : i.parentId || null,
       start_date: i.startDate === undefined ? undefined : date(i.startDate),
       progress: i.progress === undefined ? undefined : Math.max(0, Math.min(100, Math.round(num(i.progress, 0)))),
+      important: i.important === undefined ? undefined : !!i.important,
     }),
   },
 
@@ -607,9 +618,9 @@ const SECTIONS = {
   },
 
   // The sellable catalogue. NOT the same thing as `products` above, which is
-  // ProductPlanner's roadmap — see 0011_product_catalog.sql for why the two are
-  // separate tables. The UI calls this one "Products" and the planner keeps its
-  // own page.
+  // the retired Product Planner's roadmap — see 0011_product_catalog.sql for
+  // why the two are separate tables. The UI calls this one "Products Directory";
+  // the planner's page is gone, its rows kept only for old expense links.
   //
   // units_sold / revenue / revenue_paid / invoice_count / last_sold_at are
   // trigger-owned and column-level revoked from `authenticated`, so toRow must
@@ -630,6 +641,8 @@ const SECTIONS = {
       revenue_paid: Number(r.revenue_paid) || 0,
       invoice_count: Number(r.invoice_count) || 0,
       last_sold_at: r.last_sold_at,
+      // 0078, present only when the database has the columns.
+      ...('belongs_to' in r ? { belongs_to: r.belongs_to || 'general', project_id: r.project_id || null } : {}),
       created_at: r.created_at, updated_at: r.updated_at,
     }),
     toRow: (i) => ({
@@ -648,6 +661,7 @@ const SECTIONS = {
       stock_qty: num(i.stock_qty, 0),
       low_stock_at: num(i.low_stock_at),
       archived_at: nn(i.archived_at),
+      ...optional(i, { belongs_to: belongsTo, project_id: nn }),
     }),
   },
 
@@ -677,6 +691,8 @@ const SECTIONS = {
       department_id: r.department_id || null, client_id: r.client_id || null,
       billable: r.billable === true,
       quantity: r.quantity == null ? null : Number(r.quantity), unit: r.unit || null,
+      // 0080: the purchase bill this entry pays, if any.
+      purchase_invoice_id: r.purchase_invoice_id || null,
       created_at: r.created_at, updated_at: r.updated_at,
     }),
     // `amount` is deliberately NOT sent: app.expense_guard() derives it from
@@ -704,6 +720,10 @@ const SECTIONS = {
       unit: nn(i.unit),
       status: i.status === 'pending' ? 'pending' : 'paid',
       notes: nn(i.notes),
+      // 0080. Sent only when the entry pays a bill, so an ordinary entry still
+      // saves on a database without the column. Category, vendor and GST of a
+      // bill payment are stamped from the bill by app.expense_bill_link().
+      ...(i.purchase_invoice_id ? { purchase_invoice_id: i.purchase_invoice_id } : {}),
     }),
   },
 
@@ -773,6 +793,8 @@ const SECTIONS = {
         contract_start: r.contract_start || null, contract_end: r.contract_end || null,
         contract_value: r.contract_value == null ? null : Number(r.contract_value), status: r.status || 'active',
       } : {}),
+      // 0078: general or internal when on no project (projects via project_vendors).
+      ...('belongs_to' in r ? { belongs_to: r.belongs_to || 'general' } : {}),
       created_at: r.created_at,
     }),
     toRow: (i) => ({
@@ -786,12 +808,13 @@ const SECTIONS = {
       ...optional(i, {
         logo_path: nn, website: nn, contacts: jsonList, contract_start: date, contract_end: date,
         contract_value: (v) => (v === '' || v == null ? null : num(v)), status: (v) => (v === 'inactive' ? 'inactive' : 'active'),
+        belongs_to: belongsTo,
       }),
     }),
   },
 
-  // Bills received from vendors (0028). tax_amount, total and status are
-  // recomputed by app.purchase_invoice_guard(); what is sent for them is ignored.
+  // Bills received from vendors (0028). tax_amount, total (+ round_off, 0079)
+  // and status are recomputed by app.purchase_invoice_guard(); what is sent for them is ignored.
   purchase_invoices: {
     table: 'purchase_invoices',
     order: 'bill_date',
@@ -801,6 +824,7 @@ const SECTIONS = {
       description: r.description,
       subtotal: Number(r.subtotal) || 0, tax_rate: Number(r.tax_rate) || 0,
       tax_amount: Number(r.tax_amount) || 0, total: Number(r.total) || 0,
+      round_off: Number(r.round_off) || 0,
       amount_paid: Number(r.amount_paid) || 0, status: r.status,
       paid_on: r.paid_on, receipt_path: r.receipt_path, notes: r.notes,
       created_at: r.created_at,
@@ -814,6 +838,9 @@ const SECTIONS = {
       amount_paid: num(i.amount_paid, 0),
       status: i.status === 'void' ? 'void' : 'unpaid',
       receipt_path: nn(i.receipt_path), notes: nn(i.notes),
+      // 0079. Sent only when the form set it, so a bill still saves on a
+      // database without the column.
+      ...optional(i, { round_off: (v) => num(v, 0) }),
     }),
   },
 

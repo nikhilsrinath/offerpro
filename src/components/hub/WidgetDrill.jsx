@@ -5,7 +5,8 @@ import { TipProvider } from '../overview/vizKit';
 import { useViz } from '../overview/vizHooks';
 import Drilldown from '../overview/Drilldown';
 
-/* The Dashboard's drill-down sheet, opened from a hub widget. Mounted only
+/* The Dashboard's drill-down sheet, opened from a day on the
+   hub's activity calendar. Mounted only
    while a sheet is open, so the hub does not build the overview model until
    someone asks for the analysis behind a widget. */
 

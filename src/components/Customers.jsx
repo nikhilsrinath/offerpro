@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { DialogSheet } from './ui/edge';
 import {
   Plus, Search, Edit3, Trash2, X, UserPlus,
-  Mail, MapPin, Phone, Hash, ArrowLeft, FileText,
+  Mail, MapPin, Phone, Hash, ArrowLeft, FileText, FolderKanban,
 } from 'lucide-react';
 import { customerService } from '../services/customerService';
 import { documentStore, docNumber as docNo } from '../services/documentStore';
@@ -12,6 +12,9 @@ import CountrySelect from './shared/CountrySelect';
 import RelatedProjects from './projects/RelatedProjects';
 import { confirmDialog } from '../services/confirm';
 import { useToast } from './shared/Toast';
+import ClientProjectSelect, { ProjectScopeFilter } from './shared/ClientProjectSelect';
+import { useClientProjects } from './shared/useClientProjects';
+import { OTHERS, initialProject, assignProject, filterByProject } from '../services/clientProjects';
 
 const EMPTY_CUSTOMER = {
   // clientName is the billing name — the company, or the person when the
@@ -23,6 +26,8 @@ const EMPTY_CUSTOMER = {
   // own country — so Sales by Countries works without anyone filling this in.
   // It is here for the cases inference gets wrong.
   country_code: '',
+  // Which project they belong to; OTHERS until they are on one.
+  project: OTHERS,
 };
 
 // A contact worth showing under the billing name: an individual client has
@@ -285,6 +290,10 @@ export default function Customers() {
   const [formData, setFormData] = useState(EMPTY_CUSTOMER);
   const [saving, setSaving] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const cp = useClientProjects();
+  const [projectScope, setProjectScope] = useState('');
+  // What the project dropdown opened on, so an edit that changes it moves them.
+  const [fromProject, setFromProject] = useState(OTHERS);
 
   useEffect(() => {
     if (activeOrg?.id) loadCustomers();
@@ -307,7 +316,8 @@ export default function Customers() {
       if (statusFilter === 'pipeline') return status === 'lead' || status === 'contacted';
       return status === statusFilter;
     });
-    const searched = customerService.search(byStatus, searchTerm);
+    const inScope = filterByProject(byStatus, projectScope, cp.projects, cp.links);
+    const searched = customerService.search(inScope, searchTerm);
     return [...searched].sort((a, b) => {
       if (sortBy === 'name_asc')  return (a.clientName || '').localeCompare(b.clientName || '');
       if (sortBy === 'name_desc') return (b.clientName || '').localeCompare(a.clientName || '');
@@ -315,11 +325,14 @@ export default function Customers() {
       if (sortBy === 'gstin')     return (a.buyerGSTIN || '').localeCompare(b.buyerGSTIN || '');
       return 0;
     });
-  }, [customers, searchTerm, sortBy, statusFilter]);
+  }, [customers, searchTerm, sortBy, statusFilter, projectScope, cp]);
 
   const openAdd = () => {
     setEditingCustomer(null);
-    setFormData(EMPTY_CUSTOMER);
+    // Adding while the list is narrowed to a project puts them on it.
+    const project = projectScope && projectScope !== OTHERS ? projectScope : OTHERS;
+    setFormData({ ...EMPTY_CUSTOMER, project });
+    setFromProject(OTHERS);
     setModalOpen(true);
   };
 
@@ -338,7 +351,9 @@ export default function Customers() {
       country_code:  customer.country_code  || '',
       contactPhone:  customer.contactPhone  || '',
       notes:         customer.notes         || '',
+      project:       initialProject(customer.id, cp.projects, cp.links),
     });
+    setFromProject(initialProject(customer.id, cp.projects, cp.links));
     setModalOpen(true);
   };
 
@@ -351,9 +366,12 @@ export default function Customers() {
       return;
     }
     // Billed under the company; an individual is billed under their own name.
-    const data = { ...formData, clientName: company || contact, person_name: contact };
+    // `project` is not a client column; it is applied through the project links.
+    const { project, ...fields } = formData;
+    const data = { ...fields, clientName: company || contact, person_name: contact };
     setSaving(true);
     try {
+      let clientId = editingCustomer?.id;
       if (editingCustomer) {
         await customerService.update(activeOrg.id, editingCustomer.id, data);
         // If we're in detail view, refresh selectedCustomer data
@@ -361,7 +379,18 @@ export default function Customers() {
           setSelectedCustomer({ ...editingCustomer, ...data, name: data.clientName });
         }
       } else {
-        await customerService.create(activeOrg.id, data);
+        clientId = (await customerService.create(activeOrg.id, data))?.id;
+      }
+      if (clientId) {
+        try {
+          const { keptPrimary } = await assignProject(clientId, project, fromProject, cp.projects, cp.links);
+          if (keptPrimary) {
+            const p = cp.projects.find(x => x.id === keptPrimary);
+            toast(`Still the main client of ${p?.name || 'their project'} — change that from the project`, 'info');
+          }
+        } catch (err) {
+          toast('Client saved, but the project could not be set: ' + err.message, 'error');
+        }
       }
       setModalOpen(false);
       await loadCustomers();
@@ -383,6 +412,74 @@ export default function Customers() {
       alert('Error deleting customer: ' + err.message);
     }
   };
+
+  // One form for Add and Edit, in the list and in the detail view. Who you deal
+  // with comes first, then where they work, then which project they belong to.
+  const formFields = () => (
+    <div className="easy-row" style={{ gap: '1rem' }}>
+      <div className="easy-field">
+        <label className="easy-lbl">Contact person</label>
+        <input aria-label="Contact person" type="text" placeholder="e.g. Rajesh Kumar" value={formData.person_name}
+          onChange={e => setFormData({ ...formData, person_name: e.target.value })} className="easy-inp" autoFocus />
+      </div>
+      <div className="easy-field">
+        <label className="easy-lbl">Company name</label>
+        <input aria-label="Company name" type="text" placeholder="e.g. Acme Corp" value={formData.clientName}
+          onChange={e => setFormData({ ...formData, clientName: e.target.value })} className="easy-inp" />
+      </div>
+      <p className="easy-field full" style={{ margin: '-0.5rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+        Fill in at least one. Leave the company blank when billing an individual.
+      </p>
+      <div className="easy-field full">
+        <label className="easy-lbl" htmlFor="customer-project">Project</label>
+        <ClientProjectSelect id="customer-project" cp={cp} value={formData.project}
+          onChange={project => setFormData({ ...formData, project })} />
+        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem', display: 'block' }}>
+          Choose Others when they are not on a project yet — you can move them onto one any time.
+        </span>
+      </div>
+      <div className="easy-field">
+        <label className="easy-lbl">Email</label>
+        <input aria-label="Email" type="email" placeholder="billing@client.com" value={formData.clientEmail}
+          onChange={e => setFormData({ ...formData, clientEmail: e.target.value })} className="easy-inp" />
+      </div>
+      <div className="easy-field">
+        <label className="easy-lbl">Phone</label>
+        <input aria-label="Phone" type="text" placeholder="+91 ..." value={formData.contactPhone}
+          onChange={e => setFormData({ ...formData, contactPhone: e.target.value })} className="easy-inp" />
+      </div>
+      <div className="easy-field full">
+        <label className="easy-lbl">Address</label>
+        <input aria-label="Address" type="text" placeholder="Full billing address" value={formData.clientAddress}
+          onChange={e => setFormData({ ...formData, clientAddress: e.target.value })} className="easy-inp" />
+      </div>
+      <div className="easy-field">
+        <label className="easy-lbl">GSTIN</label>
+        <input aria-label="GSTIN" type="text" placeholder="22AAAAA0000A1Z5" value={formData.buyerGSTIN}
+          onChange={e => setFormData({ ...formData, buyerGSTIN: e.target.value.toUpperCase() })}
+          className="easy-inp" maxLength={15} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
+      </div>
+      <div className="easy-field">
+        <label className="easy-lbl">State</label>
+        <input aria-label="State" type="text" placeholder="e.g. Tamil Nadu" value={formData.buyerState}
+          onChange={e => setFormData({ ...formData, buyerState: e.target.value })} className="easy-inp" />
+      </div>
+      <div className="easy-field">
+        <label className="easy-lbl">Country</label>
+        <CountrySelect ariaLabel="Country"
+          value={formData.country_code}
+          onChange={code => setFormData({ ...formData, country_code: code })}
+        />
+      </div>
+      <div className="easy-field full">
+        <label className="easy-lbl">Note</label>
+        <textarea aria-label="Note" placeholder="Anything worth remembering about this client" rows={3}
+          value={formData.notes}
+          onChange={e => setFormData({ ...formData, notes: e.target.value })}
+          className="easy-inp" style={{ resize: 'none' }} />
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -416,61 +513,7 @@ export default function Customers() {
                 </button>
               </div>
               <form onSubmit={handleSave}>
-                <div className="easy-row" style={{ gap: '1rem' }}>
-                  <div className="easy-field">
-                    <label className="easy-lbl">Company name</label>
-                    <input aria-label="Company name" type="text" placeholder="e.g. Acme Corp" value={formData.clientName}
-                      onChange={e => setFormData({ ...formData, clientName: e.target.value })} className="easy-inp" />
-                  </div>
-                  <div className="easy-field">
-                    <label className="easy-lbl">Contact person</label>
-                    <input aria-label="Contact person" type="text" placeholder="e.g. Rajesh Kumar" value={formData.person_name}
-                      onChange={e => setFormData({ ...formData, person_name: e.target.value })} className="easy-inp" />
-                  </div>
-                  <p className="easy-field full" style={{ margin: '-0.5rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Fill in at least one. Leave the company blank when billing an individual.
-                  </p>
-                  <div className="easy-field">
-                    <label className="easy-lbl">Email</label>
-                    <input aria-label="Email" type="email" placeholder="billing@client.com" value={formData.clientEmail}
-                      onChange={e => setFormData({ ...formData, clientEmail: e.target.value })} className="easy-inp" />
-                  </div>
-                  <div className="easy-field">
-                    <label className="easy-lbl">Phone</label>
-                    <input aria-label="Phone" type="text" placeholder="+91 ..." value={formData.contactPhone}
-                      onChange={e => setFormData({ ...formData, contactPhone: e.target.value })} className="easy-inp" />
-                  </div>
-                  <div className="easy-field full">
-                    <label className="easy-lbl">Address</label>
-                    <input aria-label="Address" type="text" placeholder="Full billing address" value={formData.clientAddress}
-                      onChange={e => setFormData({ ...formData, clientAddress: e.target.value })} className="easy-inp" />
-                  </div>
-                  <div className="easy-field">
-                    <label className="easy-lbl">GSTIN</label>
-                    <input aria-label="GSTIN" type="text" placeholder="22AAAAA0000A1Z5" value={formData.buyerGSTIN}
-                      onChange={e => setFormData({ ...formData, buyerGSTIN: e.target.value.toUpperCase() })}
-                      className="easy-inp" maxLength={15} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
-                  </div>
-                  <div className="easy-field">
-                    <label className="easy-lbl">State</label>
-                    <input aria-label="State" type="text" placeholder="e.g. Tamil Nadu" value={formData.buyerState}
-                      onChange={e => setFormData({ ...formData, buyerState: e.target.value })} className="easy-inp" />
-                  </div>
-                  <div className="easy-field">
-                    <label className="easy-lbl">Country</label>
-                    <CountrySelect ariaLabel="Country"
-                      value={formData.country_code}
-                      onChange={code => setFormData({ ...formData, country_code: code })}
-                    />
-                  </div>
-                  <div className="easy-field full">
-                    <label className="easy-lbl">Note</label>
-                    <textarea aria-label="Note" placeholder="Anything worth remembering about this client" rows={3}
-                      value={formData.notes}
-                      onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                      className="easy-inp" style={{ resize: 'none' }} />
-                  </div>
-                </div>
+                {formFields()}
                 <div className="form-actions" style={{ marginTop: '1.5rem' }}>
                   <button type="button" onClick={() => setModalOpen(false)} className="easy-submit-outline">
                     Cancel
@@ -515,6 +558,8 @@ export default function Customers() {
           <option value="lost">Lost</option>
           <option value="all">Everyone</option>
         </select>
+        <ProjectScopeFilter cp={cp} value={projectScope} onChange={setProjectScope}
+          style={{ height: '40px', padding: '0 0.625rem', borderRadius: '0.5rem', border: '1px solid var(--border-default)', background: 'var(--background)', color: 'var(--text-secondary)', fontSize: '0.8rem', cursor: 'pointer', outline: 'none', flexShrink: 0, maxWidth: '14rem' }} />
         <select
           aria-label="Sort customers"
           value={sortBy}
@@ -591,6 +636,12 @@ export default function Customers() {
                     <span>{customer.contactPhone}</span>
                   </div>
                 )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FolderKanban size={12} style={{ flexShrink: 0, opacity: 0.5 }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: cp.namesOf(customer.id).length ? undefined : 'var(--text-muted)' }}>
+                    {cp.namesOf(customer.id).join(', ') || 'Others — no project yet'}
+                  </span>
+                </div>
                 {customer.buyerGSTIN && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <Hash size={12} style={{ flexShrink: 0, opacity: 0.5 }} />
@@ -634,61 +685,7 @@ export default function Customers() {
               </button>
             </div>
             <form onSubmit={handleSave}>
-              <div className="easy-row" style={{ gap: '1rem' }}>
-                <div className="easy-field">
-                  <label className="easy-lbl">Company name</label>
-                  <input aria-label="Company name" type="text" placeholder="e.g. Acme Corp" value={formData.clientName}
-                    onChange={e => setFormData({ ...formData, clientName: e.target.value })} className="easy-inp" />
-                </div>
-                <div className="easy-field">
-                  <label className="easy-lbl">Contact person</label>
-                  <input aria-label="Contact person" type="text" placeholder="e.g. Rajesh Kumar" value={formData.person_name}
-                    onChange={e => setFormData({ ...formData, person_name: e.target.value })} className="easy-inp" />
-                </div>
-                <p className="easy-field full" style={{ margin: '-0.5rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  Fill in at least one. Leave the company blank when billing an individual.
-                </p>
-                <div className="easy-field">
-                  <label className="easy-lbl">Email</label>
-                  <input aria-label="Email" type="email" placeholder="billing@client.com" value={formData.clientEmail}
-                    onChange={e => setFormData({ ...formData, clientEmail: e.target.value })} className="easy-inp" />
-                </div>
-                <div className="easy-field">
-                  <label className="easy-lbl">Phone</label>
-                  <input aria-label="Phone" type="text" placeholder="+91 ..." value={formData.contactPhone}
-                    onChange={e => setFormData({ ...formData, contactPhone: e.target.value })} className="easy-inp" />
-                </div>
-                <div className="easy-field full">
-                  <label className="easy-lbl">Address</label>
-                  <input aria-label="Address" type="text" placeholder="Full billing address" value={formData.clientAddress}
-                    onChange={e => setFormData({ ...formData, clientAddress: e.target.value })} className="easy-inp" />
-                </div>
-                <div className="easy-field">
-                  <label className="easy-lbl">GSTIN</label>
-                  <input aria-label="GSTIN" type="text" placeholder="22AAAAA0000A1Z5" value={formData.buyerGSTIN}
-                    onChange={e => setFormData({ ...formData, buyerGSTIN: e.target.value.toUpperCase() })}
-                    className="easy-inp" maxLength={15} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
-                </div>
-                <div className="easy-field">
-                  <label className="easy-lbl">State</label>
-                  <input aria-label="State" type="text" placeholder="e.g. Tamil Nadu" value={formData.buyerState}
-                    onChange={e => setFormData({ ...formData, buyerState: e.target.value })} className="easy-inp" />
-                </div>
-                <div className="easy-field">
-                  <label className="easy-lbl">Country</label>
-                  <CountrySelect ariaLabel="Country"
-                    value={formData.country_code}
-                    onChange={code => setFormData({ ...formData, country_code: code })}
-                  />
-                </div>
-                <div className="easy-field full">
-                  <label className="easy-lbl">Note</label>
-                  <textarea aria-label="Note" placeholder="Anything worth remembering about this client" rows={3}
-                    value={formData.notes}
-                    onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                    className="easy-inp" style={{ resize: 'none' }} />
-                </div>
-              </div>
+              {formFields()}
               <div className="form-actions" style={{ marginTop: '1.5rem' }}>
                 <button type="button" onClick={() => setModalOpen(false)} className="easy-submit-outline">
                   Cancel

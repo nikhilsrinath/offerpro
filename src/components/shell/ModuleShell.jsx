@@ -12,6 +12,7 @@ import { documentStore } from '../../services/documentStore';
 import { getPlanConfig, DEFAULT_PLAN } from '../../services/planConfig';
 import { RailSlotContext } from './railSlot';
 import { useRailPin, RailPinButton } from './railPin';
+import { usePreviousPage, useGoBack } from './navHistory';
 import MobileNav from './MobileNav';
 import Copilot from '../assistant/Copilot';
 import { useAssistant } from '../assistant/assistantStore';
@@ -35,6 +36,8 @@ const writeFlag = (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } ca
    uses, so moving from the hub into Team is a change of content, not a change
    of application. The rail lists the pages of the module you are in — which is
    what the old sidebar did — and the hub is one click away at the top of it.
+   With `topNav` there is no rail: the pages sit in a segmented strip under the
+   top bar, and the way back is the arrow at the start of the bar.
    ══════════════════════════════════════════════════════════════════════════ */
 
 function useWindowWidth() {
@@ -74,13 +77,28 @@ function PopRow({ t, icon, label, note, onClick, danger, dot }) {
 export default function ModuleShell({
     theme, user, module: mod, items, title, subtitle, actions,
     onToggleTheme, onLogout, flush = false, railSlot = false, workspace = false,
-    back = HUB_BACK, children,
+    topNav = false, back = HUB_BACK, children,
 }) {
     const isDark = theme === 'dark';
     const t = makeTokens(isDark);
     const { activeOrg } = useOrg();
     const profile = useProfileCompletion();
     const navigate = useNavigate();
+    // `back` is where the arrow goes when no page came before this one; with
+    // one, it returns there (navHistory). The link names the real destination
+    // so opening it in a new tab works; a plain click steps back through
+    // history, so the page behind comes back as it was left.
+    // The module's own page links (rail, tabs, phone strip) replace rather than
+    // push: moving between a module's pages is moving within one place, so Back
+    // leaves the module for the page that opened it instead of retracing them.
+    const prevPage = usePreviousPage();
+    const goBack = useGoBack();
+    const backHref = prevPage ? prevPage.pathname + prevPage.search : back.to;
+    const onBack = (e) => {
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        goBack(back.to);
+    };
     const winW = useWindowWidth();
     const isMobile = winW < 760;
 
@@ -108,6 +126,9 @@ export default function ModuleShell({
     const setAi = (hidden) => { setAiHidden(hidden); writeFlag(AI_KEY, hidden); };
     // On desktop a workspace has no top bar; phones keep it for the menus.
     const bare = workspace && !isMobile;
+    // Pages as tabs under the bar instead of a rail (desktop; phones already
+    // get their strip below).
+    const tabs = topNav && !isMobile;
 
     useEffect(() => {
         const read = () => setNotifs(documentStore.getNotifications() || []);
@@ -269,7 +290,7 @@ export default function ModuleShell({
             <a href="#edge-main" className="edge-skip" onClick={(e) => { e.preventDefault(); mainRef.current?.focus(); }}>
                 Skip to content
             </a>
-            {!isMobile && (
+            {!isMobile && !tabs && (
                 <aside
                     aria-label={(mod?.label || 'Module') + ' navigation'}
                     onMouseEnter={railSlot ? undefined : () => setHoverRail(true)}
@@ -292,7 +313,7 @@ export default function ModuleShell({
                         height: 53, padding: '0 18px', flexShrink: 0,
                         borderBottom: '1px solid ' + t.line,
                     }}>
-                        <Link to={back.to} title={back.label} aria-label={back.label} className="edge-navitem" style={{
+                        <Link to={backHref} onClick={onBack} title={back.label} aria-label={back.label} className="edge-navitem" style={{
                             display: 'flex', alignItems: 'center', gap: 11, minWidth: 0, flex: 1,
                             textDecoration: 'none', color: t.text,
                         }}>
@@ -333,7 +354,7 @@ export default function ModuleShell({
                             const Icon = it.icon;
                             const link = (
                                 <NavLink
-                                    key={it.id} to={it.to || '/' + it.id} end={!!it.end} title={it.label}
+                                    key={it.id} to={it.to || '/' + it.id} end={!!it.end} replace title={it.label}
                                     className="edge-navitem"
                                     aria-current={it.active === false ? false : 'page'}
                                     style={({ isActive: routeActive }) => { const isActive = it.active ?? routeActive; return {
@@ -520,8 +541,9 @@ export default function ModuleShell({
                     padding: isMobile ? '9px 12px' : '0 20px', height: 53, flexShrink: 0,
                     borderBottom: '1px solid ' + t.line, background: t.panel, zIndex: 40,
                 }}>
-                    {isMobile && (
-                        <Link to={back.to} aria-label={back.label} title={back.label} style={{ color: t.dim, display: 'grid', placeItems: 'center', flexShrink: 0, width: 32, height: 32 }}>
+                    {(isMobile || tabs) && (
+                        <Link to={backHref} onClick={onBack} aria-label={back.label} title={back.label} className={tabs ? 'edge-icon' : undefined}
+                            style={tabs ? { ...iconBtn(t), marginLeft: -6 } : { color: t.dim, display: 'grid', placeItems: 'center', flexShrink: 0, width: 32, height: 32 }}>
                             <ArrowLeft aria-hidden="true" size={17} strokeWidth={1.8} />
                         </Link>
                     )}
@@ -607,13 +629,48 @@ export default function ModuleShell({
                 </header>
                 )}
 
+                {tabs && (items || []).length > 1 && (
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0,
+                        padding: '9px 20px', borderBottom: '1px solid ' + t.line, background: t.panel,
+                    }}>
+                        <nav aria-label={(mod?.label || 'Module') + ' pages'} className="edge-scroll edge-mobnav" style={{
+                            display: 'inline-flex', gap: 2, padding: 2, minWidth: 0, overflowX: 'auto',
+                            border: '1px solid ' + t.line, borderRadius: 8, background: t.panelAlt,
+                        }}>
+                            {items.map((it) => (
+                                <NavLink key={it.id} to={it.to || '/' + it.id} end={!!it.end} replace className="edge-tab"
+                                    aria-current={it.active === false ? false : 'page'}
+                                    style={({ isActive: routeActive }) => { const isActive = it.active ?? routeActive; return {
+                                        display: 'inline-flex', alignItems: 'center', minHeight: 25, padding: '0 11px',
+                                        borderRadius: 6, whiteSpace: 'nowrap', textDecoration: 'none', fontSize: 12.5,
+                                        color: isActive ? t.text : t.dim,
+                                        background: isActive ? t.panel : 'transparent',
+                                        boxShadow: isActive ? '0 0 0 1px ' + t.line : 'none',
+                                        transition: 'color .14s, background .14s',
+                                    }; }}>{it.label}</NavLink>
+                            ))}
+                        </nav>
+                        <span style={{ flex: 1 }} />
+                        <Link to="/pricing" title={'Plan: ' + plan.displayName} aria-label={'Plan: ' + plan.displayName + '. View plans and billing'} className="edge-chip" style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0,
+                            height: 27, padding: '0 11px', borderRadius: 999, textDecoration: 'none',
+                            border: '1px solid ' + t.line, background: t.panelAlt,
+                            fontSize: 11, letterSpacing: '0.04em', color: t.dim,
+                        }}>
+                            <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: plan.color }} />
+                            {plan.displayName.toUpperCase()}
+                        </Link>
+                    </div>
+                )}
+
                 {isMobile && (items || []).length > 1 && (
                     <nav aria-label={(mod?.label || 'Module') + ' pages'} className="edge-scroll edge-mobnav" style={{
                         display: 'flex', gap: 4, padding: '6px 10px', overflowX: 'auto', flexShrink: 0,
                         borderBottom: '1px solid ' + t.line, background: t.panel,
                     }}>
                         {items.map((it) => (
-                            <NavLink key={it.id} to={it.to || '/' + it.id} end={!!it.end} className="edge-navitem"
+                            <NavLink key={it.id} to={it.to || '/' + it.id} end={!!it.end} replace className="edge-navitem"
                                 aria-current={it.active === false ? false : 'page'}
                                 style={({ isActive: routeActive }) => { const isActive = it.active ?? routeActive; return {
                                 display: 'inline-flex', alignItems: 'center', height: 32, padding: '0 11px',
@@ -789,6 +846,7 @@ function ShellStyle({ t }) {
                 box-shadow: ${t.isDark ? '0 1px 3px rgba(0,0,0,.35)' : '0 1px 3px rgba(0,0,0,.08)'} !important;
             }
             .edge-shell .edge-navitem:active { box-shadow: none !important; }
+            .edge-shell .edge-tab:hover { color: ${t.text} !important; }
             .edge-shell ::selection { background: ${t.text}; color: ${t.panel}; }
             .edge-shell :focus-visible { outline: 2px solid ${t.text}; outline-offset: 2px; }
             .edge-shell .edge-skip {

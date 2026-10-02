@@ -7,6 +7,12 @@ import {
 import { useOrg } from '../context/OrgContext';
 import { catalogService, UNIT_OPTIONS, TAX_RATES } from '../services/catalogService';
 import { confirmDialog } from '../services/confirm';
+import { useSection } from './financial/financeHooks';
+import { useToast } from './shared/Toast';
+import BelongsToSelect, { BelongsToFilter } from './shared/BelongsToSelect';
+import {
+  GENERAL, splitChoice, productChoice, inScope, choiceLabel, saveWithBelongsTo,
+} from '../services/belongsTo';
 
 const money = (n, digits = 0) => (Number(n) || 0).toLocaleString('en-IN', {
   style: 'currency', currency: 'INR', maximumFractionDigits: digits,
@@ -27,6 +33,8 @@ const BLANK = {
   name: '', sku: '', description: '', category: '',
   unit_price: '', unit: 'Nos', hsn_sac: '', tax_rate: 18,
   track_inventory: false, stock_qty: '', low_stock_at: '',
+  // The Belongs to dropdown: GENERAL, INTERNAL or a project id.
+  belongs: GENERAL,
 };
 
 // Presets for the performance range. `from` is computed at click time, not at
@@ -56,6 +64,9 @@ export default function Products() {
   const [version, setVersion] = useState(0);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
+  const [scope, setScope] = useState('');
+  const projects = useSection('projects');
+  const toast = useToast();
   const [showArchived, setShowArchived] = useState(false);
 
   const [editing, setEditing] = useState(null);   // catalogue row, or BLANK for new
@@ -121,11 +132,12 @@ export default function Products() {
     return items.filter((p) => {
       if (showArchived ? !p.archived_at : !!p.archived_at) return false;
       if (category !== 'all' && (p.category || '') !== category) return false;
+      if (!inScope(scope, p.project_id ? [p.project_id] : [], p.belongs_to)) return false;
       if (!q) return true;
       return [p.name, p.sku, p.category, p.description, p.hsn_sac]
         .some((f) => String(f || '').toLowerCase().includes(q));
     });
-  }, [items, search, category, showArchived]);
+  }, [items, search, category, showArchived, scope]);
 
   const totals = useMemo(() => {
     const active = items.filter((p) => !p.archived_at);
@@ -147,8 +159,10 @@ export default function Products() {
     setSaving(true);
     setFormError('');
     try {
+      const { belongs, ...rest } = editing;
       const payload = {
-        ...editing,
+        ...rest,
+        ...splitChoice(belongs),
         name: editing.name.trim(),
         sku: (editing.sku || '').trim(),
         unit_price: Number(editing.unit_price) || 0,
@@ -157,8 +171,9 @@ export default function Products() {
         low_stock_at: editing.track_inventory && editing.low_stock_at !== ''
           ? Number(editing.low_stock_at) : null,
       };
-      if (editing.id) await catalogService.update(editing.id, payload);
-      else await catalogService.create(payload);
+      const save = (d) => (editing.id ? catalogService.update(editing.id, d) : catalogService.create(d));
+      const { skipped } = await saveWithBelongsTo(save, payload);
+      if (skipped) toast('Product saved. "Belongs to" needs database update 0078 before it is kept.', 'info');
       setEditing(null);
       reload();
     } catch (err) {
@@ -251,6 +266,8 @@ export default function Products() {
               {categories.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
 
+            <BelongsToFilter value={scope} onChange={setScope} className="prod-select" />
+
             <button
               aria-pressed={!!showArchived} className={`pro-chip ${showArchived ? 'active' : ''}`}
               onClick={() => setShowArchived((v) => !v)}
@@ -258,7 +275,7 @@ export default function Products() {
               <Archive size={12} /> Archived
             </button>
 
-            <button className="prod-add-btn" onClick={() => { setEditing({ ...BLANK }); setFormError(''); }}>
+            <button className="prod-add-btn" onClick={() => { setEditing({ ...BLANK, belongs: scope || GENERAL }); setFormError(''); }}>
               <Plus size={15} /> New product
             </button>
           </div>
@@ -266,8 +283,8 @@ export default function Products() {
           {filtered.length === 0 ? (
             <EmptyState
               archived={showArchived}
-              filtered={!!search || category !== 'all'}
-              onAdd={() => { setEditing({ ...BLANK }); setFormError(''); }}
+              filtered={!!search || category !== 'all' || !!scope}
+              onAdd={() => { setEditing({ ...BLANK, belongs: scope || GENERAL }); setFormError(''); }}
             />
           ) : (
             <div className="prod-grid">
@@ -275,7 +292,8 @@ export default function Products() {
                 <ProductCard
                   key={p.id}
                   product={p}
-                  onEdit={() => { setEditing({ ...p }); setFormError(''); }}
+                  belongsLabel={choiceLabel(productChoice(p), projects)}
+                  onEdit={() => { setEditing({ ...p, belongs: productChoice(p) }); setFormError(''); }}
                   onArchive={() => handleArchive(p)}
                   onDelete={() => handleDelete(p)}
                 />
@@ -325,7 +343,7 @@ function Stat({ icon, label, value, accent }) {
   );
 }
 
-function ProductCard({ product: p, onEdit, onArchive, onDelete }) {
+function ProductCard({ product: p, belongsLabel, onEdit, onArchive, onDelete }) {
   const low = p.track_inventory && p.low_stock_at != null
     && Number(p.stock_qty) <= Number(p.low_stock_at);
   // Hard delete is offered only for a product nothing has been billed against.
@@ -354,6 +372,7 @@ function ProductCard({ product: p, onEdit, onArchive, onDelete }) {
       </div>
 
       <div className="prod-card-tags">
+        <span className="prod-tag" title="Belongs to">{belongsLabel}</span>
         {p.sku && <span className="prod-tag mono">{p.sku}</span>}
         {p.category && <span className="prod-tag"><Tag size={9} /> {p.category}</span>}
         {p.hsn_sac && <span className="prod-tag">HSN {p.hsn_sac}</span>}
@@ -432,6 +451,11 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
                 autoFocus
                 required
               />
+            </div>
+
+            <div className="prod-field full">
+              <label htmlFor="product-belongs">Belongs to</label>
+              <BelongsToSelect id="product-belongs" value={value.belongs} onChange={(v) => set('belongs', v)} />
             </div>
 
             <div className="prod-field">

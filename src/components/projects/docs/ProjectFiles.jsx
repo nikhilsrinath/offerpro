@@ -18,6 +18,9 @@ import { RowMenu } from '../pm/pmUi';
 import ProjectDocuments from '../ProjectDocuments';
 import { useSetup, useUserNames } from '../parties/partyData';
 import { SetupGate, Bar } from '../parties/partyUi';
+import {
+    Folder, File as FileIcon, FileText, FileImage, FileSpreadsheet, FileArchive, FileType2, Presentation,
+} from 'lucide-react';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Documents Management › Project Documents — every file the project holds.
@@ -48,7 +51,8 @@ const LINK_LABEL = {
     communication: 'Client communication', approval: 'Approval', invoice: 'Invoice / payment', payment: 'Payment',
     vendor: 'Vendor document', client: 'Client document', generated: 'Generated from a template',
 };
-const KIND_ICON = { pdf: 'PDF', image: 'IMG', doc: 'DOC', sheet: 'XLS', slides: 'PPT', text: 'TXT', archive: 'ZIP', other: 'FILE' };
+const KIND_ICON = { pdf: FileType2, image: FileImage, doc: FileText, sheet: FileSpreadsheet, slides: Presentation, text: FileText, archive: FileArchive, other: FileIcon };
+const KIND_LABEL = { pdf: 'PDF', image: 'Image', doc: 'Document', sheet: 'Spreadsheet', slides: 'Slides', text: 'Text', archive: 'Archive', other: 'File' };
 
 export default function ProjectFiles({ project }) {
     // ?view= keeps the choice in the URL, so a form opened from Business
@@ -64,7 +68,7 @@ export default function ProjectFiles({ project }) {
         <div style={{ display: 'grid', gap: 14 }}>
             <Seg value={tab} onChange={choose} label="Documents" options={[
                 { id: 'business', label: 'Business documents' },
-                { id: 'files', label: 'Files & folders' },
+                { id: 'files', label: 'General Documents' },
             ]} />
             {tab === 'files' ? <FilesView project={project} /> : <ProjectDocuments project={project} onUploaded={() => choose('files')} />}
         </div>
@@ -277,7 +281,7 @@ function FilesView({ project }) {
                 ) : (
                     <div style={{ padding: 13 }}>
                         <Table cols={[
-                            { key: 'n', label: 'Name' }, { key: 's', label: 'Size', align: 'right' }, { key: 'u', label: 'Uploaded by' },
+                            { key: 'n', label: 'Name' }, { key: 't', label: 'Type' }, { key: 's', label: 'Size', align: 'right' }, { key: 'u', label: 'Uploaded by' },
                             { key: 'c', label: 'Uploaded' }, { key: 'm', label: 'Last modified' }, { key: 'v', label: 'Version', align: 'right' },
                             { key: 'x', label: '', align: 'right' },
                         ]}>
@@ -285,11 +289,12 @@ function FilesView({ project }) {
                                 <Tr key={f.id}>
                                     <Td>
                                         <button type="button" onClick={() => setAt(f.id)} className="edge-btn" style={linkBtn(t)}>
-                                            <Icon label="DIR" folder />
+                                            <Icon folder />
                                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
                                             {f.visible_roles && <span style={{ fontSize: 10.5, color: t.faint }}>restricted</span>}
                                         </button>
                                     </Td>
+                                    <Td muted nowrap>Folder</Td>
                                     <Td align="right" muted>{files.filter((x) => x.folder_id === f.id).length} files</Td>
                                     <Td muted>{nameOf(f.created_by)}</Td>
                                     <Td muted nowrap>{fmtDate(f.created_at)}</Td>
@@ -302,7 +307,7 @@ function FilesView({ project }) {
                                 <Tr key={f.id}>
                                     <Td>
                                         <button type="button" onClick={() => openFile(f)} className="edge-btn" style={linkBtn(t)}>
-                                            <Icon label={KIND_ICON[fileKind(f.mime_type, f.name)]} />
+                                            <Icon kind={fileKind(f.mime_type, f.name)} />
                                             <span style={{ minWidth: 0 }}>
                                                 <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
                                                 {(f.tags.length > 0 || searching || at === LINKED || f.visible_roles) && (
@@ -313,6 +318,7 @@ function FilesView({ project }) {
                                             </span>
                                         </button>
                                     </Td>
+                                    <Td muted nowrap>File · {KIND_LABEL[fileKind(f.mime_type, f.name)]}</Td>
                                     <Td align="right" muted nowrap>{fmtBytes(f.size_bytes)}</Td>
                                     <Td muted nowrap>{nameOf(f.created_by)}</Td>
                                     <Td muted nowrap>{fmtDate(f.created_at)}</Td>
@@ -361,14 +367,15 @@ function Sep() {
     return <span aria-hidden="true" style={{ color: t.ghost }}>/</span>;
 }
 
-function Icon({ label, folder, size = 30 }) {
+function Icon({ kind, folder, size = 30 }) {
     const t = useT();
+    const Glyph = folder ? Folder : KIND_ICON[kind] || FileIcon;
     return (
         <span aria-hidden="true" style={{
             width: size, height: size, flexShrink: 0, borderRadius: 6, display: 'grid', placeItems: 'center',
-            fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', color: folder ? t.text : t.dim,
+            color: folder ? t.text : t.dim,
             background: folder ? t.raised : t.panelAlt, border: '1px solid ' + t.line,
-        }}>{label}</span>
+        }}><Glyph size={Math.round(size * 0.5)} strokeWidth={1.75} /></span>
     );
 }
 
@@ -380,7 +387,7 @@ function FolderTile({ name, note, restricted, view, onOpen, menu }) {
             padding: view === 'grid' ? 10 : '8px 10px', background: t.panel, minWidth: 0,
         }}>
             <button type="button" onClick={onOpen} className="edge-btn" style={{ ...linkBtn(t), flex: 1 }}>
-                <Icon label="DIR" folder />
+                <Icon folder />
                 <span style={{ minWidth: 0 }}>
                     <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
                     {(note || restricted) && <span style={{ display: 'block', fontSize: 11, color: t.faint }}>{note || 'restricted'}</span>}
@@ -406,7 +413,7 @@ function FileTile({ file: f, sub, onOpen, menu }) {
                 height: 96, border: 'none', borderBottom: '1px solid ' + t.lineSoft, background: t.panelAlt, cursor: 'pointer',
                 display: 'grid', placeItems: 'center', padding: 0,
             }}>
-                {thumb ? <img src={thumb} alt="" style={{ maxWidth: '100%', maxHeight: 96, objectFit: 'cover' }} /> : <Icon label={KIND_ICON[fileKind(f.mime_type, f.name)]} size={42} />}
+                {thumb ? <img src={thumb} alt="" style={{ maxWidth: '100%', maxHeight: 96, objectFit: 'cover' }} /> : <Icon kind={fileKind(f.mime_type, f.name)} size={42} />}
             </button>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: '8px 8px 8px 10px' }}>
                 <span style={{ flex: 1, minWidth: 0 }}>

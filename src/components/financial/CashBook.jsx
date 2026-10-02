@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   ArrowDownLeft, ArrowUpRight, Banknote, Download, Paperclip, Pencil,
-  Plus, Scale, Search, Trash2, Wallet, X,
+  Plus, Search, Trash2, Wallet, X,
 } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
 import { receiptService } from '../../services/receiptService';
 import {
-  cashFlow, downloadCsv, inRange, periodBounds, profitAndLoss, todayIso,
+  cashFlow, downloadCsv, inRange, periodBounds, todayIso,
 } from '../../services/financeAnalytics';
 import {
   PAYMENT_METHODS, TREATMENTS, categoryLabel, categoryOf, groupOf, groupedCategories,
@@ -18,7 +18,11 @@ import CountrySelect from '../shared/CountrySelect';
 import { INDIAN_STATES } from '../../data/indianStates';
 import { Modal, ReceiptField, Stat } from './financeUi';
 import ProjectPicker from '../shared/ProjectPicker';
-import { pickerFromAllocations, pickerFor, saveSplitFromPicker, friendlyError } from '../../services/projectService';
+import {
+  pickerFromAllocations, pickerFor, saveSplitFromPicker, friendlyError, canSeeFinancials,
+} from '../../services/projectService';
+import { projectLabel } from '../../services/projectAnalytics';
+import { GENERAL, rowsFor, splitTotals, withParts } from '../../services/ledgerSplit';
 import { useProjectScope } from '../projects/projectScope';
 import { fmtDate, money, useSection } from './financeHooks';
 import { confirmDialog } from '../../services/confirm';
@@ -62,6 +66,8 @@ const COMMON = () => ({
   quantity: '', unit: '', receipt_path: null, notes: '',
 });
 
+const billBalance = (b) => Math.max(0, Math.round(((Number(b.total) || 0) - (Number(b.amount_paid) || 0)) * 100) / 100);
+
 const blank = (direction) => (direction === 'in'
   ? {
     ...COMMON(), direction: 'in', category: 'product_sales',
@@ -102,12 +108,17 @@ export default function CashBook({ projectId = null }) {
   const vendors = useSection('vendors');
   const employees = useSection('employees');
   const products = useSection('products');
-  const allDocs = useSection('fin_docs');
-  const allPurchases = useSection('purchase_invoices');
-  const docs = scope ? scope.data.docs : allDocs;
-  const purchases = scope ? scope.data.purchases : allPurchases;
   const catalog = useSection('catalog');
   const departments = useSection('departments');
+  const allocations = useSection('project_allocations');
+  const projects = useSection('projects');
+  const bills = useSection('purchase_invoices');
+
+  // On the company ledger every entry is split between the projects it is on
+  // and "General or Others" — office, rent, fuel, a loan. Only for those who
+  // can see project money: without the allocations everything would look
+  // General.
+  const splitting = !scope && canSeeFinancials();
 
   // The taxonomy is reference data shared by every org, so it is fetched rather
   // than held in orgStore's per-tenant cache. `ready` only gates the labels;
@@ -121,6 +132,7 @@ export default function CashBook({ projectId = null }) {
   const [view, setView] = useState('all');
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState('all');
+  const [where, setWhere] = useState('all'); // 'all', GENERAL or a project id
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
@@ -146,15 +158,74 @@ export default function CashBook({ projectId = null }) {
     setParams(next, { replace: true });
   }, [params, setParams, fresh]);
 
+  // Purchase Bills' "Record payment" links here with ?pay_bill=<id>. The
+  // payment is a money-out entry linked to the bill (0080): vendor, type, GST
+  // and project all come from the bill and cannot be changed here — the bill
+  // already counts the cost and its GST, so the entry is cash only.
+  const billAllocations = useCallback((billId) => allocations
+    .filter((a) => a.source_type === 'purchase_invoice' && a.source_id === billId), [allocations]);
+
+  const payBill = useCallback((bill) => {
+    const onProjects = billAllocations(bill.id).map((a) => projects.find((p) => p.id === a.project_id)).filter(Boolean);
+    const vendor = vendors.find((v) => v.id === bill.vendor_id)?.company_name;
+    return {
+      ...blank('out'),
+      purchase_invoice_id: bill.id,
+      vendor_id: bill.vendor_id,
+      category: 'vendor_bill_payment',
+      original_amount: String(billBalance(bill)),
+      description: `Payment for bill ${bill.bill_number}${vendor ? ` — ${vendor}` : ''}`,
+      // The client of the project the bill is on, when it is on just one.
+      client_id: onProjects.length === 1 ? onProjects[0].client_id || '' : '',
+    };
+  }, [billAllocations, projects, vendors]);
+
+  useEffect(() => {
+    const billId = params.get('pay_bill');
+    if (!billId) return;
+    const bill = bills.find((b) => b.id === billId);
+    if (!bill) return; // not loaded yet
+    const next = new URLSearchParams(params);
+    next.delete('pay_bill');
+    setParams(next, { replace: true });
+    if (bill.status === 'void' || billBalance(bill) <= 0) {
+      toast(`Bill ${bill.bill_number} has nothing left to pay`, 'info');
+      return;
+    }
+    setEditing(payBill(bill));
+    setFormError('');
+  }, [params, setParams, bills, payBill, toast]);
+
+  /**
+   * A bill payment's project split, from the bill's own: the same projects, in
+   * the same proportions of what is being paid now.
+   */
+  const billPicker = (bill, amount) => {
+    const allocs = billAllocations(bill.id);
+    if (allocs.length === 0) return null;
+    const base = Number(bill.subtotal) || 0;
+    if ((allocs.length === 1 && allocs[0].mode === 'full') || !(base > 0)) {
+      return { mode: 'single', rows: [{ project_id: allocs[0].project_id, amount: '' }], touched: true };
+    }
+    return {
+      mode: 'split',
+      touched: true,
+      rows: allocs.map((a) => ({
+        project_id: a.project_id,
+        amount: String(Math.floor(((Number(a.amount) || 0) * amount / base) * 100) / 100),
+      })),
+    };
+  };
+
   const nameOf = (list, id, key = 'name') => list.find((x) => x.id === id)?.[key] || '';
 
   /** Both tables as one list of ledger rows, newest first. */
-  const rows = useMemo(() => {
+  const allRows = useMemo(() => {
     const partyIn = (e) => nameOf(clients, e.client_id, 'name');
     const partyOut = (e) => nameOf(vendors, e.vendor_id, 'company_name')
       || nameOf(employees, e.employee_id, 'name')
       || nameOf(products, e.product_id, 'name');
-    return [
+    const merged = [
       ...income.map((e) => ({
         ...e, direction: 'in', day: e.date || e.received_on,
         party: partyIn(e), treatment: rowTreatment(e, 'in'),
@@ -164,7 +235,21 @@ export default function CashBook({ projectId = null }) {
         party: partyOut(e), treatment: rowTreatment(e, 'out'),
       })),
     ].sort((a, b) => String(b.day).localeCompare(String(a.day)));
-  }, [income, expenses, clients, vendors, employees, products]);
+    return splitting ? withParts(merged, allocations) : merged;
+  }, [income, expenses, clients, vendors, employees, products, splitting, allocations]);
+
+  // The rows of the chosen project or of General, at that part's share.
+  const rows = useMemo(() => (splitting ? rowsFor(allRows, where) : allRows), [allRows, splitting, where]);
+
+  const byWhere = useMemo(
+    () => (splitting ? splitTotals(allRows.filter((r) => inRange(r.day, range.from, range.to))) : []),
+    [allRows, splitting, range.from, range.to],
+  );
+  const projectName = (id) => projectLabel(projects.find((p) => p.id === id)) || 'Project';
+  const whereLabel = where === GENERAL ? 'General or Others' : projectName(where);
+  const partsLabel = (r) => (r._parts || [])
+    .map((p) => (p.key === GENERAL ? 'General' : (projects.find((x) => x.id === p.key)?.code || projectName(p.key))))
+    .join(' + ') || 'General';
 
   const groups = useMemo(() => {
     const seen = new Set(rows.map((r) => groupOf(r.category)));
@@ -182,14 +267,12 @@ export default function CashBook({ projectId = null }) {
   }, [rows, range.from, range.to, view, groupFilter, search]);
 
   const flow = useMemo(
-    () => cashFlow({ income, expenses }, range.from, range.to),
-    [income, expenses, range.from, range.to],
+    () => cashFlow({
+      income: rows.filter((r) => r.direction === 'in'),
+      expenses: rows.filter((r) => r.direction === 'out'),
+    }, range.from, range.to),
+    [rows, range.from, range.to],
   );
-  const pl = useMemo(
-    () => profitAndLoss({ docs, purchases, expenses, income }, range.from, range.to),
-    [docs, purchases, expenses, income, range.from, range.to],
-  );
-
   const exportCsv = () => {
     const body = filtered.map((r) => [
       r.day,
@@ -214,12 +297,14 @@ export default function CashBook({ projectId = null }) {
       r.direction === 'out' ? nameOf(departments, r.department_id) : '',
       r.direction === 'out' ? (r.billable ? 'Billable' : '') : '',
       r.direction === 'in' ? nameOf(catalog, r.catalog_item_id) : '',
+      ...(splitting ? [partsLabel(r)] : []),
     ]);
     downloadCsv(
-      `cash-book-${range.from || 'start'}-to-${range.to || 'today'}.csv`,
+      `general-ledger-${range.from || 'start'}-to-${range.to || 'today'}.csv`,
       ['Date', 'Direction', 'Category', 'Treatment', 'Description', 'Party', 'Method', 'Reference',
         'Amount (INR)', 'GST (INR)', 'GST rate %', 'GST kind', 'Place of supply', 'Country',
-        'Currency', 'Original amount', 'FX rate', 'Quantity', 'Unit', 'Department', 'Billable', 'Product'],
+        'Currency', 'Original amount', 'FX rate', 'Quantity', 'Unit', 'Department', 'Billable', 'Product',
+        ...(splitting ? ['Project'] : [])],
       body,
     );
   };
@@ -262,10 +347,22 @@ export default function CashBook({ projectId = null }) {
     setFormError('');
   };
 
+  // The bill this entry pays, and how much of it is still open to this entry
+  // (an edit may move its own amount up to the balance plus what it paid).
+  const payingBill = editing?.purchase_invoice_id ? bills.find((b) => b.id === editing.purchase_invoice_id) : null;
+  const payableNow = payingBill
+    ? billBalance(payingBill) + (editing.id ? Number(allExpenses.find((x) => x.id === editing.id)?.amount) || 0 : 0)
+    : 0;
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!editing.description.trim()) { setFormError('Say what this was for.'); return; }
     if (!(Number(editing.original_amount) > 0)) { setFormError('Enter an amount greater than zero.'); return; }
+    if (editing.purchase_invoice_id && !payingBill) { setFormError('The bill this pays could not be found. Reload and try again.'); return; }
+    if (payingBill && Number(editing.original_amount) > payableNow + 0.005) {
+      setFormError(`At most the bill's balance, ${money(payableNow, 2)}.`);
+      return;
+    }
     if (!(Number(editing.fx_rate) > 0)) { setFormError('Enter an exchange rate greater than zero.'); return; }
     if (Number(editing.tax_amount || 0) > baseAmount) {
       setFormError('The GST cannot be more than the amount it is part of.');
@@ -278,7 +375,10 @@ export default function CashBook({ projectId = null }) {
     // it merges the two tables into one ledger, not columns. orgStore's toRow
     // would drop them anyway; they are stripped here so the optimistic cache
     // write does not carry them either.
-    const { direction: _d, day: _day, party: _party, treatment: _t, _picker: picker, _share: _s, _full: _f, ...data } = editing;
+    const { direction: _d, day: _day, party: _party, treatment: _t, _picker: chosen, _share: _s, _full: _f, _parts: _p, ...data } = editing;
+    // A bill payment is paid, in rupees, and split the way the bill is.
+    if (payingBill) Object.assign(data, { currency: 'INR', fx_rate: 1, tax_amount: 0, tax_rate: 0, status: 'paid', billable: false });
+    const picker = payingBill ? billPicker(payingBill, Number(editing.original_amount)) : chosen;
     try {
       let id = editing.id;
       if (id) await orgStore.updateItem(section, id, data);
@@ -293,7 +393,10 @@ export default function CashBook({ projectId = null }) {
         setFormError(`Entry saved, but the project split was not: ${allocErr.message}`);
         return;
       }
-      toast(editing.id ? 'Entry updated' : 'Entry recorded', 'success');
+      if (payingBill) orgStore.refreshSection('purchase_invoices');
+      toast(payingBill
+        ? (editing.id ? 'Bill payment updated' : `Payment recorded against bill ${payingBill.bill_number}`)
+        : (editing.id ? 'Entry updated' : 'Entry recorded'), 'success');
       setEditing(null);
     } catch (err) {
       // An edit that would leave the entry worth less than its project split
@@ -308,6 +411,8 @@ export default function CashBook({ projectId = null }) {
     if (!(await confirmDialog({ title: 'Delete entry', message: `Are you sure you want to delete “${r.description}”? This cannot be undone.` }))) return;
     try {
       await orgStore.removeItem(SECTION[r.direction], r.id);
+      // Deleting a bill payment reopens that much of the bill (0080).
+      if (r.purchase_invoice_id) orgStore.refreshSection('purchase_invoices');
       if (r.receipt_path) receiptService.remove(r.receipt_path);
       toast('Entry deleted', 'success');
     } catch (err) {
@@ -330,19 +435,53 @@ export default function CashBook({ projectId = null }) {
           sub={flow.pending > 0 ? `${money(flow.pending)} not paid yet` : undefined}
           onClick={() => setView('out')} />
         <Stat icon={<Wallet size={15} />} label={flow.net >= 0 ? 'Net cash in' : 'Net cash out'}
-          value={money(Math.abs(flow.net))} accent={flow.net >= 0 ? 'var(--success)' : 'var(--error)'} />
-        <Stat icon={<Scale size={15} />} label="Profit for the same period"
-          value={money(pl.net)} accent={pl.net >= 0 ? 'var(--success)' : 'var(--error)'}
-          sub={`on ${money(pl.income)} of income`} />
+          value={money(Math.abs(flow.net))} accent={flow.net >= 0 ? 'var(--success)' : 'var(--error)'}
+          sub={splitting && where !== 'all' ? whereLabel : undefined} />
       </div>
 
-      <p className="prod-perf-note">
-        The two are not the same number, and the gap is the point. <strong>Cash</strong> is everything
-        that moved — including funding taken in, assets bought, loans repaid, drawings and tax
-        remitted. <strong>Profit</strong> counts only what was earned against what it cost, net of GST,
-        and includes invoices and vendor bills that this page does not list. Each entry below says
-        which of the two it touches.
-      </p>
+      {splitting && (
+        <div className="prod-perf-table-wrap" style={{ marginBottom: '1rem' }}>
+          <table className="prod-perf-table">
+            <caption style={{ textAlign: 'left', fontWeight: 600, padding: '0.6rem 0.75rem' }}>
+              Projects and General or Others
+              {range.from ? ` · ${fmtDate(range.from)} to ${fmtDate(range.to)}` : ' · all time'}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Where the money went</th>
+                <th scope="col" className="num">Money in</th>
+                <th scope="col" className="num">Money out</th>
+                <th scope="col" className="num">Net</th>
+                <th scope="col" className="num">Entries</th>
+              </tr>
+            </thead>
+            <tbody>
+              {byWhere.map((b) => {
+                const general = b.key === GENERAL;
+                const active = where === b.key;
+                return (
+                  <tr key={b.key} style={active ? { background: 'var(--surface-hover, rgba(0,0,0,0.04))' } : undefined}>
+                    <td>
+                      <button type="button" className="prod-btn-ghost" aria-pressed={active}
+                        style={{ padding: 0, border: 0, background: 'none', textAlign: 'left', fontWeight: active ? 700 : 500 }}
+                        onClick={() => setWhere(active ? 'all' : b.key)}>
+                        {general ? 'General or Others' : projectName(b.key)}
+                      </button>
+                      {general && (
+                        <div className="prod-perf-meta">Not for any project — office expenses, petrol, rent, loans, credits</div>
+                      )}
+                    </td>
+                    <td className="num" style={{ color: 'var(--success)' }}>{money(b.moneyIn, 2)}</td>
+                    <td className="num" style={{ color: 'var(--error)' }}>{money(b.moneyOut, 2)}</td>
+                    <td className="num strong">{money(b.net, 2)}</td>
+                    <td className="num">{b.entries}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="prod-toolbar">
         {PRESETS.map((p) => (
@@ -363,7 +502,7 @@ export default function CashBook({ projectId = null }) {
       <div className="prod-toolbar">
         <div className="prod-search">
           <Search size={14} aria-hidden="true" />
-          <input aria-label="Search the cash book" value={search} onChange={(e) => setSearch(e.target.value)}
+          <input aria-label="Search the general ledger" value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Search description, party, reference..." />
           {search && (
             <button type="button" onClick={() => setSearch('')} className="prod-search-clear"
@@ -383,6 +522,15 @@ export default function CashBook({ projectId = null }) {
           <option value="all">All reasons</option>
           {groups.map((g) => <option key={g} value={g}>{g}</option>)}
         </select>
+        {splitting && (
+          <select aria-label="Filter by project or general" className="prod-select" value={where}
+            onChange={(e) => setWhere(e.target.value)}>
+            <option value="all">Projects and general</option>
+            <option value={GENERAL}>General or Others</option>
+            {projects.slice().sort((a, b) => projectName(a.id).localeCompare(projectName(b.id)))
+              .map((p) => <option key={p.id} value={p.id}>{projectName(p.id)}</option>)}
+          </select>
+        )}
         <button type="button" className="prod-btn-ghost" onClick={exportCsv} disabled={filtered.length === 0}>
           <Download size={15} aria-hidden="true" /> Export CSV
         </button>
@@ -399,7 +547,7 @@ export default function CashBook({ projectId = null }) {
       {filtered.length === 0 ? (
         <div className="prod-empty">
           <Banknote size={40} strokeWidth={1} aria-hidden="true" />
-          <p>{rows.length === 0 ? (scope ? 'Nothing recorded against this project yet' : 'Nothing in the cash book yet') : 'Nothing in this period or filter'}</p>
+          <p>{rows.length === 0 ? (scope ? 'Nothing recorded against this project yet' : 'Nothing in the general ledger yet') : 'Nothing in this period or filter'}</p>
           <span>
             Record cash that came in without an invoice and anything you spent — on product, on
             labour, on the office, on tax. Both sides land in Profit &amp; Loss and in the Tax
@@ -410,13 +558,14 @@ export default function CashBook({ projectId = null }) {
         <div className="prod-perf-table-wrap">
           <table className="prod-perf-table">
             <caption className="sr-only">
-              Cash book entries{range.from ? ` from ${fmtDate(range.from)} to ${fmtDate(range.to)}` : ', all time'}
+              General ledger entries{range.from ? ` from ${fmtDate(range.from)} to ${fmtDate(range.to)}` : ', all time'}
             </caption>
             <thead>
               <tr>
                 <th scope="col">Date</th>
                 <th scope="col">Entry</th>
                 <th scope="col">Party</th>
+                {splitting && <th scope="col">Project</th>}
                 <th scope="col">Country</th>
                 <th scope="col">Method</th>
                 <th scope="col" className="num">In</th>
@@ -429,6 +578,7 @@ export default function CashBook({ projectId = null }) {
               {filtered.map((r) => {
                 const t = TREATMENTS[r.treatment];
                 const linked = r.direction === 'in' && r.document_id;
+                const billPaid = r.direction === 'out' && r.purchase_invoice_id;
                 return (
                   <tr key={`${r.direction}-${r.id}`} style={r.status === 'pending' ? { opacity: 0.65 } : undefined}>
                     <td className="prod-perf-date">{fmtDate(r.day)}</td>
@@ -449,10 +599,11 @@ export default function CashBook({ projectId = null }) {
                         {r.place_of_supply ? ` · ${r.place_of_supply}` : ''}
                         {r.reference ? ` · ${r.reference}` : ''}
                         {r.status === 'pending' ? ' · not paid yet' : ''}
-                        {r._share < 1 ? ` · this project’s share of ${money(r._full.amount, 2)}` : ''}
+                        {r._share < 1 ? ` · ${where === GENERAL ? 'the general' : 'this project’s'} share of ${money(r._full.amount, 2)}` : ''}
                       </div>
                     </td>
                     <td>{r.party || '—'}</td>
+                    {splitting && <td style={{ fontSize: '0.75rem' }}>{partsLabel(r)}</td>}
                     <td style={{ fontSize: '0.75rem' }}>{r.country_code || '—'}</td>
                     <td style={{ fontSize: '0.75rem' }}>{methodLabel(r.payment_method)}</td>
                     <td className="num strong" style={{ color: r.direction === 'in' ? 'var(--success)' : undefined }}>
@@ -462,8 +613,9 @@ export default function CashBook({ projectId = null }) {
                       {r.direction === 'out' ? money(r.amount, 2) : ''}
                     </td>
                     <td style={{ fontSize: '0.75rem' }}
-                      title={linked ? 'Recorded against an invoice, which already counts it' : t?.note}>
-                      {linked ? 'Invoice receipt' : (t?.label || r.treatment)}
+                      title={linked ? 'Recorded against an invoice, which already counts it'
+                        : billPaid ? 'Pays a purchase bill, which already counts the cost and its GST' : t?.note}>
+                      {linked ? 'Invoice receipt' : billPaid ? 'Bill payment' : (t?.label || r.treatment)}
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       {r.receipt_path && (
@@ -495,8 +647,8 @@ export default function CashBook({ projectId = null }) {
         <Modal
           width={880}
           title={editing.id
-            ? `Edit ${editing.direction === 'in' ? 'money in' : 'money out'}`
-            : `Record money ${editing.direction === 'in' ? 'in' : 'out'}`}
+            ? `Edit ${editing.direction === 'in' ? 'money in' : editing.purchase_invoice_id ? 'bill payment' : 'money out'}`
+            : editing.purchase_invoice_id ? 'Record a bill payment' : `Record money ${editing.direction === 'in' ? 'in' : 'out'}`}
           onClose={() => setEditing(null)}
         >
           <form onSubmit={handleSave} className="prod-modal-body cb-form">
@@ -505,7 +657,16 @@ export default function CashBook({ projectId = null }) {
             {/* Direction is only switchable while creating: moving a saved row
                 between two tables would orphan its id, its receipt and its
                 audit trail. */}
-            {!editing.id && (
+            {payingBill && (
+              <p className="prod-perf-note">
+                Paying bill <strong>{payingBill.bill_number}</strong>
+                {nameOf(vendors, payingBill.vendor_id, 'company_name') ? ` from ${nameOf(vendors, payingBill.vendor_id, 'company_name')}` : ''}
+                {' '}· total {money(payingBill.total, 2)} · already paid {money(payingBill.amount_paid, 2)} · balance {money(billBalance(payingBill), 2)}.
+                {' '}The bill already counts the cost and its GST, so this entry is cash out only.
+              </p>
+            )}
+
+            {!editing.id && !payingBill && (
               <div className="cb-direction" role="group" aria-label="Direction">
                 <button type="button" aria-pressed={editing.direction === 'in'}
                   className={editing.direction === 'in' ? 'active' : ''}
@@ -527,12 +688,15 @@ export default function CashBook({ projectId = null }) {
                 <div className="cb-amount">
                   <span aria-hidden="true">{sym(editing.currency)}</span>
                   <input id="cb-amount" type="number" min="0.01" step="0.01" required autoFocus
-                    inputMode="decimal" placeholder="0"
+                    inputMode="decimal" placeholder="0" max={payingBill ? payableNow : undefined}
                     value={editing.original_amount}
                     onChange={(e) => set('original_amount', e.target.value)} />
                 </div>
                 {editing.currency !== 'INR' && (
                   <p className="prod-field-note">Recorded as {money(baseAmount, 2)} at the rate under More details.</p>
+                )}
+                {payingBill && (
+                  <p className="prod-field-note">The bill's balance. Lower it for a part payment.</p>
                 )}
               </div>
 
@@ -551,7 +715,7 @@ export default function CashBook({ projectId = null }) {
 
               <div className="prod-field">
                 <label htmlFor="cb-cat">Type *</label>
-                <select id="cb-cat" value={editing.category} required
+                <select id="cb-cat" value={editing.category} required disabled={!!payingBill}
                   onChange={(e) => set('category', e.target.value)}>
                   {groupedCategories(editing.direction).map((g) => (
                     <optgroup key={g.label} label={g.label}>
@@ -581,13 +745,37 @@ export default function CashBook({ projectId = null }) {
               ) : (
                 <div className="prod-field">
                   <label htmlFor="cb-vendor">Paid to</label>
-                  <select id="cb-vendor" value={editing.vendor_id || ''}
+                  <select id="cb-vendor" value={editing.vendor_id || ''} disabled={!!payingBill}
                     onChange={(e) => set('vendor_id', e.target.value)}>
                     <option value="">Not a vendor</option>
-                    {vendors.filter((v) => !v.archived_at)
+                    {vendors.filter((v) => !v.archived_at || v.id === editing.vendor_id)
                       .map((v) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
                   </select>
                 </div>
+              )}
+
+              {/* Project-specific or General: asked up front, because it is how
+                  the ledger is read — per project, and everything else. */}
+              {payingBill ? (
+                <div className="prod-field full">
+                  <label>Project or General</label>
+                  <p className="prod-field-note">
+                    {billAllocations(payingBill.id).length === 0
+                      ? 'General or Others, as the bill is.'
+                      : `${billAllocations(payingBill.id).map((a) => projectName(a.project_id)).join(', ')} — from the bill.`}
+                  </p>
+                </div>
+              ) : (
+              <ProjectPicker
+                label="Project or General"
+                noneLabel="General or Others — not for a project"
+                note={editing.direction === 'in' ? 'General: a loan, credits, interest…' : 'General: office expenses, petrol, rent…'}
+                value={editing._picker || pickerFromAllocations(
+                  editing.direction === 'in' ? 'income_entry' : 'expense', editing.id)}
+                onChange={(p) => set('_picker', p)}
+                net={Math.max(0, baseAmount - (Number(editing.tax_amount) || 0))}
+                clientId={editing.client_id || null}
+              />
               )}
 
               <fieldset className="prod-field full cb-fieldset">
@@ -601,6 +789,14 @@ export default function CashBook({ projectId = null }) {
                 </div>
               </fieldset>
 
+              {payingBill ? (
+                <div className="prod-field full">
+                  <label>GST</label>
+                  <p className="prod-field-note">
+                    None on this entry — the bill's input GST of {money(payingBill.tax_amount, 2)} is already in the Tax Summary.
+                  </p>
+                </div>
+              ) : (
               <fieldset className="prod-field full cb-fieldset">
                 <legend>GST {editing.direction === 'in' ? 'collected' : 'paid'}</legend>
                 <div className="cb-chips">
@@ -614,6 +810,7 @@ export default function CashBook({ projectId = null }) {
                   <p className="prod-field-note">{money(Number(editing.tax_amount), 2)} of the amount is GST.</p>
                 )}
               </fieldset>
+              )}
             </div>
 
             {/* — everything else, one click away — */}
@@ -621,7 +818,7 @@ export default function CashBook({ projectId = null }) {
               <div className="prod-form-grid">
                 <div className="prod-field">
                   <label htmlFor="cb-currency">Currency</label>
-                  <select id="cb-currency" value={editing.currency}
+                  <select id="cb-currency" value={editing.currency} disabled={!!payingBill}
                     onChange={(e) => set('currency', e.target.value)}>
                     {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
@@ -636,12 +833,14 @@ export default function CashBook({ projectId = null }) {
                   </div>
                 ) : <div className="prod-field" aria-hidden="true" />}
 
+                {!payingBill && (
                 <div className="prod-field">
                   <label htmlFor="cb-tax">GST amount ({sym(editing.currency)})</label>
                   <input id="cb-tax" type="number" min="0" step="0.01" value={editing.tax_amount}
                     onChange={(e) => set('tax_amount', e.target.value)} />
                   <p className="prod-field-note">Filled from the rate. Change it if the bill rounds differently.</p>
                 </div>
+                )}
 
                 <div className="prod-field">
                   <label htmlFor="cb-ref">Reference</label>
@@ -660,6 +859,7 @@ export default function CashBook({ projectId = null }) {
                   </div>
                 ) : (
                   <>
+                    {!payingBill && (
                     <div className="prod-field">
                       <label htmlFor="cb-employee">Paid to a person</label>
                       <select id="cb-employee" value={editing.employee_id || ''}
@@ -668,6 +868,10 @@ export default function CashBook({ projectId = null }) {
                         {employees.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </select>
                     </div>
+                    )}
+                    {/* Product Planner is retired: its products are only offered
+                        where some already exist, so old expenses keep their link. */}
+                    {!payingBill && (products.length > 0 || editing.product_id) && (
                     <div className="prod-field">
                       <label htmlFor="cb-product">Spent on (product)</label>
                       <select id="cb-product" value={editing.product_id || ''}
@@ -676,6 +880,7 @@ export default function CashBook({ projectId = null }) {
                         {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </select>
                     </div>
+                    )}
                     <div className="prod-field">
                       <label htmlFor="cb-department">Department</label>
                       <select id="cb-department" value={editing.department_id || ''}
@@ -686,18 +891,21 @@ export default function CashBook({ projectId = null }) {
                     </div>
                     <div className="prod-field">
                       <label htmlFor="cb-out-client">For a client</label>
-                      <select id="cb-out-client" value={editing.client_id || ''}
+                      <select id="cb-out-client" value={editing.client_id || ''} disabled={!!payingBill}
                         onChange={(e) => set('client_id', e.target.value)}>
                         <option value="">Not client-specific</option>
                         {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
+                      {!payingBill && (
                       <label className="cb-check">
                         <input type="checkbox" checked={!!editing.billable}
                           disabled={!editing.client_id}
                           onChange={(e) => set('billable', e.target.checked)} />
                         Re-bill it to them
                       </label>
+                      )}
                     </div>
+                    {!payingBill && (
                     <div className="prod-field">
                       <label htmlFor="cb-status">Has it been paid?</label>
                       <select id="cb-status" value={editing.status}
@@ -706,6 +914,7 @@ export default function CashBook({ projectId = null }) {
                         <option value="pending">Not yet — committed</option>
                       </select>
                     </div>
+                    )}
                   </>
                 )}
 
@@ -743,14 +952,6 @@ export default function CashBook({ projectId = null }) {
                     onChange={(e) => set('unit', e.target.value)} />
                 </div>
 
-                <ProjectPicker
-                  value={editing._picker || pickerFromAllocations(
-                    editing.direction === 'in' ? 'income_entry' : 'expense', editing.id)}
-                  onChange={(p) => set('_picker', p)}
-                  net={Math.max(0, baseAmount - (Number(editing.tax_amount) || 0))}
-                  clientId={editing.client_id || null}
-                />
-
                 <div className="prod-field full">
                   <label>Receipt or proof</label>
                   <ReceiptField path={editing.receipt_path}
@@ -769,7 +970,7 @@ export default function CashBook({ projectId = null }) {
             <div className="prod-modal-foot">
               <button type="button" className="prod-btn-ghost" onClick={() => setEditing(null)}>Cancel</button>
               <button type="submit" className="prod-btn-primary" disabled={saving}>
-                {saving ? 'Saving...' : editing.id ? 'Save changes' : 'Record entry'}
+                {saving ? 'Saving...' : editing.id ? 'Save changes' : payingBill ? 'Record payment' : 'Record entry'}
               </button>
             </div>
           </form>
@@ -790,7 +991,7 @@ function MoreDetails({ initialOpen, force, children }) {
       <button type="button" className="cb-more-toggle" aria-expanded={open} disabled={force}
         onClick={() => setOpen((o) => !o)}>
         <span>{open ? 'Fewer details' : 'More details'}</span>
-        <span className="cb-more-hint">currency, reference, country, project, receipt, notes</span>
+        <span className="cb-more-hint">currency, reference, country, receipt, notes</span>
       </button>
       {open && children}
     </div>

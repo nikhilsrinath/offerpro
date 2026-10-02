@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FileText, Award, FileCode, Briefcase, Receipt,
   DollarSign, TrendingUp, ArrowRight, Activity,
-  Building, MapPin, Users, Globe, Clock, Layers, Target,
+  Building, MapPin, Users, Globe, Clock, Target,
   ArrowUpRight, BarChart3, Zap, Calendar, PieChart
 } from 'lucide-react';
 import {
@@ -166,7 +166,6 @@ export default function Dashboard() {
     { id: 'mous', label: 'MoU', desc: 'Establish partnerships', icon: FileCode, color: '#14b8a6' },
     { id: 'invoices', label: 'Invoice', desc: 'Create GST invoices', icon: Receipt, color: '#8b5cf6' },
     { id: 'revenue', label: 'Revenue', desc: 'Track billing & P&L', icon: DollarSign, color: '#ec4899' },
-    { id: 'planner', label: 'Planner', desc: 'Manage products & tasks', icon: Layers, color: '#06b6d4' },
   ];
 
   const TYPE_COLORS = {

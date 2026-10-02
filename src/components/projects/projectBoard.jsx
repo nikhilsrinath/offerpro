@@ -376,19 +376,26 @@ function AskAI({ d, ask, size }) {
 const ALL = ['sm', 'md', 'lg'];
 const SM_MD = ['sm', 'md'];
 
+/* `to`: the project page a widget opens when it is tapped — the section that
+   holds the rest of what it shows. Ask EdgeAI has none: it is a question box. */
+// The finance sections are only there with Project financials; without it the
+// widget says so and has nowhere to go.
+const FIN_TABS = new Set(['billing', 'pl', 'finance']);
+const section = (tab) => ({ d }) => (FIN_TABS.has(tab) && !d.fin ? null : `/projects/${d.project.id}?tab=${tab}`);
+
 export const PROJECT_WIDGETS = [
-    { id: 'p_contract', title: 'Contract', desc: 'Contract value, and how much is billed and collected', icon: Wallet, size: 'sm', sizes: SM_MD, render: Contract },
-    { id: 'p_margin', title: 'Net margin', desc: 'Collected less everything spent on it', icon: TrendingUp, size: 'sm', sizes: SM_MD, render: Margin },
-    { id: 'p_health', title: 'Health', desc: 'On track, at risk or off track — and why', icon: HeartPulse, size: 'sm', sizes: ALL, render: Health },
-    { id: 'p_progress', title: 'Progress', desc: 'How much of the plan is done', icon: CircleDashed, size: 'sm', sizes: SM_MD, render: Progress },
-    { id: 'p_burn', title: 'Budget burn', desc: 'Budget used against time elapsed', icon: Gauge, size: 'md', sizes: SM_MD, render: Burn },
-    { id: 'p_milestones', title: 'Milestones', desc: 'What is due next, and what is late', icon: Flag, size: 'md', sizes: ALL, render: Milestones },
-    { id: 'p_tasks', title: 'Tasks', desc: 'Open, overdue and next due', icon: ListChecks, size: 'sm', sizes: ALL, render: Tasks },
-    { id: 'p_team', title: 'Team', desc: 'Who is on it, and how much of them', icon: Users, size: 'md', sizes: ALL, render: Team },
-    { id: 'p_activity', title: 'Activity', desc: 'The latest changes to the project', icon: History, size: 'md', sizes: ALL, render: Recent },
+    { id: 'p_contract', to: section('billing'), title: 'Contract', desc: 'Contract value, and how much is billed and collected', icon: Wallet, size: 'sm', sizes: SM_MD, render: Contract },
+    { id: 'p_margin', to: section('pl'), title: 'Net margin', desc: 'Collected less everything spent on it', icon: TrendingUp, size: 'sm', sizes: SM_MD, render: Margin },
+    { id: 'p_health', to: section('pm'), title: 'Health', desc: 'On track, at risk or off track — and why', icon: HeartPulse, size: 'sm', sizes: ALL, render: Health },
+    { id: 'p_progress', to: section('milestones'), title: 'Progress', desc: 'How much of the plan is done', icon: CircleDashed, size: 'sm', sizes: SM_MD, render: Progress },
+    { id: 'p_burn', to: section('finance'), title: 'Budget burn', desc: 'Budget used against time elapsed', icon: Gauge, size: 'md', sizes: SM_MD, render: Burn },
+    { id: 'p_milestones', to: section('milestones'), title: 'Milestones', desc: 'What is due next, and what is late', icon: Flag, size: 'md', sizes: ALL, render: Milestones },
+    { id: 'p_tasks', to: section('tasks'), title: 'Tasks', desc: 'Open, overdue and next due', icon: ListChecks, size: 'sm', sizes: ALL, render: Tasks },
+    { id: 'p_team', to: section('team'), title: 'Team', desc: 'Who is on it, and how much of them', icon: Users, size: 'md', sizes: ALL, render: Team },
+    { id: 'p_activity', to: section('activity'), title: 'Activity', desc: 'The latest changes to the project', icon: History, size: 'md', sizes: ALL, render: Recent },
     // Available from the picker.
-    { id: 'p_schedule', title: 'Schedule', desc: 'Days left to the target end', icon: CalendarRange, size: 'sm', sizes: SM_MD, render: Schedule },
-    { id: 'p_documents', title: 'Documents', desc: 'Invoices, records and files linked to it', icon: FileText, size: 'sm', sizes: ['sm'], render: Documents },
+    { id: 'p_schedule', to: section('gantt'), title: 'Schedule', desc: 'Days left to the target end', icon: CalendarRange, size: 'sm', sizes: SM_MD, render: Schedule },
+    { id: 'p_documents', to: section('documents'), title: 'Documents', desc: 'Invoices, records and files linked to it', icon: FileText, size: 'sm', sizes: ['sm'], render: Documents },
     { id: 'p_ask', title: 'Ask EdgeAI', desc: 'A question about this project, straight to the copilot', icon: Sparkles, size: 'md', sizes: ALL, render: AskAI },
 ];
 

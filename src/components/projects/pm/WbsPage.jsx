@@ -1,4 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     Toolbar, Panel, Row, Btn, Seg, Search, Select, Input, Avatar, Status, Empty, Muted,
 } from '../../ui/edge';
@@ -7,10 +8,10 @@ import { useToast } from '../../shared/Toast';
 import { downloadCsv } from '../../../services/financeAnalytics';
 import { levelName, isLeaf, moveWrites, WBS_TEMPLATES, fromDay } from '../../../services/wbs';
 import {
-    usePmData, empName, createNode, applyWrites, pmError, fmtD, STATUS_LABEL,
+    usePmData, empName, createNode, applyWrites, pmError, fmtD, STATUS_LABEL, setImportant,
 } from './pmData';
-import { RowMenu, PersonOptions, Progress, LevelTag, NodeSheet } from './pmUi';
-import { ChevronRight, ChevronDown, Plus } from 'lucide-react';
+import { RowMenu, PersonOptions, Progress, LevelTag, NodeSheet, ImportantStar } from './pmUi';
+import { ChevronRight, ChevronDown, Plus, Star } from 'lucide-react';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Tasks — the Work Breakdown Structure.
@@ -30,6 +31,10 @@ import { ChevronRight, ChevronDown, Plus } from 'lucide-react';
 
    Only work items (nodes without children) carry dates, status and
    progress; every summary above them rolls up.
+
+   An owner or admin stars the tasks that matter most (0077); while open,
+   those are listed under Needs attention on the Projects dashboard and on
+   this project's own dashboard. "Important" narrows the outline to them.
    ══════════════════════════════════════════════════════════════════════════ */
 
 export default function WbsPage({ project }) {
@@ -41,26 +46,40 @@ export default function WbsPage({ project }) {
     const [view, setView] = useState('outline');
     const [query, setQuery] = useState('');
     const [who, setWho] = useState('all');
+    const [starred, setStarred] = useState(false);
     const [collapsed, setCollapsed] = useState(() => new Set());
     const [sheet, setSheet] = useState(null);      // { node } | { parentId }
     const [adding, setAdding] = useState(null);     // parent id, or 'root'
     const [announce, setAnnounce] = useState('');
     const [busy, setBusy] = useState(false);
+    const [params, setParams] = useSearchParams();
+
+    // ?task=<id> (from Needs attention on a dashboard) opens that task, once.
+    const linked = params.get('task');
+    useEffect(() => {
+        if (!linked) return;
+        const node = tree.byId.get(linked);
+        if (!node) return;
+        setSheet({ node });
+        setParams((p) => { const n = new URLSearchParams(p); n.delete('task'); return n; }, { replace: true });
+    }, [linked, tree, setParams]);
 
     // Search and the person filter show the matches and the path to them.
     const shown = useMemo(() => {
         const q = query.trim().toLowerCase();
-        if (!q && who === 'all') return null;
+        if (!q && who === 'all' && !starred) return null;
         const keep = new Set();
         tree.flat.forEach((x) => {
             const hit = (!q || (x.title || '').toLowerCase().includes(q) || tree.code.get(x.id).startsWith(q))
-                && (who === 'all' || (who === 'none' ? !x.assignedTo : x.assignedTo === who));
+                && (who === 'all' || (who === 'none' ? !x.assignedTo : x.assignedTo === who))
+                && (!starred || x.important);
             if (!hit) return;
             let p = x.id;
             while (p) { keep.add(p); p = tree.parentOf.get(p); }
         });
         return keep;
-    }, [tree, query, who]);
+    }, [tree, query, who, starred]);
+    const starCount = tree.flat.filter((x) => x.important).length;
 
     const visible = (x) => (!shown || shown.has(x.id));
     const open = (id) => shown || !collapsed.has(id);
@@ -89,6 +108,13 @@ export default function WbsPage({ project }) {
         try {
             await applyWrites([{ id: node.id, assignedTo: id || null, assignedName: empName(emp) || null }]);
             setAnnounce(`${node.title}: ${empName(emp) || 'unassigned'}`);
+        } catch (e) { toast(pmError(e), 'error'); }
+    };
+
+    const flag = async (node) => {
+        try {
+            await setImportant(node, !node.important);
+            setAnnounce(node.important ? `${node.title} is no longer important` : `${node.title} marked important`);
         } catch (e) { toast(pmError(e), 'error'); }
     };
 
@@ -141,6 +167,12 @@ export default function WbsPage({ project }) {
                     <option value="none">Unassigned</option>
                     {data.employees.map((e) => <option key={e.id} value={e.id}>{empName(e)}</option>)}
                 </Select>
+                {(starCount > 0 || starred) && (
+                    <Btn size="sm" onClick={() => setStarred((v) => !v)} aria-pressed={starred}
+                        title="Show only the tasks marked important">
+                        <Star size={13} fill={starred ? 'currentColor' : 'none'} aria-hidden="true" />Important · {starCount}
+                    </Btn>
+                )}
                 {tree.flat.length > 0 && (
                     <>
                         <Btn size="sm" onClick={expandAll}>Expand all</Btn>
@@ -191,7 +223,7 @@ export default function WbsPage({ project }) {
             ) : view === 'outline' ? (
                 <Outline
                     data={data} visible={visible} open={open} toggle={toggle} adding={adding}
-                    setAdding={setAdding} startAdding={startAdding} move={move} reassign={reassign}
+                    setAdding={setAdding} startAdding={startAdding} move={move} reassign={reassign} flag={flag}
                     busy={busy} onEdit={(node) => setSheet({ node })}
                     onNew={(parentId) => setSheet({ parentId })}
                 />
@@ -259,14 +291,14 @@ function RootCard({ data }) {
 
 const COLS = 'minmax(280px, 2.4fr) 180px 150px 130px 120px 150px';
 
-function Outline({ data, visible, open, toggle, adding, setAdding, startAdding, move, reassign, busy, onEdit, onNew }) {
+function Outline({ data, visible, open, toggle, adding, setAdding, startAdding, move, reassign, flag, busy, onEdit, onNew }) {
     const t = useT();
     const { tree, can } = data;
 
     const rows = [];
     const walk = (list) => list.forEach((x) => {
         if (!visible(x)) return;
-        rows.push(<OutlineRow key={x.id} node={x} {...{ data, open, toggle, startAdding, move, reassign, busy, onEdit, onNew }} />);
+        rows.push(<OutlineRow key={x.id} node={x} {...{ data, open, toggle, startAdding, move, reassign, flag, busy, onEdit, onNew }} />);
         const kids = tree.kids.get(x.id) || [];
         if (open(x.id)) walk(kids);
         if (adding === x.id) {
@@ -303,7 +335,7 @@ function Outline({ data, visible, open, toggle, adding, setAdding, startAdding, 
     );
 }
 
-function OutlineRow({ node, data, open, toggle, startAdding, move, reassign, busy, onEdit, onNew }) {
+function OutlineRow({ node, data, open, toggle, startAdding, move, reassign, flag, busy, onEdit, onNew }) {
     const t = useT();
     const { tree, roll, can, sched } = data;
     const depth = tree.depth.get(node.id);
@@ -361,6 +393,7 @@ function OutlineRow({ node, data, open, toggle, startAdding, move, reassign, bus
                             textDecoration: leaf && node.status === 'done' ? 'line-through' : 'none',
                             textDecorationColor: t.ghost,
                         }}>{node.title}</button>
+                    <ImportantStar data={data} node={node} />
                     {!leaf && <LevelTag depth={depth} />}
                 </span>
             </div>
@@ -406,6 +439,7 @@ function OutlineRow({ node, data, open, toggle, startAdding, move, reassign, bus
                 )}
                 <RowMenu label={`Actions for ${node.title}`} items={[
                     { label: 'Open…', onSelect: () => onEdit(node) },
+                    can.flag && { label: node.important ? 'Unmark important' : 'Mark important — Needs attention', onSelect: () => flag(node) },
                     can.create && { label: `Add ${levelName(depth + 1).toLowerCase()} with details…`, onSelect: () => onNew(node.id) },
                     can.edit && { label: 'Move up', hint: 'Alt ↑', disabled: busy || idx <= 0, onSelect: () => move(node, 'up') },
                     can.edit && { label: 'Move down', hint: 'Alt ↓', disabled: busy || idx >= sibs.length - 1, onSelect: () => move(node, 'down') },
@@ -537,6 +571,7 @@ function Branch({ node, data, visible, open, toggle, onEdit, onNew, top = false 
                     <Row gap={6} style={{ marginBottom: 3 }}>
                         <span style={{ fontSize: 10.5, color: t.faint, fontVariantNumeric: 'tabular-nums' }}>{tree.code.get(node.id)}</span>
                         <LevelTag depth={depth} />
+                        {node.important && <Star size={11} fill="currentColor" role="img" aria-label="Important" style={{ color: t.down }} />}
                         {critical && <span style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.down, marginLeft: 'auto' }}>CRITICAL</span>}
                     </Row>
                     <div style={{

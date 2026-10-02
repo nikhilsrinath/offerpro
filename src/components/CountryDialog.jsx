@@ -474,7 +474,7 @@ export default function CountryDialog({
                         { id: 'customers', label: 'Customers', count: m.customers.length },
                         { id: 'documents', label: 'Documents', count: m.docs.length },
                         { id: 'products', label: 'Products', count: m.products.length },
-                        { id: 'cash', label: 'Cash book', count: cash.entries.length },
+                        { id: 'cash', label: 'General ledger', count: cash.entries.length },
                     ]} />
 
                     {/* flex:1 + minHeight:0 is what lets this pane scroll; without
@@ -828,7 +828,7 @@ export default function CountryDialog({
                         padding: '7px 12px', borderTop: '1px solid ' + t.line,
                     }}>
                         <span style={{ fontSize: 10.5, color: t.faint, letterSpacing: '0.08em', marginRight: 6 }}>OPEN</span>
-                        {[['Customers', '/customers'], ['Invoices', '/invoices'], ['Cash book', '/cashbook'], ['Revenue', '/revenue']].map(([label, to]) => (
+                        {[['Customers', '/customers'], ['Invoices', '/invoices'], ['General ledger', '/cashbook'], ['Revenue', '/revenue']].map(([label, to]) => (
                             <button key={to} type="button" className="nm-nav" onClick={() => go(to)} style={{
                                 display: 'inline-flex', alignItems: 'center', gap: 3, fontFamily: font, fontSize: 12,
                                 padding: '4px 7px', border: 'none', borderRadius: 5,

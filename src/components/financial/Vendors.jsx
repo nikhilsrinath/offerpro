@@ -9,10 +9,16 @@ import { Stat, Modal } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
 import { todayIso } from '../../services/financeAnalytics';
 import { confirmDialog } from '../../services/confirm';
+import BelongsToSelect, { BelongsToFilter } from '../shared/BelongsToSelect';
+import {
+  GENERAL, splitChoice, vendorChoice, vendorProjectIds, inScope, choiceLabel, assignVendorProject, saveWithBelongsTo,
+} from '../../services/belongsTo';
 
 const BLANK = {
   company_name: '', contact_name: '', email: '', phone: '', address: '', state: '',
   gstin: '', payment_terms_days: 30, category: '', notes: '',
+  // The Belongs to dropdown: GENERAL, INTERNAL or a project id.
+  belongs: GENERAL,
 };
 const TERMS = [0, 7, 15, 30, 45, 60, 90];
 const GSTIN_RE = /^[0-9A-Z]{15}$/;
@@ -23,8 +29,13 @@ export default function Vendors() {
   const vendors = useSection('vendors');
   const purchases = useSection('purchase_invoices');
   const expenses = useSection('expenses');
+  const links = useSection('project_vendors');
+  const projects = useSection('projects');
 
   const [search, setSearch] = useState('');
+  const [scope, setScope] = useState('');
+  // What the Belongs to dropdown started on, so an edit that changes it moves the project link.
+  const [fromChoice, setFromChoice] = useState(GENERAL);
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -62,10 +73,11 @@ export default function Vendors() {
     const q = search.trim().toLowerCase();
     return vendors
       .filter((v) => (showArchived ? !!v.archived_at : !v.archived_at))
+      .filter((v) => inScope(scope, vendorProjectIds(v.id, links), v.belongs_to))
       .filter((v) => !q || [v.company_name, v.contact_name, v.email, v.gstin, v.category]
         .some((f) => String(f || '').toLowerCase().includes(q)))
       .sort((a, b) => a.company_name.localeCompare(b.company_name));
-  }, [vendors, search, showArchived]);
+  }, [vendors, search, showArchived, scope, links]);
 
   const totals = useMemo(() => Object.values(ledger).reduce((a, l) => ({
     outstanding: a.outstanding + l.outstanding, overdue: a.overdue + l.overdue, billed: a.billed + l.billed,
@@ -81,10 +93,20 @@ export default function Vendors() {
     setSaving(true);
     setFormError('');
     try {
-      const data = { ...editing, gstin };
-      if (editing.id) await orgStore.updateItem('vendors', editing.id, data);
-      else await orgStore.addItem('vendors', data);
-      toast(editing.id ? 'Vendor updated' : 'Vendor added', 'success');
+      const { belongs, ...rest } = editing;
+      const data = { ...rest, gstin, belongs_to: splitChoice(belongs).belongs_to };
+      const save = (d) => (editing.id ? orgStore.updateItem('vendors', editing.id, d) : orgStore.addItem('vendors', d));
+      const { result, skipped } = await saveWithBelongsTo(save, data, ['belongs_to']);
+      const vendorId = editing.id || result?.id;
+      let linkFailed = false;
+      try {
+        if (vendorId) await assignVendorProject(vendorId, belongs, editing.id ? fromChoice : GENERAL, links);
+      } catch {
+        linkFailed = true;
+      }
+      if (linkFailed) toast("Vendor saved, but it could not be added to the project — try again from the project's Vendor Directory.", 'error');
+      else if (skipped) toast('Vendor saved. Internal / General needs database update 0078 before it is kept.', 'info');
+      else toast(editing.id ? 'Vendor updated' : 'Vendor added', 'success');
       setEditing(null);
     } catch (err) {
       setFormError(err.message || 'Could not save the vendor.');
@@ -137,7 +159,8 @@ export default function Vendors() {
         <button aria-pressed={!!showArchived} className={`pro-chip ${showArchived ? 'active' : ''}`} onClick={() => setShowArchived((v) => !v)}>
           <Archive size={12} /> Archived
         </button>
-        <button className="prod-add-btn" onClick={() => { setEditing({ ...BLANK }); setFormError(''); }}>
+        <BelongsToFilter value={scope} onChange={setScope} className="prod-select" />
+        <button className="prod-add-btn" onClick={() => { const start = scope || GENERAL; setEditing({ ...BLANK, belongs: start }); setFromChoice(GENERAL); setFormError(''); }}>
           <Plus size={15} /> New vendor
         </button>
       </div>
@@ -145,7 +168,7 @@ export default function Vendors() {
       {filtered.length === 0 ? (
         <div className="prod-empty">
           <Truck size={40} strokeWidth={1} />
-          <p>{search ? 'No vendors match that search' : showArchived ? 'No archived vendors' : 'No vendors yet'}</p>
+          <p>{search || scope ? 'No vendors match that search' : showArchived ? 'No archived vendors' : 'No vendors yet'}</p>
           <span>Add the suppliers you buy from to record their bills and see what you owe them.</span>
         </div>
       ) : (
@@ -154,6 +177,7 @@ export default function Vendors() {
             <thead>
               <tr>
                 <th>Vendor</th>
+                <th>Belongs to</th>
                 <th>Contact</th>
                 <th>GSTIN</th>
                 <th>Terms</th>
@@ -166,11 +190,16 @@ export default function Vendors() {
             <tbody>
               {filtered.map((v) => {
                 const l = ledger[v.id] || {};
+                const onProjects = vendorProjectIds(v.id, links);
                 return (
                   <tr key={v.id} onClick={() => setViewing(v)} style={{ cursor: 'pointer' }}>
                     <td>
                       <div className="prod-perf-name">{v.company_name}</div>
                       <div className="prod-perf-meta">{v.category || 'Uncategorised'}{v.state ? ` · ${v.state}` : ''}</div>
+                    </td>
+                    <td>
+                      <div>{choiceLabel(vendorChoice(v, links), projects)}</div>
+                      {onProjects.length > 1 && <div className="prod-perf-meta">+{onProjects.length - 1} more project{onProjects.length > 2 ? 's' : ''}</div>}
                     </td>
                     <td>
                       <div>{v.contact_name || '—'}</div>
@@ -182,7 +211,7 @@ export default function Vendors() {
                     <td className="num strong" style={l.overdue > 0 ? { color: 'var(--error)' } : undefined}>{money(l.outstanding)}</td>
                     <td className="prod-perf-date">{fmtDate(l.last)}</td>
                     <td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
-                      <button className="fin-list-action-btn" title="Edit" onClick={() => { setEditing({ ...v }); setFormError(''); }} aria-label="Edit"><Pencil size={14} /></button>
+                      <button className="fin-list-action-btn" title="Edit" onClick={() => { const start = vendorChoice(v, links); setEditing({ ...v, belongs: start }); setFromChoice(start); setFormError(''); }} aria-label="Edit"><Pencil size={14} /></button>
                       <button className="fin-list-action-btn" title={v.archived_at ? 'Restore' : 'Archive'} onClick={() => handleArchive(v)}>
                         {v.archived_at ? <ArchiveRestore size={14} /> : <Archive size={14} />}
                       </button>
@@ -206,6 +235,11 @@ export default function Vendors() {
               <div className="prod-field full">
                 <label>Company name *</label>
                 <input aria-label="Company name" value={editing.company_name} onChange={(e) => set('company_name', e.target.value)} autoFocus required />
+              </div>
+              <div className="prod-field full">
+                <label htmlFor="vendor-belongs">Belongs to</label>
+                <BelongsToSelect id="vendor-belongs" value={editing.belongs} onChange={(v) => set('belongs', v)} />
+                <p className="prod-field-note">A project's vendors also show in that project's Vendor Directory.</p>
               </div>
               <div className="prod-field">
                 <label>Contact person</label>
