@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Plus, Search, X, FileInput, Pencil, Trash2, CheckCircle, Paperclip, IndianRupee, AlertTriangle, Ban,
+  Plus, Search, X, FileInput, Pencil, Trash2, CheckCircle, Paperclip, IndianRupee, AlertTriangle, Ban, RotateCcw,
 } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
 import { receiptService } from '../../services/receiptService';
@@ -14,9 +14,11 @@ import ProjectPicker from '../shared/ProjectPicker';
 import { pickerFromAllocations, pickerFor, saveSplitFromPicker, friendlyError } from '../../services/projectService';
 import { useProjectScope } from '../projects/projectScope';
 import { confirmDialog } from '../../services/confirm';
+import CashEntryModal from './CashEntryModal';
+import { billPaymentEntry } from './cashEntry';
 
 const CATEGORIES = ['Operations', 'Inventory', 'Software', 'Hardware', 'Marketing', 'Travel', 'Utilities', 'Professional fees', 'Rent', 'Other'];
-const FILTERS = ['all', 'unpaid', 'partially_paid', 'overdue', 'paid', 'void'];
+const FILTERS = ['all', 'paid', 'unpaid', 'partially_paid', 'overdue', 'void'];
 
 const blank = (vendorId = '') => ({
   vendor_id: vendorId, bill_number: '', bill_date: '', due_date: '',
@@ -50,6 +52,7 @@ export default function PurchaseInvoices({ projectId = null }) {
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [paying, setPaying] = useState(null);
 
   // Vendors page links here with ?vendor=<id>&new=1 to open a bill for them.
   useEffect(() => {
@@ -155,11 +158,12 @@ export default function PurchaseInvoices({ projectId = null }) {
   };
 
   // A payment is a money-out entry in the General Ledger, linked to the bill
-  // (0080): the Cash Out form opens with the bill's balance, vendor, project
-  // and GST already settled, and saving it moves the bill's amount paid.
-  const handlePay = (b) => navigate(projectId
-    ? `/projects/${projectId}?tab=cashbook&pay_bill=${b.id}`
-    : `/cashbook?pay_bill=${b.id}`);
+  // (0080). Its form opens here, over the bill list, with the bill's balance,
+  // vendor, project and GST already settled; saving it moves the amount paid.
+  const handlePay = (b) => {
+    if (balance(b) <= 0.009) { toast(`Bill ${b.bill_number} has nothing left to pay`, 'info'); return; }
+    setPaying(billPaymentEntry(b, { allocations, projects }));
+  };
 
   const handleVoid = async (b) => {
     if (!(await confirmDialog({ title: 'Void bill', message: `Void bill ${b.bill_number}? It will be excluded from payables, P&L and tax.`, confirmLabel: 'Void' }))) return;
@@ -171,22 +175,41 @@ export default function PurchaseInvoices({ projectId = null }) {
     }
   };
 
-  const handleDelete = async (b) => {
-    // Its payments are real money out; they go first, on purpose (0080).
-    if (expenses.some((e) => e.purchase_invoice_id === b.id)) {
-      toast(`Bill ${b.bill_number} has payments in the General Ledger. Delete those first.`, 'error');
-      return;
-    }
-    if (!(await confirmDialog({ title: 'Delete bill', message: `Are you sure you want to delete bill ${b.bill_number}? This cannot be undone.` }))) return;
+  // Back to a live bill. The database works the status out again from what
+  // has been paid (unpaid, partially paid or paid).
+  const handleUnvoid = async (b) => {
     try {
+      await orgStore.updateItem('purchase_invoices', b.id, { status: 'unpaid' });
+      toast(`Bill ${b.bill_number} restored`, 'success');
+    } catch (err) {
+      toast(`Could not unvoid it: ${err.message}`, 'error');
+    }
+  };
+
+  const handleDelete = async (b) => {
+    // Its payments are real money out in the General Ledger (0080). The FK
+    // keeps a paid bill from going alone, so the payments go first, named
+    // in the confirmation so nobody loses ledger entries by surprise.
+    const payments = expenses.filter((e) => e.purchase_invoice_id === b.id);
+    const message = payments.length
+      ? `Bill ${b.bill_number} has ${payments.length} payment${payments.length > 1 ? 's' : ''} in the General Ledger `
+        + `(${payments.map((e) => `${money(e.amount, 2)} on ${fmtDate(e.date || e.incurred_on)}`).join(', ')}). `
+        + `Deleting the bill deletes ${payments.length > 1 ? 'them' : 'it'} too. This cannot be undone.`
+      : `Are you sure you want to delete bill ${b.bill_number}? This cannot be undone.`;
+    if (!(await confirmDialog({ title: 'Delete bill', message, confirmLabel: payments.length ? 'Delete bill and payments' : undefined }))) return;
+    try {
+      for (const e of payments) {
+        await orgStore.removeItem('expenses', e.id);
+        if (e.receipt_path) receiptService.remove(e.receipt_path);
+      }
       await orgStore.removeItem('purchase_invoices', b.id);
       receiptService.remove(b.receipt_path);
       toast('Bill deleted', 'success');
     } catch (err) {
-      orgStore.refreshSection('purchase_invoices'); // the optimistic removal did not happen
-      toast(err.code === '23503'
-        ? 'This bill has payments in the General Ledger. Delete those first.'
-        : `Could not delete: ${err.message}`, 'error');
+      // The optimistic removals did not all happen; show what is really there.
+      orgStore.refreshSection('purchase_invoices');
+      orgStore.refreshSection('expenses');
+      toast(`Could not delete bill ${b.bill_number}: ${err.message}`, 'error');
     }
   };
 
@@ -239,10 +262,10 @@ export default function PurchaseInvoices({ projectId = null }) {
           <table className="prod-perf-table">
             <thead>
               <tr>
+                <th>Date</th>
+                {!projectId && <th>Project</th>}
                 <th>Bill</th>
                 <th>Vendor</th>
-                {!projectId && <th>Project</th>}
-                <th>Date</th>
                 <th>Due</th>
                 <th className="num">Total</th>
                 <th className="num">GST</th>
@@ -256,14 +279,7 @@ export default function PurchaseInvoices({ projectId = null }) {
                 const late = overdue(b);
                 return (
                   <tr key={b.id} style={b.status === 'void' ? { opacity: 0.5 } : undefined}>
-                    <td>
-                      <div className="prod-perf-name">{b.bill_number}</div>
-                      <div className="prod-perf-meta">
-                        {b.category}{b.description ? ` · ${b.description}` : ''}
-                        {b._share < 1 ? ` · ${money(b._shareNet, 2)} of it on this project` : ''}
-                      </div>
-                    </td>
-                    <td>{vendorById[b.vendor_id]?.company_name || '—'}</td>
+                    <td className="prod-perf-date">{fmtDate(b.bill_date)}</td>
                     {!projectId && (() => {
                       const on = projectsByBill[b.id] || [];
                       return (
@@ -278,7 +294,14 @@ export default function PurchaseInvoices({ projectId = null }) {
                         </td>
                       );
                     })()}
-                    <td className="prod-perf-date">{fmtDate(b.bill_date)}</td>
+                    <td>
+                      <div className="prod-perf-name">{b.bill_number}</div>
+                      <div className="prod-perf-meta">
+                        {b.category}{b.description ? ` · ${b.description}` : ''}
+                        {b._share < 1 ? ` · ${money(b._shareNet, 2)} of it on this project` : ''}
+                      </div>
+                    </td>
+                    <td>{vendorById[b.vendor_id]?.company_name || '—'}</td>
                     <td className="prod-perf-date" style={late ? { color: 'var(--error)', fontWeight: 600 } : undefined}>
                       {fmtDate(b.due_date)}{late ? ' · overdue' : ''}
                     </td>
@@ -299,8 +322,10 @@ export default function PurchaseInvoices({ projectId = null }) {
                         ...b, _share: undefined, _shareNet: undefined,
                         _roundOpen: !!b.round_off, _finalTotal: b.round_off ? String(b.total) : '',
                       }); setFormError(''); }} aria-label="Edit"><Pencil size={14} /></button>
-                      {b.status !== 'void' && (
+                      {b.status !== 'void' ? (
                         <button className="fin-list-action-btn" title="Void" onClick={() => handleVoid(b)} aria-label="Void"><Ban size={14} /></button>
+                      ) : (
+                        <button className="fin-list-action-btn" title="Unvoid" onClick={() => handleUnvoid(b)} aria-label={`Unvoid bill ${b.bill_number}`}><RotateCcw size={14} /></button>
                       )}
                       <button className="fin-list-action-btn danger" title="Delete" onClick={() => handleDelete(b)} aria-label="Delete"><Trash2 size={14} /></button>
                     </td>
@@ -406,6 +431,7 @@ export default function PurchaseInvoices({ projectId = null }) {
         </Modal>
       )}
 
+      {paying && <CashEntryModal entry={paying} onClose={() => setPaying(null)} />}
     </div>
   );
 }

@@ -23,6 +23,7 @@ import {
   allowedResources, requireBrainPermission, searchNodes, getNode,
   neighbors, getMetrics, buildContext, libraryContext,
 } from './_lib/brainRetrieval.js';
+import { wbsContext, WBS_SYSTEM_PROMPT, parseSuggestion } from './_lib/wbsSuggest.js';
 
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 const MODEL = 'gemini-3.6-flash';
@@ -89,6 +90,7 @@ export default async function handler(req, res) {
       }
       case 'context':  return await context(res, { orgId, perms, allowed, body });
       case 'ask':      return await ask(res, { orgId, user, perms, allowed, body });
+      case 'wbs_suggest': return await wbsSuggest(res, { orgId, user, perms, body });
       default:         throw new HttpError(400, `Unknown action: ${action}`);
     }
   } catch (err) {
@@ -409,6 +411,98 @@ async function ask(res, { orgId, user, perms, allowed, body }) {
     sources: pkg.sources,
     retrieval: pkg.counts,
     synced_at: state.last_sync_at,
+    usage: { used, limit: limit === Infinity ? null : limit },
+  });
+}
+
+/**
+ * An industry-specific work breakdown for one project (see _lib/wbsSuggest.js).
+ * Read-only: it returns a suggestion; the page adds what the person accepts.
+ * Answers { status: 'needs_context', missing } without calling the model when
+ * the project and company say nothing about the kind of work.
+ */
+async function wbsSuggest(res, { orgId, user, perms, body }) {
+  if (!perms?.tasks?.create) throw new HttpError(403, 'Your role cannot add tasks to a project');
+  if (!perms?.projects?.view) throw new HttpError(403, 'Your role cannot view projects');
+  const projectId = String(body.project_id || '');
+  if (!/^[0-9a-f-]{36}$/i.test(projectId)) throw new HttpError(400, 'Missing project');
+
+  const db = supabaseAdmin();
+  const { data: project, error } = await db.from('projects')
+    .select('id, name, code, description, tags, billing_type, start_date, target_end_date, client_id')
+    .eq('id', projectId).eq('org_id', orgId).maybeSingle();
+  if (error) throw new HttpError(500, error.message);
+  if (!project) throw new HttpError(404, 'Project not found');
+
+  const [org, client, milestones, existing] = await Promise.all([
+    db.from('organizations').select('company_name, company_description, industry, company_size, country')
+      .eq('id', orgId).maybeSingle(),
+    project.client_id
+      ? db.from('clients').select('name, industry').eq('id', project.client_id).eq('org_id', orgId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    db.from('project_milestones').select('title').eq('project_id', projectId).eq('org_id', orgId)
+      .neq('status', 'cancelled').order('sort_order'),
+    db.from('tasks').select('title').eq('project_id', projectId).eq('org_id', orgId)
+      .is('parent_id', null).order('position').limit(40),
+  ]);
+  const ctx = wbsContext({
+    org: org.data || {}, project, client: client.data,
+    milestones: milestones.data || [], existing: existing.data || [],
+  });
+  if (!ctx.enough) {
+    return res.status(200).json({ success: true, status: 'needs_context', missing: ctx.missing });
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.error('[brain] Missing GEMINI_API_KEY');
+    throw new HttpError(500, 'Server configuration error');
+  }
+  const used = await meterMessage(orgId);
+  const limit = await limitFor(orgId);
+  if (used > limit) {
+    await logAiUsage({ orgId, user, surface: 'brain', outcome: 'blocked' });
+    return res.status(429).json({
+      success: false, error: 'AI message limit reached for your plan', used: used - 1, limit,
+    });
+  }
+
+  const response = await fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: 'system', content: WBS_SYSTEM_PROMPT },
+        { role: 'user', content: `Context from the company's records:\n\n${ctx.text}` },
+      ],
+      max_tokens: 2000,
+      temperature: 0.2,
+      stream: false,
+      reasoning_effort: 'none',
+    }),
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    console.error('[brain] AI provider error', response.status, detail.slice(0, 400));
+    await logAiUsage({ orgId, user, surface: 'brain', outcome: 'failed', model: MODEL });
+    throw new HttpError(502, `AI provider error (${response.status})`);
+  }
+  const json = await response.json();
+  await logAiUsage({
+    orgId, user, surface: 'brain', model: MODEL,
+    promptTokens: json?.usage?.prompt_tokens, completionTokens: json?.usage?.completion_tokens,
+  });
+  const parsed = parseSuggestion(json?.choices?.[0]?.message?.content);
+  if (!parsed) throw new HttpError(502, 'EdgeBrain did not return a usable breakdown. Try again.');
+  if (!parsed.enough) {
+    return res.status(200).json({ success: true, status: 'needs_context', missing: ctx.missing, asks: parsed.missing });
+  }
+  return res.status(200).json({
+    success: true, status: 'ok',
+    industry: parsed.industry, summary: parsed.summary, nodes: parsed.nodes,
+    // What it was built from, so the page can say so.
+    basis: ctx.text.split('\n').map((l) => l.split(':')[0]),
     usage: { used, limit: limit === Infinity ? null : limit },
   });
 }

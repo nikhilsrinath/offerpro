@@ -64,7 +64,7 @@ const TABS = [
     // Finance is six pages, folded under one Finance item in the rail
     // (projectRail). Financial Status keeps the id 'finance', so older
     // ?tab=finance links still land on it.
-    { id: 'finance', parent: 'finance', label: 'Financial Status', icon: Gauge, fin: true },
+    { id: 'finance', parent: 'finance', label: 'Status', icon: Gauge, fin: true },
     { id: 'cashbook', parent: 'finance', label: 'Cash Book', icon: BookOpen, fin: true },
     { id: 'billing', parent: 'finance', label: 'Billing', icon: Receipt, fin: true },
     { id: 'bills', parent: 'finance', label: 'Purchase Bills', icon: ShoppingCart, fin: true },

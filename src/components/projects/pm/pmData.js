@@ -6,8 +6,9 @@ import { memberActive } from '../../../services/projectAnalytics';
 import { isOwnerOrAdmin } from '../../../services/projectService';
 import { importantSupported } from '../../../services/importantTasks';
 import {
-    buildTree, rollups, projectRollup, schedule, descendants, nextPosition, todayDay,
+    buildTree, rollups, projectRollup, schedule, descendants, nextPosition, todayDay, planTemplate,
 } from '../../../services/wbs';
+import { confirmDialog } from '../../../services/confirm';
 
 /* ══════════════════════════════════════════════════════════════════════════
    What the Project Management pages share: one project's tasks as a work
@@ -55,7 +56,10 @@ export function usePmData(project) {
             manager: empById.get(project.manager_employee_id) || null,
             can: {
                 create: orgStore.can('tasks', 'create'),
-                edit: orgStore.can('tasks', 'update'),
+                // The matrix's actions are view / create / edit / delete
+                // (permissionService). Asking for 'update' was always false,
+                // which left every WBS edit — Save, reassign, move — disabled.
+                edit: orgStore.can('tasks', 'edit'),
                 remove: orgStore.can('tasks', 'delete'),
                 // Marking a task important is an owner's or admin's call (0077).
                 flag: isOwnerOrAdmin() && importantSupported(tasks),
@@ -78,6 +82,12 @@ export function pmError(e) {
     if (/TASK_IMPORTANT_ADMIN_ONLY/.test(m)) return 'Only an owner or admin can mark a task important.';
     if (/important/.test(m) && /column|schema cache/.test(m)) return 'Important tasks are not set up on this workspace yet (migration 0077).';
     if (/tasks_start_before_deadline/.test(m)) return 'The start date has to be on or before the finish date.';
+    // An update or delete that RLS filtered to nothing comes back as "no rows"
+    // from .single(): the database refused it, it was not saved.
+    if (e?.code === 'PGRST116' || /coerce the result to a single JSON object/i.test(m)) {
+        return 'Your role cannot change this task, or it no longer exists. Nothing was saved.';
+    }
+    if (e?.code === '42501' || /row-level security/i.test(m)) return 'Your role cannot make that change. Nothing was saved.';
     if (/parent_id|start_date|task_dependencies/.test(m) && /column|relation|schema cache/.test(m)) {
         return 'Work breakdown is not set up on this workspace yet (migration 0072).';
     }
@@ -131,9 +141,60 @@ export async function setImportant(task, on) {
     }
 }
 
+/**
+ * Add a breakdown's nodes under the project (planTemplate in wbs.js decides
+ * what is new). Each level waits for the one above, since a child needs its
+ * parent's id; siblings go in together. Returns the ids created and how many
+ * existing nodes were reused instead of duplicated.
+ *
+ * A failure part-way leaves what was already saved; applying the same
+ * breakdown again then adds only what is still missing.
+ */
+export async function applyBreakdown(data, nodes) {
+    const plan = planTemplate(data.tree, nodes);
+    const idOf = new Map();
+    const created = [];
+    for (const level of plan.levels) {
+        const made = await Promise.all(level.map((n) => createNode(data, {
+            parentId: n.parentKey ? idOf.get(n.parentKey) : n.parentId,
+            title: n.title,
+            position: n.position,
+        })));
+        made.forEach((task, i) => { idOf.set(level[i].key, task.id); created.push(task.id); });
+    }
+    return { created, reused: plan.reused };
+}
+
 /** Delete a node and everything under it, deepest first. */
 export function deleteBranch(data, id) {
     return taskStore.removeMany([...descendants(data.tree, id).map((x) => x.id), id]);
+}
+
+/**
+ * Ask, then delete a node with its whole branch — the database cascades
+ * sub-tasks (0072), so the question names how many go with it rather than
+ * leaving them behind. Resolves true once deleted, false if not confirmed.
+ * If the database refuses, the tasks are re-read so nothing vanishes from the
+ * screen that is still saved.
+ */
+export async function confirmDeleteNode(data, node) {
+    const under = descendants(data.tree, node.id).length;
+    const ok = await confirmDialog({
+        title: `Delete “${node.title}”?`,
+        message: under
+            ? `This also deletes the ${under} task${under === 1 ? '' : 's'} under it, and their links. This cannot be undone.`
+            : 'Its links go with it. This cannot be undone.',
+        confirmLabel: under ? `Delete ${under + 1} tasks` : 'Delete',
+        tone: 'danger',
+    });
+    if (!ok) return false;
+    try {
+        await deleteBranch(data, node.id);
+    } catch (e) {
+        await orgStore.refreshSection('tasks').catch(() => {});
+        throw e;
+    }
+    return true;
 }
 
 export function addLink({ predecessor_id, successor_id, kind = 'FS', lag_days = 0 }) {

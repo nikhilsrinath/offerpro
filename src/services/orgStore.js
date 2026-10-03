@@ -1177,6 +1177,14 @@ function notifySection(section) {
   });
 }
 
+// Every local write to a section bumps its counter. A section read that was
+// sent before a write and answers after it carries the database as it was
+// before the write; listenSection checks the counter and reads again rather
+// than putting that older picture over the newer cache (a task just added
+// vanishing from the screen until the next reload).
+const _writeSeq = {};
+function bumpWrite(section) { _writeSeq[section] = (_writeSeq[section] || 0) + 1; }
+
 function persistToLS() {
   if (!_orgId) return;
   try {
@@ -1430,6 +1438,7 @@ export const orgStore = {
     const item = def.fromRow(inserted);
     if (!_cache[section]) _cache[section] = {};
     _cache[section][item.id] = item;
+    bumpWrite(section);
     persistToLS();
     notifySection(section);
 
@@ -1468,17 +1477,30 @@ export const orgStore = {
     // Optimistic cache write first so the UI updates without waiting, matching
     // the old fire-and-forget behaviour.
     if (!_cache[section]) _cache[section] = {};
-    const merged = { ...(_cache[section][id] || {}), ...updates };
+    const before = _cache[section][id];
+    const merged = { ...(before || {}), ...updates };
     _cache[section][id] = merged;
+    bumpWrite(section);
     persistToLS();
     notifySection(section);
 
     const row = stripNulls(def.toRow(merged));
     const { data: updated, error } = await supabase
       .from(def.table).update(row).eq('id', id).select().single();
-    if (error) throw error;
+    if (error) {
+      // The database refused (or RLS filtered the row away): put back what
+      // is actually saved, so the screen never shows an edit that is not.
+      if (_cache[section]) {
+        if (before) _cache[section][id] = before; else delete _cache[section][id];
+        persistToLS();
+        notifySection(section);
+      }
+      throw error;
+    }
 
+    if (!_cache[section]) _cache[section] = {};
     _cache[section][id] = def.fromRow(updated);
+    bumpWrite(section);
     persistToLS();
     notifySection(section);
   },
@@ -1491,11 +1513,22 @@ export const orgStore = {
     const def = SECTIONS[section];
     if (!def) return;
 
+    const before = _cache[section]?.[id];
     if (_cache[section]) {
       delete _cache[section][id];
+      bumpWrite(section);
       persistToLS();
       notifySection(section);
     }
+    // A refused delete puts the row back, so it does not look gone until reload.
+    const restore = (error) => {
+      if (before && _cache[section]) {
+        _cache[section][id] = before;
+        persistToLS();
+        notifySection(section);
+      }
+      throw error;
+    };
 
     // An "ex-employee" is not a deletion: keep the row so tasks and documents
     // that reference the employee keep their foreign key.
@@ -1505,12 +1538,19 @@ export const orgStore = {
           exited_at: options.exitedAt || nowIso(),
           exit_reason: nn(options.reason),
         }).eq('id', id);
-      if (error) throw error;
+      if (error) restore(error);
       return;
     }
 
-    const { error } = await supabase.from(def.table).delete().eq('id', id);
-    if (error) throw error;
+    const { data: gone, error } = await supabase.from(def.table).delete().eq('id', id).select('id');
+    if (error) restore(error);
+    // RLS turns a refused delete into "deleted nothing" with no error. Nothing
+    // deleted while the row is still readable means it was refused; a row that
+    // is no longer there (a cascade got it first) is simply gone.
+    if (Array.isArray(gone) && gone.length === 0) {
+      const { data: still } = await supabase.from(def.table).select('id').eq('id', id).maybeSingle();
+      if (still) restore(Object.assign(new Error('Your role cannot delete this. Nothing was deleted.'), { code: '42501' }));
+    }
   },
 
   async setSection(section, value) {
@@ -1581,15 +1621,21 @@ export const orgStore = {
         return value;
       }
       const select = def.table === 'employees' ? '*, employee_compensation(*)' : '*';
-      let q = supabase.from(def.table).select(select).eq('org_id', _orgId);
-      if (def.filter) q = def.filter(q);
-      if (def.order) q = q.order(def.order, { ascending: !def.orderDesc, nullsFirst: false });
-      const { data, error } = await q;
-      if (error) throw error;
-      const next = keyById(data, def.fromRow);
-      _cache[section] = next;
-      persistToLS();
-      return next;
+      // A write made while the read was in flight makes its answer stale; read
+      // again (a few times at most) instead of overwriting the newer cache.
+      for (let attempt = 0; ; attempt += 1) {
+        const seq = _writeSeq[section] || 0;
+        let q = supabase.from(def.table).select(select).eq('org_id', _orgId);
+        if (def.filter) q = def.filter(q);
+        if (def.order) q = q.order(def.order, { ascending: !def.orderDesc, nullsFirst: false });
+        const { data, error } = await q;
+        if (error) throw error;
+        if ((_writeSeq[section] || 0) !== seq && attempt < 3) continue;
+        const next = keyById(data, def.fromRow);
+        _cache[section] = next;
+        persistToLS();
+        return next;
+      }
     };
 
     const refresh = async () => {

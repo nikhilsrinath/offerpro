@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     buildTree, rollups, projectRollup, moveWrites, descendants, schedule, rescheduleWrites,
-    networkLayout, toDay, fromDay,
+    networkLayout, toDay, fromDay, ganttWindow, ganttScale, ganttTicks,
 } from './wbs';
 
 const T = (id, extra = {}) => ({ id, title: id, status: 'pending', position: 0, ...extra });
@@ -141,5 +141,58 @@ describe('schedule (CPM over PDM links)', () => {
         expect(rank.get('A')).toBe(0);
         expect(rank.get('B')).toBe(1);
         expect(rank.get('D')).toBe(2);
+    });
+});
+
+describe('Gantt axis', () => {
+    const D = toDay;
+
+    it('frames the dated spans with a margin and ignores undated ones', () => {
+        const w = ganttWindow([[D('2026-02-20'), D('2026-02-22')], [null, null], [D('2026-02-23'), D('2026-02-25')]], [0, 1]);
+        expect(w.empty).toBe(false);
+        expect(fromDay(w.from)).toBe('2026-02-18');
+        expect(fromDay(w.to - 1)).toBe('2026-02-27');
+    });
+
+    it('falls back (and says so) when nothing is dated', () => {
+        const w = ganttWindow([[null, null]], [D('2026-10-04'), D('2026-10-17')]);
+        expect(w.empty).toBe(true);
+        expect(w.from).toBeLessThan(D('2026-10-04'));
+        expect(w.to).toBeGreaterThan(D('2026-10-17'));
+    });
+
+    it('picks days, weeks, months, quarters as the span grows', () => {
+        const at = (days) => ganttScale({ from: D('2026-01-01'), to: D('2026-01-01') + days }, 900).unit;
+        expect(at(12)).toBe('day');
+        expect(at(120)).toBe('week');
+        expect(at(500)).toBe('month');
+        expect(at(2000)).toBe('quarter');
+    });
+
+    it('fills the available width on short plans', () => {
+        const s = ganttScale({ from: 100, to: 110 }, 1000);
+        expect(s.dayW * (s.to - s.from)).toBeGreaterThanOrEqual(1000);
+    });
+
+    it('starts weeks on Monday and months on the 1st', () => {
+        const wk = ganttScale({ from: D('2026-02-18'), to: D('2026-05-30') }, 0);
+        expect(wk.unit).toBe('week');
+        expect(new Date(wk.from * 86400000).getUTCDay()).toBe(1);
+        const mo = ganttScale({ from: D('2026-02-18'), to: D('2027-05-30') }, 0);
+        expect(fromDay(mo.from)).toBe('2026-02-01');
+        expect(fromDay(mo.to)).toBe('2027-06-01');
+    });
+
+    it('labels days under their month', () => {
+        const { minor, major } = ganttTicks(D('2026-02-27'), D('2026-03-03'), 'day');
+        expect(minor.map((k) => k.label)).toEqual(['27', '28', '1', '2']);
+        expect(major.map((k) => k.label)).toEqual(['Feb 2026', 'Mar 2026']);
+        expect(major[1].day).toBe(D('2026-03-01'));
+    });
+
+    it('labels months under their year', () => {
+        const { minor, major } = ganttTicks(D('2026-11-01'), D('2027-03-01'), 'month');
+        expect(minor.map((k) => k.label)).toEqual(['Nov', 'Dec', 'Jan', 'Feb']);
+        expect(major.map((k) => k.label)).toEqual(['2026', '2027']);
     });
 });

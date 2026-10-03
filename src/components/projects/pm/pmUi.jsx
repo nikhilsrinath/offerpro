@@ -5,12 +5,11 @@ import {
 } from '../../ui/edge';
 import { useT, MONO } from '../../ui/edgeUtils';
 import { useToast } from '../../shared/Toast';
-import { confirmDialog } from '../../../services/confirm';
 import {
     LINK_KINDS, levelName, isLeaf, descendants, pathOf, ownProgress, nextPosition,
 } from '../../../services/wbs';
 import {
-    empName, createNode, applyWrites, deleteBranch, addLink, removeLink, pmError, fmtD, setImportant,
+    empName, createNode, applyWrites, confirmDeleteNode, addLink, removeLink, pmError, fmtD, setImportant,
 } from './pmData';
 import { Star } from 'lucide-react';
 
@@ -277,19 +276,9 @@ export function NodeSheet({ data, node, parentId = null, onClose }) {
     };
 
     const remove = async () => {
-        const under = descendants(data.tree, node.id).length;
-        const ok = await confirmDialog({
-            title: `Delete “${node.title}”?`,
-            message: under
-                ? `This also deletes the ${under} task${under === 1 ? '' : 's'} under it, and their links. This cannot be undone.`
-                : 'Its links go with it. This cannot be undone.',
-            confirmLabel: under ? `Delete ${under + 1} tasks` : 'Delete',
-            tone: 'danger',
-        });
-        if (!ok) return;
         try {
-            await deleteBranch(data, node.id);
-            toast('Deleted', 'success');
+            if (!(await confirmDeleteNode(data, node))) return;
+            toast(`Deleted “${node.title}”`, 'success');
             onClose();
         } catch (e) {
             setError(pmError(e));

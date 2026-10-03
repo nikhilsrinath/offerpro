@@ -1,17 +1,24 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-    Toolbar, Panel, Row, Btn, Seg, Search, Select, Input, Avatar, Status, Empty, Muted,
+    Toolbar, Panel, Row, Btn, Seg, Search, Select, Input, Avatar, Status, Empty, Muted, Modal,
 } from '../../ui/edge';
 import { useT, MONO } from '../../ui/edgeUtils';
 import { useToast } from '../../shared/Toast';
 import { downloadCsv } from '../../../services/financeAnalytics';
-import { levelName, isLeaf, moveWrites, WBS_TEMPLATES, fromDay } from '../../../services/wbs';
+import {
+    levelName, isLeaf, moveWrites, WBS_TEMPLATES, fromDay, planTemplate, templateCounts,
+} from '../../../services/wbs';
+import { orgStore } from '../../../services/orgStore';
+import { suggestWbs } from '../../../services/brainService';
+import { canEditProjects } from '../../../services/projectService';
 import {
     usePmData, empName, createNode, applyWrites, pmError, fmtD, STATUS_LABEL, setImportant,
+    applyBreakdown, confirmDeleteNode,
 } from './pmData';
 import { RowMenu, PersonOptions, Progress, LevelTag, NodeSheet, ImportantStar } from './pmUi';
-import { ChevronRight, ChevronDown, Plus, Star } from 'lucide-react';
+import ProjectForm from '../ProjectForm';
+import { ChevronRight, ChevronDown, Plus, Star, Sparkles, Check, X } from 'lucide-react';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Tasks — the Work Breakdown Structure.
@@ -35,6 +42,13 @@ import { ChevronRight, ChevronDown, Plus, Star } from 'lucide-react';
    An owner or admin stars the tasks that matter most (0077); while open,
    those are listed under Needs attention on the Projects dashboard and on
    this project's own dashboard. "Important" narrows the outline to them.
+
+   Standard breakdowns sit above the tree. Picking one previews its tasks as
+   an editable draft — rename, remove, add — and only Save writes them; they
+   then appear in the outline right below, opened and marked. A node the
+   tree already has (same name under the same parent) is reused, so saving
+   the same breakdown twice adds nothing. "Industry specific" asks EdgeBrain
+   for a breakdown in the project's own industry, shown in the same draft.
    ══════════════════════════════════════════════════════════════════════════ */
 
 export default function WbsPage({ project }) {
@@ -52,6 +66,7 @@ export default function WbsPage({ project }) {
     const [adding, setAdding] = useState(null);     // parent id, or 'root'
     const [announce, setAnnounce] = useState('');
     const [busy, setBusy] = useState(false);
+    const [flash, setFlash] = useState(() => new Set());   // rows just added by a breakdown
     const [params, setParams] = useSearchParams();
 
     // ?task=<id> (from Needs attention on a dashboard) opens that task, once.
@@ -123,18 +138,46 @@ export default function WbsPage({ project }) {
         setAdding(parentId);
     };
 
-    const applyTemplate = async (tpl) => {
+    // One breakdown at a time: a ref, not state, so a fast second click cannot
+    // slip in before the first one's re-render disables the cards.
+    const applying = useRef(false);
+    const addBreakdown = async (label, nodes) => {
+        if (applying.current) return false;
+        applying.current = true;
         setBusy(true);
         try {
-            for (let i = 0; i < tpl.nodes.length; i += 1) {
-                const [name, kids] = tpl.nodes[i];
-                const parent = await createNode(data, { title: name, position: (i + 1) * 10 });
-                for (let k = 0; k < kids.length; k += 1) {
-                    await createNode(data, { parentId: parent.id, title: kids[k], position: (k + 1) * 10 });
-                }
+            const { created, reused } = await applyBreakdown(data, nodes);
+            if (!created.length) {
+                toast(`${label} is already in the breakdown — nothing was added twice`, 'success');
+                setAnnounce(`${label} is already in the breakdown`);
+                return true;
             }
-            toast(`${tpl.label} breakdown added — assign the people next`, 'success');
-        } catch (e) { toast(pmError(e), 'error'); } finally { setBusy(false); }
+            // Show what was added: clear filters that could hide it, open
+            // the branches, mark the new rows for a moment.
+            setQuery(''); setWho('all'); setStarred(false); setView('outline');
+            setCollapsed(new Set());
+            setFlash(new Set(created));
+            setTimeout(() => setFlash(new Set()), 4000);
+            const msg = `${label}: ${created.length} added${reused ? `, ${reused} already there` : ''} — assign the people next`;
+            toast(msg, 'success');
+            setAnnounce(msg);
+            requestAnimationFrame(() => document.getElementById(`wbs-row-${created[0]}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+            return true;
+        } catch (e) {
+            toast(`${pmError(e)} What was saved stays; pick the breakdown again to add the rest.`, 'error');
+            return false;
+        } finally {
+            applying.current = false;
+            setBusy(false);
+        }
+    };
+
+    const remove = async (node) => {
+        try {
+            if (!(await confirmDeleteNode(data, node))) return;
+            toast(`Deleted “${node.title}”`, 'success');
+            setAnnounce(`${node.title} deleted`);
+        } catch (e) { toast(pmError(e), 'error'); }
     };
 
     const exportCsv = () => downloadCsv(`${project.code || 'project'}-wbs.csv`,
@@ -190,6 +233,10 @@ export default function WbsPage({ project }) {
 
             <RootCard data={data} />
 
+            {can.create && data.structured && (
+                <Breakdowns data={data} busy={busy} onApply={addBreakdown} />
+            )}
+
             {tree.flat.length === 0 ? (
                 <Panel>
                     <Empty action={can.create && (
@@ -197,33 +244,15 @@ export default function WbsPage({ project }) {
                             <Btn primary onClick={() => startAdding('root')}>Add the first sub-project</Btn>
                         </Row>
                     )}>
-                        Break the project down: sub-projects first, each with the person responsible, then the tasks and sub-tasks under them.
+                        Break the project down: sub-projects first, each with the person responsible, then the tasks and sub-tasks under them{can.create && data.structured ? ' — or start from a breakdown above.' : '.'}
                     </Empty>
                     {adding === 'root' && <div style={{ padding: '0 14px 14px' }}><QuickAdd data={data} parentId={null} depth={0} onDone={() => setAdding(null)} /></div>}
-                    {can.create && (
-                        <div style={{ borderTop: '1px solid ' + t.lineSoft, padding: 14 }}>
-                            <div style={{ fontSize: 12.5, color: t.text, marginBottom: 10 }}>Or start from a standard breakdown</div>
-                            <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
-                                {WBS_TEMPLATES.map((tpl) => (
-                                    <button key={tpl.id} type="button" disabled={busy} onClick={() => applyTemplate(tpl)} className="edge-tr" style={{
-                                        textAlign: 'left', border: '1px solid ' + t.line, borderRadius: 9, padding: 12, background: t.panel,
-                                        fontFamily: MONO, cursor: busy ? 'wait' : 'pointer', color: t.text,
-                                    }}>
-                                        <div style={{ fontSize: 13, marginBottom: 4 }}>{tpl.label}</div>
-                                        <div style={{ fontSize: 11.5, color: t.faint, lineHeight: 1.5 }}>{tpl.note}</div>
-                                        <div style={{ fontSize: 11, color: t.faint, marginTop: 8 }}>
-                                            {tpl.nodes.length} sub-projects · {tpl.nodes.reduce((a, n) => a + n[1].length, 0)} tasks
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
                 </Panel>
             ) : view === 'outline' ? (
                 <Outline
                     data={data} visible={visible} open={open} toggle={toggle} adding={adding}
                     setAdding={setAdding} startAdding={startAdding} move={move} reassign={reassign} flag={flag}
+                    remove={remove} flash={flash}
                     busy={busy} onEdit={(node) => setSheet({ node })}
                     onNew={(parentId) => setSheet({ parentId })}
                 />
@@ -242,6 +271,247 @@ export default function WbsPage({ project }) {
             )}
 
             {sheet && <NodeSheet data={data} node={sheet.node || null} parentId={sheet.parentId || null} onClose={() => setSheet(null)} />}
+        </div>
+    );
+}
+
+/* ── standard breakdowns ──────────────────────────────────────────────────── */
+
+const NEEDS = {
+    project_description: 'What the project delivers — add a description to the project.',
+    industry: 'The industry — set it in Company profile, or on the project’s client.',
+};
+
+let draftSeq = 0;
+const toDraft = (nodes) => nodes.map((n) => {
+    const [name, kids] = Array.isArray(n) ? n : [n, []];
+    draftSeq += 1;
+    return { id: `d${draftSeq}`, name: String(name), kids: toDraft(kids || []) };
+});
+const fromDraft = (list) => list
+    .filter((n) => n.name.trim())
+    .map((n) => [n.name.trim(), fromDraft(n.kids)]);
+
+function Breakdowns({ data, busy, onApply }) {
+    const t = useT();
+    const { tree, project } = data;
+    const empty = tree.flat.length === 0;
+    const [open, setOpen] = useState(empty);
+    // The draft below the cards: a standard breakdown being previewed
+    // (source 'template') or EdgeBrain's suggestion (source 'ai').
+    // { state: 'loading' | 'needs' | 'error' | 'ready', source, … }
+    const [ai, setAi] = useState(null);
+    const [editing, setEditing] = useState(false);
+    const shown = empty || open || !!ai;
+
+    const askBrain = async () => {
+        if (ai?.state === 'loading') return;
+        setAi({ state: 'loading', source: 'ai' });
+        try {
+            const r = await suggestWbs(orgStore.getOrgId(), project.id);
+            if (r.status === 'needs_context') setAi({ state: 'needs', source: 'ai', missing: r.missing || [], asks: r.asks || [] });
+            else {
+                setAi({
+                    state: 'ready', source: 'ai', label: r.industry ? `${r.industry} breakdown` : 'Industry breakdown',
+                    industry: r.industry, summary: r.summary, draft: toDraft(r.nodes || []),
+                });
+            }
+        } catch (e) {
+            setAi({
+                state: 'error', source: 'ai',
+                message: e.status === 429 ? 'Your plan’s AI messages are used up for now.' : e.message || 'EdgeBrain could not answer. Try again.',
+            });
+        }
+    };
+
+    // A standard breakdown opens as a draft first: its tasks, editable, and
+    // nothing saved until Save.
+    const preview = (tpl) => setAi({
+        state: 'ready', source: 'template', id: tpl.id, label: tpl.label, summary: tpl.note, draft: toDraft(tpl.nodes),
+    });
+
+    // What Save would add, and what is already in the tree (reused, not duplicated).
+    const pending = ai?.state === 'ready' ? planTemplate(tree, fromDraft(ai.draft)) : null;
+
+    const accept = async () => {
+        const nodes = fromDraft(ai.draft);
+        if (!nodes.length) return;
+        const ok = await onApply(ai.label, nodes);
+        if (ok) setAi(null);
+    };
+
+    const card = {
+        textAlign: 'left', border: '1px solid ' + t.line, borderRadius: 9, padding: 12, background: t.panel,
+        fontFamily: MONO, cursor: busy ? 'wait' : 'pointer', color: t.text, display: 'flex', flexDirection: 'column',
+    };
+
+    return (
+        <section aria-labelledby="wbs-breakdowns" style={{
+            border: '1px solid ' + t.line, borderRadius: 10, marginBottom: 12, background: t.panel,
+        }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: shown ? '1px solid ' + t.lineSoft : 'none' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div id="wbs-breakdowns" style={{ fontSize: 12.5, color: t.text }}>Standard breakdown</div>
+                    <div style={{ fontSize: 11.5, color: t.faint }}>
+                        {empty ? 'Pick one to preview its tasks, edit them, then save.' : 'Pick one to preview and edit its tasks before saving — anything already there is not added twice.'}
+                    </div>
+                </div>
+                {!empty && (
+                    <Btn size="sm" onClick={() => setOpen((v) => !v)} aria-expanded={shown} aria-controls="wbs-breakdown-cards">
+                        {shown ? 'Hide' : 'Show'}
+                    </Btn>
+                )}
+            </div>
+            {shown && (
+                <div id="wbs-breakdown-cards" style={{ padding: 14 }}>
+                    <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+                        {WBS_TEMPLATES.map((tpl) => {
+                            const plan = planTemplate(tree, tpl.nodes);
+                            const c = templateCounts(tpl.nodes);
+                            const inTree = plan.adds === 0;
+                            return (
+                                <button key={tpl.id} type="button" disabled={busy} onClick={() => preview(tpl)} className="edge-tr"
+                                    aria-pressed={ai?.id === tpl.id}
+                                    title={inTree ? 'Already in the breakdown — saving it again adds nothing' : 'Preview its tasks, edit them, then save'}
+                                    style={{ ...card, borderColor: ai?.id === tpl.id ? t.text : inTree ? t.lineStrong : t.line, boxShadow: ai?.id === tpl.id ? `inset 0 0 0 1px ${t.text}` : undefined }}>
+                                    <div style={{ fontSize: 13, marginBottom: 4 }}>{tpl.label}</div>
+                                    <div style={{ fontSize: 11.5, color: t.faint, lineHeight: 1.5, flex: 1 }}>{tpl.note}</div>
+                                    <div style={{ fontSize: 11, color: inTree ? t.up : t.faint, marginTop: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                        {inTree ? <><Check size={12} aria-hidden="true" />In the breakdown</>
+                                            : plan.reused ? `Adds the ${plan.adds} missing`
+                                                : `${c.top} sub-projects · ${c.below} tasks`}
+                                    </div>
+                                </button>
+                            );
+                        })}
+                        <button type="button" disabled={busy || ai?.state === 'loading'} onClick={askBrain} className="edge-tr"
+                            aria-pressed={ai?.source === 'ai'} aria-describedby="wbs-ai-note"
+                            style={{ ...card, borderStyle: 'dashed', borderColor: ai?.source === 'ai' ? t.text : t.lineStrong }}>
+                            <div style={{ fontSize: 13, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Sparkles size={13} aria-hidden="true" />Industry specific
+                            </div>
+                            <div id="wbs-ai-note" style={{ fontSize: 11.5, color: t.faint, lineHeight: 1.5, flex: 1 }}>
+                                EdgeBrain suggests a breakdown for this project’s industry
+                            </div>
+                            <div style={{ fontSize: 11, color: t.faint, marginTop: 8 }}>
+                                {ai?.state === 'loading' ? 'Reading the project…' : 'AI · you review it before it is added'}
+                            </div>
+                        </button>
+                    </div>
+
+                    {ai && (
+                        <div style={{ marginTop: 12, border: '1px solid ' + t.line, borderRadius: 9, background: t.panelAlt }}>
+                            {ai.state === 'loading' && (
+                                <div role="status" style={{ padding: 14, fontSize: 12.5, color: t.dim }}>
+                                    EdgeBrain is reading the project and company details…
+                                </div>
+                            )}
+                            {ai.state === 'error' && (
+                                <div style={{ padding: 14 }}>
+                                    <div role="alert" style={{ fontSize: 12.5, color: t.down, marginBottom: 10 }}>{ai.message}</div>
+                                    <Row gap={8}><Btn size="sm" onClick={askBrain}>Try again</Btn><Btn size="sm" onClick={() => setAi(null)}>Close</Btn></Row>
+                                </div>
+                            )}
+                            {ai.state === 'needs' && (
+                                <div style={{ padding: 14 }}>
+                                    <div role="status" style={{ fontSize: 12.5, color: t.text, marginBottom: 6 }}>
+                                        Not enough is known about this project to suggest an industry-specific breakdown.
+                                    </div>
+                                    <div style={{ fontSize: 12, color: t.dim, marginBottom: 6 }}>EdgeBrain needs:</div>
+                                    <ul style={{ margin: '0 0 12px', paddingLeft: 18, fontSize: 12, color: t.dim, lineHeight: 1.7 }}>
+                                        {ai.missing.map((m) => <li key={m}>{NEEDS[m] || m}</li>)}
+                                        {ai.asks.map((m) => <li key={'a' + m}>{m}</li>)}
+                                    </ul>
+                                    <Row gap={8} wrap>
+                                        {canEditProjects() && <Btn size="sm" primary onClick={() => setEditing(true)}>Edit project details</Btn>}
+                                        <Btn size="sm" onClick={askBrain}>Ask again</Btn>
+                                        <Btn size="sm" onClick={() => setAi(null)}>Close</Btn>
+                                    </Row>
+                                </div>
+                            )}
+                            {ai.state === 'ready' && (
+                                <div>
+                                    <div style={{ padding: '12px 14px', borderBottom: '1px solid ' + t.lineSoft }}>
+                                        <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                            {ai.source === 'ai'
+                                                ? <><Sparkles size={11} aria-hidden="true" />EDGEBRAIN SUGGESTION{ai.industry ? ` · ${ai.industry.toUpperCase()}` : ''}</>
+                                                : `PREVIEW · ${ai.label.toUpperCase()}`}
+                                        </div>
+                                        {ai.summary && <div style={{ fontSize: 12.5, color: t.dim, marginTop: 4, lineHeight: 1.5 }}>{ai.summary}</div>}
+                                        <div style={{ fontSize: 11.5, color: t.faint, marginTop: 4 }}>
+                                            These are the tasks it will add — rename, remove or add any of them, then save. Nothing is saved yet.
+                                            {pending.reused > 0 && ` ${pending.reused} ${pending.reused === 1 ? 'is' : 'are'} already in the breakdown and will not be added twice.`}
+                                        </div>
+                                    </div>
+                                    <DraftTree list={ai.draft} onChange={(draft) => setAi((a) => ({ ...a, draft }))} />
+                                    <Row gap={8} wrap style={{ padding: '10px 14px', borderTop: '1px solid ' + t.lineSoft }}>
+                                        <Btn primary size="sm" onClick={accept} disabled={busy || !pending.adds}>
+                                            {busy ? 'Saving…' : pending.adds ? `Save — add ${pending.adds} task${pending.adds === 1 ? '' : 's'}` : 'All already in the breakdown'}
+                                        </Btn>
+                                        {ai.source === 'template' && (
+                                            <Btn size="sm" onClick={() => setAi((a) => ({ ...a, draft: toDraft(WBS_TEMPLATES.find((x) => x.id === a.id).nodes) }))} disabled={busy}>
+                                                Reset
+                                            </Btn>
+                                        )}
+                                        {ai.source === 'ai' && <Btn size="sm" onClick={askBrain} disabled={busy}>Ask again</Btn>}
+                                        <Btn size="sm" onClick={() => setAi(null)} disabled={busy}>{ai.source === 'ai' ? 'Discard' : 'Cancel'}</Btn>
+                                    </Row>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+            <Modal open={editing} onClose={() => setEditing(false)} title={`Edit ${project.code || project.name}`} width={760}>
+                {editing && <ProjectForm project={project} onDone={() => setEditing(false)} />}
+            </Modal>
+        </section>
+    );
+}
+
+/* The suggested breakdown, editable before anything is saved. */
+function DraftTree({ list, onChange }) {
+    const t = useT();
+    const update = (path, fn) => {
+        const walk = (nodes, depth) => nodes.flatMap((n, i) => {
+            if (i !== path[depth]) return [n];
+            if (depth === path.length - 1) return fn(n);
+            return [{ ...n, kids: walk(n.kids, depth + 1) }];
+        });
+        onChange(walk(list, 0));
+    };
+    const rename = (path, name) => update(path, (n) => [{ ...n, name }]);
+    const drop = (path) => update(path, () => []);
+    const addUnder = (path) => update(path, (n) => [{ ...n, kids: [...n.kids, ...toDraft([''])] }]);
+
+    const rows = [];
+    const walk = (nodes, depth, prefix) => nodes.forEach((n, i) => {
+        const path = [...prefix, i];
+        const code = path.map((p) => p + 1).join('.');
+        const what = levelName(depth).toLowerCase();
+        rows.push(
+            <div key={n.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 14px', paddingLeft: 14 + depth * 22 }}>
+                <span style={{ fontSize: 11, color: t.faint, minWidth: 34, fontVariantNumeric: 'tabular-nums' }}>{code}</span>
+                <Input value={n.name} onChange={(e) => rename(path, e.target.value)} aria-label={`Name of ${what} ${code}`}
+                    placeholder={`New ${what}`} style={{ flex: 1, height: 27, fontSize: depth === 0 ? 12.5 : 12, fontWeight: depth === 0 ? 600 : 400 }} />
+                {depth < 2 && (
+                    <Btn size="sm" onClick={() => addUnder(path)} aria-label={`Add under ${n.name || code}`}><Plus size={12} aria-hidden="true" /></Btn>
+                )}
+                <Btn size="sm" onClick={() => drop(path)} aria-label={`Remove ${n.name || code}${n.kids.length ? ' and what is under it' : ''}`}>
+                    <X size={12} aria-hidden="true" />
+                </Btn>
+            </div>,
+        );
+        walk(n.kids, depth + 1, path);
+    });
+    walk(list, 0, []);
+
+    return (
+        <div style={{ padding: '8px 0', maxHeight: 420, overflowY: 'auto' }} className="edge-scroll">
+            {rows}
+            <div style={{ padding: '6px 14px' }}>
+                <Btn size="sm" onClick={() => onChange([...list, ...toDraft([['', []]])])}><Plus size={12} aria-hidden="true" />Sub-project</Btn>
+            </div>
         </div>
     );
 }
@@ -291,14 +561,14 @@ function RootCard({ data }) {
 
 const COLS = 'minmax(280px, 2.4fr) 180px 150px 130px 120px 150px';
 
-function Outline({ data, visible, open, toggle, adding, setAdding, startAdding, move, reassign, flag, busy, onEdit, onNew }) {
+function Outline({ data, visible, open, toggle, adding, setAdding, startAdding, move, reassign, flag, remove, flash, busy, onEdit, onNew }) {
     const t = useT();
     const { tree, can } = data;
 
     const rows = [];
     const walk = (list) => list.forEach((x) => {
         if (!visible(x)) return;
-        rows.push(<OutlineRow key={x.id} node={x} {...{ data, open, toggle, startAdding, move, reassign, flag, busy, onEdit, onNew }} />);
+        rows.push(<OutlineRow key={x.id} node={x} fresh={flash.has(x.id)} {...{ data, open, toggle, startAdding, move, reassign, flag, remove, busy, onEdit, onNew }} />);
         const kids = tree.kids.get(x.id) || [];
         if (open(x.id)) walk(kids);
         if (adding === x.id) {
@@ -335,7 +605,7 @@ function Outline({ data, visible, open, toggle, adding, setAdding, startAdding, 
     );
 }
 
-function OutlineRow({ node, data, open, toggle, startAdding, move, reassign, flag, busy, onEdit, onNew }) {
+function OutlineRow({ node, fresh, data, open, toggle, startAdding, move, reassign, flag, remove, busy, onEdit, onNew }) {
     const t = useT();
     const { tree, roll, can, sched } = data;
     const depth = tree.depth.get(node.id);
@@ -359,10 +629,12 @@ function OutlineRow({ node, data, open, toggle, startAdding, move, reassign, fla
     };
 
     return (
-        <div role="row" className="edge-tr" style={{
+        <div role="row" id={`wbs-row-${node.id}`} className="edge-tr" style={{
             display: 'grid', gridTemplateColumns: COLS, gap: 12, alignItems: 'center',
             padding: '0 12px', minHeight: depth === 0 ? 46 : 40, borderBottom: '1px solid ' + t.lineSoft,
-            background: depth === 0 ? t.panelAlt : undefined,
+            background: fresh ? t.raised : depth === 0 ? t.panelAlt : undefined,
+            boxShadow: fresh ? `inset 3px 0 0 ${t.text}` : undefined,
+            transition: 'background 0.6s, box-shadow 0.6s',
         }}>
             {/* name, indented, with the tree's guide lines */}
             <div role="cell" style={{ display: 'flex', alignItems: 'stretch', minWidth: 0, alignSelf: 'stretch' }}>
@@ -441,6 +713,7 @@ function OutlineRow({ node, data, open, toggle, startAdding, move, reassign, fla
                     { label: 'Open…', onSelect: () => onEdit(node) },
                     can.flag && { label: node.important ? 'Unmark important' : 'Mark important — Needs attention', onSelect: () => flag(node) },
                     can.create && { label: `Add ${levelName(depth + 1).toLowerCase()} with details…`, onSelect: () => onNew(node.id) },
+                    can.remove && { label: kids.length ? 'Delete, with everything under it…' : 'Delete…', danger: true, disabled: busy, onSelect: () => remove(node) },
                     can.edit && { label: 'Move up', hint: 'Alt ↑', disabled: busy || idx <= 0, onSelect: () => move(node, 'up') },
                     can.edit && { label: 'Move down', hint: 'Alt ↓', disabled: busy || idx >= sibs.length - 1, onSelect: () => move(node, 'down') },
                     can.edit && { label: 'Indent — under the one above', hint: 'Alt →', disabled: busy || idx <= 0, onSelect: () => move(node, 'in') },

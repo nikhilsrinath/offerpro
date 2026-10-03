@@ -66,6 +66,15 @@ export const ask = (orgId, question, history = []) =>
   call('ask', { org_id: orgId, question, history });
 
 /**
+ * An industry-specific work breakdown for a project, from what the company
+ * and the project say about themselves. Suggests only — nothing is written.
+ * Resolves { status: 'ok', industry, summary, nodes } or
+ * { status: 'needs_context', missing, asks } when there is too little to go on.
+ */
+export const suggestWbs = (orgId, projectId) =>
+  call('wbs_suggest', { org_id: orgId, project_id: projectId });
+
+/**
  * The retrieved context for a question, without generating an answer.
  *
  * This is how the AI co-founder and the assistant panel source their company

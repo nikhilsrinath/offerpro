@@ -383,18 +383,118 @@ export function networkLayout(sched) {
     return { rank, cols: cols.map((c) => c || []) };
 }
 
+/* ── the Gantt time axis ──────────────────────────────────────────────────── */
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const ymd = (day) => { const d = new Date(day * DAY); return [d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()]; };
+const dayOf = (y, m, d = 1) => Math.round(Date.UTC(y, m, d) / DAY);
+// Day 0 (1 Jan 1970) was a Thursday; Monday is 0 here.
+const weekday = (day) => (((day + 3) % 7) + 7) % 7;
+
+/**
+ * The days a Gantt chart shows: every dated span with a margin either side,
+ * so no bar touches an edge. `spans` are [start, finish] day pairs, finish
+ * inclusive. With nothing dated the `fallback` pair is shown instead and
+ * `empty` is set — the axis still reads, but no date is invented for a task.
+ *
+ * @returns {{ from, to, empty }} to is exclusive
+ */
+export function ganttWindow(spans, fallback) {
+    const s = spans.filter(([a, b]) => a != null && b != null);
+    const empty = !s.length;
+    const lo = empty ? fallback[0] : Math.min(...s.map((x) => x[0]));
+    const hi = empty ? fallback[1] : Math.max(...s.map((x) => x[1]));
+    const pad = Math.max(2, Math.ceil((hi - lo + 1) * 0.06));
+    return { from: lo - pad, to: hi + 1 + pad, empty };
+}
+
+const MIN_DAY_W = { day: 30, week: 12, month: 4, quarter: 1.5 };
+
+/**
+ * How a window of days is drawn in `avail` pixels: the tick unit and the
+ * width of one day. Short plans get a tick per day, longer ones a tick per
+ * week, then per month, then per quarter — whatever keeps the labels apart.
+ * The window is widened to whole units so the first and last ticks are full.
+ *
+ * @returns {{ from, to, unit, dayW }}
+ */
+export function ganttScale({ from, to }, avail = 0) {
+    const fit = (days) => (avail > 0 ? avail / days : 0);
+    const span = to - from;
+    let dayW = Math.max(fit(span), span <= 45 ? MIN_DAY_W.day : span <= 200 ? MIN_DAY_W.week : span <= 1100 ? MIN_DAY_W.month : MIN_DAY_W.quarter);
+    const unit = dayW >= 24 ? 'day' : dayW * 7 >= 56 ? 'week' : dayW * 30 >= 48 ? 'month' : 'quarter';
+
+    let a = from; let b = to;
+    if (unit === 'week') {
+        a = from - weekday(from);
+        b = to + ((7 - weekday(to)) % 7);
+    } else if (unit === 'month' || unit === 'quarter') {
+        const step = unit === 'month' ? 1 : 3;
+        const [y0, m0] = ymd(from);
+        a = dayOf(y0, m0 - (m0 % step));
+        const [y1, m1, d1] = ymd(to);
+        const last = d1 === 1 && m1 % step === 0 ? dayOf(y1, m1) : dayOf(y1, m1 - (m1 % step) + step);
+        b = last;
+    }
+    dayW = Math.max(fit(b - a), MIN_DAY_W[unit]);
+    return { from: a, to: b, unit, dayW };
+}
+
+/**
+ * The ticks along the axis. `minor` are the grid lines and the lower row of
+ * labels (days, weeks, months or quarters); `major` is the upper row — the
+ * month over days and weeks, the year over months and quarters. The first
+ * major tick is always the window's start so its label is never missing.
+ */
+export function ganttTicks(from, to, unit) {
+    const minor = [];
+    const major = [];
+    if (unit === 'day' || unit === 'week') {
+        const first = unit === 'day' ? from : from + ((7 - weekday(from)) % 7);
+        for (let d = first; d < to; d += unit === 'day' ? 1 : 7) {
+            const [, m, dd] = ymd(d);
+            minor.push({ day: d, label: unit === 'day' ? String(dd) : `${dd} ${MONTHS[m]}` });
+        }
+        for (let d = from; d < to;) {
+            const [y, m] = ymd(d);
+            major.push({ day: d, label: `${MONTHS[m]} ${y}` });
+            d = dayOf(y, m + 1);
+        }
+    } else {
+        const step = unit === 'month' ? 1 : 3;
+        for (let d = from; d < to;) {
+            const [y, m] = ymd(d);
+            minor.push({ day: d, label: unit === 'month' ? MONTHS[m] : `Q${Math.floor(m / 3) + 1}` });
+            d = dayOf(y, m - (m % step) + step);
+        }
+        for (let d = from; d < to;) {
+            const [y] = ymd(d);
+            major.push({ day: d, label: String(y) });
+            d = dayOf(y + 1, 0);
+        }
+    }
+    return { minor, major };
+}
+
 /* ── templates ────────────────────────────────────────────────────────────── */
 
-/** Standard breakdowns to start a project from: sub-projects with their tasks. */
+/**
+ * Standard breakdowns to start a project from. Each node is [name, children],
+ * where a child is a plain name (a work item) or another [name, children] to
+ * go a level deeper. The top level becomes the project's sub-projects.
+ */
 export const WBS_TEMPLATES = [
     {
-        id: 'lifecycle', label: 'Project lifecycle', note: 'Initiation to closure, the PMBOK phases',
+        id: 'product', label: 'Product lifecycle', note: 'Discovery to post-launch, for building a product',
         nodes: [
-            ['Initiation', ['Project charter', 'Stakeholder register', 'Kick-off meeting']],
-            ['Planning', ['Scope statement', 'Schedule and budget', 'Risk register']],
-            ['Execution', ['Build the deliverables', 'Quality checks', 'Status reporting']],
-            ['Monitoring & control', ['Track against baseline', 'Change requests']],
-            ['Closure', ['Client handover', 'Lessons learned', 'Close contracts']],
+            ['Discovery', ['Market research', 'Customer interviews', 'Opportunity assessment']],
+            ['Research', ['Competitive analysis', 'User research synthesis']],
+            ['Requirements', ['Product requirements', 'User stories and acceptance criteria', 'Success metrics']],
+            ['Design', ['Product design', 'Prototype', 'Usability testing']],
+            ['Development', ['Sprint planning', 'Build features', 'Code review']],
+            ['Testing / QA', ['Test plan', 'QA and bug fixing', 'Beta testing']],
+            ['Launch', ['Go-to-market plan', 'Release', 'Launch communications']],
+            ['Post-launch', ['Monitor adoption metrics', 'Collect feedback', 'Iteration backlog']],
         ],
     },
     {
@@ -418,3 +518,61 @@ export const WBS_TEMPLATES = [
         ],
     },
 ];
+
+/** A template node as { name, kids }, whichever way it was written. */
+const asNode = (n) => (Array.isArray(n) ? { name: String(n[0] ?? ''), kids: n[1] || [] } : { name: String(n ?? ''), kids: [] });
+
+/** How many sub-projects and how many nodes under them a breakdown adds. */
+export function templateCounts(nodes) {
+    let below = 0;
+    const walk = (list) => list.forEach((n) => { const x = asNode(n); below += 1; walk(x.kids); });
+    nodes.forEach((n) => walk(asNode(n).kids));
+    return { top: nodes.length, below };
+}
+
+const sameName = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+
+/**
+ * What applying a breakdown to the tree would add, without adding anything
+ * the tree already holds: a node whose parent already has a child of the same
+ * name (ignoring case) is reused rather than created again. So applying the
+ * same breakdown twice adds nothing the second time, and applying it after a
+ * half-finished first attempt adds only what is missing.
+ *
+ * @returns {{ levels: Array<Array<{ key, parentKey, parentId, title, position }>>, adds, reused }}
+ *   levels: the nodes to create, level by level (a level's parents exist, or
+ *   are created by the level before). parentKey names a node created earlier
+ *   in the plan; parentId an existing task (null: the top).
+ */
+export function planTemplate(tree, nodes) {
+    const levels = [];
+    let adds = 0;
+    let reused = 0;
+    const visit = (list, depth, parent) => {
+        // parent: { id } for an existing task (id null at the top), or { key } for a planned one.
+        const existing = parent.key ? [] : parent.id ? tree.kids.get(parent.id) || [] : tree.roots;
+        let pos = nextPosition(existing);
+        list.forEach((n, i) => {
+            const x = asNode(n);
+            const title = x.name.trim();
+            if (!title) return;
+            const match = existing.find((e) => sameName(e.title, title));
+            if (match) {
+                reused += 1;
+                visit(x.kids, depth + 1, { id: match.id });
+                return;
+            }
+            const key = `${parent.key || parent.id || 'top'}/${i}`;
+            if (!levels[depth]) levels[depth] = [];
+            levels[depth].push({
+                key, parentKey: parent.key || null, parentId: parent.key ? null : parent.id || null, title,
+                position: parent.key ? (i + 1) * 10 : pos,
+            });
+            if (!parent.key) pos += 10;
+            adds += 1;
+            visit(x.kids, depth + 1, { key });
+        });
+    };
+    visit(nodes, 0, { id: null });
+    return { levels: levels.filter(Boolean), adds, reused };
+}
