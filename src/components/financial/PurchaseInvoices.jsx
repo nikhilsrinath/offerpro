@@ -16,6 +16,7 @@ import { useProjectScope } from '../projects/projectScope';
 import { confirmDialog } from '../../services/confirm';
 import CashEntryModal from './CashEntryModal';
 import { billPaymentEntry } from './cashEntry';
+import { RowMenu } from '../ui/edge';
 
 const CATEGORIES = ['Operations', 'Inventory', 'Software', 'Hardware', 'Marketing', 'Travel', 'Utilities', 'Professional fees', 'Rent', 'Other'];
 const FILTERS = ['all', 'paid', 'unpaid', 'partially_paid', 'overdue', 'void'];
@@ -242,7 +243,7 @@ export default function PurchaseInvoices({ projectId = null }) {
         <button
           className="prod-add-btn"
           onClick={() => {
-            if (activeVendors.length === 0) { toast('Add a vendor first', 'info'); navigate('/vendors'); return; }
+            if (activeVendors.length === 0) { toast('Add a vendor first', 'info'); navigate('/vendor-directory'); return; }
             setEditing(fresh(vendorFilter === 'all' ? '' : vendorFilter));
             setFormError('');
           }}
@@ -309,25 +310,19 @@ export default function PurchaseInvoices({ projectId = null }) {
                     <td className="num">{money(b.tax_amount, 2)}</td>
                     <td className="num strong">{money(balance(b), 2)}</td>
                     <td style={{ textTransform: 'capitalize', fontSize: '0.75rem' }}>{b.status.replace('_', ' ')}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>
-                      {b.receipt_path && (
-                        <button className="fin-list-action-btn" title="View receipt" onClick={() => receiptService.open(b.receipt_path)} aria-label="View receipt"><Paperclip size={14} /></button>
-                      )}
-                      {b.status !== 'paid' && b.status !== 'void' && (
-                        <button className="fin-list-action-btn success" title="Record payment" onClick={() => handlePay(b)} aria-label="Record payment">
-                          <CheckCircle size={14} />
-                        </button>
-                      )}
-                      <button className="fin-list-action-btn" title="Edit" onClick={() => { setEditing({
-                        ...b, _share: undefined, _shareNet: undefined,
-                        _roundOpen: !!b.round_off, _finalTotal: b.round_off ? String(b.total) : '',
-                      }); setFormError(''); }} aria-label="Edit"><Pencil size={14} /></button>
-                      {b.status !== 'void' ? (
-                        <button className="fin-list-action-btn" title="Void" onClick={() => handleVoid(b)} aria-label="Void"><Ban size={14} /></button>
-                      ) : (
-                        <button className="fin-list-action-btn" title="Unvoid" onClick={() => handleUnvoid(b)} aria-label={`Unvoid bill ${b.bill_number}`}><RotateCcw size={14} /></button>
-                      )}
-                      <button className="fin-list-action-btn danger" title="Delete" onClick={() => handleDelete(b)} aria-label="Delete"><Trash2 size={14} /></button>
+                    <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
+                      <RowMenu label={`Actions for bill ${b.bill_number}`} items={[
+                        b.receipt_path && { label: 'View receipt', icon: Paperclip, onClick: () => receiptService.open(b.receipt_path) },
+                        b.status !== 'paid' && b.status !== 'void' && { label: 'Record payment', icon: CheckCircle, tone: 'success', onClick: () => handlePay(b) },
+                        { label: 'Edit', icon: Pencil, onClick: () => { setEditing({
+                          ...b, _share: undefined, _shareNet: undefined,
+                          _roundOpen: !!b.round_off, _finalTotal: b.round_off ? String(b.total) : '',
+                        }); setFormError(''); } },
+                        b.status !== 'void'
+                          ? { label: 'Void', icon: Ban, onClick: () => handleVoid(b) }
+                          : { label: 'Unvoid', icon: RotateCcw, onClick: () => handleUnvoid(b) },
+                        { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => handleDelete(b) },
+                      ]} />
                     </td>
                   </tr>
                 );
@@ -343,14 +338,14 @@ export default function PurchaseInvoices({ projectId = null }) {
             {formError && <div className="prod-form-error">{formError}</div>}
             <div className="prod-form-grid">
               <div className="prod-field full">
-                <label>Vendor *</label>
+                <label className="req">Vendor</label>
                 <select aria-label="Vendor" value={editing.vendor_id} onChange={(e) => set('vendor_id', e.target.value)} required>
                   <option value="">Select a vendor…</option>
                   {(editing.id ? vendors : activeVendors).map((v) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
                 </select>
               </div>
               <div className="prod-field">
-                <label>Bill number *</label>
+                <label className="req">Bill number</label>
                 <input aria-label="Bill number" value={editing.bill_number} onChange={(e) => set('bill_number', e.target.value)} required placeholder="As printed on the bill" />
               </div>
               <div className="prod-field">
@@ -360,7 +355,7 @@ export default function PurchaseInvoices({ projectId = null }) {
                 </select>
               </div>
               <div className="prod-field">
-                <label>Bill date *</label>
+                <label className="req">Bill date</label>
                 <input aria-label="Bill date" type="date" value={editing.bill_date || ''} onChange={(e) => set('bill_date', e.target.value)} required />
               </div>
               <div className="prod-field">
@@ -368,7 +363,7 @@ export default function PurchaseInvoices({ projectId = null }) {
                 <input aria-label="Due date" type="date" min={editing.bill_date || undefined} value={editing.due_date || ''} onChange={(e) => set('due_date', e.target.value)} />
               </div>
               <div className="prod-field">
-                <label>Amount before tax (₹) *</label>
+                <label className="req">Amount before tax (₹)</label>
                 <input aria-label="Amount before tax (₹)" type="number" min="0" step="0.01" value={editing.subtotal} onChange={(e) => set('subtotal', e.target.value)} required />
               </div>
               <div className="prod-field">

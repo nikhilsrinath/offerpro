@@ -357,52 +357,64 @@ export default function TasksPage({ projectId = null, embedded = false }) {
             ) : sorted.length === 0 ? (
                 <Panel><Empty>Nothing matches those filters.</Empty></Panel>
             ) : (
-                <Table cols={[
-                    { key: 't', label: 'Task' },
+                <Table id={projectId ? 'tasks-project' : 'tasks'} cols={[
+                    { key: 't', label: 'Task', always: true },
                     ...(projectId ? [] : [{ key: 'j', label: 'Project' }]),
+                    { key: 'ms', label: 'Milestone', def: false },
                     { key: 'w', label: 'Assigned to' },
                     { key: 's', label: 'Status' },
                     { key: 'p', label: 'Priority' },
                     { key: 'd', label: 'Deadline' },
-                    { key: 'a', label: '', align: 'right', width: 140 },
+                    { key: 'imp', label: 'Important', def: false },
+                    { key: 'a', label: '', align: 'right', width: 140, always: true },
                 ]}>
-                    {sorted.map((task) => {
+                    {(show) => sorted.map((task) => {
                         const dl = deadlineOf(task.deadline);
                         const over = isOverdue(task);
                         const person = byId[task.assignedTo];
                         const next = task.status === 'pending' ? 'in-progress' : task.status === 'in-progress' ? 'done' : null;
                         return (
                             <Tr key={task.id}>
-                                <Td>
-                                    <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{task.title}{task.important && <Important t={t} />}</span>
-                                    {task.description && (
-                                        <span style={{
-                                            display: 'block', fontSize: 11, color: t.faint, marginTop: 2,
-                                            maxWidth: 420, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                        }}>{task.description}</span>
-                                    )}
-                                </Td>
-                                {!projectId && <Td nowrap><ProjectBadge project={projectById[task.projectId]} /></Td>}
-                                <Td nowrap>
-                                    <Row gap={8}>
-                                        <Avatar name={empName(person) || '?'} size={22} />
-                                        <span style={{ fontSize: 12.5, color: t.dim }}>{empName(person) || 'Unassigned'}</span>
-                                    </Row>
-                                </Td>
-                                <Td nowrap>
-                                    <Status tone={task.status === 'done' ? 'up' : over ? 'down' : 'neutral'}>
-                                        {over && task.status !== 'done' ? 'Overdue' : COLUMNS.find((c) => c.id === task.status)?.label || task.status}
-                                    </Status>
-                                </Td>
-                                <Td muted nowrap>{PRIORITY_LABEL[task.priority] || '—'}</Td>
-                                <Td nowrap>{dl ? <Status tone={over ? 'down' : dl.tone}>{dl.text}</Status> : <span style={{ color: t.ghost }}>—</span>}</Td>
-                                <Td align="right">
-                                    <Row gap={6} style={{ justifyContent: 'flex-end' }}>
-                                        {next && <Btn size="sm" onClick={() => move(task, next)}>{next === 'done' ? 'Done' : 'Start'}</Btn>}
-                                        {task.status === 'done' && <Btn size="sm" onClick={() => move(task, 'pending')}>Reopen</Btn>}
-                                        <Btn size="sm" onClick={() => openEdit(task)}>Edit</Btn>
-                                    </Row>
-                                </Td>
+                                {show('t') && (
+                                    <Td>
+                                        <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{task.title}{task.important && <Important t={t} />}</span>
+                                        {task.description && (
+                                            <span style={{
+                                                display: 'block', fontSize: 11, color: t.faint, marginTop: 2,
+                                                maxWidth: 420, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                            }}>{task.description}</span>
+                                        )}
+                                    </Td>
+                                )}
+                                {!projectId && show('j') && <Td nowrap><ProjectBadge project={projectById[task.projectId]} /></Td>}
+                                {show('ms') && <Td muted nowrap>{milestones.find((m) => m.id === task.milestoneId)?.title || '—'}</Td>}
+                                {show('w') && (
+                                    <Td nowrap>
+                                        <Row gap={8}>
+                                            <Avatar name={empName(person) || '?'} size={22} />
+                                            <span style={{ fontSize: 12.5, color: t.dim }}>{empName(person) || 'Unassigned'}</span>
+                                        </Row>
+                                    </Td>
+                                )}
+                                {show('s') && (
+                                    <Td nowrap>
+                                        <Status tone={task.status === 'done' ? 'up' : over ? 'down' : 'neutral'}>
+                                            {over && task.status !== 'done' ? 'Overdue' : COLUMNS.find((c) => c.id === task.status)?.label || task.status}
+                                        </Status>
+                                    </Td>
+                                )}
+                                {show('p') && <Td muted nowrap>{PRIORITY_LABEL[task.priority] || '—'}</Td>}
+                                {show('d') && <Td nowrap>{dl ? <Status tone={over ? 'down' : dl.tone}>{dl.text}</Status> : <span style={{ color: t.ghost }}>—</span>}</Td>}
+                                {show('imp') && <Td muted nowrap>{task.important ? 'Yes' : '—'}</Td>}
+                                {show('a') && (
+                                    <Td align="right">
+                                        <Row gap={6} style={{ justifyContent: 'flex-end' }}>
+                                            {next && <Btn size="sm" onClick={() => move(task, next)}>{next === 'done' ? 'Done' : 'Start'}</Btn>}
+                                            {task.status === 'done' && <Btn size="sm" onClick={() => move(task, 'pending')}>Reopen</Btn>}
+                                            <Btn size="sm" onClick={() => openEdit(task)}>Edit</Btn>
+                                        </Row>
+                                    </Td>
+                                )}
                             </Tr>
                         );
                     })}

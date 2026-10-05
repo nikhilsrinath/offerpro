@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Eye, Send, Save, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Eye, Send, Save } from 'lucide-react';
 import { documentStore } from '../../services/documentStore';
 import { createPortalLink } from '../../services/portalService';
 import { customerService } from '../../services/customerService';
@@ -12,7 +12,6 @@ import CountrySelect from '../shared/CountrySelect';
 import { useToast } from '../shared/Toast';
 import A4Stage from '../shared/A4Stage';
 import { useFormProject, projectStartLines, linkToProject, projectFormNote } from '../projects/projectScope';
-import { useGoBack } from '../shell/navHistory';
 
 const GST_RATES = [0, 5, 12, 18, 28];
 const ADVANCE_PRESETS = [25, 50, 75, 100];
@@ -26,10 +25,7 @@ export default function ProformaInvoiceForm() {
   // Opened from a project's Billing page (?project=): the proforma starts on
   // the project's client and its latest quotation, is linked to the project
   // when saved, and every way out returns there.
-  const fromProject = useFormProject('proforma', '/proforma');
-  // Back returns to the page the form was opened from; the list (or the
-  // project's page) only when there is none.
-  const goBack = useGoBack();
+  const fromProject = useFormProject('proforma', '/billing/proforma');
 
   // Build company info from activeOrg (dynamic, not stale localStorage)
   const company = {
@@ -398,19 +394,8 @@ export default function ProformaInvoiceForm() {
       {/* LEFT: Form */}
       <div className="mou-form-pane">
         <form onSubmit={(e) => e.preventDefault()} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
-          {/* Header with Back button */}
+          {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
-            <button
-              type="button"
-              onClick={() => goBack(fromProject.returnTo)}
-              style={{
-                background: 'none', border: '1px solid var(--border-default)', borderRadius: '8px',
-                padding: '0.5rem 0.75rem', cursor: 'pointer', color: 'var(--text-secondary)',
-                fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem'
-              }}
-            >
-              <ArrowLeft size={16} /> Back
-            </button>
             <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>New Proforma Invoice</h2>
           </div>
           {fromProject.project && (

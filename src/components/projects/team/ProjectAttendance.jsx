@@ -584,19 +584,19 @@ function ApplyLeave({ orgId, people, team, types, requests, forOthers, onClose, 
                 </Btn>
             </>}>
             <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                <Field label="Member">
+                <Field required label="Member">
                     <Select value={form.employeeId} onChange={set('employeeId')} disabled={choices.length < 2}>
                         {choices.map((p) => <option key={p.id} value={p.id}>{p.name}{p.id === team.me ? ' (you)' : ''}</option>)}
                     </Select>
                 </Field>
-                <Field label="Leave type">
+                <Field required label="Leave type">
                     <Select value={form.leaveTypeId} onChange={set('leaveTypeId')}>
                         {active.length === 0 && <option value="">No leave types set up</option>}
                         {active.map((x) => <option key={x.id} value={x.id}>{x.name}{x.annual_quota ? ` · ${x.annual_quota}/yr` : ''}</option>)}
                     </Select>
                 </Field>
-                <Field label="From"><Input type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value, endDate: f.endDate < e.target.value ? e.target.value : f.endDate }))} /></Field>
-                <Field label="To"><Input type="date" value={form.endDate} min={form.startDate} onChange={set('endDate')} /></Field>
+                <Field required label="From"><Input type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value, endDate: f.endDate < e.target.value ? e.target.value : f.endDate }))} /></Field>
+                <Field required label="To"><Input type="date" value={form.endDate} min={form.startDate} onChange={set('endDate')} /></Field>
             </div>
             <Row gap={16} wrap style={{ marginTop: 12 }}>
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: t.dim, cursor: 'pointer', minHeight: 24 }}>

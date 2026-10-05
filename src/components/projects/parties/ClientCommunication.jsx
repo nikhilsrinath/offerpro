@@ -455,7 +455,7 @@ function CommForm({ project, clients, contacts, row, defaultClient, onClose }) {
             <div style={{ display: 'grid', gap: 12 }}>
                 <ClientField clients={clients} value={form.client_id} onChange={set('client_id')} />
                 <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                    <Field label="Date & time *">
+                    <Field required label="Date & time">
                         <Input type="datetime-local" value={form.occurred_at} onChange={set('occurred_at')} />
                         <FieldError>{errors.occurred_at}</FieldError>
                     </Field>
@@ -465,7 +465,7 @@ function CommForm({ project, clients, contacts, row, defaultClient, onClose }) {
                         </Select>
                     </Field>
                 </div>
-                <Field label="Subject *">
+                <Field required label="Subject">
                     <Input value={form.subject} maxLength={300} onChange={set('subject')} placeholder="Kick-off call, revised scope…" />
                     <FieldError>{errors.subject}</FieldError>
                 </Field>
@@ -537,7 +537,7 @@ function ApprovalForm({ project, clients, contacts, row, defaultClient, onClose 
             <div style={{ display: 'grid', gap: 12 }}>
                 <ClientField clients={clients} value={form.client_id} onChange={set('client_id')} />
                 <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                    <Field label="Item *">
+                    <Field required label="Item">
                         <Input value={form.item_name} maxLength={300} onChange={set('item_name')} placeholder="Homepage design v2" />
                         <FieldError>{errors.item_name}</FieldError>
                     </Field>
@@ -560,7 +560,7 @@ function ApprovalForm({ project, clients, contacts, row, defaultClient, onClose 
                             </Select>
                         </Field>
                     )}
-                    <Field label="Sent on *">
+                    <Field required label="Sent on">
                         <Input type="date" value={form.sent_on} onChange={set('sent_on')} />
                         <FieldError>{errors.sent_on}</FieldError>
                     </Field>
@@ -580,7 +580,7 @@ function ApprovalForm({ project, clients, contacts, row, defaultClient, onClose 
                         </Select>
                     </Field>
                     {form.status !== 'pending' && (
-                        <Field label="Responded on *">
+                        <Field required label="Responded on">
                             <Input type="date" value={form.responded_on} min={form.sent_on} onChange={set('responded_on')} />
                             <FieldError>{errors.responded_on}</FieldError>
                         </Field>

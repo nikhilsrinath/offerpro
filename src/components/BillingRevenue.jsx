@@ -17,6 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { receiptService, RECEIPT_ACCEPT } from '../services/receiptService';
 import { categoryLabel, countsAsIncome, groupOf, loadFinanceCategories } from '../services/financeCategories';
 import { confirmDialog } from '../services/confirm';
+import { RowMenu } from './ui/edge';
 
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const chartStyles = () => ({
@@ -330,7 +331,7 @@ export default function BillingRevenue() {
             </div>
             <button
               type="button"
-              onClick={() => navigate('/products')}
+              onClick={() => navigate('/products-directory')}
               style={{
                 border: 'none', background: 'transparent', cursor: 'pointer',
                 fontSize: '0.75rem', fontWeight: 650, color: 'var(--text-muted)',
@@ -481,7 +482,7 @@ export default function BillingRevenue() {
             <Banknote size={18} style={{ color: 'var(--success)' }} />
             <h3>Money In (no invoice)</h3>
           </div>
-          <button className="billing-add-btn" onClick={() => navigate('/cashbook?new=in')}>
+          <button className="billing-add-btn" onClick={() => navigate('/general-ledger?new=in')}>
             <Plus size={16} aria-hidden="true" /> Add revenue
           </button>
         </div>
@@ -523,7 +524,7 @@ export default function BillingRevenue() {
             <TrendingDown size={18} style={{ color: '#ef4444' }} />
             <h3>Expenses</h3>
           </div>
-          <button className="billing-add-btn" onClick={() => navigate('/cashbook?new=out')}>
+          <button className="billing-add-btn" onClick={() => navigate('/general-ledger?new=out')}>
             <Plus size={16} aria-hidden="true" /> Add expense
           </button>
         </div>
@@ -547,20 +548,16 @@ export default function BillingRevenue() {
                 </div>
                 <div className="billing-expense-right">
                   <span className="billing-expense-amount">₹{Number(exp.amount).toLocaleString()}</span>
-                  {exp.receipt_path ? (
-                    <button className="billing-delete-btn" title="View receipt" onClick={() => receiptService.open(exp.receipt_path)} aria-label="View receipt">
-                      <Paperclip size={14} />
-                    </button>
-                  ) : (
-                    <label className="billing-delete-btn" title="Attach receipt (PDF or image, max 5 MB)" style={{ cursor: 'pointer' }}>
-                      <Upload size={14} />
-                      <input type="file" accept={RECEIPT_ACCEPT} hidden
-                        onChange={(e) => { handleAttachReceipt(exp, e.target.files?.[0]); e.target.value = ''; }} />
-                    </label>
+                  {!exp.receipt_path && (
+                    <input type="file" accept={RECEIPT_ACCEPT} hidden id={`receipt-${exp.id}`}
+                      onChange={(e) => { handleAttachReceipt(exp, e.target.files?.[0]); e.target.value = ''; }} />
                   )}
-                  <button className="billing-delete-btn" onClick={() => handleDeleteExpense(exp.id)} aria-label="Delete expense" title="Delete expense">
-                    <Trash2 size={14} />
-                  </button>
+                  <RowMenu label={`Actions for ${exp.description}`} items={[
+                    exp.receipt_path
+                      ? { label: 'View receipt', icon: Paperclip, onClick: () => receiptService.open(exp.receipt_path) }
+                      : { label: 'Attach receipt', hint: 'PDF or image, max 5 MB', icon: Upload, onClick: () => document.getElementById(`receipt-${exp.id}`)?.click() },
+                    { label: 'Delete expense', icon: Trash2, tone: 'danger', onClick: () => handleDeleteExpense(exp.id) },
+                  ]} />
                 </div>
               </div>
             ))

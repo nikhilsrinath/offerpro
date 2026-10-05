@@ -116,7 +116,7 @@ export default function ProjectActions({ project }) {
                         setReopening(false);
                     }, 'Project reopened')}>Reopen</Btn>
                 </>}>
-                <Field label="Why is it reopening?">
+                <Field required label="Why is it reopening?">
                     <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
                 </Field>
             </Modal>

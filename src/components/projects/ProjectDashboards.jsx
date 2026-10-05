@@ -21,6 +21,7 @@ import { useProjectBoardData } from './projectBoard';
 import { describeActivity } from './activityText';
 import ProjectActions from './ProjectActions';
 import PageTabs from './PageTabs';
+import { projectSectionPath } from './projectPaths';
 
 /* ══════════════════════════════════════════════════════════════════════════
    One project's Dashboard — the company Dashboard's flow, for one project.
@@ -74,7 +75,7 @@ function DashboardPage({ project, page, navigate }) {
     const cols = winW < 900 ? 1 : winW < 1320 ? 2 : 3;
     const tileCols = (max) => Math.min(max, winW < 620 ? 1 : winW < 1100 ? 2 : max);
     // A card's link opens that section of the project.
-    const open = (tab) => navigate(`/projects/${project.id}?tab=${tab}`);
+    const open = (tab) => navigate(projectSectionPath(project.id, tab));
     const ctx = { ...viz, board, open, navigate, cols, tileCols };
     const view = page.id;
     const pad = winW < 760 ? 12 : 24;
@@ -183,7 +184,7 @@ function OverviewView({ board, open, navigate, t, status, cols, tileCols }) {
                         </span>}
                         sub={[personOf[task.assignedTo] || 'Unassigned', task.status === 'in-progress' ? 'in progress' : null].filter(Boolean).join(' · ')}
                         value={due ? `${isLate ? 'late · ' : ''}${fmtDay(due).slice(0, 6)}` : 'no date'} tone={isLate ? 'down' : null}
-                        onClick={() => navigate(`/projects/${project.id}?tab=wbs&task=${task.id}`)} />
+                        onClick={() => navigate(projectSectionPath(project.id, 'wbs', null, { task: task.id }))} />
                 ))}
                 {attention.length > 10 && (
                     <div style={{ fontSize: 11.5, color: t.faint, marginTop: 8 }}>and {attention.length - 10} more</div>
@@ -344,7 +345,7 @@ function SalesView({ board, open, navigate, t, status, cols, tileCols }) {
                     <ListRow key={d.id} label={`${d.doc_number || d.invoiceNumber || 'Invoice'}`}
                         sub={`${fmtDay(d.issue_date)} · ${stateLabel[d.state]}`}
                         value={fmtShort(d.grand_total)} tone={d.state === 'overdue' ? 'down' : null}
-                        onClick={() => navigate('/invoices')} />
+                        onClick={() => navigate('/billing/invoices')} />
                 )) : <EmptyNote>No invoices linked yet.</EmptyNote>}
                 {invoices.length > 0 && (
                     <div style={{ marginTop: 12 }}>
@@ -361,7 +362,7 @@ function SalesView({ board, open, navigate, t, status, cols, tileCols }) {
                     <ListRow key={d.id} label={`${FIN_LABEL[d.type]} · ${d.doc_number || d.invoiceNumber || ''}`}
                         sub={`${fmtDay(d.issue_date)} · ${(d.status || '').replace(/_/g, ' ')}`}
                         value={fmtShort(d.grand_total)}
-                        onClick={() => navigate(d.type === 'quotation' ? `/new-quotation/${d.id}` : '/proforma')} />
+                        onClick={() => navigate(d.type === 'quotation' ? `/billing/quotations/${d.id}/edit` : '/billing/proforma')} />
                 )) : <EmptyNote>No quotation linked. Link the one this project came from on Documents.</EmptyNote>}
             </Card>
 
@@ -375,7 +376,7 @@ function SalesView({ board, open, navigate, t, status, cols, tileCols }) {
                     {sibling.slice(0, 4).map((p) => (
                         <ListRow key={p.id} label={p.name || p.code} sub={p.code} onClick={() => navigate(`/projects/${p.id}`)} />
                     ))}
-                    <div style={{ marginTop: 10 }}><More label="Client" to={`/customers?client=${client.id}`} /></div>
+                    <div style={{ marginTop: 10 }}><More label="Client" to={`/client-directory?client=${client.id}`} /></div>
                 </>) : <EmptyNote>This project has no client, so there is nothing to sell.</EmptyNote>}
             </Card>
         </CardGrid>
@@ -458,10 +459,10 @@ function DocumentsView({ board, open, navigate, cat, cols, tileCols }) {
             const r = l.record_id ? rec[l.record_id] : null;
             const d = l.financial_document_id ? fd[l.financial_document_id] : null;
             if (r) return { id: l.id, group: 'agreements', type: RECORD_LABEL[r.type] || r.type, title: r.title || r.doc_number, date: r.issue_date, to: '/records' };
-            if (d) return { id: l.id, group: 'sales', type: FIN_LABEL[d.type] || 'Document', title: d.doc_number || d.invoiceNumber, date: d.issue_date, to: d.type === 'quotation' ? `/new-quotation/${d.id}` : '/proforma' };
+            if (d) return { id: l.id, group: 'sales', type: FIN_LABEL[d.type] || 'Document', title: d.doc_number || d.invoiceNumber, date: d.issue_date, to: d.type === 'quotation' ? `/billing/quotations/${d.id}/edit` : '/billing/proforma' };
             return null;
         }).filter(Boolean);
-        const inv = fin ? invoices.map((d) => ({ id: `inv:${d.id}`, group: 'invoices', type: 'Invoice', title: d.doc_number || d.invoiceNumber, date: d.issue_date, to: '/invoices' })) : [];
+        const inv = fin ? invoices.map((d) => ({ id: `inv:${d.id}`, group: 'invoices', type: 'Invoice', title: d.doc_number || d.invoiceNumber, date: d.issue_date, to: '/billing/invoices' })) : [];
         return [...linked, ...inv].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
     }, [links, records, docs, invoices, project.id, fin]);
 

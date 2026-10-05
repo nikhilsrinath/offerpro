@@ -255,7 +255,7 @@ function AddClient({ project, all, linked, onNew, onClose }) {
             {choices.length === 0 ? (
                 <p style={{ margin: 0, fontSize: 13, color: t.dim }}>Every client is already on this project. Create a new one instead.</p>
             ) : (
-                <Field label="An existing client">
+                <Field required label="An existing client">
                     <Select value={id} onChange={(e) => setId(e.target.value)} autoFocus>
                         <option value="">Choose…</option>
                         {choices.map((c) => <option key={c.id} value={c.id}>{c.name}{c.email ? ` — ${c.email}` : ''}</option>)}
@@ -312,7 +312,7 @@ function ClientForm({ client, project, onClose }) {
     };
 
     const F = ({ k, label, children, hint }) => (
-        <Field label={label} hint={hint}>{children}<FieldError>{errors[k]}</FieldError></Field>
+        <Field label={label} hint={hint} required={!!RULES[k]?.some((r) => r.required)}>{children}<FieldError>{errors[k]}</FieldError></Field>
     );
 
     return (

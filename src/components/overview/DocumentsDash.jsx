@@ -81,7 +81,7 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
                 foot={`${group('invoice')} invoices · ${group('quotation')} quotes`} onClick={() => open({ kind: 'docs', id: 'invoice' })} />
             <Tile icon={FolderOpen} label="Library" value={lib ? String(lib.total) : '—'} exact={lib ? `${lib.total} files` : 'not available'}
                 foot={library === undefined ? 'loading…' : lib ? `${fmtBytes(lib.bytes)} stored` : 'not available to your role'}
-                onClick={() => navigate('/library')} />
+                onClick={() => navigate('/document-library')} />
         </TileRow>
 
         <CardGrid cols={cols}>
@@ -120,7 +120,7 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
                 </div>
             </Card>
 
-            <Card title="Offer responses" note="every offer letter · today" right={<More label="Tracker" to="/offer-tracker" />}>
+            <Card title="Offer responses" note="every offer letter · today" right={<More label="Tracker" to="/recruitment-tracker" />}>
                 {offers.total === 0 ? <EmptyNote>No offer letters yet</EmptyNote> : (<>
                     <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 12 }}>
                         <Figure big label="acceptance" value={offers.rate === null ? '—' : `${offers.rate.toFixed(0)}%`} />
@@ -133,7 +133,7 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
                         { id: 'unsent', label: 'Not sent', value: offers.c.unsent, color: t.faint },
                         { id: 'declined', label: 'Declined', value: offers.c.declined, color: status.critical },
                         { id: 'cancelled', label: 'Cancelled', value: offers.c.cancelled, color: t.ghost },
-                    ].filter((p) => p.value > 0)} onSelect={() => navigate('/offer-tracker')} />
+                    ].filter((p) => p.value > 0)} onSelect={() => navigate('/recruitment-tracker')} />
                 </>)}
             </Card>
 
@@ -142,17 +142,17 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
                     format={(v) => String(v)} total={model.docTotal} onSelect={(r) => open({ kind: 'docs', id: r.key })} empty="Nothing issued in this period" />
             </Card>
 
-            <Card title="General documents" note="the library EdgeBrain reads" right={<More label="Library" to="/library" />}>
+            <Card title="General documents" note="the library EdgeBrain reads" right={<More label="Library" to="/document-library" />}>
                 {library === undefined ? <EmptyNote>Loading…</EmptyNote> : !lib ? <EmptyNote>The library is not available to your role</EmptyNote>
                     : lib.total === 0 ? <EmptyNote>No files in the library yet</EmptyNote> : (<>
-                        <RankBars rows={lib.cats} format={(v) => String(v)} total={lib.total} max={5} color={cat[3]} onSelect={() => navigate('/library')} />
+                        <RankBars rows={lib.cats} format={(v) => String(v)} total={lib.total} max={5} color={cat[3]} onSelect={() => navigate('/document-library')} />
                         <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, margin: '12px 0 6px' }}>READ BY EDGEBRAIN</div>
                         <SplitBar format={(v) => String(v)} unit="Files" parts={[
                             { id: 'ready', label: 'Readable', value: lib.st.ready, color: status.good },
                             { id: 'processing', label: 'Reading', value: lib.st.processing, color: cat[0] },
                             { id: 'failed', label: 'Could not read', value: lib.st.failed, color: status.critical },
                             { id: 'other', label: 'Stored, not readable', value: lib.st.other, color: t.faint },
-                        ].filter((p) => p.value > 0)} onSelect={() => navigate('/library')} />
+                        ].filter((p) => p.value > 0)} onSelect={() => navigate('/document-library')} />
                     </>)}
             </Card>
         </CardGrid>

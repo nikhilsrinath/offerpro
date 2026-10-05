@@ -12,8 +12,8 @@ import { documentStore } from '../../services/documentStore';
 import { getPlanConfig, DEFAULT_PLAN } from '../../services/planConfig';
 import { RailSlotContext } from './railSlot';
 import { useRailPin, RailPinButton } from './railPin';
-import { usePreviousPage, useGoBack } from './navHistory';
 import MobileNav from './MobileNav';
+import { MODULES } from './modules';
 import Copilot from '../assistant/Copilot';
 import { useAssistant } from '../assistant/assistantStore';
 import './edgeBridge.css';
@@ -36,8 +36,9 @@ const writeFlag = (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } ca
    uses, so moving from the hub into Team is a change of content, not a change
    of application. The rail lists the pages of the module you are in — which is
    what the old sidebar did — and the hub is one click away at the top of it.
-   With `topNav` there is no rail: the pages sit in a segmented strip under the
-   top bar, and the way back is the arrow at the start of the bar.
+   With `topNav` the pages sit in a segmented strip under the top bar and the
+   rail is the hub's own — every module — and the way back is the arrow at the
+   start of the bar.
    ══════════════════════════════════════════════════════════════════════════ */
 
 function useWindowWidth() {
@@ -76,7 +77,7 @@ function PopRow({ t, icon, label, note, onClick, danger, dot }) {
    opening one feels like entering its own hub. */
 export default function ModuleShell({
     theme, user, module: mod, items, title, subtitle, actions,
-    onToggleTheme, onLogout, flush = false, railSlot = false, workspace = false,
+    onToggleTheme, onLogout, flush = false, railSlot = false, noRail = false, workspace = false,
     topNav = false, back = HUB_BACK, children,
 }) {
     const isDark = theme === 'dark';
@@ -84,21 +85,10 @@ export default function ModuleShell({
     const { activeOrg } = useOrg();
     const profile = useProfileCompletion();
     const navigate = useNavigate();
-    // `back` is where the arrow goes when no page came before this one; with
-    // one, it returns there (navHistory). The link names the real destination
-    // so opening it in a new tab works; a plain click steps back through
-    // history, so the page behind comes back as it was left.
+    // `back` is where the arrow goes, always: the hub, or — inside a
+    // project — the project list (App.jsx). It is the only back control.
     // The module's own page links (rail, tabs, phone strip) replace rather than
-    // push: moving between a module's pages is moving within one place, so Back
-    // leaves the module for the page that opened it instead of retracing them.
-    const prevPage = usePreviousPage();
-    const goBack = useGoBack();
-    const backHref = prevPage ? prevPage.pathname + prevPage.search : back.to;
-    const onBack = (e) => {
-        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-        e.preventDefault();
-        goBack(back.to);
-    };
+    // push: moving between a module's pages is moving within one place.
     const winW = useWindowWidth();
     const isMobile = winW < 760;
 
@@ -129,6 +119,11 @@ export default function ModuleShell({
     // Pages as tabs under the bar instead of a rail (desktop; phones already
     // get their strip below).
     const tabs = topNav && !isMobile;
+    // With the pages in tabs, the rail is the hub's: every module, this one
+    // lit. Those links push, so Back returns here from the module opened.
+    const railItems = tabs
+        ? MODULES.map((m) => ({ id: m.id, label: m.label, icon: m.icon, to: '/' + m.defaultPage, active: m.id === mod?.id, push: true }))
+        : items;
 
     useEffect(() => {
         const read = () => setNotifs(documentStore.getNotifications() || []);
@@ -290,7 +285,7 @@ export default function ModuleShell({
             <a href="#edge-main" className="edge-skip" onClick={(e) => { e.preventDefault(); mainRef.current?.focus(); }}>
                 Skip to content
             </a>
-            {!isMobile && !tabs && (
+            {!isMobile && !noRail && (
                 <aside
                     aria-label={(mod?.label || 'Module') + ' navigation'}
                     onMouseEnter={railSlot ? undefined : () => setHoverRail(true)}
@@ -313,7 +308,24 @@ export default function ModuleShell({
                         height: 53, padding: '0 18px', flexShrink: 0,
                         borderBottom: '1px solid ' + t.line,
                     }}>
-                        <Link to={backHref} onClick={onBack} title={back.label} aria-label={back.label} className="edge-navitem" style={{
+                        {/* The hub's rail is headed by the mark; the way back
+                            is then the arrow in the top bar. */}
+                        {tabs ? (
+                        <Link to="/hub" title="Hub" aria-label="EdgeOS hub" style={{
+                            display: 'flex', alignItems: 'center', gap: 11, minWidth: 0, flex: 1,
+                            textDecoration: 'none', color: t.text,
+                        }}>
+                            <svg aria-hidden="true" width="21" height="21" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0, marginLeft: -1 }}>
+                                <path d="M10 1v18M1 10h18M3.5 3.5l13 13M16.5 3.5l-13 13" stroke={t.text} strokeWidth="1.3" />
+                                <circle cx="10" cy="10" r="2.6" fill={t.panel} stroke={t.text} strokeWidth="1.3" />
+                            </svg>
+                            <span aria-hidden="true" style={{
+                                fontSize: 16, fontWeight: 500, letterSpacing: '-0.02em', whiteSpace: 'nowrap',
+                                opacity: rail ? 1 : 0, transition: 'opacity .16s',
+                            }}>EdgeOS</span>
+                        </Link>
+                        ) : (
+                        <Link to={back.to} title={back.label} aria-label={back.label} className="edge-navitem" style={{
                             display: 'flex', alignItems: 'center', gap: 11, minWidth: 0, flex: 1,
                             textDecoration: 'none', color: t.text,
                         }}>
@@ -323,6 +335,7 @@ export default function ModuleShell({
                                 opacity: rail ? 1 : 0, transition: 'opacity .16s',
                             }}>{back.label}</span>
                         </Link>
+                        )}
                         {/* A page-owned rail is always open, so there is nothing to pin. */}
                         {!railSlot && (
                             <RailPinButton
@@ -343,18 +356,18 @@ export default function ModuleShell({
                         padding: '11px 18px 6px', fontSize: 10.5, letterSpacing: '0.1em',
                         color: t.faint, whiteSpace: 'nowrap',
                         opacity: rail ? 1 : 0, transition: 'opacity .16s',
-                    }}>{(mod?.label || 'MODULE').toUpperCase()}</div>
+                    }}>{tabs ? 'WORKSPACE' : (mod?.label || 'MODULE').toUpperCase()}</div>
                     )}
 
-                    <nav aria-label={(mod?.label || 'Module') + ' pages'} className="edge-scroll" style={{
+                    <nav aria-label={tabs ? 'Modules' : (mod?.label || 'Module') + ' pages'} className="edge-scroll" style={{
                         display: 'flex', flexDirection: 'column', gap: 1,
                         padding: '0 9px', overflowY: 'auto', overflowX: 'hidden',
                     }}>
-                        {(items || []).map((it) => {
+                        {(railItems || []).map((it) => {
                             const Icon = it.icon;
                             const link = (
                                 <NavLink
-                                    key={it.id} to={it.to || '/' + it.id} end={!!it.end} replace title={it.label}
+                                    key={it.id} to={it.to || '/' + it.id} end={!!it.end} replace={!it.push} title={it.label}
                                     className="edge-navitem"
                                     aria-current={it.active === false ? false : 'page'}
                                     style={({ isActive: routeActive }) => { const isActive = it.active ?? routeActive; return {
@@ -495,10 +508,9 @@ export default function ModuleShell({
                                 display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, lineHeight: 1.3,
                                 opacity: rail ? 1 : 0, transition: 'opacity .16s',
                             }}>
-                                <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName}</span>
-                                <span style={{ fontSize: 11, color: t.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 5 }}>
-                                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: plan.color, flexShrink: 0 }} />
-                                    {orgName}
+                                <span title={orgName} style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: plan.color, flexShrink: 0 }} />
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}</span>
                                 </span>
                             </span>
                             <ChevronDown size={13} strokeWidth={2} aria-hidden="true" style={{
@@ -541,9 +553,9 @@ export default function ModuleShell({
                     padding: isMobile ? '9px 12px' : '0 20px', height: 53, flexShrink: 0,
                     borderBottom: '1px solid ' + t.line, background: t.panel, zIndex: 40,
                 }}>
-                    {(isMobile || tabs) && (
-                        <Link to={backHref} onClick={onBack} aria-label={back.label} title={back.label} className={tabs ? 'edge-icon' : undefined}
-                            style={tabs ? { ...iconBtn(t), marginLeft: -6 } : { color: t.dim, display: 'grid', placeItems: 'center', flexShrink: 0, width: 32, height: 32 }}>
+                    {(isMobile || tabs || noRail) && (
+                        <Link to={back.to} aria-label={back.label} title={back.label} className={tabs || (noRail && !isMobile) ? 'edge-icon' : undefined}
+                            style={tabs || (noRail && !isMobile) ? { ...iconBtn(t), marginLeft: -6 } : { color: t.dim, display: 'grid', placeItems: 'center', flexShrink: 0, width: 32, height: 32 }}>
                             <ArrowLeft aria-hidden="true" size={17} strokeWidth={1.8} />
                         </Link>
                     )}
@@ -605,10 +617,7 @@ export default function ModuleShell({
                             }}>
                             {avatar(22, 5)}
                             {!isMobile && (
-                                <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25, textAlign: 'left' }}>
-                                    <span style={{ fontSize: 12.5, color: t.text, fontWeight: 500 }}>{displayName}</span>
-                                    <span style={{ fontSize: 10.5, color: t.faint }}>{orgName.slice(0, 18)}</span>
-                                </span>
+                                <span title={orgName} style={{ fontSize: 12.5, color: t.text, fontWeight: 500, textAlign: 'left', maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}</span>
                             )}
                             <ChevronDown aria-hidden="true" size={12} strokeWidth={2} style={{
                                 color: t.faint, flexShrink: 0,
@@ -651,16 +660,6 @@ export default function ModuleShell({
                                     }; }}>{it.label}</NavLink>
                             ))}
                         </nav>
-                        <span style={{ flex: 1 }} />
-                        <Link to="/pricing" title={'Plan: ' + plan.displayName} aria-label={'Plan: ' + plan.displayName + '. View plans and billing'} className="edge-chip" style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0,
-                            height: 27, padding: '0 11px', borderRadius: 999, textDecoration: 'none',
-                            border: '1px solid ' + t.line, background: t.panelAlt,
-                            fontSize: 11, letterSpacing: '0.04em', color: t.dim,
-                        }}>
-                            <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: plan.color }} />
-                            {plan.displayName.toUpperCase()}
-                        </Link>
                     </div>
                 )}
 
@@ -726,18 +725,18 @@ function notifTarget(n) {
         case 'offer_signed':
         case 'role_change_acknowledged':
         case 'termination_acknowledged':
-            return '/offer-tracker';
+            return '/recruitment-tracker';
         case 'document_declined':
-            return n.document_id?.startsWith('OL') ? '/offer-tracker' : null;
+            return n.document_id?.startsWith('OL') ? '/recruitment-tracker' : null;
         case 'quotation_accepted':
         case 'quotation_sent':
         case 'revision_requested':
-            return '/new-quotation';
+            return '/billing/quotations';
         case 'payment_submitted':
-            return '/invoices';
+            return '/billing/invoices';
         case 'order_confirmed':
         case 'advance_submitted':
-            return '/proforma';
+            return '/billing/proforma';
         default:
             return null;
     }

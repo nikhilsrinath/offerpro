@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
 import { useToast } from '../shared/Toast';
+import { RowMenu } from '../ui/edge';
 import { Stat, Modal } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
 import { todayIso } from '../../services/financeAnalytics';
@@ -211,13 +212,11 @@ export default function Vendors() {
                     <td className="num strong" style={l.overdue > 0 ? { color: 'var(--error)' } : undefined}>{money(l.outstanding)}</td>
                     <td className="prod-perf-date">{fmtDate(l.last)}</td>
                     <td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
-                      <button className="fin-list-action-btn" title="Edit" onClick={() => { const start = vendorChoice(v, links); setEditing({ ...v, belongs: start }); setFromChoice(start); setFormError(''); }} aria-label="Edit"><Pencil size={14} /></button>
-                      <button className="fin-list-action-btn" title={v.archived_at ? 'Restore' : 'Archive'} onClick={() => handleArchive(v)}>
-                        {v.archived_at ? <ArchiveRestore size={14} /> : <Archive size={14} />}
-                      </button>
-                      {!l.count && (
-                        <button className="fin-list-action-btn danger" title="Delete" onClick={() => handleDelete(v)} aria-label="Delete"><Trash2 size={14} /></button>
-                      )}
+                      <RowMenu label={`Actions for ${v.company_name}`} items={[
+                        { label: 'Edit', icon: Pencil, onClick: () => { const start = vendorChoice(v, links); setEditing({ ...v, belongs: start }); setFromChoice(start); setFormError(''); } },
+                        { label: v.archived_at ? 'Restore' : 'Archive', icon: v.archived_at ? ArchiveRestore : Archive, onClick: () => handleArchive(v) },
+                        !l.count && { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => handleDelete(v) },
+                      ]} />
                     </td>
                   </tr>
                 );
@@ -228,12 +227,12 @@ export default function Vendors() {
       )}
 
       {editing && (
-        <Modal title={editing.id ? 'Edit vendor' : 'New vendor'} onClose={() => setEditing(null)}>
+        <Modal title={editing.id ? 'Edit vendor' : 'New vendor'} onClose={() => setEditing(null)} width="820px">
           <form onSubmit={handleSave} className="prod-modal-body">
             {formError && <div className="prod-form-error">{formError}</div>}
             <div className="prod-form-grid">
               <div className="prod-field full">
-                <label>Company name *</label>
+                <label className="req">Company name</label>
                 <input aria-label="Company name" value={editing.company_name} onChange={(e) => set('company_name', e.target.value)} autoFocus required />
               </div>
               <div className="prod-field full">
@@ -259,7 +258,7 @@ export default function Vendors() {
               </div>
               <div className="prod-field">
                 <label>GSTIN</label>
-                <input aria-label="GSTIN" value={editing.gstin || ''} onChange={(e) => set('gstin', e.target.value.toUpperCase())} maxLength={15} placeholder="15 characters" />
+                <input aria-label="GSTIN" value={editing.gstin || ''} onChange={(e) => set('gstin', e.target.value.toUpperCase())} maxLength={15} placeholder="" />
               </div>
               <div className="prod-field">
                 <label>State</label>
@@ -333,7 +332,7 @@ export default function Vendors() {
             )}
             <div className="prod-modal-foot">
               <button type="button" className="prod-btn-ghost" onClick={() => setViewing(null)}>Close</button>
-              <button type="button" className="prod-btn-primary" onClick={() => navigate(`/purchases?vendor=${viewing.id}&new=1`)}>
+              <button type="button" className="prod-btn-primary" onClick={() => navigate(`/purchase-bills?vendor=${viewing.id}&new=1`)}>
                 <Plus size={13} /> Record a bill
               </button>
             </div>

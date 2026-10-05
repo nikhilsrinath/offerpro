@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Page, Panel, Row, Btn, Status, Avatar, Empty, Muted } from '../ui/edge';
 import { useT, MONO } from '../ui/edgeUtils';
 import { useSection } from '../financial/financeHooks';
@@ -37,6 +37,7 @@ import VendorDirectory from './parties/VendorDirectory';
 import ProjectFiles from './docs/ProjectFiles';
 import ProjectTemplates from './docs/ProjectTemplates';
 import { orgStore } from '../../services/orgStore';
+import { projectSectionPath, parseProjectPath, legacyProjectPath, billingKindOf, documentsViewOf } from './projectPaths';
 import '../../theme/surface.css';
 import {
     LayoutDashboard, Wallet, Users, Flag, FileText, History,
@@ -53,8 +54,8 @@ import {
    footer. /projects/:id itself is the project's hub — a widget board
    arranged per person. Dashboard's pages are their own routes
    (/projects/:id/dashboard/:view, ProjectDashboards) in the same rail;
-   every other item is that section's full page (?tab=), under the same
-   heading.
+   every other item is that section's full page, under the same heading, at
+   a path named after the rail (projectPaths: /projects/:id/finance/billing).
    ══════════════════════════════════════════════════════════════════════════ */
 
 const TABS = [
@@ -94,29 +95,31 @@ const TABS = [
     { id: 'vendors', parent: 'vm', label: 'Vendor Directory', icon: Truck },
     { id: 'documents', parent: 'dm', label: 'Project Documents', icon: FolderOpen },
     { id: 'templates', parent: 'dm', label: 'Custom Templates', icon: FilePen },
-    { id: 'milestones', label: 'Milestones', icon: Flag },
+    // Reached from the dashboards' links, not listed in the rail.
+    { id: 'milestones', label: 'Milestones', icon: Flag, hidden: true },
 
-    { id: 'activity', label: 'Activity', icon: History },
+    { id: 'activity', label: 'Activity', icon: History, hidden: true },
 ];
 
-// The sections this user may open, and which one ?tab= names.
+// The sections this user may open, and which one the path names.
 export function projectSections() {
     const fin = canSeeFinancials();
     return TABS.filter((x) => (!x.fin || fin) && (!x.pay || orgStore.can('payments', 'view')));
 }
-/** The page ?tab= names; 'home' is the project's hub, the bare /projects/:id. */
-export function activeSection(params, sections = projectSections()) {
-    return sections.some((x) => x.id === params.get('tab') && !x.away) ? params.get('tab') : 'home';
+/** The page the path names; 'home' is the project's hub, the bare /projects/:id. */
+export function activeSection(pathname, sections = projectSections()) {
+    const { section } = parseProjectPath(pathname);
+    return sections.some((x) => x.id === section && !x.away) ? section : 'home';
 }
 
 // The folded items of the rail, and what their pages are called as a group.
 const GROUPS = {
     finance: { label: 'Finance', icon: Wallet },
-    pm: { label: 'Project Management', icon: FolderKanban },
-    tm: { label: 'Team Management', icon: UsersRound },
-    cm: { label: 'Client Management', icon: Handshake },
-    vm: { label: 'Vendor Management', icon: Building2 },
-    dm: { label: 'Documents Management', icon: FileText },
+    pm: { label: 'Project', icon: FolderKanban },
+    tm: { label: 'Team', icon: UsersRound },
+    cm: { label: 'Client', icon: Handshake },
+    vm: { label: 'Vendor', icon: Building2 },
+    dm: { label: 'Documents', icon: FileText },
 };
 
 /**
@@ -125,10 +128,11 @@ const GROUPS = {
  * drop-down in the rail.
  */
 export function projectRail(projectId, sections, current) {
-    const to = (id) => (id === 'dashboard' ? `/projects/${projectId}/dashboard/overview` : `/projects/${projectId}?tab=${id}`);
+    const to = (id) => projectSectionPath(projectId, id);
     const items = [];
     const seen = new Set();
     sections.forEach((x) => {
+        if (x.hidden) return;
         if (!x.parent) {
             items.push({ id: 'project-' + x.id, label: x.label, icon: x.icon, to: to(x.id), active: current === x.id });
             return;
@@ -160,9 +164,13 @@ export default function ProjectDetail() {
     const navigate = useNavigate();
     const location = useLocation();
     const { projectId } = useParams();
-    const [params, setParams] = useSearchParams();
+    const [params] = useSearchParams();
     const projects = useSection('projects');
     const project = projects.find((p) => p.id === projectId);
+
+    // Older links named the page in ?tab= (and Billing's kind in ?doc=).
+    const legacy = legacyProjectPath(projectId, location.search);
+    if (legacy) return <Navigate to={legacy} replace state={location.state} />;
 
     if (!project) {
         return (
@@ -180,12 +188,12 @@ export default function ProjectDetail() {
     return (
         <ProjectWorkspace
             key={project.id} project={project} t={t} navigate={navigate}
-            location={location} params={params} setParams={setParams}
+            location={location} params={params}
         />
     );
 }
 
-function ProjectWorkspace({ project, t, navigate, location, params, setParams }) {
+function ProjectWorkspace({ project, t, navigate, location, params }) {
     const clients = useSection('customers');
     const employees = useSection('employees');
     const { activeOrg } = useOrg();
@@ -204,17 +212,19 @@ function ProjectWorkspace({ project, t, navigate, location, params, setParams })
 
     const fin = canSeeFinancials();
     const sections = projectSections();
-    const tab = activeSection(params, sections);
+    const tab = activeSection(location.pathname, sections);
     const section = sections.find((x) => x.id === tab);
+    // The choice in a page's own switcher (Billing's kind of document).
+    const { view } = parseProjectPath(location.pathname);
     // `extra` carries a page's own filter (Client Directory → a client's
-    // communications); any older one is dropped so it cannot stick.
-    const openTab = useCallback((id, extra = {}) => {
-        const next = new URLSearchParams(params);
-        next.set('tab', id);
-        next.delete('client');
-        Object.entries(extra).forEach(([k, v]) => next.set(k, v));
-        setParams(next);
-    }, [params, setParams]);
+    // communications); the path drops any older one, so it cannot stick.
+    const openTab = useCallback((id, extra) => {
+        navigate(projectSectionPath(project.id, id, null, extra));
+    }, [navigate, project.id]);
+    // A switcher inside a page swaps the last part of the path in place.
+    const openView = useCallback((v) => {
+        navigate(projectSectionPath(project.id, tab, v), { replace: true });
+    }, [navigate, project.id, tab]);
 
     const board = useProjectBoardData(project, health);
     const [layout, lay] = useWidgetLayout(activeOrg?.id, PROJECT_CATALOG);
@@ -283,7 +293,7 @@ function ProjectWorkspace({ project, t, navigate, location, params, setParams })
                         {project.archived_at && <Muted>Archived</Muted>}
                         <Muted>
                             {client
-                                ? <>Client: <Link to={`/customers?client=${client.id}`} style={{ color: t.dim }}>{clientName}</Link></>
+                                ? <>Client: <Link to={`/client-directory?client=${client.id}`} style={{ color: t.dim }}>{clientName}</Link></>
                                 : 'Internal project'}
                         </Muted>
                         {manager && (
@@ -320,7 +330,7 @@ function ProjectWorkspace({ project, t, navigate, location, params, setParams })
                             )}
                             {tab === 'finance' && fin && <ProjectFinanceStatus project={project} onOpen={openTab} />}
                             {tab === 'cashbook' && fin && <CashBook projectId={project.id} />}
-                            {tab === 'billing' && fin && <ProjectBilling project={project} />}
+                            {tab === 'billing' && fin && <ProjectBilling project={project} kind={billingKindOf(view)} onKind={openView} />}
                             {tab === 'bills' && fin && <PurchaseInvoices projectId={project.id} />}
                             {tab === 'tax' && fin && <TaxSummary projectId={project.id} />}
                             {tab === 'pl' && fin && <ProjectProfitLoss project={project} />}
@@ -338,7 +348,7 @@ function ProjectWorkspace({ project, t, navigate, location, params, setParams })
                             {tab === 'comms' && <ClientCommunication key={params.get('client') || 'all'} project={project} />}
                             {tab === 'payments' && fin && <PaymentStatus project={project} />}
                             {tab === 'vendors' && <VendorDirectory project={project} />}
-                            {tab === 'documents' && <ProjectFiles project={project} />}
+                            {tab === 'documents' && <ProjectFiles project={project} view={documentsViewOf(view)} onView={openView} />}
                             {tab === 'templates' && <ProjectTemplates project={project} onOpen={openTab} />}
                             {tab === 'activity' && <ProjectActivity project={project} />}
                         </div>

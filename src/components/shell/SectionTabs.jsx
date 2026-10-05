@@ -1,5 +1,5 @@
 import React from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Seg } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
 
@@ -10,19 +10,30 @@ import { useT } from '../ui/edgeUtils';
    The page is registered as flush in App.jsx, so this owns the whole body:
    a `flush` tab (the form-beside-preview editors) fills it edge to edge; any
    other tab scrolls inside it with the padding the shell gives a normal page.
-   The chosen tab is `?mode=` in the URL, so links and refreshes land on it.
+   The chosen tab is part of the path — the page's own path for the first
+   tab, `<base>/<path>` for the others (/employees/ex-employees) — so links
+   and refreshes land on it.
    ══════════════════════════════════════════════════════════════════════════ */
 
-export default function SectionTabs({ tabs, label }) {
-    const t = useT();
-    const [params, setParams] = useSearchParams();
-    const active = tabs.find((x) => x.id === params.get('mode')) || tabs[0];
+/** Where a tab of the page at `base` lives. */
+const tabPath = (base, tabs, id) => (id === tabs[0].id ? base : `${base}/${tabs.find((x) => x.id === id)?.path || id}`);
 
-    const select = (id) => setParams((p) => {
-        const next = new URLSearchParams(p);
-        if (id === tabs[0].id) next.delete('mode'); else next.set('mode', id);
-        return next;
-    }, { replace: true });
+export default function SectionTabs({ tabs, label, base }) {
+    const t = useT();
+    const location = useLocation();
+    const navigate = useNavigate();
+    const sub = location.pathname.slice(base.length + 1).split('/')[0];
+    const active = tabs.find((x) => sub && (x.path || x.id) === sub) || tabs[0];
+    const select = (id) => navigate(tabPath(base, tabs, id), { replace: true });
+
+    // Older links named the tab in ?mode=.
+    const mode = new URLSearchParams(location.search).get('mode');
+    if (mode && tabs.some((x) => x.id === mode)) {
+        const rest = new URLSearchParams(location.search);
+        rest.delete('mode');
+        const q = rest.toString();
+        return <Navigate to={tabPath(base, tabs, mode) + (q ? '?' + q : '')} replace />;
+    }
 
     return (
         <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>

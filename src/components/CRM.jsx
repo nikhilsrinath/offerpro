@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { DialogSheet } from './ui/edge';
+import { DialogSheet, RowMenu } from './ui/edge';
 import {
   Plus, X, Edit3, Trash2, Search, GripVertical,
   User, Phone, Mail, Building2, StickyNote, ChevronRight, FolderKanban,
@@ -252,12 +252,10 @@ export default function CRM({ project = null }) {
             </div>
           )}
           <div className="crm-card-actions" style={isMobile ? { opacity: 1 } : undefined}>
-            <button onClick={() => openEdit(lead)} title="Edit" aria-label="Edit">
-              <Edit3 size={12} />
-            </button>
-            <button onClick={() => handleDelete(lead)} title="Delete" aria-label="Delete">
-              <Trash2 size={12} />
-            </button>
+            <RowMenu label={`Actions for ${lead.company_name || lead.person_name || 'lead'}`} items={[
+              { label: 'Edit', icon: Edit3, onClick: () => openEdit(lead) },
+              { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => handleDelete(lead) },
+            ]} />
           </div>
         </div>
 
@@ -434,12 +432,12 @@ export default function CRM({ project = null }) {
           <form onSubmit={handleSave}>
             <div className="easy-row" style={{ gap: '1rem' }}>
               <div className="easy-field full">
-                <label className="easy-lbl">Contact Person *</label>
+                <label className="easy-lbl req">Contact Person</label>
                 <input aria-label="Contact Person" required type="text" placeholder="e.g. John Doe" value={formData.person_name}
                   onChange={e => setFormData({ ...formData, person_name: e.target.value })} className="easy-inp" autoFocus />
               </div>
               <div className="easy-field full">
-                <label className="easy-lbl">Company Name *</label>
+                <label className="easy-lbl req">Company Name</label>
                 <input aria-label="Company Name" required type="text" placeholder="e.g. Acme Corp" value={formData.company_name}
                   onChange={e => setFormData({ ...formData, company_name: e.target.value })} className="easy-inp" />
               </div>

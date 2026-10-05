@@ -4,6 +4,7 @@ import { inr, inrShort } from './format';
 import { orgStore } from '../../services/orgStore';
 import { portfolio, employeeAllocation, canSeeFinancials } from '../../services/projectService';
 import { usePreview, PREVIEW_PROJECTS } from './previewData';
+import { projectSectionPath } from '../projects/projectPaths';
 
 /* Project widgets for the hub — its default board. Each one fetches what it
    needs through the permission-checked RPCs and shows a locked state when the
@@ -114,7 +115,7 @@ export function ProjectMargin({ nav, size }) {
             {pick.map((r) => (
                 <Bar key={r.project_id} name={r.name} value={inrShort(r.net_margin)} neg={Number(r.net_margin) < 0}
                     pct={(Math.abs(Number(r.net_margin)) / peak) * 100} strong={Number(r.net_margin) >= 0}
-                    onClick={() => nav(`/projects/${r.project_id}?tab=finance`)} label={`${r.name}: ${inr(r.net_margin)} net margin`} />
+                    onClick={() => nav(projectSectionPath(r.project_id, 'finance'))} label={`${r.name}: ${inr(r.net_margin)} net margin`} />
             ))}
         </div>
     );
@@ -232,7 +233,7 @@ export function ProjectBudget({ nav, size }) {
                 const b = Number(r.budget_burn_pct);
                 return (
                     <Bar key={r.project_id} name={r.name} value={`${Math.round(b)}%`} neg={b > 100} pct={Math.min(100, b)} strong={b > 100}
-                        onClick={() => nav(`/projects/${r.project_id}?tab=finance`)}
+                        onClick={() => nav(projectSectionPath(r.project_id, 'finance'))}
                         label={`${r.name}: ${Math.round(b)}% of budget spent, ${inr(r.cost_to_date)} of ${inr(r.budget_total)}`} />
                 );
             })}
@@ -267,7 +268,7 @@ export function ProjectBilling({ nav, size }) {
         <div className="w-bars">
             {top.map((r) => (
                 <Bar key={r.project_id} name={r.name} value={inrShort(due(r))} pct={(due(r) / peak) * 100} strong={Number(r.overdue_receivable) > 0}
-                    onClick={() => nav(`/projects/${r.project_id}?tab=billing`)}
+                    onClick={() => nav(projectSectionPath(r.project_id, 'billing'))}
                     label={`${r.name}: ${inr(r.unbilled_value)} unbilled, ${inr(r.outstanding_receivable)} owed`} />
             ))}
         </div>
@@ -308,7 +309,7 @@ export function ProjectSpendBudget({ nav, size }) {
                 const b = Number(r.budget_total);
                 return (
                     <Bar key={r.project_id} name={r.name} value={`${inrShort(s)} / ${inrShort(b)}`} neg={s > b} pct={Math.min(100, (s / b) * 100)} strong={s > b}
-                        onClick={() => nav(`/projects/${r.project_id}?tab=finance`)}
+                        onClick={() => nav(projectSectionPath(r.project_id, 'finance'))}
                         label={`${r.name}: ${inr(s)} spent of ${inr(b)} budgeted`} />
                 );
             })}
@@ -347,7 +348,7 @@ export function ProjectMarginPct({ nav, size }) {
                 const m = pctOf(r);
                 return (
                     <Bar key={r.project_id} name={r.name} value={`${Math.round(m)}%`} neg={m < 0} pct={Math.min(100, Math.abs(m))} strong={m >= 0}
-                        onClick={() => nav(`/projects/${r.project_id}?tab=finance`)}
+                        onClick={() => nav(projectSectionPath(r.project_id, 'finance'))}
                         label={`${r.name}: ${Math.round(m)}% net margin on ${inr(r.revenue_invoiced)} invoiced`} />
                 );
             })}
@@ -374,7 +375,7 @@ export function ProjectWorkload({ nav, size }) {
         <div className="w-bars">
             {top.map((r) => (
                 <Bar key={r.project_id} name={r.name} value={String(r.open_tasks)} pct={(r.open_tasks / peak) * 100}
-                    onClick={() => nav(`/projects/${r.project_id}?tab=tasks`)} label={`${r.name}: ${r.open_tasks} open tasks`} />
+                    onClick={() => nav(projectSectionPath(r.project_id, 'tasks'))} label={`${r.name}: ${r.open_tasks} open tasks`} />
             ))}
         </div>
     ) : <Empty>No open tasks.</Empty>;
@@ -389,7 +390,7 @@ export function ProjectShortcuts({ nav }) {
         ['New project', '/projects/new', can('projects', 'create')],
         ['All projects', '/projects', can('projects', 'view')],
         ['Portfolio', '/portfolio', can('projects', 'view')],
-        ['Kanban chart', '/kanban', can('projects', 'view')],
+        ['Kanban chart', '/kanban-chart', can('projects', 'view')],
     ].filter((l) => l[2]);
     return (
         <div className="w-list">

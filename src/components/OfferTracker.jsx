@@ -257,8 +257,8 @@ function OfferModal({ activeOrg, offer, onClose }) {
                             { id: 'collaboration', label: 'Collaboration' },
                         ]} />
                 </Field>
-                <Field label="Candidate name"><Input value={form.studentName} onChange={set('studentName')} placeholder="Full name" /></Field>
-                <Field label="Role"><Input value={form.role} onChange={set('role')} placeholder="Frontend Engineer" /></Field>
+                <Field required label="Candidate name"><Input value={form.studentName} onChange={set('studentName')} placeholder="Full name" /></Field>
+                <Field required label="Role"><Input value={form.role} onChange={set('role')} placeholder="Frontend Engineer" /></Field>
                 <Field label="Email" hint="Used for the emailed link"><Input type="email" value={form.email} onChange={set('email')} /></Field>
                 <Field label="Phone" hint="Used for the WhatsApp message"><Input value={form.phone} onChange={set('phone')} /></Field>
                 <Field label="Department">
@@ -497,40 +497,54 @@ export default function OfferTracker() {
                     </Empty>
                 </Panel>
             ) : (
-                <Table cols={[
-                    { key: 'w', label: 'Who' },
+                <Table id={'offers-' + tab} cols={[
+                    { key: 'w', label: 'Who', always: true },
+                    { key: 'em', label: 'Email', def: false },
                     { key: 'r', label: tab === 'role_changes' ? 'Change' : 'Role' },
+                    { key: 'dep', label: 'Department', def: false },
                     { key: 's', label: 'Status' },
                     { key: 'd', label: 'Raised' },
+                    { key: 'sd', label: 'Start date', def: false },
+                    { key: 'vu', label: 'Valid until', def: false },
+                    { key: 'sal', label: 'Salary', def: false, align: 'right' },
                     { key: 'n', label: 'Number' },
-                    { key: 'a', label: 'Actions', align: 'right', width: 290 },
+                    { key: 'a', label: 'Actions', align: 'right', width: 290, always: true },
                 ]}>
-                    {list.map((doc) => {
+                    {(show) => list.map((doc) => {
                         const st = statusOf(doc);
                         const editable = tab === 'offers' && !RESPONDED.has(doc.status);
                         const mail = mailState[doc.id];
                         return (
                             <Tr key={doc.id}>
-                                <Td>
-                                    <Row gap={9}>
-                                        <Avatar name={doc.issued_to || '?'} size={26} />
-                                        <span style={{ minWidth: 0 }}>
-                                            <span style={{ display: 'block' }}>{doc.issued_to || '—'}</span>
-                                            <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>
-                                                {doc.recipient_email || 'No email'}
+                                {show('w') && (
+                                    <Td>
+                                        <Row gap={9}>
+                                            <Avatar name={doc.issued_to || '?'} size={26} />
+                                            <span style={{ minWidth: 0 }}>
+                                                <span style={{ display: 'block' }}>{doc.issued_to || '—'}</span>
+                                                <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>
+                                                    {doc.recipient_email || 'No email'}
+                                                </span>
                                             </span>
-                                        </span>
-                                    </Row>
-                                </Td>
-                                <Td muted nowrap>
-                                    {tab === 'role_changes'
-                                        ? `${doc.current_role || '—'} → ${doc.new_role || '—'}`
-                                        : (doc.role || doc.current_role || '—')}
-                                </Td>
-                                <Td nowrap><Status tone={st.tone}>{st.label}</Status></Td>
-                                <Td muted nowrap>{fmtDate(doc.created_at)}</Td>
-                                <Td muted nowrap>{docNumber(doc)}</Td>
-                                <Td align="right">
+                                        </Row>
+                                    </Td>
+                                )}
+                                {show('em') && <Td muted nowrap>{doc.recipient_email || '—'}</Td>}
+                                {show('r') && (
+                                    <Td muted nowrap>
+                                        {tab === 'role_changes'
+                                            ? `${doc.current_role || '—'} → ${doc.new_role || '—'}`
+                                            : (doc.role || doc.current_role || '—')}
+                                    </Td>
+                                )}
+                                {show('dep') && <Td muted nowrap>{doc.department || '—'}</Td>}
+                                {show('s') && <Td nowrap><Status tone={st.tone}>{st.label}</Status></Td>}
+                                {show('d') && <Td muted nowrap>{fmtDate(doc.created_at)}</Td>}
+                                {show('sd') && <Td muted nowrap>{doc.start_date ? fmtDate(doc.start_date) : '—'}</Td>}
+                                {show('vu') && <Td muted nowrap>{doc.valid_until ? fmtDate(doc.valid_until) : '—'}</Td>}
+                                {show('sal') && <Td align="right" nowrap>{doc.salary ? `${doc.currency || ''} ${doc.salary}`.trim() : '—'}</Td>}
+                                {show('n') && <Td muted nowrap>{docNumber(doc)}</Td>}
+                                {show('a') && <Td align="right">
                                     <Row gap={6} style={{ justifyContent: 'flex-end' }}>
                                         <Btn size="sm" onClick={() => copyLink(doc)}>
                                             {copiedId === doc.id ? 'Copied' : 'Copy link'}
@@ -543,7 +557,7 @@ export default function OfferTracker() {
                                         {editable && <Btn size="sm" onClick={() => { linkCache.current.delete(doc.id); setEditOffer(doc); }}>Edit</Btn>}
                                         <ConfirmBtn label="Delete" title="Delete document" message="Are you sure you want to delete this document? Its share link stops working. This cannot be undone." onConfirm={() => remove(doc)} />
                                     </Row>
-                                </Td>
+                                </Td>}
                             </Tr>
                         );
                     })}

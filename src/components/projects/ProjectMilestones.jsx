@@ -62,7 +62,7 @@ export default function ProjectMilestones({ project }) {
         }
     });
 
-    const createInvoice = (m) => navigate('/new-invoice', {
+    const createInvoice = (m) => navigate('/billing/invoices/new', {
         state: {
             projectId: project.id, milestoneId: m.id, clientId: project.client_id,
             line: { description: `${project.name} — ${m.title}`, amount: Number(m.billing_amount) || 0 },
@@ -78,12 +78,15 @@ export default function ProjectMilestones({ project }) {
                     No milestones yet. A milestone is a stage of the work, and can bill a share of the contract.
                 </Empty>
             ) : (
-                <Table cols={[
-                    { key: 'o', label: '', width: 64 }, { key: 't', label: 'Milestone' }, { key: 'd', label: 'Due' },
+                <Table id="project-milestones" cols={[
+                    { key: 'o', label: '', width: 64, always: true }, { key: 't', label: 'Milestone', always: true }, { key: 'd', label: 'Due' },
                     { key: 'b', label: 'Bills', align: 'right' }, { key: 'p', label: 'Progress', width: 120 },
-                    { key: 's', label: 'Status' }, { key: 'x', label: '', align: 'right' },
+                    { key: 's', label: 'Status' },
+                    { key: 'inv', label: 'Invoice', def: false }, { key: 'done', label: 'Completed on', def: false },
+                    { key: 'cr', label: 'Created', def: false },
+                    { key: 'x', label: '', align: 'right', always: true },
                 ]}>
-                    {rows.map((m, i) => {
+                    {(show) => rows.map((m, i) => {
                         const prog = milestoneProgress(m, projectTasks);
                         const late = m.due_date && m.due_date < today() && (m.status === 'pending' || m.status === 'in_progress');
                         const inv = m.invoice_id ? docById[m.invoice_id] : null;
@@ -93,38 +96,51 @@ export default function ProjectMilestones({ project }) {
                                 onDragOver={(e) => { if (drag !== null) e.preventDefault(); }}
                                 onDrop={() => { reorder(drag, i); setDrag(null); }}
                                 style={{ opacity: drag === i ? 0.5 : 1 }}>
-                                <Td nowrap>
-                                    {canEdit && (
-                                        <Row gap={2}>
-                                            <Btn size="sm" aria-label={`Move ${m.title} up`} disabled={i === 0} onClick={() => reorder(i, i - 1)}>↑</Btn>
-                                            <Btn size="sm" aria-label={`Move ${m.title} down`} disabled={i === rows.length - 1} onClick={() => reorder(i, i + 1)}>↓</Btn>
-                                        </Row>
-                                    )}
-                                </Td>
-                                <Td>
-                                    <span style={{ display: 'block' }}>{m.title}</span>
-                                    {m.description && <span style={{ display: 'block', fontSize: 11, color: t.faint }}>{m.description}</span>}
-                                </Td>
-                                <Td nowrap>{m.due_date ? <Status tone={late ? 'down' : 'mute'}>{fmtDate(m.due_date)}{late ? ' · late' : ''}</Status> : <Muted>—</Muted>}</Td>
-                                <Td align="right" nowrap>
-                                    {m.billing_amount != null ? money(m.billing_amount) : <Muted>—</Muted>}
-                                    {m.billing_pct != null && <span style={{ color: t.faint, fontSize: 11.5 }}> · {m.billing_pct}%</span>}
-                                </Td>
-                                <Td>
-                                    <Row gap={8}><span style={{ flex: 1 }}><Bar value={prog} max={1} height={4} /></span>
-                                        <Muted>{Math.round(prog * 100)}%</Muted></Row>
-                                </Td>
-                                <Td nowrap>
-                                    {canEdit && m.status !== 'invoiced' ? (
-                                        <Select aria-label={`Status of ${m.title}`} value={m.status} style={{ width: 128, height: 27 }}
-                                            onChange={(e) => run(() => updateMilestone(m.id, { status: e.target.value }), 'Status changed')}>
-                                            {STATUS_OPTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-                                        </Select>
-                                    ) : (
-                                        <Status tone={TONE[m.status]}>{m.status === 'invoiced' ? `Invoiced${inv ? ` · ${inv.doc_number || inv.invoiceNumber}` : ''}` : m.status.replace('_', ' ')}</Status>
-                                    )}
-                                </Td>
-                                <Td align="right">
+                                {show('o') && (
+                                    <Td nowrap>
+                                        {canEdit && (
+                                            <Row gap={2}>
+                                                <Btn size="sm" aria-label={`Move ${m.title} up`} disabled={i === 0} onClick={() => reorder(i, i - 1)}>↑</Btn>
+                                                <Btn size="sm" aria-label={`Move ${m.title} down`} disabled={i === rows.length - 1} onClick={() => reorder(i, i + 1)}>↓</Btn>
+                                            </Row>
+                                        )}
+                                    </Td>
+                                )}
+                                {show('t') && (
+                                    <Td>
+                                        <span style={{ display: 'block' }}>{m.title}</span>
+                                        {m.description && <span style={{ display: 'block', fontSize: 11, color: t.faint }}>{m.description}</span>}
+                                    </Td>
+                                )}
+                                {show('d') && <Td nowrap>{m.due_date ? <Status tone={late ? 'down' : 'mute'}>{fmtDate(m.due_date)}{late ? ' · late' : ''}</Status> : <Muted>—</Muted>}</Td>}
+                                {show('b') && (
+                                    <Td align="right" nowrap>
+                                        {m.billing_amount != null ? money(m.billing_amount) : <Muted>—</Muted>}
+                                        {m.billing_pct != null && <span style={{ color: t.faint, fontSize: 11.5 }}> · {m.billing_pct}%</span>}
+                                    </Td>
+                                )}
+                                {show('p') && (
+                                    <Td>
+                                        <Row gap={8}><span style={{ flex: 1 }}><Bar value={prog} max={1} height={4} /></span>
+                                            <Muted>{Math.round(prog * 100)}%</Muted></Row>
+                                    </Td>
+                                )}
+                                {show('s') && (
+                                    <Td nowrap>
+                                        {canEdit && m.status !== 'invoiced' ? (
+                                            <Select aria-label={`Status of ${m.title}`} value={m.status} style={{ width: 128, height: 27 }}
+                                                onChange={(e) => run(() => updateMilestone(m.id, { status: e.target.value }), 'Status changed')}>
+                                                {STATUS_OPTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                                            </Select>
+                                        ) : (
+                                            <Status tone={TONE[m.status]}>{m.status === 'invoiced' ? `Invoiced${inv ? ` · ${inv.doc_number || inv.invoiceNumber}` : ''}` : m.status.replace('_', ' ')}</Status>
+                                        )}
+                                    </Td>
+                                )}
+                                {show('inv') && <Td muted nowrap>{inv ? inv.doc_number || inv.invoiceNumber || 'Invoice' : '—'}</Td>}
+                                {show('done') && <Td muted nowrap>{m.completed_at ? fmtDate(m.completed_at) : '—'}</Td>}
+                                {show('cr') && <Td muted nowrap>{m.created_at ? fmtDate(m.created_at) : '—'}</Td>}
+                                {show('x') && <Td align="right">
                                     <Row gap={6} style={{ justifyContent: 'flex-end' }}>
                                         {canEdit && (m.status === 'pending' || m.status === 'in_progress') && (
                                             <Btn size="sm" onClick={() => run(() => updateMilestone(m.id, { status: 'completed' }), 'Marked complete')}>Mark complete</Btn>
@@ -137,7 +153,7 @@ export default function ProjectMilestones({ project }) {
                                             <ConfirmBtn label="Delete" title="Delete milestone" message={`Are you sure you want to delete “${m.title}”? This cannot be undone.`} onConfirm={() => run(() => removeMilestone(m.id), 'Deleted')} />
                                         )}
                                     </Row>
-                                </Td>
+                                </Td>}
                             </tr>
                         );
                     })}
@@ -178,7 +194,7 @@ function MilestoneSheet({ project, milestone, onClose }) {
     return (
         <Modal open onClose={onClose} title={isEdit ? 'Edit milestone' : 'New milestone'} width={520}
             footer={<><Btn onClick={onClose}>Cancel</Btn><Btn primary disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</Btn></>}>
-            <Field label="Title"><Input value={form.title} onChange={set('title')} autoFocus /></Field>
+            <Field required label="Title"><Input value={form.title} onChange={set('title')} autoFocus /></Field>
             <div style={{ height: 12 }} />
             <Field label="Description"><Textarea rows={2} value={form.description} onChange={set('description')} /></Field>
             <div style={{ height: 12 }} />

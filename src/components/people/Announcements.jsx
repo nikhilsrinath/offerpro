@@ -195,12 +195,12 @@ export default function Announcements() {
                             </Btn>
                         </>
                     }>
-                    <Field label="Title">
+                    <Field required label="Title">
                         <Input value={editing.title} maxLength={200} placeholder="Office closed on Friday"
                             onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
                     </Field>
                     <div style={{ height: 13 }} />
-                    <Field label="Message">
+                    <Field required label="Message">
                         <Textarea rows={7} value={editing.body} placeholder="What the team needs to know…"
                             style={{ minHeight: 130 }}
                             onChange={(e) => setEditing({ ...editing, body: e.target.value })} />

@@ -192,7 +192,7 @@ export default function JoinPortal() {
       ) : (
         <form className="join-form" onSubmit={withPassword}>
           <label className="join-field">
-            <span>Work email</span>
+            <span className="req">Work email</span>
             <input
               id="join-email" type="email" className="join-input" required
               autoComplete="email" value={form.email}
@@ -201,7 +201,7 @@ export default function JoinPortal() {
             />
           </label>
           <label className="join-field">
-            <span>Password</span>
+            <span className="req">Password</span>
             <input
               id="join-password" type="password" className="join-input" required
               minLength={6} autoComplete="current-password" value={form.password}

@@ -214,7 +214,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
         {/* — the essentials: how much, when, what for, why, how, who — */}
         <div className="prod-form-grid">
           <div className="prod-field">
-            <label htmlFor="cb-amount">Amount *</label>
+            <label className="req" htmlFor="cb-amount">Amount</label>
             <div className="cb-amount">
               <span aria-hidden="true">{sym(editing.currency)}</span>
               <input id="cb-amount" type="number" min="0.01" step="0.01" required autoFocus
@@ -237,7 +237,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
           </div>
 
           <div className="prod-field full">
-            <label htmlFor="cb-desc">What was it for? *</label>
+            <label className="req" htmlFor="cb-desc">What was it for?</label>
             <input id="cb-desc" value={editing.description} required
               placeholder={editing.direction === 'in' ? 'e.g. Counter sale — 3 units' : 'e.g. September salaries'}
               onChange={(e) => set('description', e.target.value)} />
@@ -254,7 +254,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
           </div>
           ) : (
           <div className="prod-field">
-            <label htmlFor="cb-cat">Type *</label>
+            <label className="req" htmlFor="cb-cat">Type</label>
             <select id="cb-cat" value={editing.category} required
               onChange={(e) => set('category', e.target.value)}>
               {groupedCategories(editing.direction).map((g) => (
@@ -367,7 +367,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
 
             {editing.currency !== 'INR' ? (
               <div className="prod-field">
-                <label htmlFor="cb-fx">Rate — 1 {editing.currency} in ₹ *</label>
+                <label className="req" htmlFor="cb-fx">Rate — 1 {editing.currency} in ₹</label>
                 <input id="cb-fx" type="number" min="0.000001" step="0.000001" required
                   value={editing.fx_rate} onChange={(e) => set('fx_rate', e.target.value)} />
                 <p className="prod-field-note">The rate on the day the money moved.</p>

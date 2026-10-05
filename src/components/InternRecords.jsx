@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Download, Trash2, Search, FileSpreadsheet, ClipboardCheck, FileText, Award, Briefcase, FileCode, LayoutGrid, List, Eye, Send, Loader, CheckCircle } from 'lucide-react';
+import { RowMenu } from './ui/edge';
 import { storageService } from '../services/storageService';
 import { pdfService } from '../services/pdfService';
 import { emailService } from '../services/emailService';
@@ -100,6 +101,19 @@ export default function InternRecords() {
     agreement: records.filter(r => r.type === 'agreement').length,
     invoice: records.filter(r => r.type === 'invoice').length,
   }), [records]);
+
+  /* One action list for every view of a record — grid, table and mobile. */
+  const recordActions = (record) => [
+    { label: 'Download PDF', icon: Download, onClick: () => handleDownloadPDF(record) },
+    record.type === 'offer' && record.data?.email && {
+      label: sendingEmail === record.id ? 'Sending…'
+        : emailStatus?.id === record.id && emailStatus.success ? 'Offer sent — send again' : 'Send offer',
+      hint: `To ${record.data.email}`, showHint: true,
+      icon: emailStatus?.id === record.id && emailStatus.success ? CheckCircle : Send,
+      disabled: sendingEmail === record.id, onClick: () => handleNotify(record),
+    },
+    { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => handleDelete(record.id) },
+  ];
 
   const filteredRecords = useMemo(() => {
     let filtered = records;
@@ -277,25 +291,8 @@ export default function InternRecords() {
                   {new Date(record.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </div>
 
-                <div className="records-grid-card-actions">
-                  <button onClick={() => handleDownloadPDF(record)} className="records-action-btn download" title="Download PDF">
-                    <Download size={14} /> Download
-                  </button>
-                  {record.type === 'offer' && record.data?.email && (
-                    <button
-                      onClick={() => handleNotify(record)}
-                      className={`records-action-btn notify ${emailStatus?.id === record.id ? (emailStatus.success ? 'sent' : 'failed') : ''}`}
-                      title={`Send offer to ${record.data.email}`}
-                      disabled={sendingEmail === record.id}
-                     aria-label={`Send offer to ${record.data.email}`}>
-                      {sendingEmail === record.id ? <><Loader size={13} className="spin-icon" /> Sending</>
-                        : emailStatus?.id === record.id && emailStatus.success ? <><CheckCircle size={13} /> Sent</>
-                        : <><Send size={13} /> Notify</>}
-                    </button>
-                  )}
-                  <button onClick={() => handleDelete(record.id)} className="records-action-btn delete" title="Delete" aria-label="Delete">
-                    <Trash2 size={14} />
-                  </button>
+                <div className="records-grid-card-actions" style={{ justifyContent: 'flex-end' }}>
+                  <RowMenu label={`Actions for ${record.title}`} items={recordActions(record)} />
                 </div>
               </div>
             );
@@ -361,25 +358,7 @@ export default function InternRecords() {
                     </td>
                     <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                        <button onClick={() => handleDownloadPDF(record)} className="btn btn-outline" style={{ padding: '0.375rem 0.75rem', height: '30px', fontSize: '13.5px' }} title="Download PDF">
-                          <Download size={13} /> PDF
-                        </button>
-                        {record.type === 'offer' && record.data?.email && (
-                          <button
-                            onClick={() => handleNotify(record)}
-                            className={`records-action-btn notify compact ${emailStatus?.id === record.id ? (emailStatus.success ? 'sent' : 'failed') : ''}`}
-                            title={`Send offer to ${record.data.email}`}
-                            disabled={sendingEmail === record.id}
-                            style={{ padding: '0.375rem 0.625rem', height: '30px', fontSize: '13.5px' }}
-                          >
-                            {sendingEmail === record.id ? <Loader size={12} className="spin-icon" />
-                              : emailStatus?.id === record.id && emailStatus.success ? <CheckCircle size={12} />
-                              : <Send size={12} />}
-                          </button>
-                        )}
-                        <button onClick={() => handleDelete(record.id)} className="pro-delete-btn" title="Delete" aria-label="Delete">
-                          <Trash2 size={13} />
-                        </button>
+                        <RowMenu label={`Actions for ${record.title}`} items={recordActions(record)} />
                       </div>
                     </td>
                   </tr>
@@ -416,24 +395,7 @@ export default function InternRecords() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                    <button onClick={() => handleDownloadPDF(record)} aria-label="Download PDF" title="Download PDF" className="btn btn-outline" style={{ width: '36px', height: '36px', padding: 0, borderRadius: '8px' }}>
-                      <Download size={14} />
-                    </button>
-                    {record.type === 'offer' && record.data?.email && (
-                      <button
-                        onClick={() => handleNotify(record)}
-                        className={`records-action-btn notify compact ${emailStatus?.id === record.id ? (emailStatus.success ? 'sent' : '') : ''}`}
-                        disabled={sendingEmail === record.id}
-                        style={{ width: '36px', height: '36px', padding: 0, borderRadius: '8px' }}
-                      >
-                        {sendingEmail === record.id ? <Loader size={14} className="spin-icon" />
-                          : emailStatus?.id === record.id && emailStatus.success ? <CheckCircle size={14} />
-                          : <Send size={14} />}
-                      </button>
-                    )}
-                    <button onClick={() => handleDelete(record.id)} aria-label="Delete record" title="Delete record" className="pro-delete-btn" style={{ width: '36px', height: '36px' }}>
-                      <Trash2 size={14} />
-                    </button>
+                    <RowMenu size="md" label={`Actions for ${record.title}`} items={recordActions(record)} />
                   </div>
                 </div>
               );

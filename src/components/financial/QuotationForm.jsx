@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Eye, Send, Save, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Eye, Send, Save } from 'lucide-react';
 import { documentStore, docNumber } from '../../services/documentStore';
 import { createPortalLink } from '../../services/portalService';
 import { customerService } from '../../services/customerService';
@@ -12,7 +12,6 @@ import CountrySelect from '../shared/CountrySelect';
 import { useToast } from '../shared/Toast';
 import A4Stage from '../shared/A4Stage';
 import { useFormProject, projectStartLines, linkToProject, projectFormNote } from '../projects/projectScope';
-import { useGoBack } from '../shell/navHistory';
 
 const UNIT_OPTIONS = ['Hrs', 'Units', 'Nos', 'Kg', 'Ltr'];
 const GST_RATES = [0, 5, 12, 18, 28];
@@ -60,10 +59,7 @@ export default function QuotationForm({ editDocId }) {
   // Opened from a project's Billing page (?project=): the quotation starts on
   // the project's client and contract, is linked to the project when saved,
   // and every way out returns there.
-  const fromProject = useFormProject('quotation', '/quotations');
-  // Back returns to the page the form was opened from; the list (or the
-  // project's page) only when there is none.
-  const goBack = useGoBack();
+  const fromProject = useFormProject('quotation', '/billing/quotations');
 
   // Build company info from activeOrg (dynamic, not stale localStorage)
   const company = {
@@ -582,19 +578,8 @@ export default function QuotationForm({ editDocId }) {
           style={{ maxWidth: '100%' }}
           onSubmit={(e) => e.preventDefault()}
         >
-          {/* Header with Back button */}
+          {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
-            <button
-              type="button"
-              onClick={() => goBack(fromProject.returnTo)}
-              style={{
-                background: 'none', border: '1px solid var(--border-default)', borderRadius: '8px',
-                padding: '0.5rem 0.75rem', cursor: 'pointer', color: 'var(--text-secondary)',
-                fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem'
-              }}
-            >
-              <ArrowLeft size={16} /> Back
-            </button>
             <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>{isRevision ? `Revise ${formData.quotationNumber}` : isEditing ? 'Edit Quotation' : 'New Quotation'}</h2>
           </div>
           {fromProject.project && !isEditing && (
@@ -611,7 +596,7 @@ export default function QuotationForm({ editDocId }) {
             </div>
             <div className="easy-row">
               <div className="easy-field" ref={clientDropdownRef} style={{ position: 'relative' }}>
-                <label className="easy-lbl">Client name</label>
+                <label className="easy-lbl req">Client name</label>
                 <input aria-label="Client name"
                   type="text"
                   placeholder="Search or type client name..."

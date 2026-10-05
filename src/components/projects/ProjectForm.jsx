@@ -11,6 +11,7 @@ import {
 } from '../../services/projectService';
 import { hasFeature } from '../../services/planConfig';
 import { orgStore } from '../../services/orgStore';
+import { projectSectionPath } from './projectPaths';
 
 /* ══════════════════════════════════════════════════════════════════════════
    New project — and, with `project` passed, the edit sheet for one.
@@ -149,7 +150,7 @@ export default function ProjectForm({ project = null, onDone }) {
                     milestones,
                 });
                 if (problems.length) {
-                    navigate(`/projects/${created.id}?tab=team`, { state: { problems } });
+                    navigate(projectSectionPath(created.id, 'team'), { state: { problems } });
                 } else {
                     navigate(`/projects/${created.id}`);
                 }
@@ -177,7 +178,7 @@ export default function ProjectForm({ project = null, onDone }) {
                                 <Input value={clientQuery} onChange={(e) => setClientQuery(e.target.value)}
                                     placeholder="Name, email, contact…" />
                             </Field>
-                            <Field label="Client">
+                            <Field required label="Client">
                                 <Select value={form.client_id} onChange={set('client_id')}>
                                     <option value="">Choose a client…</option>
                                     {liveClients.map((c) => <option key={c.id} value={c.id}>{c.name || c.clientName}</option>)}
@@ -187,7 +188,7 @@ export default function ProjectForm({ project = null, onDone }) {
                         <div style={{ height: 13 }} />
                     </>
                 )}
-                <Field label="Name">
+                <Field required label="Name">
                     <Input value={form.name} onChange={set('name')} placeholder="What is being delivered" autoFocus={!isEdit} />
                 </Field>
                 <div style={{ height: 13 }} />

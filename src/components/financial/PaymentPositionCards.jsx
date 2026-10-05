@@ -37,7 +37,7 @@ export default function PaymentPositionCards() {
         <button
           key={key}
           type="button"
-          onClick={() => navigate(`/invoices?filter=${key}`)}
+          onClick={() => navigate(`/billing/invoices?filter=${key}`)}
           className="pro-stat-card"
           style={{ width: '100%', textAlign: 'left', font: 'inherit', fontFamily: 'inherit' }}
           title={`Open ${label.toLowerCase()} invoices`}

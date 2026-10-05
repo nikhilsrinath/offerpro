@@ -1,4 +1,6 @@
-import React, { useRef, useId } from 'react';
+import React, { useRef, useId, useState, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { Check, ChevronDown, MoreHorizontal, Pencil } from 'lucide-react';
 import { MONO, useT, useDialog } from './edgeUtils';
 import { confirmDialog } from '../../services/confirm';
 
@@ -206,14 +208,29 @@ export function Search({ value, onChange, placeholder = 'Search…', width = 240
     );
 }
 
-export function Field({ label, children, hint, wide }) {
+/** The mark for a field the form won't save without. */
+export function ReqStar() {
     const t = useT();
+    return <span aria-hidden="true" style={{ color: t.down, marginLeft: 3 }}>*</span>;
+}
+
+/* A field is mandatory when the caller says so, or when the control inside it
+   carries `required` — so a form only has to state it once. */
+function childRequired(children) {
+    let req = false;
+    React.Children.forEach(children, (c) => { if (c?.props?.required) req = true; });
+    return req;
+}
+
+export function Field({ label, children, hint, wide, required }) {
+    const t = useT();
+    const req = required ?? childRequired(children);
     return (
         <label style={{ display: 'block', minWidth: 0, gridColumn: wide ? '1 / -1' : undefined }}>
             <span style={{
                 display: 'block', fontSize: 10.5, letterSpacing: '0.09em',
                 color: t.faint, marginBottom: 5,
-            }}>{String(label).toUpperCase()}</span>
+            }}>{String(label).toUpperCase()}{req && <ReqStar />}</span>
             {children}
             {hint && <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 4 }}>{hint}</span>}
         </label>
@@ -387,9 +404,128 @@ export function StatBand({ items }) {
 
 /* ── table ────────────────────────────────────────────────────────────────── */
 
-export function Table({ cols, children, empty }) {
+/* Which columns a table shows is a per-person choice, remembered in this
+   browser. Only the overrides are stored ({ key: true|false }), so a column
+   added to a table later still follows its own default. */
+const colStoreKey = (id) => 'edgeos.cols.' + id;
+function readColPrefs(id) {
+    try { return JSON.parse(localStorage.getItem(colStoreKey(id)) || '{}') || {}; } catch { return {}; }
+}
+function writeColPrefs(id, prefs) {
+    try {
+        if (Object.keys(prefs).length) localStorage.setItem(colStoreKey(id), JSON.stringify(prefs));
+        else localStorage.removeItem(colStoreKey(id));
+    } catch { /* storage blocked: the choice just lasts until reload */ }
+}
+
+/** The pencil above a table. Opens a dialog in the centre of the screen listing
+    every column the table can show, as toggle tiles. A column with `always`
+    (the row's name, its actions) is shown as locked. */
+function ColumnPicker({ cols, isOn, onToggle, onReset, onAll, changed }) {
     const t = useT();
+    const [open, setOpen] = useState(false);
+    const list = cols.filter((c) => c.pickLabel || c.label);
+    const onCount = list.filter(isOn).length;
+
     return (
+        <>
+            <button
+                type="button" className="edge-btn" aria-label="Edit columns" title="Edit columns"
+                aria-haspopup="dialog" onClick={() => setOpen(true)}
+                style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    height: 27, padding: '0 10px', borderRadius: 7, cursor: 'pointer',
+                    fontFamily: MONO, fontSize: 12,
+                    border: '1px solid ' + (changed ? t.lineStrong : t.line),
+                    background: t.panel, color: t.text,
+                }}
+            ><Pencil size={13} aria-hidden="true" />Columns</button>
+            <Modal
+                open={open} onClose={() => setOpen(false)} width={560}
+                title="Edit columns"
+                note="Tick the columns you want in this table and untick the ones you don't. Saved on this device."
+                footer={<>
+                    <Btn onClick={onReset} disabled={!changed}>Reset to default</Btn>
+                    <Btn onClick={onAll} disabled={onCount === list.length}>Show all</Btn>
+                    <div style={{ flex: 1 }} />
+                    <Btn primary onClick={() => setOpen(false)}>Done</Btn>
+                </>}
+            >
+                <div style={{ fontSize: 11.5, color: t.faint, marginBottom: 10 }}>
+                    {onCount} of {list.length} columns showing
+                </div>
+                <div role="group" aria-label="Columns" style={{
+                    display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                }}>
+                    {list.map((c) => {
+                        const on = isOn(c);
+                        return (
+                            <button
+                                key={c.key} type="button" role="checkbox" aria-checked={on}
+                                disabled={!!c.always} onClick={() => onToggle(c)}
+                                className="edge-tr"
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left',
+                                    padding: '9px 11px', borderRadius: 8, fontFamily: MONO, fontSize: 13,
+                                    cursor: c.always ? 'default' : 'pointer', color: t.text,
+                                    border: '1px solid ' + (on ? t.lineStrong : t.line),
+                                    background: on ? t.panelAlt : t.panel,
+                                    opacity: c.always ? 0.7 : 1,
+                                }}
+                            >
+                                <span aria-hidden="true" style={{
+                                    width: 17, height: 17, flexShrink: 0, borderRadius: 5,
+                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                    border: '1px solid ' + (on ? t.text : t.lineStrong),
+                                    background: on ? t.text : 'transparent', color: t.panel,
+                                }}>{on && <Check size={12} strokeWidth={3} />}</span>
+                                <span style={{ flex: 1, minWidth: 0 }}>{c.pickLabel || c.label}</span>
+                                {c.always && <span style={{ fontSize: 10.5, color: t.faint }}>always</span>}
+                            </button>
+                        );
+                    })}
+                </div>
+            </Modal>
+        </>
+    );
+}
+
+/** `cols` is every column the table can show: { key, label, align, width,
+    always, def }. `def: false` starts a column hidden; `always` keeps it on.
+
+    Give the table an `id` and write the rows as a function to get the pencil:
+        <Table id="projects" cols={ALL}>{(show) => rows.map(r =>
+            <Tr>{show('code') && <Td>…</Td>}…</Tr>)}</Table>
+    `show(key)` says whether to draw a column. A second argument is the list of
+    visible columns, for rows that loop over them. Without an `id`, or with
+    plain children, nothing changes and every column in `cols` is shown. */
+export function Table({ id, cols: allCols, children, empty }) {
+    const t = useT();
+    const [prefs, setPrefs] = useState(() => (id ? readColPrefs(id) : {}));
+    const pickable = !!id && typeof children === 'function' && allCols.length > 1;
+    const isOn = (c) => !!c.always || (c.key in prefs ? !!prefs[c.key] : c.def !== false);
+    const cols = pickable ? allCols.filter(isOn) : allCols;
+    const shown = new Set(cols.map((c) => c.key));
+    const toggle = (c) => {
+        const next = { ...prefs };
+        const on = !isOn(c);
+        if (on === (c.def !== false)) delete next[c.key]; else next[c.key] = on;
+        setPrefs(next); writeColPrefs(id, next);
+    };
+    const reset = () => { setPrefs({}); writeColPrefs(id, {}); };
+    const showAll = () => {
+        const next = Object.fromEntries(allCols.filter((c) => c.def === false).map((c) => [c.key, true]));
+        setPrefs(next); writeColPrefs(id, next);
+    };
+    const body = typeof children === 'function' ? children((k) => shown.has(k), cols) : children;
+    return (
+        <div>
+            {pickable && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+                    <ColumnPicker cols={allCols} isOn={isOn} onToggle={toggle} onReset={reset} onAll={showAll}
+                        changed={Object.keys(prefs).length > 0} />
+                </div>
+            )}
         <div style={{ border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden' }}>
             <div className="edge-scroll" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO }}>
@@ -405,10 +541,11 @@ export function Table({ cols, children, empty }) {
                             ))}
                         </tr>
                     </thead>
-                    <tbody>{children}</tbody>
+                    <tbody>{body}</tbody>
                 </table>
             </div>
             {empty}
+        </div>
         </div>
     );
 }
@@ -578,5 +715,311 @@ export function DialogSheet({ as: As = 'div', label, labelledBy, onClose, childr
             onClick={(e) => e.stopPropagation()}
             style={{ outline: 'none', ...rest.style }}
         >{children}</As>
+    );
+}
+
+/** A row's actions behind one "⋯" button. Opens a labelled list, so every
+    action reads as words instead of an icon to decode. `items` takes falsy
+    entries so callers can write `cond && {...}` inline. Each item:
+    { label, icon, onClick, tone: 'danger' | 'success', disabled, hint, busy }.
+    Danger items sit last, below a hairline. The list is portalled to <body>
+    so a table's overflow cannot clip it. */
+export function RowMenu({ items, label = 'Actions', size = 'sm' }) {
+    const t = useT();
+    const [open, setOpen] = useState(false);
+    const [pos, setPos] = useState(null);
+    const [hover, setHover] = useState(false);
+    const btnRef = useRef(null);
+    const listRef = useRef(null);
+    const id = useId();
+
+    const list = (items || []).filter(Boolean);
+    const plain = list.filter((it) => it.tone !== 'danger');
+    const danger = list.filter((it) => it.tone === 'danger');
+
+    const place = () => {
+        const r = btnRef.current?.getBoundingClientRect();
+        if (!r) return;
+        const below = window.innerHeight - r.bottom;
+        const h = listRef.current?.offsetHeight || 0;
+        setPos({
+            right: Math.max(8, window.innerWidth - r.right),
+            ...(h && below < h + 12 && r.top > below
+                ? { bottom: window.innerHeight - r.top + 4 }
+                : { top: r.bottom + 4 }),
+        });
+    };
+
+    useLayoutEffect(() => {
+        if (!open) return;
+        place();
+        const first = listRef.current?.querySelector('[role="menuitem"]:not([disabled])');
+        first?.focus({ preventScroll: true });
+    }, [open]);
+
+    useEffect(() => {
+        if (!open) return undefined;
+        const onDown = (e) => {
+            if (listRef.current?.contains(e.target) || btnRef.current?.contains(e.target)) return;
+            setOpen(false);
+        };
+        const close = () => setOpen(false);
+        document.addEventListener('mousedown', onDown);
+        window.addEventListener('resize', close);
+        window.addEventListener('scroll', close, true);
+        return () => {
+            document.removeEventListener('mousedown', onDown);
+            window.removeEventListener('resize', close);
+            window.removeEventListener('scroll', close, true);
+        };
+    }, [open]);
+
+    if (list.length === 0) return null;
+
+    const onKey = (e) => {
+        const els = Array.from(listRef.current?.querySelectorAll('[role="menuitem"]:not([disabled])') || []);
+        const i = els.indexOf(document.activeElement);
+        if (e.key === 'Escape' || e.key === 'Tab') {
+            e.preventDefault(); e.stopPropagation();
+            setOpen(false); btnRef.current?.focus();
+        } else if (e.key === 'ArrowDown') { e.preventDefault(); els[(i + 1) % els.length]?.focus(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); els[(i - 1 + els.length) % els.length]?.focus(); }
+        else if (e.key === 'Home') { e.preventDefault(); els[0]?.focus(); }
+        else if (e.key === 'End') { e.preventDefault(); els[els.length - 1]?.focus(); }
+    };
+
+    const run = (it) => (e) => {
+        e.stopPropagation();
+        if (it.disabled) return;
+        setOpen(false);
+        btnRef.current?.focus({ preventScroll: true });
+        it.onClick?.(e);
+    };
+
+    const item = (it, k) => {
+        const Icon = it.icon;
+        const colour = it.tone === 'danger' ? t.down : it.tone === 'success' ? t.up : t.text;
+        return (
+            <button
+                key={k} type="button" role="menuitem" className="edge-menu-item"
+                disabled={it.disabled} title={it.hint || undefined} onClick={run(it)}
+                style={{
+                    display: 'flex', alignItems: 'center', gap: 9, width: '100%',
+                    padding: '7px 10px', border: 'none', borderRadius: 6, background: 'transparent',
+                    color: colour, fontFamily: MONO, fontSize: 12.5, textAlign: 'left',
+                    cursor: it.disabled ? 'not-allowed' : 'pointer', opacity: it.disabled || it.muted ? 0.5 : 1,
+                    whiteSpace: 'nowrap',
+                }}
+            >
+                {Icon && <Icon size={14} aria-hidden="true" style={{ flexShrink: 0 }} />}
+                <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <span>{it.busy ? (it.busyLabel || `${it.label}…`) : it.label}</span>
+                    {it.hint && it.showHint && (
+                        <span style={{ fontSize: 11, color: t.faint, whiteSpace: 'normal', maxWidth: 220 }}>{it.hint}</span>
+                    )}
+                </span>
+            </button>
+        );
+    };
+
+    const h = size === 'sm' ? 26 : 29;
+    return (
+        <>
+            <button
+                ref={btnRef} type="button" className="edge-menu-trigger"
+                aria-label={label} title={label}
+                aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined}
+                onClick={(e) => { e.stopPropagation(); setPos(null); setOpen((o) => !o); }}
+                onKeyDown={(e) => { if (e.key === 'ArrowDown' && !open) { e.preventDefault(); setOpen(true); } }}
+                onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+                style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: h, height: h, padding: 0, borderRadius: 7, cursor: 'pointer',
+                    border: '1px solid ' + (open || hover ? t.lineStrong : t.line),
+                    background: open || hover ? t.panelAlt : t.panel, color: t.text,
+                    transition: 'border-color .15s, background .15s',
+                }}
+            >
+                <MoreHorizontal size={15} aria-hidden="true" />
+            </button>
+            {open && createPortal(
+                <div
+                    ref={listRef} id={id} role="menu" aria-label={label}
+                    onKeyDown={onKey} onClick={(e) => e.stopPropagation()}
+                    style={{
+                        position: 'fixed', zIndex: 2000, minWidth: 170, padding: 4,
+                        visibility: pos ? 'visible' : 'hidden',
+                        top: pos?.top, bottom: pos?.bottom, right: pos?.right ?? 0,
+                        background: t.panel, border: '1px solid ' + t.line, borderRadius: 9,
+                        boxShadow: t.shadow,
+                    }}
+                >
+                    <style>{`
+                        .edge-menu-item:hover:not(:disabled), .edge-menu-item:focus-visible { background: ${t.panelAlt} !important; outline: none; }
+                    `}</style>
+                    {plain.map(item)}
+                    {plain.length > 0 && danger.length > 0 && (
+                        <div role="separator" style={{ height: 1, background: t.line, margin: '4px 2px' }} />
+                    )}
+                    {danger.map((it, k) => item(it, 'd' + k))}
+                </div>,
+                document.body,
+            )}
+        </>
+    );
+}
+
+/** A compact filter dropdown for page toolbars: one button that reads
+    "Label  Value ⌄" and opens a list with a tick on the current choice.
+    `options` is [{ id, label }]. Keyboard: Enter/Space/↑↓ opens, ↑↓ Home End
+    move, Enter picks, Esc or Tab closes. The list is portalled to <body> so a
+    container's overflow cannot clip it. */
+export function Dropdown({ label, value, onChange, options, height = 36 }) {
+    const t = useT();
+    const [open, setOpen] = useState(false);
+    const [pos, setPos] = useState(null);
+    const [hover, setHover] = useState(false);
+    const btnRef = useRef(null);
+    const listRef = useRef(null);
+    const id = useId();
+    const current = options.find((o) => o.id === value) || options[0];
+
+    const place = () => {
+        const r = btnRef.current?.getBoundingClientRect();
+        if (!r) return;
+        const below = window.innerHeight - r.bottom;
+        const h = listRef.current?.offsetHeight || 0;
+        const w = Math.max(r.width, 200);
+        setPos({
+            left: Math.max(8, Math.min(r.left, window.innerWidth - w - 8)),
+            minWidth: w,
+            ...(h && below < h + 12 && r.top > below
+                ? { bottom: window.innerHeight - r.top + 6 }
+                : { top: r.bottom + 6 }),
+        });
+    };
+
+    useLayoutEffect(() => {
+        if (open) place();
+    }, [open]);
+
+    // Focus once the list is placed — a visibility:hidden option cannot take focus.
+    const placed = open && !!pos;
+    useLayoutEffect(() => {
+        if (!placed) return;
+        const sel = listRef.current?.querySelector('[aria-selected="true"]')
+            || listRef.current?.querySelector('[role="option"]');
+        sel?.focus({ preventScroll: true });
+        // Scroll only the list — scrollIntoView would move the page and close it.
+        if (sel && listRef.current) listRef.current.scrollTop = Math.max(0, sel.offsetTop - 5);
+    }, [placed]);
+
+    useEffect(() => {
+        if (!open) return undefined;
+        const onDown = (e) => {
+            if (listRef.current?.contains(e.target) || btnRef.current?.contains(e.target)) return;
+            setOpen(false);
+        };
+        // Scrolling the list itself is fine; scrolling the page detaches it.
+        const onScroll = (e) => { if (!listRef.current?.contains(e.target)) setOpen(false); };
+        const onResize = () => setOpen(false);
+        document.addEventListener('mousedown', onDown);
+        window.addEventListener('resize', onResize);
+        window.addEventListener('scroll', onScroll, true);
+        return () => {
+            document.removeEventListener('mousedown', onDown);
+            window.removeEventListener('resize', onResize);
+            window.removeEventListener('scroll', onScroll, true);
+        };
+    }, [open]);
+
+    const pick = (o) => {
+        setOpen(false);
+        btnRef.current?.focus({ preventScroll: true });
+        if (o.id !== value) onChange(o.id);
+    };
+
+    const onKey = (e) => {
+        const els = Array.from(listRef.current?.querySelectorAll('[role="option"]') || []);
+        const i = els.indexOf(document.activeElement);
+        if (e.key === 'Escape' || e.key === 'Tab') {
+            e.preventDefault(); e.stopPropagation();
+            setOpen(false); btnRef.current?.focus();
+        } else if (e.key === 'ArrowDown') { e.preventDefault(); els[Math.min(i + 1, els.length - 1)]?.focus(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); els[Math.max(i - 1, 0)]?.focus(); }
+        else if (e.key === 'Home') { e.preventDefault(); els[0]?.focus(); }
+        else if (e.key === 'End') { e.preventDefault(); els[els.length - 1]?.focus(); }
+    };
+
+    const active = open || hover;
+    return (
+        <>
+            <style>{`
+                .edge-dropdown:focus-visible { outline: 2px solid ${t.text}; outline-offset: 2px; }
+                .edge-dropdown-opt:hover, .edge-dropdown-opt:focus-visible { background: ${t.panelAlt} !important; outline: none; }
+            `}</style>
+            <button
+                ref={btnRef} type="button" className="edge-dropdown"
+                aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? id : undefined}
+                aria-label={`${label}: ${current?.label ?? ''}`}
+                onClick={() => { setPos(null); setOpen((o) => !o); }}
+                onKeyDown={(e) => {
+                    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !open) { e.preventDefault(); setPos(null); setOpen(true); }
+                }}
+                onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+                style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8, height,
+                    padding: '0 10px 0 12px', borderRadius: 9, cursor: 'pointer',
+                    border: '1px solid ' + (active ? t.lineStrong : t.line),
+                    background: active ? t.panelAlt : t.panel, color: t.text,
+                    fontFamily: MONO, fontSize: 12.5, whiteSpace: 'nowrap', maxWidth: 260,
+                    transition: 'border-color .15s, background .15s',
+                }}
+            >
+                <span style={{ color: t.faint, fontSize: 11.5 }}>{label}</span>
+                <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{current?.label}</span>
+                <ChevronDown size={14} aria-hidden="true" style={{
+                    flexShrink: 0, color: t.faint, transition: 'transform .15s',
+                    transform: open ? 'rotate(180deg)' : 'none',
+                }} />
+            </button>
+            {open && createPortal(
+                <div
+                    ref={listRef} id={id} role="listbox" aria-label={label}
+                    onKeyDown={onKey}
+                    style={{
+                        position: 'fixed', zIndex: 2000, padding: 5,
+                        visibility: pos ? 'visible' : 'hidden',
+                        top: pos?.top, bottom: pos?.bottom, left: pos?.left ?? 0, minWidth: pos?.minWidth,
+                        maxHeight: 320, overflowY: 'auto',
+                        background: t.panel, border: '1px solid ' + t.line, borderRadius: 11,
+                        boxShadow: t.shadow,
+                    }}
+                >
+                    {options.map((o) => {
+                        const selected = o.id === value;
+                        return (
+                            <button
+                                key={o.id} type="button" role="option" aria-selected={selected}
+                                className="edge-dropdown-opt" onClick={() => pick(o)}
+                                style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+                                    width: '100%', padding: '8px 10px', border: 'none', borderRadius: 7,
+                                    background: selected ? t.panelAlt : 'transparent', color: t.text,
+                                    fontFamily: MONO, fontSize: 12.5, fontWeight: selected ? 600 : 400,
+                                    textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap',
+                                }}
+                            >
+                                <span>{o.label}</span>
+                                {selected
+                                    ? <Check size={14} aria-hidden="true" style={{ flexShrink: 0 }} />
+                                    : <span aria-hidden="true" style={{ width: 14, flexShrink: 0 }} />}
+                            </button>
+                        );
+                    })}
+                </div>,
+                document.body,
+            )}
+        </>
     );
 }

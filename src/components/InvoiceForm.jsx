@@ -38,7 +38,7 @@ export default function InvoiceForm() {
   // Opened from a project (its Billing page, a milestone, unbilled hours):
   // the project's client, what of the contract is still unbilled when no
   // lines were handed over, and saving returns to the project.
-  const fromProject = useFormProject('invoice', '/invoices');
+  const fromProject = useFormProject('invoice', '/billing/invoices');
   const [projectLines] = useState(() => (location.state?.lines?.length || location.state?.line
     ? null : projectStartLines(fromProject.project, 'invoice')));
   const { activeOrg } = useOrg();

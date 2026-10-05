@@ -12,6 +12,7 @@ import { useSection } from '../financial/financeHooks';
 import { netOfTax } from '../../services/financeAnalytics';
 import { orgStore } from '../../services/orgStore';
 import { linkDocument } from '../../services/projectService';
+import { projectSectionPath } from './projectPaths';
 
 const n = (v) => Number(v) || 0;
 const round2 = (v) => Math.round(v * 100) / 100;
@@ -107,14 +108,11 @@ export function useProjectScope(projectId) {
 
 // ─── Forms opened from a project ─────────────────────────────────────────────
 
-const BILLING_DOC = { invoice: 'invoice', quotation: 'quotation', proforma: 'proforma', recurring: 'recurring' };
-
 /** Where a project's Billing page lists a kind of document. */
-export const projectBillingPath = (projectId, kind) =>
-    `/projects/${projectId}?tab=billing&doc=${BILLING_DOC[kind] || 'quotation'}`;
+export const projectBillingPath = (projectId, kind) => projectSectionPath(projectId, 'billing', kind);
 
 /** Documents Management › Project Documents, on its business-documents view. */
-export const projectDocumentsPath = (projectId) => `/projects/${projectId}?tab=documents&view=business`;
+export const projectDocumentsPath = (projectId) => projectSectionPath(projectId, 'documents', 'business');
 
 /**
  * Where "new <kind>" opens for a project. `from: 'documents'` sends the form

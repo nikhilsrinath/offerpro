@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Upload } from 'lucide-react';
 import {
     Page, Toolbar, Row, Btn, Seg, Search, Table, Tr, Td, Empty, Loading, Muted, Modal,
-    Field, Input, Select, Textarea, Status, StatBand, ConfirmBtn, Panel,
+    Field, Input, Select, Textarea, Status, StatBand, ConfirmBtn,
 } from '../ui/edge';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useT } from '../ui/edgeUtils';
 import { useOrg } from '../../context/OrgContext';
 import { useToast } from '../shared/Toast';
@@ -59,9 +59,16 @@ function typeOf(doc) {
     return m ? m[1].toUpperCase() : (doc.mime_type || 'FILE').split('/').pop().toUpperCase();
 }
 
+// Where each register lives: General Documents is the page itself.
+const REGISTER_PATHS = { general: '', opa: 'process-assets', lessons: 'lessons-learned' };
+const registerPath = (id) => '/document-library' + (REGISTER_PATHS[id] ? '/' + REGISTER_PATHS[id] : '');
+const registerOfPath = (pathname) => {
+    const sub = pathname.split('/')[2] || '';
+    return Object.keys(REGISTER_PATHS).find((id) => REGISTER_PATHS[id] === sub) || 'general';
+};
+
 export default function DocumentLibrary() {
     const t = useT();
-    const toast = useToast();
     const { activeOrg } = useOrg();
     const orgId = activeOrg?.id;
     const inputRef = useRef(null);
@@ -71,18 +78,18 @@ export default function DocumentLibrary() {
     const [query, setQuery] = useState('');
     const [category, setCategory] = useState('all');
 
-    // The register lives in the URL, so a link or a refresh lands on it.
-    const [params, setParams] = useSearchParams();
-    const collection = collectionOf(params.get('type')).id;
+    // The register is the last part of the path (/document-library/process-assets),
+    // so a link or a refresh lands on it; General Documents is the bare page.
+    const location = useLocation();
+    const navigate = useNavigate();
+    const collection = registerOfPath(location.pathname);
     const register = collectionOf(collection);
     const setCollection = (id) => {
         setCategory('all');
-        setParams((p) => {
-            const next = new URLSearchParams(p);
-            if (id === 'general') next.delete('type'); else next.set('type', id);
-            return next;
-        }, { replace: true });
+        navigate(registerPath(id), { replace: true });
     };
+    // Older links named the register in ?type=.
+    const legacyType = new URLSearchParams(location.search).get('type');
     const [inside, setInside] = useState(new Map());
     const [queue, setQueue] = useState([]);
     const [openId, setOpenId] = useState(null);
@@ -158,9 +165,8 @@ export default function DocumentLibrary() {
                 set(job.key, { state: 'failed', error: e.message || 'Upload failed' });
             }
         }
-        if (ok) toast(`${ok} document${ok === 1 ? '' : 's'} added to ${collectionOf(collection).label}`, 'success');
         refresh();
-    }, [orgId, category, collection, toast, refresh]);
+    }, [orgId, category, collection, refresh]);
 
     const onDrop = (e) => {
         e.preventDefault();
@@ -205,6 +211,8 @@ export default function DocumentLibrary() {
 
     const active = queue.filter((j) => j.state === 'queued' || j.state === 'working').length;
 
+    if (legacyType && REGISTER_PATHS[legacyType] !== undefined) return <Navigate to={registerPath(legacyType)} replace />;
+
     return (
         <Page>
             <div
@@ -247,26 +255,11 @@ export default function DocumentLibrary() {
                 <StatBand items={stats} />
 
                 {queue.length > 0 && (
-                    <div style={{ marginBottom: 14 }}>
-                        <Panel
-                            title="Uploads"
-                            note={active ? `${active} in progress — reading can take up to a minute per file` : 'finished'}
-                            actions={!active && <Btn size="sm" onClick={() => setQueue([])}>Clear</Btn>}
-                        >
-                            <ul aria-live="polite" style={{ listStyle: 'none', margin: 0, padding: '4px 0' }}>
-                                {queue.map((j) => (
-                                    <li key={j.key} style={{
-                                        display: 'flex', gap: 12, alignItems: 'baseline', padding: '6px 13px',
-                                        fontSize: 12.5, borderBottom: '1px solid ' + t.lineSoft,
-                                    }}>
-                                        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{j.name}</span>
-                                        <Muted>{j.register}</Muted>
-                                        <QueueState job={j} />
-                                    </li>
-                                ))}
-                            </ul>
-                        </Panel>
-                    </div>
+                    <UploadOverlay
+                        queue={queue} active={active}
+                        onMore={() => { setQueue([]); inputRef.current?.click(); }}
+                        onClose={() => setQueue([])}
+                    />
                 )}
 
                 {loadError && (
@@ -347,13 +340,71 @@ export default function DocumentLibrary() {
     );
 }
 
-function QueueState({ job }) {
+function UploadOverlay({ queue, active, onMore, onClose }) {
     const t = useT();
-    if (job.state === 'queued') return <Muted>Waiting</Muted>;
-    if (job.state === 'working') return <Status tone="mute">Uploading and reading…</Status>;
-    if (job.state === 'failed') return <span style={{ fontSize: 12, color: t.down }}>{job.error}</span>;
-    const st = STATUS[job.status] || STATUS.pending;
-    return <Status tone={st.tone}>{st.label}</Status>;
+    const failed = queue.filter((j) => j.state === 'failed');
+    const added = queue.length - failed.length;
+    const busy = active > 0;
+    const accent = busy ? t.text : failed.length && !added ? t.down : t.up;
+    return (
+        <div role="dialog" aria-modal="true" aria-label={busy ? 'Uploading' : 'Upload finished'} style={{
+            position: 'fixed', inset: 0, zIndex: 60, display: 'grid', placeItems: 'center',
+            background: t.isDark ? 'rgba(0,0,0,.6)' : 'rgba(255,255,255,.75)',
+        }}>
+            <style>{`
+                @keyframes edge-up-spin { to { transform: rotate(360deg); } }
+                @keyframes edge-up-draw { to { stroke-dashoffset: 0; } }
+                @keyframes edge-up-pop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+                @media (prefers-reduced-motion: reduce) { .edge-up-anim { animation-duration: 0.01s !important; } }
+            `}</style>
+            <div style={{
+                width: 'min(380px, calc(100vw - 32px))', padding: '28px 24px 22px', textAlign: 'center',
+                background: t.panel, border: '1px solid ' + t.line, borderRadius: 14,
+                boxShadow: '0 12px 40px rgba(0,0,0,.18)',
+            }}>
+                <div style={{ display: 'grid', placeItems: 'center', height: 72 }}>
+                    {busy ? (
+                        <svg className="edge-up-anim" width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"
+                            style={{ animation: 'edge-up-spin .9s linear infinite' }}>
+                            <circle cx="28" cy="28" r="23" fill="none" stroke={t.line} strokeWidth="4" />
+                            <path d="M28 5a23 23 0 0 1 23 23" fill="none" stroke={accent} strokeWidth="4" strokeLinecap="round" />
+                        </svg>
+                    ) : (
+                        <svg className="edge-up-anim" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true"
+                            style={{ animation: 'edge-up-pop .35s ease-out both' }}>
+                            <circle cx="32" cy="32" r="28" fill="none" stroke={accent} strokeWidth="4" />
+                            {failed.length && !added ? (
+                                <path className="edge-up-anim" d="M22 22l20 20M42 22L22 42" fill="none" stroke={accent} strokeWidth="4" strokeLinecap="round"
+                                    strokeDasharray="60" strokeDashoffset="60" style={{ animation: 'edge-up-draw .4s .25s ease-out forwards' }} />
+                            ) : (
+                                <path className="edge-up-anim" d="M20 33l8 8 17-18" fill="none" stroke={accent} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"
+                                    strokeDasharray="40" strokeDashoffset="40" style={{ animation: 'edge-up-draw .4s .25s ease-out forwards' }} />
+                            )}
+                        </svg>
+                    )}
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginTop: 6 }} aria-live="polite">
+                    {busy ? 'Uploading…' : failed.length && !added ? 'Upload failed'
+                        : `${added} file${added === 1 ? '' : 's'} uploaded`}
+                </div>
+                <div style={{ fontSize: 12.5, color: t.dim, marginTop: 4, lineHeight: 1.5 }}>
+                    {busy ? `${active} of ${queue.length} remaining — reading can take up to a minute per file`
+                        : failed.length && added ? `${failed.length} could not be added` : ''}
+                </div>
+                {!busy && failed.length > 0 && (
+                    <ul style={{ listStyle: 'none', margin: '10px 0 0', padding: 0, textAlign: 'left', fontSize: 12, color: t.down }}>
+                        {failed.map((j) => <li key={j.key} style={{ padding: '2px 0' }}>{j.name} — {j.error}</li>)}
+                    </ul>
+                )}
+                {!busy && (
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 18 }}>
+                        <Btn onClick={onMore}>Upload more</Btn>
+                        <Btn primary onClick={onClose}>Close</Btn>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 }
 
 /* ── one document ─────────────────────────────────────────────────────────── */
@@ -451,7 +502,7 @@ function DocumentSheet({ id, orgId, canEdit, canDelete, onClose, onChanged, onRe
             {!doc || !form ? <Loading /> : (
                 <div style={{ display: 'grid', gap: 16 }}>
                     <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
-                        <Field label="Title">
+                        <Field required label="Title">
                             <Input value={form.title} maxLength={200} disabled={!canEdit}
                                 onChange={(e) => setForm({ ...form, title: e.target.value })} />
                         </Field>

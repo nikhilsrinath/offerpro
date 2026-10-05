@@ -289,14 +289,14 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
                 )}>
                 {link ? sentBox('The role change notice') : (
                     <Grid min={200} gap={13}>
-                        <Field label="New role"><Input value={rc.newRole} onChange={(e) => setRc({ ...rc, newRole: e.target.value })} placeholder="Senior Engineer" /></Field>
+                        <Field required label="New role"><Input value={rc.newRole} onChange={(e) => setRc({ ...rc, newRole: e.target.value })} placeholder="Senior Engineer" /></Field>
                         <Field label="New department">
                             <Select value={rc.newDepartment} onChange={(e) => setRc({ ...rc, newDepartment: e.target.value })}>
                                 <option value="">Unchanged</option>
                                 {departments.map((d) => <option key={d.name} value={d.name}>{d.name}</option>)}
                             </Select>
                         </Field>
-                        <Field label="Effective from"><Input type="date" value={rc.effectiveDate} onChange={(e) => setRc({ ...rc, effectiveDate: e.target.value })} /></Field>
+                        <Field required label="Effective from"><Input type="date" value={rc.effectiveDate} onChange={(e) => setRc({ ...rc, effectiveDate: e.target.value })} /></Field>
                         <Field label="New salary" hint="Leave blank if pay is unchanged">
                             <Row gap={6}>
                                 <Input type="number" value={rc.newSalary} onChange={(e) => setRc({ ...rc, newSalary: e.target.value })} placeholder="0" />
@@ -330,7 +330,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
                 )}>
                 {link ? sentBox('The notice') : (
                     <>
-                        <Field label="Last working day">
+                        <Field required label="Last working day">
                             <Input type="date" value={term.lastDay} onChange={(e) => setTerm({ ...term, lastDay: e.target.value })} />
                         </Field>
                         <div style={{ height: 13 }} />
@@ -748,42 +748,61 @@ export default function Employees() {
                             </Empty>
                         </Panel>
                     ) : view === 'table' ? (
-                        <Table cols={[
-                            { key: 'n', label: 'Name' },
+                        <Table id="employees" cols={[
+                            { key: 'n', label: 'Name', always: true },
+                            { key: 'em', label: 'Email', def: false },
+                            { key: 'ph', label: 'Phone', def: false },
                             { key: 'r', label: 'Role' },
                             { key: 'd', label: 'Department' },
+                            { key: 'sv', label: 'Supervisor', def: false },
+                            { key: 'lo', label: 'Location', def: false },
                             { key: 't', label: 'Type' },
                             { key: 's', label: 'Started' },
-                            { key: 'a', label: '', align: 'right', width: 74 },
+                            { key: 'e', label: 'Ends', def: false },
+                            { key: 'pd', label: 'Paid', def: false },
+                            { key: 'a', label: '', align: 'right', width: 74, always: true },
                         ]}>
-                            {list.map((emp) => {
+                            {(show) => list.map((emp) => {
                                 const name = getDisplayName(emp);
                                 const c = deptColor(emp.department, departments);
+                                const dash = <span style={{ color: t.ghost }}>—</span>;
                                 return (
                                     <Tr key={emp.id} onClick={() => setSelected(emp)}>
-                                        <Td>
-                                            <Row gap={9}>
-                                                <Avatar name={name} size={26} photo={<EmployeePhotoFill photoPath={emp.photo_path} />} />
-                                                <span style={{ minWidth: 0 }}>
-                                                    <span style={{ display: 'block' }}>{name || '—'}</span>
-                                                    <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>{emp.email}</span>
-                                                </span>
-                                            </Row>
-                                        </Td>
-                                        <Td muted nowrap>{emp.role || '—'}</Td>
-                                        <Td nowrap>
-                                            {emp.department ? (
-                                                <Row gap={7}>
-                                                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: c, flexShrink: 0 }} />
-                                                    <span style={{ color: t.dim, fontSize: 12.5 }}>{emp.department}</span>
+                                        {show('n') && (
+                                            <Td>
+                                                <Row gap={9}>
+                                                    <Avatar name={name} size={26} photo={<EmployeePhotoFill photoPath={emp.photo_path} />} />
+                                                    <span style={{ minWidth: 0 }}>
+                                                        <span style={{ display: 'block' }}>{name || '—'}</span>
+                                                        <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>{emp.email}</span>
+                                                    </span>
                                                 </Row>
-                                            ) : <span style={{ color: t.ghost }}>—</span>}
-                                        </Td>
-                                        <Td muted nowrap>{TYPE_LABEL[emp.offerType] || '—'}</Td>
-                                        <Td muted nowrap>{emp.startDate ? fmtDate(emp.startDate) : '—'}</Td>
-                                        <Td align="right">
-                                            <Btn size="sm" onClick={() => setSelected(emp)}>Open</Btn>
-                                        </Td>
+                                            </Td>
+                                        )}
+                                        {show('em') && <Td muted nowrap>{emp.email || '—'}</Td>}
+                                        {show('ph') && <Td muted nowrap>{emp.phone || '—'}</Td>}
+                                        {show('r') && <Td muted nowrap>{emp.role || '—'}</Td>}
+                                        {show('d') && (
+                                            <Td nowrap>
+                                                {emp.department ? (
+                                                    <Row gap={7}>
+                                                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: c, flexShrink: 0 }} />
+                                                        <span style={{ color: t.dim, fontSize: 12.5 }}>{emp.department}</span>
+                                                    </Row>
+                                                ) : dash}
+                                            </Td>
+                                        )}
+                                        {show('sv') && <Td muted nowrap>{emp.supervisorName || '—'}</Td>}
+                                        {show('lo') && <Td muted nowrap>{emp.location || '—'}</Td>}
+                                        {show('t') && <Td muted nowrap>{TYPE_LABEL[emp.offerType] || '—'}</Td>}
+                                        {show('s') && <Td muted nowrap>{emp.startDate ? fmtDate(emp.startDate) : '—'}</Td>}
+                                        {show('e') && <Td muted nowrap>{emp.endDate ? fmtDate(emp.endDate) : '—'}</Td>}
+                                        {show('pd') && <Td muted nowrap>{emp.isPaid === true || emp.isPaid === 'true' ? 'Paid' : emp.isPaid === false || emp.isPaid === 'false' ? 'Unpaid' : '—'}</Td>}
+                                        {show('a') && (
+                                            <Td align="right">
+                                                <Btn size="sm" onClick={() => setSelected(emp)}>Open</Btn>
+                                            </Td>
+                                        )}
                                     </Tr>
                                 );
                             })}
@@ -861,7 +880,7 @@ export default function Employees() {
                         </div>
 
                         <div style={{ borderTop: '1px solid ' + t.lineSoft, paddingTop: 12 }}>
-                            <Field label="New department">
+                            <Field required label="New department">
                                 <Input value={newDept} onChange={(e) => setNewDept(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && addDept()} placeholder="Engineering" />
                             </Field>

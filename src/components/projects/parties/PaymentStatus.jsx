@@ -279,11 +279,11 @@ function RecordPayment({ r, money, onClose }) {
             note={`Balance on the invoice ${money(fullBalance)}${r.share < 1 ? ` (the whole invoice; this project’s share is ${Math.round(r.share * 100)}%)` : ''}`}
             footer={<><Btn onClick={onClose}>Cancel</Btn><Btn primary disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Record'}</Btn></>}>
             <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
-                <Field label="Amount *">
+                <Field required label="Amount">
                     <Input type="number" min="0.01" step="0.01" value={form.amount} onChange={set('amount')} />
                     {errors.amount && <span role="alert" style={{ display: 'block', fontSize: 11.5, color: t.down, marginTop: 4 }}>{errors.amount}</span>}
                 </Field>
-                <Field label="Paid on *">
+                <Field required label="Paid on">
                     <Input type="date" value={form.paidOn} max={todayIso()} onChange={set('paidOn')} />
                     {errors.paidOn && <span role="alert" style={{ display: 'block', fontSize: 11.5, color: t.down, marginTop: 4 }}>{errors.paidOn}</span>}
                 </Field>

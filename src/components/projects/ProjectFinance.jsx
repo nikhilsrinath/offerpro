@@ -29,7 +29,7 @@ const SOURCE_LABEL = { invoice: 'Invoice', income_entry: 'Income', expense: 'Exp
 // Inside the project, a link opens the project's own page for that kind.
 const SOURCE_TAB = { invoice: 'billing', income_entry: 'cashbook', expense: 'cashbook', purchase_invoice: 'bills' };
 const SOURCE_PATH = {
-    invoice: () => '/invoices', income_entry: () => '/cashbook', expense: () => '/cashbook', purchase_invoice: () => '/purchases',
+    invoice: () => '/billing/invoices', income_entry: () => '/general-ledger', expense: () => '/general-ledger', purchase_invoice: () => '/purchase-bills',
 };
 
 function periodChoices() {
@@ -138,7 +138,7 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
             if (rows.length === 0) { toast('No approved, unbilled hours on this project.', 'info'); return; }
             const missing = rows.filter((r) => !(Number(r.bill_rate) > 0)).map((r) => r.full_name);
             if (missing.length) toast(`No bill rate for ${missing.join(', ')} — set it on the Team tab; their lines start at ₹0.`, 'error', 6000);
-            navigate('/new-invoice', {
+            navigate('/billing/invoices/new', {
                 state: {
                     projectId: project.id, clientId: project.client_id,
                     lines: rows.map((r) => ({

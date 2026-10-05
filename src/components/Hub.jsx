@@ -236,9 +236,9 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
     const openNotif = (n) => {
         documentStore.deleteNotification(n.id);
         setMenu(null);
-        if (n.type === 'quotation_accepted' || n.type === 'quotation_sent' || n.type === 'revision_requested') navigate('/new-quotation');
-        else if (n.type === 'payment_submitted') navigate('/invoices');
-        else navigate('/offer-tracker');
+        if (n.type === 'quotation_accepted' || n.type === 'quotation_sent' || n.type === 'revision_requested') navigate('/billing/quotations');
+        else if (n.type === 'payment_submitted') navigate('/billing/invoices');
+        else navigate('/recruitment-tracker');
     };
 
     const widgetProps = {
@@ -507,10 +507,9 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                 display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, lineHeight: 1.3,
                                 opacity: rail ? 1 : 0, transition: 'opacity .16s',
                             }}>
-                                <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName}</span>
-                                <span style={{ fontSize: 11, color: t.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 5 }}>
-                                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: plan.color, flexShrink: 0 }} />
-                                    {orgName}
+                                <span title={orgName} style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: plan.color, flexShrink: 0 }} />
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}</span>
                                 </span>
                             </span>
                             <ChevronDown size={13} strokeWidth={2} aria-hidden="true" style={{

@@ -198,8 +198,8 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
 
                         <div style={{ flex: '1 1 320px', minWidth: 0 }}>
                             <Grid min={200} gap={13}>
-                                <Field label="Full name"><Input value={form.studentName} onChange={set('studentName')} /></Field>
-                                <Field label="Email" hint="Becomes their portal username">
+                                <Field required label="Full name"><Input value={form.studentName} onChange={set('studentName')} /></Field>
+                                <Field required={!isEdit} label="Email" hint="Becomes their portal username">
                                     <Input type="email" value={form.email} onChange={set('email')} />
                                 </Field>
                                 <Field label="Phone"><Input value={form.phone} onChange={set('phone')} /></Field>
@@ -220,7 +220,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                     </Field>
                     <div style={{ height: 13 }} />
                     <Grid min={200} gap={13}>
-                        <Field label="Job title"><Input value={form.role} onChange={set('role')} /></Field>
+                        <Field required={!isEdit} label="Job title"><Input value={form.role} onChange={set('role')} /></Field>
                         <Field label="Department">
                             {depts.length > 0 ? (
                                 <Select value={form.department} onChange={setDepartment}>
@@ -235,7 +235,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                             )}
                         </Field>
                         <Field label="Reports to"><Input value={form.supervisorName} onChange={set('supervisorName')} /></Field>
-                        <Field label="Start date"><Input type="date" value={form.startDate} onChange={set('startDate')} /></Field>
+                        <Field required={!isEdit} label="Start date"><Input type="date" value={form.startDate} onChange={set('startDate')} /></Field>
                         {dated && <Field label="End date"><Input type="date" value={form.endDate} onChange={set('endDate')} /></Field>}
                         <Field label="Responsibilities" wide hint="Appears in the letter they can download">
                             <Textarea value={form.responsibilities} onChange={set('responsibilities')} />

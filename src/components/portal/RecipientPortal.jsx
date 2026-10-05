@@ -1067,7 +1067,7 @@ export default function RecipientPortal({ documentId }) {
                 </div>
 
                 <div className="rp-field-group">
-                  <label className="rp-label">Your Signature</label>
+                  <label className="rp-label req">Your Signature</label>
                   <SignatureCapture onSignatureChange={(sig) => setPartyBSignature(sig)} />
                 </div>
 
@@ -1197,7 +1197,7 @@ export default function RecipientPortal({ documentId }) {
                 </div>
 
                 <div className="rp-field-group">
-                  <label className="rp-label">Your Signature</label>
+                  <label className="rp-label req">Your Signature</label>
                   <SignatureCapture onSignatureChange={(sig, method) => { setSignature(sig); setSignatureMethod(method); }} />
                 </div>
 
@@ -1300,7 +1300,7 @@ export default function RecipientPortal({ documentId }) {
                 </div>
 
                 <div className="rp-field-group">
-                  <label className="rp-label">Your Signature</label>
+                  <label className="rp-label req">Your Signature</label>
                   <SignatureCapture onSignatureChange={(sig, method) => { setSignature(sig); setSignatureMethod(method); }} />
                 </div>
 
@@ -1348,7 +1348,7 @@ export default function RecipientPortal({ documentId }) {
                 </div>
 
                 <div className="rp-field-group">
-                  <label className="rp-label">Your Signature</label>
+                  <label className="rp-label req">Your Signature</label>
                   <SignatureCapture onSignatureChange={(sig, method) => { setSignature(sig); setSignatureMethod(method); }} />
                 </div>
 

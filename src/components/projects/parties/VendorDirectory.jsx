@@ -347,7 +347,7 @@ function AddVendor({ project, all, linked, onNew, onClose }) {
                 <p style={{ margin: 0, fontSize: 13, color: t.dim }}>Every vendor is already on this project. Create a new one instead.</p>
             ) : (
                 <div style={{ display: 'grid', gap: 12 }}>
-                    <Field label="An existing vendor">
+                    <Field required label="An existing vendor">
                         <Select value={id} onChange={(e) => setId(e.target.value)} autoFocus>
                             <option value="">Choose…</option>
                             {choices.map((v) => <option key={v.id} value={v.id}>{v.company_name}{v.category ? ` — ${v.category}` : ''}</option>)}
@@ -420,7 +420,7 @@ function VendorForm({ vendor, project, onClose }) {
         } catch (e) { toast(fileError(e), 'error'); } finally { setSaving(false); }
     };
 
-    const F = ({ k, label, hint, children }) => <Field label={label} hint={hint}>{children}<FieldError>{errors[k]}</FieldError></Field>;
+    const F = ({ k, label, hint, children }) => <Field label={label} hint={hint} required={!!RULES[k]?.some((r) => r.required)}>{children}<FieldError>{errors[k]}</FieldError></Field>;
     const grid = { display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' };
 
     return (

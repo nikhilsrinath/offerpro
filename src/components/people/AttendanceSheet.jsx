@@ -309,14 +309,15 @@ export default function AttendanceSheet() {
                                 const row = dayRows[e.id];
                                 const name = e.name || e.full_name || 'Unnamed';
                                 return (
-                                    <Tr key={e.id}>
+                                    <Tr key={e.id} label={`Open ${name}’s month`}
+                                        onClick={(ev) => {
+                                            // Marking and Details keep their own behaviour; anywhere else opens the month.
+                                            if (ev.target.closest('button, input, select, textarea, a, [role="radiogroup"]')) return;
+                                            openPersonMonth(e.id);
+                                        }}>
                                         <Td>
-                                            <button type="button" onClick={() => openPersonMonth(e.id)}
-                                                title={`Open ${name}’s month`}
-                                                style={{
-                                                    display: 'flex', alignItems: 'center', gap: 9, padding: 0, border: 0,
-                                                    background: 'none', color: 'inherit', font: 'inherit', textAlign: 'left', cursor: 'pointer',
-                                                }}>
+                                            <div title={`Open ${name}’s month`}
+                                                style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                                                 <Avatar name={name} size={26} />
                                                 <span style={{ minWidth: 0 }}>
                                                     <span style={{ display: 'block', textDecoration: 'underline', textDecorationColor: t.line, textUnderlineOffset: 3 }}>{name}</span>
@@ -324,7 +325,7 @@ export default function AttendanceSheet() {
                                                         {e.role || '—'}
                                                     </span>
                                                 </span>
-                                            </button>
+                                            </div>
                                         </Td>
                                         <Td>
                                             <div style={{ opacity: busyId === e.id ? 0.5 : 1, transition: 'opacity .15s' }}>

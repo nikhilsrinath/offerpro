@@ -101,13 +101,13 @@ export default function LeaveTab({ orgId, me, types, balances, requests, setRequ
       <div style={{ display: 'grid', gap: 14, gridTemplateColumns: narrow ? '1fr' : 'minmax(280px, 0.9fr) minmax(0, 1.3fr)', alignItems: 'start' }}>
         <Panel title="Request leave">
           <form onSubmit={apply} style={{ padding: 14, display: 'grid', gap: 12 }}>
-            <Field label="Type">
+            <Field required label="Type">
               <Select value={form.leaveTypeId} required onChange={(e) => setForm({ ...form, leaveTypeId: e.target.value })}>
                 {types.map((x) => <option key={x.id} value={x.id}>{x.name}{x.is_paid ? '' : ' (unpaid)'}</option>)}
               </Select>
             </Field>
             <div style={{ display: 'grid', gap: 10, gridTemplateColumns: '1fr 1fr' }}>
-              <Field label="From">
+              <Field required label="From">
                 <Input
                   type="date" value={form.startDate} required
                   onChange={(e) => setForm({
@@ -118,7 +118,7 @@ export default function LeaveTab({ orgId, me, types, balances, requests, setRequ
                   })}
                 />
               </Field>
-              <Field label="To">
+              <Field required label="To">
                 <Input type="date" value={form.endDate} min={form.startDate} required onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
               </Field>
             </div>

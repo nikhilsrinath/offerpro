@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSection } from './financeHooks';
 import { isOpen } from '../../services/projectAnalytics';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, ChevronRight, Pause, Play, X as XIcon, Calendar, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, Pause, Play, Calendar, RotateCcw } from 'lucide-react';
 import { documentStore } from '../../services/documentStore';
 import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
@@ -10,7 +10,6 @@ import { useToast } from '../shared/Toast';
 import A4Stage from '../shared/A4Stage';
 import { confirmDialog } from '../../services/confirm';
 import { useFormProject, projectStartLines } from '../projects/projectScope';
-import { useGoBack } from '../shell/navHistory';
 
 /* ─── Constants ─── */
 const GST_RATES = [0, 5, 12, 18, 28];
@@ -138,10 +137,7 @@ function RecurringInvoiceForm({ editItem }) {
   const openProjects = allProjects.filter((p) => isOpen(p) || p.id === editItem?.project_id);
   // Opened from a project's Billing page: the template starts on that project
   // and its client, and saving returns there.
-  const fromProject = useFormProject('recurring', '/recurring');
-  // Back returns to the page the form was opened from; the list (or the
-  // project's page) only when there is none.
-  const goBack = useGoBack();
+  const fromProject = useFormProject('recurring', '/billing/recurring');
 
   const [formData, setFormData] = useState(() => {
     if (editItem) {
@@ -345,12 +341,8 @@ function RecurringInvoiceForm({ editItem }) {
       <div className="mou-form-pane">
         <form onSubmit={handleSave} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
 
-          {/* Back / Title */}
+          {/* Title */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-            <button type="button" onClick={() => goBack(fromProject.returnTo)}
-              style={{ background: 'none', border: '1px solid var(--border-default)', borderRadius: '8px', padding: '0.375rem 0.75rem', cursor: 'pointer', color: 'var(--text-secondary)', fontFamily: 'var(--font-main)', fontSize: '0.8125rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-              <XIcon size={14} /> Back
-            </button>
             <div>
               <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, lineHeight: 1.3 }}>
                 {editItem ? 'Edit Recurring Invoice' : 'New Recurring Invoice'}
@@ -948,7 +940,7 @@ function RecurringInvoiceList({ projectId = null }) {
             {items.length} recurring {items.length === 1 ? 'invoice' : 'invoices'} configured
           </p>
         </div>
-        <button type="button" onClick={() => navigate(withProject('/recurring/new'))}
+        <button type="button" onClick={() => navigate(withProject('/billing/recurring/new'))}
           style={{
             display: 'flex', alignItems: 'center', gap: '0.5rem',
             background: 'var(--btn-accent-bg)', color: 'var(--btn-accent-text)',
@@ -975,7 +967,7 @@ function RecurringInvoiceList({ projectId = null }) {
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', margin: '0 0 1.5rem', maxWidth: '400px', marginLeft: 'auto', marginRight: 'auto' }}>
             Set up automated invoice generation for your regular clients. Invoices will be created on schedule.
           </p>
-          <button type="button" onClick={() => navigate(withProject('/recurring/new'))}
+          <button type="button" onClick={() => navigate(withProject('/billing/recurring/new'))}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
               background: 'var(--btn-accent-bg)', color: 'var(--btn-accent-text)',
@@ -1078,7 +1070,7 @@ function RecurringInvoiceList({ projectId = null }) {
                       )}
                       {item.status !== 'cancelled' && (
                         <>
-                          <button type="button" onClick={() => navigate(withProject(`/recurring/edit/${item.id}`))}
+                          <button type="button" onClick={() => navigate(withProject(`/billing/recurring/${item.id}/edit`))}
                             title="Edit"
                             style={{
                               background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',

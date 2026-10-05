@@ -81,7 +81,7 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
                 onClick={() => open({ kind: 'metric', id: 'headcount' })} />
             <Tile icon={UserMinus} label="Left" value={String(k.headcount.exits)} exact={`${k.headcount.exits} left in period`}
                 foot={attrition === null ? 'left in this period' : `${attrition.toFixed(1)}% attrition`} tone={k.headcount.exits ? 'down' : null}
-                onClick={() => navigate('/employees?mode=former')} />
+                onClick={() => navigate('/employees/ex-employees')} />
             <Tile icon={CalendarCheck} label="In today" value={attendance ? String(attendance.present) : '—'}
                 exact={attendance ? `${attendance.present} of ${staff.length}` : 'not available'}
                 foot={att === undefined ? 'loading…' : attendance ? `${attendance.unmarked} not marked yet` : 'not available to your role'}
@@ -89,11 +89,11 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
             <Tile icon={Plane} label="On leave today" value={leaves ? String(leaves.outToday.length) : '—'}
                 exact={leaves ? `${leaves.outToday.length} people` : 'not available'}
                 foot={leave === undefined ? 'loading…' : leaves ? `${leaves.upcoming.length} upcoming` : 'not available to your role'}
-                onClick={() => navigate('/attendance?mode=leave')} />
+                onClick={() => navigate('/attendance/leave')} />
             <Tile icon={Inbox} label="Leave to decide" value={leaves ? String(leaves.pending.length) : '—'}
                 exact={leaves ? `${leaves.pending.length} pending` : 'not available'} tone={leaves?.pending.length ? 'down' : null}
                 foot={leaves?.pending.length ? 'waiting for a decision' : 'nothing waiting'}
-                onClick={() => navigate('/attendance?mode=leave')} />
+                onClick={() => navigate('/attendance/leave')} />
         </TileRow>
 
         <CardGrid cols={cols}>
@@ -102,7 +102,7 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
                     format={(v) => String(Math.round(v))} tipFormat={(v) => String(v)} onSelect={() => open({ kind: 'metric', id: 'headcount' })} />
             </Card>
 
-            <Card title="Departments" note="today" right={<More label="Hierarchy" to="/team-hierarchy" />}>
+            <Card title="Departments" note="today" right={<More label="Hierarchy" to="/company-hierarchy" />}>
                 <RankBars rows={model.departments} format={(v) => String(v)} total={k.headcount.value} max={6}
                     onSelect={(r) => open({ kind: 'department', name: r.name })} empty="No employees yet" />
                 {model.employmentTypes.length > 0 && (
@@ -123,14 +123,14 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
                 </>)}
             </Card>
 
-            <Card title="Leave" note="waiting for a decision, and who is out" right={<More label="Leave" to="/attendance?mode=leave" />}>
+            <Card title="Leave" note="waiting for a decision, and who is out" right={<More label="Leave" to="/attendance/leave" />}>
                 {leave === undefined ? <EmptyNote>Loading…</EmptyNote> : !leaves ? <EmptyNote>Leave is not available to your role</EmptyNote>
                     : leaves.pending.length + leaves.outToday.length + leaves.upcoming.length === 0 ? <EmptyNote>No pending, current or upcoming leave</EmptyNote> : (<>
                         {[...leaves.pending.map((r) => ({ r, tag: 'pending' })), ...leaves.outToday.map((r) => ({ r, tag: 'out today' })), ...leaves.upcoming.map((r) => ({ r, tag: 'upcoming' }))]
                             .slice(0, 7).map(({ r, tag }) => (
                                 <ListRow key={r.id + tag} label={nameOf[r.employee_id] || 'Employee'}
                                     sub={`${fmtDay(r.start_date)}${r.end_date !== r.start_date ? ' – ' + fmtDay(r.end_date) : ''} · ${r.days ?? ''} day${Number(r.days) === 1 ? '' : 's'}`}
-                                    value={tag} tone={tag === 'pending' ? 'down' : null} onClick={() => navigate('/attendance?mode=leave')} />
+                                    value={tag} tone={tag === 'pending' ? 'down' : null} onClick={() => navigate('/attendance/leave')} />
                             ))}
                     </>)}
             </Card>
@@ -139,7 +139,7 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
                 {movers.length === 0 ? <EmptyNote>Nobody joined or left in this period</EmptyNote> : movers.slice(0, 7).map(({ e, kind, day }) => (
                     <ListRow key={e.id + kind} label={e.name || 'Unnamed'} sub={[e.role, e.department].filter(Boolean).join(' · ') || '—'}
                         value={`${kind} ${fmtDay(day).slice(0, 6)}`} tone={kind === 'joined' ? 'up' : 'down'}
-                        onClick={() => navigate(kind === 'joined' ? '/employees' : '/employees?mode=former')} />
+                        onClick={() => navigate(kind === 'joined' ? '/employees' : '/employees/ex-employees')} />
                 ))}
             </Card>
 

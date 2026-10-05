@@ -25,7 +25,7 @@ import {
 
 const SOLD = new Set(['sent', 'viewed', 'partially_paid', 'overdue', 'paid', 'payment_submitted']);
 const LIVE_OFFER_DEAD = new Set(['cancelled', 'expired', 'declined', 'draft']);
-const DOC_ROUTE = { invoice: '/invoices', quotation: '/quotations', proforma: '/proforma' };
+const DOC_ROUTE = { invoice: '/billing/invoices', quotation: '/billing/quotations', proforma: '/billing/proforma' };
 
 const fmtCompact = (n) => {
     const v = Math.round(n || 0);
@@ -639,7 +639,7 @@ export default function CountryDialog({
                                 <div>
                                     {m.customers.length > 0 && <Label t={t} right="revenue · paid">BILLED THIS PERIOD</Label>}
                                     {m.customers.map((c) => (
-                                        <button key={c.key} type="button" className="cd-row" onClick={() => go('/customers')} style={listRow(t)}>
+                                        <button key={c.key} type="button" className="cd-row" onClick={() => go('/client-directory')} style={listRow(t)}>
                                             <span style={avatar(t)}>{c.name.charAt(0).toUpperCase()}</span>
                                             <span style={{ flex: 1, minWidth: 0 }}>
                                                 <span style={line1}>{c.name}</span>
@@ -662,7 +662,7 @@ export default function CountryDialog({
                                         <div style={{ marginTop: m.customers.length ? 24 : 0 }}>
                                             <Label t={t}>IN DIRECTORY · NOT BILLED THIS PERIOD</Label>
                                             {m.dormant.map((c) => (
-                                                <button key={c.id} type="button" className="cd-row" onClick={() => go('/customers')} style={listRow(t)}>
+                                                <button key={c.id} type="button" className="cd-row" onClick={() => go('/client-directory')} style={listRow(t)}>
                                                     <span style={{ ...avatar(t), color: t.faint }}>{(c.name || '?').charAt(0).toUpperCase()}</span>
                                                     <span style={{ flex: 1, minWidth: 0 }}>
                                                         <span style={{ ...line1, color: t.dim }}>{c.name}</span>
@@ -684,7 +684,7 @@ export default function CountryDialog({
                                     {m.docs.map((d) => {
                                         const late = m.overdue.has(d);
                                         return (
-                                            <button key={d.id} type="button" className="cd-row" onClick={() => go(DOC_ROUTE[d.type] || '/invoices')} style={listRow(t)}>
+                                            <button key={d.id} type="button" className="cd-row" onClick={() => go(DOC_ROUTE[d.type] || '/billing/invoices')} style={listRow(t)}>
                                                 <span style={{ flex: 1, minWidth: 0 }}>
                                                     <span style={line1}>
                                                         {docNumber(d)}
@@ -768,7 +768,7 @@ export default function CountryDialog({
                                             <Label t={t} right="newest first">EVERY ENTRY</Label>
                                             {cash.entries.map((r) => (
                                                 <button key={r.dir + r.id} type="button" className="cd-row"
-                                                        onClick={() => go('/cashbook')} style={listRow(t)}>
+                                                        onClick={() => go('/general-ledger')} style={listRow(t)}>
                                                     <span aria-hidden="true" style={{
                                                         width: 18, flexShrink: 0, fontSize: 13.5,
                                                         color: r.dir === 'in' ? t.up : t.down,
@@ -828,7 +828,7 @@ export default function CountryDialog({
                         padding: '7px 12px', borderTop: '1px solid ' + t.line,
                     }}>
                         <span style={{ fontSize: 10.5, color: t.faint, letterSpacing: '0.08em', marginRight: 6 }}>OPEN</span>
-                        {[['Customers', '/customers'], ['Invoices', '/invoices'], ['General ledger', '/cashbook'], ['Revenue', '/revenue']].map(([label, to]) => (
+                        {[['Customers', '/client-directory'], ['Invoices', '/billing/invoices'], ['General ledger', '/general-ledger'], ['Revenue', '/revenue']].map(([label, to]) => (
                             <button key={to} type="button" className="nm-nav" onClick={() => go(to)} style={{
                                 display: 'inline-flex', alignItems: 'center', gap: 3, fontFamily: font, fontSize: 12,
                                 padding: '4px 7px', border: 'none', borderRadius: 5,

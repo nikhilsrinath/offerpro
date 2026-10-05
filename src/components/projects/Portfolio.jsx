@@ -26,15 +26,23 @@ const PERIODS = [
 
 const COLS = [
     { key: 'code', label: 'Code' },
-    { key: 'name', label: 'Project' },
+    { key: 'name', label: 'Project', always: true },
+    { key: 'client', label: 'Client', def: false },
     { key: 'status', label: 'Status' },
     { key: 'health', label: 'Health' },
     { key: 'progress', label: 'Progress', align: 'right' },
+    { key: 'milestones_total', label: 'Milestones', align: 'right', def: false },
     { key: 'contract_value', label: 'Contract', align: 'right', fin: true },
     { key: 'billed_pct', label: 'Billed', align: 'right', fin: true },
+    { key: 'revenue_invoiced', label: 'Invoiced', align: 'right', fin: true, def: false },
     { key: 'revenue_collected', label: 'Collected', align: 'right', fin: true },
+    { key: 'outstanding_receivable', label: 'Outstanding', align: 'right', fin: true, def: false },
+    { key: 'overdue_receivable', label: 'Overdue', align: 'right', fin: true, def: false },
+    { key: 'direct_costs', label: 'Direct costs', align: 'right', fin: true, def: false },
+    { key: 'labour_cost', label: 'Labour cost', align: 'right', fin: true, def: false },
     { key: 'cost_to_date', label: 'Cost to date', align: 'right', fin: true },
     { key: 'net_margin', label: 'Net margin', align: 'right', fin: true },
+    { key: 'net_margin_pct', label: 'Net margin %', align: 'right', fin: true, def: false },
 ];
 
 const HEALTH_RANK = { off_track: 0, at_risk: 1, on_track: 2 };
@@ -110,7 +118,10 @@ export default function Portfolio() {
             case 'status': return statusLabel(r.status);
             case 'health': return <HealthChip health={r.health} reasons={r.health_reasons || []} />;
             case 'progress': return progress(r) == null ? '—' : `${Math.round(progress(r) * 100)}%`;
+            case 'client': return r.client_id ? clientName[r.client_id] || 'Client' : 'Internal';
+            case 'milestones_total': return r.milestones_total ? `${r.milestones_done || 0} / ${r.milestones_total}` : '—';
             case 'billed_pct': return r.billed_pct == null ? '—' : `${r.billed_pct}%`;
+            case 'net_margin_pct': return r.net_margin_pct == null ? '—' : `${r.net_margin_pct}%`;
             case 'net_margin': return <span style={{ color: Number(r.net_margin) < 0 ? t.down : t.text }}>{money(r.net_margin)}</span>;
             default: return money(r[key]);
         }
@@ -165,23 +176,28 @@ export default function Portfolio() {
 
                 <div style={{ height: 14 }} />
                 {sorted.length === 0 ? <Panel><Empty>No projects yet.</Empty></Panel> : (
-                    <Table cols={cols.map((c) => ({
+                    <Table id="portfolio" cols={cols.map((c) => ({
                         ...c,
+                        pickLabel: c.label,
                         label: c.label + (sort.key === c.key ? (sort.dir > 0 ? ' ↑' : ' ↓') : ''),
                     }))}>
-                        <tr>
-                            {cols.map((c) => (
-                                <td key={c.key} style={{ padding: '4px 13px', textAlign: c.align || 'left' }}>
-                                    <Btn size="sm" aria-label={`Sort by ${c.label}`}
-                                        onClick={() => setSort((s) => ({ key: c.key, dir: s.key === c.key ? -s.dir : 1 }))}>Sort</Btn>
-                                </td>
-                            ))}
-                        </tr>
-                        {sorted.map((r) => (
-                            <Tr key={r.project_id} onClick={() => navigate(`/projects/${r.project_id}`)} label={`Open ${r.name}`}>
-                                {cols.map((c) => <Td key={c.key} align={c.align} nowrap={c.key !== 'name'}>{cell(r, c.key)}</Td>)}
-                            </Tr>
-                        ))}
+                        {(show, vis) => (
+                            <>
+                                <tr>
+                                    {vis.map((c) => (
+                                        <td key={c.key} style={{ padding: '4px 13px', textAlign: c.align || 'left' }}>
+                                            <Btn size="sm" aria-label={`Sort by ${c.pickLabel}`}
+                                                onClick={() => setSort((s) => ({ key: c.key, dir: s.key === c.key ? -s.dir : 1 }))}>Sort</Btn>
+                                        </td>
+                                    ))}
+                                </tr>
+                                {sorted.map((r) => (
+                                    <Tr key={r.project_id} onClick={() => navigate(`/projects/${r.project_id}`)} label={`Open ${r.name}`}>
+                                        {vis.map((c) => <Td key={c.key} align={c.align} nowrap={c.key !== 'name'}>{cell(r, c.key)}</Td>)}
+                                    </Tr>
+                                ))}
+                            </>
+                        )}
                     </Table>
                 )}
             </Page>

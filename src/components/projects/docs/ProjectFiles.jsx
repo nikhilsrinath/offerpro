@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import {
     Panel, Row, Btn, Seg, Search, Select, Field, Input, Empty, Modal, Muted, Table, Tr, Td,
 } from '../../ui/edge';
@@ -54,16 +53,11 @@ const LINK_LABEL = {
 const KIND_ICON = { pdf: FileType2, image: FileImage, doc: FileText, sheet: FileSpreadsheet, slides: Presentation, text: FileText, archive: FileArchive, other: FileIcon };
 const KIND_LABEL = { pdf: 'PDF', image: 'Image', doc: 'Document', sheet: 'Spreadsheet', slides: 'Slides', text: 'Text', archive: 'Archive', other: 'File' };
 
-export default function ProjectFiles({ project }) {
-    // ?view= keeps the choice in the URL, so a form opened from Business
-    // documents comes back to it.
-    const [params, setParams] = useSearchParams();
-    const tab = params.get('view') === 'files' ? 'files' : 'business';
-    const choose = (id) => setParams((p) => {
-        const next = new URLSearchParams(p);
-        next.set('view', id);
-        return next;
-    }, { replace: true });
+export default function ProjectFiles({ project, view, onView }) {
+    // The choice is the last part of the path (…/project-documents/general-documents),
+    // so a form opened from Business documents comes back to it.
+    const tab = view === 'files' ? 'files' : 'business';
+    const choose = onView;
     return (
         <div style={{ display: 'grid', gap: 14 }}>
             <Seg value={tab} onChange={choose} label="Documents" options={[
@@ -450,7 +444,7 @@ function FolderDialog({ project, parentId, folder, onClose }) {
     return (
         <Modal open onClose={onClose} width={420} title={folder ? 'Rename folder' : 'New folder'}
             footer={<><Btn onClick={onClose}>Cancel</Btn><Btn primary disabled={saving} onClick={save}>{folder ? 'Rename' : 'Create'}</Btn></>}>
-            <Field label="Name">
+            <Field required label="Name">
                 <Input value={name} maxLength={120} autoFocus onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} />
             </Field>
             {error && <div role="alert" style={{ marginTop: 8, fontSize: 12.5, color: t.down }}>{error}</div>}
@@ -478,7 +472,7 @@ function FileDialog({ file, tags: known, onClose }) {
         <Modal open onClose={onClose} width={460} title="Rename & tag"
             footer={<><Btn onClick={onClose}>Cancel</Btn><Btn primary onClick={save}>Save</Btn></>}>
             <div style={{ display: 'grid', gap: 12 }}>
-                <Field label="Name"><Input value={name} maxLength={255} onChange={(e) => setName(e.target.value)} /></Field>
+                <Field required label="Name"><Input value={name} maxLength={255} onChange={(e) => setName(e.target.value)} /></Field>
                 <Field label="Tags" hint={known.length ? `Separate with commas. In use: ${known.slice(0, 8).join(', ')}` : 'Separate with commas, e.g. contract, signed'}>
                     <Input value={tags} onChange={(e) => setTags(e.target.value)} />
                 </Field>

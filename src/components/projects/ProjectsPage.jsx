@@ -196,60 +196,100 @@ export default function ProjectsPage() {
             ) : filtered.length === 0 ? (
                 <Panel><Empty>Nothing matches those filters.</Empty></Panel>
             ) : (
-                <Table cols={[
+                <Table id="projects" cols={[
                     { key: 'c', label: 'Code', width: 110 },
-                    { key: 'n', label: 'Project' },
+                    { key: 'n', label: 'Project', always: true },
+                    { key: 'cl', label: 'Client', def: false },
                     { key: 'm', label: 'Manager' },
                     { key: 's', label: 'Status' },
                     { key: 'h', label: 'Health' },
                     { key: 'd', label: 'Dates' },
                     { key: 'p', label: 'Progress', width: 120 },
+                    { key: 'bt', label: 'Billing type', def: false },
+                    { key: 'cur', label: 'Currency', def: false },
+                    { key: 'tg', label: 'Tags', def: false },
+                    { key: 'ae', label: 'Actual end', def: false },
+                    { key: 'cr', label: 'Created', def: false },
                     ...(fin ? [
                         { key: 'v', label: 'Contract', align: 'right' },
                         { key: 'g', label: 'Net margin', align: 'right' },
+                        { key: 'inv', label: 'Invoiced', align: 'right', def: false },
+                        { key: 'col', label: 'Collected', align: 'right', def: false },
+                        { key: 'out', label: 'Outstanding', align: 'right', def: false },
+                        { key: 'ovd', label: 'Overdue', align: 'right', def: false },
+                        { key: 'dc', label: 'Direct costs', align: 'right', def: false },
+                        { key: 'lab', label: 'Labour cost', align: 'right', def: false },
+                        { key: 'bud', label: 'Budget', align: 'right', def: false },
                     ] : []),
                 ]}>
-                    {filtered.map((p) => {
+                    {(show) => filtered.map((p) => {
                         const prog = progressOf[p.id];
                         const mgr = empById[p.manager_employee_id];
                         const f = money_[p.id];
+                        const dash = <span style={{ color: t.ghost }}>—</span>;
+                        const amt = (v) => (v == null ? dash : money(v));
                         return (
                             <Tr key={p.id} onClick={() => open(p)} label={`Open ${p.name}`}>
-                                <Td muted nowrap>{p.code}</Td>
-                                <Td>
-                                    <span style={{ display: 'block' }}>{p.name}</span>
-                                    <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 2 }}>
-                                        {p.client_id ? clientName[p.client_id] || 'Client' : 'Internal'}
-                                        {p.archived_at ? ' · archived' : ''}
-                                    </span>
-                                </Td>
-                                <Td nowrap>
-                                    {mgr ? (
-                                        <Row gap={7}><Avatar name={nameOf(mgr)} size={20} /><Muted>{nameOf(mgr)}</Muted></Row>
-                                    ) : <span style={{ color: t.ghost }}>—</span>}
-                                </Td>
-                                <Td nowrap><Status tone={STATUS_TONE[p.status]}>{statusLabel(p.status)}</Status></Td>
-                                <Td nowrap><HealthChip health={f?.health} reasons={f?.health_reasons || []} /></Td>
-                                <Td muted nowrap>
-                                    {p.start_date ? fmtDate(p.start_date) : '—'} → {p.target_end_date ? fmtDate(p.target_end_date) : '—'}
-                                </Td>
-                                <Td>
-                                    {prog == null ? <span style={{ color: t.ghost }}>—</span> : (
-                                        <Row gap={8}>
-                                            <span style={{ flex: 1 }}><Bar value={prog} max={1} height={4} /></span>
-                                            <Muted>{Math.round(prog * 100)}%</Muted>
-                                        </Row>
-                                    )}
-                                </Td>
-                                {fin && <Td align="right" nowrap>{money(p.contract_value)}</Td>}
-                                {fin && (
+                                {show('c') && <Td muted nowrap>{p.code}</Td>}
+                                {show('n') && (
+                                    <Td>
+                                        <span style={{ display: 'block' }}>{p.name}</span>
+                                        <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 2 }}>
+                                            {p.client_id ? clientName[p.client_id] || 'Client' : 'Internal'}
+                                            {p.archived_at ? ' · archived' : ''}
+                                        </span>
+                                    </Td>
+                                )}
+                                {show('cl') && <Td nowrap>{p.client_id ? clientName[p.client_id] || 'Client' : 'Internal'}</Td>}
+                                {show('m') && (
+                                    <Td nowrap>
+                                        {mgr ? (
+                                            <Row gap={7}><Avatar name={nameOf(mgr)} size={20} /><Muted>{nameOf(mgr)}</Muted></Row>
+                                        ) : dash}
+                                    </Td>
+                                )}
+                                {show('s') && <Td nowrap><Status tone={STATUS_TONE[p.status]}>{statusLabel(p.status)}</Status></Td>}
+                                {show('h') && <Td nowrap><HealthChip health={f?.health} reasons={f?.health_reasons || []} /></Td>}
+                                {show('d') && (
+                                    <Td muted nowrap>
+                                        {p.start_date ? fmtDate(p.start_date) : '—'} → {p.target_end_date ? fmtDate(p.target_end_date) : '—'}
+                                    </Td>
+                                )}
+                                {show('p') && (
+                                    <Td>
+                                        {prog == null ? dash : (
+                                            <Row gap={8}>
+                                                <span style={{ flex: 1 }}><Bar value={prog} max={1} height={4} /></span>
+                                                <Muted>{Math.round(prog * 100)}%</Muted>
+                                            </Row>
+                                        )}
+                                    </Td>
+                                )}
+                                {show('bt') && <Td nowrap muted>{p.billing_type ? String(p.billing_type).replace(/_/g, ' ') : '—'}</Td>}
+                                {show('cur') && <Td nowrap muted>{p.currency || '—'}</Td>}
+                                {show('tg') && <Td muted>{p.tags?.length ? p.tags.join(', ') : '—'}</Td>}
+                                {show('ae') && <Td muted nowrap>{p.actual_end_date ? fmtDate(p.actual_end_date) : '—'}</Td>}
+                                {show('cr') && <Td muted nowrap>{p.created_at ? fmtDate(p.created_at) : '—'}</Td>}
+                                {show('v') && <Td align="right" nowrap>{money(p.contract_value)}</Td>}
+                                {show('g') && (
                                     <Td align="right" nowrap>
-                                        {f?.net_margin == null ? <span style={{ color: t.ghost }}>—</span> : (
+                                        {f?.net_margin == null ? dash : (
                                             <span style={{ color: Number(f.net_margin) < 0 ? t.down : t.text }}>
                                                 {money(f.net_margin)}
                                                 {f.net_margin_pct != null && <span style={{ color: t.faint, fontSize: 11.5 }}> · {f.net_margin_pct}%</span>}
                                             </span>
                                         )}
+                                    </Td>
+                                )}
+                                {show('inv') && <Td align="right" nowrap>{amt(f?.revenue_invoiced)}</Td>}
+                                {show('col') && <Td align="right" nowrap>{amt(f?.revenue_collected)}</Td>}
+                                {show('out') && <Td align="right" nowrap>{amt(f?.outstanding_receivable)}</Td>}
+                                {show('ovd') && <Td align="right" nowrap>{amt(f?.overdue_receivable)}</Td>}
+                                {show('dc') && <Td align="right" nowrap>{amt(f?.direct_costs)}</Td>}
+                                {show('lab') && <Td align="right" nowrap>{amt(f?.labour_cost)}</Td>}
+                                {show('bud') && (
+                                    <Td align="right" nowrap>
+                                        {money((Number(p.budget_labour) || 0) + (Number(p.budget_vendor) || 0) + (Number(p.budget_other) || 0))}
                                     </Td>
                                 )}
                             </Tr>

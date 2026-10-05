@@ -315,7 +315,7 @@ export default function LeaveRequests() {
                     }>
                     <Row gap={13} wrap align="flex-start">
                         <div style={{ flex: '2 1 200px' }}>
-                            <Field label="Name">
+                            <Field required label="Name">
                                 <Input value={editingType.name} maxLength={60}
                                     onChange={(e) => setEditingType({ ...editingType, name: e.target.value })} />
                             </Field>

@@ -10,6 +10,7 @@ import { needsAttention } from '../../services/importantTasks';
 import { fmtShort, fmtInr, fmtDay, addDays } from './overviewModel';
 import { RankBars, SplitBar, EmptyNote, TipBody } from './vizKit';
 import { Dashboard, Card, Tile, More, TileRow, CardGrid, ListRow } from './dashKit';
+import { projectSectionPath } from '../projects/projectPaths';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Dashboard · Projects — what is being delivered, what is late, and whether
@@ -130,7 +131,7 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
                             </span>}
                             sub={[nameOf[task.projectId], personOf[task.assignedTo] || 'Unassigned', task.status === 'in-progress' ? 'in progress' : null].filter(Boolean).join(' · ')}
                             value={due ? `${late ? 'late · ' : ''}${fmtDay(due).slice(0, 6)}` : 'no date'} tone={late ? 'down' : null}
-                            onClick={() => navigate(`/projects/${task.projectId}?tab=wbs&task=${task.id}`)} />
+                            onClick={() => navigate(projectSectionPath(task.projectId, 'wbs', null, { task: task.id }))} />
                     ))}
                     {attention.length > 12 && (
                         <div style={{ fontSize: 11.5, color: t.faint, marginTop: 8 }}>and {attention.length - 12} more</div>

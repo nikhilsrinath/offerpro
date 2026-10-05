@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  ArrowDownLeft, ArrowUpRight, Banknote, Download, Paperclip, Pencil,
+  ArrowDownLeft, ArrowUpRight, Banknote, ChevronLeft, ChevronRight, Download, Paperclip, Pencil,
   Plus, Search, Trash2, Wallet, X,
 } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
@@ -11,6 +11,7 @@ import {
   TREATMENTS, categoryLabel, groupOf, loadFinanceCategories, methodLabel, rowTreatment,
 } from '../../services/financeCategories';
 import { useToast } from '../shared/Toast';
+import { Dropdown, RowMenu } from '../ui/edge';
 import { Stat } from './financeUi';
 import { pickerFor, canSeeFinancials } from '../../services/projectService';
 import { projectLabel } from '../../services/projectAnalytics';
@@ -28,6 +29,8 @@ const PRESETS = [
   { id: 'fy',      label: 'This FY' },
   { id: 'custom',  label: 'Custom' },
 ];
+
+const PAGE_SIZE = 6;
 
 const VIEWS = [
   { id: 'all', label: 'Everything' },
@@ -82,7 +85,7 @@ export default function CashBook({ projectId = null }) {
   const [ready, setReady] = useState(false);
   useEffect(() => { loadFinanceCategories().then(() => setReady(true)); }, []);
 
-  const [preset, setPreset] = useState('month');
+  const [preset, setPreset] = useState('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [view, setView] = useState('all');
@@ -177,6 +180,15 @@ export default function CashBook({ projectId = null }) {
         .some((f) => String(f || '').toLowerCase().includes(q)));
   }, [rows, range.from, range.to, view, groupFilter, search]);
 
+  // Six entries a page. The page belongs to the filters it was picked under,
+  // so changing any filter starts again at page one.
+  const filterKey = [preset, from, to, view, groupFilter, where, search].join('|');
+  const [pager, setPager] = useState({ key: filterKey, page: 1 });
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const page = Math.min(pager.key === filterKey ? pager.page : 1, pageCount);
+  const setPage = (n) => setPager({ key: filterKey, page: n });
+  const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   const flow = useMemo(
     () => cashFlow({
       income: rows.filter((r) => r.direction === 'in'),
@@ -251,8 +263,8 @@ export default function CashBook({ projectId = null }) {
         <div className="prod-perf-table-wrap" style={{ marginBottom: '1rem' }}>
           <table className="prod-perf-table">
             <caption style={{ textAlign: 'left', fontWeight: 600, padding: '0.6rem 0.75rem' }}>
-              Projects and Others
-              {range.from ? ` · ${fmtDate(range.from)} to ${fmtDate(range.to)}` : ' · all time'}
+              
+              {range.from ? ` ${fmtDate(range.from)} to ${fmtDate(range.to)}` : ' · all time'}
             </caption>
             <thead>
               <tr>
@@ -288,7 +300,8 @@ export default function CashBook({ projectId = null }) {
         </div>
       )}
 
-      <div className="prod-toolbar">
+      {/* Line one narrows the list: period chips, then reason and project. */}
+      <div className="prod-toolbar" style={{ marginBottom: '0.6rem' }}>
         {PRESETS.map((p) => (
           <button key={p.id} type="button" aria-pressed={preset === p.id}
             className={`pro-chip ${preset === p.id ? 'active' : ''}`} onClick={() => setPreset(p.id)}>
@@ -302,8 +315,20 @@ export default function CashBook({ projectId = null }) {
             <input type="date" aria-label="To date" value={to} onChange={(e) => setTo(e.target.value)} />
           </div>
         )}
+        <Dropdown label="Reason" height={32} value={groupFilter} onChange={setGroupFilter}
+          options={[{ id: 'all', label: 'All' }, ...groups.map((g) => ({ id: g, label: g }))]} />
+        {splitting && (
+          <Dropdown label="Project" height={32} value={where} onChange={setWhere}
+            options={[
+              { id: 'all', label: 'All' },
+              { id: GENERAL, label: 'Others' },
+              ...projects.slice().sort((x, y) => projectName(x.id).localeCompare(projectName(y.id)))
+                .map((p) => ({ id: p.id, label: projectName(p.id) })),
+            ]} />
+        )}
       </div>
 
+      {/* Line two: find, and act. */}
       <div className="prod-toolbar">
         <div className="prod-search">
           <Search size={14} aria-hidden="true" />
@@ -314,14 +339,7 @@ export default function CashBook({ projectId = null }) {
               aria-label="Clear search" title="Clear search"><X size={13} aria-hidden="true" /></button>
           )}
         </div>
-        <div role="group" aria-label="Show" style={{ display: 'flex', gap: '0.3rem' }}>
-          {VIEWS.map((v) => (
-            <button key={v.id} type="button" aria-pressed={view === v.id}
-              className={`pro-chip ${view === v.id ? 'active' : ''}`} onClick={() => setView(v.id)}>
-              {v.label}
-            </button>
-          ))}
-        </div>
+        <Dropdown label="Show" value={view} onChange={setView} options={VIEWS} />
         <button type="button" className="prod-btn-ghost" onClick={exportCsv} disabled={filtered.length === 0}>
           <Download size={15} aria-hidden="true" /> Export CSV
         </button>
@@ -330,20 +348,6 @@ export default function CashBook({ projectId = null }) {
           onClick={() => { setEditing(fresh('in')); }}>
           <Plus size={15} aria-hidden="true" /> Record money
         </button>
-      </div>
-
-      <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '1.25rem' }}>
-        <FilterChips label="Reason" value={groupFilter} onChange={setGroupFilter}
-          options={[{ id: 'all', label: 'All' }, ...groups.map((g) => ({ id: g, label: g }))]} />
-        {splitting && (
-          <FilterChips label="Project" value={where} onChange={setWhere}
-            options={[
-              { id: 'all', label: 'All' },
-              { id: GENERAL, label: 'Others' },
-              ...projects.slice().sort((a, b) => projectName(a.id).localeCompare(projectName(b.id)))
-                .map((p) => ({ id: p.id, label: projectName(p.id) })),
-            ]} />
-        )}
       </div>
 
       {filtered.length === 0 ? (
@@ -377,7 +381,7 @@ export default function CashBook({ projectId = null }) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => {
+              {pageRows.map((r) => {
                 const t = TREATMENTS[r.treatment];
                 const linked = r.direction === 'in' && r.document_id;
                 const billPaid = r.direction === 'out' && r.purchase_invoice_id;
@@ -420,22 +424,11 @@ export default function CashBook({ projectId = null }) {
                       {linked ? 'Invoice receipt' : billPaid ? 'Bill payment' : (t?.label || r.treatment)}
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
-                      {r.receipt_path && (
-                        <button type="button" className="fin-list-action-btn" title="View receipt"
-                          aria-label={`View the receipt for ${r.description}`}
-                          onClick={() => receiptService.open(r.receipt_path)}>
-                          <Paperclip size={14} aria-hidden="true" />
-                        </button>
-                      )}
-                      <button type="button" className="fin-list-action-btn" title="Edit"
-                        aria-label={`Edit ${r.description}`}
-                        onClick={() => { setEditing({ ...r, ...(r._full || {}), _share: undefined, _full: undefined, date: r.day }); }}>
-                        <Pencil size={14} aria-hidden="true" />
-                      </button>
-                      <button type="button" className="fin-list-action-btn danger" title="Delete"
-                        aria-label={`Delete ${r.description}`} onClick={() => handleDelete(r)}>
-                        <Trash2 size={14} aria-hidden="true" />
-                      </button>
+                      <RowMenu label={`Actions for ${r.description}`} items={[
+                        r.receipt_path && { label: 'View receipt', icon: Paperclip, onClick: () => receiptService.open(r.receipt_path) },
+                        { label: 'Edit', icon: Pencil, onClick: () => { setEditing({ ...r, ...(r._full || {}), _share: undefined, _full: undefined, date: r.day }); } },
+                        { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => handleDelete(r) },
+                      ]} />
                     </td>
                   </tr>
                 );
@@ -445,6 +438,10 @@ export default function CashBook({ projectId = null }) {
         </div>
       )}
 
+      {filtered.length > PAGE_SIZE && (
+        <Pager page={page} pageCount={pageCount} total={filtered.length} onPage={setPage} />
+      )}
+
       {editing && (
         <CashEntryModal key={editing.id || 'new'} entry={editing} fresh={fresh} onClose={() => setEditing(null)} />
       )}
@@ -452,19 +449,43 @@ export default function CashBook({ projectId = null }) {
   );
 }
 
-// A labelled row of toggle chips — one pick at a time, like a dropdown but
-// every choice is visible.
-function FilterChips({ label, value, onChange, options }) {
+// 1 … 4 5 6 … 12 — the first, last and neighbours of the current page.
+function pageList(page, count) {
+  const keep = new Set([1, count, page - 1, page, page + 1].filter((n) => n >= 1 && n <= count));
+  const out = [];
+  [...keep].sort((a, b) => a - b).forEach((n, i, arr) => {
+    if (i > 0 && n - arr[i - 1] > 1) out.push(`gap${n}`);
+    out.push(n);
+  });
+  return out;
+}
+
+function Pager({ page, pageCount, total, onPage }) {
+  const first = (page - 1) * PAGE_SIZE + 1;
+  const last = Math.min(page * PAGE_SIZE, total);
   return (
-    <div role="group" aria-label={`Filter by ${label.toLowerCase()}`}
-      style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
-      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', minWidth: '4rem' }}>{label}</span>
-      {options.map((o) => (
-        <button key={o.id} type="button" aria-pressed={value === o.id}
-          className={`pro-chip ${value === o.id ? 'active' : ''}`} onClick={() => onChange(o.id)}>
-          {o.label}
+    <nav aria-label="General ledger pages"
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1rem' }}>
+      <span style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }} aria-live="polite">
+        Showing {first}–{last} of {total} entries
+      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+        <button type="button" className="prod-btn-ghost" onClick={() => onPage(page - 1)} disabled={page === 1}>
+          <ChevronLeft size={15} aria-hidden="true" /> Previous
         </button>
-      ))}
-    </div>
+        {pageList(page, pageCount).map((n) => (typeof n === 'string'
+          ? <span key={n} aria-hidden="true" style={{ padding: '0 0.25rem', color: 'var(--text-tertiary)' }}>…</span>
+          : (
+            <button key={n} type="button" aria-label={`Page ${n}`} aria-current={n === page ? 'page' : undefined}
+              className={`pro-chip ${n === page ? 'active' : ''}`} onClick={() => onPage(n)}
+              style={{ minWidth: 36, justifyContent: 'center' }}>
+              {n}
+            </button>
+          )))}
+        <button type="button" className="prod-btn-ghost" onClick={() => onPage(page + 1)} disabled={page === pageCount}>
+          Next <ChevronRight size={15} aria-hidden="true" />
+        </button>
+      </div>
+    </nav>
   );
 }

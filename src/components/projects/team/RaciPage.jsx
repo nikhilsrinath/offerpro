@@ -515,7 +515,7 @@ function AddRow({ project, items, onClose }) {
                 <Btn onClick={onClose}>Cancel</Btn>
                 <Btn primary disabled={saving || !title.trim()} onClick={save}>{saving ? 'Adding…' : 'Add row'}</Btn>
             </>}>
-            <Field label="Name">
+            <Field required label="Name">
                 <Input autoFocus value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter' && title.trim() && !saving) save(); }}
                     placeholder="e.g. Design specification" />

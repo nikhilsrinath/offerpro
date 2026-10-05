@@ -87,7 +87,7 @@ export default function AdminLogin({ wrongAccount }) {
             </Notice>
           )}
 
-          <Field label="Email">
+          <Field required label="Email">
             <Input
               type="email" value={email} required autoFocus autoComplete="username"
               placeholder={PLATFORM_ADMIN_EMAIL}
@@ -95,7 +95,7 @@ export default function AdminLogin({ wrongAccount }) {
             />
           </Field>
 
-          <Field label="Password">
+          <Field required label="Password">
             <Input
               type="password" value={password} required autoComplete="current-password"
               placeholder="••••••••"

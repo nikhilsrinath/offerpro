@@ -107,7 +107,7 @@ function ConvertSheet({ source, docs, busy, onClose, onConvert }) {
 
       {target === 'proforma' ? (
         <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'minmax(0, 140px) 1fr', gap: 12, alignItems: 'end' }}>
-          <Field label="Advance %" hint={percentValid ? undefined : 'Between 0 and 100'}>
+          <Field required label="Advance %" hint={percentValid ? undefined : 'Between 0 and 100'}>
             <Input
               type="number" min={0} max={100} step="any" inputMode="decimal"
               value={percent} disabled={busy} aria-invalid={!percentValid}

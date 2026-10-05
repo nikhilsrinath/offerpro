@@ -400,7 +400,7 @@ export default function OfferForm() {
                 <input aria-label="Job title / role" name="role" value={formData.role} onChange={handleChange} required placeholder="e.g. Finance Manager" className="easy-inp" />
               </div>
               <div className="easy-field">
-                <label className="easy-lbl">Department</label>
+                <label className="easy-lbl req">Department</label>
                 {deptOptions.length > 0 ? (
                   <select aria-label="Department" name="department" value={formData.department} onChange={handleChange} required className="easy-inp">
                     <option value="">Select department…</option>
@@ -423,7 +423,7 @@ export default function OfferForm() {
                 </div>
               )}
               <div className="easy-field">
-                <label className="easy-lbl">Reporting supervisor</label>
+                <label className="easy-lbl req">Reporting supervisor</label>
                 {employees.length > 0 ? (
                   <select aria-label="Reporting supervisor" name="supervisorName" value={formData.supervisorName} onChange={handleChange} required className="easy-inp">
                     <option value="">Select supervisor…</option>

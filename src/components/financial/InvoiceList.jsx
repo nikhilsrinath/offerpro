@@ -7,7 +7,7 @@ import { jsPDF } from 'jspdf';
 import { documentStore, docNumber as docNo } from '../../services/documentStore';
 import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
-import { DialogSheet, Btn, Status, Modal, Field, Textarea } from '../ui/edge';
+import { DialogSheet, Btn, Status, Modal, Field, Textarea, RowMenu } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
 import { ShareLinkModal } from '../shared/PortalLinkGenerator';
 import { useToast } from '../shared/Toast';
@@ -449,8 +449,8 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
   // only lets its content change as a new version (0064). The editor opens on
   // the same document with the client's note in view, and sending publishes v2
   // of THIS quotation — it used to save a brand-new quotation instead.
-  const handleReviseQuotation = (id) => navigate(onProject(`/new-quotation/${id}`));
-  const handleRedraftDeclined = (id) => navigate(onProject(`/new-quotation/${id}`));
+  const handleReviseQuotation = (id) => navigate(onProject(`/billing/quotations/${id}/edit`));
+  const handleRedraftDeclined = (id) => navigate(onProject(`/billing/quotations/${id}/edit`));
 
   // Quotation → proforma, quotation → tax invoice, proforma → tax invoice.
   // What the new document carries is decided in documentConversion.js; this
@@ -481,7 +481,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
       'success');
       setConvertSource(null);
       loadDocuments();
-      navigate(projectId ? projectBillingPath(projectId, built.type) : built.type === 'proforma' ? '/proforma' : '/invoices');
+      navigate(projectId ? projectBillingPath(projectId, built.type) : built.type === 'proforma' ? '/billing/proforma' : '/billing/invoices');
     } catch (err) {
       const msg = /SOURCE_NOT_LOCKED/.test(err.message || '')
         ? 'The client has not accepted this version yet, so it cannot be converted.'
@@ -699,56 +699,6 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                   )}
                   <td>
                     <div className="fin-list-actions">
-                      <button className="fin-list-action-btn" title="Copy Portal Link" onClick={() => handleCopyLink(doc)} aria-label="Copy Portal Link">
-                        <Copy size={14} />
-                      </button>
-                      <button
-                        className="fin-list-action-btn"
-                        title="Download PDF"
-                        aria-label="Download PDF"
-                        onClick={() => handleDownloadPDF(doc)}
-                        disabled={downloadingId === doc.id}
-                      >
-                        {downloadingId === doc.id ? <span className="fin-list-spin" /> : <Download size={14} />}
-                      </button>
-                      {type === 'invoice' && isOverdue(doc) && doc.clientEmail && (
-                        <button
-                          className="fin-list-action-btn"
-                          title="Send payment reminder now"
-                          onClick={async () => {
-                            const res = await invoiceReminderService.send(doc);
-                            toast(res.message || (res.success ? 'Reminder sent' : 'Reminder failed'), res.success ? 'success' : 'error');
-                            loadDocuments();
-                          }}
-                         aria-label="Send payment reminder now">
-                          <Bell size={14} />
-                        </button>
-                      )}
-                      {type === 'invoice' && !['paid', 'cancelled'].includes(doc.status) && (
-                        <button className="fin-list-action-btn success" title="Mark Paid" onClick={() => handleMarkPaid(doc.id)} aria-label="Mark Paid">
-                          <CheckCircle size={14} />
-                        </button>
-                      )}
-                      {doc.status === 'payment_submitted' && (
-                        <>
-                          <button className="fin-list-action-btn success" title="Verify Payment" onClick={() => handleVerifyPayment(doc.id)} aria-label="Verify Payment">
-                            <CheckCircle size={14} />
-                          </button>
-                          <button className="fin-list-action-btn danger" title="Reject" onClick={() => setShowRejectModal(doc.id)} aria-label="Reject">
-                            <X size={14} />
-                          </button>
-                        </>
-                      )}
-                      {type === 'quotation' && ['draft', 'sent', 'viewed'].includes(doc.status) && (
-                        <button
-                          className="fin-list-action-btn"
-                          title={doc.status === 'draft' ? 'Edit quotation' : 'Revise — sends the client a new version'}
-                          aria-label={doc.status === 'draft' ? 'Edit quotation' : 'Revise quotation'}
-                          onClick={() => navigate(onProject(`/new-quotation/${doc.id}`))}
-                        >
-                          <Edit3 size={14} />
-                        </button>
-                      )}
                       {type === 'quotation' && conversionTargets(doc).length > 0 && (
                         <button className="fin-list-action-btn primary" title="Convert to a proforma or a tax invoice"
                           disabled={convertingId === doc.id} onClick={() => setConvertSource(doc)}>
@@ -770,27 +720,48 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                           {convertingId === doc.id ? 'Converting…' : 'Convert'}
                         </button>
                       )}
-                      {doc.status !== 'cancelled' && (() => {
-                        const rule = lifecycleOf(doc, documents);
-                        if (rule.delete.allowed) {
-                          return canDeleteDocs && (
-                            <button className="fin-list-action-btn danger" title="Delete draft" aria-label={`Delete ${docNo(doc)}`}
-                              disabled={lifecycleBusy === doc.id} onClick={() => handleDelete(doc)}>
-                              <Trash2 size={14} />
-                            </button>
-                          );
-                        }
-                        // Shown even when it cannot be used yet: clicking says why.
-                        return canEditDocs && (
-                          <button className="fin-list-action-btn danger"
-                            title={rule.cancel.allowed ? `Cancel ${typeLabel.toLowerCase()}` : rule.cancel.reason}
-                            aria-label={`Cancel ${docNo(doc)}`} aria-disabled={!rule.cancel.allowed}
-                            style={rule.cancel.allowed ? undefined : { opacity: 0.4 }}
-                            disabled={lifecycleBusy === doc.id} onClick={() => openCancel(doc)}>
-                            <Ban size={14} />
-                          </button>
-                        );
-                      })()}
+                      <RowMenu label={`Actions for ${docNo(doc)}`} items={[
+                        type === 'invoice' && !['paid', 'cancelled'].includes(doc.status)
+                          && { label: 'Mark paid', icon: CheckCircle, tone: 'success', onClick: () => handleMarkPaid(doc.id) },
+                        doc.status === 'payment_submitted'
+                          && { label: 'Verify payment', icon: CheckCircle, tone: 'success', onClick: () => handleVerifyPayment(doc.id) },
+                        type === 'quotation' && ['draft', 'sent', 'viewed'].includes(doc.status) && {
+                          label: doc.status === 'draft' ? 'Edit quotation' : 'Revise quotation',
+                          hint: doc.status === 'draft' ? undefined : 'Sends the client a new version',
+                          icon: Edit3, onClick: () => navigate(onProject(`/billing/quotations/${doc.id}/edit`)),
+                        },
+                        { label: 'Copy portal link', icon: Copy, onClick: () => handleCopyLink(doc) },
+                        {
+                          label: 'Download PDF', busyLabel: 'Downloading…', icon: Download,
+                          busy: downloadingId === doc.id, disabled: downloadingId === doc.id,
+                          onClick: () => handleDownloadPDF(doc),
+                        },
+                        type === 'invoice' && isOverdue(doc) && doc.clientEmail && {
+                          label: 'Send payment reminder', icon: Bell,
+                          onClick: async () => {
+                            const res = await invoiceReminderService.send(doc);
+                            toast(res.message || (res.success ? 'Reminder sent' : 'Reminder failed'), res.success ? 'success' : 'error');
+                            loadDocuments();
+                          },
+                        },
+                        doc.status === 'payment_submitted'
+                          && { label: 'Reject payment', icon: X, tone: 'danger', onClick: () => setShowRejectModal(doc.id) },
+                        ...(doc.status !== 'cancelled' ? [(() => {
+                          const rule = lifecycleOf(doc, documents);
+                          if (rule.delete.allowed) {
+                            return canDeleteDocs && {
+                              label: 'Delete draft', icon: Trash2, tone: 'danger',
+                              disabled: lifecycleBusy === doc.id, onClick: () => handleDelete(doc),
+                            };
+                          }
+                          // Shown even when it cannot be used yet: clicking says why.
+                          return canEditDocs && {
+                            label: `Cancel ${typeLabel.toLowerCase()}`, icon: Ban, tone: 'danger',
+                            muted: !rule.cancel.allowed, hint: rule.cancel.allowed ? undefined : rule.cancel.reason, showHint: true,
+                            disabled: lifecycleBusy === doc.id, onClick: () => openCancel(doc),
+                          };
+                        })()] : []),
+                      ]} />
                     </div>
                   </td>
                 </tr>

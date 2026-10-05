@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback, useMemo, useRef, useContext } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Upload, Check, Loader, AlertCircle, Pencil, Zap, XCircle, Download, KeyRound,
-  Eye, EyeOff, ArrowRight, ExternalLink, Trash2, ChevronDown, Building2,
+  Eye, EyeOff, ArrowRight, ExternalLink, Trash2, Building2,
 } from 'lucide-react';
 import { useOrg } from '../context/OrgContext';
 import { useAuth } from '../context/AuthContext';
@@ -13,20 +12,19 @@ import { getPlanConfig, DEFAULT_PLAN } from '../services/planConfig';
 import { supabase } from '../lib/supabase';
 import { Page, Btn, Seg, Bar, Loading, Empty } from './ui/edge';
 import { useT, MONO } from './ui/edgeUtils';
+import { DIAL_CODES } from '../data/dialCodes';
 
 import StampPreview from './StampPreview';
 import PortalJoinCode from './settings/PortalJoinCode';
 import ImageEditor from './ImageEditor';
-import { RailSlotContext } from './shell/railSlot';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Company profile, in the hub's terminal theme.
 
-   Laid out as a short checklist rather than one long form: each section says
-   whether it is done, the rail jumps to whatever is still missing, and a live
-   letterhead shows exactly where each value lands on an issued document. Edits
-   collect in one place and are saved from a bar that only appears once there is
-   something to save.
+   Laid out as a handful of tabs, each a row of side-by-side panels, so nothing
+   needs a long scroll. Each tab says how much of it is done, and the header
+   jumps to whatever is still missing. Edits collect in one place and are saved
+   from a bar that only appears once there is something to save.
    ══════════════════════════════════════════════════════════════════════════ */
 
 const EMPTY_FORM = {
@@ -51,7 +49,7 @@ const formFromOrg = (org) => Object.fromEntries(
 const CHECKS = {
   company_email: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'This does not look like an email address.'],
   gmail_user: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'This does not look like an email address.'],
-  company_phone: [/^\+?[\d\s()-]{7,20}$/, 'Use digits, spaces and an optional leading +.'],
+  company_phone: [/^[\d\s()-]{6,20}$/, 'Enter a valid phone number.'],
   company_website: [/^(https?:\/\/)?[\w-]+(\.[\w-]+)+(\/\S*)?$/i, 'Enter a web address like company.com.'],
   gstin: [/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, 'A GSTIN is 15 characters, e.g. 22AAAAA0000A1Z5.'],
   cin: [/^[LU]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}$/, 'A CIN is 21 characters, e.g. U12345MH2020PTC123456.'],
@@ -61,10 +59,47 @@ const CHECKS = {
 };
 const UPPER = new Set(['gstin', 'cin', 'bank_ifsc']);
 
+const PREFERRED_ISO = { 1: 'US', 7: 'RU', 39: 'IT', 44: 'GB', 47: 'NO', 61: 'AU', 212: 'MA', 262: 'RE', 358: 'FI', 590: 'GP', 599: 'CW' };
+const DEFAULT_DIAL = '91';
+const DIAL_OPTIONS = (() => {
+  const byCode = {};
+  Object.entries(DIAL_CODES).forEach(([iso, code]) => { (byCode[code] ||= []).push(iso); });
+  return Object.entries(byCode)
+    .map(([code, isos]) => ({ code, iso: isos.includes(PREFERRED_ISO[code]) ? PREFERRED_ISO[code] : isos[0] }))
+    .sort((a, b) => Number(a.code) - Number(b.code));
+})();
+const DIAL_SET = new Set(DIAL_OPTIONS.map((o) => o.code));
+
+// "+91 98765 43210" → { code: '91', number: '98765 43210' }. A number with no
+// recognisable prefix keeps the default country code.
+const splitPhone = (value) => {
+  const v = String(value || '').trim();
+  const m = v.match(/^\+\s*(\d{1,3})(?:[\s-]*)(.*)$/);
+  if (!m) return { code: DEFAULT_DIAL, number: v };
+  for (let n = Math.min(3, m[1].length); n >= 1; n -= 1) {
+    const head = m[1].slice(0, n);
+    if (DIAL_SET.has(head)) return { code: head, number: (m[1].slice(n) + (m[2] ? ' ' + m[2] : '')).trim() };
+  }
+  return { code: DEFAULT_DIAL, number: v };
+};
+
 const warningFor = (name, value) => {
   const rule = CHECKS[name];
   if (!rule || !value) return '';
   return rule[0].test(String(value).trim()) ? '' : rule[1];
+};
+
+const TABS = [
+  { id: 'company', label: 'Company', steps: ['company', 'contact', 'signatory'] },
+  { id: 'branding', label: 'Logo, signature & stamp', steps: ['branding', 'stamp'] },
+  { id: 'payments', label: 'Payments', steps: ['banking'] },
+  { id: 'email', label: 'Email', steps: ['email'] },
+  { id: 'workspace', label: 'Team, plan & account', steps: [] },
+];
+const TAB_OF = {
+  company: 'company', contact: 'company', signatory: 'company',
+  branding: 'branding', stamp: 'branding', banking: 'payments', payments: 'payments',
+  email: 'email', access: 'workspace', plan: 'workspace', account: 'workspace', workspace: 'workspace',
 };
 
 const PLAN_ROWS = [
@@ -86,7 +121,6 @@ export default function CompanyProfile() {
   const t = useT();
   const navigate = useNavigate();
   const winW = useWindowWidth();
-  const railSlot = useContext(RailSlotContext);
   const { activeOrg, updateOrganization, loading: orgLoading, fetchOrganizations } = useOrg();
   const { updatePassword, reauthenticate } = useAuth();
 
@@ -174,7 +208,10 @@ export default function CompanyProfile() {
     onChange: (e) => setField(name, e.target.value),
     onBlur: () => setTouched((p) => ({ ...p, [name]: true })),
   });
-  const warn = (name) => (touched[name] ? warningFor(name, form[name]) : '');
+  const warn = (name) => {
+    if (!touched[name]) return '';
+    return warningFor(name, name === 'company_phone' ? splitPhone(form[name]).number : form[name]);
+  };
 
   /* ── progress ──────────────────────────────────────────────────────────── */
 
@@ -187,22 +224,17 @@ export default function CompanyProfile() {
     { id: 'banking', label: 'Payments', done: !!(form.upi_id || (form.bank_name && form.bank_account_number && form.bank_ifsc)), todo: 'Add UPI or bank details' },
     { id: 'email', label: 'Email sending', done: emailStatus.configured, todo: 'Connect Gmail to send documents' },
   ], [form, emailStatus.configured]);
-  const extras = [
-    { id: 'access', label: 'Team access' },
-    { id: 'plan', label: 'Plan' },
-    { id: 'account', label: 'Account & data' },
-  ];
   const doneCount = steps.filter((s) => s.done).length;
   const nextStep = steps.find((s) => !s.done);
 
   const jumpTo = (id, focusField) => {
-    const el = document.getElementById(`cp-sec-${id}`);
-    if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    const target = focusField
-      ? document.getElementById(`cp-${focusField}`)
-      : el.querySelector('input:not([type=hidden]):not([type=file]), textarea, button.cp-drop');
-    if (target) setTimeout(() => target.focus({ preventScroll: true }), 350);
+    setActiveSection(TAB_OF[id] || id);
+    setTimeout(() => {
+      const target = focusField
+        ? document.getElementById(`cp-${focusField}`)
+        : document.querySelector('#cp-tabpanel input:not([type=hidden]):not([type=file]), #cp-tabpanel textarea, #cp-tabpanel button.cp-drop');
+      if (target) target.focus({ preventScroll: true });
+    }, 60);
   };
 
   // Arriving from the hub's "Finish your profile" dot, which links to
@@ -214,19 +246,6 @@ export default function CompanyProfile() {
     const timer = setTimeout(() => jumpTo(id), 80);
     return () => clearTimeout(timer);
   }, [hash, activeOrg]);
-
-  // Highlight the section in view. The observer clips against the shell's own
-  // scroll area, so the default viewport root is correct here.
-  useEffect(() => {
-    if (!activeOrg || typeof IntersectionObserver === 'undefined') return undefined;
-    const obs = new IntersectionObserver((entries) => {
-      const hit = entries.filter((e) => e.isIntersecting)
-        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-      if (hit) setActiveSection(hit.target.id.replace('cp-sec-', ''));
-    }, { rootMargin: '-15% 0px -70% 0px' });
-    document.querySelectorAll('[id^="cp-sec-"]').forEach((el) => obs.observe(el));
-    return () => obs.disconnect();
-  }, [activeOrg]);
 
   /* ── saving ────────────────────────────────────────────────────────────── */
 
@@ -429,11 +448,6 @@ export default function CompanyProfile() {
 
   /* ── layout ────────────────────────────────────────────────────────────── */
 
-  // Inside the shell the section list lives in its sidebar; standalone it
-  // falls back to a column of its own, and on a phone to a row of chips.
-  const inShellRail = !!railSlot;
-  const wide = winW >= (inShellRail ? 1280 : 1380);
-  const withRail = inShellRail || winW >= 980;
   const narrow = winW < 640;
 
   if (!activeOrg) {
@@ -450,414 +464,354 @@ export default function CompanyProfile() {
 
   const plan = getPlanConfig(form.plan || DEFAULT_PLAN);
   const pct = Math.round((doneCount / steps.length) * 100);
-  const sectionDone = Object.fromEntries(steps.map((s) => [s.id, s.done]));
-
-  const sp = { t, narrow };
-
-  const sectionNav = (
-          <nav aria-label="Profile sections" style={inShellRail ? { display: 'grid', gap: 2, fontFamily: MONO } : { position: 'sticky', top: 0, display: 'grid', gap: 2 }}>
-            <RailHead t={t}>SET UP · {doneCount}/{steps.length}</RailHead>
-            {steps.map((s, i) => (
-              <RailItem key={s.id} t={t} active={activeSection === s.id} onClick={() => jumpTo(s.id)}
-                marker={s.done ? <Check size={11} strokeWidth={2.6} /> : i + 1} done={s.done}>{s.label}</RailItem>
-            ))}
-            <RailHead t={t} style={{ marginTop: 14 }}>MORE</RailHead>
-            {extras.map((s) => (
-              <RailItem key={s.id} t={t} active={activeSection === s.id} onClick={() => jumpTo(s.id)}
-                marker="·">{s.label}</RailItem>
-            ))}
-          </nav>
-  );
-  const chipNav = (
-          <nav aria-label="Profile sections" className="cp-chips" style={{
-            position: 'sticky', top: 0, zIndex: 25, background: t.panel,
-            display: 'flex', gap: 6, overflowX: 'auto', padding: '8px 0', margin: '-8px 0 0',
-            borderBottom: '1px solid ' + t.lineSoft,
-          }}>
-            {[...steps, ...extras].map((s) => (
-              <button key={s.id} type="button" onClick={() => jumpTo(s.id)} className="cp-chip" style={{
-                flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6,
-                height: 32, padding: '0 11px', borderRadius: 999, cursor: 'pointer', fontFamily: MONO, fontSize: 13,
-                border: '1px solid ' + (activeSection === s.id ? t.lineStrong : t.line),
-                background: activeSection === s.id ? t.panelAlt : t.panel,
-                color: activeSection === s.id ? t.text : t.dim,
-              }}>
-                {s.done && <Check size={11} strokeWidth={2.6} style={{ color: t.up }} />}
-                {s.label}
-              </button>
-            ))}
-          </nav>
-  );
-
+  const stepDone = Object.fromEntries(steps.map((s) => [s.id, s.done]));
+  const tabInfo = TABS.map((tb) => {
+    const mine = tb.steps.map((id) => stepDone[id]);
+    return { ...tb, total: mine.length, done: mine.filter(Boolean).length };
+  });
+  const tab = TAB_OF[activeSection] || 'company';
 
   return (
     <Page>
-      <div style={{
-        display: 'grid', gap: 20, alignItems: 'start', maxWidth: 1480, margin: '0 auto',
-        gridTemplateColumns: [withRail && !inShellRail && '200px', 'minmax(0,1fr)', wide && '340px'].filter(Boolean).join(' '),
-      }}>
+      <div style={{ display: 'grid', gap: 14, maxWidth: 1600, margin: '0 auto', minWidth: 0 }}>
 
-        {withRail && !inShellRail && sectionNav}
-        {!withRail && chipNav}
-
-        {/* ── main column ──────────────────────────────────────────────── */}
-        <main style={{ display: 'grid', gap: 16, minWidth: 0 }}>
-
-          {/* progress header */}
-          <section style={{
-            border: '1px solid ' + t.line, borderRadius: 12, background: t.panelAlt,
-            padding: narrow ? 14 : '16px 18px', display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap',
+        {/* progress strip */}
+        <section style={{
+          border: '1px solid ' + t.line, borderRadius: 12, background: t.panelAlt,
+          padding: narrow ? 12 : '12px 16px', display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap',
+        }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 10, flexShrink: 0, overflow: 'hidden',
+            border: '1px solid ' + t.line, background: t.panel, display: 'grid', placeItems: 'center',
           }}>
-            <div style={{
-              width: 52, height: 52, borderRadius: 11, flexShrink: 0, overflow: 'hidden',
-              border: '1px solid ' + t.line, background: t.panel, display: 'grid', placeItems: 'center',
-            }}>
-              {form.logo_url
-                ? <img src={form.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                : <Building2 size={20} strokeWidth={1.6} color={t.faint} />}
-            </div>
-            <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-              <div style={{ fontSize: 17.5, fontWeight: 500, letterSpacing: '-0.02em', color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {form.company_name || 'Your company'}
-              </div>
-              <div style={{ fontSize: 13, color: t.dim, marginTop: 3, lineHeight: 1.5 }}>
-                {doneCount === steps.length
-                  ? 'All set — every document you create is filled in from here.'
-                  : `${doneCount} of ${steps.length} steps done. Everything here is auto-filled into offers, invoices, MoUs and certificates.`}
-              </div>
-              <div style={{ marginTop: 10, maxWidth: 420 }} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Profile completion">
-                <Bar value={doneCount} max={steps.length} height={4} tone={doneCount === steps.length ? t.up : t.text} />
-              </div>
-            </div>
-            {nextStep && (
-              <Btn primary onClick={() => jumpTo(nextStep.id)}>
-                {nextStep.todo} <ArrowRight size={13} />
-              </Btn>
-            )}
-          </section>
-
-          {error && (
-            <Notice t={t} tone="down" onClose={() => setError('')}>{error}</Notice>
-          )}
-
-          {!wide && (
-            <details className="cp-details" style={{ border: '1px solid ' + t.line, borderRadius: 12, background: t.panel }}>
-              <summary style={{
-                display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', cursor: 'pointer',
-                fontSize: 13.5, color: t.text, listStyle: 'none',
-              }}>
-                <ChevronDown size={14} className="cp-caret" color={t.faint} />
-                Preview on a document
-                <span style={{ fontSize: 12, color: t.faint, marginLeft: 'auto' }}>updates as you type</span>
-              </summary>
-              <div style={{ padding: '0 16px 16px' }}>
-                <Letterhead form={form} onJump={jumpTo} />
-              </div>
-            </details>
-          )}
-
-          {/* 1. company */}
-          <Section {...sp} id="company" n={1} done={sectionDone.company} title="Company basics"
-            desc="Your legal name and registered address, as they should read on a signed document.">
-            <Fields narrow={narrow}>
-              <FormField t={t} label="Company name" required htmlFor="cp-company_name" wide>
-                <TextInput t={t} {...bind('company_name')} placeholder="Acme International Pvt. Ltd." autoComplete="organization" required />
-              </FormField>
-              <FormField t={t} label="Tagline" htmlFor="cp-company_tagline" hint="Optional. Shown under your name on the letterhead." wide>
-                <TextInput t={t} {...bind('company_tagline')} placeholder="Innovation meets excellence" />
-              </FormField>
-              <FormField t={t} label="Registered address" htmlFor="cp-company_address" wide>
-                <TextInput t={t} as="textarea" rows={3} {...bind('company_address')} placeholder={'Building, street\nCity, State PIN'} autoComplete="street-address" />
-              </FormField>
-            </Fields>
-          </Section>
-
-          {/* 2. contact */}
-          <Section {...sp} id="contact" n={2} done={sectionDone.contact} title="Contact & tax"
-            desc="How recipients reach you, and the registration numbers invoices must carry.">
-            <Fields narrow={narrow}>
-              <FormField t={t} label="Contact email" htmlFor="cp-company_email" warn={warn('company_email')}>
-                <TextInput t={t} {...bind('company_email')} type="email" inputMode="email" autoComplete="email" placeholder="hello@company.com" />
-              </FormField>
-              <FormField t={t} label="Phone" htmlFor="cp-company_phone" warn={warn('company_phone')}>
-                <TextInput t={t} {...bind('company_phone')} type="tel" inputMode="tel" autoComplete="tel" placeholder="+91 98765 43210" />
-              </FormField>
-              <FormField t={t} label="Website" htmlFor="cp-company_website" hint="Optional" warn={warn('company_website')} wide>
-                <TextInput t={t} {...bind('company_website')} inputMode="url" autoComplete="url" placeholder="company.com" />
-              </FormField>
-              <FormField t={t} label="GSTIN" htmlFor="cp-gstin" hint="Optional · 15 characters" warn={warn('gstin')}>
-                <TextInput t={t} {...bind('gstin')} maxLength={15} placeholder="22AAAAA0000A1Z5" spellCheck={false} mono />
-              </FormField>
-              <FormField t={t} label="CIN" htmlFor="cp-cin" hint="Optional · 21 characters" warn={warn('cin')}>
-                <TextInput t={t} {...bind('cin')} maxLength={21} placeholder="U12345MH2020PTC123456" spellCheck={false} mono />
-              </FormField>
-            </Fields>
-          </Section>
-
-          {/* 3. signatory */}
-          <Section {...sp} id="signatory" n={3} done={sectionDone.signatory} title="Authorised signatory"
-            desc="The person whose name and title appear above the signature line.">
-            <Fields narrow={narrow}>
-              <FormField t={t} label="Full name" required htmlFor="cp-owner_full_name">
-                <TextInput t={t} {...bind('owner_full_name')} placeholder="Priya Sharma" autoComplete="name" required />
-              </FormField>
-              <FormField t={t} label="Title on documents" htmlFor="cp-document_designation">
-                <TextInput t={t} {...bind('document_designation')} placeholder="Founder & CEO" list="cp-designations" autoComplete="organization-title" />
-                <datalist id="cp-designations">
-                  {['Founder', 'Founder & CEO', 'Director', 'Managing Director', 'CEO', 'HR Manager', 'Head of People'].map((d) => <option key={d} value={d} />)}
-                </datalist>
-              </FormField>
-            </Fields>
-          </Section>
-
-          {/* 4. branding */}
-          <Section {...sp} id="branding" n={4} done={sectionDone.branding} title="Logo & signature"
-            desc="Drop an image or click to choose one. You can crop and clean it up before it is saved.">
-            <Fields narrow={narrow}>
-              <Uploader t={t} field="logo_url" label="Company logo" hint="PNG with a transparent background works best."
-                url={form.logo_url} busy={uploading.logo_url} height={72}
-                onFile={openFile} onEdit={() => { setEditorImage(form.logo_url); setEditorField('logo_url'); }} onRemove={removeImage} />
-              <Uploader t={t} field="signature_url" label="Signature" hint="Sign on white paper and photograph it, or sign on a tablet."
-                url={form.signature_url} busy={uploading.signature_url} height={56}
-                onFile={openFile} onEdit={() => { setEditorImage(form.signature_url); setEditorField('signature_url'); }} onRemove={removeImage} />
-            </Fields>
-          </Section>
-
-          {/* 5. stamp */}
-          <Section {...sp} id="stamp" n={5} done={sectionDone.stamp} title="Company stamp"
-            desc="We can draw a round stamp from your company name, or you can upload your own.">
-            <div style={{ marginBottom: 14 }}>
-              <Seg value={form.stamp_type} onChange={(v) => setField('stamp_type', v)}
-                options={[{ id: 'generated', label: 'Generate for me' }, { id: 'uploaded', label: 'Upload my own' }]} />
-            </div>
-            {form.stamp_type === 'generated' ? (
-              <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
-                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-                  <FormField t={t} label="City on the stamp" htmlFor="cp-stamp_city" hint="Printed around the bottom edge.">
-                    <TextInput t={t} {...bind('stamp_city')} placeholder="Chennai" autoComplete="address-level2" />
-                  </FormField>
-                </div>
-                <div style={{
-                  width: 150, height: 150, borderRadius: 12, background: '#ffffff',
-                  border: '1px solid ' + t.line, display: 'grid', placeItems: 'center', flexShrink: 0,
-                }} aria-label="Stamp preview">
-                  <StampPreview companyName={form.company_name} city={form.stamp_city} size={128} />
-                </div>
-              </div>
-            ) : (
-              <Fields narrow={narrow}>
-                <Uploader t={t} field="stamp_url" label="Stamp image" hint="A scan of your rubber stamp, cropped close."
-                  url={form.stamp_url} busy={uploading.stamp_url} height={110}
-                  onFile={openFile} onEdit={() => { setEditorImage(form.stamp_url); setEditorField('stamp_url'); }} onRemove={removeImage} />
-              </Fields>
-            )}
-          </Section>
-
-          {/* 6. banking */}
-          <Section {...sp} id="banking" n={6} done={sectionDone.banking} title="Payments"
-            desc="Used for the UPI QR code and bank block on invoices, quotations and the client portal. UPI alone is enough.">
-            <Fields narrow={narrow}>
-              <FormField t={t} label="UPI ID" htmlFor="cp-upi_id" warn={warn('upi_id')} wide>
-                <TextInput t={t} {...bind('upi_id')} placeholder="company@okhdfcbank" spellCheck={false} autoCapitalize="none" mono />
-              </FormField>
-              <FormField t={t} label="Bank name" htmlFor="cp-bank_name">
-                <TextInput t={t} {...bind('bank_name')} placeholder="HDFC Bank" />
-              </FormField>
-              <FormField t={t} label="Account type" htmlFor="cp-bank_account_type">
-                <div id="cp-bank_account_type">
-                  <Seg value={form.bank_account_type} onChange={(v) => setField('bank_account_type', v)} options={['Current', 'Savings']} />
-                </div>
-              </FormField>
-              <FormField t={t} label="Account number" htmlFor="cp-bank_account_number" warn={warn('bank_account_number')}>
-                <TextInput t={t} {...bind('bank_account_number')} inputMode="numeric" placeholder="50100123456789" spellCheck={false} mono />
-              </FormField>
-              <FormField t={t} label="IFSC" htmlFor="cp-bank_ifsc" hint="11 characters" warn={warn('bank_ifsc')}>
-                <TextInput t={t} {...bind('bank_ifsc')} maxLength={11} placeholder="HDFC0001234" spellCheck={false} mono />
-              </FormField>
-            </Fields>
-          </Section>
-
-          {/* 7. email */}
-          <Section {...sp} id="email" n={7} done={sectionDone.email} title="Email sending"
-            desc="Connect a Gmail account so EdgeOS can send offer letters, reminders and follow-ups from your address."
-            status={!emailStatus.loading && (
-              <StatusLine t={t} ok={emailStatus.configured}>
-                {emailStatus.configured
-                  ? `Connected as ${emailStatus.gmail_user}${emailStatus.rotated_at ? ` · saved ${new Date(emailStatus.rotated_at).toLocaleDateString('en-IN')}` : ''}`
-                  : 'Not connected — email features are off'}
-              </StatusLine>
-            )}>
-            <Fields narrow={narrow}>
-              <FormField t={t} label="Gmail address" htmlFor="cp-gmail_user" warn={warn('gmail_user')}>
-                <TextInput t={t} {...bind('gmail_user')} type="email" inputMode="email" autoComplete="off" placeholder="you@gmail.com" />
-              </FormField>
-              <FormField t={t} label="App password" htmlFor="cp-gmail_app_password"
-                hint={emailStatus.configured ? 'Leave blank to keep the saved one. Stored encrypted; never shown again.' : '16 characters from Google. Stored encrypted; never shown again.'}>
-                <div style={{ position: 'relative' }}>
-                  <TextInput t={t} {...bind('gmail_app_password')} type={showAppPassword ? 'text' : 'password'}
-                    autoComplete="new-password" placeholder={emailStatus.configured ? '•••• •••• •••• ••••' : 'xxxx xxxx xxxx xxxx'}
-                    spellCheck={false} mono style={{ paddingRight: 42 }} />
-                  <button type="button" onClick={() => setShowAppPassword((v) => !v)} className="cp-iconbtn"
-                    aria-label={showAppPassword ? 'Hide app password' : 'Show app password'}
-                    style={{
-                      position: 'absolute', right: 4, top: 4, width: 32, height: 32, borderRadius: 6,
-                      border: 'none', background: 'transparent', color: t.faint, cursor: 'pointer', display: 'grid', placeItems: 'center',
-                    }}>
-                    {showAppPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </FormField>
-            </Fields>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
-              <Btn onClick={handleTestEmail} disabled={testEmailDisabled}>
-                {testingEmail ? <><Loader size={13} className="spin-icon" /> Sending test…</> : <><Zap size={13} /> Save & send a test email</>}
-              </Btn>
-            </div>
-            {testResult && (
-              <div style={{ marginTop: 10 }}>
-                <Notice t={t} tone={testResult.success ? 'up' : 'down'}>{testResult.message}</Notice>
-              </div>
-            )}
-
-            <details className="cp-details" style={{ marginTop: 14, border: '1px solid ' + t.lineSoft, borderRadius: 10, background: t.panelAlt }}>
-              <summary style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', cursor: 'pointer', fontSize: 13.5, color: t.text, listStyle: 'none' }}>
-                <ChevronDown size={14} className="cp-caret" color={t.faint} />
-                How do I get an app password?
-                <span style={{ fontSize: 12, color: t.faint, marginLeft: 'auto' }}>about 2 minutes</span>
-              </summary>
-              <ol style={{ margin: 0, padding: '2px 14px 14px 36px', display: 'grid', gap: 8, fontSize: 13.5, lineHeight: 1.6, color: t.dim }}>
-                <li>Turn on <b style={{ color: t.text, fontWeight: 500 }}>2-Step Verification</b> for your Google account. <ExtLink t={t} href="https://myaccount.google.com/signinoptions/two-step-verification">Open 2-Step settings</ExtLink></li>
-                <li>Open <b style={{ color: t.text, fontWeight: 500 }}>App passwords</b>. <ExtLink t={t} href="https://myaccount.google.com/apppasswords">Open App passwords</ExtLink></li>
-                <li>Name it “EdgeOS” and press <b style={{ color: t.text, fontWeight: 500 }}>Create</b>.</li>
-                <li>Copy the 16-character password, paste it above, and press <b style={{ color: t.text, fontWeight: 500 }}>Save & send a test email</b>.</li>
-                <li style={{ listStyle: 'none', marginLeft: -22, color: t.faint, fontSize: 12.5 }}>
-                  An app password is not your Google login password, and you can revoke it from the same page at any time.
-                </li>
-              </ol>
-            </details>
-          </Section>
-
-          {/* team access */}
-          <Section {...sp} id="access" title="Team access"
-            desc="How employees join their self-service portal.">
-            <ActionRow t={t} title="Roles & permissions"
-              note="Set on each person: open them in Employees to change their role, or what they alone can do."
-              action={<Btn onClick={() => navigate('/employees')}>Open Employees <ArrowRight size={13} /></Btn>} />
-            <div style={{ height: 1, background: t.lineSoft, margin: '18px 0' }} />
-            <SubHead t={t} icon={<KeyRound size={13} />}>Employee portal join code</SubHead>
-            <div className="cp-legacy"><PortalJoinCode orgId={activeOrg.id} /></div>
-          </Section>
-
-          {/* plan */}
-          <Section {...sp} id="plan" title="Plan"
-            desc="What your current plan includes."
-            status={<StatusLine t={t} dot={plan.color}>{plan.displayName}</StatusLine>}>
-            <div style={{
-              display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(${narrow ? 120 : 130}px, 1fr))`,
-              border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden',
-            }}>
-              {PLAN_ROWS.map(([key, label]) => {
-                const v = plan.limits[key];
-                return (
-                  <div key={key} style={{ padding: '12px 14px', borderRight: '1px solid ' + t.lineSoft, borderBottom: '1px solid ' + t.lineSoft }}>
-                    <div style={{ fontSize: 19.5, fontWeight: 500, letterSpacing: '-0.03em', color: t.text }}>{v === Infinity ? '∞' : v}</div>
-                    <div style={{ fontSize: 12, color: t.faint, marginTop: 4 }}>{label}</div>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ marginTop: 12 }}>
-              <Btn onClick={() => navigate('/pricing')}>Compare plans <ArrowRight size={13} /></Btn>
-            </div>
-          </Section>
-
-          {/* account */}
-          <Section {...sp} id="account" title="Account & data"
-            desc="Your sign-in password, and a full copy of your organization’s data.">
-            <div style={{ display: 'grid', gap: 12 }}>
-              <ActionRow t={t} title="Password" note="Change the password you sign in with."
-                action={!pw.open && <Btn onClick={() => setPw((p) => ({ ...p, open: true }))}><KeyRound size={13} /> Change password</Btn>}>
-                {pw.open && (
-                  <form onSubmit={handleChangePassword} style={{ marginTop: 12 }}>
-                    {pw.error && <div style={{ marginBottom: 10 }}><Notice t={t} tone="down">{pw.error}</Notice></div>}
-                    {pw.success && <div style={{ marginBottom: 10 }}><Notice t={t} tone="up">{pw.success}</Notice></div>}
-                    <Fields narrow={narrow} cols={narrow ? 1 : 3}>
-                      <FormField t={t} label="Current password" htmlFor="cp-pw-current">
-                        <TextInput t={t} id="cp-pw-current" type="password" autoComplete="current-password" required
-                          value={pw.current} onChange={(e) => setPw((p) => ({ ...p, current: e.target.value }))} />
-                      </FormField>
-                      <FormField t={t} label="New password" htmlFor="cp-pw-next" hint="At least 6 characters">
-                        <TextInput t={t} id="cp-pw-next" type="password" autoComplete="new-password" required minLength={6}
-                          value={pw.next} onChange={(e) => setPw((p) => ({ ...p, next: e.target.value }))} />
-                      </FormField>
-                      <FormField t={t} label="Repeat new password" htmlFor="cp-pw-confirm"
-                        warn={pw.confirm && pw.next !== pw.confirm ? 'Does not match yet.' : ''}>
-                        <TextInput t={t} id="cp-pw-confirm" type="password" autoComplete="new-password" required minLength={6}
-                          value={pw.confirm} onChange={(e) => setPw((p) => ({ ...p, confirm: e.target.value }))} />
-                      </FormField>
-                    </Fields>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                      <Btn primary type="submit" disabled={pw.busy}>
-                        {pw.busy ? <><Loader size={13} className="spin-icon" /> Updating…</> : 'Update password'}
-                      </Btn>
-                      <Btn onClick={() => setPw({ open: false, current: '', next: '', confirm: '', error: '', success: '', busy: false })}>Cancel</Btn>
-                    </div>
-                  </form>
-                )}
-              </ActionRow>
-              <ActionRow t={t} title="Export all data"
-                note="One JSON file with every client, employee, document, payment and the activity log, plus 7-day links to your uploads. Email credentials are left out."
-                action={<Btn onClick={handleExport} disabled={exporting}>
-                  {exporting ? <><Loader size={13} className="spin-icon" /> Preparing…</> : <><Download size={13} /> Export</>}
-                </Btn>}>
-                {exportError && <div style={{ marginTop: 10 }}><Notice t={t} tone="down">{exportError}</Notice></div>}
-              </ActionRow>
-            </div>
-          </Section>
-
-          {/* ── save bar ───────────────────────────────────────────────── */}
-          <div aria-live="polite" style={{
-            position: 'sticky', bottom: 0, zIndex: 30, padding: '10px 0 0',
-            background: dirty || saving || saved ? `linear-gradient(to bottom, transparent, ${t.panel} 30%)` : 'transparent',
-            pointerEvents: dirty || saving || saved ? 'auto' : 'none',
-          }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-              padding: '10px 12px 10px 16px', borderRadius: 12,
-              border: '1px solid ' + t.lineStrong, background: t.panel, boxShadow: t.shadow,
-              opacity: dirty || saving || saved ? 1 : 0,
-              transform: dirty || saving || saved ? 'none' : 'translateY(10px)',
-              transition: 'opacity .18s, transform .22s cubic-bezier(.16,1,.3,1)',
-            }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: saved && !dirty ? t.up : t.text }} />
-              <span style={{ fontSize: 13.5, color: t.text, flex: 1, minWidth: 140 }}>
-                {saved && !dirty ? 'Saved — new documents will use these details.' : 'You have unsaved changes'}
-                {!narrow && dirty && <span style={{ color: t.faint, marginLeft: 8, fontSize: 12 }}>Ctrl + S</span>}
-              </span>
-              {dirty && <Btn onClick={handleDiscard} disabled={saving}>Discard</Btn>}
-              {dirty && (
-                <Btn primary onClick={handleSave} disabled={saving}>
-                  {saving ? <><Loader size={13} className="spin-icon" /> Saving…</> : <><Check size={13} /> Save changes</>}
-                </Btn>
-              )}
-            </div>
+            {form.logo_url
+              ? <img src={form.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              : <Building2 size={18} strokeWidth={1.6} color={t.faint} />}
           </div>
-        </main>
+          <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 500, letterSpacing: '-0.02em', color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {form.company_name || 'Your company'}
+            </div>
+            <div style={{ fontSize: 12.5, color: t.dim, marginTop: 2 }}>{doneCount} of {steps.length} steps done</div>
+          </div>
+          <div style={{ flex: '1 1 160px', maxWidth: 280, minWidth: 120 }} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Profile completion">
+            <Bar value={doneCount} max={steps.length} height={4} tone={doneCount === steps.length ? t.up : t.text} />
+          </div>
+          {nextStep && (
+            <Btn primary onClick={() => jumpTo(nextStep.id)}>
+              {nextStep.todo} <ArrowRight size={13} />
+            </Btn>
+          )}
+        </section>
 
-        {/* ── live preview ─────────────────────────────────────────────── */}
-        {wide && (
-          <aside style={{ position: 'sticky', top: 0 }} aria-label="Document preview">
-            <RailHead t={t}>PREVIEW ON A DOCUMENT</RailHead>
-            <Letterhead form={form} onJump={jumpTo} />
-            <p style={{ fontSize: 12, color: t.faint, lineHeight: 1.6, margin: '10px 2px 0' }}>
-              Updates as you type. Click a dashed box to fill it in.
-            </p>
-          </aside>
-        )}
+        {error && <Notice t={t} tone="down" onClose={() => setError('')}>{error}</Notice>}
+
+        {/* tabs */}
+        <nav role="tablist" aria-label="Profile sections" className="cp-chips" style={{
+          display: 'flex', gap: 4, overflowX: 'auto', borderBottom: '1px solid ' + t.line,
+        }}>
+          {tabInfo.map((tb) => {
+            const on = tb.id === tab;
+            const complete = tb.total > 0 && tb.done === tb.total;
+            return (
+              <button key={tb.id} type="button" role="tab" aria-selected={on} onClick={() => jumpTo(tb.id)} className="cp-tab" style={{
+                flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 8, height: 42, padding: '0 14px',
+                border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: MONO, fontSize: 13.5,
+                color: on ? t.text : t.dim, boxShadow: on ? 'inset 0 -2px 0 ' + t.text : 'none', marginBottom: -1,
+              }}>
+                {tb.label}
+                {tb.total > 0 && (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11.5, padding: '1px 7px', borderRadius: 999,
+                    border: '1px solid ' + (complete ? t.up : t.line), color: complete ? t.up : t.faint,
+                  }}>
+                    {complete ? <Check size={10} strokeWidth={2.8} /> : `${tb.done}/${tb.total}`}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div id="cp-tabpanel" role="tabpanel" style={{ display: 'grid', gap: 14, minWidth: 0 }}>
+
+          {tab === 'company' && (
+            <PanelGrid min={300}>
+              <Panel t={t} title="Company basics" done={stepDone.company}>
+                <Fields>
+                  <FormField t={t} label="Company name" required htmlFor="cp-company_name" wide>
+                    <TextInput t={t} {...bind('company_name')} autoComplete="organization" required />
+                  </FormField>
+                  <FormField t={t} label="Tagline" htmlFor="cp-company_tagline" wide>
+                    <TextInput t={t} {...bind('company_tagline')} />
+                  </FormField>
+                  <FormField t={t} label="Registered address" htmlFor="cp-company_address" wide>
+                    <TextInput t={t} as="textarea" rows={3} {...bind('company_address')} autoComplete="street-address" />
+                  </FormField>
+                </Fields>
+              </Panel>
+
+              <Panel t={t} title="Contact & tax" done={stepDone.contact}>
+                <Fields>
+                  <FormField t={t} label="Contact email" htmlFor="cp-company_email" warn={warn('company_email')}>
+                    <TextInput t={t} {...bind('company_email')} type="email" inputMode="email" autoComplete="email" />
+                  </FormField>
+                  <FormField t={t} label="Phone" htmlFor="cp-company_phone" warn={warn('company_phone')} wide>
+                    <PhoneInput t={t} {...bind('company_phone')} onValue={(v) => setField('company_phone', v)} />
+                  </FormField>
+                  <FormField t={t} label="Website" htmlFor="cp-company_website" warn={warn('company_website')} wide>
+                    <TextInput t={t} {...bind('company_website')} inputMode="url" autoComplete="url" />
+                  </FormField>
+                  <FormField t={t} label="GSTIN" htmlFor="cp-gstin" warn={warn('gstin')}>
+                    <TextInput t={t} {...bind('gstin')} maxLength={15} spellCheck={false} mono />
+                  </FormField>
+                  <FormField t={t} label="CIN" htmlFor="cp-cin" warn={warn('cin')}>
+                    <TextInput t={t} {...bind('cin')} maxLength={21} spellCheck={false} mono />
+                  </FormField>
+                </Fields>
+              </Panel>
+
+              <Panel t={t} title="Authorised signatory" done={stepDone.signatory}>
+                <Fields>
+                  <FormField t={t} label="Full name" required htmlFor="cp-owner_full_name" wide>
+                    <TextInput t={t} {...bind('owner_full_name')} autoComplete="name" required />
+                  </FormField>
+                  <FormField t={t} label="Title on documents" htmlFor="cp-document_designation" wide>
+                    <TextInput t={t} {...bind('document_designation')} list="cp-designations" autoComplete="organization-title" />
+                    <datalist id="cp-designations">
+                      {['Founder', 'Founder & CEO', 'Director', 'Managing Director', 'CEO', 'HR Manager', 'Head of People'].map((d) => <option key={d} value={d} />)}
+                    </datalist>
+                  </FormField>
+                </Fields>
+              </Panel>
+            </PanelGrid>
+          )}
+
+          {tab === 'branding' && (
+            <PanelGrid min={280}>
+              <Panel t={t} title="Company logo" done={!!form.logo_url}>
+                <Uploader t={t} field="logo_url" label="Logo"
+                  url={form.logo_url} busy={uploading.logo_url} height={72}
+                  onFile={openFile} onEdit={() => { setEditorImage(form.logo_url); setEditorField('logo_url'); }} onRemove={removeImage} />
+              </Panel>
+              <Panel t={t} title="Signature" done={!!form.signature_url}>
+                <Uploader t={t} field="signature_url" label="Signature"
+                  url={form.signature_url} busy={uploading.signature_url} height={72}
+                  onFile={openFile} onEdit={() => { setEditorImage(form.signature_url); setEditorField('signature_url'); }} onRemove={removeImage} />
+              </Panel>
+              <Panel t={t} title="Company stamp" done={stepDone.stamp}>
+                <div style={{ marginBottom: 12 }}>
+                  <Seg value={form.stamp_type} onChange={(v) => setField('stamp_type', v)}
+                    options={[{ id: 'generated', label: 'Generate for me' }, { id: 'uploaded', label: 'Upload my own' }]} />
+                </div>
+                {form.stamp_type === 'generated' ? (
+                  <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <FormField t={t} label="City on the stamp" htmlFor="cp-stamp_city">
+                        <TextInput t={t} {...bind('stamp_city')} autoComplete="address-level2" />
+                      </FormField>
+                    </div>
+                    <div style={{
+                      width: 104, height: 104, borderRadius: 12, background: '#ffffff', flexShrink: 0,
+                      border: '1px solid ' + t.line, display: 'grid', placeItems: 'center',
+                    }} aria-label="Stamp preview">
+                      <StampPreview companyName={form.company_name} city={form.stamp_city} size={88} />
+                    </div>
+                  </div>
+                ) : (
+                  <Uploader t={t} field="stamp_url" label="Stamp image"
+                    url={form.stamp_url} busy={uploading.stamp_url} height={72}
+                    onFile={openFile} onEdit={() => { setEditorImage(form.stamp_url); setEditorField('stamp_url'); }} onRemove={removeImage} />
+                )}
+              </Panel>
+            </PanelGrid>
+          )}
+
+          {tab === 'payments' && (
+            <PanelGrid min={320}>
+              <Panel t={t} title="UPI" done={!!form.upi_id}>
+                <Fields>
+                  <FormField t={t} label="UPI ID" htmlFor="cp-upi_id" warn={warn('upi_id')} wide>
+                    <TextInput t={t} {...bind('upi_id')} spellCheck={false} autoCapitalize="none" mono />
+                  </FormField>
+                </Fields>
+              </Panel>
+              <Panel t={t} title="Bank account" done={!!(form.bank_name && form.bank_account_number && form.bank_ifsc)}>
+                <Fields>
+                  <FormField t={t} label="Bank name" htmlFor="cp-bank_name">
+                    <TextInput t={t} {...bind('bank_name')} />
+                  </FormField>
+                  <FormField t={t} label="Account type" htmlFor="cp-bank_account_type">
+                    <div id="cp-bank_account_type">
+                      <Seg value={form.bank_account_type} onChange={(v) => setField('bank_account_type', v)} options={['Current', 'Savings']} />
+                    </div>
+                  </FormField>
+                  <FormField t={t} label="Account number" htmlFor="cp-bank_account_number" warn={warn('bank_account_number')}>
+                    <TextInput t={t} {...bind('bank_account_number')} inputMode="numeric" spellCheck={false} mono />
+                  </FormField>
+                  <FormField t={t} label="IFSC" htmlFor="cp-bank_ifsc" warn={warn('bank_ifsc')}>
+                    <TextInput t={t} {...bind('bank_ifsc')} maxLength={11} spellCheck={false} mono />
+                  </FormField>
+                </Fields>
+              </Panel>
+            </PanelGrid>
+          )}
+
+          {tab === 'email' && (
+            <PanelGrid min={340}>
+              <Panel t={t} title="Email sending" done={stepDone.email}
+                status={!emailStatus.loading && (
+                  <StatusLine t={t} ok={emailStatus.configured}>
+                    {emailStatus.configured
+                      ? `Connected as ${emailStatus.gmail_user}${emailStatus.rotated_at ? ` · saved ${new Date(emailStatus.rotated_at).toLocaleDateString('en-IN')}` : ''}`
+                      : 'Not connected — email features are off'}
+                  </StatusLine>
+                )}>
+                <Fields>
+                  <FormField t={t} label="Gmail address" htmlFor="cp-gmail_user" warn={warn('gmail_user')}>
+                    <TextInput t={t} {...bind('gmail_user')} type="email" inputMode="email" autoComplete="off" />
+                  </FormField>
+                  <FormField t={t} label="App password" htmlFor="cp-gmail_app_password">
+                    <div style={{ position: 'relative' }}>
+                      <TextInput t={t} {...bind('gmail_app_password')} type={showAppPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        spellCheck={false} mono style={{ paddingRight: 42 }} />
+                      <button type="button" onClick={() => setShowAppPassword((v) => !v)} className="cp-iconbtn"
+                        aria-label={showAppPassword ? 'Hide app password' : 'Show app password'}
+                        style={{
+                          position: 'absolute', right: 4, top: 4, width: 32, height: 32, borderRadius: 6,
+                          border: 'none', background: 'transparent', color: t.faint, cursor: 'pointer', display: 'grid', placeItems: 'center',
+                        }}>
+                        {showAppPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                  </FormField>
+                </Fields>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
+                  <Btn onClick={handleTestEmail} disabled={testEmailDisabled}>
+                    {testingEmail ? <><Loader size={13} className="spin-icon" /> Sending test…</> : <><Zap size={13} /> Save & send a test email</>}
+                  </Btn>
+                </div>
+                {testResult && (
+                  <div style={{ marginTop: 10 }}>
+                    <Notice t={t} tone={testResult.success ? 'up' : 'down'}>{testResult.message}</Notice>
+                  </div>
+                )}
+              </Panel>
+              <Panel t={t} title="How do I get an app password?">
+                <ol style={{ margin: 0, padding: '0 0 0 18px', display: 'grid', gap: 8, fontSize: 13.5, lineHeight: 1.6, color: t.dim }}>
+                  <li>Turn on <b style={{ color: t.text, fontWeight: 500 }}>2-Step Verification</b> for your Google account. <ExtLink t={t} href="https://myaccount.google.com/signinoptions/two-step-verification">Open 2-Step settings</ExtLink></li>
+                  <li>Open <b style={{ color: t.text, fontWeight: 500 }}>App passwords</b>. <ExtLink t={t} href="https://myaccount.google.com/apppasswords">Open App passwords</ExtLink></li>
+                  <li>Name it “EdgeOS” and press <b style={{ color: t.text, fontWeight: 500 }}>Create</b>.</li>
+                  <li>Copy the 16-character password, paste it here, and press <b style={{ color: t.text, fontWeight: 500 }}>Save & send a test email</b>.</li>
+                </ol>
+              </Panel>
+            </PanelGrid>
+          )}
+
+          {tab === 'workspace' && (
+            <PanelGrid min={320}>
+              <Panel t={t} title="Team access">
+                <ActionRow t={t} title="Roles & permissions"
+                  action={<Btn onClick={() => navigate('/employees')}>Open Employees <ArrowRight size={13} /></Btn>} />
+                <div style={{ height: 1, background: t.lineSoft, margin: '16px 0' }} />
+                <SubHead t={t} icon={<KeyRound size={13} />}>Employee portal join code</SubHead>
+                <div className="cp-legacy"><PortalJoinCode orgId={activeOrg.id} /></div>
+              </Panel>
+
+              <Panel t={t} title="Plan"
+                status={<StatusLine t={t} dot={plan.color}>{plan.displayName}</StatusLine>}>
+                <div style={{
+                  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+                  border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden',
+                }}>
+                  {PLAN_ROWS.map(([key, label]) => {
+                    const v = plan.limits[key];
+                    return (
+                      <div key={key} style={{ padding: '12px 14px', borderRight: '1px solid ' + t.lineSoft, borderBottom: '1px solid ' + t.lineSoft }}>
+                        <div style={{ fontSize: 19.5, fontWeight: 500, letterSpacing: '-0.03em', color: t.text }}>{v === Infinity ? '∞' : v}</div>
+                        <div style={{ fontSize: 12, color: t.faint, marginTop: 4 }}>{label}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <Btn onClick={() => navigate('/pricing')}>Compare plans <ArrowRight size={13} /></Btn>
+                </div>
+              </Panel>
+
+              <Panel t={t} title="Account & data">
+                <div style={{ display: 'grid', gap: 12 }}>
+                  <ActionRow t={t} title="Password" note="Change the password you sign in with."
+                    action={!pw.open && <Btn onClick={() => setPw((p) => ({ ...p, open: true }))}><KeyRound size={13} /> Change password</Btn>}>
+                    {pw.open && (
+                      <form onSubmit={handleChangePassword} style={{ marginTop: 12 }}>
+                        {pw.error && <div style={{ marginBottom: 10 }}><Notice t={t} tone="down">{pw.error}</Notice></div>}
+                        {pw.success && <div style={{ marginBottom: 10 }}><Notice t={t} tone="up">{pw.success}</Notice></div>}
+                        <Fields>
+                          <FormField t={t} label="Current password" htmlFor="cp-pw-current" wide>
+                            <TextInput t={t} id="cp-pw-current" type="password" autoComplete="current-password" required
+                              value={pw.current} onChange={(e) => setPw((p) => ({ ...p, current: e.target.value }))} />
+                          </FormField>
+                          <FormField t={t} label="New password" htmlFor="cp-pw-next">
+                            <TextInput t={t} id="cp-pw-next" type="password" autoComplete="new-password" required minLength={6}
+                              value={pw.next} onChange={(e) => setPw((p) => ({ ...p, next: e.target.value }))} />
+                          </FormField>
+                          <FormField t={t} label="Repeat new password" htmlFor="cp-pw-confirm"
+                            warn={pw.confirm && pw.next !== pw.confirm ? 'Does not match yet.' : ''}>
+                            <TextInput t={t} id="cp-pw-confirm" type="password" autoComplete="new-password" required minLength={6}
+                              value={pw.confirm} onChange={(e) => setPw((p) => ({ ...p, confirm: e.target.value }))} />
+                          </FormField>
+                        </Fields>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                          <Btn primary type="submit" disabled={pw.busy}>
+                            {pw.busy ? <><Loader size={13} className="spin-icon" /> Updating…</> : 'Update password'}
+                          </Btn>
+                          <Btn onClick={() => setPw({ open: false, current: '', next: '', confirm: '', error: '', success: '', busy: false })}>Cancel</Btn>
+                        </div>
+                      </form>
+                    )}
+                  </ActionRow>
+                  <ActionRow t={t} title="Export all data"
+                    action={<Btn onClick={handleExport} disabled={exporting}>
+                      {exporting ? <><Loader size={13} className="spin-icon" /> Preparing…</> : <><Download size={13} /> Export</>}
+                    </Btn>}>
+                    {exportError && <div style={{ marginTop: 10 }}><Notice t={t} tone="down">{exportError}</Notice></div>}
+                  </ActionRow>
+                </div>
+              </Panel>
+            </PanelGrid>
+          )}
+        </div>
+
+        {/* ── save bar ───────────────────────────────────────────────── */}
+        <div aria-live="polite" style={{
+          position: 'sticky', bottom: 0, zIndex: 30, padding: '10px 0 0',
+          background: dirty || saving || saved ? `linear-gradient(to bottom, transparent, ${t.panel} 30%)` : 'transparent',
+          pointerEvents: dirty || saving || saved ? 'auto' : 'none',
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+            padding: '10px 12px 10px 16px', borderRadius: 12,
+            border: '1px solid ' + t.lineStrong, background: t.panel, boxShadow: t.shadow,
+            opacity: dirty || saving || saved ? 1 : 0,
+            transform: dirty || saving || saved ? 'none' : 'translateY(10px)',
+            transition: 'opacity .18s, transform .22s cubic-bezier(.16,1,.3,1)',
+          }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: saved && !dirty ? t.up : t.text }} />
+            <span style={{ fontSize: 13.5, color: t.text, flex: 1, minWidth: 140 }}>
+              {saved && !dirty ? 'Saved — new documents will use these details.' : 'You have unsaved changes'}
+              {!narrow && dirty && <span style={{ color: t.faint, marginLeft: 8, fontSize: 12 }}>Ctrl + S</span>}
+            </span>
+            {dirty && <Btn onClick={handleDiscard} disabled={saving}>Discard</Btn>}
+            {dirty && (
+              <Btn primary onClick={handleSave} disabled={saving}>
+                {saving ? <><Loader size={13} className="spin-icon" /> Saving…</> : <><Check size={13} /> Save changes</>}
+              </Btn>
+            )}
+          </div>
+        </div>
       </div>
-
-      {inShellRail && createPortal(sectionNav, railSlot)}
 
       {editorImage && (
         <ImageEditor imageSrc={editorImage} onSave={handleEditorSave}
@@ -872,16 +826,11 @@ export default function CompanyProfile() {
         .edge-page .cp-input::placeholder { color: ${t.faint}; opacity: .7; }
         .edge-page .cp-input[aria-invalid="true"] { border-color: ${t.down}; }
         .edge-page .cp-drop:hover, .edge-page .cp-drop.over { border-color: ${t.text} !important; background: ${t.raised} !important; }
-        .edge-page .cp-rail:hover { color: ${t.text} !important; background: ${t.panelAlt} !important; }
-        .edge-page .cp-chip:hover, .edge-page .cp-iconbtn:hover { color: ${t.text} !important; }
+        .edge-page .cp-tab:hover, .edge-page .cp-iconbtn:hover { color: ${t.text} !important; }
+        .edge-page .cp-tab:focus-visible { outline: 2px solid ${t.text}; outline-offset: -2px; border-radius: 6px; }
         .edge-page .cp-chips::-webkit-scrollbar { display: none; }
-        .edge-page .cp-details summary::-webkit-details-marker { display: none; }
-        .edge-page .cp-caret { transition: transform .18s; transform: rotate(-90deg); flex-shrink: 0; }
-        .edge-page .cp-details[open] > summary .cp-caret { transform: none; }
-        .edge-page .cp-jump:hover { border-color: #0e1011 !important; color: #0e1011 !important; }
         .edge-page .cp-legacy { font-family: ${MONO}; }
         .edge-page .cp-legacy table { font-family: ${MONO}; }
-        .edge-page [id^="cp-sec-"] { scroll-margin-top: ${withRail ? 8 : 60}px; }
         @media (prefers-reduced-motion: reduce) { .edge-page * { transition: none !important; scroll-behavior: auto !important; } }
       `}</style>
     </Page>
@@ -890,62 +839,39 @@ export default function CompanyProfile() {
 
 /* ── pieces ──────────────────────────────────────────────────────────────── */
 
-function RailHead({ t, children, style }) {
-  return <div style={{ fontSize: 11, letterSpacing: '0.1em', color: t.faint, padding: '4px 10px 8px', ...style }}>{children}</div>;
-}
-
-function RailItem({ t, active, done, marker, onClick, children }) {
+function PanelGrid({ min = 300, children }) {
   return (
-    <button type="button" onClick={onClick} className="cp-rail edge-navitem" aria-current={active ? 'true' : undefined} style={{
-      display: 'flex', alignItems: 'center', gap: 10, width: '100%', height: 36, padding: '0 10px',
-      borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: MONO, fontSize: 13.5,
-      background: active ? t.panelAlt : 'transparent', color: active ? t.text : t.dim,
-      boxShadow: active ? 'inset 2px 0 0 ' + t.text : 'none', transition: 'color .14s, background .14s',
-    }}>
-      <span style={{
-        width: 20, height: 20, borderRadius: 999, flexShrink: 0, display: 'grid', placeItems: 'center',
-        fontSize: 11.5, border: '1px solid ' + (done ? t.up : t.line),
-        background: done ? t.up : 'transparent', color: done ? (t.isDark ? '#050506' : '#fff') : t.faint,
-      }}>{marker}</span>
-      <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>
-      {done && <span className="sr-only" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>complete</span>}
-    </button>
+    <div style={{ display: 'grid', gap: 14, alignItems: 'start', gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${min}px), 1fr))` }}>
+      {children}
+    </div>
   );
 }
 
-function Section({ t, narrow, id, n, done, title, desc, status, children }) {
+function Panel({ t, title, desc, done, status, children }) {
   return (
-    <section id={`cp-sec-${id}`} aria-labelledby={`cp-sec-${id}-title`} style={{
-      border: '1px solid ' + t.line, borderRadius: 12, background: t.panel, minWidth: 0,
-    }}>
-      <header style={{
-        display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap',
-        padding: narrow ? '14px 14px 12px' : '16px 18px 14px', borderBottom: '1px solid ' + t.lineSoft,
-      }}>
-        {n !== undefined && (
-          <span aria-hidden="true" style={{
-            width: 24, height: 24, borderRadius: 999, flexShrink: 0, marginTop: 1, display: 'grid', placeItems: 'center',
-            fontSize: 12.5, border: '1px solid ' + (done ? t.up : t.lineStrong),
-            background: done ? t.up : 'transparent', color: done ? (t.isDark ? '#050506' : '#fff') : t.dim,
-          }}>{done ? <Check size={12} strokeWidth={2.6} /> : n}</span>
-        )}
-        <div style={{ flex: '1 1 240px', minWidth: 0 }}>
-          <h2 id={`cp-sec-${id}-title`} style={{ margin: 0, fontSize: 15.5, fontWeight: 500, letterSpacing: '-0.01em', color: t.text }}>
+    <section style={{ border: '1px solid ' + t.line, borderRadius: 12, background: t.panel, minWidth: 0 }}>
+      <header style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap', padding: '14px 16px 12px', borderBottom: '1px solid ' + t.lineSoft }}>
+        <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 500, letterSpacing: '-0.01em', color: t.text, display: 'flex', alignItems: 'center', gap: 8 }}>
             {title}
-            {n !== undefined && <span style={{ fontSize: 12, fontWeight: 400, color: done ? t.up : t.faint, marginLeft: 10 }}>{done ? 'Done' : 'To do'}</span>}
+            {done !== undefined && (
+              <span style={{ fontSize: 11.5, fontWeight: 400, color: done ? t.up : t.faint, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                {done ? <><Check size={11} strokeWidth={2.6} /> Done</> : ''}
+              </span>
+            )}
           </h2>
-          {desc && <p style={{ margin: '4px 0 0', fontSize: 13, color: t.dim, lineHeight: 1.55 }}>{desc}</p>}
+          {desc && <p style={{ margin: '4px 0 0', fontSize: 12.5, color: t.dim, lineHeight: 1.5 }}>{desc}</p>}
         </div>
         {status}
       </header>
-      <div style={{ padding: narrow ? 14 : 18 }}>{children}</div>
+      <div style={{ padding: 16 }}>{children}</div>
     </section>
   );
 }
 
-function Fields({ children, narrow, cols = 2 }) {
+function Fields({ children }) {
   return (
-    <div style={{ display: 'grid', gap: '14px 16px', gridTemplateColumns: narrow ? 'minmax(0,1fr)' : `repeat(${cols}, minmax(0,1fr))` }}>
+    <div style={{ display: 'grid', gap: '14px 14px', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))' }}>
       {children}
     </div>
   );
@@ -957,7 +883,6 @@ function FormField({ t, label, required, hint, warn, htmlFor, wide, children }) 
     <div style={{ minWidth: 0, gridColumn: wide ? '1 / -1' : undefined }}>
       <label htmlFor={htmlFor} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 13, color: t.text, marginBottom: 6 }}>
         {label}
-        {required && <span style={{ color: t.faint, fontSize: 12 }}>required</span>}
       </label>
       {children}
       {(warn || hint) && (
@@ -992,6 +917,30 @@ function TextInput({ t, as, mono, style, ...props }) {
         ...style,
       }}
     />
+  );
+}
+
+function PhoneInput({ t, value, onValue, onBlur, id, name }) {
+  const { code, number } = splitPhone(value);
+  const join = (c, n) => (n.trim() ? `+${c} ${n.trim()}` : (c === DEFAULT_DIAL ? '' : `+${c}`));
+  return (
+    <div style={{ display: 'flex', gap: 8 }}>
+      <select
+        aria-label="Country code" value={code} onBlur={onBlur}
+        onChange={(e) => onValue(join(e.target.value, number))}
+        className="edge-input cp-input"
+        style={{
+          width: 104, flexShrink: 0, height: 40, padding: '0 8px', boxSizing: 'border-box',
+          background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 8,
+          color: t.text, fontFamily: MONO, fontSize: 14.5, outline: 'none',
+        }}
+      >
+        {DIAL_OPTIONS.map((o) => <option key={o.code} value={o.code}>{`${o.iso} +${o.code}`}</option>)}
+      </select>
+      <TextInput t={t} id={id} name={name} type="tel" inputMode="tel" autoComplete="tel-national"
+        value={number} onBlur={onBlur} onChange={(e) => onValue(join(code, e.target.value))}
+        style={{ flex: 1, minWidth: 0 }} />
+    </div>
   );
 }
 
@@ -1095,7 +1044,7 @@ function ActionRow({ t, title, note, action, children }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 240px', minWidth: 0 }}>
           <div style={{ fontSize: 14, color: t.text }}>{title}</div>
-          <div style={{ fontSize: 12.5, color: t.faint, marginTop: 3, lineHeight: 1.55 }}>{note}</div>
+          
         </div>
         {action}
       </div>
@@ -1115,72 +1064,3 @@ function ExtLink({ t, href, children }) {
   );
 }
 
-function Gap({ label, onClick, style }) {
-  return (
-    <button type="button" onClick={onClick} className="cp-jump" style={{
-      border: '1px dashed #c2c9cc', borderRadius: 6, background: 'transparent', color: '#959c9f',
-      fontFamily: MONO, fontSize: 11, cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 4, ...style,
-    }}>+ {label}</button>
-  );
-}
-
-/* A miniature of the letterhead and sign-off every document is built from.
-   Always paper-white, because that is what the recipient sees. Anything still
-   missing is a dashed box that jumps to the field that fills it. */
-function Letterhead({ form, onJump }) {
-  const ink = '#0e1011';
-  const soft = '#6b7275';
-  const rule = '#e3e6e7';
-  const contact = [form.company_email, form.company_phone, form.company_website].filter(Boolean).join('  ·  ');
-  const stamp = form.stamp_type === 'uploaded'
-    ? (form.stamp_url ? <img src={form.stamp_url} alt="" style={{ width: 70, height: 70, objectFit: 'contain' }} /> : <Gap label="Stamp" onClick={() => onJump('stamp')} style={{ width: 70, height: 70, borderRadius: 999 }} />)
-    : <div style={{ opacity: 0.9 }}><StampPreview companyName={form.company_name} city={form.stamp_city} size={70} /></div>;
-
-  return (
-    <div style={{
-      background: '#ffffff', color: ink, borderRadius: 10, border: '1px solid ' + rule,
-      padding: 18, fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif",
-      boxShadow: '0 12px 30px -18px rgba(20,28,32,.35)', aspectRatio: '1 / 1.3', display: 'flex', flexDirection: 'column',
-      maxWidth: 420,
-    }}>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        {form.logo_url
-          ? <img src={form.logo_url} alt="" style={{ width: 48, height: 48, objectFit: 'contain', flexShrink: 0 }} />
-          : <Gap label="Logo" onClick={() => onJump('branding')} style={{ width: 48, height: 48, flexShrink: 0 }} />}
-        <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
-          <div style={{ fontSize: 14.5, fontWeight: 700, lineHeight: 1.25, wordBreak: 'break-word' }}>
-            {form.company_name || <span style={{ color: '#c2c9cc' }}>Company name</span>}
-          </div>
-          {form.company_tagline && <div style={{ fontSize: 10.5, color: soft, marginTop: 2, fontStyle: 'italic' }}>{form.company_tagline}</div>}
-          <div style={{ fontSize: 10, color: soft, marginTop: 5, lineHeight: 1.5, whiteSpace: 'pre-line' }}>
-            {form.company_address || <button type="button" onClick={() => onJump('company', 'company_address')} className="cp-jump" style={{ border: 'none', background: 'none', padding: 0, color: '#959c9f', fontSize: 10, cursor: 'pointer', fontFamily: MONO }}>+ Address</button>}
-          </div>
-          {contact && <div style={{ fontSize: 9.5, color: soft, marginTop: 3, wordBreak: 'break-word' }}>{contact}</div>}
-          {form.gstin && <div style={{ fontSize: 9.5, color: soft, marginTop: 2 }}>GSTIN {form.gstin}</div>}
-        </div>
-      </div>
-      <div style={{ height: 2, background: ink, margin: '12px 0 14px' }} />
-      <div style={{ display: 'grid', gap: 7, flex: 1, alignContent: 'start' }}>
-        {[62, 100, 94, 100, 78, 0, 100, 88, 55].map((w, i) => (
-          <div key={i} style={{ height: w ? 5 : 4, width: w + '%', borderRadius: 3, background: '#eef0f1' }} />
-        ))}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
-        <div style={{ minWidth: 0 }}>
-          {form.signature_url
-            ? <img src={form.signature_url} alt="" style={{ height: 34, maxWidth: 130, objectFit: 'contain', display: 'block' }} />
-            : <Gap label="Signature" onClick={() => onJump('branding')} style={{ width: 120, height: 34 }} />}
-          <div style={{ width: 130, height: 1, background: ink, margin: '4px 0 5px' }} />
-          <div style={{ fontSize: 11, fontWeight: 600 }}>{form.owner_full_name || <span style={{ color: '#c2c9cc' }}>Signatory name</span>}</div>
-          <div style={{ fontSize: 10, color: soft }}>{form.document_designation || 'Title'}</div>
-        </div>
-        {stamp}
-      </div>
-      {form.upi_id && (
-        <div style={{ marginTop: 10, paddingTop: 7, borderTop: '1px solid ' + rule, fontSize: 9.5, color: soft }}>
-          Pay via UPI · {form.upi_id}
-        </div>
-      )}
-    </div>
-  );
-}

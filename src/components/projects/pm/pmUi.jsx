@@ -298,7 +298,7 @@ export function NodeSheet({ data, node, parentId = null, onClose }) {
                     {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add'}
                 </Btn>
             </>}>
-            <Field label="Name">
+            <Field required label="Name">
                 <Input value={form.title} onChange={set('title')} autoFocus
                     placeholder={depth === 0 ? 'e.g. Civil works' : 'What needs doing'} />
             </Field>
@@ -442,7 +442,7 @@ function LinksOf({ data, node }) {
             {data.can.edit && candidates.length > 0 && (
                 <Row gap={8} wrap style={{ marginTop: 10 }} align="flex-end">
                     <div style={{ flex: '2 1 200px' }}>
-                        <Field label="Task it waits on">
+                        <Field required label="Task it waits on">
                             <Select value={pick} onChange={(e) => setPick(e.target.value)}>
                                 <option value="">Choose…</option>
                                 {candidates.map((x) => <option key={x.id} value={x.id}>{title(x.id)}</option>)}
@@ -505,7 +505,7 @@ export function LinkSheet({ data, onClose }) {
                 <Btn onClick={onClose}>Cancel</Btn>
                 <Btn primary onClick={save} disabled={busy}>Add link</Btn>
             </>}>
-            <Field label="First (predecessor)">
+            <Field required label="First (predecessor)">
                 <Select value={from} onChange={(e) => setFrom(e.target.value)} autoFocus>
                     <option value="">Choose a task…</option>
                     {leaves.map((x) => <option key={x.id} value={x.id}>{label(x)}</option>)}
@@ -517,7 +517,7 @@ export function LinkSheet({ data, onClose }) {
             </Field>
             <div style={{ marginTop: 6, fontSize: 12, color: t.dim }}>{note.label}: the second task {note.note}.</div>
             <div style={{ height: 13 }} />
-            <Field label="Then (successor)">
+            <Field required label="Then (successor)">
                 <Select value={to} onChange={(e) => setTo(e.target.value)}>
                     <option value="">Choose a task…</option>
                     {leaves.filter((x) => x.id !== from).map((x) => <option key={x.id} value={x.id}>{label(x)}</option>)}

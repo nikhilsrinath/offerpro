@@ -155,7 +155,7 @@ export default function TaskModal({ task, onClose, onSaved, defaultProjectId = n
                     <Btn primary onClick={save} disabled={saving}>{saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create task'}</Btn>
                 </>
             }>
-            <Field label="Title">
+            <Field required label="Title">
                 <Input value={form.title} onChange={set('title')} placeholder="What needs doing" autoFocus />
             </Field>
             <div style={{ height: 13 }} />
@@ -182,7 +182,7 @@ export default function TaskModal({ task, onClose, onSaved, defaultProjectId = n
                 </>
             )}
             <div style={{ height: 13 }} />
-            <Field label="Assign to">
+            <Field required label="Assign to">
                 <Select value={form.assignedTo} onChange={set('assignedTo')}>
                     <option value="">Choose a person…</option>
                     {form.projectId && onTeam.length > 0 ? (

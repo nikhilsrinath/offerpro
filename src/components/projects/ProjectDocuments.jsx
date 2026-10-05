@@ -10,6 +10,7 @@ import { orgStore } from '../../services/orgStore';
 import { linkDocument, unlinkDocument, canSeeFinancials } from '../../services/projectService';
 import { uploadProjectFile, fileError } from '../../services/projectFiles';
 import { useProjectScope, projectBillingPath, projectFormPath } from './projectScope';
+import { projectSectionPath } from './projectPaths';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Documents Management › Business documents — the project's paperwork in
@@ -53,10 +54,10 @@ function newDocumentOptions(projectId, { fin, can }) {
             id: 'sales', label: 'Sales & billing', note: 'Quote → proforma → invoice. Each starts with the client and the contract.',
             show: fin && can('financial_documents', 'create'),
             items: [
-                { id: 'quotation', tag: 'QUO', label: 'Quotation', desc: 'Price the work for the client. Starts from the contract value.', to: form('/new-quotation') },
-                { id: 'proforma', tag: 'PRO', label: 'Proforma invoice', desc: 'Ask for an advance before billing. Repeats the latest quotation.', to: form('/new-proforma') },
-                { id: 'invoice', tag: 'INV', label: 'Tax invoice', desc: 'Bill the client. Starts with what of the contract is not billed yet.', to: form('/new-invoice') },
-                { id: 'recurring', tag: 'REC', label: 'Recurring invoice', desc: 'Retainers and maintenance, billed on a schedule.', to: form('/recurring/new') },
+                { id: 'quotation', tag: 'QUO', label: 'Quotation', desc: 'Price the work for the client. Starts from the contract value.', to: form('/billing/quotations/new') },
+                { id: 'proforma', tag: 'PRO', label: 'Proforma invoice', desc: 'Ask for an advance before billing. Repeats the latest quotation.', to: form('/billing/proforma/new') },
+                { id: 'invoice', tag: 'INV', label: 'Tax invoice', desc: 'Bill the client. Starts with what of the contract is not billed yet.', to: form('/billing/invoices/new') },
+                { id: 'recurring', tag: 'REC', label: 'Recurring invoice', desc: 'Retainers and maintenance, billed on a schedule.', to: form('/billing/recurring/new') },
             ],
         },
         {
@@ -73,14 +74,14 @@ function newDocumentOptions(projectId, { fin, can }) {
             id: 'purchases', label: 'Purchases', note: 'What the project spends with vendors.',
             show: fin && can('purchase_invoices', 'create'),
             items: [
-                { id: 'bill', tag: 'BIL', label: 'Vendor bill', desc: 'Record a bill a vendor sent for this project.', to: `/projects/${projectId}?tab=bills&new=1` },
+                { id: 'bill', tag: 'BIL', label: 'Vendor bill', desc: 'Record a bill a vendor sent for this project.', to: projectSectionPath(projectId, 'bills', null, { new: 1 }) },
             ],
         },
         {
             id: 'own', label: 'Anything else', note: 'Proposals, reports, minutes, signed scans.',
             show: can('project_files', 'create'),
             items: [
-                { id: 'template', tag: 'TPL', label: 'From a custom template', desc: 'Fill one of this project’s templates and save it as a PDF.', to: `/projects/${projectId}?tab=templates` },
+                { id: 'template', tag: 'TPL', label: 'From a custom template', desc: 'Fill one of this project’s templates and save it as a PDF.', to: projectSectionPath(projectId, 'templates') },
                 { id: 'upload', tag: 'UPL', label: 'Upload a file', desc: 'Add a document you already have to Project Documents.', upload: true },
             ],
         },
@@ -117,7 +118,7 @@ function useBusinessDocuments(project, fin) {
             const allocated = new Set(allocations.filter((a) => a.project_id === project.id && a.source_type === 'purchase_invoice').map((a) => a.source_id));
             bills.filter((b) => allocated.has(b.id)).forEach((b) => rows.push({
                 key: b.id, kind: 'bill', type: 'Vendor bill', name: b.bill_number || 'Bill', party: vendorName[b.vendor_id] || '',
-                date: b.bill_date, amount: b.total, paid: b.amount_paid, status: b.status, to: `/projects/${project.id}?tab=bills`, link: null,
+                date: b.bill_date, amount: b.total, paid: b.amount_paid, status: b.status, to: projectSectionPath(project.id, 'bills'), link: null,
             }));
         }
         const recById = new Map(records.map((r) => [r.id, r]));
@@ -206,22 +207,28 @@ export default function ProjectDocuments({ project, onUploaded }) {
                 <Empty>Nothing matches.</Empty>
             ) : (
                 <div style={{ padding: 13 }}>
-                    <Table cols={[
-                        { key: 't', label: 'Type' }, { key: 'n', label: 'Document' }, { key: 'p', label: 'Party' },
+                    <Table id="project-documents" cols={[
+                        { key: 't', label: 'Type' }, { key: 'n', label: 'Document', always: true }, { key: 'p', label: 'Party' },
                         { key: 'd', label: 'Date' }, ...(fin ? [{ key: 'a', label: 'Amount', align: 'right' }] : []),
-                        { key: 's', label: 'Status' }, { key: 'x', label: '', align: 'right' },
+                        ...(fin ? [
+                            { key: 'pd', label: 'Paid', align: 'right', def: false },
+                            { key: 'bal', label: 'Balance', align: 'right', def: false },
+                        ] : []),
+                        { key: 's', label: 'Status' }, { key: 'x', label: '', align: 'right', always: true },
                     ]}>
-                        {shown.map((r) => (
+                        {(show) => shown.map((r) => (
                             <Tr key={r.key}>
-                                <Td muted nowrap>{r.type}</Td>
-                                <Td>
-                                    {r.hidden ? <Muted>Not visible to you</Muted> : (
-                                        <Link to={r.to} style={{ color: t.text, fontFamily: MONO }}>{r.name}</Link>
-                                    )}
-                                </Td>
-                                <Td muted>{r.party || '—'}</Td>
-                                <Td muted nowrap>{r.date ? fmtDate(r.date) : '—'}</Td>
-                                {fin && (
+                                {show('t') && <Td muted nowrap>{r.type}</Td>}
+                                {show('n') && (
+                                    <Td>
+                                        {r.hidden ? <Muted>Not visible to you</Muted> : (
+                                            <Link to={r.to} style={{ color: t.text, fontFamily: MONO }}>{r.name}</Link>
+                                        )}
+                                    </Td>
+                                )}
+                                {show('p') && <Td muted>{r.party || '—'}</Td>}
+                                {show('d') && <Td muted nowrap>{r.date ? fmtDate(r.date) : '—'}</Td>}
+                                {fin && show('a') && (
                                     <Td align="right" nowrap>
                                         {r.amount != null ? money(r.amount) : '—'}
                                         {r.paid != null && Number(r.paid) > 0 && Number(r.paid) < Number(r.amount) && (
@@ -229,14 +236,22 @@ export default function ProjectDocuments({ project, onUploaded }) {
                                         )}
                                     </Td>
                                 )}
-                                <Td nowrap>{r.status ? <Status tone={toneOf(r.status)}>{words(r.status)}</Status> : <Muted>—</Muted>}</Td>
-                                <Td align="right">
-                                    {r.link && canUnlink && (
-                                        <ConfirmBtn label="Unlink" title="Remove from project"
-                                            message="Take this document off the project? The document itself is kept."
-                                            onConfirm={() => unlink(r.link)} />
-                                    )}
-                                </Td>
+                                {fin && show('pd') && <Td align="right" nowrap>{r.paid != null ? money(r.paid) : '—'}</Td>}
+                                {fin && show('bal') && (
+                                    <Td align="right" nowrap>
+                                        {r.amount != null && r.paid != null ? money(Math.max(0, Number(r.amount) - Number(r.paid))) : '—'}
+                                    </Td>
+                                )}
+                                {show('s') && <Td nowrap>{r.status ? <Status tone={toneOf(r.status)}>{words(r.status)}</Status> : <Muted>—</Muted>}</Td>}
+                                {show('x') && (
+                                    <Td align="right">
+                                        {r.link && canUnlink && (
+                                            <ConfirmBtn label="Unlink" title="Remove from project"
+                                                message="Take this document off the project? The document itself is kept."
+                                                onConfirm={() => unlink(r.link)} />
+                                        )}
+                                    </Td>
+                                )}
                             </Tr>
                         ))}
                     </Table>
@@ -387,7 +402,7 @@ function LinkDialog({ project, records, docs, linked, fin, onClose }) {
                     {fin && <option value="proforma">Proformas</option>}
                 </Select>
             </div>
-            <Field label="Document">
+            <Field required label="Document">
                 <Select value={picked} onChange={(e) => setPicked(e.target.value)} size={8} style={{ height: 'auto' }}>
                     {options.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
                 </Select>

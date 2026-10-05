@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { DialogSheet } from './ui/edge';
+import { DialogSheet, RowMenu } from './ui/edge';
 import {
   Plus, Search, Package, Pencil, Archive, ArchiveRestore, Trash2,
   TrendingUp, X, AlertTriangle, IndianRupee, Boxes, Tag,
@@ -31,7 +31,7 @@ const fmtDate = (d) => (d
 
 const BLANK = {
   name: '', sku: '', description: '', category: '',
-  unit_price: '', unit: 'Nos', hsn_sac: '', tax_rate: 18,
+  unit_price: '', unit: 'Nos', hsn_sac: '', tax_rate: 0,
   track_inventory: false, stock_qty: '', low_stock_at: '',
   // The Belongs to dropdown: GENERAL, INTERNAL or a project id.
   belongs: GENERAL,
@@ -359,15 +359,11 @@ function ProductCard({ product: p, belongsLabel, onEdit, onArchive, onDelete }) 
           <span>{p.name}</span>
         </div>
         <div className="prod-card-actions">
-          <button onClick={onEdit} title="Edit" aria-label="Edit"><Pencil size={13} /></button>
-          <button onClick={onArchive} title={p.archived_at ? 'Restore' : 'Archive'}>
-            {p.archived_at ? <ArchiveRestore size={13} /> : <Archive size={13} />}
-          </button>
-          {neverSold && (
-            <button onClick={onDelete} title="Delete permanently" className="danger" aria-label="Delete permanently">
-              <Trash2 size={13} />
-            </button>
-          )}
+          <RowMenu label={`Actions for ${p.name}`} items={[
+            { label: 'Edit', icon: Pencil, onClick: onEdit },
+            { label: p.archived_at ? 'Restore' : 'Archive', icon: p.archived_at ? ArchiveRestore : Archive, onClick: onArchive },
+            neverSold && { label: 'Delete permanently', icon: Trash2, tone: 'danger', onClick: onDelete },
+          ]} />
         </div>
       </div>
 
@@ -432,7 +428,7 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
 
   return (
     <div className="prod-modal-backdrop" onClick={onClose}>
-      <DialogSheet className="prod-modal" labelledBy="product-form-title" onClose={onClose}>
+      <DialogSheet className="prod-modal" labelledBy="product-form-title" onClose={onClose} style={{ maxWidth: 820 }}>
         <div className="prod-modal-head">
           <h3 id="product-form-title">{value.id ? 'Edit product' : 'New product'}</h3>
           <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)"><X aria-hidden="true" size={16} /></button>
@@ -443,7 +439,7 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
 
           <div className="prod-form-grid">
             <div className="prod-field full">
-              <label>Name *</label>
+              <label className="req">Name</label>
               <input aria-label="Name"
                 value={value.name}
                 onChange={(e) => set('name', e.target.value)}

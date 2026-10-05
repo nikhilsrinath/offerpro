@@ -210,10 +210,10 @@ export function ChangePassword({ mustChange = false, onDone }) {
             seen it. Pick one only you know.
           </div>
         )}
-        <Field label="New password">
+        <Field required label="New password">
           <Input type="password" autoComplete="new-password" value={pw} placeholder="At least 8 characters" onChange={(e) => setPw(e.target.value)} />
         </Field>
-        <Field label="Confirm it">
+        <Field required label="Confirm it">
           <Input type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
         </Field>
         <Btn type="submit" primary disabled={busy || !pw || !confirm}>{busy ? 'Saving…' : 'Update password'}</Btn>

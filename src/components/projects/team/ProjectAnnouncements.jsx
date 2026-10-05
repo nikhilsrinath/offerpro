@@ -273,12 +273,12 @@ function Editor({ form, setForm, busy, onClose, onSave }) {
                     {busy ? 'Saving…' : form.id ? 'Save' : 'Post'}
                 </Btn>
             </>}>
-            <Field label="Title">
+            <Field required label="Title">
                 <Input value={form.title} maxLength={200} placeholder="Sprint review moved to Thursday"
                     onChange={(e) => setForm({ ...form, title: e.target.value })} />
             </Field>
             <div style={{ height: 12 }} />
-            <Field label="Message">
+            <Field required label="Message">
                 <Textarea rows={6} value={form.body} placeholder="What the team needs to know…" style={{ minHeight: 120 }}
                     onChange={(e) => setForm({ ...form, body: e.target.value })} />
             </Field>

@@ -9,6 +9,7 @@ import { useSection } from '../financial/financeHooks';
 import { burnVsTime, memberActive, milestoneProgress, projectProgress, formatHealthReasons } from '../../services/projectAnalytics';
 import { financials, canSeeFinancials, activity } from '../../services/projectService';
 import { describeActivity } from './activityText';
+import { projectSectionPath } from './projectPaths';
 
 /* ══════════════════════════════════════════════════════════════════════════
    One project's widget board — the hub's board (hub/WidgetBoard), filled
@@ -381,7 +382,7 @@ const SM_MD = ['sm', 'md'];
 // The finance sections are only there with Project financials; without it the
 // widget says so and has nowhere to go.
 const FIN_TABS = new Set(['billing', 'pl', 'finance']);
-const section = (tab) => ({ d }) => (FIN_TABS.has(tab) && !d.fin ? null : `/projects/${d.project.id}?tab=${tab}`);
+const section = (tab) => ({ d }) => (FIN_TABS.has(tab) && !d.fin ? null : projectSectionPath(d.project.id, tab));
 
 export const PROJECT_WIDGETS = [
     { id: 'p_contract', to: section('billing'), title: 'Contract', desc: 'Contract value, and how much is billed and collected', icon: Wallet, size: 'sm', sizes: SM_MD, render: Contract },

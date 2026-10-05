@@ -55,7 +55,7 @@ export default function PaymentConfirmationForm({ amount, invoiceId, onSubmit })
       <h4 className="payment-conf-title">Confirm Your Payment</h4>
 
       <div className="payment-conf-field">
-        <label>Transaction ID / UTR Number</label>
+        <label className="req">Transaction ID / UTR Number</label>
         <input
           type="text"
           value={form.transactionId}
@@ -68,7 +68,7 @@ export default function PaymentConfirmationForm({ amount, invoiceId, onSubmit })
 
       <div className="payment-conf-row">
         <div className="payment-conf-field">
-          <label>Payment Date</label>
+          <label className="req">Payment Date</label>
           <input
             type="date"
             value={form.paymentDate}
@@ -78,7 +78,7 @@ export default function PaymentConfirmationForm({ amount, invoiceId, onSubmit })
           {errors.paymentDate && <span className="payment-conf-error">{errors.paymentDate}</span>}
         </div>
         <div className="payment-conf-field">
-          <label>Amount Paid (₹)</label>
+          <label className="req">Amount Paid (₹)</label>
           <input
             type="number"
             value={form.amountPaid}

@@ -403,7 +403,7 @@ function dueText(r) {
 function Receivables({ d, nav, size }) {
     const m = d.money;
     if (!m.open.length) {
-        return <Empty action={<LinkBtn onClick={() => nav('/invoices')}>Invoices</LinkBtn>}>All settled.</Empty>;
+        return <Empty action={<LinkBtn onClick={() => nav('/billing/invoices')}>Invoices</LinkBtn>}>All settled.</Empty>;
     }
     const overdue = m.overdue.length > 0 && <b className="down">{inrShort(m.overdueValue)} late</b>;
     const stat = (
@@ -448,7 +448,7 @@ function Receivables({ d, nav, size }) {
             {list}
             <div className="w-foot">
                 <span className="w-note">{m.open.length > rows.length ? `${m.open.length - rows.length} more` : `${m.open.length} open`}</span>
-                <LinkBtn onClick={() => nav('/invoices')}>Invoices</LinkBtn>
+                <LinkBtn onClick={() => nav('/billing/invoices')}>Invoices</LinkBtn>
             </div>
         </>
     );
@@ -852,7 +852,7 @@ function Pipeline({ d, nav, size }) {
 function Arr({ d, nav, size }) {
     const a = d.sales.arr;
     if (!a.count) {
-        return <Empty action={<LinkBtn onClick={() => nav('/recurring')}>Recurring</LinkBtn>}>No active recurring invoices.</Empty>;
+        return <Empty action={<LinkBtn onClick={() => nav('/billing/recurring')}>Recurring</LinkBtn>}>No active recurring invoices.</Empty>;
     }
     const stat = (
         <>
@@ -868,7 +868,7 @@ function Arr({ d, nav, size }) {
             <div>Clients<b>{a.clients}</b></div>
         </div>
     );
-    return <Duo stat={<>{stat}<div className="w-bottom"><LinkBtn onClick={() => nav('/recurring')}>Recurring</LinkBtn></div></>}>{kv}</Duo>;
+    return <Duo stat={<>{stat}<div className="w-bottom"><LinkBtn onClick={() => nav('/billing/recurring')}>Recurring</LinkBtn></div></>}>{kv}</Duo>;
 }
 
 function AcquisitionSpend({ d, nav, size, period, setPeriod }) {
@@ -1003,10 +1003,10 @@ function Activity({ d, nav, size }) {
     const unread = all.filter((n) => !n.read).length;
     if (!all.length) return <Empty>Nothing new.</Empty>;
     const go = (n) => nav(
-        n.type === 'payment_submitted' ? '/invoices'
-            : n.type === 'advance_submitted' || n.type === 'order_confirmed' ? '/proforma'
-            : String(n.type || '').startsWith('quotation') || n.type === 'revision_requested' ? '/quotations'
-                : '/offer-tracker',
+        n.type === 'payment_submitted' ? '/billing/invoices'
+            : n.type === 'advance_submitted' || n.type === 'order_confirmed' ? '/billing/proforma'
+            : String(n.type || '').startsWith('quotation') || n.type === 'revision_requested' ? '/billing/quotations'
+                : '/recruitment-tracker',
     );
     if (size === 'sm') {
         return (
@@ -1047,7 +1047,7 @@ function Payables({ d, nav, size }) {
                 <div><i style={{ background: 'var(--chart-a)' }} />Owed to you<b>{inrShort(m.receivable)}</b></div>
                 <div><i style={{ background: 'var(--chart-b)' }} />You owe<b>{inrShort(m.payable)}</b></div>
             </div>
-            <LinkBtn onClick={() => nav('/purchases')}>Bills</LinkBtn>
+            <LinkBtn onClick={() => nav('/purchase-bills')}>Bills</LinkBtn>
         </Duo>
     );
 }

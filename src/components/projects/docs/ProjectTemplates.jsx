@@ -280,7 +280,7 @@ function TemplateEditor({ project, template, draft, onClose }) {
             footer={<><Btn onClick={onClose}>Cancel</Btn><Btn primary disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save template'}</Btn></>}>
             <div style={{ display: 'grid', gap: 12 }}>
                 <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)' }}>
-                    <Field label="Name *"><Input value={name} maxLength={200} onChange={(e) => setName(e.target.value)} placeholder="Project proposal" /></Field>
+                    <Field required label="Name"><Input value={name} maxLength={200} onChange={(e) => setName(e.target.value)} placeholder="Project proposal" /></Field>
                     <Field label="Type">
                         <Select value={category} onChange={(e) => setCategory(e.target.value)}>
                             {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
@@ -406,7 +406,7 @@ function Generate({ project, templates, initial, onClose, onOpenDocs }) {
                 )}
                 <RichEditor value={html} onChange={setHtml} resetKey={key} label="Document" />
                 <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}>
-                    <Field label="Document name"><Input value={name} maxLength={200} onChange={(e) => setName(e.target.value)} /></Field>
+                    <Field required label="Document name"><Input value={name} maxLength={200} onChange={(e) => setName(e.target.value)} /></Field>
                     <Field label="Save into folder">
                         <Select value={folderId} onChange={(e) => setFolderId(e.target.value)}>
                             <option value="">Top level</option>

@@ -7575,7 +7575,7 @@ label {
   border-radius: 18px;
   padding: 2rem;
   width: 100%;
-  max-width: 540px;
+  max-width: 760px;
   box-shadow: var(--shadow-xl);
   max-height: 90vh;
   overflow-y: auto;
@@ -10355,6 +10355,7 @@ label {
 
 .fin-list-actions {
   display: flex;
+  align-items: center;
   gap: 0.375rem;
 }
 
@@ -14950,3 +14951,11 @@ button.att-cal-cell:hover { border-color: var(--border-strong); background: var(
   font-size: 0.68rem; line-height: 1.45; color: var(--text-muted);
 }
 .pa-creds-warn svg { flex-shrink: 0; margin-top: 0.15rem; }
+
+/* Mandatory field — the same star the ui/edge Field draws. */
+.req::after,
+label:has(+ :is(input, select, textarea)[required])::after {
+  content: '*';
+  color: var(--error);
+  margin-left: 3px;
+}

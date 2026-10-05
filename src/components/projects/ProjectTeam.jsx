@@ -151,18 +151,21 @@ export default function ProjectTeam({ project }) {
                             </Empty>
                         ) : (
                             <div style={{ padding: 12 }}>
-                                <Table cols={[
-                                    { key: 'p', label: 'Person' }, { key: 'd', label: 'Designation' },
-                                    { key: 'dep', label: 'Department' }, { key: 'r', label: 'Project role' },
+                                <Table id="project-team" cols={[
+                                    { key: 'p', label: 'Person', always: true }, { key: 'em', label: 'Email', def: false },
+                                    { key: 'ph', label: 'Phone', def: false }, { key: 'd', label: 'Designation' },
+                                    { key: 'dep', label: 'Department' }, { key: 'lo', label: 'Location', def: false },
+                                    { key: 'r', label: 'Project role' },
                                     { key: 'a', label: 'Time on project' }, { key: 'add', label: 'Added' },
+                                    { key: 'end', label: 'Ends', def: false },
                                     { key: 's', label: 'Status' },
                                     ...(showHours ? [{ key: 'h', label: 'Logged / planned h', align: 'right' }] : []),
                                     ...(fin ? [{ key: 'b', label: 'Bill rate', align: 'right' }] : []),
-                                    { key: 'x', label: '', align: 'right' },
+                                    { key: 'x', label: '', align: 'right', always: true },
                                 ]}>
-                                    {rows.map((p) => (
+                                    {(shows) => rows.map((p) => (
                                         <MemberRow key={p.id} p={p} today={today} load={load} hours={hours} showHours={showHours}
-                                            fin={fin} canEdit={canEdit} canDelete={canDelete} run={run} onRemove={removePerson} />
+                                            fin={fin} canEdit={canEdit} canDelete={canDelete} run={run} onRemove={removePerson} show={shows} />
                                     ))}
                                 </Table>
                             </div>
@@ -176,7 +179,7 @@ export default function ProjectTeam({ project }) {
     );
 }
 
-function MemberRow({ p, today, load, hours, showHours, fin, canEdit, canDelete, run, onRemove }) {
+function MemberRow({ p, today, load, hours, showHours, fin, canEdit, canDelete, run, onRemove, show }) {
     const t = useT();
     const m = p.membership;
     const live = memberActive(m, today);
@@ -188,58 +191,70 @@ function MemberRow({ p, today, load, hours, showHours, fin, canEdit, canDelete, 
     const removable = upcoming ? canDelete : canEdit && live && !m.end_date;
     return (
         <Tr>
-            <Td>
-                <Row gap={9}>
-                    <Avatar name={p.name} size={26} />
-                    <span style={{ minWidth: 0 }}>
-                        <span style={{ display: 'block', whiteSpace: 'nowrap' }}>{p.name}</span>
-                        {p.email && <span style={{ display: 'block', fontSize: 11.5, color: t.faint, whiteSpace: 'nowrap' }}>{p.email}</span>}
-                    </span>
-                    {over && (
-                        <span title={`Booked ${Math.round(total)}% across open projects today`}>
-                            <Status tone="down">{Math.round(total)}% booked</Status>
+            {show('p') && (
+                <Td>
+                    <Row gap={9}>
+                        <Avatar name={p.name} size={26} />
+                        <span style={{ minWidth: 0 }}>
+                            <span style={{ display: 'block', whiteSpace: 'nowrap' }}>{p.name}</span>
+                            {p.email && <span style={{ display: 'block', fontSize: 11.5, color: t.faint, whiteSpace: 'nowrap' }}>{p.email}</span>}
                         </span>
-                    )}
-                </Row>
-            </Td>
-            <Td muted nowrap>{p.designation || '—'}</Td>
-            <Td muted nowrap>{p.department || '—'}</Td>
-            <Td nowrap>
-                {editable ? (
-                    <Select aria-label={`Project role of ${p.name}`} value={m.role}
-                        onChange={(ev) => run(() => updateMember(m.id, { role: ev.target.value }), 'Role changed')}
-                        style={{ width: 120, height: 27 }}>
-                        {MEMBER_ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-                    </Select>
-                ) : <Muted>{MEMBER_ROLES.find((r) => r.id === m.role)?.label}</Muted>}
-            </Td>
-            <Td nowrap><AllocationBar pct={m.allocation_pct} /></Td>
-            <Td muted nowrap>{fmtDate(m.start_date)}</Td>
-            <Td nowrap>
-                <Status tone={st.tone}>{st.label}</Status>
-                {m.end_date && p.status !== 'inactive' && <div style={{ fontSize: 11, color: t.faint, marginTop: 2 }}>until {fmtDate(m.end_date)}</div>}
-                {p.status === 'inactive' && m.end_date && <div style={{ fontSize: 11, color: t.faint, marginTop: 2 }}>left {fmtDate(m.end_date)}</div>}
-            </Td>
-            {showHours && (
+                        {over && (
+                            <span title={`Booked ${Math.round(total)}% across open projects today`}>
+                                <Status tone="down">{Math.round(total)}% booked</Status>
+                            </span>
+                        )}
+                    </Row>
+                </Td>
+            )}
+            {show('em') && <Td muted nowrap>{p.email || '—'}</Td>}
+            {show('ph') && <Td muted nowrap>{p.employee?.phone || '—'}</Td>}
+            {show('d') && <Td muted nowrap>{p.designation || '—'}</Td>}
+            {show('dep') && <Td muted nowrap>{p.department || '—'}</Td>}
+            {show('lo') && <Td muted nowrap>{p.employee?.location || '—'}</Td>}
+            {show('r') && (
+                <Td nowrap>
+                    {editable ? (
+                        <Select aria-label={`Project role of ${p.name}`} value={m.role}
+                            onChange={(ev) => run(() => updateMember(m.id, { role: ev.target.value }), 'Role changed')}
+                            style={{ width: 120, height: 27 }}>
+                            {MEMBER_ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                        </Select>
+                    ) : <Muted>{MEMBER_ROLES.find((r) => r.id === m.role)?.label}</Muted>}
+                </Td>
+            )}
+            {show('a') && <Td nowrap><AllocationBar pct={m.allocation_pct} /></Td>}
+            {show('add') && <Td muted nowrap>{fmtDate(m.start_date)}</Td>}
+            {show('end') && <Td muted nowrap>{m.end_date ? fmtDate(m.end_date) : '—'}</Td>}
+            {show('s') && (
+                <Td nowrap>
+                    <Status tone={st.tone}>{st.label}</Status>
+                    {m.end_date && p.status !== 'inactive' && <div style={{ fontSize: 11, color: t.faint, marginTop: 2 }}>until {fmtDate(m.end_date)}</div>}
+                    {p.status === 'inactive' && m.end_date && <div style={{ fontSize: 11, color: t.faint, marginTop: 2 }}>left {fmtDate(m.end_date)}</div>}
+                </Td>
+            )}
+            {showHours && show('h') && (
                 <Td align="right" nowrap>
                     {hours[p.id] ? `${hours[p.id].logged_hours} / ${hours[p.id].planned_hours}` : '—'}
                 </Td>
             )}
-            {fin && <Td align="right" nowrap>{m.bill_rate == null ? '—' : `${money(m.bill_rate)}/h`}</Td>}
-            <Td align="right">
-                <Row gap={6} style={{ justifyContent: 'flex-end' }}>
-                    {editable && (
-                        <EditShare member={m} name={p.name} onSave={(pct) => run(() => updateMember(m.id, { allocation_pct: pct }), 'Time share updated')} />
-                    )}
-                    {removable && (
-                        <ConfirmBtn label="Remove" confirmLabel="Remove" title={`Remove ${p.name}?`}
-                            message={upcoming
-                                ? `${p.name} has not started on this project yet, so the membership is deleted.`
-                                : `${p.name}’s time on the project ends today. Their past hours and dates stay on record, and they lose access to the project’s announcements and RACI matrix.`}
-                            onConfirm={() => onRemove(p)} />
-                    )}
-                </Row>
-            </Td>
+            {fin && show('b') && <Td align="right" nowrap>{m.bill_rate == null ? '—' : `${money(m.bill_rate)}/h`}</Td>}
+            {show('x') && (
+                <Td align="right">
+                    <Row gap={6} style={{ justifyContent: 'flex-end' }}>
+                        {editable && (
+                            <EditShare member={m} name={p.name} onSave={(pct) => run(() => updateMember(m.id, { allocation_pct: pct }), 'Time share updated')} />
+                        )}
+                        {removable && (
+                            <ConfirmBtn label="Remove" confirmLabel="Remove" title={`Remove ${p.name}?`}
+                                message={upcoming
+                                    ? `${p.name} has not started on this project yet, so the membership is deleted.`
+                                    : `${p.name}’s time on the project ends today. Their past hours and dates stay on record, and they lose access to the project’s announcements and RACI matrix.`}
+                                onConfirm={() => onRemove(p)} />
+                        )}
+                    </Row>
+                </Td>
+            )}
         </Tr>
     );
 }
@@ -256,7 +271,7 @@ function EditShare({ member, name, onSave }) {
                     <Btn primary disabled={!(Number(pct) > 0 && Number(pct) <= 100)}
                         onClick={() => { onSave(Number(pct)); setOpen(false); }}>Save</Btn>
                 </>}>
-                <Field label="Share of their time (%)" hint="Between 1 and 100. Over 100% across projects is allowed, and shown.">
+                <Field required label="Share of their time (%)" hint="Between 1 and 100. Over 100% across projects is allowed, and shown.">
                     <Input type="number" min="1" max="100" value={pct} onChange={(e) => setPct(e.target.value)} autoFocus />
                 </Field>
             </Modal>
@@ -305,7 +320,7 @@ function AddMember({ project, fin, onClose, onTeam }) {
                 </p>
             ) : (
                 <>
-                    <Field label="Person">
+                    <Field required label="Person">
                         <Select value={form.employee_id} onChange={set('employee_id')}>
                             <option value="">Choose…</option>
                             {choices.map((e) => <option key={e.id} value={e.id}>{e.name}{e.role ? ` — ${e.role}` : ''}</option>)}
@@ -317,7 +332,7 @@ function AddMember({ project, fin, onClose, onTeam }) {
                     </Field>
                     <div style={{ height: 12 }} />
                     <Grid min={140} gap={10}>
-                        <Field label="Time %"><Input type="number" min="1" max="100" value={form.allocation_pct} onChange={set('allocation_pct')} /></Field>
+                        <Field required label="Time %"><Input type="number" min="1" max="100" value={form.allocation_pct} onChange={set('allocation_pct')} /></Field>
                         <Field label="From"><Input type="date" value={form.start_date} onChange={set('start_date')} /></Field>
                         <Field label="Until" hint="Blank = ongoing"><Input type="date" value={form.end_date} onChange={set('end_date')} /></Field>
                         {fin && <Field label="Bill rate (₹/h)" hint="For time & materials"><Input type="number" min="0" step="0.01" value={form.bill_rate} onChange={set('bill_rate')} /></Field>}

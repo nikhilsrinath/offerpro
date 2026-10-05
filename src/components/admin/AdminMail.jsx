@@ -198,7 +198,7 @@ export default function AdminMail({ orgs, preset }) {
             </Row>
           </Field>
 
-          <Field label="Subject">
+          <Field required label="Subject">
             <Input
               value={subject} maxLength={300}
               placeholder="What this email is about"
@@ -206,7 +206,7 @@ export default function AdminMail({ orgs, preset }) {
             />
           </Field>
 
-          <Field label="Message">
+          <Field required label="Message">
             <Textarea
               value={body} rows={14}
               placeholder="Write to your customers…"

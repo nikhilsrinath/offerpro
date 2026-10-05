@@ -5,7 +5,7 @@ import { OTHERS } from '../../services/clientProjects';
    and Add Lead forms, and the project filter beside their lists. `cp` is
    useClientProjects(). */
 
-const OTHERS_LABEL = 'Others — not on a project yet';
+const OTHERS_LABEL = 'Others';
 
 /** The form dropdown: open projects, plus the current one if it has closed. */
 export default function ClientProjectSelect({ value, onChange, cp, id }) {
@@ -26,7 +26,7 @@ export function ProjectScopeFilter({ value, onChange, cp, style }) {
     return (
         <select aria-label="Filter by project" value={value} onChange={(e) => onChange(e.target.value)} style={style}>
             <option value="">All projects</option>
-            <option value={OTHERS}>Others (no project)</option>
+            <option value={OTHERS}>Others</option>
             {cp.projects.filter((p) => !p.archived_at).map((p) => <option key={p.id} value={p.id}>{projectLabel(p)}</option>)}
         </select>
     );
