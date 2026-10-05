@@ -51,7 +51,7 @@ export function inScope(scope, projectIds, belongs) {
 /** How a choice reads on a list row. */
 export function choiceLabel(choice, projects = []) {
     if (choice === INTERNAL) return 'Internal';
-    if (!isProject(choice)) return 'General';
+    if (!isProject(choice)) return 'Others';
     const p = projects.find((x) => x.id === choice);
     return p ? [p.code, p.name].filter(Boolean).join(' · ') : 'Project';
 }

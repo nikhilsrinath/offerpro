@@ -16,7 +16,7 @@ import {
 
 const BLANK = {
   company_name: '', contact_name: '', email: '', phone: '', address: '', state: '',
-  gstin: '', payment_terms_days: 30, category: '', notes: '',
+  gstin: '', payment_terms_days: 0, category: '', notes: '',
   // The Belongs to dropdown: GENERAL, INTERNAL or a project id.
   belongs: GENERAL,
 };

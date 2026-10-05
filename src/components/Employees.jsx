@@ -674,7 +674,7 @@ export default function Employees() {
                 <Toolbar right={<Btn onClick={() => setEditing(null)}>Back to registry</Btn>}>
                     <span style={{ fontSize: 13.5 }}>Editing {getDisplayName(editing) || 'employee'}</span>
                 </Toolbar>
-                <EmployeeForm employee={editing} onSuccess={() => { setEditing(null); loadEmployees(); }} onCancel={() => setEditing(null)} />
+                <EmployeeForm employee={editing} onSuccess={() => { setEditing(null); loadEmployees(); }} onBack={() => setEditing(null)} />
             </Page>
         );
     }

@@ -327,7 +327,7 @@ export default function CashBook({ projectId = null }) {
         </button>
         {/* One button; the form's Money in / Money out toggle picks the side. */}
         <button type="button" className="prod-add-btn"
-          onClick={() => { setEditing(fresh('out')); }}>
+          onClick={() => { setEditing(fresh('in')); }}>
           <Plus size={15} aria-hidden="true" /> Record money
         </button>
       </div>

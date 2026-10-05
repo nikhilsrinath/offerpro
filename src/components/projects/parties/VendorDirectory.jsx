@@ -270,7 +270,7 @@ function VendorSheet({ vendor: v, project, canEdit, canRemove, onEdit, onClose }
                     <Detail label="Contract start">{v.contract_start && fmtDate(v.contract_start)}</Detail>
                     <Detail label="Contract end">{v.contract_end && fmtDate(v.contract_end)}</Detail>
                     <Detail label="Contract value">{v.contract_value != null && fmtMoney(v.contract_value, project.currency || 'INR')}</Detail>
-                    <Detail label="Payment terms">{v.payment_terms_days != null && `${v.payment_terms_days} days`}</Detail>
+                    <Detail label="Payment terms">{v.payment_terms_days != null && (Number(v.payment_terms_days) === 0 ? 'On receipt' : `${v.payment_terms_days} days`)}</Detail>
                     {canBank ? (
                         <>
                             <Detail label="Account name">{bank?.account_name}</Detail>

@@ -22,7 +22,7 @@ import { useSection, money } from '../financial/financeHooks';
    ══════════════════════════════════════════════════════════════════════════ */
 
 
-export default function ProjectPicker({ value, onChange, net = 0, clientId = null, label = 'Project', noneLabel = 'No project — overhead', note = '' }) {
+export default function ProjectPicker({ value, onChange, net = 0, clientId = null, label = 'Project', noneLabel = 'Others', note = '' }) {
     const id = useId();
     const projects = useSection('projects');
     const clients = useSection('customers');
@@ -85,7 +85,7 @@ export default function ProjectPicker({ value, onChange, net = 0, clientId = nul
                         style={over ? { color: 'var(--error)' } : undefined}>
                         {over
                             ? `Split is ${money(-remainder, 2)} more than the entry's ${money(net, 2)} before GST.`
-                            : `${money(remainder, 2)} of ${money(net, 2)} before GST — the rest is overhead.`}
+                            : `${money(remainder, 2)} of ${money(net, 2)} before GST — the rest goes to Others.`}
                     </p>
                 </div>
             )}

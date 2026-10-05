@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { profitAndLoss, cashFlow, taxSummary } from './financeAnalytics';
+import { profitAndLoss, cashFlow, taxSummary, periodSeries, periodOptions } from './financeAnalytics';
 
 // The taxonomy is not loaded in a unit test, and deliberately does not need to
 // be: every row carries the treatment the database stamped on it, and that is
@@ -212,5 +212,52 @@ describe('taxSummary', () => {
     }, FROM, TO);
     expect(s.input.gst).toBe(90);
     expect(s.netPayable).toBe(90);
+  });
+});
+
+describe('periodSeries — the P&L chart follows the period', () => {
+  const data = () => ({
+    docs: [inv({ issue_date: '2026-09-10' })],
+    purchases: [],
+    expenses: [cashOut({ date: '2026-09-05' }), cashOut({ date: '2025-01-20', amount: 200 })],
+    income: [],
+  });
+
+  it('a month is cut into weeks that add up to the month', () => {
+    const { unit, points } = periodSeries(data(), FROM, TO);
+    expect(unit).toBe('week');
+    expect(points).toHaveLength(5);
+    expect(points.reduce((s, p) => s + p.income, 0)).toBe(1000);
+    expect(points.reduce((s, p) => s + p.expenses, 0)).toBe(500);
+  });
+
+  it('a quarter is three months', () => {
+    const { unit, points } = periodSeries(data(), '2026-07-01', '2026-09-30');
+    expect(unit).toBe('month');
+    expect(points.map((p) => p.income)).toEqual([0, 0, 1000]);
+  });
+
+  it('all time starts at the first record and goes by month within two years', () => {
+    const { unit, points } = periodSeries(data(), null, '2026-09-30');
+    expect(unit).toBe('month');
+    expect(points[0].expenses).toBe(200);
+    expect(points).toHaveLength(21);
+  });
+
+  it('beyond two years it goes by financial year', () => {
+    const { unit, points } = periodSeries(data(), '2022-04-01', '2026-09-30');
+    expect(unit).toBe('fy');
+    expect(points.map((p) => p.label)).toEqual(['FY22-23', 'FY23-24', 'FY24-25', 'FY25-26', 'FY26-27']);
+    expect(points.reduce((s, p) => s + p.expenses, 0)).toBe(700);
+  });
+});
+
+describe('periodOptions — financial years', () => {
+  it('lists FYs a year apart, April to March', () => {
+    const [a, b] = periodOptions('fy', 2);
+    expect(a.from.slice(5)).toBe('04-01');
+    expect(a.to.slice(5)).toBe('03-31');
+    expect(Number(a.from.slice(0, 4)) - Number(b.from.slice(0, 4))).toBe(1);
+    expect(a.label).toMatch(/^FY \d{4}-\d{2}$/);
   });
 });

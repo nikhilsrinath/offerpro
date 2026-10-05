@@ -5,6 +5,14 @@ import { Stat } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
 import { useProjectScope } from '../projects/projectScope';
 
+const KINDS = [
+  { id: 'month', label: 'Monthly' },
+  { id: 'quarter', label: 'Quarterly' },
+  { id: 'fy', label: 'Yearly' },
+  { id: 'all', label: 'All time' },
+  { id: 'custom', label: 'Custom' },
+];
+
 /**
  * Output GST collected against input GST paid, by month or FY quarter.
  * Deliberately labelled as a preparation aid: it is computed from what is in
@@ -26,9 +34,18 @@ export default function TaxSummary({ projectId = null }) {
   const income = scope ? scope.data.income : allIncome;
 
   const [kind, setKind] = useState('month');
-  const options = useMemo(() => periodOptions(kind, kind === 'month' ? 12 : 8), [kind]);
+  const options = useMemo(
+    () => (kind === 'all' || kind === 'custom' ? [] : periodOptions(kind, kind === 'month' ? 12 : kind === 'quarter' ? 8 : 5)),
+    [kind],
+  );
   const [periodId, setPeriodId] = useState(null);
-  const period = options.find((o) => o.id === periodId) || options[0];
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const period = kind === 'all'
+    ? { id: 'all', label: 'All time', from: null, to: null }
+    : kind === 'custom'
+      ? { id: 'custom', label: 'Custom', from: from || null, to: to || null }
+      : options.find((o) => o.id === periodId) || options[0];
 
   const summary = useMemo(
     () => taxSummary({ docs, purchases, expenses, income, vendors }, period.from, period.to),
@@ -44,7 +61,7 @@ export default function TaxSummary({ projectId = null }) {
     rows.push(['', net >= 0 ? 'Net payable' : 'Net credit', '', '', '', Math.abs(net).toFixed(2)]);
     rows.push([]);
     rows.push(['Preparation aid only. Not a GST return. Verify with your accountant before filing.']);
-    downloadCsv(`tax-summary-${scope?.project?.code ? `${scope.project.code}-` : ''}${period.from}-to-${period.to}.csv`,
+    downloadCsv(`tax-summary-${scope?.project?.code ? `${scope.project.code}-` : ''}${period.from || 'start'}-to-${period.to || 'today'}.csv`,
       ['Date', 'Type', 'Reference', 'Party', 'Taxable value', 'GST'], rows);
   };
 
@@ -69,14 +86,25 @@ export default function TaxSummary({ projectId = null }) {
       </div>
 
       <div className="prod-toolbar">
-        <button aria-pressed={kind === 'month'} className={`pro-chip ${kind === 'month' ? 'active' : ''}`} onClick={() => { setKind('month'); setPeriodId(null); }}>Monthly</button>
-        <button aria-pressed={kind === 'quarter'} className={`pro-chip ${kind === 'quarter' ? 'active' : ''}`} onClick={() => { setKind('quarter'); setPeriodId(null); }}>Quarterly</button>
-        <select aria-label="Tax period" className="prod-select" value={period.id} onChange={(e) => setPeriodId(e.target.value)}>
-          {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-        </select>
+        {KINDS.map((k) => (
+          <button key={k.id} aria-pressed={kind === k.id} className={`pro-chip ${kind === k.id ? 'active' : ''}`}
+            onClick={() => { setKind(k.id); setPeriodId(null); }}>{k.label}</button>
+        ))}
         <button className="prod-add-btn" onClick={exportCsv}>
           <Download size={15} /> Export CSV
         </button>
+        {options.length > 0 && (
+          <select aria-label="Tax period" className="prod-select" value={period.id} onChange={(e) => setPeriodId(e.target.value)}>
+            {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+          </select>
+        )}
+        {kind === 'custom' && (
+          <div className="prod-range">
+            <input type="date" aria-label="From" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <span>to</span>
+            <input type="date" aria-label="To" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+        )}
       </div>
 
       <div className="prod-stats">
@@ -90,7 +118,9 @@ export default function TaxSummary({ projectId = null }) {
       </div>
 
       <p className="prod-perf-note">
-        {period.label}: {fmtDate(period.from)} – {fmtDate(period.to)}. Output GST is taken from issued invoices
+        {period.from || period.to
+          ? `${period.label}: ${period.from ? fmtDate(period.from) : 'start'} – ${period.to ? fmtDate(period.to) : 'today'}`
+          : 'All time'}. Output GST is taken from issued invoices
         by issue date, plus the GST on cash-book receipts that are not against an invoice; drafts and cancelled
         invoices are excluded. A cash-book receipt has no place of supply, so its GST is split as CGST and SGST.
         Input GST is from purchase invoices and from the GST entered on expenses. The rate-wise table

@@ -23,8 +23,8 @@ export default function BelongsToSelect({ id, value, onChange }) {
     const options = useProjectOptions(value);
     return (
         <select id={id} value={value || GENERAL} onChange={(e) => onChange(e.target.value)}>
-            <option value={GENERAL}>General — any work</option>
-            <option value={INTERNAL}>Internal — the company's own use</option>
+            <option value={GENERAL}>Others</option>
+            <option value={INTERNAL}>Internal</option>
             {options.length > 0 && (
                 <optgroup label="Project">
                     {options.map((p) => <option key={p.id} value={p.id}>{projectLabel(p)}</option>)}
@@ -34,14 +34,14 @@ export default function BelongsToSelect({ id, value, onChange }) {
     );
 }
 
-/** The list filter: everything, General, Internal, or one project. */
+/** The list filter: all, Others, Internal, or one project. */
 export function BelongsToFilter({ value, onChange, className }) {
     const options = useProjectOptions(value);
     return (
         <select aria-label="Filter by what it belongs to" className={className} value={value}
             onChange={(e) => onChange(e.target.value)}>
-            <option value="">Everything</option>
-            <option value={GENERAL}>General</option>
+            <option value="">All</option>
+            <option value={GENERAL}>Others</option>
             <option value={INTERNAL}>Internal</option>
             {options.length > 0 && (
                 <optgroup label="Project">

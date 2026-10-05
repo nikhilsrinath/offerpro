@@ -58,7 +58,7 @@ describe('inScope', () => {
 it('choiceLabel names the project', () => {
     expect(choiceLabel('p1', [{ id: 'p1', code: 'P-1', name: 'Launch' }])).toBe('P-1 · Launch');
     expect(choiceLabel(INTERNAL)).toBe('Internal');
-    expect(choiceLabel(GENERAL)).toBe('General');
+    expect(choiceLabel(GENERAL)).toBe('Others');
 });
 
 describe('assignVendorProject', () => {

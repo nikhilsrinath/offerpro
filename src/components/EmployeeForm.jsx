@@ -81,8 +81,19 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
         ...p, [field]: e?.target ? (e.target.type === 'checkbox' ? e.target.checked : e.target.value) : e,
     }));
 
+    // The saved department_id outranks the name when the row is written, so a
+    // new pick has to drop it or the edit keeps the old department.
+    const setDepartment = (e) => setForm((p) => ({ ...p, department: e.target.value, department_id: undefined }));
+
     const dated = form.offerType === 'internship' || form.offerType === 'collaboration';
-    const ready = form.studentName && form.email && form.role && form.startDate;
+    // A new hire needs all four; an edit only needs a name, so records made
+    // without an email or start date (the founder's, from sign-up) can still
+    // be saved.
+    const missing = [
+        ['Name', form.studentName],
+        ...(isEdit ? [] : [['email', form.email], ['job title', form.role], ['start date', form.startDate]]),
+    ].filter(([, v]) => !String(v ?? '').trim()).map(([label]) => label);
+    const ready = missing.length === 0;
 
     // Uploaded straight away rather than held until save: processImage() resizes
     // and re-encodes, and doing that during submit would stall the whole form
@@ -166,7 +177,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                 </span>
                 {!ready && (
                     <span style={{ fontSize: 11.5, color: t.faint }}>
-                        Name, email, role and start date are needed
+                        {missing.length === 1 ? `${missing[0][0].toUpperCase()}${missing[0].slice(1)} is needed` : `Still needed: ${missing.join(', ')}`}
                     </span>
                 )}
             </Toolbar>
@@ -187,13 +198,13 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
 
                         <div style={{ flex: '1 1 320px', minWidth: 0 }}>
                             <Grid min={200} gap={13}>
-                                <Field label="Full name"><Input value={form.studentName} onChange={set('studentName')} placeholder="Priya Sharma" /></Field>
+                                <Field label="Full name"><Input value={form.studentName} onChange={set('studentName')} /></Field>
                                 <Field label="Email" hint="Becomes their portal username">
                                     <Input type="email" value={form.email} onChange={set('email')} />
                                 </Field>
                                 <Field label="Phone"><Input value={form.phone} onChange={set('phone')} /></Field>
                                 <Field label="Work location" hint="City, office or Remote">
-                                    <Input value={form.location || ''} onChange={set('location')} placeholder="Bengaluru" />
+                                    <Input value={form.location || ''} onChange={set('location')} />
                                 </Field>
                                 <Field label="Address" wide>
                                     <Input value={form.studentAddress} onChange={set('studentAddress')} />
@@ -209,10 +220,10 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                     </Field>
                     <div style={{ height: 13 }} />
                     <Grid min={200} gap={13}>
-                        <Field label="Job title"><Input value={form.role} onChange={set('role')} placeholder="Backend Engineer" /></Field>
+                        <Field label="Job title"><Input value={form.role} onChange={set('role')} /></Field>
                         <Field label="Department">
                             {depts.length > 0 ? (
-                                <Select value={form.department} onChange={set('department')}>
+                                <Select value={form.department} onChange={setDepartment}>
                                     <option value="">None</option>
                                     {depts.map((d) => <option key={d} value={d}>{d}</option>)}
                                     {form.department && !depts.includes(form.department) && (
@@ -220,7 +231,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                                     )}
                                 </Select>
                             ) : (
-                                <Input value={form.department} onChange={set('department')} placeholder="Engineering" />
+                                <Input value={form.department} onChange={setDepartment} />
                             )}
                         </Field>
                         <Field label="Reports to"><Input value={form.supervisorName} onChange={set('supervisorName')} /></Field>

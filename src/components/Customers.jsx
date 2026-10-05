@@ -279,12 +279,12 @@ export default function Customers() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('name_asc');
   // Since 0016 merged customers and crm_leads into one `clients` table, this page
   // and the CRM board read the same rows. 'billable' is the default because this
   // screen is about parties you invoice — the pipeline has its own board — and
-  // without it the Customers list silently became the lead list too.
-  const [statusFilter, setStatusFilter] = useState('billable');
+  // without it the Customers list silently became the lead list too. The
+  // status and sort pickers were removed; the list is customers, A–Z.
+  const statusFilter = 'billable';
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [formData, setFormData] = useState(EMPTY_CUSTOMER);
@@ -318,14 +318,8 @@ export default function Customers() {
     });
     const inScope = filterByProject(byStatus, projectScope, cp.projects, cp.links);
     const searched = customerService.search(inScope, searchTerm);
-    return [...searched].sort((a, b) => {
-      if (sortBy === 'name_asc')  return (a.clientName || '').localeCompare(b.clientName || '');
-      if (sortBy === 'name_desc') return (b.clientName || '').localeCompare(a.clientName || '');
-      if (sortBy === 'email')     return (a.clientEmail || '').localeCompare(b.clientEmail || '');
-      if (sortBy === 'gstin')     return (a.buyerGSTIN || '').localeCompare(b.buyerGSTIN || '');
-      return 0;
-    });
-  }, [customers, searchTerm, sortBy, statusFilter, projectScope, cp]);
+    return [...searched].sort((a, b) => (a.clientName || '').localeCompare(b.clientName || ''));
+  }, [customers, searchTerm, statusFilter, projectScope, cp]);
 
   const openAdd = () => {
     setEditingCustomer(null);
@@ -547,30 +541,8 @@ export default function Customers() {
             style={{ paddingLeft: '2rem', height: '40px', fontSize: '0.8125rem' }}
           />
         </div>
-        <select
-          aria-label="Filter customers"
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          style={{ height: '40px', padding: '0 0.625rem', borderRadius: '0.5rem', border: '1px solid var(--border-default)', background: 'var(--background)', color: 'var(--text-secondary)', fontSize: '0.8rem', cursor: 'pointer', outline: 'none', flexShrink: 0 }}
-        >
-          <option value="billable">Customers</option>
-          <option value="pipeline">Leads &amp; prospects</option>
-          <option value="lost">Lost</option>
-          <option value="all">Everyone</option>
-        </select>
         <ProjectScopeFilter cp={cp} value={projectScope} onChange={setProjectScope}
           style={{ height: '40px', padding: '0 0.625rem', borderRadius: '0.5rem', border: '1px solid var(--border-default)', background: 'var(--background)', color: 'var(--text-secondary)', fontSize: '0.8rem', cursor: 'pointer', outline: 'none', flexShrink: 0, maxWidth: '14rem' }} />
-        <select
-          aria-label="Sort customers"
-          value={sortBy}
-          onChange={e => setSortBy(e.target.value)}
-          style={{ height: '40px', padding: '0 0.625rem', borderRadius: '0.5rem', border: '1px solid var(--border-default)', background: 'var(--background)', color: 'var(--text-secondary)', fontSize: '0.8rem', cursor: 'pointer', outline: 'none', flexShrink: 0 }}
-        >
-          <option value="name_asc">Name A–Z</option>
-          <option value="name_desc">Name Z–A</option>
-          <option value="email">Email A–Z</option>
-          <option value="gstin">GSTIN A–Z</option>
-        </select>
         <button onClick={openAdd} className="easy-submit" style={{ width: 'auto', padding: '0.625rem 1.25rem', fontSize: '0.8125rem' }}>
           <Plus size={16} /> Add Client
         </button>

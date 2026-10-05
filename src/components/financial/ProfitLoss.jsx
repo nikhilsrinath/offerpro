@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { TrendingUp, TrendingDown, Wallet, Percent, Download } from 'lucide-react';
-import { profitAndLoss, sixMonthSeries, periodBounds, downloadCsv } from '../../services/financeAnalytics';
+import { profitAndLoss, periodSeries, periodBounds, downloadCsv } from '../../services/financeAnalytics';
 import { categoryLabel, loadFinanceCategories } from '../../services/financeCategories';
 import { Stat } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
@@ -40,7 +40,9 @@ export default function ProfitLoss() {
     : periodBounds(preset);
 
   const pl = useMemo(() => profitAndLoss(data, range.from, range.to), [data, range.from, range.to]);
-  const series = useMemo(() => sixMonthSeries(data), [data]);
+  // The chart follows the period picked above, not a fixed six months.
+  const series = useMemo(() => periodSeries(data, range.from, range.to), [data, range.from, range.to]);
+  const seriesTitle = { week: 'Week by week', month: 'Month by month', fy: 'Year by year' }[series.unit];
 
   const exportCsv = () => {
     const rows = [
@@ -88,13 +90,13 @@ export default function ProfitLoss() {
 
       <div className="pro-card" style={{ marginBottom: '1rem' }}>
         <div className="pro-card-header">
-          <div className="pro-card-title-group"><h3>Last six months</h3></div>
+          <div className="pro-card-title-group"><h3>{seriesTitle}</h3></div>
         </div>
         <div style={{ width: '100%', height: 280 }}>
           <ResponsiveContainer>
-            <BarChart data={series} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <BarChart data={series.points} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-default)" />
-              <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={13.5} />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={13.5} />
               <YAxis tickLine={false} axisLine={false} fontSize={12.5} width={70}
                 tickFormatter={(v) => (Math.abs(v) >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${(v / 1000).toFixed(0)}k`)} />
               <Tooltip formatter={(v, name) => [money(v), name]} cursor={{ fill: 'var(--surface-hover)' }} />

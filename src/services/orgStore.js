@@ -1503,6 +1503,13 @@ export const orgStore = {
     bumpWrite(section);
     persistToLS();
     notifySection(section);
+
+    // Pay lives in employee_compensation; without this an edited salary was
+    // shown, then lost on reload. Only when the edit itself carries pay.
+    if ((section === 'employees' || section === 'ex_employees')
+      && ('stipend' in updates || 'salary' in updates)) {
+      await saveCompensation(id, merged);
+    }
   },
 
   // `options.reason` fills employees.exit_reason, which existed from the start

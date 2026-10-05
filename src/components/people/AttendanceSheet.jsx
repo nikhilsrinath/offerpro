@@ -1,7 +1,9 @@
 // AttendanceSheet — the manager's two views of attendance.
 //
 //   Daily    the whole team on one date: status, times, a note, bulk marking.
-//   Monthly  one employee's calendar for a month.
+//   Monthly  the team's month as a calendar of daily counts (click a day for
+//            who was where), or one employee's month when one is picked —
+//            clicking a name on the daily sheet opens theirs.
 //
 // Both write through attendanceService.markDay(), which always stamps
 // `source: 'admin'` — that is what stops the employee's portal overwriting a
@@ -9,9 +11,8 @@
 //
 // Marking is the job, so the status control is on the row itself: a segmented
 // button per person, one click, no dialog. The dialog is only for the details
-// (times and a note) that not every row needs. The day's shape is a single
-// stacked bar rather than four counters, because "who is missing" is a
-// proportion, not four unrelated numbers.
+// (times and a note) that not every row needs. Statuses are shown as words
+// and counts, not colours.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSection } from '../financial/financeHooks';
 import { useToast } from '../shared/Toast';
@@ -26,7 +27,20 @@ import {
 } from '../ui/edge';
 import { useT, fmtDate, MONO } from '../ui/edgeUtils';
 
-const STATUS_COLOR = Object.fromEntries(ATTENDANCE_STATUSES.map((s) => [s.key, s.color]));
+// The four counts the sheets report. A half day is counted as leave, and a
+// holiday in none of them.
+const BUCKETS = [
+    { key: 'present', label: 'Present', statuses: ['present'] },
+    { key: 'absent', label: 'Absent', statuses: ['absent'] },
+    { key: 'leave', label: 'On leave', statuses: ['leave', 'half_day'] },
+    { key: 'remote', label: 'Remote', statuses: ['remote'] },
+];
+const bucketOf = (status) => BUCKETS.find((b) => b.statuses.includes(status))?.key || null;
+const countBuckets = (rows) => {
+    const out = { present: 0, absent: 0, leave: 0, remote: 0 };
+    rows.forEach((r) => { const k = bucketOf(r.status); if (k) out[k] += 1; });
+    return out;
+};
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // The four marks that cover almost every row; the rest live in the details
@@ -64,48 +78,6 @@ const shiftDate = (dateKey, delta) => {
 const monthLabel = (monthKey) => new Date(`${monthKey}-01T00:00:00`)
     .toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 
-/** The day in one bar: marked segments in their status colour, unmarked left
-    as an empty remainder so a half-finished sheet reads as half-finished. */
-function DayBar({ totals, size }) {
-    const t = useT();
-    const segs = [
-        { key: 'Present', value: totals.present, color: STATUS_COLOR.present || t.up },
-        { key: 'Leave', value: totals.leave, color: STATUS_COLOR.leave || t.dim },
-        { key: 'Absent', value: totals.absent, color: STATUS_COLOR.absent || t.down },
-    ].filter((s) => s.value > 0);
-
-    if (!size) return null;
-
-    return (
-        <div style={{ marginBottom: 14 }}>
-            <div style={{
-                display: 'flex', height: 6, borderRadius: 99, overflow: 'hidden',
-                background: t.lineSoft, marginBottom: 9,
-            }}>
-                {segs.map((s) => (
-                    <span key={s.key} title={`${s.key}: ${s.value}`} style={{
-                        width: (s.value / size) * 100 + '%', background: s.color,
-                        transition: 'width .3s cubic-bezier(.16,1,.3,1)',
-                    }} />
-                ))}
-            </div>
-            <Row gap={16} wrap>
-                {segs.map((s) => (
-                    <span key={s.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: t.faint }}>
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.color }} />
-                        {s.key} {s.value}
-                    </span>
-                ))}
-                {totals.unmarked > 0 && (
-                    <span style={{ fontSize: 11.5, color: t.faint }}>
-                        {totals.unmarked} not marked yet
-                    </span>
-                )}
-            </Row>
-        </div>
-    );
-}
-
 export default function AttendanceSheet() {
     const t = useT();
     const toast = useToast();
@@ -120,6 +92,8 @@ export default function AttendanceSheet() {
     const [dept, setDept] = useState('');
     const [dayRows, setDayRows] = useState({});
     const [monthRows, setMonthRows] = useState({});
+    const [teamMonth, setTeamMonth] = useState([]);
+    const [dayList, setDayList] = useState(null);
     const [loading, setLoading] = useState(true);
     const [busyId, setBusyId] = useState('');
     const [editing, setEditing] = useState(null);
@@ -135,10 +109,6 @@ export default function AttendanceSheet() {
         () => Object.fromEntries(employees.map((e) => [e.id, e])), [employees],
     );
 
-    useEffect(() => {
-        if (!personId && roster.length) setPersonId(roster[0].id);
-    }, [roster, personId]);
-
     const loadDay = useCallback(async () => {
         if (!orgId) return;
         setLoading(true);
@@ -151,11 +121,13 @@ export default function AttendanceSheet() {
         }
     }, [orgId, date, toast]);
 
+    // No one picked is the whole team's month; a person is their calendar.
     const loadMonth = useCallback(async () => {
-        if (!orgId || !personId) { setMonthRows({}); return; }
+        if (!orgId) return;
         setLoading(true);
         try {
-            setMonthRows(await attendanceService.listMonth(orgId, personId, monthKey));
+            if (personId) setMonthRows(await attendanceService.listMonth(orgId, personId, monthKey));
+            else setTeamMonth(await attendanceService.listMonthForOrg(orgId, monthKey));
         } catch (err) {
             toast(err.message || 'Could not load the month.', 'error');
         } finally {
@@ -236,14 +208,15 @@ export default function AttendanceSheet() {
 
     const dayTotals = useMemo(() => {
         const rows = roster.map((e) => dayRows[e.id]).filter(Boolean);
-        const n = (...s) => rows.filter((r) => s.includes(r.status)).length;
-        return {
-            present: n('present', 'remote'),
-            absent: n('absent'),
-            leave: n('leave', 'half_day'),
-            unmarked: roster.length - rows.length,
-        };
+        return { ...countBuckets(rows), unmarked: roster.length - rows.length };
     }, [roster, dayRows]);
+
+    // From the daily sheet: that person's month, the month of the day on screen.
+    const openPersonMonth = (employeeId) => {
+        setPersonId(employeeId);
+        setMonthKey(date.slice(0, 7));
+        setTab('monthly');
+    };
 
     const isToday = date === todayKey();
 
@@ -270,7 +243,7 @@ export default function AttendanceSheet() {
             }>
                 <Seg value={tab} onChange={setTab} options={[
                     { id: 'daily', label: 'Daily sheet' },
-                    { id: 'monthly', label: 'One person’s month' },
+                    { id: 'monthly', label: 'Monthly sheet' },
                 ]} />
 
                 {tab === 'daily' ? (
@@ -299,7 +272,9 @@ export default function AttendanceSheet() {
                             <Btn size="sm" onClick={() => setMonthKey(shiftMonth(monthKey, 1))}
                                 disabled={monthKey >= currentMonthKey()} title="Next month">→</Btn>
                         </Row>
-                        <Select value={personId} onChange={(e) => setPersonId(e.target.value)} style={{ width: 190, height: 29 }}>
+                        <Select value={personId} onChange={(e) => setPersonId(e.target.value)} style={{ width: 190, height: 29 }}
+                            aria-label="Whose month">
+                            <option value="">Whole team</option>
                             {roster.map((e) => <option key={e.id} value={e.id}>{e.name || e.full_name}</option>)}
                         </Select>
                     </>
@@ -313,7 +288,10 @@ export default function AttendanceSheet() {
                         <Muted>{roster.length} on the roster</Muted>
                     </Row>
 
-                    <DayBar totals={dayTotals} size={roster.length} />
+                    <StatBand items={[
+                        ...BUCKETS.map((b) => ({ label: b.label, value: dayTotals[b.key] })),
+                        { label: 'Not marked', value: dayTotals.unmarked },
+                    ]} />
 
                     {loading ? <Loading /> : roster.length === 0 ? (
                         <Panel><Empty>No one to mark. Add employees to the registry first.</Empty></Panel>
@@ -333,15 +311,20 @@ export default function AttendanceSheet() {
                                 return (
                                     <Tr key={e.id}>
                                         <Td>
-                                            <Row gap={9}>
+                                            <button type="button" onClick={() => openPersonMonth(e.id)}
+                                                title={`Open ${name}’s month`}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', gap: 9, padding: 0, border: 0,
+                                                    background: 'none', color: 'inherit', font: 'inherit', textAlign: 'left', cursor: 'pointer',
+                                                }}>
                                                 <Avatar name={name} size={26} />
                                                 <span style={{ minWidth: 0 }}>
-                                                    <span style={{ display: 'block' }}>{name}</span>
+                                                    <span style={{ display: 'block', textDecoration: 'underline', textDecorationColor: t.line, textUnderlineOffset: 3 }}>{name}</span>
                                                     <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>
                                                         {e.role || '—'}
                                                     </span>
                                                 </span>
-                                            </Row>
+                                            </button>
                                         </Td>
                                         <Td>
                                             <div style={{ opacity: busyId === e.id ? 0.5 : 1, transition: 'opacity .15s' }}>
@@ -365,11 +348,24 @@ export default function AttendanceSheet() {
                         </Table>
                     )}
                 </>
-            ) : (
+            ) : personId ? (
                 <MonthlyView
                     t={t} monthKey={monthKey} rows={monthRows} loading={loading}
                     personId={personId} roster={roster}
                     onPick={(dateKey, row) => openEditor(personId, dateKey, row)}
+                />
+            ) : (
+                <TeamMonthView
+                    t={t} monthKey={monthKey} rows={teamMonth} loading={loading} roster={roster}
+                    onPick={setDayList}
+                />
+            )}
+
+            {dayList && (
+                <DayListModal t={t} dateKey={dayList} roster={roster}
+                    rows={teamMonth.filter((r) => r.work_date === dayList)}
+                    onClose={() => setDayList(null)}
+                    onOpenDay={() => { setDate(dayList); setTab('daily'); setDayList(null); }}
                 />
             )}
 
@@ -438,6 +434,7 @@ function MonthlyView({ t, monthKey, rows, loading, personId, roster, onPick }) {
     // getDay() is Sunday-0; the grid starts on Monday, so rotate it.
     const firstDow = (new Date(`${monthKey}-01T00:00:00`).getDay() + 6) % 7;
     const summary = summariseMonth(rows);
+    const counts = countBuckets(Object.values(rows || {}));
 
     const cells = [];
     for (let i = 0; i < firstDow; i += 1) cells.push(null);
@@ -446,14 +443,11 @@ function MonthlyView({ t, monthKey, rows, loading, personId, roster, onPick }) {
     const person = roster.find((e) => e.id === personId);
 
     if (loading) return <Loading />;
-    if (!personId) return <Panel><Empty>Add an employee to see a calendar.</Empty></Panel>;
 
     return (
         <>
             <StatBand items={[
-                { label: 'Days present', value: summary.present },
-                { label: 'Leave days', value: summary.leave },
-                { label: 'Absent', value: summary.absent, tone: summary.absent ? 'down' : undefined },
+                ...BUCKETS.map((b) => ({ label: b.label, value: counts[b.key] })),
                 { label: 'Hours logged', value: formatDuration(summary.workedMinutes) },
             ]} />
 
@@ -479,7 +473,6 @@ function MonthlyView({ t, monthKey, rows, loading, personId, roster, onPick }) {
                                     minHeight: 62, padding: '7px 8px', cursor: 'pointer', textAlign: 'left',
                                     fontFamily: MONO, color: t.text, background: t.panel,
                                     border: '1px solid ' + (today ? t.lineStrong : t.line),
-                                    borderLeft: row ? '3px solid ' + STATUS_COLOR[row.status] : '1px solid ' + (today ? t.lineStrong : t.line),
                                     borderRadius: 7,
                                 }}
                             >
@@ -501,15 +494,116 @@ function MonthlyView({ t, monthKey, rows, loading, personId, roster, onPick }) {
                     })}
                 </div>
 
-                <Row gap={14} wrap style={{ marginTop: 13, paddingTop: 12, borderTop: '1px solid ' + t.lineSoft }}>
-                    {ATTENDANCE_STATUSES.map((s) => (
-                        <span key={s.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: t.faint }}>
-                            <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.color }} />
-                            {s.label}
-                        </span>
-                    ))}
-                </Row>
             </Panel>
         </>
+    );
+}
+
+/** The whole team's month: each day shows how many were present, absent, on
+    leave and remote; clicking a day lists who. */
+function TeamMonthView({ t, monthKey, rows, loading, roster, onPick }) {
+    const { days } = monthBounds(monthKey);
+    const firstDow = (new Date(`${monthKey}-01T00:00:00`).getDay() + 6) % 7;
+    const byDay = useMemo(() => {
+        const onRoster = new Set(roster.map((e) => e.id));
+        const out = {};
+        rows.filter((r) => onRoster.has(r.employee_id)).forEach((r) => { (out[r.work_date] ||= []).push(r); });
+        return out;
+    }, [rows, roster]);
+    const totals = countBuckets(Object.values(byDay).flat());
+
+    const cells = [];
+    for (let i = 0; i < firstDow; i += 1) cells.push(null);
+    for (let d = 1; d <= days; d += 1) cells.push(`${monthKey}-${String(d).padStart(2, '0')}`);
+
+    if (loading) return <Loading />;
+    if (!roster.length) return <Panel><Empty>Add employees to the registry to see the month.</Empty></Panel>;
+
+    return (
+        <>
+            <StatBand items={BUCKETS.map((b) => ({ label: `${b.label} · person-days`, value: totals[b.key] }))} />
+
+            <Panel title="Whole team" note={`${monthLabel(monthKey)} · ${roster.length} on the roster · click a day to see who`} pad={13}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0,1fr))', gap: 5 }}>
+                    {WEEKDAYS.map((w) => (
+                        <div key={w} style={{
+                            fontSize: 10.5, letterSpacing: '0.09em', color: t.faint,
+                            textAlign: 'center', paddingBottom: 5,
+                        }}>{w.toUpperCase()}</div>
+                    ))}
+                    {cells.map((dateKey, i) => {
+                        if (!dateKey) return <div key={'pad-' + i} />;
+                        const dayRows = byDay[dateKey] || [];
+                        const c = countBuckets(dayRows);
+                        const today = dateKey === todayKey();
+                        return (
+                            <button
+                                key={dateKey} type="button" className="edge-btn"
+                                onClick={() => onPick(dateKey)}
+                                aria-label={`${fmtDate(dateKey)}: ${BUCKETS.map((b) => `${c[b.key]} ${b.label.toLowerCase()}`).join(', ')}`}
+                                style={{
+                                    display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 2,
+                                    minHeight: 86, padding: '7px 8px', cursor: 'pointer', textAlign: 'left',
+                                    fontFamily: MONO, color: t.text, background: t.panel,
+                                    border: '1px solid ' + (today ? t.lineStrong : t.line),
+                                    borderRadius: 7, opacity: dateKey > todayKey() ? 0.55 : 1,
+                                }}
+                            >
+                                <span style={{ fontSize: 12.5, color: today ? t.text : t.dim }}>
+                                    {Number(dateKey.slice(-2))}
+                                </span>
+                                {dayRows.length > 0 && BUCKETS.map((b) => (
+                                    <span key={b.key} style={{
+                                        display: 'flex', justifyContent: 'space-between', gap: 4,
+                                        fontSize: 10.5, lineHeight: 1.3, color: c[b.key] ? t.dim : t.ghost,
+                                    }}>
+                                        <span>{b.label}</span><span>{c[b.key]}</span>
+                                    </span>
+                                ))}
+                            </button>
+                        );
+                    })}
+                </div>
+            </Panel>
+        </>
+    );
+}
+
+/** Who was present, absent, on leave and remote on one day. */
+function DayListModal({ t, dateKey, roster, rows, onClose, onOpenDay }) {
+    const byEmployee = Object.fromEntries(rows.map((r) => [r.employee_id, r]));
+    const nameOf = (e) => e.name || e.full_name || 'Unnamed';
+    const groups = [
+        ...BUCKETS.map((b) => ({ ...b, people: roster.filter((e) => bucketOf(byEmployee[e.id]?.status) === b.key) })),
+        { key: 'unmarked', label: 'Not marked', people: roster.filter((e) => !byEmployee[e.id]) },
+    ];
+    return (
+        <Modal open onClose={onClose} width={470} title={fmtDate(dateKey)} note={`${roster.length} on the roster`}
+            footer={
+                <>
+                    <Btn onClick={onClose}>Close</Btn>
+                    {dateKey <= todayKey() && <Btn primary onClick={onOpenDay}>Open daily sheet</Btn>}
+                </>
+            }>
+            {groups.map((g) => (
+                <div key={g.key} style={{ marginBottom: 13 }}>
+                    <Label>{g.label} · {g.people.length}</Label>
+                    {g.people.length === 0 ? (
+                        <div style={{ fontSize: 12.5, color: t.ghost, marginTop: 4 }}>No one</div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+                            {g.people.map((e) => (
+                                <Row key={e.id} gap={9}>
+                                    <Avatar name={nameOf(e)} size={22} />
+                                    <span style={{ fontSize: 13, color: t.text }}>{nameOf(e)}</span>
+                                    <span style={{ fontSize: 11, color: t.faint }}>{e.role || ''}</span>
+                                    {byEmployee[e.id]?.status === 'half_day' && <Muted>half day</Muted>}
+                                </Row>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ))}
+        </Modal>
     );
 }

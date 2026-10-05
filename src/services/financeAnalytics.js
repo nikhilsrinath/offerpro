@@ -72,16 +72,19 @@ function quarterLabel(fromIso) {
   return `Q${q} FY${String(fy).slice(2)}-${String(fy + 1).slice(2)}`;
 }
 
-/** The last `count` months or FY quarters, newest first, as selectable options. */
+/** The last `count` months, FY quarters or financial years, newest first, as selectable options. */
 export function periodOptions(kind, count = 12) {
   const out = [];
   const now = new Date();
+  const step = kind === 'fy' ? 12 : kind === 'quarter' ? 3 : 1;
   for (let i = 0; i < count; i += 1) {
-    const step = kind === 'quarter' ? 3 : 1;
     const b = periodBounds(kind, new Date(now.getFullYear(), now.getMonth() - i * step, 1));
+    const start = new Date(`${b.from}T00:00:00`);
     const label = kind === 'quarter'
       ? quarterLabel(b.from)
-      : new Date(`${b.from}T00:00:00`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+      : kind === 'fy'
+        ? `FY ${start.getFullYear()}-${String(start.getFullYear() + 1).slice(2)}`
+        : start.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
     out.push({ ...b, label, id: b.from });
   }
   return out;
@@ -285,21 +288,64 @@ export function cashFlow({ expenses, income: incomeRows }, from, to) {
   };
 }
 
-/** Six calendar months ending with the current one, for the bar chart. */
-export function sixMonthSeries(data) {
-  const now = new Date();
-  const out = [];
-  for (let i = 5; i >= 0; i -= 1) {
-    const b = periodBounds('month', new Date(now.getFullYear(), now.getMonth() - i, 1));
-    const pl = profitAndLoss(data, b.from, b.to);
-    out.push({
-      month: new Date(`${b.from}T00:00:00`).toLocaleDateString('en-IN', { month: 'short' }),
-      income: Math.round(pl.income),
-      expenses: Math.round(pl.expenses),
-      net: Math.round(pl.net),
-    });
+/** The first day anything in the P&L data is dated, or null when there is nothing. */
+export function earliestFinanceDay({ docs, purchases, expenses, income }) {
+  const days = [
+    ...issuedInvoices(docs).map((d) => d.issue_date),
+    ...(purchases || []).map((p) => p.bill_date),
+    ...(expenses || []).map((e) => e.date || e.incurred_on),
+    ...(income || []).map((e) => e.date || e.received_on),
+  ].map(dayKey).filter(Boolean).sort();
+  return days[0] || null;
+}
+
+/**
+ * The P&L over [from, to] cut into bars for the chart: weeks for a month or
+ * less, months up to two years, financial years beyond that. An open end is
+ * closed at the first dated record or today, so "All time" charts all of it.
+ * Each bar is clipped to the range, so the bars add up to the period's totals.
+ */
+export function periodSeries(data, from, to) {
+  const start = from || earliestFinanceDay(data) || todayIso();
+  const end = to || todayIso();
+  if (start > end) return { unit: 'month', points: [] };
+  const d0 = new Date(`${start}T00:00:00`);
+  const d1 = new Date(`${end}T00:00:00`);
+  const days = Math.round((d1 - d0) / 86400000) + 1;
+  const months = (d1.getFullYear() - d0.getFullYear()) * 12 + d1.getMonth() - d0.getMonth() + 1;
+  const unit = days <= 31 ? 'week' : months <= 24 ? 'month' : 'fy';
+
+  const buckets = [];
+  if (unit === 'week') {
+    for (let d = new Date(d0); d <= d1; d.setDate(d.getDate() + 7)) {
+      const e = new Date(d); e.setDate(e.getDate() + 6);
+      const b = { from: iso(d), to: e > d1 ? end : iso(e) };
+      const fmt = (x) => new Date(`${x}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+      buckets.push({ ...b, label: `${fmt(b.from)}–${fmt(b.to).split(' ')[0]}` });
+    }
+  } else {
+    let cursor = new Date(d0.getFullYear(), d0.getMonth(), 1);
+    while (iso(cursor) <= end) {
+      const b = periodBounds(unit, cursor);
+      const s0 = new Date(`${b.from}T00:00:00`);
+      buckets.push({
+        from: b.from < start ? start : b.from,
+        to: b.to > end ? end : b.to,
+        label: unit === 'fy'
+          ? `FY${String(s0.getFullYear()).slice(2)}-${String(s0.getFullYear() + 1).slice(2)}`
+          : s0.toLocaleDateString('en-IN', months > 12 ? { month: 'short', year: '2-digit' } : { month: 'short' }),
+      });
+      const next = new Date(`${b.to}T00:00:00`);
+      cursor = new Date(next.getFullYear(), next.getMonth() + 1, 1);
+    }
   }
-  return out;
+  return {
+    unit,
+    points: buckets.map((b) => {
+      const pl = profitAndLoss(data, b.from, b.to);
+      return { label: b.label, income: Math.round(pl.income), expenses: Math.round(pl.expenses), net: Math.round(pl.net) };
+    }),
+  };
 }
 
 // ── Payment position ─────────────────────────────────────────────────────────
