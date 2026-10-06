@@ -34,6 +34,7 @@ import ClientDirectory from './parties/ClientDirectory';
 import ClientCommunication from './parties/ClientCommunication';
 import PaymentStatus from './parties/PaymentStatus';
 import VendorDirectory from './parties/VendorDirectory';
+import Products from '../Products';
 import ProjectFiles from './docs/ProjectFiles';
 import ProjectTemplates from './docs/ProjectTemplates';
 import { orgStore } from '../../services/orgStore';
@@ -44,7 +45,7 @@ import {
     Gauge, BookOpen, Receipt, ShoppingCart, Scale, TrendingUp,
     FolderKanban, Briefcase, ListTree, SquareKanban, ChartGantt,
     UsersRound, Network, CalendarCheck, Megaphone,
-    Handshake, Building2, MessagesSquare, BadgeIndianRupee, Truck, FolderOpen, FilePen, Contact, Kanban,
+    Package, Handshake, Building2, MessagesSquare, BadgeIndianRupee, Truck, FolderOpen, FilePen, Contact, Kanban,
 } from 'lucide-react';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -61,7 +62,7 @@ import {
 const TABS = [
     // Not a tab: its own pages (/dashboard/:view), folded under this item
     // in the rail like Finance (projectDashboardGroup).
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, away: true },
+    { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, away: true },
     // Finance is six pages, folded under one Finance item in the rail
     // (projectRail). Financial Status keeps the id 'finance', so older
     // ?tab=finance links still land on it.
@@ -74,7 +75,7 @@ const TABS = [
     // Project Management is four pages over the project's tasks, folded the
     // same way. The Kanban board keeps the id 'tasks', so older ?tab=tasks
     // links (and EdgeAI's) still land on the board they used to.
-    { id: 'pm', parent: 'pm', label: 'Portfolio / Overview', icon: Briefcase },
+    { id: 'pm', parent: 'pm', label: 'Portfolio', icon: Briefcase },
     { id: 'wbs', parent: 'pm', label: 'Tasks (WBS)', icon: ListTree },
     { id: 'tasks', parent: 'pm', label: 'Kanban Board', icon: SquareKanban },
     { id: 'gantt', parent: 'pm', label: 'Gantt Chart', icon: ChartGantt },
@@ -85,6 +86,8 @@ const TABS = [
     { id: 'raci', parent: 'tm', label: 'Team Hierarchy', icon: Network },
     { id: 'attendance', parent: 'tm', label: 'Attendance', icon: CalendarCheck },
     { id: 'announcements', parent: 'tm', label: 'Announcements', icon: Megaphone },
+    // Products and services the project sells, the company's catalogue narrowed to it.
+    { id: 'products', parent: 'pd', label: 'Product & Service Directory', icon: Package },
     // Client, Vendor and Documents Management (0074), folded the same way.
     // Project Documents keeps the id 'documents', so older ?tab=documents
     // links land on it; the links it used to be are its Linked records view.
@@ -116,6 +119,7 @@ export function activeSection(pathname, sections = projectSections()) {
 const GROUPS = {
     finance: { label: 'Finance', icon: Wallet },
     pm: { label: 'Project', icon: FolderKanban },
+    pd: { label: 'Product', icon: Package },
     tm: { label: 'Team', icon: UsersRound },
     cm: { label: 'Client', icon: Handshake },
     vm: { label: 'Vendor', icon: Building2 },
@@ -330,10 +334,11 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                             )}
                             {tab === 'finance' && fin && <ProjectFinanceStatus project={project} onOpen={openTab} />}
                             {tab === 'cashbook' && fin && <CashBook projectId={project.id} />}
-                            {tab === 'billing' && fin && <ProjectBilling project={project} kind={billingKindOf(view)} onKind={openView} />}
+                            {tab === 'billing' && fin && <ProjectBilling project={project} kind={billingKindOf(view)} onKind={openView} view={view} />}
                             {tab === 'bills' && fin && <PurchaseInvoices projectId={project.id} />}
                             {tab === 'tax' && fin && <TaxSummary projectId={project.id} />}
                             {tab === 'pl' && fin && <ProjectProfitLoss project={project} />}
+                            {tab === 'products' && <Products projectId={project.id} />}
                             {tab === 'team' && <ProjectTeam project={project} />}
                             {tab === 'raci' && <RaciPage project={project} onOpen={openTab} />}
                             {tab === 'attendance' && <ProjectAttendance project={project} onOpen={openTab} />}

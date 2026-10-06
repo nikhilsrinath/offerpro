@@ -15,10 +15,6 @@ export function Step({ n, title, note, actions, children }) {
                 display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
                 padding: '11px 14px', borderBottom: '1px solid ' + t.lineSoft,
             }}>
-                <span aria-hidden="true" style={{
-                    width: 22, height: 22, borderRadius: 6, display: 'grid', placeItems: 'center', flexShrink: 0,
-                    border: '1px solid ' + t.line, background: t.panelAlt, fontSize: 12, color: t.dim,
-                }}>{n}</span>
                 <h2 id={id} style={{ margin: 0, fontSize: 14, fontWeight: 500, color: t.text }}>
                     <span style={SR_ONLY}>Step {n}: </span>{title}
                 </h2>

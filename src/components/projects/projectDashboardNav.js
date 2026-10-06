@@ -6,7 +6,7 @@ import { canSeeFinancials } from '../../services/projectService';
    only components. */
 
 const DASHBOARDS = [
-    { id: 'overview', label: 'Overview', title: 'Dashboard', icon: LayoutDashboard },
+    { id: 'overview', label: 'Overview', title: 'Overview', icon: LayoutDashboard },
     { id: 'finance', label: 'Finance', title: 'Finance Dashboard', icon: Wallet, fin: true },
     { id: 'sales', label: 'Sales', title: 'Sales Dashboard', icon: BarChart3, fin: true },
     { id: 'team', label: 'Team', title: 'Team Dashboard', icon: UsersRound },
@@ -26,7 +26,7 @@ export function projectDashboards() {
 export function projectDashboardGroup(projectId, pathname) {
     const [, , , part] = pathname.split('/');
     return {
-        id: 'project-group-dashboard', label: 'Dashboard', icon: LayoutDashboard,
+        id: 'project-group-dashboard', label: 'Overview', icon: LayoutDashboard,
         to: `/projects/${projectId}/dashboard/overview`, active: part === 'dashboard',
     };
 }

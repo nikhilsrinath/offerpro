@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Btn, Seg, Status, Empty } from '../../ui/edge';
 import { MONO, useT } from '../../ui/edgeUtils';
+import { fmtDmy } from '../../../services/importDates';
 
 const ROWS_PER_PAGE = 50;
 
@@ -9,7 +10,14 @@ const label = (col) => col.replace(/_/g, ' ');
 /* The uploaded rows, checked against the page's rules, with every cell
    editable in place. A cell is a button until it is being edited, so it can be
    reached with Tab and opened with Enter; Enter saves, Escape cancels. */
-export default function ValidationTable({ data, columns, onEdit, validationConfig }) {
+export default function ValidationTable({
+    data, columns, onEdit, validationConfig,
+    // Optional: columns that hold dates (shown dd/mm/yyyy, edited on a calendar),
+    // a delete button on each row, and a check against what is already there:
+    // rowCheck(row, idx) → { errors: [], warning: string }. A warning holds the
+    // row back until it is ignored.
+    dateColumns = [], onDeleteRow, rowCheck, onIgnore,
+}) {
     const t = useT();
     const [editingCell, setEditingCell] = useState(null); // { rowIdx, colKey }
     const [editValue, setEditValue] = useState('');
@@ -30,7 +38,13 @@ export default function ValidationTable({ data, columns, onEdit, validationConfi
                 }
             });
         }
-        return { row, idx, errors, isValid: errors.length === 0 };
+        let warning = '';
+        if (rowCheck) {
+            const found = rowCheck(row, idx);
+            errors.push(...(found.errors || []));
+            warning = found.warning || '';
+        }
+        return { row, idx, errors, warning, isValid: errors.length === 0 && !warning };
     });
 
     const validCount = validatedData.filter((r) => r.isValid).length;
@@ -91,20 +105,24 @@ export default function ValidationTable({ data, columns, onEdit, validationConfi
                             {columns.map((col) => (
                                 <th key={col} scope="col" style={th}>{label(col).toUpperCase()}</th>
                             ))}
+                            {onDeleteRow && <th scope="col" style={th}><span className="eo-sr">Remove row</span></th>}
                         </tr>
                     </thead>
                     <tbody>
-                        {paginatedData.map(({ row, idx, errors, isValid }) => (
+                        {paginatedData.map(({ row, idx, errors, warning, isValid }) => (
                             <tr key={idx} style={{ background: isValid ? undefined : t.panelAlt }}>
                                 <td style={{ padding: '8px 12px', borderBottom: '1px solid ' + t.lineSoft, whiteSpace: 'nowrap', verticalAlign: 'top' }}>
                                     {isValid
                                         ? <Status tone="up">Valid</Status>
                                         : (
-                                            <span title={errors.join(', ')}>
-                                                <Status tone="down">Invalid</Status>
-                                                <span style={{ display: 'block', fontSize: 11, color: t.dim, marginTop: 3, whiteSpace: 'normal', maxWidth: 180 }}>
-                                                    {errors.join('; ')}
+                                            <span title={[...errors, warning].filter(Boolean).join(', ')}>
+                                                <Status tone="down">{errors.length ? 'Invalid' : 'Check'}</Status>
+                                                <span style={{ display: 'block', fontSize: 11, color: t.dim, marginTop: 3, whiteSpace: 'normal', maxWidth: 200 }}>
+                                                    {[...errors, warning].filter(Boolean).join('; ')}
                                                 </span>
+                                                {warning && !errors.length && onIgnore && (
+                                                    <Btn size="sm" style={{ marginTop: 4 }} onClick={() => onIgnore(idx)}>Ignore</Btn>
+                                                )}
                                             </span>
                                         )}
                                 </td>
@@ -120,6 +138,7 @@ export default function ValidationTable({ data, columns, onEdit, validationConfi
                                             {isEditing ? (
                                                 <input
                                                     autoFocus
+                                                    type={dateColumns.includes(col) ? 'date' : 'text'}
                                                     aria-label={`${label(col)}, row ${idx + 1}`}
                                                     value={editValue}
                                                     onChange={(e) => setEditValue(e.target.value)}
@@ -146,12 +165,19 @@ export default function ValidationTable({ data, columns, onEdit, validationConfi
                                                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                                                     }}
                                                 >
-                                                    {value || <span style={{ color: t.faint }}>—</span>}
+                                                    {value
+                                                        ? (dateColumns.includes(col) ? fmtDmy(value) : value)
+                                                        : <span style={{ color: t.faint }}>—</span>}
                                                 </button>
                                             )}
                                         </td>
                                     );
                                 })}
+                                {onDeleteRow && (
+                                    <td style={{ padding: 3, borderBottom: '1px solid ' + t.lineSoft, verticalAlign: 'top' }}>
+                                        <Btn size="sm" aria-label={`Delete row ${idx + 1}`} onClick={() => onDeleteRow(idx)}>Delete</Btn>
+                                    </td>
+                                )}
                             </tr>
                         ))}
                     </tbody>

@@ -356,6 +356,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
                 {emp.department}
             </span>
         )],
+        ['Employee ID', emp.employee_code],
         ['Reports to', emp.supervisorName],
         ['Started', emp.startDate && (
             <>{fmtDate(emp.startDate)}{tenure && <span style={{ color: t.faint }}> · {tenure}</span>}</>
@@ -517,20 +518,14 @@ export default function Employees() {
 
         let changed = false;
 
-        // Keep only the newest record per email.
+        // Who is already here, by email, so an accepted offer is not added twice.
+        // Nobody is archived for sharing an email: adding someone the registry
+        // already holds is stopped where they are added (the form, the bulk
+        // import), and a person is only ever moved to Ex-employees by choice.
         const seen = new Map();
         for (const emp of existing) {
             const key = (emp.email || '').toLowerCase();
-            if (!key) continue;
-            if (seen.has(key)) {
-                const prev = seen.get(key);
-                const older = new Date(emp.created_at || 0) > new Date(prev.created_at || 0) ? prev : emp;
-                await storageService.deleteEmployee(older.id, orgId, 'Duplicate record — superseded by a newer entry for the same email');
-                if (older === prev) seen.set(key, emp);
-                changed = true;
-            } else {
-                seen.set(key, emp);
-            }
+            if (key && !seen.has(key)) seen.set(key, emp);
         }
 
         // An offer becomes an employee only once it has been accepted; a
@@ -649,7 +644,8 @@ export default function Employees() {
             l = l.filter((e) => getDisplayName(e).toLowerCase().includes(q)
                 || (e.role || '').toLowerCase().includes(q)
                 || (e.department || '').toLowerCase().includes(q)
-                || (e.email || '').toLowerCase().includes(q));
+                || (e.email || '').toLowerCase().includes(q)
+                || (e.employee_code || '').toLowerCase().includes(q));
         }
         return [...l].sort((a, b) => {
             if (sortBy === 'name_asc') return getDisplayName(a).localeCompare(getDisplayName(b));
@@ -690,9 +686,9 @@ export default function Employees() {
                 </Row>
             }>
                 <Seg value={type} onChange={setType} options={[
-                    { id: 'all', label: 'Everyone', count: counts.all },
-                    { id: 'fulltime', label: 'Full-time', count: counts.fulltime },
-                    { id: 'intern', label: 'Interns', count: counts.intern },
+                    { id: 'all', label: 'Everyone' },
+                    { id: 'fulltime', label: 'Full-time' },
+                    { id: 'intern', label: 'Interns' },
                 ]} />
                 <Search value={query} onChange={setQuery} placeholder="Search name, role, team, email…" />
                 <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ width: 132, height: 29 }}>
@@ -750,6 +746,7 @@ export default function Employees() {
                     ) : view === 'table' ? (
                         <Table id="employees" cols={[
                             { key: 'n', label: 'Name', always: true },
+                            { key: 'id', label: 'Employee ID' },
                             { key: 'em', label: 'Email', def: false },
                             { key: 'ph', label: 'Phone', def: false },
                             { key: 'r', label: 'Role' },
@@ -779,6 +776,7 @@ export default function Employees() {
                                                 </Row>
                                             </Td>
                                         )}
+                                        {show('id') && <Td muted nowrap>{emp.employee_code || '—'}</Td>}
                                         {show('em') && <Td muted nowrap>{emp.email || '—'}</Td>}
                                         {show('ph') && <Td muted nowrap>{emp.phone || '—'}</Td>}
                                         {show('r') && <Td muted nowrap>{emp.role || '—'}</Td>}

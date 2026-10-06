@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, UserPlus } from 'lucide-react';
 import { Page, Btn, Muted } from '../ui/edge';
@@ -10,6 +10,9 @@ import ValidationTable from './shared/ValidationTable';
 import BulkProgressTracker from './shared/BulkProgressTracker';
 import { useOrg } from '../../context/OrgContext';
 import { storageService } from '../../services/storageService';
+import { useSection } from '../financial/financeHooks';
+import { toIsoDate } from '../../services/importDates';
+import { findDuplicates } from '../../services/employeeImport';
 
 const MOCK_TEAM_SAMPLE = [
     { first_name: "Rahul", last_name: "Sharma", email: "rahul@example.com", role: "UI Designer", department: "Product", location: "Chennai", start_date: "01-Apr-2026", employee_id: "EMP100" },
@@ -23,8 +26,13 @@ const VALIDATION_CONFIG = {
     first_name: { required: true },
     last_name: { required: true },
     email: { required: true, email: true },
-    role: { required: true }
+    role: { required: true },
+    // Held as yyyy-mm-dd; a date the sheet gave that could not be read is kept
+    // as typed so it shows up here instead of vanishing.
+    start_date: { validate: (val) => (val && toIsoDate(val) == null ? 'start date is not a valid date' : '') },
 };
+
+const DATE_COLUMNS = ['start_date'];
 
 export default function BulkTeamMembers() {
     const t = useT();
@@ -38,16 +46,38 @@ export default function BulkTeamMembers() {
     const [failed, setFailed] = useState(0);
     const [importStatus, setImportStatus] = useState('idle');
     const [results, setResults] = useState([]);
+    // Rows whose name matches someone already here but who the user says is a
+    // different person. Kept by the row's own key so deleting rows does not shift it.
+    const [ignored, setIgnored] = useState(() => new Set());
+
+    const registry = useSection('employees');
+    const exEmployees = useSection('ex_employees');
+    const registryRows = useMemo(() => [...registry, ...exEmployees], [registry, exEmployees]);
 
     const handleUpload = (parsedData) => {
-        setData(parsedData);
+        setData(parsedData.map((row, i) => ({
+            ...row,
+            _key: `r${Date.now()}-${i}`,
+            // A sheet hands dates over as serial numbers; they are kept as yyyy-mm-dd.
+            start_date: toIsoDate(row.start_date) ?? String(row.start_date),
+            employee_id: row.employee_id == null ? '' : String(row.employee_id).trim(),
+        })));
+        setIgnored(new Set());
         setStep(2);
     };
 
+    const deleteRow = (idx) => setData((rows) => rows.filter((_, i) => i !== idx));
+    const ignoreRow = (idx) => setIgnored((prev) => new Set(prev).add(data[idx]?._key));
+
+    // The registry and the rows above each row, checked for the same email, the
+    // same employee ID (both stop the row) and the same name (the user may ignore).
+    const checks = useMemo(() => findDuplicates(data, registryRows, ignored), [data, registryRows, ignored]);
+    const rowCheck = (row, idx) => checks[idx] || { errors: [], warning: '' };
+
     const handleEdit = (rowIdx, colKey, value) => {
-        const newData = [...data];
-        newData[rowIdx][colKey] = value;
-        setData(newData);
+        setData((rows) => rows.map((r, i) => (i === rowIdx ? { ...r, [colKey]: value } : r)));
+        // An edit can make it a different person: ask again.
+        setIgnored((prev) => { const next = new Set(prev); next.delete(data[rowIdx]?._key); return next; });
     };
 
     const validateRow = (row) => {
@@ -57,12 +87,15 @@ export default function BulkTeamMembers() {
             const rules = VALIDATION_CONFIG[col];
             if (rules.required && !val.toString().trim()) isValid = false;
             if (rules.email && val && !/^\S+@\S+\.\S+$/.test(val)) isValid = false;
+            if (rules.validate && rules.validate(val, row)) isValid = false;
         });
         return isValid;
     };
 
+    const rowOk = (row, idx) => validateRow(row) && !checks[idx]?.errors.length && !checks[idx]?.warning;
+
     const startImport = async () => {
-        const validRows = data.filter(r => validateRow(r));
+        const validRows = data.filter((r, i) => rowOk(r, i));
         if (validRows.length === 0) return;
 
         const orgId = activeOrg?.id;
@@ -82,15 +115,17 @@ export default function BulkTeamMembers() {
             const row = validRows[i];
 
             try {
+                const first = String(row.first_name || '').trim();
+                const last = String(row.last_name || '').trim();
                 await storageService.saveEmployee({
-                    first_name: row.first_name || '',
-                    last_name: row.last_name || '',
-                    email: row.email || '',
+                    studentName: `${first} ${last}`.trim(),
+                    email: String(row.email || '').trim(),
                     role: row.role || '',
                     department: row.department || '',
                     location: row.location || '',
-                    start_date: row.start_date || '',
-                    employee_id: row.employee_id || '',
+                    startDate: toIsoDate(row.start_date) || '',
+                    offerType: 'fulltime',
+                    employee_code: row.employee_id || '',
                 }, orgId);
 
                 pCount++;
@@ -108,7 +143,7 @@ export default function BulkTeamMembers() {
         setStep(4);
     };
 
-    const validCount = data.filter(r => validateRow(r)).length;
+    const validCount = data.filter((r, i) => rowOk(r, i)).length;
     const running = step === 3 || step === 4;
 
     return (
@@ -134,9 +169,13 @@ export default function BulkTeamMembers() {
 
                 {step === 2 && (
                     <Step n={2} title="Check and fix rows" actions={<Btn size="sm" onClick={() => setStep(1)}>Upload a different file</Btn>}>
-                        <ValidationTable data={data} columns={COLUMNS} onEdit={handleEdit} validationConfig={VALIDATION_CONFIG} />
+                        <ValidationTable data={data} columns={COLUMNS} onEdit={handleEdit} validationConfig={VALIDATION_CONFIG}
+                            dateColumns={DATE_COLUMNS} onDeleteRow={deleteRow} rowCheck={rowCheck} onIgnore={ignoreRow} />
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 14, paddingTop: 14, borderTop: '1px solid ' + t.lineSoft }}>
-                            <Muted size={12.5}>Rows with errors are skipped. Only valid rows create profiles.</Muted>
+                            <Muted size={12.5}>
+                                Rows with errors are skipped, and so are rows that match someone already in the registry —
+                                fix them, delete them, or ignore a matching name if it is a different person.
+                            </Muted>
                             <div style={{ flex: 1 }} />
                             <Btn primary onClick={startImport} disabled={validCount === 0}>
                                 <UserPlus aria-hidden="true" size={13} strokeWidth={2} /> Import {validCount} employee{validCount === 1 ? '' : 's'}

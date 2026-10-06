@@ -9,7 +9,7 @@ import DocumentStatusBadge from '../shared/DocumentStatusBadge';
 import { useToast } from '../shared/Toast';
 import A4Stage from '../shared/A4Stage';
 import { confirmDialog } from '../../services/confirm';
-import { useFormProject, projectStartLines } from '../projects/projectScope';
+import { useFormProject, projectStartLines, projectBillingForm } from '../projects/projectScope';
 
 /* ─── Constants ─── */
 const GST_RATES = [0, 5, 12, 18, 28];
@@ -890,7 +890,8 @@ function RecurringInvoiceList({ projectId = null }) {
   const toast = useToast();
   const all = useSection('fin_recurring');
   const items = projectId ? all.filter((r) => r.project_id === projectId) : all;
-  const withProject = (path) => (projectId ? `${path}?project=${projectId}` : path);
+  const formPath = (id) => (projectId ? projectBillingForm(projectId, 'recurring', id)
+    : id ? `/billing/recurring/${id}/edit` : '/billing/recurring/new');
 
   // Saved and awaited: a refused write is said, not shown as done. The table
   // keeps only active or not, so a template is paused, resumed or deleted.
@@ -940,7 +941,7 @@ function RecurringInvoiceList({ projectId = null }) {
             {items.length} recurring {items.length === 1 ? 'invoice' : 'invoices'} configured
           </p>
         </div>
-        <button type="button" onClick={() => navigate(withProject('/billing/recurring/new'))}
+        <button type="button" onClick={() => navigate(formPath())}
           style={{
             display: 'flex', alignItems: 'center', gap: '0.5rem',
             background: 'var(--btn-accent-bg)', color: 'var(--btn-accent-text)',
@@ -967,7 +968,7 @@ function RecurringInvoiceList({ projectId = null }) {
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', margin: '0 0 1.5rem', maxWidth: '400px', marginLeft: 'auto', marginRight: 'auto' }}>
             Set up automated invoice generation for your regular clients. Invoices will be created on schedule.
           </p>
-          <button type="button" onClick={() => navigate(withProject('/billing/recurring/new'))}
+          <button type="button" onClick={() => navigate(formPath())}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
               background: 'var(--btn-accent-bg)', color: 'var(--btn-accent-text)',
@@ -1070,7 +1071,7 @@ function RecurringInvoiceList({ projectId = null }) {
                       )}
                       {item.status !== 'cancelled' && (
                         <>
-                          <button type="button" onClick={() => navigate(withProject(`/billing/recurring/${item.id}/edit`))}
+                          <button type="button" onClick={() => navigate(formPath(item.id))}
                             title="Edit"
                             style={{
                               background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',

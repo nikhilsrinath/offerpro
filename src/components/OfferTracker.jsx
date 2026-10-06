@@ -81,39 +81,19 @@ function formFromOffer(offer) {
 /* ── the pipeline, drawn ──────────────────────────────────────────────────── */
 
 function Pipeline({ docs }) {
-    const t = useT();
     const stages = [
-        { key: 'Not sent', test: (d) => statusOf(d).stage === 0 },
-        { key: 'Sent', test: (d) => statusOf(d).stage === 1 },
-        { key: 'Opened', test: (d) => statusOf(d).stage === 2 },
-        { key: 'Accepted', test: (d) => statusOf(d).tone === 'up' },
-        { key: 'Declined', test: (d) => statusOf(d).tone === 'down' },
-    ].map((s) => ({ ...s, value: docs.filter(s.test).length }));
-
-    const total = docs.length || 1;
-    if (docs.length === 0) return null;
-
+        { label: 'Not sent', test: (d) => statusOf(d).stage === 0 },
+        { label: 'Sent', test: (d) => statusOf(d).stage === 1 },
+        { label: 'Opened', test: (d) => statusOf(d).stage === 2 },
+        { label: 'Accepted', test: (d) => statusOf(d).tone === 'up' },
+        { label: 'Declined', test: (d) => statusOf(d).tone === 'down' },
+    ];
+    // The same band as the Employees and Attendance pages, there even when empty.
     return (
-        <div style={{
-            display: 'flex', border: '1px solid ' + t.line, borderRadius: 10,
-            overflow: 'hidden', marginBottom: 14,
-        }}>
-            {stages.map((s, i) => (
-                <div key={s.key} style={{
-                    flex: '1 1 0', padding: '12px 14px', minWidth: 0,
-                    borderLeft: i ? '1px solid ' + t.lineSoft : 'none',
-                }}>
-                    <div style={{ fontSize: 19.5, fontWeight: 500, letterSpacing: '-0.03em', color: s.value ? t.text : t.ghost }}>
-                        {s.value}
-                    </div>
-                    <div style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, margin: '5px 0 7px' }}>
-                        {s.key.toUpperCase()}
-                    </div>
-                    <Bar value={s.value} max={total}
-                        tone={s.key === 'Accepted' ? t.up : s.key === 'Declined' ? t.down : undefined} />
-                </div>
-            ))}
-        </div>
+        <StatBand items={stages.map((s) => ({
+            label: s.label, value: docs.filter(s.test).length,
+            tone: s.label === 'Declined' && docs.some(s.test) ? 'down' : undefined,
+        }))} />
     );
 }
 
@@ -470,10 +450,7 @@ export default function OfferTracker() {
                     ? <Btn primary onClick={() => setShowCreate(true)}>New offer</Btn>
                     : <Muted>Raised from an employee&apos;s profile</Muted>
             }>
-                <Seg value={tab} onChange={setTab} options={TABS.map((x) => ({
-                    ...x,
-                    count: (x.id === 'offers' ? offers : x.id === 'role_changes' ? roleChanges : terminations).length,
-                }))} />
+                <Seg value={tab} onChange={setTab} options={TABS} />
                 <Search value={query} onChange={setQuery} placeholder="Search name, role, number…" />
                 <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ width: 128, height: 29 }}>
                     <option value="date_desc">Newest first</option>

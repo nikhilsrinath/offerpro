@@ -178,8 +178,10 @@ export default function KanbanChart() {
 
             {shown.length === 0 ? <Panel><Empty>Nothing matches those filters.</Empty></Panel> : (
                 <div style={{
-                    display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(270px, 1fr)', gap: 12,
-                    alignItems: 'start', overflowX: 'auto', paddingBottom: 6,
+                    // Every status column is on screen: five across when there is room, wrapping
+                    // (never scrolling sideways) when there is not.
+                    display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12,
+                    alignItems: 'start', paddingBottom: 6,
                 }}>
                     {PROJECT_STATUSES.map((s) => {
                         const list = columns[s.id];

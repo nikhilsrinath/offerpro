@@ -9,9 +9,8 @@ import { BILLING_TYPES, MEMBER_ROLES } from '../../services/projectAnalytics';
 import {
     createProject, updateProject, prefillFromQuotation, prefillFromClient, canSeeFinancials,
 } from '../../services/projectService';
-import { hasFeature } from '../../services/planConfig';
-import { orgStore } from '../../services/orgStore';
 import { projectSectionPath } from './projectPaths';
+import AddClientDialog from '../shared/AddClientDialog';
 
 /* ══════════════════════════════════════════════════════════════════════════
    New project — and, with `project` passed, the edit sheet for one.
@@ -27,42 +26,25 @@ const todayIso = () => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-const TEMPLATES = [
-    { id: 'none', label: 'None' },
-    { id: '30/70', label: '30 / 70' },
-    { id: '50/50', label: '50 / 50' },
-    { id: 'retainer', label: 'Monthly retainer' },
-];
-
-/** Milestones for a template, given the dates the form has. */
-function templateMilestones(id, start, end) {
-    if (id === '30/70') return [
-        { title: 'Advance / kickoff', billing_pct: 30 },
-        { title: 'Delivery', billing_pct: 70 },
-    ];
-    if (id === '50/50') return [
-        { title: 'First half', billing_pct: 50 },
-        { title: 'Completion', billing_pct: 50 },
-    ];
-    if (id === 'retainer') {
-        const s = start ? new Date(`${start}T00:00:00`) : new Date();
-        const e = end ? new Date(`${end}T00:00:00`) : null;
-        const months = e ? Math.max(1, Math.min(24,
-            (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1)) : 12;
-        const pct = Math.round((100 / months) * 100) / 100;
-        return Array.from({ length: months }, (_, i) => {
-            const d = new Date(s.getFullYear(), s.getMonth() + i + 1, 0);
-            return {
-                title: d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
-                billing_pct: i === months - 1 ? Math.round((100 - pct * (months - 1)) * 100) / 100 : pct,
-                due_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-            };
-        });
+// The "Others" budgets as rows; a project saved before they had names has one
+// unnamed total, shown as a row so it is not lost.
+const initialOthers = (project) => {
+    if (Array.isArray(project?.other_budgets) && project.other_budgets.length) {
+        return project.other_budgets.map((b) => ({ name: b.name || '', amount: String(b.amount ?? '') }));
     }
-    return [];
-}
+    return Number(project?.budget_other) > 0 ? [{ name: 'Other', amount: String(project.budget_other) }] : [];
+};
 
-const blankMember = () => ({ employee_id: '', role: 'member', allocation_pct: '100', start_date: todayIso(), end_date: '' });
+const ROLE_IDS = Object.fromEntries(MEMBER_ROLES.map((r) => [r.label.toLowerCase(), r.id]));
+
+// The role is typed. "Manager" and "Lead" are the two the project acts on; anything
+// else is a member with that title.
+const roleFromText = (text) => {
+    const id = ROLE_IDS[String(text || '').trim().toLowerCase()];
+    return id ? { role: id, role_title: '' } : { role: 'member', role_title: String(text || '').trim() };
+};
+
+const blankMember = () => ({ employee_id: '', role: 'member', role_text: '', allocation_pct: '100', start_date: todayIso(), end_date: '' });
 
 export default function ProjectForm({ project = null, onDone }) {
     const t = useT();
@@ -92,35 +74,31 @@ export default function ProjectForm({ project = null, onDone }) {
         contract_value: String(project?.contract_value ?? prefill?.contract_value ?? ''),
         budget_labour: String(project?.budget_labour ?? ''),
         budget_vendor: String(project?.budget_vendor ?? ''),
-        budget_other: String(project?.budget_other ?? ''),
+        other_budgets: initialOthers(project),
         start_date: project?.start_date || todayIso(),
         target_end_date: project?.target_end_date || '',
         status: project?.status || 'planned',
-        tags: (project?.tags || []).join(', '),
+        tags: project?.tags || [], // no longer asked for; kept so an edit does not clear them
         cost_method: project?.cost_method || 'allocation',
         source_quotation_id: project?.source_quotation_id || prefill?.source_quotation_id || null,
         source_client_stage: project?.source_client_stage || prefill?.source_client_stage || null,
     }));
-    const [clientQuery, setClientQuery] = useState('');
-    const [members, setMembers] = useState(() => [{ ...blankMember(), role: 'manager' }]);
-    const [template, setTemplate] = useState('none');
+    const [addingClient, setAddingClient] = useState(false);
+    const [members, setMembers] = useState(() => [{ ...blankMember(), role_text: 'Manager' }]);
     const [quoteMilestones] = useState(() => prefill?.milestones || []);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
     const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v?.target ? v.target.value : v }));
     const activeEmployees = employees.filter((e) => !e.exited_at);
-    const liveClients = useMemo(() => {
-        const q = clientQuery.trim().toLowerCase();
-        return clients
-            .filter((c) => !c.archived_at || c.id === form.client_id)
-            .filter((c) => !q || [c.name, c.clientName, c.email, c.person_name].some((v) => String(v || '').toLowerCase().includes(q)))
-            .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-    }, [clients, clientQuery, form.client_id]);
+    const liveClients = useMemo(() => clients
+        .filter((c) => !c.archived_at || c.id === form.client_id)
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))), [clients, form.client_id]);
+    const setOther = (i, patch) => setForm((f) => ({ ...f, other_budgets: f.other_budgets.map((b, j) => (j === i ? { ...b, ...patch } : b)) }));
+    const othersTotal = form.other_budgets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
 
-    const milestones = quoteMilestones.length > 0 && template === 'none'
-        ? quoteMilestones
-        : templateMilestones(template, form.start_date, form.target_end_date);
+    // No milestone form here; a project made from a quotation keeps the quotation's lines.
+    const milestones = quoteMilestones;
 
     const setMember = (i, patch) => setMembers((ms) => ms.map((m, j) => (j === i ? { ...m, ...patch } : m)));
 
@@ -131,14 +109,18 @@ export default function ProjectForm({ project = null, onDone }) {
         if (form.target_end_date && form.start_date && form.target_end_date < form.start_date) {
             setError('The target end date is before the start.'); return;
         }
-        if (members.filter((m) => m.role === 'manager' && m.employee_id).length > 1) {
+        if (members.filter((m) => roleFromText(m.role_text).role === 'manager' && m.employee_id).length > 1) {
             setError('A project has one manager at a time.'); return;
         }
         setSaving(true); setError('');
+        const others = form.other_budgets
+            .map((b) => ({ name: b.name.trim(), amount: Number(b.amount) || 0 }))
+            .filter((b) => b.name || b.amount);
         const data = {
             ...form,
             client_id: form.kind === 'client' ? form.client_id : null,
-            tags: form.tags.split(',').map((x) => x.trim()).filter(Boolean),
+            other_budgets: others,
+            budget_other: others.reduce((sum, b) => sum + b.amount, 0),
         };
         try {
             if (isEdit) {
@@ -146,7 +128,7 @@ export default function ProjectForm({ project = null, onDone }) {
                 onDone?.();
             } else {
                 const { project: created, problems } = await createProject(data, {
-                    members: members.filter((m) => m.employee_id),
+                    members: members.filter((m) => m.employee_id).map(({ role_text, ...m }) => ({ ...m, ...roleFromText(role_text) })),
                     milestones,
                 });
                 if (problems.length) {
@@ -173,18 +155,17 @@ export default function ProjectForm({ project = null, onDone }) {
                 <div style={{ height: 13 }} />
                 {form.kind === 'client' && (
                     <>
-                        <Grid cols="minmax(0,1fr) minmax(0,1fr)" gap={12}>
-                            <Field label="Find client">
-                                <Input value={clientQuery} onChange={(e) => setClientQuery(e.target.value)}
-                                    placeholder="Name, email, contact…" />
-                            </Field>
-                            <Field required label="Client">
-                                <Select value={form.client_id} onChange={set('client_id')}>
-                                    <option value="">Choose a client…</option>
-                                    {liveClients.map((c) => <option key={c.id} value={c.id}>{c.name || c.clientName}</option>)}
-                                </Select>
-                            </Field>
-                        </Grid>
+                        <Field required label="Client">
+                            <Row gap={8}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <Select value={form.client_id} onChange={set('client_id')}>
+                                        <option value="">Choose a client…</option>
+                                        {liveClients.map((c) => <option key={c.id} value={c.id}>{c.name || c.clientName}</option>)}
+                                    </Select>
+                                </div>
+                                <Btn onClick={() => setAddingClient(true)}>Add Client</Btn>
+                            </Row>
+                        </Field>
                         <div style={{ height: 13 }} />
                     </>
                 )}
@@ -202,22 +183,11 @@ export default function ProjectForm({ project = null, onDone }) {
                             {BILLING_TYPES.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
                         </Select>
                     </Field>
-                    <Field label="Start">
+                    <Field label="Start Date">
                         <Input type="date" value={form.start_date || ''} onChange={set('start_date')} />
                     </Field>
-                    <Field label="Target end">
+                    <Field label="Target End Date">
                         <Input type="date" value={form.target_end_date || ''} onChange={set('target_end_date')} />
-                    </Field>
-                    {hasFeature(orgStore.getProfile().plan || 'free', 'timesheets') && (
-                        <Field label="Labour cost from" hint="Timesheets: approved hours × hourly cost">
-                            <Select value={form.cost_method} onChange={set('cost_method')}>
-                                <option value="allocation">Time share (allocation)</option>
-                                <option value="timesheet">Timesheets</option>
-                            </Select>
-                        </Field>
-                    )}
-                    <Field label="Tags" hint="Comma separated">
-                        <Input value={form.tags} onChange={set('tags')} placeholder="web, phase-1" />
                     </Field>
                 </Grid>
             </Panel>
@@ -225,30 +195,51 @@ export default function ProjectForm({ project = null, onDone }) {
             <Panel title="Contract and budget" note={fin ? 'All amounts before GST' : 'Visible to people with Project financials'} pad={15} style={{ marginBottom: 14 }}>
                 <Grid min={160} gap={12}>
                     <Field label="Contract value (₹)" hint="Net of GST">
-                        <Input type="number" min="0" step="0.01" inputMode="decimal" value={form.contract_value} onChange={set('contract_value')} />
+                        <Input type="number" min="0" step="1" inputMode="decimal" value={form.contract_value} onChange={set('contract_value')} />
                     </Field>
                     <Field label="Currency">
                         <Input value={form.currency} maxLength={3} onChange={(e) => set('currency')(e.target.value.toUpperCase())} />
                     </Field>
                     <Field label="Labour budget (₹)">
-                        <Input type="number" min="0" step="0.01" inputMode="decimal" value={form.budget_labour} onChange={set('budget_labour')} />
+                        <Input type="number" min="0" step="1" inputMode="decimal" value={form.budget_labour} onChange={set('budget_labour')} />
                     </Field>
                     <Field label="Vendor budget (₹)">
-                        <Input type="number" min="0" step="0.01" inputMode="decimal" value={form.budget_vendor} onChange={set('budget_vendor')} />
-                    </Field>
-                    <Field label="Other budget (₹)">
-                        <Input type="number" min="0" step="0.01" inputMode="decimal" value={form.budget_other} onChange={set('budget_other')} />
+                        <Input type="number" min="0" step="1" inputMode="decimal" value={form.budget_vendor} onChange={set('budget_vendor')} />
                     </Field>
                 </Grid>
-                <div style={{ marginTop: 10 }}>
+                {form.other_budgets.length > 0 && (
+                    <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+                        {form.other_budgets.map((b, i) => (
+                            <Grid key={i} cols="minmax(0,2fr) minmax(0,1fr) auto" gap={8}>
+                                <Field label={i === 0 ? 'Others — name' : undefined}>
+                                    <Input value={b.name} aria-label={`Other budget ${i + 1} name`} placeholder="e.g. Approval budget"
+                                        onChange={(e) => setOther(i, { name: e.target.value })} />
+                                </Field>
+                                <Field label={i === 0 ? 'Amount (₹)' : undefined}>
+                                    <Input type="number" min="0" step="1" inputMode="decimal" aria-label={`Other budget ${i + 1} amount`}
+                                        value={b.amount} onChange={(e) => setOther(i, { amount: e.target.value })} />
+                                </Field>
+                                <div style={{ alignSelf: 'end' }}>
+                                    <Btn size="sm" aria-label={`Remove other budget ${i + 1}`}
+                                        onClick={() => setForm((f) => ({ ...f, other_budgets: f.other_budgets.filter((_, j) => j !== i) }))}>Remove</Btn>
+                                </div>
+                            </Grid>
+                        ))}
+                    </div>
+                )}
+                <Row gap={12} wrap style={{ marginTop: 10 }}>
+                    <Btn size="sm" onClick={() => setForm((f) => ({ ...f, other_budgets: [...f.other_budgets, { name: '', amount: '' }] }))}>Others</Btn>
                     <Muted>
-                        Budget total {money((Number(form.budget_labour) || 0) + (Number(form.budget_vendor) || 0) + (Number(form.budget_other) || 0))}
+                        Budget total {money((Number(form.budget_labour) || 0) + (Number(form.budget_vendor) || 0) + othersTotal)}
                     </Muted>
-                </div>
+                </Row>
             </Panel>
 
             {!isEdit && (
-                <Panel title="Team" note="The manager row sets the project's manager" pad={15} style={{ marginBottom: 14 }}>
+                <Panel title="Team" pad={15} style={{ marginBottom: 14 }}>
+                    <datalist id="project-role-suggestions">
+                        {MEMBER_ROLES.map((r) => <option key={r.id} value={r.label} />)}
+                    </datalist>
                     <div style={{ display: 'grid', gap: 10 }}>
                         {members.map((m, i) => (
                             <Grid key={i} cols="minmax(0,2fr) minmax(0,1fr) 90px minmax(0,1fr) minmax(0,1fr) auto" gap={8}>
@@ -259,9 +250,8 @@ export default function ProjectForm({ project = null, onDone }) {
                                     </Select>
                                 </Field>
                                 <Field label="Role">
-                                    <Select value={m.role} onChange={(e) => setMember(i, { role: e.target.value })}>
-                                        {MEMBER_ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-                                    </Select>
+                                    <Input value={m.role_text} list="project-role-suggestions" placeholder="Type a role"
+                                        onChange={(e) => setMember(i, { role_text: e.target.value })} />
                                 </Field>
                                 <Field label="Time %">
                                     <Input type="number" min="1" max="100" value={m.allocation_pct}
@@ -273,7 +263,7 @@ export default function ProjectForm({ project = null, onDone }) {
                                 <Field label="Until">
                                     <Input type="date" value={m.end_date} onChange={(e) => setMember(i, { end_date: e.target.value })} />
                                 </Field>
-                                <div style={{ alignSelf: 'end' }}>
+                                <div style={{ alignSelf: 'end', display: 'flex' }}>
                                     <Btn size="sm" aria-label={`Remove person ${i + 1}`}
                                         onClick={() => setMembers((ms) => ms.filter((_, j) => j !== i))}>Remove</Btn>
                                 </div>
@@ -284,26 +274,6 @@ export default function ProjectForm({ project = null, onDone }) {
                 </Panel>
             )}
 
-            {!isEdit && (
-                <Panel title="Milestones" note={quoteMilestones.length ? 'Suggested from the quotation’s lines' : 'Optional — you can add them later'} pad={15} style={{ marginBottom: 14 }}>
-                    <Field label="Template">
-                        <Seg size="sm" value={template} onChange={setTemplate} label="Milestone template" options={TEMPLATES} />
-                    </Field>
-                    {milestones.length > 0 && (
-                        <ul style={{ margin: '12px 0 0', padding: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
-                            {milestones.map((m, i) => (
-                                <li key={i} style={{ fontSize: 12.5, color: t.dim, display: 'flex', gap: 10 }}>
-                                    <span style={{ flex: 1 }}>{m.title}</span>
-                                    <span>{m.billing_pct != null
-                                        ? `${m.billing_pct}%${Number(form.contract_value) ? ` · ${money((Number(form.contract_value) * m.billing_pct) / 100)}` : ''}`
-                                        : money(m.billing_amount)}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </Panel>
-            )}
-
             {error && <div role="alert" style={{ margin: '0 0 12px', fontSize: 12.5, color: t.down }}>{error}</div>}
             <Row gap={8} style={{ justifyContent: 'flex-end' }}>
                 <Btn onClick={() => (isEdit ? onDone?.() : navigate(-1))}>Cancel</Btn>
@@ -311,8 +281,12 @@ export default function ProjectForm({ project = null, onDone }) {
                     {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create project'}
                 </Btn>
             </Row>
+            {addingClient && (
+                <AddClientDialog onClose={() => setAddingClient(false)}
+                    onCreated={(c) => c?.id && setForm((f) => ({ ...f, client_id: c.id }))} />
+            )}
         </form>
     );
 
-    return isEdit ? body : <Page><div style={{ maxWidth: 900 }}>{body}</div></Page>;
+    return isEdit ? body : <Page>{body}</Page>;
 }

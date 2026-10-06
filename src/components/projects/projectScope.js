@@ -7,12 +7,12 @@
 // it. Nothing here writes: links are made by the forms (ProjectPicker, or a
 // project_documents row) and by the database (0054).
 import { useEffect, useMemo, useRef } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { useSection } from '../financial/financeHooks';
 import { netOfTax } from '../../services/financeAnalytics';
 import { orgStore } from '../../services/orgStore';
 import { linkDocument } from '../../services/projectService';
-import { projectSectionPath } from './projectPaths';
+import { projectSectionPath, projectBillingFormPath } from './projectPaths';
 
 const n = (v) => Number(v) || 0;
 const round2 = (v) => Math.round(v * 100) / 100;
@@ -111,6 +111,9 @@ export function useProjectScope(projectId) {
 /** Where a project's Billing page lists a kind of document. */
 export const projectBillingPath = (projectId, kind) => projectSectionPath(projectId, 'billing', kind);
 
+/** Where a project's Billing opens a form: a new document, or one to revise. */
+export const projectBillingForm = projectBillingFormPath;
+
 /** Documents Management › Project Documents, on its business-documents view. */
 export const projectDocumentsPath = (projectId) => projectSectionPath(projectId, 'documents', 'business');
 
@@ -134,7 +137,8 @@ export function projectFormPath(projectId, path, { from } = {}) {
 export function useFormProject(kind, fallbackPath) {
     const location = useLocation();
     const [params] = useSearchParams();
-    const projectId = location.state?.projectId || params.get('project') || null;
+    const inProject = useParams().projectId;
+    const projectId = inProject || location.state?.projectId || params.get('project') || null;
     const projects = useSection('projects');
     const customers = useSection('customers');
     const project = projectId ? projects.find((p) => p.id === projectId) || null : null;

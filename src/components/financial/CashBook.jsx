@@ -23,7 +23,7 @@ import CashEntryModal from './CashEntryModal';
 import { SECTION, billBalance, billPaymentEntry, blank } from './cashEntry';
 
 const PRESETS = [
-  { id: 'all',     label: 'All time' },
+  { id: 'all',     label: 'All Time' },
   { id: 'month',   label: 'This month' },
   { id: 'quarter', label: 'This quarter' },
   { id: 'fy',      label: 'This FY' },
@@ -263,8 +263,7 @@ export default function CashBook({ projectId = null }) {
         <div className="prod-perf-table-wrap" style={{ marginBottom: '1rem' }}>
           <table className="prod-perf-table">
             <caption style={{ textAlign: 'left', fontWeight: 600, padding: '0.6rem 0.75rem' }}>
-              
-              {range.from ? ` ${fmtDate(range.from)} to ${fmtDate(range.to)}` : ' · all time'}
+              {range.from ? `${fmtDate(range.from)} to ${fmtDate(range.to)}` : preset === 'custom' ? 'Custom' : 'All Time'}
             </caption>
             <thead>
               <tr>

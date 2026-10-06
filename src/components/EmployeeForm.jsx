@@ -6,6 +6,7 @@ import { uploadOrgImage } from '../services/imageUploadService';
 import EmployeeAvatar from './shared/EmployeeAvatar';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
+import { orgStore } from '../services/orgStore';
 import {
     Page, Toolbar, Panel, Row, Grid, Btn, Seg, Field, Input, Select, Textarea, Empty,
 } from './ui/edge';
@@ -114,6 +115,16 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
     };
 
     const submit = async () => {
+        // Someone the registry already holds is not added a second time.
+        if (!isEdit && form.email.trim()) {
+            const email = form.email.trim().toLowerCase();
+            const same = [...orgStore.getSectionAsList('employees'), ...orgStore.getSectionAsList('ex_employees')]
+                .find((e) => (e.email || '').toLowerCase() === email);
+            if (same) {
+                alert(`${same.studentName || 'Someone'} is already in the registry${same.exited_at ? ' as an ex-employee' : ''} with the email ${form.email.trim()}.`);
+                return;
+            }
+        }
         setSaving(true);
         try {
             if (isEdit) {
@@ -175,14 +186,9 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                 <span style={{ fontSize: 13.5, color: t.text }}>
                     {isEdit ? 'Editing ' + (form.studentName || 'employee') : 'New employee'}
                 </span>
-                {!ready && (
-                    <span style={{ fontSize: 11.5, color: t.faint }}>
-                        {missing.length === 1 ? `${missing[0][0].toUpperCase()}${missing[0].slice(1)} is needed` : `Still needed: ${missing.join(', ')}`}
-                    </span>
-                )}
             </Toolbar>
 
-            <div style={{ display: 'grid', gap: 14, maxWidth: 860 }}>
+            <div style={{ display: 'grid', gap: 14 }}>
                 <Panel title="Person" pad={15}>
                     <Row gap={15} align="flex-start" wrap>
                         <div style={{ textAlign: 'center' }}>
@@ -198,13 +204,16 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
 
                         <div style={{ flex: '1 1 320px', minWidth: 0 }}>
                             <Grid min={200} gap={13}>
+                                <Field label="Employee ID" hint={isEdit ? undefined : 'Generated when they are added'}>
+                                    <Input value={form.employee_code || ''} disabled placeholder="EMP-0001" aria-label="Employee ID" />
+                                </Field>
                                 <Field required label="Full name"><Input value={form.studentName} onChange={set('studentName')} /></Field>
-                                <Field required={!isEdit} label="Email" hint="Becomes their portal username">
+                                <Field required={!isEdit} label="Email">
                                     <Input type="email" value={form.email} onChange={set('email')} />
                                 </Field>
                                 <Field label="Phone"><Input value={form.phone} onChange={set('phone')} /></Field>
-                                <Field label="Work location" hint="City, office or Remote">
-                                    <Input value={form.location || ''} onChange={set('location')} />
+                                <Field label="Work location">
+                                    <Input value={form.location || ''} onChange={set('location')} placeholder="City, office or Remote" />
                                 </Field>
                                 <Field label="Address" wide>
                                     <Input value={form.studentAddress} onChange={set('studentAddress')} />
@@ -237,7 +246,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                         <Field label="Reports to"><Input value={form.supervisorName} onChange={set('supervisorName')} /></Field>
                         <Field required={!isEdit} label="Start date"><Input type="date" value={form.startDate} onChange={set('startDate')} /></Field>
                         {dated && <Field label="End date"><Input type="date" value={form.endDate} onChange={set('endDate')} /></Field>}
-                        <Field label="Responsibilities" wide hint="Appears in the letter they can download">
+                        <Field label="Responsibilities" wide>
                             <Textarea value={form.responsibilities} onChange={set('responsibilities')} />
                         </Field>
                     </Grid>
@@ -268,13 +277,6 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                                 </Field>
                             </Grid>
                         </>
-                    )}
-                    {!isEdit && (
-                        <p style={{ margin: '14px 0 0', fontSize: 12, color: t.faint, lineHeight: 1.75 }}>
-                            Adding someone here puts them on the team straight away — no offer to accept. An
-                            offer letter is filed alongside them for download. To send an offer someone has to
-                            sign first, use the Recruitment Tracker instead.
-                        </p>
                     )}
                 </Panel>
             </div>

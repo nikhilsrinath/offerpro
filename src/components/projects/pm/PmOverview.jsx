@@ -5,7 +5,7 @@ import { toDay } from '../../../services/wbs';
 import { usePmData, empName, fmtD, fmtDY } from './pmData';
 import { Progress } from './pmUi';
 
-/* Portfolio / Overview — the project's work breakdown at a glance: how far
+/* Portfolio — the project's work breakdown at a glance: how far
    along it is, whether the network finishes by the target date, and each
    sub-project with the person who answers for it. */
 

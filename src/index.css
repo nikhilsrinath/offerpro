@@ -10237,6 +10237,17 @@ label {
   margin-bottom: 1.5rem;
 }
 
+.fin-list-controls {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.fin-list-controls select { max-width: 240px; min-width: 0; }
+
 .fin-list-search-wrap {
   display: flex;
   align-items: center;
@@ -12661,6 +12672,10 @@ label {
 
   .fin-list-search-wrap {
     max-width: 100%;
+  }
+
+  .fin-list-controls {
+    flex-wrap: wrap;
   }
 }
 

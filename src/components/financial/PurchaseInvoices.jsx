@@ -23,7 +23,7 @@ const FILTERS = ['all', 'paid', 'unpaid', 'partially_paid', 'overdue', 'void'];
 
 const blank = (vendorId = '') => ({
   vendor_id: vendorId, bill_number: '', bill_date: '', due_date: '',
-  category: 'Operations', description: '', subtotal: '', tax_rate: 18,
+  category: 'Operations', description: '', subtotal: '', tax_rate: 0,
   amount_paid: 0, receipt_path: null, notes: '',
 });
 
@@ -219,7 +219,7 @@ export default function PurchaseInvoices({ projectId = null }) {
   return (
     <div style={{ maxWidth: '100%' }}>
       <div className="prod-stats">
-        <Stat icon={<FileInput size={15} />} label="Total billed" value={money(totals.billed)} />
+        <Stat icon={<FileInput size={15} />} label="Total billed" value={money(totals.billed)} onClick={() => setFilter('all')} />
         <Stat icon={<IndianRupee size={15} />} label="Payable" value={money(totals.payable)} accent="var(--text-primary)" onClick={() => setFilter('unpaid')} />
         <Stat icon={<AlertTriangle size={15} />} label="Overdue" value={money(totals.overdue)} accent="var(--error)" onClick={() => setFilter('overdue')} />
         <Stat icon={<FileInput size={15} />} label="Input GST" value={money(totals.inputGst)} />
@@ -333,7 +333,7 @@ export default function PurchaseInvoices({ projectId = null }) {
       )}
 
       {editing && (
-        <Modal title={editing.id ? 'Edit bill' : 'Record a purchase invoice'} onClose={() => setEditing(null)}>
+        <Modal title={editing.id ? 'Edit bill' : 'Record a purchase invoice'} onClose={() => setEditing(null)} width={720}>
           <form onSubmit={handleSave} className="prod-modal-body">
             {formError && <div className="prod-form-error">{formError}</div>}
             <div className="prod-form-grid">

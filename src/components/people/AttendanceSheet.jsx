@@ -75,6 +75,16 @@ const shiftDate = (dateKey, delta) => {
     return todayKey(d);
 };
 
+// The first day someone can be marked: their start date, or the day they were
+// added when no start date was given. Nobody is on the sheet, or markable,
+// before it.
+const joinedKey = (e) => {
+    const start = String(e.startDate || e.start_date || '').slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(start)) return start;
+    return e.created_at ? todayKey(new Date(e.created_at)) : '';
+};
+const onSheet = (e, dateKey) => !joinedKey(e) || joinedKey(e) <= dateKey;
+
 const monthLabel = (monthKey) => new Date(`${monthKey}-01T00:00:00`)
     .toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 
@@ -104,6 +114,9 @@ export default function AttendanceSheet() {
         .filter((e) => !dept || e.department_id === dept)
         .sort((a, b) => String(a.name || a.full_name || '').localeCompare(String(b.name || b.full_name || ''))),
     [employees, dept]);
+
+    // Who is on the sheet for the day on screen.
+    const dayRoster = useMemo(() => roster.filter((e) => onSheet(e, date)), [roster, date]);
 
     const employeesById = useMemo(
         () => Object.fromEntries(employees.map((e) => [e.id, e])), [employees],
@@ -151,7 +164,7 @@ export default function AttendanceSheet() {
     };
 
     const markEveryone = async (status) => {
-        const ids = roster.map((e) => e.id);
+        const ids = dayRoster.map((e) => e.id);
         if (!ids.length) return;
         setBulk(null);
         try {
@@ -165,6 +178,11 @@ export default function AttendanceSheet() {
 
     const saveDetails = async () => {
         const { employeeId, dateKey, checkIn, checkOut, status, note } = editing;
+        const who = employeesById[employeeId];
+        if (who && !onSheet(who, dateKey)) {
+            toast(`${editing.name} joined on ${fmtDate(joinedKey(who))}; attendance cannot be marked before that.`, 'error');
+            return;
+        }
         if (checkIn && checkOut && checkOut < checkIn) {
             toast('Check-out cannot be before check-in.', 'error');
             return;
@@ -207,9 +225,9 @@ export default function AttendanceSheet() {
     };
 
     const dayTotals = useMemo(() => {
-        const rows = roster.map((e) => dayRows[e.id]).filter(Boolean);
-        return { ...countBuckets(rows), unmarked: roster.length - rows.length };
-    }, [roster, dayRows]);
+        const rows = dayRoster.map((e) => dayRows[e.id]).filter(Boolean);
+        return { ...countBuckets(rows), unmarked: dayRoster.length - rows.length };
+    }, [dayRoster, dayRows]);
 
     // From the daily sheet: that person's month, the month of the day on screen.
     const openPersonMonth = (employeeId) => {
@@ -227,7 +245,7 @@ export default function AttendanceSheet() {
                     ? (
                         <Row gap={8}>
                             {QUICK.slice(0, 2).map((s) => (
-                                <Btn key={s} onClick={() => setBulk(s)} disabled={!roster.length}>
+                                <Btn key={s} onClick={() => setBulk(s)} disabled={!dayRoster.length}>
                                     Mark all {statusLabel(s).toLowerCase()}
                                 </Btn>
                             ))}
@@ -285,7 +303,7 @@ export default function AttendanceSheet() {
                 <>
                     <Row gap={10} style={{ marginBottom: 12 }}>
                         <span style={{ fontSize: 13.5, color: t.text }}>{fmtDate(date)}</span>
-                        <Muted>{roster.length} on the roster</Muted>
+                        <Muted>{dayRoster.length} on the roster</Muted>
                     </Row>
 
                     <StatBand items={[
@@ -293,7 +311,7 @@ export default function AttendanceSheet() {
                         { label: 'Not marked', value: dayTotals.unmarked },
                     ]} />
 
-                    {loading ? <Loading /> : roster.length === 0 ? (
+                    {loading ? <Loading /> : dayRoster.length === 0 ? (
                         <Panel><Empty>No one to mark. Add employees to the registry first.</Empty></Panel>
                     ) : (
                         <Table cols={[
@@ -305,7 +323,7 @@ export default function AttendanceSheet() {
                             { key: 'n', label: 'Note' },
                             { key: 'a', label: '', align: 'right', width: 82 },
                         ]}>
-                            {roster.map((e) => {
+                            {dayRoster.map((e) => {
                                 const row = dayRows[e.id];
                                 const name = e.name || e.full_name || 'Unnamed';
                                 return (
@@ -363,7 +381,7 @@ export default function AttendanceSheet() {
             )}
 
             {dayList && (
-                <DayListModal t={t} dateKey={dayList} roster={roster}
+                <DayListModal t={t} dateKey={dayList} roster={roster.filter((e) => onSheet(e, dayList))}
                     rows={teamMonth.filter((r) => r.work_date === dayList)}
                     onClose={() => setDayList(null)}
                     onOpenDay={() => { setDate(dayList); setTab('daily'); setDayList(null); }}
@@ -415,7 +433,7 @@ export default function AttendanceSheet() {
                         <>
                             <Btn onClick={() => setBulk(null)}>Cancel</Btn>
                             <Btn primary onClick={() => markEveryone(bulk)}>
-                                Mark {roster.length} {roster.length === 1 ? 'person' : 'people'}
+                                Mark {dayRoster.length} {dayRoster.length === 1 ? 'person' : 'people'}
                             </Btn>
                         </>
                     }>
@@ -464,14 +482,16 @@ function MonthlyView({ t, monthKey, rows, loading, personId, roster, onPick }) {
                         if (!dateKey) return <div key={'pad-' + i} />;
                         const row = rows[dateKey];
                         const today = dateKey === todayKey();
+                        const before = !!person && !onSheet(person, dateKey);
                         return (
                             <button
                                 key={dateKey} type="button" className="edge-btn"
                                 onClick={() => onPick(dateKey, row)}
-                                title={row ? `${statusLabel(row.status)}${row.note ? ' — ' + row.note : ''}` : 'Not marked'}
+                                disabled={before}
+                                title={before ? `Joined on ${fmtDate(joinedKey(person))}` : row ? `${statusLabel(row.status)}${row.note ? ' — ' + row.note : ''}` : 'Not marked'}
                                 style={{
-                                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 3,
-                                    minHeight: 62, padding: '7px 8px', cursor: 'pointer', textAlign: 'left',
+                                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 3, opacity: before ? 0.4 : 1,
+                                    minHeight: 62, padding: '7px 8px', cursor: before ? 'not-allowed' : 'pointer', textAlign: 'left',
                                     fontFamily: MONO, color: t.text, background: t.panel,
                                     border: '1px solid ' + (today ? t.lineStrong : t.line),
                                     borderRadius: 7,

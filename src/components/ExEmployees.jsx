@@ -8,6 +8,8 @@ import {
     StatBand, Breakdown, Empty, Loading, Modal, Muted,
 } from './ui/edge';
 import { useT, fmtDate } from './ui/edgeUtils';
+import { confirmDialog } from '../services/confirm';
+import { useToast } from './shared/Toast';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Ex-employees.
@@ -55,6 +57,7 @@ function deptColor(name) {
 
 export default function ExEmployees() {
     const t = useT();
+    const toast = useToast();
     const { activeOrg } = useOrg();
     const [people, setPeople] = useState([]);
     // Null means "not known": listMembers is admin-only, so a member viewing
@@ -108,6 +111,23 @@ export default function ExEmployees() {
         return Object.entries(m).map(([label, value]) => ({ label, value, color: deptColor(label) }));
     }, [people]);
 
+    // Deleting removes the record for good. A person other records still point
+    // at (their documents, tasks) is refused by the database, and says so.
+    const remove = async (emp) => {
+        const name = getDisplayName(emp) || 'this person';
+        if (!(await confirmDialog({
+            title: 'Delete ex-employee',
+            message: `Delete ${name} from the archive? This removes the record permanently and cannot be undone.`,
+        }))) return;
+        try {
+            await orgStore.removeItem('ex_employees', emp.id);
+            setSelected(null);
+            toast(`${name} deleted`, 'success');
+        } catch (err) {
+            toast(`Could not delete ${name}: ${err.message}`, 'error');
+        }
+    };
+
     const access = (emp) => {
         if (liveUserIds === null) return null;
         return emp.user_id && liveUserIds.has(emp.user_id)
@@ -156,12 +176,13 @@ export default function ExEmployees() {
                     ) : (
                         <Table cols={[
                             { key: 'n', label: 'Name' },
+                            { key: 'i', label: 'Employee ID' },
                             { key: 'r', label: 'Role' },
                             { key: 'd', label: 'Department' },
                             { key: 't', label: 'Tenure' },
                             { key: 'l', label: 'Left' },
                             { key: 'a', label: 'Access' },
-                            { key: 'x', label: '', align: 'right', width: 74 },
+                            { key: 'x', label: '', align: 'right', width: 150 },
                         ]}>
                             {list.map((emp) => {
                                 const name = getDisplayName(emp);
@@ -177,6 +198,7 @@ export default function ExEmployees() {
                                                 </span>
                                             </Row>
                                         </Td>
+                                        <Td muted nowrap>{emp.employee_code || '—'}</Td>
                                         <Td muted nowrap>{emp.role || '—'}</Td>
                                         <Td nowrap>
                                             {emp.department ? (
@@ -189,7 +211,13 @@ export default function ExEmployees() {
                                         <Td muted nowrap>{tenure(emp)}</Td>
                                         <Td muted nowrap>{fmtDate(leftOn(emp))}</Td>
                                         <Td nowrap>{a ? <Status tone={a.tone}>{a.label}</Status> : <span style={{ color: t.ghost }}>—</span>}</Td>
-                                        <Td align="right"><Btn size="sm" onClick={() => setSelected(emp)}>Open</Btn></Td>
+                                        <Td align="right">
+                                            <Row gap={6} style={{ justifyContent: 'flex-end' }}>
+                                                <Btn size="sm" onClick={(e) => { e.stopPropagation(); setSelected(emp); }}>Open</Btn>
+                                                <Btn size="sm" aria-label={`Delete ${name || 'ex-employee'}`}
+                                                    onClick={(e) => { e.stopPropagation(); remove(emp); }}>Delete</Btn>
+                                            </Row>
+                                        </Td>
                                     </Tr>
                                 );
                             })}
@@ -208,9 +236,10 @@ export default function ExEmployees() {
                 <Modal open onClose={() => setSelected(null)}
                     title={getDisplayName(selected) || 'Former employee'}
                     note={[selected.role, selected.department].filter(Boolean).join(' · ') || undefined}
-                    footer={<Btn primary onClick={() => setSelected(null)}>Close</Btn>}>
+                    footer={<Row gap={8}><Btn onClick={() => remove(selected)}>Delete</Btn><Btn primary onClick={() => setSelected(null)}>Close</Btn></Row>}>
                     <div style={{ border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden' }}>
                         {[
+                            ['Employee ID', selected.employee_code],
                             ['Email', selected.email],
                             ['Phone', selected.phone],
                             ['Employment', TYPE_LABEL[selected.offerType] || null],

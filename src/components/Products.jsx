@@ -54,7 +54,9 @@ const RANGES = [
 
 const iso = (d) => (d ? new Date(d).toISOString().slice(0, 10) : null);
 
-export default function Products() {
+// With `projectId` (a project's Product & Service Directory) only the products
+// that belong to the project are listed, and a new one starts on it.
+export default function Products({ projectId = null }) {
   const { activeOrg } = useOrg();
   const [tab, setTab] = useState('catalog');
   // orgStore is an in-memory cache hydrated once at login, so the catalogue is
@@ -86,7 +88,8 @@ export default function Products() {
   // is mutable and outside React, so bumping it is how a write here becomes a
   // re-read. The lint rule cannot see that and calls it unnecessary.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const items = useMemo(() => (activeOrg ? catalogService.getAll() : []), [activeOrg, version]);
+  const everything = useMemo(() => (activeOrg ? catalogService.getAll() : []), [activeOrg, version]);
+  const items = useMemo(() => (projectId ? everything.filter((p) => p.project_id === projectId) : everything), [everything, projectId]);
 
   // ── Performance ────────────────────────────────────────────────────────────
   // All-time needs no query at all: units_sold, revenue, revenue_paid and
@@ -266,7 +269,7 @@ export default function Products() {
               {categories.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
 
-            <BelongsToFilter value={scope} onChange={setScope} className="prod-select" />
+            {!projectId && <BelongsToFilter value={scope} onChange={setScope} className="prod-select" />}
 
             <button
               aria-pressed={!!showArchived} className={`pro-chip ${showArchived ? 'active' : ''}`}
@@ -275,7 +278,7 @@ export default function Products() {
               <Archive size={12} /> Archived
             </button>
 
-            <button className="prod-add-btn" onClick={() => { setEditing({ ...BLANK, belongs: scope || GENERAL }); setFormError(''); }}>
+            <button className="prod-add-btn" onClick={() => { setEditing({ ...BLANK, belongs: projectId || scope || GENERAL }); setFormError(''); }}>
               <Plus size={15} /> New product
             </button>
           </div>
@@ -284,7 +287,7 @@ export default function Products() {
             <EmptyState
               archived={showArchived}
               filtered={!!search || category !== 'all' || !!scope}
-              onAdd={() => { setEditing({ ...BLANK, belongs: scope || GENERAL }); setFormError(''); }}
+              onAdd={() => { setEditing({ ...BLANK, belongs: projectId || scope || GENERAL }); setFormError(''); }}
             />
           ) : (
             <div className="prod-grid">

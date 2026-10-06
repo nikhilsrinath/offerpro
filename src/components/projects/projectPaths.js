@@ -23,6 +23,7 @@ export const SECTION_PATHS = {
     wbs: 'project-management/tasks-wbs',
     tasks: 'project-management/kanban-board',
     gantt: 'project-management/gantt-chart',
+    products: 'product-management/product-service-directory',
     team: 'team-management/team-members',
     raci: 'team-management/team-hierarchy',
     attendance: 'team-management/attendance',
@@ -43,8 +44,24 @@ export const BILLING_VIEWS = { quotation: 'quotations', proforma: 'proforma', in
 /** Project Documents' switcher. */
 export const DOCUMENT_VIEWS = { business: 'business-documents', files: 'general-documents' };
 
+/**
+ * A Billing form inside the project: Finance › Billing › Quotations › New, or
+ * (for an existing one) …/<id>/edit.
+ */
+export function projectBillingFormPath(projectId, kind, docId) {
+    const base = projectSectionPath(projectId, 'billing', kind);
+    return docId ? `${base}/${docId}/edit` : `${base}/new`;
+}
+
+/** { kind, docId } when a Billing view is a form ('quotations/new', 'recurring/ab/edit'), else null. */
+export function billingFormOf(view) {
+    const m = /^([^/]+)\/(?:new|([^/]+)\/edit)$/.exec(view || '');
+    const kind = m && Object.keys(BILLING_VIEWS).find((k) => BILLING_VIEWS[k] === m[1]);
+    return kind ? { kind, docId: m[2] || null } : null;
+}
+
 const kindOfView = (views, view) => Object.keys(views).find((k) => views[k] === view) || null;
-export const billingKindOf = (view) => kindOfView(BILLING_VIEWS, view) || 'quotation';
+export const billingKindOf = (view) => kindOfView(BILLING_VIEWS, (view || '').split('/')[0]) || 'quotation';
 export const documentsViewOf = (view) => kindOfView(DOCUMENT_VIEWS, view) || 'business';
 
 /**

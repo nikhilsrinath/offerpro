@@ -10,9 +10,9 @@ import {
     periodOptions, periodBounds, netOfTax, balanceOf, isOverdue, daysOverdue,
 } from '../../services/financeAnalytics';
 import { categoryLabel } from '../../services/financeCategories';
-import { allocationTotals, isClosed } from '../../services/projectAnalytics';
+import { isClosed } from '../../services/projectAnalytics';
 import {
-    financials, allocate, unallocate, allocationsForSource, canAllocate, unbilledHours,
+    financials, unallocate, canAllocate, unbilledHours,
 } from '../../services/projectService';
 import { useToast } from '../shared/Toast';
 import { useProjectScope } from './projectScope';
@@ -123,7 +123,6 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
     const navigate = useNavigate();
     const { choices, periodId, setPeriodId, period } = usePeriod();
     const { loading, f, error } = useProjectFinancials(project, period);
-    const [adding, setAdding] = useState(false);
     const allocations = useSection('project_allocations');
     const sources = useSources();
     const scope = useProjectScope(project.id);
@@ -242,12 +241,11 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
             <Panel title="Money linked to this project" note={`${mine.length} link${mine.length === 1 ? '' : 's'}`}
                 actions={<Row gap={6}>
                     {project.billing_type === 'time_materials' && !locked && <Btn size="sm" onClick={invoiceHours}>Invoice unbilled hours</Btn>}
-                    {editable && <Btn size="sm" onClick={() => setAdding(true)}>Allocate existing…</Btn>}
                 </Row>}>
                 {mine.length === 0 ? (
                     <Empty>
                         Nothing linked yet. Anything raised from this project’s Billing, Cash Book or Purchase Bills
-                        pages is linked to it on its own; an entry made elsewhere can be linked here.
+                        pages is linked to it on its own.
                     </Empty>
                 ) : (
                     <Table cols={[
@@ -285,7 +283,6 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
                 )}
             </Panel>
 
-            {adding && <AllocateDialog project={project} sources={sources} onClose={() => setAdding(false)} />}
         </div>
     );
 }
@@ -395,106 +392,3 @@ function PlRow({ label, value, strong, note }) {
     );
 }
 
-/**
- * Link an entry that already exists. Offers what is not fully claimed yet —
- * the client's entries first when the project has a client — and adds to the
- * entry's existing split rather than replacing it.
- */
-function AllocateDialog({ project, sources, onClose }) {
-    const t = useT();
-    const toast = useToast();
-    const allocations = useSection('project_allocations');
-    const [query, setQuery] = useState('');
-    const [type, setType] = useState('all');
-    const [picked, setPicked] = useState(null);
-    const [amount, setAmount] = useState('');
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState('');
-
-    const candidates = useMemo(() => {
-        const q = query.trim().toLowerCase();
-        return sources
-            .map((s) => {
-                const rows = allocations.filter((a) => a.source_type === s.type && a.source_id === s.id);
-                return { ...s, rows, totals: allocationTotals(rows, s.net) };
-            })
-            .filter((s) => !s.rows.some((a) => a.project_id === project.id))
-            .filter((s) => !s.totals.isFull && s.totals.remainder > 0.005)
-            .filter((s) => type === 'all' || s.type === type)
-            .filter((s) => !q || String(s.label || '').toLowerCase().includes(q))
-            .sort((a, b) => {
-                const ac = project.client_id && a.client_id === project.client_id ? 0 : 1;
-                const bc = project.client_id && b.client_id === project.client_id ? 0 : 1;
-                return ac - bc || String(b.date || '').localeCompare(String(a.date || ''));
-            })
-            .slice(0, 60);
-    }, [sources, allocations, project, type, query]);
-
-    const choose = (s) => { setPicked(s); setAmount(s.rows.length === 0 ? '' : String(s.totals.remainder)); setError(''); };
-
-    const save = async () => {
-        if (!picked) return;
-        const whole = picked.rows.length === 0 && amount === '';
-        const value = Number(amount);
-        if (!whole && !(value > 0)) { setError('Enter an amount above zero, or leave it blank for the whole entry.'); return; }
-        const existing = allocationsForSource(picked.type, picked.id).map((a) => ({ project_id: a.project_id, amount: a.amount }));
-        const splits = whole ? [{ project_id: project.id, amount: null }] : [...existing, { project_id: project.id, amount: value }];
-        setSaving(true);
-        try {
-            await allocate(picked.type, picked.id, splits);
-            toast('Linked to the project', 'success');
-            onClose();
-        } catch (e) {
-            setError(e.message);
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    return (
-        <Modal open onClose={onClose} title="Allocate an existing entry" width={640}
-            note={project.client_id ? 'This client’s entries are listed first' : undefined}
-            footer={<>
-                <Btn onClick={onClose}>Cancel</Btn>
-                <Btn primary disabled={!picked || saving} onClick={save}>{saving ? 'Saving…' : 'Link to project'}</Btn>
-            </>}>
-            <Row gap={8} wrap style={{ marginBottom: 12 }}>
-                <Search value={query} onChange={setQuery} placeholder="Search entries…" width={220} />
-                <Select aria-label="Entry type" value={type} onChange={(e) => setType(e.target.value)} style={{ width: 150, height: 29 }}>
-                    <option value="all">Every kind</option>
-                    {Object.entries(SOURCE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}s</option>)}
-                </Select>
-            </Row>
-            {candidates.length === 0 ? <Muted>Nothing unallocated matches.</Muted> : (
-                <div role="listbox" aria-label="Entries" style={{ display: 'grid', gap: 4, maxHeight: 280, overflowY: 'auto', marginBottom: 12 }}>
-                    {candidates.map((s) => {
-                        const on = picked && picked.type === s.type && picked.id === s.id;
-                        return (
-                            <button key={`${s.type}:${s.id}`} type="button" role="option" aria-selected={on}
-                                onClick={() => choose(s)} className="edge-tr" style={{
-                                    display: 'flex', gap: 10, textAlign: 'left', padding: '8px 10px', borderRadius: 7,
-                                    border: '1px solid ' + (on ? t.lineStrong : t.lineSoft), background: on ? t.panelAlt : 'transparent',
-                                    color: t.text, fontFamily: 'inherit', fontSize: 12.5, cursor: 'pointer',
-                                }}>
-                                <span style={{ width: 58, color: t.faint }}>{SOURCE_LABEL[s.type]}</span>
-                                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.label}</span>
-                                <span style={{ color: t.faint }}>{fmtDate(s.date)}</span>
-                                <span>{money(s.totals.remainder)}{s.rows.length ? ' left' : ''}</span>
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
-            {picked && (
-                <Field label="Amount for this project (₹, before GST)"
-                    hint={picked.rows.length === 0
-                        ? `Leave blank to link all ${money(picked.net)} to this project.`
-                        : `${money(picked.totals.remainder)} of it is not allocated yet.`}>
-                    <Input type="number" min="0" step="0.01" inputMode="decimal" value={amount}
-                        onChange={(e) => setAmount(e.target.value)} />
-                </Field>
-            )}
-            {error && <div role="alert" style={{ marginTop: 10, fontSize: 12.5, color: t.down }}>{error}</div>}
-        </Modal>
-    );
-}

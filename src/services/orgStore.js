@@ -198,6 +198,7 @@ const SECTIONS = {
       budget_labour: Number(r.budget_labour) || 0,
       budget_vendor: Number(r.budget_vendor) || 0,
       budget_other: Number(r.budget_other) || 0,
+      other_budgets: Array.isArray(r.other_budgets) ? r.other_budgets : [],
       start_date: r.start_date, target_end_date: r.target_end_date, actual_end_date: r.actual_end_date,
       manager_employee_id: r.manager_employee_id || null,
       source_quotation_id: r.source_quotation_id || null,
@@ -218,6 +219,8 @@ const SECTIONS = {
       budget_labour: num(i.budget_labour, 0),
       budget_vendor: num(i.budget_vendor, 0),
       budget_other: num(i.budget_other, 0),
+      // 0081: only sent when there is one, so a database without it still saves.
+      ...(Array.isArray(i.other_budgets) && i.other_budgets.length ? { other_budgets: i.other_budgets } : {}),
       start_date: date(i.start_date), target_end_date: date(i.target_end_date),
       actual_end_date: date(i.actual_end_date),
       source_quotation_id: nn(i.source_quotation_id),
@@ -254,6 +257,7 @@ const SECTIONS = {
     order: 'start_date',
     fromRow: (r) => ({
       id: r.id, project_id: r.project_id, employee_id: r.employee_id, role: r.role,
+      role_title: r.role_title || '',
       allocation_pct: Number(r.allocation_pct) || 0,
       start_date: r.start_date, end_date: r.end_date,
       bill_rate: r.bill_rate == null ? null : Number(r.bill_rate),
@@ -261,6 +265,8 @@ const SECTIONS = {
     }),
     toRow: (i) => ({
       project_id: i.project_id, employee_id: i.employee_id, role: i.role || 'member',
+      // 0081: only sent when typed.
+      ...(i.role_title && i.role_title.trim() ? { role_title: i.role_title.trim() } : {}),
       allocation_pct: num(i.allocation_pct, 100),
       start_date: date(i.start_date) || date(nowIso()), end_date: date(i.end_date),
       bill_rate: i.bill_rate === '' || i.bill_rate == null ? null : num(i.bill_rate),
@@ -975,6 +981,7 @@ function employeeFromRow(r) {
     studentName: r.full_name, name: r.full_name, full_name: r.full_name,
     email: r.email, phone: r.phone, address: r.address, studentAddress: r.address,
     location: r.location, // 0076
+    employee_code: r.employee_code || '', // 0082: assigned by the database
     role: r.role,
     department: deptNameById(r.department_id), department_id: r.department_id,
     offerType: r.employment_type,
@@ -1019,6 +1026,8 @@ function employeeToRow(i) {
     // 0076. Sent only once the form has a value for it: a database without
     // the column would otherwise reject every employee save.
     ...(i.location !== undefined ? { location: nn(String(i.location ?? '').trim()) } : {}),
+    // 0082. Only when one was typed (a bulk import's own); the database numbers the rest.
+    ...(i.employee_code && String(i.employee_code).trim() ? { employee_code: String(i.employee_code).trim() } : {}),
     role: nn(i.role),
     department_id: i.department_id ?? deptIdByName(i.department),
     employment_type: EMPLOYMENT_TYPES.includes(i.offerType) ? i.offerType : 'fulltime',

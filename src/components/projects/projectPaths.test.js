@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { projectSectionPath, parseProjectPath, legacyProjectPath, billingKindOf, documentsViewOf } from './projectPaths';
+import { projectSectionPath, parseProjectPath, legacyProjectPath, billingKindOf, documentsViewOf, projectBillingFormPath, billingFormOf } from './projectPaths';
 
 describe('project paths', () => {
     it('names a page after its place in the rail', () => {
@@ -24,5 +24,16 @@ describe('project paths', () => {
         expect(legacyProjectPath('p1', '?tab=documents&view=files')).toBe('/projects/p1/documents-management/project-documents/general-documents');
         expect(legacyProjectPath('p1', '?tab=bills&new=1')).toBe('/projects/p1/finance/purchase-bills?new=1');
         expect(legacyProjectPath('p1', '')).toBeNull();
+    });
+
+    it('keeps a Billing form inside the project', () => {
+        expect(projectBillingFormPath('p1', 'quotation')).toBe('/projects/p1/finance/billing/quotations/new');
+        expect(projectBillingFormPath('p1', 'quotation', 'd9')).toBe('/projects/p1/finance/billing/quotations/d9/edit');
+        expect(projectBillingFormPath('p1', 'recurring')).toBe('/projects/p1/finance/billing/recurring/new');
+        const { view } = parseProjectPath('/projects/p1/finance/billing/proforma/new');
+        expect(billingFormOf(view)).toEqual({ kind: 'proforma', docId: null });
+        expect(billingFormOf(parseProjectPath('/projects/p1/finance/billing/quotations/d9/edit').view)).toEqual({ kind: 'quotation', docId: 'd9' });
+        expect(billingFormOf('invoices')).toBeNull();
+        expect(billingKindOf('invoices/new')).toBe('invoice');
     });
 });

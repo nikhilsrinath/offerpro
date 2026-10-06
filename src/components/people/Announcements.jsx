@@ -14,7 +14,7 @@ import { useToast } from '../shared/Toast';
 import { orgStore } from '../../services/orgStore';
 import { announcementService } from '../../services/announcementService';
 import {
-    Page, Toolbar, Panel, Row, Btn, Seg, Field, Input, Select, Textarea,
+    Page, Toolbar, Panel, Row, Grid, Btn, Seg, Field, Input, Select, Textarea,
     StatBand, Empty, Loading, Modal, ConfirmBtn, Status,
 } from '../ui/edge';
 import { useT, fmtDate } from '../ui/edgeUtils';
@@ -108,19 +108,17 @@ export default function Announcements() {
         <Page>
             <Toolbar right={<Btn primary onClick={() => openEditor(null)}>New announcement</Btn>}>
                 <Seg value={tab} onChange={setTab} options={[
-                    { id: 'board', label: 'Board', count: live.length },
-                    { id: 'history', label: 'History', count: items.length },
+                    { id: 'board', label: 'Board' },
+                    { id: 'history', label: 'History' },
                 ]} />
             </Toolbar>
 
-            {items.length > 0 && (
-                <StatBand items={[
-                    { label: 'On the board', value: live.length },
-                    { label: 'Pinned', value: live.filter((a) => a.is_pinned).length },
-                    { label: 'Department only', value: live.filter((a) => a.department_id).length },
-                    { label: 'Expired', value: items.length - live.length },
-                ]} />
-            )}
+            <StatBand items={[
+                { label: 'On the board', value: live.length },
+                { label: 'Pinned', value: live.filter((a) => a.is_pinned).length },
+                { label: 'Department only', value: live.filter((a) => a.department_id).length },
+                { label: 'Expired', value: items.length - live.length },
+            ]} />
 
             {loading ? <Loading /> : shown.length === 0 ? (
                 <Panel>
@@ -183,7 +181,7 @@ export default function Announcements() {
             )}
 
             {editing && (
-                <Modal open onClose={() => setEditing(null)} width={560}
+                <Modal open onClose={() => setEditing(null)} width={700}
                     title={editing.id ? 'Edit announcement' : 'New announcement'}
                     note="A department announcement is invisible to everyone outside it"
                     footer={
@@ -206,8 +204,8 @@ export default function Announcements() {
                             onChange={(e) => setEditing({ ...editing, body: e.target.value })} />
                     </Field>
                     <div style={{ height: 13 }} />
-                    <Row gap={13} align="flex-end" wrap>
-                        <div style={{ flex: '1 1 200px' }}>
+                    <Grid cols="minmax(0,1fr) minmax(0,1fr)" gap={13}>
+                        <div>
                             <Field label="Audience">
                                 <Select value={editing.departmentId}
                                     onChange={(e) => setEditing({ ...editing, departmentId: e.target.value })}>
@@ -216,13 +214,13 @@ export default function Announcements() {
                                 </Select>
                             </Field>
                         </div>
-                        <div style={{ flex: '1 1 160px' }}>
+                        <div>
                             <Field label="Expires" hint="Leave blank to keep it up">
                                 <Input type="date" value={editing.expiresAt}
                                     onChange={(e) => setEditing({ ...editing, expiresAt: e.target.value })} />
                             </Field>
                         </div>
-                    </Row>
+                    </Grid>
                 </Modal>
             )}
         </Page>

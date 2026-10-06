@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Upload, Check, Loader, AlertCircle, Pencil, Zap, XCircle, Download, KeyRound,
+  Upload, Check, Loader, AlertCircle, Pencil, Zap, XCircle, KeyRound,
   Eye, EyeOff, ArrowRight, ExternalLink, Trash2, Building2,
 } from 'lucide-react';
 import { useOrg } from '../context/OrgContext';
@@ -91,10 +91,10 @@ const warningFor = (name, value) => {
 
 const TABS = [
   { id: 'company', label: 'Company', steps: ['company', 'contact', 'signatory'] },
-  { id: 'branding', label: 'Logo, signature & stamp', steps: ['branding', 'stamp'] },
+  { id: 'branding', label: 'Corporate Identity', steps: ['branding', 'stamp'] },
   { id: 'payments', label: 'Payments', steps: ['banking'] },
   { id: 'email', label: 'Email', steps: ['email'] },
-  { id: 'workspace', label: 'Team, plan & account', steps: [] },
+  { id: 'workspace', label: 'Account', steps: [] },
 ];
 const TAB_OF = {
   company: 'company', contact: 'company', signatory: 'company',
@@ -102,10 +102,13 @@ const TAB_OF = {
   email: 'email', access: 'workspace', plan: 'workspace', account: 'workspace', workspace: 'workspace',
 };
 
-const PLAN_ROWS = [
-  ['offerLetters', 'Offer letters'], ['mou', 'MoU / NDA'], ['invoices', 'Invoices'],
-  ['quotations', 'Quotations'], ['aiMessages', 'AI messages'],
-];
+// What each plan is called and what it includes.
+const PLAN_SUMMARY = {
+  free: { name: 'Demo (Free for 14 Days)', includes: 'Agentrive Workspace + Agentrive Intelligence + Brain with cap limit' },
+  pro: { name: 'Basic Model', includes: 'Agentrive Workspace + Agentrive Intelligence (8 Agents) + Brain with cap limit' },
+  max: { name: 'Growth Model', includes: 'Agentrive Workspace + Agentrive Intelligence (15 Agents) + Brain' },
+  enterprise: { name: 'Enterprise Model', includes: 'Agentrive Workspace + Agentrive Intelligence + Industry Specific Module + Brain' },
+};
 
 function useWindowWidth() {
   const [w, setW] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1440));
@@ -122,7 +125,11 @@ export default function CompanyProfile() {
   const navigate = useNavigate();
   const winW = useWindowWidth();
   const { activeOrg, updateOrganization, loading: orgLoading, fetchOrganizations } = useOrg();
-  const { updatePassword, reauthenticate } = useAuth();
+  const { user, updatePassword, reauthenticate } = useAuth();
+  // A password exists only for people who signed up with an email address.
+  // Someone who came in through Google has none here to change.
+  const providers = user?.app_metadata?.providers || [user?.app_metadata?.provider].filter(Boolean);
+  const googleOnly = providers.length > 0 && !providers.includes('email');
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [baseline, setBaseline] = useState(EMPTY_FORM);
@@ -140,8 +147,6 @@ export default function CompanyProfile() {
   // always blank on load and `activeOrg` carries neither field. Without asking
   // the server, the screen looks unconfigured even when email works.
   const [emailStatus, setEmailStatus] = useState({ loading: true, configured: false, gmail_user: '', rotated_at: null });
-  const [exporting, setExporting] = useState(false);
-  const [exportError, setExportError] = useState('');
   const [pw, setPw] = useState({ open: false, current: '', next: '', confirm: '', error: '', success: '', busy: false });
   const [activeSection, setActiveSection] = useState('company');
 
@@ -252,7 +257,10 @@ export default function CompanyProfile() {
   const handleSave = async () => {
     if (!activeOrg || saving) return;
     if (!form.company_name.trim()) { setError('Company name is required.'); jumpTo('company', 'company_name'); return; }
+    if (!String(form.company_email || '').trim()) { setError('Contact email is required.'); jumpTo('contact', 'company_email'); return; }
+    if (!splitPhone(form.company_phone).number.trim()) { setError('Phone number is required.'); jumpTo('contact', 'company_phone'); return; }
     if (!form.owner_full_name.trim()) { setError('The signatory’s full name is required.'); jumpTo('signatory', 'owner_full_name'); return; }
+    if (!String(form.document_designation || '').trim()) { setError('Title on documents is required.'); jumpTo('signatory', 'document_designation'); return; }
     setSaving(true);
     setError('');
     try {
@@ -395,39 +403,6 @@ export default function CompanyProfile() {
 
   /* ── account ───────────────────────────────────────────────────────────── */
 
-  // Fetched rather than linked, because the endpoint needs the access token on
-  // an Authorization header and a plain <a href> cannot send one.
-  const handleExport = async () => {
-    if (!activeOrg?.id) return;
-    setExporting(true);
-    setExportError('');
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Your session has expired. Sign in again.');
-      const res = await fetch(`/api/export?org_id=${encodeURIComponent(activeOrg.id)}`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `Export failed (${res.status})`);
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `edgeos-export-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      // Revoked later: released synchronously, Safari cancels the download.
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-    } catch (err) {
-      setExportError(err.message);
-    } finally {
-      setExporting(false);
-    }
-  };
-
   const handleChangePassword = async (e) => {
     e.preventDefault();
     const fail = (msg) => setPw((p) => ({ ...p, error: msg, success: '' }));
@@ -463,6 +438,7 @@ export default function CompanyProfile() {
   }
 
   const plan = getPlanConfig(form.plan || DEFAULT_PLAN);
+  const shown = PLAN_SUMMARY[form.plan || DEFAULT_PLAN] || { name: plan.displayName, includes: '' };
   const pct = Math.round((doneCount / steps.length) * 100);
   const stepDone = Object.fromEntries(steps.map((s) => [s.id, s.done]));
   const tabInfo = TABS.map((tb) => {
@@ -553,10 +529,10 @@ export default function CompanyProfile() {
 
               <Panel t={t} title="Contact & tax" done={stepDone.contact}>
                 <Fields>
-                  <FormField t={t} label="Contact email" htmlFor="cp-company_email" warn={warn('company_email')}>
+                  <FormField t={t} label="Contact email" required htmlFor="cp-company_email" warn={warn('company_email')}>
                     <TextInput t={t} {...bind('company_email')} type="email" inputMode="email" autoComplete="email" />
                   </FormField>
-                  <FormField t={t} label="Phone" htmlFor="cp-company_phone" warn={warn('company_phone')} wide>
+                  <FormField t={t} label="Phone" required htmlFor="cp-company_phone" warn={warn('company_phone')} wide>
                     <PhoneInput t={t} {...bind('company_phone')} onValue={(v) => setField('company_phone', v)} />
                   </FormField>
                   <FormField t={t} label="Website" htmlFor="cp-company_website" warn={warn('company_website')} wide>
@@ -576,7 +552,7 @@ export default function CompanyProfile() {
                   <FormField t={t} label="Full name" required htmlFor="cp-owner_full_name" wide>
                     <TextInput t={t} {...bind('owner_full_name')} autoComplete="name" required />
                   </FormField>
-                  <FormField t={t} label="Title on documents" htmlFor="cp-document_designation" wide>
+                  <FormField t={t} label="Title on documents" required htmlFor="cp-document_designation" wide>
                     <TextInput t={t} {...bind('document_designation')} list="cp-designations" autoComplete="organization-title" />
                     <datalist id="cp-designations">
                       {['Founder', 'Founder & CEO', 'Director', 'Managing Director', 'CEO', 'HR Manager', 'Head of People'].map((d) => <option key={d} value={d} />)}
@@ -720,21 +696,9 @@ export default function CompanyProfile() {
               </Panel>
 
               <Panel t={t} title="Plan"
-                status={<StatusLine t={t} dot={plan.color}>{plan.displayName}</StatusLine>}>
-                <div style={{
-                  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-                  border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden',
-                }}>
-                  {PLAN_ROWS.map(([key, label]) => {
-                    const v = plan.limits[key];
-                    return (
-                      <div key={key} style={{ padding: '12px 14px', borderRight: '1px solid ' + t.lineSoft, borderBottom: '1px solid ' + t.lineSoft }}>
-                        <div style={{ fontSize: 19.5, fontWeight: 500, letterSpacing: '-0.03em', color: t.text }}>{v === Infinity ? '∞' : v}</div>
-                        <div style={{ fontSize: 12, color: t.faint, marginTop: 4 }}>{label}</div>
-                      </div>
-                    );
-                  })}
-                </div>
+                status={<StatusLine t={t} dot={plan.color}>{shown.name}</StatusLine>}>
+                <div style={{ fontSize: 13.5, color: t.text, fontWeight: 500 }}>{shown.name}</div>
+                <div style={{ fontSize: 13, color: t.dim, marginTop: 6, lineHeight: 1.6 }}>{shown.includes}</div>
                 <div style={{ marginTop: 12 }}>
                   <Btn onClick={() => navigate('/pricing')}>Compare plans <ArrowRight size={13} /></Btn>
                 </div>
@@ -742,9 +706,16 @@ export default function CompanyProfile() {
 
               <Panel t={t} title="Account & data">
                 <div style={{ display: 'grid', gap: 12 }}>
-                  <ActionRow t={t} title="Password" note="Change the password you sign in with."
+                  <ActionRow t={t} title="Password" note="Change the password you sign in with, when you sign in with an email address."
                     action={!pw.open && <Btn onClick={() => setPw((p) => ({ ...p, open: true }))}><KeyRound size={13} /> Change password</Btn>}>
-                    {pw.open && (
+                    {pw.open && googleOnly && (
+                      <div style={{ marginTop: 12 }}>
+                        <Notice t={t} tone="down">
+                          You signed in with Google, so this account has no email password to change. Manage your password from your Google account.
+                        </Notice>
+                      </div>
+                    )}
+                    {pw.open && !googleOnly && (
                       <form onSubmit={handleChangePassword} style={{ marginTop: 12 }}>
                         {pw.error && <div style={{ marginBottom: 10 }}><Notice t={t} tone="down">{pw.error}</Notice></div>}
                         {pw.success && <div style={{ marginBottom: 10 }}><Notice t={t} tone="up">{pw.success}</Notice></div>}
@@ -772,12 +743,6 @@ export default function CompanyProfile() {
                       </form>
                     )}
                   </ActionRow>
-                  <ActionRow t={t} title="Export all data"
-                    action={<Btn onClick={handleExport} disabled={exporting}>
-                      {exporting ? <><Loader size={13} className="spin-icon" /> Preparing…</> : <><Download size={13} /> Export</>}
-                    </Btn>}>
-                    {exportError && <div style={{ marginTop: 10 }}><Notice t={t} tone="down">{exportError}</Notice></div>}
-                  </ActionRow>
                 </div>
               </Panel>
             </PanelGrid>
@@ -792,7 +757,7 @@ export default function CompanyProfile() {
         }}>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-            padding: '10px 12px 10px 16px', borderRadius: 12,
+            padding: '10px 76px 10px 16px', borderRadius: 12, // right gap keeps the Save button clear of the floating EdgeAI orb
             border: '1px solid ' + t.lineStrong, background: t.panel, boxShadow: t.shadow,
             opacity: dirty || saving || saved ? 1 : 0,
             transform: dirty || saving || saved ? 'none' : 'translateY(10px)',
@@ -883,6 +848,7 @@ function FormField({ t, label, required, hint, warn, htmlFor, wide, children }) 
     <div style={{ minWidth: 0, gridColumn: wide ? '1 / -1' : undefined }}>
       <label htmlFor={htmlFor} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 13, color: t.text, marginBottom: 6 }}>
         {label}
+        {required && <span aria-hidden="true" style={{ color: t.down }}>*</span>}
       </label>
       {children}
       {(warn || hint) && (

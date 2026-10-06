@@ -220,7 +220,7 @@ function MemberRow({ p, today, load, hours, showHours, fin, canEdit, canDelete, 
                             style={{ width: 120, height: 27 }}>
                             {MEMBER_ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
                         </Select>
-                    ) : <Muted>{MEMBER_ROLES.find((r) => r.id === m.role)?.label}</Muted>}
+                    ) : <Muted>{m.role_title || MEMBER_ROLES.find((r) => r.id === m.role)?.label}</Muted>}
                 </Td>
             )}
             {show('a') && <Td nowrap><AllocationBar pct={m.allocation_pct} /></Td>}

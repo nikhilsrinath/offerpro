@@ -23,7 +23,7 @@ import ConvertDialog from './ConvertDialog';
 import { lifecycleOf, revertedStatusOf, isCarriedAdvance } from '../../services/documentLifecycle';
 import { orgStore } from '../../services/orgStore';
 import { confirmDialog } from '../../services/confirm';
-import { useProjectScope, projectBillingPath } from '../projects/projectScope';
+import { useProjectScope, projectBillingPath, projectBillingForm } from '../projects/projectScope';
 
 // With `projectId` (a project's Billing page) it lists only that project's
 // documents, and a new or revised one opens its form on the project.
@@ -57,7 +57,9 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
   const showProjects = !projectId && projects.length > 0 && (type !== 'invoice' || allocations.length > 0);
   // A project's own documents, including anything converted from one of them.
   const scope = useProjectScope(projectId);
-  const onProject = (path) => (projectId ? `${path}?project=${projectId}` : path);
+  // A form opened from a project's Billing stays inside the project.
+  const formPath = (kind, docId) => (projectId ? projectBillingForm(projectId, kind, docId)
+    : docId ? `/billing/${kind}s/${docId}/edit` : `/new-${kind}`);
   const [showPortalLink, setShowPortalLink] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(null);
@@ -449,8 +451,8 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
   // only lets its content change as a new version (0064). The editor opens on
   // the same document with the client's note in view, and sending publishes v2
   // of THIS quotation — it used to save a brand-new quotation instead.
-  const handleReviseQuotation = (id) => navigate(onProject(`/billing/quotations/${id}/edit`));
-  const handleRedraftDeclined = (id) => navigate(onProject(`/billing/quotations/${id}/edit`));
+  const handleReviseQuotation = (id) => navigate(formPath('quotation', id));
+  const handleRedraftDeclined = (id) => navigate(formPath('quotation', id));
 
   // Quotation → proforma, quotation → tax invoice, proforma → tax invoice.
   // What the new document carries is decided in documentConversion.js; this
@@ -584,6 +586,8 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
     <div className="fin-list animate-in">
       {/* Header */}
       <div className="fin-list-header">
+        {/* Search, project and sort sit on one line; the status chips and New follow. */}
+        <div className="fin-list-controls">
         <div className="fin-list-search-wrap">
           <Search size={16} />
           <input
@@ -623,6 +627,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
           <option value="amount_asc">Amount ↑</option>
           <option value="client">Client A–Z</option>
         </select>
+        </div>
         <div className="fin-list-filters">
           {statuses.map((s) => (
             <button
@@ -634,7 +639,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
             </button>
           ))}
         </div>
-        <button className="fin-list-new-btn" onClick={() => navigate(onProject(`/new-${type}`))}>
+        <button className="fin-list-new-btn" onClick={() => navigate(formPath(type))}>
           <Plus size={16} /> New {typeLabel}
         </button>
       </div>
@@ -728,7 +733,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                         type === 'quotation' && ['draft', 'sent', 'viewed'].includes(doc.status) && {
                           label: doc.status === 'draft' ? 'Edit quotation' : 'Revise quotation',
                           hint: doc.status === 'draft' ? undefined : 'Sends the client a new version',
-                          icon: Edit3, onClick: () => navigate(onProject(`/billing/quotations/${doc.id}/edit`)),
+                          icon: Edit3, onClick: () => navigate(formPath('quotation', doc.id)),
                         },
                         { label: 'Copy portal link', icon: Copy, onClick: () => handleCopyLink(doc) },
                         {

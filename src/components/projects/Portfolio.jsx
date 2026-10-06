@@ -19,9 +19,10 @@ import HealthChip from './HealthChip';
 
 const PERIODS = [
     { id: 'all', label: 'All time' },
+    { id: 'month', label: 'This Month' },
+    { id: 'quarter', label: 'This Quarter' },
     { id: 'fy', label: 'This financial year' },
-    { id: 'quarter', label: 'This quarter' },
-    { id: 'month', label: 'This month' },
+    { id: 'custom', label: 'Custom' },
 ];
 
 const COLS = [
@@ -52,6 +53,8 @@ export default function Portfolio() {
     const navigate = useNavigate();
     const clients = useSection('customers');
     const [period, setPeriod] = useState('all');
+    const [from, setFrom] = useState('');
+    const [to, setTo] = useState('');
     const [rows, setRows] = useState(null);
     const [people, setPeople] = useState([]);
     const [error, setError] = useState('');
@@ -62,12 +65,13 @@ export default function Portfolio() {
     useEffect(() => {
         if (!allowed) return undefined;
         let cancelled = false;
-        const b = period === 'all' ? { from: null, to: null } : periodBounds(period);
+        const b = period === 'all' ? { from: null, to: null }
+            : period === 'custom' ? { from: from || null, to: to || null } : periodBounds(period);
         Promise.all([portfolio(b), employeeAllocation()])
             .then(([r, p]) => { if (!cancelled) { setRows(r); setPeople(p); setError(''); } })
             .catch((e) => { if (!cancelled) setError(e.message); });
         return () => { cancelled = true; };
-    }, [period, allowed]);
+    }, [period, from, to, allowed]);
 
     const clientName = useMemo(() => Object.fromEntries(clients.map((c) => [c.id, c.name || c.clientName])), [clients]);
     const live = useMemo(() => (rows || []).filter((r) => !r.archived), [rows]);
@@ -134,6 +138,13 @@ export default function Portfolio() {
                     <Select aria-label="Period" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ width: 190, height: 29 }}>
                         {PERIODS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                     </Select>
+                    {period === 'custom' && (
+                        <>
+                            <input type="date" aria-label="From date" value={from} onChange={(e) => setFrom(e.target.value)} />
+                            <Muted>to</Muted>
+                            <input type="date" aria-label="To date" value={to} onChange={(e) => setTo(e.target.value)} />
+                        </>
+                    )}
                     <Muted>Before GST · revenue invoiced, cash collected alongside</Muted>
                 </Toolbar>
 
