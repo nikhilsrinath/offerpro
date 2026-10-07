@@ -1,4 +1,4 @@
-// finDocs.js — invoices, quotations and proformas as data, for both sides.
+// finDocs.js: invoices, quotations and proformas as data, for both sides.
 //
 // The browser's orgStore and the agent's server-side executors write
 // financial documents through these same functions, so a draft EdgeAI creates
@@ -13,7 +13,7 @@ export const num = (v, dflt = null) => (v === undefined || v === '' || v === nul
 export const day = (v) => (v ? String(v).slice(0, 10) : null);
 
 // Rounded as Postgres rounds numeric: to the cent, halves away from zero, on the
-// decimal value — not on its binary approximation, where 2.5 × 333.33 is
+// decimal value: not on its binary approximation, where 2.5 × 333.33 is
 // 833.3249999… and would round the wrong way.
 const round2 = (n) => {
   const v = Number(n) || 0;
@@ -126,7 +126,7 @@ export const SECRET_KEYS = ['gmail_user', 'gmail_app_password', 'emailjs_service
  *
  * A snapshot outlives any URL in it. logo_url and stamp_url are permanent CDN
  * links from the public bucket and can be stored as-is, but signature_url is a
- * signed URL that expires in an hour — persisting it would leave every
+ * signed URL that expires in an hour, persisting it would leave every
  * document without a signature by tomorrow. Store the stable object path and
  * let the renderer sign it on demand.
  */
@@ -165,7 +165,7 @@ export function finDocToRow(i, { signaturePath = null, today = null } = {}) {
     issue_date: day(i.issue_date) || today || day(new Date().toISOString()),
     due_date: day(i.due_date),
     valid_until: day(i.valid_until),
-    // Omitted entirely — not nulled — when the caller has no opinion, so the
+    // Omitted entirely: not nulled, when the caller has no opinion, so the
     // BEFORE INSERT trigger can resolve it from the customer or the org.
     //
     // `undefined` rather than nn(): a caller's stripNulls() drops undefined but
@@ -274,8 +274,8 @@ export function financialDocFromRow(r) {
     buyerState: r.bill_to_state,
     issue_date: r.issue_date, due_date: r.due_date, valid_until: r.valid_until,
     // Where this sale happened, frozen onto the document. `country_source`
-    // says how it got here — a customer record today, a storefront checkout
-    // later — and the Sales by Countries widget groups on country_code without
+    // says how it got here. A customer record today, a storefront checkout
+    // later: and the Sales by Countries widget groups on country_code without
     // caring which.
     country_code: r.country_code || null,
     country_source: r.country_source || null,

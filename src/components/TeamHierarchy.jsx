@@ -15,8 +15,8 @@ import { confirmDialog } from '../services/confirm';
 /* ══════════════════════════════════════════════════════════════════════════
    Org chart.
 
-   Every control is docked — a toolbar above the canvas and a people panel
-   beside it — rather than floating over the chart. The old layout put the
+   Every control is docked. A toolbar above the canvas and a people panel
+   beside it: rather than floating over the chart. The old layout put the
    stats, the employee list and the action bar on top of the diagram, which
    meant the three things you needed at once were covering the thing you were
    working on.
@@ -501,7 +501,7 @@ function MobileTree({ t, nodes, edges, deptMap, employees, onEdit }) {
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ display: 'block', fontSize: 13.5, color: t.text }}>{n.data.name}</span>
             <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>
-              {n.data.role || '—'}{n.data.department ? ' · ' + n.data.department : ''}
+              {n.data.role || '-'}{n.data.department ? ' · ' + n.data.department : ''}
             </span>
           </span>
           {kids.length > 0 && <span style={{ fontSize: 11, color: t.ghost }}>{kids.length}</span>}
@@ -571,7 +571,7 @@ function MobileEdit({ t, employees, initialMembers, onSave, onCancel, saving }) 
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: 13.5, color: on ? t.text : t.dim }}>{name}</span>
                   <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>
-                    {emp.role || '—'}{emp.department ? ' · ' + emp.department : ''}
+                    {emp.role || '-'}{emp.department ? ' · ' + emp.department : ''}
                   </span>
                 </span>
                 <button
@@ -600,7 +600,7 @@ function MobileEdit({ t, employees, initialMembers, onSave, onCancel, saving }) 
                       color: t.text, fontFamily: MONO, fontSize: 12.5, outline: 'none',
                     }}
                   >
-                    <option value="">Nobody — top level</option>
+                    <option value="">Nobody (top level)</option>
                     {members.filter((m) => m.empId !== emp.id).map((m) => {
                       const e2 = employees.find((x) => x.id === m.empId);
                       return e2 ? <option key={m.empId} value={m.empId}>{getDisplayName(e2)}</option> : null;
@@ -847,7 +847,7 @@ export default function TeamHierarchy() {
       <div style={{ textAlign: 'center', maxWidth: 320 }}>
         <div style={{ fontSize: 15.5, color: t.text, marginBottom: 6 }}>No employees yet</div>
         <p style={{ margin: 0, fontSize: 12.5, color: t.faint, lineHeight: 1.7 }}>
-          Add people to the registry first — the chart is built from the same records.
+          Add people to the registry first. The chart is built from the same records.
         </p>
       </div>
     </div>
@@ -879,7 +879,7 @@ export default function TeamHierarchy() {
   /* ── desktop ────────────────────────────────────────────────────────── */
   return frame(
     <>
-      {/* toolbar — docked above the canvas, never over it */}
+      {/* toolbar: docked above the canvas, never over it */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 18, flexShrink: 0,
         padding: '0 14px', height: 46, borderBottom: '1px solid ' + t.line,

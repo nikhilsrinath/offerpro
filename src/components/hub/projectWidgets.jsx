@@ -6,7 +6,7 @@ import { portfolio, employeeAllocation, canSeeFinancials } from '../../services/
 import { usePreview, PREVIEW_PROJECTS } from './previewData';
 import { projectSectionPath } from '../projects/projectPaths';
 
-/* Project widgets for the hub — its default board. Each one fetches what it
+/* Project widgets for the hub, its default board. Each one fetches what it
    needs through the permission-checked RPCs and shows a locked state when the
    viewer may not see it. Sizes as in widgets.jsx: small is the figure, medium
    adds the list beside it, large the lot. */
@@ -196,7 +196,7 @@ export function ProjectsList({ nav, size }) {
             {[...live].sort((a, b) => rank(a) - rank(b)).slice(0, size === 'lg' ? 7 : 3).map((r) => {
                 const p = pct(r.milestones_done, r.milestones_total);
                 return (
-                    <Bar key={r.project_id} name={r.name} value={r.milestones_total ? `${p}%` : '—'} pct={p} strong={p >= 100}
+                    <Bar key={r.project_id} name={r.name} value={r.milestones_total ? `${p}%` : '-'} pct={p} strong={p >= 100}
                         onClick={() => nav(`/projects/${r.project_id}`)}
                         label={`${r.name}: ${r.milestones_done} of ${r.milestones_total} milestones done`} />
                 );

@@ -39,7 +39,7 @@ export function useRailPin() {
 }
 
 /* The control itself: pin the rail open, or close it again. It only shows
-   while the rail is wide, since collapsed there is no room for it — and no
+   while the rail is wide, since collapsed there is no room for it. And no
    need, the rail is already closed. */
 export function RailPinButton({ t, pinned, onToggle, visible }) {
     const Icon = pinned ? PanelLeftClose : PanelLeftOpen;

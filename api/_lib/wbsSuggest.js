@@ -2,9 +2,9 @@
  * EdgeBrain · an industry-specific work breakdown for one project.
  *
  * The model reads what the company and the project actually say about
- * themselves — the company's industry and description, the project's name,
+ * themselves: the company's industry and description, the project's name,
  * description, tags and client, its milestones and any sub-projects it
- * already has — and proposes a breakdown in that industry's own terms.
+ * already has: and proposes a breakdown in that industry's own terms.
  *
  * It must not invent a context. When too little is known to tell what kind
  * of work this is, the answer is "needs context" with what to fill in, never
@@ -13,7 +13,7 @@
  * floor below which there is nothing to read at all.
  *
  * Nothing here writes: the suggestion goes back to the page, the person edits
- * it, and only what they accept is added to the WBS by their own session —
+ * it, and only what they accept is added to the WBS by their own session,
  * under their own permissions and RLS.
  */
 
@@ -55,7 +55,7 @@ export function wbsContext({ org = {}, project = {}, client = null, milestones =
 export const WBS_SYSTEM_PROMPT = `You plan work breakdown structures (WBS) for a company's projects.
 
 From the context, work out the industry and the kind of project, then propose a
-breakdown in that industry's own vocabulary and sequence — the phases, the
+breakdown in that industry's own vocabulary and sequence. The phases, the
 deliverables and the regulatory or quality steps people in that industry
 actually follow. Use only what the context says; do not assume an industry it
 does not support.
@@ -78,8 +78,8 @@ or
 {"enough_context": false, "missing": ["..."]}`;
 
 /**
- * The model's reply as a clean breakdown — [name, children] the page's
- * template machinery understands — or null when it is not usable.
+ * The model's reply as a clean breakdown, [name, children] the page's
+ * template machinery understands: or null when it is not usable.
  */
 export function parseSuggestion(raw) {
     let text = String(raw || '').trim();

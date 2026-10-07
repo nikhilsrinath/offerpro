@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * text and start a new session, so the transcript never resets mid-thought.
  *
  * Ending: a voice call listens until it is hung up, but dictation into a text
- * box should end the way a person does — by stopping talking. start({ autoStop })
+ * box should end the way a person does, by stopping talking. start({ autoStop })
  * ends the session after a short silence once something was heard, or after a
  * longer wait when nothing was said at all.
  *
@@ -19,7 +19,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  *
  * Mobile: Android Chrome and iOS Safari hand the microphone to one consumer at
  * a time. A second getUserMedia stream takes it from the recogniser, which then
- * hears silence — the orb moves but no words arrive. There the meter is faked
+ * hears silence: the orb moves but no words arrive. There the meter is faked
  * from the recogniser's own events instead. Android also repeats earlier text
  * in every result of a continuous session, so there each session is one
  * utterance and the restart loop in onend provides the continuity.

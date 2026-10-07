@@ -11,7 +11,7 @@ import { confirmDialog } from '../../services/confirm';
    · One typeface, three sizes. Structure comes from hairlines and spacing.
    · Colour is signal. Greys carry the layout; a hue means something specific
      (a status, a department, up vs down) and nothing decorative uses one.
-   · Actions live in a page toolbar or at the end of the row they act on —
+   · Actions live in a page toolbar or at the end of the row they act on,
      never floating over content, never as a bare icon without a label.
    · Quantities get a bar, not just a number, wherever a reader would compare.
    ══════════════════════════════════════════════════════════════════════════ */
@@ -43,13 +43,17 @@ export function Toolbar({ children, right }) {
     const t = useT();
     return (
         <div style={{
-            display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+            display: 'flex', alignItems: 'flex-start', gap: 10,
             padding: '10px 0 12px', marginBottom: 14,
             borderBottom: '1px solid ' + t.line,
             position: 'sticky', top: 0, background: t.panel, zIndex: 20,
         }}>
-            {children}
-            {right && <><div style={{ flex: 1 }} />{right}</>}
+            {/* The filters wrap among themselves; the right-hand action stays
+                pinned to the top line instead of dropping under them. */}
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                {children}
+            </div>
+            {right && <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>{right}</div>}
         </div>
     );
 }
@@ -109,7 +113,7 @@ export function Muted({ children, size = 12 }) {
 
 /* ── controls ─────────────────────────────────────────────────────────────── */
 
-export function Btn({ children, onClick, primary, danger, disabled, title, size = 'md', type = 'button', full, ...rest }) {
+export function Btn({ children, onClick, primary, danger, disabled, title, size = 'md', type = 'button', full, style, ...rest }) {
     const t = useT();
     const h = size === 'sm' ? 25 : 29;
     return (
@@ -127,12 +131,13 @@ export function Btn({ children, onClick, primary, danger, disabled, title, size 
                 background: primary ? t.text : t.panel,
                 color: primary ? t.panel : (danger ? t.down : t.text),
                 transition: 'border-color .15s, background .15s, color .15s, opacity .15s',
+                ...style,
             }}
         >{children}</button>
     );
 }
 
-/** Segmented control. The default way to switch a view or filter a list —
+/** Segmented control. The default way to switch a view or filter a list,
     every option is visible, so nobody has to open a menu to learn what exists. */
 export function Seg({ value, onChange, options, size = 'md', label: groupLabel }) {
     const t = useT();
@@ -161,7 +166,6 @@ export function Seg({ value, onChange, options, size = 'md', label: groupLabel }
             {options.map((o) => {
                 const id = typeof o === 'string' ? o : o.id;
                 const label = typeof o === 'string' ? o : o.label;
-                const count = typeof o === 'string' ? undefined : o.count;
                 const active = id === value;
                 return (
                     <button
@@ -181,9 +185,6 @@ export function Seg({ value, onChange, options, size = 'md', label: groupLabel }
                         }}
                     >
                         {label}
-                        {count !== undefined && (
-                            <span style={{ fontSize: 11, color: t.faint }}>{count}</span>
-                        )}
                     </button>
                 );
             })}
@@ -191,7 +192,7 @@ export function Seg({ value, onChange, options, size = 'md', label: groupLabel }
     );
 }
 
-export function Search({ value, onChange, placeholder = 'Search…', width = 240 }) {
+export function Search({ value, onChange, placeholder = 'Search…', width = 240, height = 29 }) {
     const t = useT();
     return (
         <input
@@ -200,7 +201,7 @@ export function Search({ value, onChange, placeholder = 'Search…', width = 240
             placeholder={placeholder} aria-label={placeholder}
             className="edge-input"
             style={{
-                height: 29, width, maxWidth: '100%', padding: '0 10px', boxSizing: 'border-box',
+                height, width, maxWidth: '100%', padding: '0 10px', boxSizing: 'border-box',
                 background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 7,
                 color: t.text, fontFamily: MONO, fontSize: 12.5, outline: 'none',
             }}
@@ -215,7 +216,7 @@ export function ReqStar() {
 }
 
 /* A field is mandatory when the caller says so, or when the control inside it
-   carries `required` — so a form only has to state it once. */
+   carries `required` · so a form only has to state it once. */
 function childRequired(children) {
     let req = false;
     React.Children.forEach(children, (c) => { if (c?.props?.required) req = true; });
@@ -243,7 +244,7 @@ export function Input(props) {
         <input
             {...props} className="edge-input"
             style={{
-                width: '100%', boxSizing: 'border-box', height: 31, padding: '0 10px',
+                verticalAlign: 'top', width: '100%', boxSizing: 'border-box', height: 31, padding: '0 10px',
                 background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 7,
                 color: t.text, fontFamily: MONO, fontSize: 13, outline: 'none', ...props.style,
             }}
@@ -257,7 +258,7 @@ export function Select({ children, ...props }) {
         <select
             {...props} className="edge-input"
             style={{
-                width: '100%', boxSizing: 'border-box', height: 31,
+                verticalAlign: 'top', width: '100%', boxSizing: 'border-box', height: 31,
                 padding: '0 26px 0 10px', cursor: 'pointer',
                 background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 7,
                 color: t.text, fontFamily: MONO, fontSize: 13, outline: 'none',
@@ -382,7 +383,7 @@ export function Stat({ label, value, note, tone }) {
 }
 
 /** The page's headline numbers, in one hairline-separated band rather than a
-    row of cards — four boxes for four integers was more frame than content. */
+    row of cards: four boxes for four integers was more frame than content. */
 export function StatBand({ items }) {
     const t = useT();
     return (
@@ -903,14 +904,14 @@ export function Dropdown({ label, value, onChange, options, height = 36 }) {
         if (open) place();
     }, [open]);
 
-    // Focus once the list is placed — a visibility:hidden option cannot take focus.
+    // Focus once the list is placed. A visibility:hidden option cannot take focus.
     const placed = open && !!pos;
     useLayoutEffect(() => {
         if (!placed) return;
         const sel = listRef.current?.querySelector('[aria-selected="true"]')
             || listRef.current?.querySelector('[role="option"]');
         sel?.focus({ preventScroll: true });
-        // Scroll only the list — scrollIntoView would move the page and close it.
+        // Scroll only the list, scrollIntoView would move the page and close it.
         if (sel && listRef.current) listRef.current.scrollTop = Math.max(0, sel.offsetTop - 5);
     }, [placed]);
 

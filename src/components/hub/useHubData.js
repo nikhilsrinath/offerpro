@@ -133,7 +133,7 @@ export function useHubData(activeOrg, geoPeriod = '12M') {
         const cumulative = (arr) => arr.reduce((acc, v) => { acc.push((acc[acc.length - 1] || 0) + v); return acc; }, []);
 
         // Net cash follows EdgeBrain's cash.* rules (financeAnalytics.cashPosition,
-        // 0066) — every receipt and payment, funding included — so the tile and
+        // 0066): every receipt and payment, funding included. So the tile and
         // the assistant give the same number. Revenue above stays earned money.
         const cash = cashPosition({ finDocs, income, expenses, purchases });
         const byDay = (evs) => {
@@ -289,7 +289,7 @@ export function useHubData(activeOrg, geoPeriod = '12M') {
     }, [leads]);
 
     /* ── profit, per head, by period ─────────────────────────────────────── */
-    // The P&L's own figures (financeAnalytics.profitAndLoss — net of GST,
+    // The P&L's own figures (financeAnalytics.profitAndLoss, net of GST,
     // accrual), for each 1M/3M/6M/1Y window and the one before it. Gross
     // profit takes off the "Product & delivery" costs of making and delivering
     // what was sold; the operating ratio is every running cost against income,
@@ -325,7 +325,7 @@ export function useHubData(activeOrg, geoPeriod = '12M') {
                 const w = windowOf(p.id);
                 return [p.id, { ...acquisitionSpend(spend, leads, w.from, w.to), prev: acquisitionSpend(spend, leads, w.prevFrom, w.prevTo).total }];
             })),
-            // Against every lead on the board — the pipeline widget is not periodised.
+            // Against every lead on the board. The pipeline widget is not periodised.
             allTime: acquisitionSpend(spend, leads, '0000-01-01', today),
         };
     }, [recurring, expenses, purchases, leads]);

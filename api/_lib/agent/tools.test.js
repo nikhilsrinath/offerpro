@@ -48,7 +48,7 @@ async function run(toolName, args, ctx) {
   return { r, preview, plan, outcome, summary, after, wroteWhilePlanning: planned !== writesBefore };
 }
 
-describe('the screenshot scenario — "it is rescheduled to 2nd October"', () => {
+describe('the screenshot scenario: "it is rescheduled to 2nd October"', () => {
   it('turns an implied reschedule of the task under discussion into a deadline change', async () => {
     const db = seed();
     const ctx = fakeCtx({ db, today: TODAY, recentEntities: [{ type: 'task', id: T1, label: 'Connect with client on pricing', turn: 'm1' }] });
@@ -175,7 +175,7 @@ describe('clients & CRM', () => {
     db.tables.clients[0].notes = 'Met at SaaSBoomi.';
     const ctx = fakeCtx({ db, today: TODAY });
     await run('add_client_note', { client: 'Kite Labs', note: 'Budget frozen till March' }, ctx);
-    expect(db.tables.clients[0].notes).toBe('Met at SaaSBoomi.\n26 Sep 2026 — Budget frozen till March');
+    expect(db.tables.clients[0].notes).toBe('Met at SaaSBoomi.\n26 Sep 2026: Budget frozen till March');
   });
 
   it('will not add a second client with the same name', async () => {

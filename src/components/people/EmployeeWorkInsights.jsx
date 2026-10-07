@@ -1,4 +1,4 @@
-// EmployeeWorkInsights — the right half of an employee's sheet: how they are
+// EmployeeWorkInsights: the right half of an employee's sheet: how they are
 // working. Same numbers and charts as that person's own portal (portal/me), so
 // the admin and the employee are never looking at two versions of one month.
 //
@@ -134,11 +134,11 @@ export default function EmployeeWorkInsights({ emp, orgId, narrow }) {
         <div style={{ display: 'grid', gap: 10, gridTemplateColumns: narrow ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))' }}>
           <Kpi
             label="Attendance" share={ins.rate}
-            value={ins.rate == null ? '—' : `${Math.round(ins.rate * 100)}%`}
+            value={ins.rate == null ? '-' : `${Math.round(ins.rate * 100)}%`}
             note={`${ins.daysWorked} of ${ins.expected} working days`}
           />
           <Kpi label="Hours logged" value={hoursLabel(ins.minutes)} note={`${Object.keys(rows).length} days on record`} />
-          <Kpi label="Avg day" value={ins.avgMinutes ? formatDuration(Math.round(ins.avgMinutes)) : '—'} note="Check-in to check-out" />
+          <Kpi label="Avg day" value={ins.avgMinutes ? formatDuration(Math.round(ins.avgMinutes)) : '-'} note="Check-in to check-out" />
           <Kpi label="Avg check-in" value={minutesToClock(ins.avgCheckIn)} note={checkIns.length ? `${checkIns.length} check-ins` : 'None this month'} />
         </div>
       </div>

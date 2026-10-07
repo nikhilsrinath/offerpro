@@ -33,7 +33,7 @@ const CUSTOMERS = {
 const ask = (msg: string, data: any = {}) =>
   formatRawDataForPrompt({ ...ORG, ...data }, 'factual' as any, msg);
 
-describe('formatRawDataForPrompt — CRM section', () => {
+describe('formatRawDataForPrompt: CRM section', () => {
   it('reads the crm_leads cache key', () => {
     const out = ask('how are our leads doing', { crm_leads: CRM_LEADS });
     expect(out).not.toContain('No CRM data available');
@@ -74,7 +74,7 @@ describe('formatRawDataForPrompt — CRM section', () => {
   });
 });
 
-describe('formatRawDataForPrompt — client directory', () => {
+describe('formatRawDataForPrompt: client directory', () => {
   it('includes the client directory for a client question', () => {
     const out = ask('how many active clients do we have', { customers: CUSTOMERS });
     expect(out).toContain('CLIENT DIRECTORY (2 clients)');
@@ -103,7 +103,7 @@ describe('formatRawDataForPrompt — client directory', () => {
   });
 });
 
-describe('formatRawDataForPrompt — outstanding invoice statuses', () => {
+describe('formatRawDataForPrompt: outstanding invoice statuses', () => {
   const docs = (statuses: string[]) =>
     Object.fromEntries(statuses.map((s, i) => [
       `d${i}`, { id: `d${i}`, type: 'invoice', status: s, grand_total: 1000, clientName: 'Northwind Ltd' },

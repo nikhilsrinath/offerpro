@@ -13,7 +13,7 @@ import {
 
 const TODAY = '2026-09-22';
 
-describe('detectCashIntent — recording versus asking', () => {
+describe('detectCashIntent: recording versus asking', () => {
   it('reads spending as money out', () => {
     expect(detectCashIntent('we spent 4500 on office chairs')).toEqual({ direction: 'out', certain: true });
     expect(detectCashIntent('paid the October rent')).toEqual({ direction: 'out', certain: true });
@@ -140,7 +140,7 @@ describe('parseMethod and parseGstRate', () => {
   });
 });
 
-describe('parseCashSentence — one line, every field', () => {
+describe('parseCashSentence: one line, every field', () => {
   it('pulls the amount, date, method and description apart', () => {
     const patch = parseCashSentence('spent 4500 on office chairs yesterday via UPI', 'out', TODAY);
     expect(patch.original_amount).toBe('4500');
@@ -187,7 +187,7 @@ describe('the conversation', () => {
   it('asks only for what the first message did not say', () => {
     const draft = startDraft('spent 4500 on office chairs yesterday via UPI', 'out', TODAY);
     // Amount, description, category, date and method were all in the sentence,
-    // so there is nothing left to ask — it goes straight to the review card.
+    // so there is nothing left to ask. It goes straight to the review card.
     expect(nextQuestion(draft)).toBeNull();
     expect(validateDraft(draft)).toEqual([]);
   });
@@ -270,14 +270,14 @@ describe('getting out, and asking something else', () => {
   });
 });
 
-describe('amountHints — figures the conversation already named', () => {
+describe('amountHints: figures the conversation already named', () => {
   it('offers back a figure from an earlier message', () => {
     const hints = amountHints([
       'I recommend checking your latest bank statement against our recorded expenses.',
       'Combined bank charges around ₹2,615 so we can log them and keep the books accurate.',
     ]);
     expect(hints[0].value).toBe('2615');
-    // Named from the words in front of the figure — not the clause after it,
+    // Named from the words in front of the figure. Not the clause after it,
     // which in this sentence is "so we can log them".
     expect(hints[0].label).toBe('₹2,615 · bank charges');
   });

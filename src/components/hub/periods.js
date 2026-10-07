@@ -1,4 +1,4 @@
-/* The look-back windows a widget can be set to — 1M, 3M, 6M, 1Y — each a
+/* The look-back windows a widget can be set to, 1M, 3M, 6M, 1Y. Each a
    trailing window that ends today, compared with the same length just before
    it. A widget that takes a period says so in the catalog (`periods: true`);
    the board keeps the choice with the layout and hands it to the body. */

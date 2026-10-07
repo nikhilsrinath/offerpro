@@ -8,8 +8,8 @@ import { displayNameOf } from '../lib/user';
 
 // The wizard asks for the six things an organization cannot exist without:
 // credentials, who the company is, who signs for it, and the one line of
-// context the AI co-founder reads. Everything else — address, phone, logo,
-// signature, designation — is prompted for from the hub afterwards, where
+// context the AI co-founder reads. Everything else, address, phone, logo,
+// signature, designation: is prompted for from the hub afterwards, where
 // there is a real form with previews instead of a one-question-at-a-time run.
 // See lib/profileCompletion.js for what the hub then chases.
 const QUESTIONS = [
@@ -345,7 +345,7 @@ export default function Registration({ onBack, isGoogleUser }) {
                                 <p className="reg-welcome-subtitle-v2">
                                     {isGoogleUser
                                         ? "You're almost there. Four quick questions and your workspace is ready."
-                                        : "Six quick questions and your workspace is ready. Everything else — logo, address, signature — you can add later from your company profile."
+                                        : "Six quick questions and your workspace is ready. Everything else (logo, address, signature) you can add later from your company profile."
                                     }
                                 </p>
                                 <button

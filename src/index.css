@@ -711,8 +711,6 @@ h3 {
   font-size: 0.8125rem;
   color: var(--accent-muted);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   margin-bottom: 0.5rem;
 }
 
@@ -874,8 +872,6 @@ h3 {
   color: var(--accent-muted);
   font-weight: 700;
   font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
   opacity: 0.8;
 }
 
@@ -1021,8 +1017,6 @@ h3 {
   font-size: 0.875rem;
   color: var(--accent-muted);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
 }
 
 @media (max-width: 1100px) {
@@ -1167,8 +1161,6 @@ h3 {
   display: inline-block;
   font-size: 0.625rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
   color: rgba(250,249,245,0.4);
   margin-bottom: 1.5rem;
 }
@@ -1244,8 +1236,6 @@ h3 {
   font-size: 0.6875rem;
   color: rgba(250,249,245,0.4);
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .auth-visual-stat-divider {
@@ -1373,8 +1363,6 @@ h3 {
   color: rgba(14,14,14,0.35);
   font-size: 0.6875rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
 }
 
 .auth-field {
@@ -1389,10 +1377,8 @@ h3 {
   display: block;
   font-size: 0.6875rem;
   font-weight: 700;
-  text-transform: uppercase;
   color: rgba(14,14,14,0.45);
   margin-bottom: 0.4rem;
-  letter-spacing: 0.1em;
 }
 
 .auth-input-wrapper {
@@ -1608,8 +1594,6 @@ h3 {
   color: var(--text-secondary);
   font-size: 0.875rem;
   font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
@@ -1797,15 +1781,12 @@ h3 {
   gap: 0.5rem;
   font-size: 0.875rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 .reg-progress-text {
   color: var(--accent-muted);
   font-size: 0.875rem;
   font-weight: 600;
-  text-transform: uppercase;
 }
 
 /* ── NEW Onboarding Styles v2 ── */
@@ -1863,8 +1844,6 @@ h3 {
   color: var(--text-muted);
   font-weight: 500;
   margin-bottom: 0.25rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .reg-question-title-v2 {
@@ -2170,8 +2149,6 @@ h3 {
   border-radius: 99px;
   font-size: 0.75rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
   color: var(--text-primary);
   margin-bottom: 2rem;
   display: inline-block;
@@ -2512,8 +2489,6 @@ h3 {
   font-size: 0.75rem;
   font-weight: 800;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
   margin-bottom: 1.5rem;
 }
 
@@ -2777,8 +2752,6 @@ h3 {
 .sidebar-section-label {
   font-size: 0.625rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
   color: var(--text-muted);
   padding: 1.25rem 0.75rem 0.5rem;
 }
@@ -3176,8 +3149,6 @@ h3 {
   font-size: 0.75rem;
   color: var(--text-tertiary);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .billing-summary-value {
@@ -3624,8 +3595,6 @@ h3 {
   border-radius: 4px;
   font-size: 0.625rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .planner-item-desc {
@@ -3646,8 +3615,6 @@ h3 {
 .planner-status-label {
   font-size: 0.625rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   padding: 0.125rem 0.5rem;
   border-radius: 4px;
 }
@@ -3686,6 +3653,15 @@ textarea {
   width: 100%;
 }
 
+/* A checkbox or radio is a small control beside its label, not a full-width field. */
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+}
+
 input::placeholder,
 textarea::placeholder {
   color: var(--text-muted);
@@ -3701,10 +3677,8 @@ textarea:focus {
 
 label {
   display: block;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: 0.8125rem;
+  font-weight: 500;
   color: var(--text-tertiary);
   margin-bottom: 0.5rem;
 }
@@ -4097,8 +4071,6 @@ label {
   font-size: 0.625rem;
   color: var(--text-muted);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 /* Activity List */
@@ -4188,8 +4160,6 @@ label {
   font-weight: 700;
   color: var(--text-tertiary);
   margin-bottom: 1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 /* Quick Actions */
@@ -4286,8 +4256,6 @@ label {
 .pro-org-label {
   font-size: 0.625rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--text-muted);
 }
 
@@ -4338,8 +4306,6 @@ label {
   display: block;
   font-size: 0.6875rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: var(--text-tertiary);
   margin-bottom: 0.5rem;
 }
@@ -4350,8 +4316,6 @@ label {
   font-weight: 600;
   color: var(--text-muted);
   margin-bottom: 0.25rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .pro-input {
@@ -4529,8 +4493,6 @@ label {
 .pro-grand-total span:first-child {
   font-size: 0.75rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: var(--text-tertiary);
 }
 
@@ -4817,8 +4779,6 @@ label {
   color: var(--text-tertiary);
   font-weight: 600;
   font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .desktop-table td {
@@ -5101,8 +5061,6 @@ label {
 .records-grid-card-type {
   font-size: 11.5px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   padding: 0.25rem 0.625rem;
   border-radius: 6px;
 }
@@ -5295,8 +5253,6 @@ label {
 .mou-preview-toolbar-label {
   font-size: 0.75rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
   color: var(--text-muted);
   display: flex;
   align-items: center;
@@ -6157,9 +6113,7 @@ label {
   font-size: 0.75rem;
   font-weight: 700;
   color: #60a5fa;
-  letter-spacing: 0.04em;
   margin-bottom: 1rem;
-  text-transform: uppercase;
 }
 
 .easy-party-label.purple {
@@ -7092,8 +7046,6 @@ label {
   font-size: 0.6875rem;
   font-weight: 500;
   color: var(--text-tertiary, #71717a);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   min-width: 56px;
 }
 
@@ -7471,7 +7423,6 @@ label {
   font-weight: 700;
   text-align: center;
   color: #1a1008;
-  text-transform: uppercase;
 }
 
 .inv-sf-items-table td {
@@ -7654,8 +7605,6 @@ label {
   color: var(--text-muted);
   font-weight: 600;
   margin-top: 0.1875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 /* ── Toolbar ── */
@@ -7931,8 +7880,6 @@ label {
   padding: 0.75rem 1.25rem;
   font-size: 0.6875rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border-default);
   background: var(--bg-raised);
@@ -8334,8 +8281,6 @@ label {
 .empf-label {
   font-size: 0.6875rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--text-muted);
 }
 
@@ -10246,27 +10191,44 @@ label {
   min-width: 0;
 }
 
-.fin-list-controls select { max-width: 240px; min-width: 0; }
+.fin-list-controls select { width: 180px; max-width: 100%; min-width: 0; }
 
 .fin-list-search-wrap {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.5rem 0.875rem;
-  flex: 1;
-  min-width: 200px;
-  max-width: 320px;
+  /* Same box as the project / sort selects beside it: 36px, 0.5rem radius. */
+  background: var(--background);
+  border: 1px solid var(--border-default);
+  border-radius: 0.5rem;
+  padding: 0 0.625rem;
+  height: 36px;
+  flex: 0 1 220px;
+  width: 220px;
+  min-width: 0;
+  box-sizing: border-box;
   color: var(--text-muted);
+  transition: border-color 0.15s;
 }
 
+.fin-list-search-wrap:focus-within { border-color: var(--blue); box-shadow: var(--focus-ring); }
+
+/* The ring sits on the wrap, so the inner input must not draw its own. */
+.fin-list-search-wrap .fin-list-search:focus { border: none; box-shadow: none; }
+
+.fin-list-search-wrap svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* Reset the global input box (padding, border, sunken background) inside the wrap. */
 .fin-list-search {
   border: none;
   background: transparent;
   outline: none;
-  font-size: 0.875rem;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  min-width: 0;
+  font-size: 0.8rem;
   color: var(--text-primary);
   width: 100%;
 }
@@ -10330,8 +10292,6 @@ label {
   padding: 0.75rem 1rem;
   font-weight: 700;
   font-size: 0.6875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
@@ -10752,8 +10712,6 @@ label {
 .fin-status-timeline-row span {
   font-size: 0.6875rem;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .fin-status-timeline-row strong {
@@ -10879,8 +10837,6 @@ label {
   font-size: 0.75rem;
   font-weight: 500;
   color: #71717a;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .rp-notfound-icon {
@@ -11130,8 +11086,6 @@ label {
   width: auto !important;
   padding: 0 0.5rem !important;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .rp-download-pdf-btn {
@@ -11582,8 +11536,6 @@ label {
 
 .rp-amount-label {
   font-size: 0.625rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: #a1a1aa;
   font-weight: 700;
   display: block;
@@ -11649,8 +11601,6 @@ label {
   background: #1a1a2e;
   color: #fff;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .rp-amount-badge-muted {
@@ -11818,8 +11768,6 @@ label {
   display: block;
   font-size: 0.6875rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: #a1a1aa;
   margin-bottom: 0.3rem;
 }
@@ -13384,8 +13332,6 @@ label {
 .prod-stat-label {
   font-size: 0.7rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: var(--text-muted);
   margin-top: 0.1rem;
 }
@@ -13766,7 +13712,7 @@ label {
 .cb-form .prod-field { gap: 0.45rem; }
 /* The legend reads like the kit's field labels beside it. */
 .cb-form .cb-fieldset > legend {
-  font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase; font-weight: 400;
+  font-size: 11px; font-weight: 400;
   color: var(--cb-faint); padding: 0;
 }
 .cb-form .prod-field input,
@@ -13925,8 +13871,6 @@ label {
   text-align: left;
   font-size: 0.67rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border-subtle);
   white-space: nowrap;
@@ -14540,8 +14484,6 @@ label {
   text-align: center;
   font-size: 0.66rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: var(--text-tertiary);
   padding-bottom: 0.2rem;
 }
@@ -14686,8 +14628,7 @@ button.att-cal-cell:hover { border-color: var(--border-strong); background: var(
 .me-pw-form { display: flex; flex-direction: column; gap: 0.7rem; max-width: 22rem; }
 .me-pw-form label { display: flex; flex-direction: column; gap: 0.25rem; }
 .me-pw-form label span {
-  font-size: 0.7rem; font-weight: 650; letter-spacing: 0.04em;
-  text-transform: uppercase; color: var(--text-tertiary);
+  font-size: 0.7rem; font-weight: 650; color: var(--text-tertiary);
 }
 .me-pw-form input {
   height: 38px; padding: 0 0.7rem; border-radius: 8px;
@@ -14701,8 +14642,6 @@ button.att-cal-cell:hover { border-color: var(--border-strong); background: var(
   margin: 0 0 0.6rem;
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
   color: var(--text-tertiary);
 }
 
@@ -14722,8 +14661,6 @@ button.att-cal-cell:hover { border-color: var(--border-strong); background: var(
   display: block;
   font-size: 0.66rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
   color: var(--text-tertiary);
 }
 .me-clock strong { font-size: 1.05rem; }
@@ -14834,8 +14771,6 @@ button.att-cal-cell:hover { border-color: var(--border-strong); background: var(
   margin: 0;
   font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--text-tertiary);
 }
 
@@ -14884,9 +14819,7 @@ button.att-cal-cell:hover { border-color: var(--border-strong); background: var(
 .join-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 1.15rem;
-  letter-spacing: 0.3em;
   text-align: center;
-  text-transform: uppercase;
 }
 
 .join-google, .join-primary {
@@ -14953,8 +14886,7 @@ button.att-cal-cell:hover { border-color: var(--border-strong); background: var(
 }
 .pa-creds-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.15rem 0; }
 .pa-creds-row span {
-  min-width: 4.5rem; font-size: 0.66rem; font-weight: 650; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--text-muted);
+  min-width: 4.5rem; font-size: 0.66rem; font-weight: 650; color: var(--text-muted);
 }
 .pa-creds-row code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;

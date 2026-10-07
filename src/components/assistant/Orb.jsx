@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   The assistant's orb — a glass sphere with light swirling inside it.
+   The assistant's orb: a glass sphere with light swirling inside it.
 
    One full-frame quad and a fragment shader. The "3D" is a hemisphere normal
    reconstructed per pixel: the swirl is 3D noise sampled on that surface and
@@ -66,8 +66,8 @@ void main() {
     float t   = uTime;
 
     // Monochrome, like the rest of EdgeOS. Dark theme: a black glass ball with
-    // silver light inside and a white rim. Light theme: the inversion — pale
-    // glass, graphite smoke, an ink rim — so it sits on white without a glow.
+    // silver light inside and a white rim. Light theme: the inversion, pale
+    // glass, graphite smoke, an ink rim. So it sits on white without a glow.
     vec3 ink   = mix(vec3(0.06, 0.065, 0.07), vec3(1.0), uDark);
     vec3 paper = mix(vec3(0.95, 0.96, 0.965), vec3(0.02, 0.02, 0.025), uDark);
     vec3 mid   = mix(vec3(0.45, 0.47, 0.48), vec3(0.62, 0.62, 0.66), uDark);
@@ -118,7 +118,7 @@ void main() {
         // lit from above: the top half glows blue, the underside falls to navy
         vec3 bc = mix(navy, deep, smoothstep(-0.9, 0.7, n.y + 0.25));
         bc = mix(bc, blue, clamp(smoke * 0.5, 0.0, 1.0) * smoothstep(-0.6, 0.6, n.y));
-        // a slow, smooth wave of light across the middle — glossy, not smoky
+        // a slow, smooth wave of light across the middle, glossy, not smoky
         float wave = n.y + 0.06 + 0.17 * sin(n.x * 2.2 + t * 0.5) + 0.05 * sin(n.x * 4.1 - t * 0.8) + (w.x - 0.5) * 0.06;
         float band = exp(-pow((wave + 0.12) / 0.2, 2.0));           // soft gaussian body
         float below = smoothstep(0.1, -0.35, wave) * 0.35;           // light spilling under it
@@ -200,7 +200,7 @@ export default function Orb({ size = 220, levelRef, dark = true, active = false,
         const frame = (now) => {
             const dt = Math.min(0.05, (now - last) / 1000);
             last = now;
-            // attack fast, release slow — reads as a response, not a flicker
+            // attack fast, release slow, reads as a response, not a flicker
             const target = Math.max(0, Math.min(1, levelRef?.current || 0));
             level += (target - level) * (target > level ? 0.35 : 0.08);
             clock += dt * (reduced ? 0.25 : 1) * (1 + level * 1.5);

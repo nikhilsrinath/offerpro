@@ -13,9 +13,9 @@ import { PERIOD_IDS, periodOf, windowOf, daysIn, sumDays, bucketsOf, change } fr
    Every widget reads the one data object from useHubData and sits on the
    hub's square grid at one of three sizes, the way Apple widgets do:
 
-     sm  one cell      — a single glanceable figure and one mark
-     md  two cells     — the figure on the left, its detail on the right
-     lg  two by two    — the figure, the detail and the list behind it
+     sm  one cell: a single glanceable figure and one mark
+     md  two cells: the figure on the left, its detail on the right
+     lg  two by two. The figure, the detail and the list behind it
 
    A widget is not the page it summarises: at every size it answers one
    question, and the link underneath goes to the module for the rest.
@@ -137,7 +137,7 @@ function Meter({ value, strong }) {
     );
 }
 
-/** Name, value and a meter — one line of every ranked list. */
+/** Name, value and a meter, one line of every ranked list. */
 function Bar({ name, value, pct, strong, neg, onClick, label }) {
     const inner = (
         <span className="w-bar-main">
@@ -210,7 +210,7 @@ function Expenses({ d, size, period, setPeriod }) {
 function NetCash({ d, size }) {
     const m = d.money;
     return <MoneyTile size={size} value={m.netCash} delta={null} spark={m.sparkNet}
-        cap={`${inrShort(m.totalIn)} in · ${inrShort(m.totalOut)} out`} label="Net cash, all time — every receipt less every payment. The line shows the last 30 days." />;
+        cap={`${inrShort(m.totalIn)} in · ${inrShort(m.totalOut)} out`} label="Net cash, all time: every receipt less every payment. The line shows the last 30 days." />;
 }
 
 /** Revenue or spend per person on the team, from the P&L for the period. */
@@ -522,7 +522,7 @@ function Markets({ d, openCountry, countryNames, size }) {
 const GEO_PERIOD_IDS = ['30D', '3M', '6M', '12M'];
 
 /**
- * Revenue by geography — the hub's world map, as a widget.
+ * Revenue by geography: the hub's world map, as a widget.
  *
  * Choropleth on a sqrt scale, pinch / Ctrl-scroll zoom and drag-to-pan, a
  * readout that follows the pointer, and a click into the country's detail.
@@ -718,7 +718,7 @@ function Brain({ d, nav, ask, size }) {
 
 /* ── people & work ──────────────────────────────────────────────────────── */
 
-/** "12 · 25%" — a count and its share of the whole. */
+/** "12 · 25%" · a count and its share of the whole. */
 const countShare = (n, of) => `${n} · ${of ? Math.round((n / of) * 100) : 0}%`;
 
 function Team({ d, nav, size }) {
@@ -894,7 +894,7 @@ function AcquisitionSpend({ d, nav, size, period, setPeriod }) {
         <div className="w-kv">
             <div><i style={{ background: 'var(--chart-a)' }} />Sales spend<b>{inrShort(a.sales)}</b></div>
             <div><i style={{ background: 'var(--chart-b)' }} />Marketing spend<b>{inrShort(a.marketing)}</b></div>
-            <div>Per lead<b>{a.perLead === null ? '—' : inrShort(a.perLead)}</b></div>
+            <div>Per lead<b>{a.perLead === null ? '-' : inrShort(a.perLead)}</b></div>
         </div>
     );
     if (size === 'md') return <Duo stat={<>{stat}<div className="w-bottom"><PeriodTabs period={period} setPeriod={setPeriod} compact /></div></>}>{kv}</Duo>;

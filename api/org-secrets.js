@@ -8,7 +8,7 @@ import { encryptSecret, toBytea } from './_lib/crypto.js';
  *   Body: { org_id, secrets: { gmail_user?, gmail_app_password? } }
  *
  * org_secrets has RLS enabled with no policy and no grant, so no client role
- * can read or write it — this endpoint is the only way in. The password is
+ * can read or write it. This endpoint is the only way in. The password is
  * encrypted here, never stored in plaintext, and never sent back out: the GET
  * reports whether a password is on file, not what it is.
  */
@@ -58,7 +58,7 @@ export default async function handler(req, res) {
       // An empty string is "unchanged", not "clear". This table is write-only,
       // so the profile form always reloads with a blank password box; treating
       // that blank as a delete meant an unrelated profile edit wiped the org's
-      // email credentials. orgStore filters these out too — the rule is stated
+      // email credentials. orgStore filters these out too. The rule is stated
       // in both places because either one could be the caller.
     }
 

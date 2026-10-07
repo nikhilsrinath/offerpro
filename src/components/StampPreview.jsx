@@ -7,7 +7,7 @@ import { stampGeometry } from '../utils/imageUtils';
  * name and city. Geometry now comes from stampGeometry() and React creates the
  * nodes, so the text is a text node by construction and there is no markup for a
  * name containing `<` or a quote to break out of. The PNG path in imageUtils
- * still builds a string — rasterising needs a standalone document — and shares
+ * still builds a string, rasterising needs a standalone document. And shares
  * the same geometry, so the two renderings stay identical.
  */
 export default function StampPreview({ companyName, city, size = 120 }) {

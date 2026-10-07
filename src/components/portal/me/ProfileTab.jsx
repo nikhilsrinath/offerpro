@@ -1,4 +1,4 @@
-// ProfileTab — the employee's own card. Personal details save through
+// ProfileTab: the employee's own card. Personal details save through
 // meService.updateMyProfile (0032), which writes the same `employees` row the
 // admin screens read, so a new photo or phone number shows up there too.
 // Role, department, manager and dates are the employer's and are shown here
@@ -133,11 +133,11 @@ export default function ProfileTab({ orgId, me, setMe, email, narrow }) {
           {employer.map(([k, v], i) => (
             <div key={k} style={{ display: 'flex', gap: 12, padding: '9px 14px', borderTop: i ? '1px solid ' + t.lineSoft : 'none' }}>
               <span style={{ width: 88, flexShrink: 0, fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, paddingTop: 2 }}>{k.toUpperCase()}</span>
-              <span style={{ fontSize: 13, color: v ? t.text : t.ghost, minWidth: 0, wordBreak: 'break-word' }}>{v || '—'}</span>
+              <span style={{ fontSize: 13, color: v ? t.text : t.ghost, minWidth: 0, wordBreak: 'break-word' }}>{v || '-'}</span>
             </div>
           ))}
           <div style={{ padding: '9px 14px', borderTop: '1px solid ' + t.lineSoft, fontSize: 11, color: t.faint, lineHeight: 1.5 }}>
-            Something wrong here? Ask your admin — these are set on your employee record.
+            Something wrong here? Ask your admin. These are set on your employee record.
           </div>
         </Panel>
       </div>
@@ -149,7 +149,7 @@ export default function ProfileTab({ orgId, me, setMe, email, narrow }) {
             <Field label="Phone"><Input type="tel" value={form.phone} onChange={set('phone')} maxLength={40} placeholder="+91 98765 43210" /></Field>
             <Field label="Date of birth"><Input type="date" value={form.date_of_birth || ''} onChange={set('date_of_birth')} max={todayKey()} /></Field>
             <Field label="Address"><Input value={form.address} onChange={set('address')} maxLength={400} placeholder="Where you live" /></Field>
-            <Field label="About you" wide hint={`${String(form.bio || '').length}/600 — a line or two your team will see on your card`}>
+            <Field label="About you" wide hint={`${String(form.bio || '').length}/600: a line or two your team will see on your card`}>
               <Textarea rows={3} value={form.bio} onChange={set('bio')} maxLength={600} placeholder="What you work on, what you're into" />
             </Field>
             <div style={{ gridColumn: '1 / -1', fontSize: 11, letterSpacing: '0.1em', color: t.faint, borderTop: '1px solid ' + t.lineSoft, paddingTop: 12 }}>

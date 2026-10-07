@@ -4,7 +4,7 @@ import { makeTokens } from './edge';
 /* The theme a page should paint itself in.
 
    useTheme() holds its own useState per caller, so a page that called it got a
-   second, unsynchronised copy of the theme — toggling in the shell left the
+   second, unsynchronised copy of the theme, toggling in the shell left the
    page behind, and the page's effect could even write the stale value back onto
    <html>. Pages read the theme from here instead: the shell provides it, and
    anything rendered outside a shell falls back to watching the attribute that

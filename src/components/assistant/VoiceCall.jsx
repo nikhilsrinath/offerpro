@@ -7,7 +7,7 @@ import {
 import './voiceCall.css';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   A voice call with EdgeAI — a conversation, not dictation.
+   A voice call with EdgeAI. A conversation, not dictation.
 
      listening ─(you pause)→ thinking ─(first sentence)→ speaking ─(done)→ listening
 
@@ -245,7 +245,7 @@ export default function VoiceCall({ a, onClose }) {
     }, [finishTurn, setPhase]);
 
     // A filler holds the voice like a sentence does, so the answer waits for it
-    // to finish rather than talking over it — they are short.
+    // to finish rather than talking over it. They are short.
     function sayFiller(line) {
         if (!canSpeak || phaseRef.current !== 'thinking') return;
         const gen = genRef.current;
@@ -275,7 +275,7 @@ export default function VoiceCall({ a, onClose }) {
         if (!reply) return;
         // A cash question or card is complete the moment it appears.
         // A real boolean: sentencesOf() treats a missing `final` as true, and
-        // `reply.error` is undefined on a normal reply — that read every partial
+        // `reply.error` is undefined on a normal reply. That read every partial
         // chunk aloud as though the answer were finished.
         const complete = Boolean(reply.kind || !a.streaming || reply.error);
         const text = speakable(reply.content || '');
@@ -393,9 +393,9 @@ export default function VoiceCall({ a, onClose }) {
                     {interim && <span className="is-pending">{finalText ? ' ' : ''}{interim}</span>}
                 </p>
             )
-            : <p className="vc-line is-hint">Go ahead — I’m listening.</p>;
+            : <p className="vc-line is-hint">Go ahead, I’m listening.</p>;
     } else if (question || answer) {
-        // You, then EdgeAI — two turns, never one run of text.
+        // You, then EdgeAI: two turns, never one run of text.
         body = (
             <div className="vc-qa">
                 {question && (

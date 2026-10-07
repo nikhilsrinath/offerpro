@@ -1,5 +1,5 @@
 /**
- * EdgeAI agent — POST /api/agent { mode, org_id, ... }
+ * EdgeAI agent: POST /api/agent { mode, org_id, ... }
  *
  *   chat     { message, history, chat_id, message_id, context, resume?, pending? }
  *            → text/event-stream of agent events (see api/_lib/agent/loop.js)
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
       return res.end();
     }
 
-    // Metered per message, before the model is called — see api/nvidia.js.
+    // Metered per message, before the model is called, see api/nvidia.js.
     const used = await meter(ctx.orgId);
     if (used > ctx.aiLimit) {
       await logAiUsage({ orgId: ctx.orgId, user, surface: 'copilot', outcome: 'blocked' });

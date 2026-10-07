@@ -1,8 +1,8 @@
-// invoiceReminderService.js — overdue detection and payment follow-ups.
+// invoiceReminderService.js: overdue detection and payment follow-ups.
 //
 // Runs inside the existing task deadline monitor (useTaskDeadlineMonitor), so
 // there is one scheduler in the app, not two. Each pass:
-//   1. flags issued invoices past due as 'overdue' (sent/viewed only — paid and
+//   1. flags issued invoices past due as 'overdue' (sent/viewed only: paid and
 //      partially_paid are derived by the database from payments and are left
 //      alone; isOverdue() still catches a partially paid invoice past due);
 //   2. emails the client on a fixed cadence: the day it goes overdue, then

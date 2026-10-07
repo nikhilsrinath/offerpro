@@ -2,7 +2,7 @@ import React from 'react';
 import { Bar, StatBand } from '../../ui/edge';
 import { useT } from '../../ui/edgeUtils';
 
-/* How far a batch has got. A bar rather than a ring — it reads at a glance and
+/* How far a batch has got. A bar rather than a ring. It reads at a glance and
    exposes itself as a progressbar, so a screen reader hears the same number. */
 export default function BulkProgressTracker({ total, processed, failed, status, noun = 'documents', verb = 'Generated' }) {
     const t = useT();

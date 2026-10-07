@@ -11,7 +11,7 @@ import {
 import { useProjectPeople, teamError, needsMigration } from './teamData';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Team Management › Announcements — notices for this project's people only.
+   Team Management › Announcements: notices for this project's people only.
 
    The same announcements as the company board, with a project on them: the
    database lets a project notice be read by the project's current members
@@ -27,7 +27,7 @@ const RANK = { urgent: 0, important: 1, normal: 2 };
 
 const fmtWhen = (iso) => (iso
     ? new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : '—');
+    : '-');
 const fmtSize = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round((b || 0) / 1024))} KB`);
 
 export default function ProjectAnnouncements({ project }) {
@@ -77,7 +77,6 @@ export default function ProjectAnnouncements({ project }) {
                 || new Date(b.published_at || 0) - new Date(a.published_at || 0));
     }, [items, live, show, priority, query]);
 
-    const counts = useMemo(() => Object.fromEntries(PRIORITIES.map((p) => [p.id, live.filter((a) => a.priority === p.id).length])), [live]);
 
     const save = async (form) => {
         setBusy(true);
@@ -150,20 +149,18 @@ export default function ProjectAnnouncements({ project }) {
         <div style={{ display: 'grid', gap: 14 }}>
             <Row gap={8} wrap>
                 <Seg size="sm" value={show} onChange={setShow} label="Show" options={[
-                    { id: 'board', label: 'Current', count: live.length },
-                    { id: 'all', label: 'Everything', count: items.length },
+                    { id: 'board', label: 'Current' },
+                    { id: 'all', label: 'Everything' },
                 ]} />
                 <Seg size="sm" value={priority} onChange={setPriority} label="Priority" options={[
                     { id: 'all', label: 'Any priority' },
-                    ...[...PRIORITIES].sort((a, b) => RANK[a.id] - RANK[b.id]).map((p) => ({ ...p, count: counts[p.id] })),
+                    ...[...PRIORITIES].sort((a, b) => RANK[a.id] - RANK[b.id]),
                 ]} />
                 {items.length > 0 && <Search value={query} onChange={setQuery} placeholder="Search announcements" width={220} />}
                 <div style={{ flex: 1 }} />
                 {canCreate && <Btn primary onClick={() => openEditor(null)}>New announcement</Btn>}
             </Row>
-            <div style={{ fontSize: 12, color: t.faint, marginTop: -6 }}>
-                Seen by the {team.current.length} {team.current.length === 1 ? 'person' : 'people'} on this project, and by whoever manages announcements.
-            </div>
+            
 
             {shown.length === 0 ? (
                 <Panel>
@@ -172,7 +169,7 @@ export default function ProjectAnnouncements({ project }) {
                         : (query || priority !== 'all') && <Btn onClick={() => { setQuery(''); setPriority('all'); }}>Clear filters</Btn>}>
                         {items.length === 0
                             ? 'No announcements on this project yet. Post one to reach everyone on the team at once.'
-                            : show === 'board' && live.length === 0 ? 'Nothing current — every announcement here has expired.' : 'No announcements match these filters.'}
+                            : show === 'board' && live.length === 0 ? 'Nothing current. Every announcement here has expired.' : 'No announcements match these filters.'}
                     </Empty>
                 </Panel>
             ) : (
@@ -290,8 +287,8 @@ function Editor({ form, setForm, busy, onClose, onSave }) {
                     </Field>
                 </div>
                 <div style={{ flex: '1 1 160px' }}>
-                    <Field label="Expires" hint="Blank keeps it up">
-                        <Input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
+                    <Field label="Expires (optional)">
+                    <Input type="date" style={{ height: 29 }} value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
                     </Field>
                 </div>
             </Row>

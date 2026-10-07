@@ -71,8 +71,15 @@ export default function BulkTeamMembers() {
 
     // The registry and the rows above each row, checked for the same email, the
     // same employee ID (both stop the row) and the same name (the user may ignore).
+    // A row matching an ex-employee is that person rejoining: it brings their record back.
     const checks = useMemo(() => findDuplicates(data, registryRows, ignored), [data, registryRows, ignored]);
-    const rowCheck = (row, idx) => checks[idx] || { errors: [], warning: '' };
+    const rowCheck = (row, idx) => {
+        const c = checks[idx] || { errors: [], warning: '' };
+        const back = c.rejoin;
+        return back
+            ? { ...c, note: `Rejoining · ${back.studentName || back.name || 'ex-employee'}${back.employee_code ? ` keeps ${back.employee_code}` : ''}` }
+            : c;
+    };
 
     const handleEdit = (rowIdx, colKey, value) => {
         setData((rows) => rows.map((r, i) => (i === rowIdx ? { ...r, [colKey]: value } : r)));
@@ -95,7 +102,7 @@ export default function BulkTeamMembers() {
     const rowOk = (row, idx) => validateRow(row) && !checks[idx]?.errors.length && !checks[idx]?.warning;
 
     const startImport = async () => {
-        const validRows = data.filter((r, i) => rowOk(r, i));
+        const validRows = data.map((r, i) => ({ ...r, _rejoin: checks[i]?.rejoin || null })).filter((r, i) => rowOk(r, i));
         if (validRows.length === 0) return;
 
         const orgId = activeOrg?.id;
@@ -117,7 +124,7 @@ export default function BulkTeamMembers() {
             try {
                 const first = String(row.first_name || '').trim();
                 const last = String(row.last_name || '').trim();
-                await storageService.saveEmployee({
+                const details = {
                     studentName: `${first} ${last}`.trim(),
                     email: String(row.email || '').trim(),
                     role: row.role || '',
@@ -125,12 +132,17 @@ export default function BulkTeamMembers() {
                     location: row.location || '',
                     startDate: toIsoDate(row.start_date) || '',
                     offerType: 'fulltime',
-                    employee_code: row.employee_id || '',
-                }, orgId);
+                };
+                if (row._rejoin) {
+                    // Their old record comes back with its Employee ID; no second row.
+                    await storageService.rejoinEmployee(row._rejoin.id, details, orgId);
+                } else {
+                    await storageService.saveEmployee({ ...details, employee_code: row.employee_id || '' }, orgId);
+                }
 
                 pCount++;
                 setProcessed(pCount);
-                newResults.push({ ...row, status: 'Imported', timestamp: new Date().toLocaleTimeString() });
+                newResults.push({ ...row, status: row._rejoin ? 'Rejoined' : 'Imported', timestamp: new Date().toLocaleTimeString() });
             } catch (err) {
                 fCount++;
                 setFailed(fCount);
@@ -155,7 +167,9 @@ export default function BulkTeamMembers() {
                         title: `${r.first_name || ''} ${r.last_name || ''}`.trim(),
                         status: r.status,
                         failed: r.status === 'Failed',
-                        detail: r.status === 'Failed' ? r.error : `${r.role} profile added`,
+                        detail: r.status === 'Failed' ? r.error
+                            : r.status === 'Rejoined' ? `back as ${r.role}, their record and Employee ID restored`
+                            : `${r.role} profile added`,
                     }))}
                     working={step === 3}
                     workingText="Processing next employee…"
@@ -173,8 +187,9 @@ export default function BulkTeamMembers() {
                             dateColumns={DATE_COLUMNS} onDeleteRow={deleteRow} rowCheck={rowCheck} onIgnore={ignoreRow} />
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 14, paddingTop: 14, borderTop: '1px solid ' + t.lineSoft }}>
                             <Muted size={12.5}>
-                                Rows with errors are skipped, and so are rows that match someone already in the registry —
+                                Rows with errors are skipped, and so are rows that match a current employee,
                                 fix them, delete them, or ignore a matching name if it is a different person.
+                                A row matching an ex-employee brings them back on their old record.
                             </Muted>
                             <div style={{ flex: 1 }} />
                             <Btn primary onClick={startImport} disabled={validCount === 0}>

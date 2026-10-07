@@ -30,7 +30,7 @@ const TermsPage = () => (
 
         <h2>3. Free Plan & Subscriptions</h2>
         <p>
-          EdgeOS offers a Free plan with capped document generation and 10 messages with the AI Co-founder, requiring no credit card. Paid tiers — Pro ($12/month), Max ($54/month), and Enterprise (custom) — unlock higher and unlimited usage as described on the Pricing page. Annual billing applies to Pro and Max. You may upgrade, downgrade, or cancel at any time; usage limits reset at the start of each billing cycle.
+          EdgeOS offers a Free plan with capped document generation and 10 messages with the AI Co-founder, requiring no credit card. Paid tiers (Pro at $12/month, Max at $54/month, and Enterprise at custom pricing) unlock higher and unlimited usage as described on the Pricing page. Annual billing applies to Pro and Max. You may upgrade, downgrade, or cancel at any time; usage limits reset at the start of each billing cycle.
         </p>
 
         <h2>4. Acceptable Use</h2>

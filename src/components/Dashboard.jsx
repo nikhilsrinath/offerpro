@@ -79,7 +79,7 @@ export default function Dashboard() {
       return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear();
     });
 
-    // Monthly revenue + document count (last 6 months) — use issue_date for invoices
+    // Monthly revenue + document count (last 6 months), use issue_date for invoices
     const monthlyRevenue = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -218,7 +218,7 @@ export default function Dashboard() {
         })}
       </div>
 
-      {/* Sales by Countries — revenue grouped by the country frozen onto each
+      {/* Sales by Countries: revenue grouped by the country frozen onto each
           document at issue time, not by the customer's current address. */}
       <SalesByCountries />
 

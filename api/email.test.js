@@ -6,7 +6,7 @@ import { validateMessage, sanitizeFromName } from './email.js';
  * and refusing CR/LF in anything that becomes an SMTP header.
  *
  * The endpoint itself needs a live Supabase and an SMTP server, so these cover
- * the pure functions — which is where the injection and relay risks live.
+ * the pure functions: which is where the injection and relay risks live.
  */
 
 const ok = { to: 'a@example.com', subject: 'Hi', text: 'body' };

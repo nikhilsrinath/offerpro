@@ -1,9 +1,9 @@
-// cashIntent.js — reading a sentence about money.
+// cashIntent.js: reading a sentence about money.
 //
 // Lives in src/shared/ because both sides use it: the browser's cash-book card,
 // and the agent's create_cash_entry tool on the server (api/_lib/agent), which
 // parses the amount, date, GST, rail and category a person said with exactly
-// these functions — a lakh is 1,00,000 on both, and "yesterday" is resolved in
+// these functions: a lakh is 1,00,000 on both, and "yesterday" is resolved in
 // the org's timezone because the caller passes `today` in.
 //
 // Everything here turns a sentence somebody typed into a cash-book entry, and
@@ -14,7 +14,7 @@
 // the reading side of the product; this file drives the writing side.
 //
 // A draft has exactly the shape of CashBook's own form state, so it can be
-// written through the same orgStore sections — no second definition of what an
+// written through the same orgStore sections. No second definition of what an
 // entry is, and no second place to keep in step with the column guards in
 // migrations 0038 and 0041.
 
@@ -72,7 +72,7 @@ const OUT_WORDS = /\b(spent|spend|spending|paid|pay|paying|bought|buy|buying|pur
 const IN_WORDS = /\b(received|receive|receiving|got\s+paid|earned|income|revenue|collected|collection|cash\s*in|money\s*in|incoming|credited|sold|sale|came\s+in)\b/i;
 
 // Phrases that mean "write this down" rather than "tell me about it". Without
-// them, "log an expense" — which names no verb of spending at all — would not
+// them, "log an expense" · which names no verb of spending at all, would not
 // register as a request to record anything.
 const RECORD_WORDS = /\b(record|log|enter|add|note\s+down|book|create)\b/i;
 const CASH_NOUNS = /\b(expense|expenses|income|cash|payment|entry|entries|bill|receipt|spend|revenue|sale|purchase)\b/i;
@@ -84,14 +84,14 @@ const CASH_NOUNS = /\b(expense|expenses|income|cash|payment|entry|entries|bill|r
    anchoring the test to the start of the sentence read it as a request to
    record one. People lead with "okay", "hey", "so", "and", "right" constantly,
    so the interrogative is looked for in the opening clause rather than at
-   character zero — and "how much" / "how many", which can only ever be asking
+   character zero: and "how much" / "how many", which can only ever be asking
    for a figure, anywhere in the sentence at all. */
 const INTERROGATIVE = /\b(how\s+much|how\s+many|how\s+(?:do|did|does|is|are|was|were|can|could)|what(?:'s|s)?\b|which\b|when\b|where\b|why\b|who(?:se|m)?\b|is\s+there|are\s+there|do\s+we|did\s+we|does\s+it|can\s+(?:you|we)|could\s+(?:you|we)|should\s+(?:i|we)|tell\s+me|show\s+me|give\s+me|list\b|summari[sz]e|compare|explain|break\s*down|breakdown|status\s+of)/i;
 const COUNTING = /\b(how\s+much|how\s+many)\b/i;
 
 // The opening clause: enough to cover a filler word or two before the real
-// verb, and short enough that a "what" deep in a subordinate clause — "paid
-// what we owed" — is not mistaken for the sentence's own question.
+// verb, and short enough that a "what" deep in a subordinate clause, "paid
+// what we owed" · is not mistaken for the sentence's own question.
 const OPENER_WORDS = 6;
 
 /**
@@ -115,13 +115,13 @@ export function isQuestion(text) {
  *
  * Returns `{ direction, certain }` or null. A null `direction` means the
  * message is clearly about recording money but has not said which way it
- * moved — which is then the first thing asked rather than assumed.
+ * moved: which is then the first thing asked rather than assumed.
  *
  * Two gates, and a message has to clear both. It must not be a question, and
  * it must carry some evidence that something is to be written down: either an
  * explicit instruction ("log an expense", "add some expenses"), or a claim
- * that money actually moved ("we paid the October rent"). Anything else —
- * every observation, opinion and aside about money — belongs to the model.
+ * that money actually moved ("we paid the October rent"). Anything else,
+ * every observation, opinion and aside about money, belongs to the model.
  *
  * The bias is deliberately towards doing nothing. Failing to start an entry
  * costs one more sentence; starting one over somebody's question derails the
@@ -140,7 +140,7 @@ export function detectCashIntent(text) {
   // Nothing here says anything moved or should be written down.
   if (!told && !out && !inward) return null;
 
-  // "received a refund and paid it back" — both, and neither reading is safe
+  // "received a refund and paid it back" · both, and neither reading is safe
   // to pick on somebody's behalf. Ask.
   if (out && inward) return { direction: null, certain: false };
   if (out) return { direction: 'out', certain: true };
@@ -157,7 +157,7 @@ export function detectCashIntent(text) {
  * Matched anywhere in the sentence, not just at the front. "Okay leave it" is
  * how people actually back out of something, and a matcher anchored to the
  * start reads that as an answer, fails to parse it, and asks the question
- * again — which is exactly how a helpful form becomes a thing you cannot
+ * again: which is exactly how a helpful form becomes a thing you cannot
  * escape.
  */
 const CANCEL_WORDS = /\b(cancel|never ?mind|nevermind|forget it|forget about it|leave it|leave that|drop it|skip (?:it|this|that)|not now|do it later|maybe later|abort|stop it)\b/i;
@@ -204,8 +204,8 @@ const AMOUNT_RE = new RegExp(
 /**
  * The figure in a sentence, and the currency it was named in.
  *
- * Several numbers can appear in one line — "paid 25,000 rent on 5 Oct with 18%
- * GST" — so candidates are scored rather than taken in order: a number wearing
+ * Several numbers can appear in one line, "paid 25,000 rent on 5 Oct with 18%
+ * GST" · so candidates are scored rather than taken in order: a number wearing
  * a currency symbol wins, then one wearing a scale word, then the largest. A
  * percentage is never an amount, and text the date parser has already claimed
  * is removed before this runs.
@@ -220,7 +220,7 @@ export function parseAmount(text) {
   while (m !== null) {
     const [full, pre, digits, scale, post] = m;
     // A trailing % makes this a rate, not a sum; a trailing "days" or "pcs" a
-    // count ("net 30 days", "12 pcs") — unless it wears a currency or scale.
+    // count ("net 30 days", "12 pcs"): unless it wears a currency or scale.
     const after = raw.slice(m.index + full.length).trimStart();
     const isCount = !pre && !post && !scale
       && /^(days?|weeks?|months?|years?|hrs?|hours?|pcs?|nos?|units?|x)\b/i.test(after);
@@ -238,7 +238,7 @@ export function parseAmount(text) {
     m = AMOUNT_RE.exec(raw);
   }
 
-  // "a lakh", "one crore", "half a lakh" — a scale word with no figure.
+  // "a lakh", "one crore", "half a lakh" · a scale word with no figure.
   const worded = raw.match(/\b(half\s+a|a|one)\s+(thousand|lakh|lac|crore|million)\b/i);
   if (worded) {
     const pre = raw.slice(0, worded.index).match(/(₹|\brs\.?|\binr)\s*$/i);
@@ -256,7 +256,7 @@ export function parseAmount(text) {
   return { amount: best.amount, currency: best.currency, match: best.match };
 }
 
-// A figure that was formatted for reading — ₹2,615, $1,200, 12,500 — rather
+// A figure that was formatted for reading, ₹2,615, $1,200, 12,500, rather
 // than any number that happens to appear. A bare "5" in a sentence about five
 // invoices is not a sum anybody is about to record.
 const STATED_FIGURE = /(₹|\$|€|£|¥)\s*([0-9][0-9,]*(?:\.[0-9]+)?)|\b([0-9]{1,3}(?:,[0-9]{2,3})+(?:\.[0-9]+)?)\b/g;
@@ -281,7 +281,7 @@ function words3(phrase, fromStart = false) {
  * Figures the conversation has already put on the table.
  *
  * When somebody says "we need to add some expenses now", the amount they mean
- * is usually one the assistant named a moment ago — the ₹2,615 of bank charges
+ * is usually one the assistant named a moment ago. The ₹2,615 of bank charges
  * it just recommended looking into. Offering those back as chips is the
  * difference between a wizard that starts from nothing and one that carries on
  * the conversation it is part of.
@@ -300,8 +300,8 @@ export function amountHints(texts, limit = 3) {
       const amount = Number(digits);
       if (Number.isFinite(amount) && amount > 0 && !seen.has(amount)) {
         // What the figure was, taken from the words in front of it: English
-        // puts the noun before the sum — "combined bank charges around ₹2,615"
-        // — so the words after it belong to the next clause ("so we can log
+        // puts the noun before the sum, "combined bank charges around ₹2,615"
+        //: so the words after it belong to the next clause ("so we can log
         // them"), and reading those gives a chip labelled with the wrong half
         // of the sentence.
         const before = words3(raw.slice(Math.max(0, m.index - 60), m.index));
@@ -318,7 +318,7 @@ export function amountHints(texts, limit = 3) {
   return [...seen.values()].slice(0, limit);
 }
 
-/** A currency named on its own — "in dollars", "USD" — with no figure beside it. */
+/** A currency named on its own, "in dollars", "USD" · with no figure beside it. */
 export function parseCurrency(text) {
   const s = String(text || '').toLowerCase();
   for (const [token, code] of Object.entries(CURRENCY_BY_TOKEN)) {
@@ -388,7 +388,7 @@ export function parseGstRate(text) {
  *
  * The same arithmetic as CashBook's setRate and app.cash_entry_tax(): the
  * amount entered is what moved, tax included, so the tax is carved out of it
- * rather than added on top. Three places, one formula — a fourth reading of
+ * rather than added on top. Three places, one formula. A fourth reading of
  * "18%" is how a ledger stops reconciling.
  */
 export function taxFromRate(base, rate) {
@@ -402,7 +402,7 @@ export function taxFromRate(base, rate) {
 
 // What people call things, mapped to what the taxonomy calls them. The scorer
 // below already covers any category whose label or hint says the word; this
-// list is for the ones it cannot reach — a laptop is a "computer", a chair is
+// list is for the ones it cannot reach. A laptop is a "computer", a chair is
 // "furniture", and neither word appears in the row it belongs under.
 const SYNONYMS = {
   out: [
@@ -499,7 +499,7 @@ const words = (s) => String(s || '').toLowerCase().split(/[^a-z0-9]+/)
  * The best category for a sentence, or null when nothing is a confident match.
  *
  * Synonyms first, because they are exact statements of intent. Failing those,
- * the taxonomy's own words are scored — a label word counts for more than a
+ * the taxonomy's own words are scored. A label word counts for more than a
  * hint word, because "Rent & lease" naming rent is a stronger signal than some
  * unrelated row's hint happening to mention it. A single weak overlap is left
  * unmatched on purpose: an entry filed under a guessed category is worse than
@@ -512,7 +512,7 @@ export function guessCategory(text, direction) {
   // The taxonomy is the authority on which keys exist. A synonym pointing at a
   // key this deployment does not have is skipped rather than written. Before
   // the taxonomy has loaded there is nothing to check against, and the synonym
-  // is trusted — the review card shows what it chose either way.
+  // is trusted: the review card shows what it chose either way.
   const known = new Set(allCategories()
     .filter((c) => c.direction === direction && c.active).map((c) => c.key));
   for (const [re, key] of SYNONYMS[direction] || []) {
@@ -564,7 +564,7 @@ const tokens = (s) => String(s || '').toLowerCase().split(/[^\p{L}\p{N}]+/u).fil
  *
  *   · a code (PRJ-2026-014) wins outright;
  *   · otherwise, after "for", "on" or "project", the projects whose name's
- *     distinctive words all appear in the sentence — "for the Acme website"
+ *     distinctive words all appear in the sentence, "for the Acme website"
  *     finds "Acme website"; "on project Apollo" finds "Apollo";
  *   · a client name alone counts too, when that client has exactly one open
  *     project.
@@ -634,7 +634,7 @@ export function cleanDescription(rest) {
  * Everything a single sentence gives up, as a patch onto a draft.
  *
  * Each parser hands back the text it claimed, and that text is removed before
- * the next one looks — which is how "paid 25000 on 5 Oct" does not file a
+ * the next one looks, which is how "paid 25000 on 5 Oct" does not file a
  * payment of five rupees, and how the description ends up as "rent" rather
  * than as the whole sentence over again.
  */
@@ -705,7 +705,7 @@ const has = (v) => v !== null && v !== undefined && String(v).trim() !== '';
  * What still needs asking, or null when the draft is ready to be reviewed.
  *
  * Only what is missing gets asked. A message that already said how much, what
- * for and how it was paid goes straight to the confirmation card — the point
+ * for and how it was paid goes straight to the confirmation card. The point
  * of the questions is to finish an entry, not to interrogate somebody who has
  * already told you everything.
  */
@@ -832,7 +832,7 @@ export function applyAnswer(draft, slot, text, today = todayIso()) {
 
     case 'amount': {
       const parsed = parseAmount(answer);
-      if (!parsed) return { error: 'I need a figure — something like 4,500 or $1,200.' };
+      if (!parsed) return { error: 'I need a figure, something like 4,500 or $1,200.' };
       const next = { ...draft, original_amount: String(parsed.amount) };
       if (parsed.currency) next.currency = parsed.currency;
       else {
@@ -890,7 +890,7 @@ export function applyAnswer(draft, slot, text, today = todayIso()) {
 
 /* ── the entry ────────────────────────────────────────────────────────────── */
 
-/** What the entry is worth in rupees — the figure every total sums. */
+/** What the entry is worth in rupees. The figure every total sums. */
 export function baseAmount(draft) {
   return Math.round((Number(draft?.original_amount) || 0) * (Number(draft?.fx_rate) || 1) * 100) / 100;
 }
@@ -918,7 +918,7 @@ export function validateDraft(draft) {
 /**
  * The draft as orgStore wants it: a section, and a row for it.
  *
- * `direction` is dropped for the same reason CashBook drops it — it is how
+ * `direction` is dropped for the same reason CashBook drops it. It is how
  * this code decides which table to write, not a column in either of them.
  */
 export function toEntry(draft) {

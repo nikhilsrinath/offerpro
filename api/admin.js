@@ -3,13 +3,13 @@ import { supabaseAdmin } from './_lib/supabaseAdmin.js';
 import { requirePlatformAdmin, sendError, methodIs, readJsonBody, HttpError } from './_lib/auth.js';
 
 /**
- * POST /api/admin — the platform console's only endpoint.
+ * POST /api/admin: the platform console's only endpoint.
  *
  * Body: { action, ...args }
  *
  * The platform admin's RLS policies grant SELECT across tenants and nothing
  * else, so every read that needs a join across tenants and every write lands
- * here, behind the `platform_admin` claim in app_metadata — which only the
+ * here, behind the `platform_admin` claim in app_metadata, which only the
  * service role can set (scripts/setup-admin.js).
  *
  * PLATFORM_ADMIN_EMAIL narrows that further: when set, the claim alone is not
@@ -369,7 +369,7 @@ async function setPlan({ org_id: orgId, plan, status, period_end: periodEnd }, a
 /**
  * Soft delete. The organizations RLS policy filters on `deleted_at is null`,
  * so the tenant disappears from every client query immediately while the rows
- * remain recoverable — the old panel called deleteDoc() and the data was gone.
+ * remain recoverable: the old panel called deleteDoc() and the data was gone.
  */
 async function deleteOrg({ org_id: orgId }, admin, req) {
   if (!orgId) throw new HttpError(400, 'Missing org_id');
@@ -403,7 +403,7 @@ const ADDRESS_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
 
 /**
  * Platform mail. Deliberately NOT the tenant's Gmail credentials from
- * org_secrets — those belong to the customer and their quota. This sends from
+ * org_secrets: those belong to the customer and their quota. This sends from
  * the platform's own mailbox, configured server-side only.
  */
 async function sendEmail({ to, subject, body, html }, admin) {

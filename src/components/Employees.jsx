@@ -4,7 +4,8 @@ import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
 import { createPortalLink } from '../services/portalService';
 import { orgStore } from '../services/orgStore';
-import { DEPT_PALETTE } from './TeamHierarchy';
+import DepartmentsPanel from './people/DepartmentsPanel';
+import { deptColor, departmentRows } from './people/departments';
 import { useOrg } from '../context/OrgContext';
 import { useAuth } from '../context/AuthContext';
 import EmployeeForm from './EmployeeForm';
@@ -13,7 +14,7 @@ import { EmployeePhotoFill } from './shared/EmployeeAvatar';
 import { portalAccessService } from '../services/portalAccessService';
 import {
     Page, Toolbar, Panel, Grid, Row, Btn, Seg, Search, Field, Input, Select, Textarea,
-    Table, Tr, Td, Avatar, Status, Bar, Breakdown, StatBand, Empty, Loading, Modal,
+    Table, Tr, Td, Avatar, Status, Bar, StatBand, Empty, Loading, Modal,
     ConfirmBtn, Muted, Label,
 } from './ui/edge';
 import { useT, fmtDate, MONO } from './ui/edgeUtils';
@@ -28,7 +29,7 @@ import { tenureLabel, daysUntilBirthday, useWindowWidth } from './portal/me/port
 
    Two views over one list: a table for scanning many people and reading a
    column, and cards for browsing when you are looking for a face rather than
-   a field. Departments are a filter you click, not a modal you open — and the
+   a field. Departments are a filter you click, not a modal you open. And the
    department editor is a panel beside the list rather than on top of it.
 
    Everything a single person needs (portal login, role change, exit) is inside
@@ -53,13 +54,6 @@ function getDisplayName(emp) {
     return '';
 }
 
-function deptColor(name, departments) {
-    if (!name) return null;
-    const fb = departments.find((d) => d.name === name);
-    if (fb?.color) return fb.color;
-    const h = [...name].reduce((a, c) => c.charCodeAt(0) + ((a << 5) - a), 0);
-    return DEPT_PALETTE[Math.abs(h) % DEPT_PALETTE.length];
-}
 
 /* ── portal access ────────────────────────────────────────────────────────── */
 
@@ -104,7 +98,7 @@ function PortalAccess({ emp, orgId, onChanged }) {
     const create = () => run(async () => {
         const res = await portalAccessService.createLogin(emp.id);
         if (res.outcome === 'created') setCreds({ email: res.email, password: res.password });
-        else if (res.outcome === 'linked') setNote(`${res.email} already has an EdgeOS login — they sign in with the password they already use, so there is nothing to hand over.`);
+        else if (res.outcome === 'linked') setNote(`${res.email} already has an EdgeOS login. They sign in with the password they already use, so there is nothing to hand over.`);
         else setNote('They already have portal access.');
     });
 
@@ -155,7 +149,7 @@ function PortalAccess({ emp, orgId, onChanged }) {
                         <Btn size="sm" onClick={() => setCreds(null)}>Done</Btn>
                     </Row>
                     <div style={{ fontSize: 11.5, color: t.down, marginTop: 9, lineHeight: 1.6 }}>
-                        Shown once. Nothing stores this password — if it is lost, generate a new one.
+                        Shown once. Nothing stores this password. If it is lost, generate a new one.
                     </div>
                 </div>
             )}
@@ -163,8 +157,8 @@ function PortalAccess({ emp, orgId, onChanged }) {
             {state === 'unknown' ? null : state === 'active' ? (
                 <>
                     <p style={{ margin: '0 0 10px', fontSize: 12, color: t.faint, lineHeight: 1.7 }}>
-                        {emp.email} signs in on the normal sign-in page and lands on their own portal —
-                        attendance, leave and announcements. Archiving them removes it.
+                        {emp.email} signs in on the normal sign-in page and lands on their own portal
+                        with attendance, leave and announcements. Archiving them removes it.
                     </p>
                     <Row wrap gap={7}>
                         {row?.can_reset_password && (
@@ -177,7 +171,7 @@ function PortalAccess({ emp, orgId, onChanged }) {
                 <>
                     <p style={{ margin: '0 0 10px', fontSize: 12, color: t.faint, lineHeight: 1.7 }}>
                         {!emp.email
-                            ? 'Add an email address first — that is the username.'
+                            ? 'Add an email address first. That is the username.'
                             : `Creates a login for ${emp.email} and a password you hand over. No invitation to accept, no email to wait for.`}
                     </p>
                     <Btn size="sm" primary onClick={create} disabled={busy || !emp.email}>
@@ -277,7 +271,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
 
     if (view === 'role_change') {
         return (
-            <Modal open onClose={onClose} title={'Role change — ' + name}
+            <Modal open onClose={onClose} title={'Role change: ' + name}
                 note="Issues a notice they acknowledge in their portal"
                 footer={!link && (
                     <>
@@ -318,7 +312,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
 
     if (view === 'termination') {
         return (
-            <Modal open onClose={onClose} title={'End employment — ' + name}
+            <Modal open onClose={onClose} title={'End employment: ' + name}
                 note="They move to Ex-Employees once they acknowledge"
                 footer={!link && (
                     <>
@@ -438,7 +432,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
                     {(emp.emergency_contact_name || emp.emergency_contact_phone) && (
                         <div style={{ border: '1px solid ' + t.line, borderRadius: 10, padding: '10px 12px' }}>
                             <Label>EMERGENCY CONTACT</Label>
-                            <div style={{ fontSize: 13, color: t.text, marginTop: 6 }}>{emp.emergency_contact_name || '—'}</div>
+                            <div style={{ fontSize: 13, color: t.text, marginTop: 6 }}>{emp.emergency_contact_name || '-'}</div>
                             {emp.emergency_contact_phone && (
                                 <a href={`tel:${emp.emergency_contact_phone}`} style={{ fontSize: 12, color: t.dim, textDecoration: 'none' }}>
                                     {emp.emergency_contact_phone}
@@ -492,9 +486,6 @@ export default function Employees() {
     const [dept, setDept] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showDepts, setShowDepts] = useState(false);
-    const [newDept, setNewDept] = useState('');
-    const [newColor, setNewColor] = useState(DEPT_PALETTE[0]);
-    const [deptBusy, setDeptBusy] = useState(false);
     const [selected, setSelected] = useState(null);
     const [addingSelf, setAddingSelf] = useState(false);
     const [editing, setEditing] = useState(null);
@@ -603,14 +594,6 @@ export default function Employees() {
         }
     };
 
-    const addDept = async () => {
-        if (!newDept.trim()) return;
-        setDeptBusy(true);
-        await storageService.saveDepartment({ name: newDept.trim(), color: newColor }, activeOrg?.id);
-        setNewDept(''); setNewColor(DEPT_PALETTE[0]); setDeptBusy(false);
-        loadDepartments();
-    };
-
     const remove = async (id) => {
         try {
             await storageService.deleteEmployee(id, activeOrg?.id, 'Removed from the employee registry');
@@ -621,18 +604,7 @@ export default function Employees() {
         }
     };
 
-    const deptRows = useMemo(() => {
-        const names = [...new Set([
-            ...employees.map((e) => e.department).filter(Boolean),
-            ...departments.map((d) => d.name),
-        ])].sort();
-        return names.map((name) => ({
-            name,
-            color: deptColor(name, departments),
-            count: employees.filter((e) => e.department === name).length,
-            id: departments.find((d) => d.name === name)?.id || null,
-        }));
-    }, [employees, departments]);
+    const deptRows = useMemo(() => departmentRows(employees, departments), [employees, departments]);
 
     const list = useMemo(() => {
         let l = employees;
@@ -670,7 +642,7 @@ export default function Employees() {
                 <Toolbar right={<Btn onClick={() => setEditing(null)}>Back to registry</Btn>}>
                     <span style={{ fontSize: 13.5 }}>Editing {getDisplayName(editing) || 'employee'}</span>
                 </Toolbar>
-                <EmployeeForm employee={editing} onSuccess={() => { setEditing(null); loadEmployees(); }} onBack={() => setEditing(null)} />
+                <EmployeeForm employee={editing} onSuccess={() => { setEditing(null); loadEmployees(); loadDepartments(); }} onBack={() => { setEditing(null); loadDepartments(); }} />
             </Page>
         );
     }
@@ -762,7 +734,7 @@ export default function Employees() {
                             {(show) => list.map((emp) => {
                                 const name = getDisplayName(emp);
                                 const c = deptColor(emp.department, departments);
-                                const dash = <span style={{ color: t.ghost }}>—</span>;
+                                const dash = <span style={{ color: t.ghost }}>-</span>;
                                 return (
                                     <Tr key={emp.id} onClick={() => setSelected(emp)}>
                                         {show('n') && (
@@ -770,16 +742,16 @@ export default function Employees() {
                                                 <Row gap={9}>
                                                     <Avatar name={name} size={26} photo={<EmployeePhotoFill photoPath={emp.photo_path} />} />
                                                     <span style={{ minWidth: 0 }}>
-                                                        <span style={{ display: 'block' }}>{name || '—'}</span>
+                                                        <span style={{ display: 'block' }}>{name || '-'}</span>
                                                         <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>{emp.email}</span>
                                                     </span>
                                                 </Row>
                                             </Td>
                                         )}
-                                        {show('id') && <Td muted nowrap>{emp.employee_code || '—'}</Td>}
-                                        {show('em') && <Td muted nowrap>{emp.email || '—'}</Td>}
-                                        {show('ph') && <Td muted nowrap>{emp.phone || '—'}</Td>}
-                                        {show('r') && <Td muted nowrap>{emp.role || '—'}</Td>}
+                                        {show('id') && <Td muted nowrap>{emp.employee_code || '-'}</Td>}
+                                        {show('em') && <Td muted nowrap>{emp.email || '-'}</Td>}
+                                        {show('ph') && <Td muted nowrap>{emp.phone || '-'}</Td>}
+                                        {show('r') && <Td muted nowrap>{emp.role || '-'}</Td>}
                                         {show('d') && (
                                             <Td nowrap>
                                                 {emp.department ? (
@@ -790,12 +762,12 @@ export default function Employees() {
                                                 ) : dash}
                                             </Td>
                                         )}
-                                        {show('sv') && <Td muted nowrap>{emp.supervisorName || '—'}</Td>}
-                                        {show('lo') && <Td muted nowrap>{emp.location || '—'}</Td>}
-                                        {show('t') && <Td muted nowrap>{TYPE_LABEL[emp.offerType] || '—'}</Td>}
-                                        {show('s') && <Td muted nowrap>{emp.startDate ? fmtDate(emp.startDate) : '—'}</Td>}
-                                        {show('e') && <Td muted nowrap>{emp.endDate ? fmtDate(emp.endDate) : '—'}</Td>}
-                                        {show('pd') && <Td muted nowrap>{emp.isPaid === true || emp.isPaid === 'true' ? 'Paid' : emp.isPaid === false || emp.isPaid === 'false' ? 'Unpaid' : '—'}</Td>}
+                                        {show('sv') && <Td muted nowrap>{emp.supervisorName || '-'}</Td>}
+                                        {show('lo') && <Td muted nowrap>{emp.location || '-'}</Td>}
+                                        {show('t') && <Td muted nowrap>{TYPE_LABEL[emp.offerType] || '-'}</Td>}
+                                        {show('s') && <Td muted nowrap>{emp.startDate ? fmtDate(emp.startDate) : '-'}</Td>}
+                                        {show('e') && <Td muted nowrap>{emp.endDate ? fmtDate(emp.endDate) : '-'}</Td>}
+                                        {show('pd') && <Td muted nowrap>{emp.isPaid === true || emp.isPaid === 'true' ? 'Paid' : emp.isPaid === false || emp.isPaid === 'false' ? 'Unpaid' : '-'}</Td>}
                                         {show('a') && (
                                             <Td align="right">
                                                 <Btn size="sm" onClick={() => setSelected(emp)}>Open</Btn>
@@ -821,7 +793,7 @@ export default function Employees() {
                                         <Row gap={10} style={{ marginBottom: 11 }}>
                                             <Avatar name={name} size={34} photo={<EmployeePhotoFill photoPath={emp.photo_path} />} />
                                             <span style={{ minWidth: 0, flex: 1 }}>
-                                                <span style={{ display: 'block', fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name || '—'}</span>
+                                                <span style={{ display: 'block', fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name || '-'}</span>
                                                 <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.role || 'No role'}</span>
                                             </span>
                                         </Row>
@@ -844,57 +816,9 @@ export default function Employees() {
                 </div>
 
                 {showDepts && (
-                    <Panel title="Departments" note={deptRows.length + ' in use'} pad={13}>
-                        {deptRows.length > 0 && (
-                            <div style={{ marginBottom: 14 }}>
-                                <Breakdown rows={deptRows.map((d) => ({ label: d.name, value: d.count, color: d.color }))}
-                                    total={employees.length} max={8} />
-                            </div>
-                        )}
-
-                        <div style={{ display: 'grid', gap: 2, marginBottom: 13 }}>
-                            {deptRows.map((d) => (
-                                <Row key={d.name} gap={8}>
-                                    <button type="button" onClick={() => setDept(dept === d.name ? null : d.name)}
-                                        className="edge-tr"
-                                        style={{
-                                            flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8,
-                                            padding: '6px 8px', borderRadius: 6, cursor: 'pointer', textAlign: 'left',
-                                            background: dept === d.name ? t.panelAlt : 'transparent',
-                                            border: '1px solid ' + (dept === d.name ? t.line : 'transparent'),
-                                            fontFamily: MONO, color: t.text, fontSize: 12.5,
-                                        }}>
-                                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: d.color, flexShrink: 0 }} />
-                                        <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
-                                        <span style={{ fontSize: 11, color: t.ghost }}>{d.count}</span>
-                                    </button>
-                                    {d.id && (
-                                        <ConfirmBtn label="×" confirmLabel="Delete" title="Delete department"
-                                            message={`Are you sure you want to delete the ${d.name} department? People in it keep their records.`}
-                                            onConfirm={() => storageService.deleteDepartment(d.id, activeOrg?.id).then(loadDepartments)} />
-                                    )}
-                                </Row>
-                            ))}
-                        </div>
-
-                        <div style={{ borderTop: '1px solid ' + t.lineSoft, paddingTop: 12 }}>
-                            <Field required label="New department">
-                                <Input value={newDept} onChange={(e) => setNewDept(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && addDept()} placeholder="Engineering" />
-                            </Field>
-                            <div role="radiogroup" aria-label="Department colour" style={{ display: 'flex', gap: 5, flexWrap: 'wrap', margin: '10px 0' }}>
-                                {DEPT_PALETTE.map((c) => (
-                                    <button key={c} type="button" role="radio" aria-checked={newColor === c}
-                                        aria-label={'Colour ' + c} onClick={() => setNewColor(c)}
-                                        style={{
-                                            width: 16, height: 16, borderRadius: '50%', background: c, padding: 0, cursor: 'pointer',
-                                            border: '2px solid ' + (newColor === c ? t.text : 'transparent'),
-                                        }} />
-                                ))}
-                            </div>
-                            <Btn full primary onClick={addDept} disabled={deptBusy || !newDept.trim()}>Add department</Btn>
-                        </div>
-                    </Panel>
+                    <DepartmentsPanel rows={deptRows} total={employees.length} orgId={activeOrg?.id}
+                        onChanged={loadDepartments} active={dept}
+                        onPick={(name) => setDept(dept === name ? null : name)} />
                 )}
             </div>
 

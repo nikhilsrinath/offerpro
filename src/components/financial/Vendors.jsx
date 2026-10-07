@@ -10,16 +10,19 @@ import { Stat, Modal } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
 import { todayIso } from '../../services/financeAnalytics';
 import { confirmDialog } from '../../services/confirm';
-import BelongsToSelect, { BelongsToFilter } from '../shared/BelongsToSelect';
+import BelongsToSelect, { BelongsToFilter, ProjectOnlySelect } from '../shared/BelongsToSelect';
 import {
-  GENERAL, splitChoice, vendorChoice, vendorProjectIds, inScope, choiceLabel, assignVendorProject, saveWithBelongsTo,
+  GENERAL, splitChoice, vendorChoice, vendorProjectIds, inScope, choiceLabel, saveWithBelongsTo,
+  projectChoices, syncVendorProjects,
 } from '../../services/belongsTo';
 
 const BLANK = {
   company_name: '', contact_name: '', email: '', phone: '', address: '', state: '',
   gstin: '', payment_terms_days: 0, category: '', notes: '',
-  // The Belongs to dropdown: GENERAL, INTERNAL or a project id.
+  // The Belongs to dropdown: GENERAL, INTERNAL or a project id; `more` are
+  // the further projects the vendor is on (the rows "Add" puts under it).
   belongs: GENERAL,
+  more: [],
 };
 const TERMS = [0, 7, 15, 30, 45, 60, 90];
 const GSTIN_RE = /^[0-9A-Z]{15}$/;
@@ -35,8 +38,6 @@ export default function Vendors() {
 
   const [search, setSearch] = useState('');
   const [scope, setScope] = useState('');
-  // What the Belongs to dropdown started on, so an edit that changes it moves the project link.
-  const [fromChoice, setFromChoice] = useState(GENERAL);
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -94,18 +95,20 @@ export default function Vendors() {
     setSaving(true);
     setFormError('');
     try {
-      const { belongs, ...rest } = editing;
+      const { belongs, more, ...rest } = editing;
       const data = { ...rest, gstin, belongs_to: splitChoice(belongs).belongs_to };
       const save = (d) => (editing.id ? orgStore.updateItem('vendors', editing.id, d) : orgStore.addItem('vendors', d));
       const { result, skipped } = await saveWithBelongsTo(save, data, ['belongs_to']);
       const vendorId = editing.id || result?.id;
       let linkFailed = false;
       try {
-        if (vendorId) await assignVendorProject(vendorId, belongs, editing.id ? fromChoice : GENERAL, links);
+        // Every project chosen: the first row and each one added, is linked;
+        // projects taken out of the form are unlinked.
+        if (vendorId) await syncVendorProjects(vendorId, projectChoices([belongs, ...(more || [])]), links);
       } catch {
         linkFailed = true;
       }
-      if (linkFailed) toast("Vendor saved, but it could not be added to the project — try again from the project's Vendor Directory.", 'error');
+      if (linkFailed) toast("Vendor saved, but it could not be added to the project. Try again from the project's Vendor Directory.", 'error');
       else if (skipped) toast('Vendor saved. Internal / General needs database update 0078 before it is kept.', 'info');
       else toast(editing.id ? 'Vendor updated' : 'Vendor added', 'success');
       setEditing(null);
@@ -161,7 +164,7 @@ export default function Vendors() {
           <Archive size={12} /> Archived
         </button>
         <BelongsToFilter value={scope} onChange={setScope} className="prod-select" />
-        <button className="prod-add-btn" onClick={() => { const start = scope || GENERAL; setEditing({ ...BLANK, belongs: start }); setFromChoice(GENERAL); setFormError(''); }}>
+        <button className="prod-add-btn" onClick={() => { setEditing({ ...BLANK, belongs: scope || GENERAL }); setFormError(''); }}>
           <Plus size={15} /> New vendor
         </button>
       </div>
@@ -203,17 +206,17 @@ export default function Vendors() {
                       {onProjects.length > 1 && <div className="prod-perf-meta">+{onProjects.length - 1} more project{onProjects.length > 2 ? 's' : ''}</div>}
                     </td>
                     <td>
-                      <div>{v.contact_name || '—'}</div>
+                      <div>{v.contact_name || '-'}</div>
                       <div className="prod-perf-meta">{v.email || v.phone || ''}</div>
                     </td>
-                    <td className="prod-perf-date">{v.gstin || '—'}</td>
+                    <td className="prod-perf-date">{v.gstin || '-'}</td>
                     <td className="prod-perf-date">{v.payment_terms_days ? `Net ${v.payment_terms_days}` : 'On receipt'}</td>
                     <td className="num">{money(l.billed)}</td>
                     <td className="num strong" style={l.overdue > 0 ? { color: 'var(--error)' } : undefined}>{money(l.outstanding)}</td>
                     <td className="prod-perf-date">{fmtDate(l.last)}</td>
                     <td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
                       <RowMenu label={`Actions for ${v.company_name}`} items={[
-                        { label: 'Edit', icon: Pencil, onClick: () => { const start = vendorChoice(v, links); setEditing({ ...v, belongs: start }); setFromChoice(start); setFormError(''); } },
+                        { label: 'Edit', icon: Pencil, onClick: () => { setEditing({ ...v, belongs: vendorChoice(v, links), more: vendorProjectIds(v.id, links).slice(1) }); setFormError(''); } },
                         { label: v.archived_at ? 'Restore' : 'Archive', icon: v.archived_at ? ArchiveRestore : Archive, onClick: () => handleArchive(v) },
                         !l.count && { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => handleDelete(v) },
                       ]} />
@@ -237,8 +240,28 @@ export default function Vendors() {
               </div>
               <div className="prod-field full">
                 <label htmlFor="vendor-belongs">Belongs to</label>
-                <BelongsToSelect id="vendor-belongs" value={editing.belongs} onChange={(v) => set('belongs', v)} />
-                <p className="prod-field-note">A project's vendors also show in that project's Vendor Directory.</p>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <BelongsToSelect id="vendor-belongs" value={editing.belongs} onChange={(v) => set('belongs', v)} />
+                  </div>
+                  <button type="button" className="prod-btn-ghost" onClick={() => set('more', [...(editing.more || []), ''])}
+                    aria-label="Add the vendor to another project">
+                    <Plus size={13} aria-hidden="true" /> Add
+                  </button>
+                </div>
+                {(editing.more || []).map((pid, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <ProjectOnlySelect value={pid} label={`Also on project ${i + 2}`}
+                        exclude={[editing.belongs, ...(editing.more || [])]}
+                        onChange={(v) => set('more', editing.more.map((x, j) => (j === i ? v : x)))} />
+                    </div>
+                    <button type="button" className="prod-btn-ghost" aria-label={`Take project ${i + 2} off`}
+                      onClick={() => set('more', editing.more.filter((_, j) => j !== i))}>
+                      <X size={13} aria-hidden="true" /> Remove
+                    </button>
+                  </div>
+                ))}
               </div>
               <div className="prod-field">
                 <label>Contact person</label>

@@ -26,7 +26,7 @@ export function describeActivity(a) {
     const d = a.diff || {};
     switch (a.action) {
         case 'projects.status_change':
-            return `Status ${s(d.from)} → ${s(d.to)}${d.reason ? ` — “${d.reason}”` : ''}`;
+            return `Status ${s(d.from)} → ${s(d.to)}${d.reason ? `: “${d.reason}”` : ''}`;
         case 'projects.reopen':
             return `Reopened${d.reason ? `: “${d.reason}”` : ''}`;
         case 'projects.insert':

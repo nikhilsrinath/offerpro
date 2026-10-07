@@ -4,7 +4,7 @@ import { missingProfileEssentials, profileGapSummary } from '../lib/profileCompl
 
 /**
  * The state behind the red dot in the top bar. Reads the active organization,
- * so it clears itself the moment the profile is saved — there is nothing to
+ * so it clears itself the moment the profile is saved. There is nothing to
  * dismiss and nothing stored per user.
  */
 export function useProfileCompletion() {

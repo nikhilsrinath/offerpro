@@ -90,7 +90,7 @@ export default function Portfolio() {
     if (!allowed) {
         return (
             <Page><Panel><Empty action={<Btn primary onClick={() => navigate('/pricing')}>See plans</Btn>}>
-                The portfolio view — every project’s health, margin and team load on one page — is part of Pro and Max.
+                The portfolio view (every project’s health, margin and team load on one page) is part of Pro and Max.
             </Empty></Panel></Page>
         );
     }
@@ -121,11 +121,11 @@ export default function Portfolio() {
                 {r.client_id ? clientName[r.client_id] || 'Client' : 'Internal'}</span></>;
             case 'status': return statusLabel(r.status);
             case 'health': return <HealthChip health={r.health} reasons={r.health_reasons || []} />;
-            case 'progress': return progress(r) == null ? '—' : `${Math.round(progress(r) * 100)}%`;
+            case 'progress': return progress(r) == null ? '-' : `${Math.round(progress(r) * 100)}%`;
             case 'client': return r.client_id ? clientName[r.client_id] || 'Client' : 'Internal';
-            case 'milestones_total': return r.milestones_total ? `${r.milestones_done || 0} / ${r.milestones_total}` : '—';
-            case 'billed_pct': return r.billed_pct == null ? '—' : `${r.billed_pct}%`;
-            case 'net_margin_pct': return r.net_margin_pct == null ? '—' : `${r.net_margin_pct}%`;
+            case 'milestones_total': return r.milestones_total ? `${r.milestones_done || 0} / ${r.milestones_total}` : '-';
+            case 'billed_pct': return r.billed_pct == null ? '-' : `${r.billed_pct}%`;
+            case 'net_margin_pct': return r.net_margin_pct == null ? '-' : `${r.net_margin_pct}%`;
             case 'net_margin': return <span style={{ color: Number(r.net_margin) < 0 ? t.down : t.text }}>{money(r.net_margin)}</span>;
             default: return money(r[key]);
         }

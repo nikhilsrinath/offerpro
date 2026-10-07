@@ -21,20 +21,20 @@ import ProjectForm from '../ProjectForm';
 import { ChevronRight, ChevronDown, Plus, Star, Sparkles, Check, X } from 'lucide-react';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Tasks — the Work Breakdown Structure.
+   Tasks: the Work Breakdown Structure.
 
    The project is the root and its manager answers for it. Under it sit the
-   sub-projects, each with the person responsible; under those the tasks,
-   and under those the sub-tasks, to any depth — every node with its own
+   deliverables, each with the person responsible; under those the tasks,
+   and under those the sub-tasks, to any depth. Every node with its own
    responsible person.
 
    Two ways to read one tree:
-   · Outline — the working view. Numbered rows (1, 1.2, 1.2.3), each with
+   · Outline: the working view. Numbered rows (1, 1.2, 1.2.3), each with
      its person, dates and progress. Add under any node inline, reassign in
      place, and reshape it from the row's menu or the keyboard
      (Alt + ↑ ↓ to move, Alt + → to indent, Alt + ← to outdent).
-   · Hierarchy — the classic WBS chart: the project on top, the
-     sub-projects across, each branch hanging beneath its sub-project.
+   · Hierarchy: the classic WBS chart: the project on top, the
+     deliverables across, each branch hanging beneath its deliverable.
 
    Only work items (nodes without children) carry dates, status and
    progress; every summary above them rolls up.
@@ -44,7 +44,7 @@ import { ChevronRight, ChevronDown, Plus, Star, Sparkles, Check, X } from 'lucid
    this project's own dashboard. "Important" narrows the outline to them.
 
    Standard breakdowns sit above the tree. Picking one previews its tasks as
-   an editable draft — rename, remove, add — and only Save writes them; they
+   an editable draft: rename, remove, add. And only Save writes them; they
    then appear in the outline right below, opened and marked. A node the
    tree already has (same name under the same parent) is reused, so saving
    the same breakdown twice adds nothing. "Industry specific" asks EdgeBrain
@@ -148,7 +148,7 @@ export default function WbsPage({ project }) {
         try {
             const { created, reused } = await applyBreakdown(data, nodes);
             if (!created.length) {
-                toast(`${label} is already in the breakdown — nothing was added twice`, 'success');
+                toast(`${label} is already in the breakdown, so nothing was added twice`, 'success');
                 setAnnounce(`${label} is already in the breakdown`);
                 return true;
             }
@@ -158,7 +158,7 @@ export default function WbsPage({ project }) {
             setCollapsed(new Set());
             setFlash(new Set(created));
             setTimeout(() => setFlash(new Set()), 4000);
-            const msg = `${label}: ${created.length} added${reused ? `, ${reused} already there` : ''} — assign the people next`;
+            const msg = `${label}: ${created.length} added${reused ? `, ${reused} already there` : ''}. Assign the people next`;
             toast(msg, 'success');
             setAnnounce(msg);
             requestAnimationFrame(() => document.getElementById(`wbs-row-${created[0]}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
@@ -199,7 +199,7 @@ export default function WbsPage({ project }) {
         <div>
             <div className="eo-sr" role="status" aria-live="polite">{announce}</div>
             <Toolbar right={can.create && tree.flat.length > 0 && (
-                <Btn primary onClick={() => startAdding('root')}><Plus size={14} aria-hidden="true" />Sub-project</Btn>
+                <Btn primary onClick={() => startAdding('root')}><Plus size={14} aria-hidden="true" />Deliverable</Btn>
             )}>
                 <Seg value={view} onChange={setView} label="View" options={[
                     { id: 'outline', label: 'Outline' }, { id: 'chart', label: 'Hierarchy' },
@@ -241,10 +241,10 @@ export default function WbsPage({ project }) {
                 <Panel>
                     <Empty action={can.create && (
                         <Row gap={8} wrap style={{ justifyContent: 'center' }}>
-                            <Btn primary onClick={() => startAdding('root')}>Add the first sub-project</Btn>
+                            <Btn primary onClick={() => startAdding('root')}>Add the first deliverable</Btn>
                         </Row>
                     )}>
-                        Break the project down: sub-projects first, each with the person responsible, then the tasks and sub-tasks under them{can.create && data.structured ? ' — or start from a breakdown above.' : '.'}
+                        Break the project down: deliverables first, each with the person responsible, then the tasks and sub-tasks under them{can.create && data.structured ? ', or start from a breakdown above.' : '.'}
                     </Empty>
                     {adding === 'root' && <div style={{ padding: '0 14px 14px' }}><QuickAdd data={data} parentId={null} depth={0} onDone={() => setAdding(null)} /></div>}
                 </Panel>
@@ -278,8 +278,8 @@ export default function WbsPage({ project }) {
 /* ── standard breakdowns ──────────────────────────────────────────────────── */
 
 const NEEDS = {
-    project_description: 'What the project delivers — add a description to the project.',
-    industry: 'The industry — set it in Company profile, or on the project’s client.',
+    project_description: 'What the project delivers. Add a description to the project.',
+    industry: 'The industry. Set it in Company profile, or on the project’s client.',
 };
 
 let draftSeq = 0;
@@ -353,7 +353,7 @@ function Breakdowns({ data, busy, onApply }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                     <div id="wbs-breakdowns" style={{ fontSize: 12.5, color: t.text }}>Standard breakdown</div>
                     <div style={{ fontSize: 11.5, color: t.faint }}>
-                        {empty ? 'Pick one to preview its tasks, edit them, then save.' : 'Pick one to preview and edit its tasks before saving — anything already there is not added twice.'}
+                        {empty ? 'Pick one to preview its tasks, edit them, then save.' : 'Pick one to preview and edit its tasks before saving. Anything already there is not added twice.'}
                     </div>
                 </div>
                 {!empty && (
@@ -372,14 +372,14 @@ function Breakdowns({ data, busy, onApply }) {
                             return (
                                 <button key={tpl.id} type="button" disabled={busy} onClick={() => preview(tpl)} className="edge-tr"
                                     aria-pressed={ai?.id === tpl.id}
-                                    title={inTree ? 'Already in the breakdown — saving it again adds nothing' : 'Preview its tasks, edit them, then save'}
+                                    title={inTree ? 'Already in the breakdown, so saving it again adds nothing' : 'Preview its tasks, edit them, then save'}
                                     style={{ ...card, borderColor: ai?.id === tpl.id ? t.text : inTree ? t.lineStrong : t.line, boxShadow: ai?.id === tpl.id ? `inset 0 0 0 1px ${t.text}` : undefined }}>
                                     <div style={{ fontSize: 13, marginBottom: 4 }}>{tpl.label}</div>
                                     <div style={{ fontSize: 11.5, color: t.faint, lineHeight: 1.5, flex: 1 }}>{tpl.note}</div>
                                     <div style={{ fontSize: 11, color: inTree ? t.up : t.faint, marginTop: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
                                         {inTree ? <><Check size={12} aria-hidden="true" />In the breakdown</>
                                             : plan.reused ? `Adds the ${plan.adds} missing`
-                                                : `${c.top} sub-projects · ${c.below} tasks`}
+                                                : `${c.top} deliverables · ${c.below} tasks`}
                                     </div>
                                 </button>
                             );
@@ -439,14 +439,14 @@ function Breakdowns({ data, busy, onApply }) {
                                         </div>
                                         {ai.summary && <div style={{ fontSize: 12.5, color: t.dim, marginTop: 4, lineHeight: 1.5 }}>{ai.summary}</div>}
                                         <div style={{ fontSize: 11.5, color: t.faint, marginTop: 4 }}>
-                                            These are the tasks it will add — rename, remove or add any of them, then save. Nothing is saved yet.
+                                            These are the tasks it will add. Rename, remove or add any of them, then save. Nothing is saved yet.
                                             {pending.reused > 0 && ` ${pending.reused} ${pending.reused === 1 ? 'is' : 'are'} already in the breakdown and will not be added twice.`}
                                         </div>
                                     </div>
                                     <DraftTree list={ai.draft} onChange={(draft) => setAi((a) => ({ ...a, draft }))} />
                                     <Row gap={8} wrap style={{ padding: '10px 14px', borderTop: '1px solid ' + t.lineSoft }}>
                                         <Btn primary size="sm" onClick={accept} disabled={busy || !pending.adds}>
-                                            {busy ? 'Saving…' : pending.adds ? `Save — add ${pending.adds} task${pending.adds === 1 ? '' : 's'}` : 'All already in the breakdown'}
+                                            {busy ? 'Saving…' : pending.adds ? `Save and add ${pending.adds} task${pending.adds === 1 ? '' : 's'}` : 'All already in the breakdown'}
                                         </Btn>
                                         {ai.source === 'template' && (
                                             <Btn size="sm" onClick={() => setAi((a) => ({ ...a, draft: toDraft(WBS_TEMPLATES.find((x) => x.id === a.id).nodes) }))} disabled={busy}>
@@ -510,7 +510,7 @@ function DraftTree({ list, onChange }) {
         <div style={{ padding: '8px 0', maxHeight: 420, overflowY: 'auto' }} className="edge-scroll">
             {rows}
             <div style={{ padding: '6px 14px' }}>
-                <Btn size="sm" onClick={() => onChange([...list, ...toDraft([['', []]])])}><Plus size={12} aria-hidden="true" />Sub-project</Btn>
+                <Btn size="sm" onClick={() => onChange([...list, ...toDraft([['', []]])])}><Plus size={12} aria-hidden="true" />Deliverable</Btn>
             </div>
         </div>
     );
@@ -711,13 +711,13 @@ function OutlineRow({ node, fresh, data, open, toggle, startAdding, move, reassi
                 )}
                 <RowMenu label={`Actions for ${node.title}`} items={[
                     { label: 'Open…', onSelect: () => onEdit(node) },
-                    can.flag && { label: node.important ? 'Unmark important' : 'Mark important — Needs attention', onSelect: () => flag(node) },
+                    can.flag && { label: node.important ? 'Unmark important' : 'Mark important (Needs attention)', onSelect: () => flag(node) },
                     can.create && { label: `Add ${levelName(depth + 1).toLowerCase()} with details…`, onSelect: () => onNew(node.id) },
                     can.remove && { label: kids.length ? 'Delete, with everything under it…' : 'Delete…', danger: true, disabled: busy, onSelect: () => remove(node) },
                     can.edit && { label: 'Move up', hint: 'Alt ↑', disabled: busy || idx <= 0, onSelect: () => move(node, 'up') },
                     can.edit && { label: 'Move down', hint: 'Alt ↓', disabled: busy || idx >= sibs.length - 1, onSelect: () => move(node, 'down') },
-                    can.edit && { label: 'Indent — under the one above', hint: 'Alt →', disabled: busy || idx <= 0, onSelect: () => move(node, 'in') },
-                    can.edit && { label: 'Outdent — up a level', hint: 'Alt ←', disabled: busy || !parent, onSelect: () => move(node, 'out') },
+                    can.edit && { label: 'Indent (under the one above)', hint: 'Alt →', disabled: busy || idx <= 0, onSelect: () => move(node, 'in') },
+                    can.edit && { label: 'Outdent (up a level)', hint: 'Alt ←', disabled: busy || !parent, onSelect: () => move(node, 'out') },
                 ]}>More</RowMenu>
             </div>
         </div>
@@ -749,7 +749,7 @@ function QuickAdd({ data, parentId, depth, onDone }) {
     return (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', paddingLeft: Math.min(depth, 6) * 20 }}>
             <Input ref={input} autoFocus value={title} aria-label={`New ${what} name`}
-                placeholder={`New ${what} — Enter to add, Esc to close`}
+                placeholder={`New ${what}. Enter to add, Esc to close`}
                 onChange={(e) => setTitle(e.target.value)}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter') { e.preventDefault(); add(); }
@@ -791,7 +791,7 @@ function Chart({ data, visible, open, toggle, onEdit, onNew }) {
                 </div>
                 {tops.length > 0 && <span aria-hidden="true" style={{ width: 1, height: 18, background: t.lineStrong }} />}
 
-                {/* the sub-projects across */}
+                {/* the deliverables across */}
                 <div role="list" aria-label="Work breakdown" style={{ display: 'flex', alignItems: 'flex-start' }}>
                     {tops.map((x, i) => (
                         <div key={x.id} role="listitem" style={{ position: 'relative', padding: '18px 10px 0' }}>
@@ -808,7 +808,7 @@ function Chart({ data, visible, open, toggle, onEdit, onNew }) {
                             <button type="button" onClick={() => onNew(null)} style={{
                                 width: 200, minHeight: 64, border: '1px dashed ' + t.lineStrong, borderRadius: 10, background: 'transparent',
                                 color: t.dim, fontFamily: MONO, fontSize: 12.5, cursor: 'pointer',
-                            }}>+ Sub-project</button>
+                            }}>+ Deliverable</button>
                         </div>
                     )}
                 </div>

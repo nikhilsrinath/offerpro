@@ -9,7 +9,7 @@ import { RankBars, SplitBar, Funnel, EmptyNote, TipBody, Delta } from './vizKit'
 import { Dashboard, Card, Tile, BigCount, Figure, More, TileRow, CardGrid, ListRow, MiniSeg } from './dashKit';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Dashboard · Sales & marketing — where the next rupee comes from, and what
+   Dashboard · Sales & marketing: where the next rupee comes from, and what
    it costs to find it.
 
    The CRM board and recurring revenue are snapshots and say so; quotations,
@@ -47,7 +47,7 @@ function SalesBody({ model, open, navigate, t, cat, ramp, status, cols, tileCols
     const k = model.kpis;
     const { period } = model;
 
-    // sales_by_country() (0013/0042) — the same RPC the country map reads.
+    // sales_by_country() (0013/0042). The same RPC the country map reads.
     const [geo, setGeo] = useState(null);
     useEffect(() => {
         let alive = true;
@@ -67,7 +67,7 @@ function SalesBody({ model, open, navigate, t, cat, ramp, status, cols, tileCols
     const avgInvoice = k.invoiced.count ? k.invoiced.value / k.invoiced.count : null;
     const { today } = model.raw;
 
-    // ARR, and sales & marketing spend over a trailing window ending today —
+    // ARR, and sales & marketing spend over a trailing window ending today,
     // salesMetrics, the same figures the hub's widgets show.
     const recurring = useSection('fin_recurring');
     const recur = useMemo(() => annualRecurring(recurring, today), [recurring, today]);
@@ -91,10 +91,10 @@ function SalesBody({ model, open, navigate, t, cat, ramp, status, cols, tileCols
             <Tile icon={Users} label="Billed clients" value={String(activeClients)} exact={`${activeClients} clients`}
                 foot={model.customers[0] ? `top: ${model.customers[0].name}` : 'no invoices in period'}
                 onClick={() => open({ kind: 'metric', id: 'invoiced' })} />
-            <Tile icon={IndianRupee} label="Avg invoice" value={avgInvoice === null ? '—' : fmtShort(avgInvoice)} exact={avgInvoice === null ? 'no invoices' : fmtInr(avgInvoice)}
+            <Tile icon={IndianRupee} label="Avg invoice" value={avgInvoice === null ? '-' : fmtShort(avgInvoice)} exact={avgInvoice === null ? 'no invoices' : fmtInr(avgInvoice)}
                 delta={<Delta value={k.invoiced.delta} />} foot={`${k.invoiced.count} invoices · ${fmtShort(k.invoiced.value)}`}
                 spark={k.invoiced.spark} color={cat[0]} onClick={() => open({ kind: 'metric', id: 'invoiced' })} />
-            <Tile icon={Globe} label="Top market" value={countries[0] ? countries[0].key : '—'}
+            <Tile icon={Globe} label="Top market" value={countries[0] ? countries[0].key : '-'}
                 exact={countries[0] ? `${countries[0].name} · ${fmtInr(countries[0].value)}` : 'no country data'}
                 foot={countries[0] ? `${countries[0].name} · ${fmtShort(countries[0].value)}` : geo === null ? 'loading…' : 'no client countries on record'} />
         </TileRow>
@@ -117,13 +117,13 @@ function SalesBody({ model, open, navigate, t, cat, ramp, status, cols, tileCols
                 {openLeads.length === 0 ? <EmptyNote>No open leads</EmptyNote> : openLeads.slice(0, 7).map((l) => (
                     <ListRow key={l.id} label={l.company_name || l.name || 'Unnamed lead'}
                         sub={[l.person_name, l.stage === 'contacted' ? 'contacted' : 'not contacted yet'].filter(Boolean).join(' · ')}
-                        value={Number(l.value) ? fmtShort(l.value) : '—'}
+                        value={Number(l.value) ? fmtShort(l.value) : '-'}
                         onClick={() => open({ kind: 'stage', id: l.stage })} />
                 ))}
             </Card>
 
             <Card title="Quotations" note="issued in period">
-                <BigCount value={model.quoteWinRate === null ? '—' : `${model.quoteWinRate.toFixed(0)}%`} label="win rate, decided quotes" />
+                <BigCount value={model.quoteWinRate === null ? '-' : `${model.quoteWinRate.toFixed(0)}%`} label="win rate, decided quotes" />
                 <SplitBar format={fmtShort} unit="Quoted" parts={model.quotes.map((q) => ({ id: q.id, label: q.label, value: q.amount, color: quoteColor[q.id], note: `${q.count}` }))}
                     onSelect={(p) => open({ kind: 'quotes', id: p.id })} />
             </Card>
@@ -141,7 +141,7 @@ function SalesBody({ model, open, navigate, t, cat, ramp, status, cols, tileCols
                 <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 12 }}>
                     <Figure big label="sales spend" value={fmtShort(acq.sales)} />
                     <Figure big label="marketing spend" value={fmtShort(acq.marketing)} />
-                    <Figure big label="avg expenses / lead" value={acq.perLead === null ? '—' : fmtShort(acq.perLead)} />
+                    <Figure big label="avg expenses / lead" value={acq.perLead === null ? '-' : fmtShort(acq.perLead)} />
                 </div>
                 <RankBars rows={acq.cats.map((c) => ({
                     ...c,

@@ -13,24 +13,24 @@ import { Dashboard, Card, Tile, More, TileRow, CardGrid, ListRow } from './dashK
 import { projectSectionPath } from '../projects/projectPaths';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Dashboard · Projects — what is being delivered, what is late, and whether
+   Dashboard · Projects: what is being delivered, what is late, and whether
    it pays.
 
    A snapshot: projects, milestones and tasks carry no history to replay.
    Status, progress and dates come from the org's own rows. Health and margin
    come from project_portfolio() (0053) and follow the plan exactly as the
-   Portfolio page does — Pro and Max see health, and margins additionally
+   Portfolio page does: Pro and Max see health, and margins additionally
    need Project financials.
 
    Needs attention is the tasks an owner or admin has marked important
-   (0077) on the open projects, until each is done — late first. The
+   (0077) on the open projects, until each is done, late first. The
    projects whose health is at risk or off track follow under it.
    ══════════════════════════════════════════════════════════════════════════ */
 
 const DONE_MS = new Set(['completed', 'invoiced', 'cancelled']);
 
 export default function ProjectsDash() {
-    return <Dashboard periodic={false} snapshotNote="Projects today — delivery has no period to filter">{(ctx) => <ProjectsBody {...ctx} />}</Dashboard>;
+    return <Dashboard periodic={false} snapshotNote="Projects today: delivery has no period to filter">{(ctx) => <ProjectsBody {...ctx} />}</Dashboard>;
 }
 
 function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, today }) {

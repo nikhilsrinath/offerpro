@@ -102,12 +102,12 @@ export default function InternRecords() {
     invoice: records.filter(r => r.type === 'invoice').length,
   }), [records]);
 
-  /* One action list for every view of a record — grid, table and mobile. */
+  /* One action list for every view of a record, grid, table and mobile. */
   const recordActions = (record) => [
     { label: 'Download PDF', icon: Download, onClick: () => handleDownloadPDF(record) },
     record.type === 'offer' && record.data?.email && {
       label: sendingEmail === record.id ? 'Sending…'
-        : emailStatus?.id === record.id && emailStatus.success ? 'Offer sent — send again' : 'Send offer',
+        : emailStatus?.id === record.id && emailStatus.success ? 'Offer sent, send again' : 'Send offer',
       hint: `To ${record.data.email}`, showHint: true,
       icon: emailStatus?.id === record.id && emailStatus.success ? CheckCircle : Send,
       disabled: sendingEmail === record.id, onClick: () => handleNotify(record),

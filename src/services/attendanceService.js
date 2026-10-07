@@ -1,4 +1,4 @@
-// attendanceService.js — the daily sheet, the monthly calendar, and check-in.
+// attendanceService.js: the daily sheet, the monthly calendar, and check-in.
 //
 // One row per employee per calendar day (0029 attendance_days), so check-in and
 // check-out are both upserts against the same (org, employee, date) key rather
@@ -9,7 +9,7 @@
 //            only a row nobody has corrected.
 //   'admin'  the daily sheet. Once it writes a day, the employee can no longer
 //            overwrite the correction.
-// Neither trust is enforced here — the policies in 0029 §6 are the boundary.
+// Neither trust is enforced here. The policies in 0029 §6 are the boundary.
 
 import { supabase } from '../lib/supabase';
 import { downloadCsv } from './financeAnalytics';
@@ -24,7 +24,7 @@ export const ATTENDANCE_STATUSES = [
 ];
 
 const STATUS_LABEL = Object.fromEntries(ATTENDANCE_STATUSES.map((s) => [s.key, s.label]));
-export const statusLabel = (key) => STATUS_LABEL[key] || key || '—';
+export const statusLabel = (key) => STATUS_LABEL[key] || key || '-';
 
 const SELECT = 'id, org_id, employee_id, work_date, check_in, check_out, status, note, source, marked_by, updated_at';
 
@@ -53,7 +53,7 @@ export function workedMinutes(row) {
 }
 
 export function formatDuration(minutes) {
-  if (minutes == null) return '—';
+  if (minutes == null) return '-';
   return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, '0')}m`;
 }
 
@@ -81,7 +81,7 @@ export const attendanceService = {
     return Object.fromEntries((data || []).map((r) => [r.work_date, r]));
   },
 
-  /** The whole team's month — what the export reads. */
+  /** The whole team's month: what the export reads. */
   async listMonthForOrg(orgId, monthKey) {
     if (!orgId) return [];
     const { from, to } = monthBounds(monthKey);
@@ -93,7 +93,7 @@ export const attendanceService = {
     return data || [];
   },
 
-  /** Several people over a date range — a project's attendance grid. */
+  /** Several people over a date range. A project's attendance grid. */
   async listRange(orgId, employeeIds, from, to) {
     if (!orgId || !employeeIds?.length) return [];
     const { data, error } = await supabase
@@ -160,7 +160,7 @@ export const attendanceService = {
     return data;
   },
 
-  /** Same status for many employees on one date — "mark the office a holiday". */
+  /** Same status for many employees on one date, "mark the office a holiday". */
   async markMany(orgId, employeeIds, date, patch) {
     if (!employeeIds?.length) return [];
     const rows = employeeIds.map((employee_id) => ({
@@ -180,10 +180,13 @@ export const attendanceService = {
   /**
    * A month as a spreadsheet: one row per employee per day that has a record.
    * Uses the shared downloadCsv (financeAnalytics.js) so the BOM and quoting
-   * match every other export in the app — Excel opens it without a prompt.
+   * match every other export in the app, Excel opens it without a prompt.
    */
-  async exportMonth(orgId, monthKey, employeesById) {
-    const rows = await attendanceService.listMonthForOrg(orgId, monthKey);
+  /** `employeeIds` narrows the export to those people (a project's team). */
+  async exportMonth(orgId, monthKey, employeesById, employeeIds = null) {
+    const keep = employeeIds ? new Set(employeeIds) : null;
+    const rows = (await attendanceService.listMonthForOrg(orgId, monthKey))
+      .filter((r) => !keep || keep.has(r.employee_id));
     const time = (v) => (v ? new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
     downloadCsv(
       `attendance-${monthKey}.csv`,

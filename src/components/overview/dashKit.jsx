@@ -12,13 +12,13 @@ import Drilldown from './Drilldown';
 import { useViz, useWinW } from './vizHooks';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   The frame every dashboard page shares — Overview, Finance, Sales, Team,
+   The frame every dashboard page shares, Overview, Finance, Sales, Team,
    Projects, Documents and Usage.
 
    It loads the org once, builds the one overview model every page reads from
    (so a figure on the Finance page and the same figure on the Overview can
-   never disagree), owns the period control — remembered across pages, so
-   moving from Finance to Sales keeps the window you were looking at — and the
+   never disagree), owns the period control, remembered across pages, so
+   moving from Finance to Sales keeps the window you were looking at. And the
    drill-down sheet any chart can open.
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -161,7 +161,7 @@ export function Tile({ icon: Icon, label, value, exact, delta, foot, spark, spar
     const Tag = onClick ? 'button' : 'div';
     return (
         <Tag type={onClick ? 'button' : undefined} onClick={onClick} className={onClick ? 'ov-tile' : undefined}
-            title={onClick ? `${label}: ${exact ?? value} — click for detail` : undefined}
+            title={onClick ? `${label}: ${exact ?? value} · click for detail` : undefined}
             aria-label={onClick ? `${label}: ${exact ?? value}. ${typeof foot === 'string' ? foot + '. ' : ''}Open detail` : undefined}
             style={{
                 textAlign: 'left', fontFamily: MONO, color: t.text, cursor: onClick ? 'pointer' : 'default',

@@ -341,7 +341,7 @@ export default function QuotationForm({ editDocId }) {
 
   // Picking a product fills the line in from the catalogue. Everything it
   // writes is an ordinary editable field afterwards, so a one-off price or a
-  // reworded description is just typing over it — catalog_item_id is what keeps
+  // reworded description is just typing over it, catalog_item_id is what keeps
   // the sale attributed either way.
   const handleSelectProduct = (id, product) => {
     setFormData((prev) => ({
@@ -410,7 +410,7 @@ export default function QuotationForm({ editDocId }) {
         hsnSac: item.hsnSac,
         // Carried to document_line_items.catalog_item_id. A quotation is not a
         // sale, so this contributes nothing to Product Performance until the
-        // line reaches an issued invoice — but it has to survive the round trip
+        // line reaches an issued invoice. But it has to survive the round trip
         // for the conversion to inherit it.
         catalog_item_id: item.catalog_item_id || null,
       })),
@@ -540,7 +540,7 @@ export default function QuotationForm({ editDocId }) {
 
     const email = (formData.clientEmail || '').trim();
     if (!email) {
-      toast(`${label} sent — link created. Copy it from the Quotations list to share.`, 'success');
+      toast(`${label} sent, link created. Copy it from the Quotations list to share.`, 'success');
       navigate(fromProject.returnTo);
       return;
     }
@@ -946,8 +946,6 @@ export default function QuotationForm({ editDocId }) {
                   style={{
                     fontSize: '0.75rem',
                     fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
                     color: 'var(--text-tertiary)',
                   }}
                 >
@@ -1097,8 +1095,6 @@ export default function QuotationForm({ editDocId }) {
                   fontSize: '22px',
                   fontWeight: 800,
                   color: '#1a1a2e',
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
                 }}
               >
                 Quotation
@@ -1128,8 +1124,6 @@ export default function QuotationForm({ editDocId }) {
                 <div
                   style={{
                     fontSize: '10.5px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.1em',
                     color: '#999',
                     fontWeight: 600,
                     marginBottom: '6px',
@@ -1416,8 +1410,6 @@ export default function QuotationForm({ editDocId }) {
                     <div
                       style={{
                         fontSize: '10.5px',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.1em',
                         color: '#999',
                         fontWeight: 600,
                         marginBottom: '4px',
@@ -1442,8 +1434,6 @@ export default function QuotationForm({ editDocId }) {
                     <div
                       style={{
                         fontSize: '10.5px',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.1em',
                         color: '#999',
                         fontWeight: 600,
                         marginBottom: '4px',
@@ -1524,7 +1514,7 @@ function RevisionBanner({ version }) {
       </div>
       {note && (
         <div style={{ marginTop: '0.6rem' }}>
-          <div style={{ fontSize: '0.65rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
             {version.revisionNotes ? 'Client asked for' : 'Client declined because'}
           </div>
           <p style={{

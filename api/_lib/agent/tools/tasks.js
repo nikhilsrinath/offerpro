@@ -209,7 +209,7 @@ function editableFields(changes, ctx) {
 
 const TARGET_PARAMS = {
   task: { type: 'string', description: 'The task, as the user referred to it: its title or part of it ("the pricing one"), "it"/"that task" for the one just discussed, or its id from an earlier result.' },
-  tasks: { type: 'array', items: { type: 'string' }, description: 'Several tasks for one batch change (max 25) — ids from list_tasks, or titles.' },
+  tasks: { type: 'array', items: { type: 'string' }, description: 'Several tasks for one batch change (max 25): ids from list_tasks, or titles.' },
 };
 
 function updateTool({ name, description, fixed = null, extraParams = {}, required = [] }) {
@@ -251,8 +251,8 @@ function updateTool({ name, description, fixed = null, extraParams = {}, require
       const live = rows.filter((r) => Object.keys(effective(r, changes)).length);
       if (!live.length) {
         return [rows.length === 1
-          ? `${q(rows[0].title)} is already set that way — there is nothing to change.`
-          : 'Those tasks are already set that way — there is nothing to change.'];
+          ? `${q(rows[0].title)} is already set that way. There is nothing to change.`
+          : 'Those tasks are already set that way. There is nothing to change.'];
       }
       if (changes.title !== undefined && !changes.title) return ['A task needs a title.'];
       return [];
@@ -493,7 +493,7 @@ const delete_task = {
   kind: 'write',
   risk: 'high',
   permission: { resource: 'tasks', action: 'delete' },
-  description: 'Delete tasks permanently — only when the user explicitly says delete/remove. Completing a task is complete_task, not this.',
+  description: 'Delete tasks permanently, only when the user explicitly says delete/remove. Completing a task is complete_task, not this.',
   params: { type: 'object', properties: { ...TARGET_PARAMS } },
   undoable: false,
 
@@ -517,7 +517,7 @@ const delete_task = {
       items: rows.map((r) => ({ id: r.id, label: r.title, sub: taskSub(r), checked: true })),
       preview: {
         kind: 'delete',
-        rows: rows.map((r) => [r.title, taskSub(r) || '—']),
+        rows: rows.map((r) => [r.title, taskSub(r) || '-']),
         note: 'Nothing else depends on a task, so only the task itself is removed.',
       },
       confirmLabel: rows.length > 1 ? `Delete ${rows.length} tasks` : `Delete ${q(rows[0]?.title || 'task')}`,

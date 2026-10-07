@@ -9,8 +9,8 @@ import {
 
 /* ══════════════════════════════════════════════════════════════════════════
    Country drill-down for the Hub's Revenue by Geography map.
-   Left: the tapped country's outline, alone. Right: one tab at a time —
-   Overview, Customers, Documents, Products — so the pane answers a single
+   Left: the tapped country's outline, alone. Right: one tab at a time,
+   Overview, Customers, Documents, Products. So the pane answers a single
    question instead of showing every figure at once.
 
    Revenue uses the same definition as sales_by_country() after 0042: issued
@@ -38,7 +38,7 @@ const fmtCompact = (n) => {
 const inr = (n) => '₹' + Math.round(n || 0).toLocaleString('en-IN');
 const dateOf = (d) => String(d.issue_date || d.created_at || '').slice(0, 10);
 const val = (d) => Number(d.grand_total || d.amount || d.subtotal || 0);
-const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' }) : '—');
+const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' }) : '-');
 
 /* The outline, fitted to its own bounding box. getBBox is the only reliable
    way to frame an arbitrary projected path without parsing it. */
@@ -87,12 +87,6 @@ function Tabs({ t, font, tabs, value, onChange }) {
                         }}
                     >
                         {tb.label}
-                        {tb.count !== undefined && (
-                            <span style={{
-                                fontSize: 10.5, padding: '1px 5px', borderRadius: 4, lineHeight: 1.4,
-                                background: on ? t.selBg : t.raised, color: on ? t.selText : t.faint,
-                            }}>{tb.count}</span>
-                        )}
                     </button>
                 );
             })}
@@ -169,7 +163,7 @@ export default function CountryDialog({
         const offers = inWindow.filter((d) => (d.type === 'quotation' || d.type === 'proforma') && !LIVE_OFFER_DEAD.has(d.status));
         const pipeline = offers.reduce((a, d) => a + val(d), 0);
 
-        // customers — keyed by customer_id, falling back to the billed name so
+        // customers: keyed by customer_id, falling back to the billed name so
         // invoices with no linked client still count
         const clientById = new Map(clients.map((c) => [c.id, c]));
         const byCust = new Map();
@@ -193,7 +187,7 @@ export default function CountryDialog({
         const directory = clients.filter((c) => String(c.country_code || '').toUpperCase() === code && !c.archived_at);
         const dormant = directory.filter((c) => !byCust.has(c.id));
 
-        // products — line totals, pre-tax, like the product filter on the RPC
+        // products: line totals, pre-tax, like the product filter on the RPC
         const byItem = new Map();
         sold.forEach((d) => (d.items || []).forEach((li) => {
             const k = (li.description || 'Untitled item').trim();
@@ -204,7 +198,7 @@ export default function CountryDialog({
         }));
         const products = [...byItem.values()].sort((a, b) => b.amount - a.amount);
 
-        // trend — daily for 30D, monthly otherwise
+        // trend: daily for 30D, monthly otherwise
         const trend = [];
         if (api === '30d') {
             for (let i = 29; i >= 0; i--) {
@@ -543,7 +537,7 @@ export default function CountryDialog({
                                         </div>
                                         <div style={{ fontSize: 11, color: t.faint, marginTop: 8, lineHeight: 1.5 }}>
                                             {cash.notEarned > 0
-                                                ? inr(cash.notEarned) + ' of the money in was not earned — funding, a refund or an invoice being settled — so it is not in revenue. '
+                                                ? inr(cash.notEarned) + ' of the money in was not earned (funding, a refund or an invoice being settled), so it is not in revenue. '
                                                 : ''}
                                             {cash.operatingOut > 0
                                                 ? inr(cash.operatingOut) + ' of the money out is a running cost; the rest bought an asset, repaid a loan or was tax or a drawing.'
@@ -666,7 +660,7 @@ export default function CountryDialog({
                                                     <span style={{ ...avatar(t), color: t.faint }}>{(c.name || '?').charAt(0).toUpperCase()}</span>
                                                     <span style={{ flex: 1, minWidth: 0 }}>
                                                         <span style={{ ...line1, color: t.dim }}>{c.name}</span>
-                                                        <span style={line2(t)}>{c.person_name || c.email || c.state || '—'}</span>
+                                                        <span style={line2(t)}>{c.person_name || c.email || c.state || '-'}</span>
                                                     </span>
                                                     <ChevronRight size={12} style={{ color: t.faint, flexShrink: 0 }} />
                                                 </button>
@@ -688,7 +682,7 @@ export default function CountryDialog({
                                                 <span style={{ flex: 1, minWidth: 0 }}>
                                                     <span style={line1}>
                                                         {docNumber(d)}
-                                                        <span style={{ color: t.faint, marginLeft: 8 }}>{d.clientName || '—'}</span>
+                                                        <span style={{ color: t.faint, marginLeft: 8 }}>{d.clientName || '-'}</span>
                                                     </span>
                                                     <span style={line2(t)}>
                                                         {d.type} · {fmtDate(dateOf(d))}{d.due_date ? ' · due ' + fmtDate(d.due_date) : ''}

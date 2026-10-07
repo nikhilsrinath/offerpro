@@ -9,7 +9,7 @@ import { kindLabel, relLabel } from '../../services/brainService';
 
    Provenance leads, because a fact worth reading is a fact worth being able to
    trace back to the row it came from. The connected list is the graph in
-   words — the same hop the canvas draws when a node is lit, reachable by
+   words: the same hop the canvas draws when a node is lit, reachable by
    keyboard and readable by a screen reader. */
 
 export default function BrainInspector({ detail, loading, error, onOpen, onLocate }) {
@@ -27,7 +27,7 @@ export default function BrainInspector({ detail, loading, error, onOpen, onLocat
     if (!node) {
         return (
             <Empty>
-                Select anything on the graph — or in the list — to see what the brain
+                Select anything on the graph. Or in the list, to see what the brain
                 knows about it and what it connects to.
             </Empty>
         );

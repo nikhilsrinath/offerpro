@@ -37,8 +37,8 @@ function Switch({ label, on, onToggle }) {
 
 /**
  * Partnership Agreement and Custom Template editors. Both are the same
- * document shape — company header, parties, numbered clauses, signatures and
- * witnesses — and differ in where the clauses come from: a partnership builds
+ * document shape: company header, parties, numbered clauses, signatures and
+ * witnesses: and differ in where the clauses come from: a partnership builds
  * them from its terms, a custom template takes them as typed.
  */
 export default function AgreementForm({ kind }) {
@@ -222,7 +222,7 @@ export default function AgreementForm({ kind }) {
                   <div className="easy-line-num">{i + 1}</div>
                   <div className="easy-line-fields">
                     <input aria-label={`Clause ${i + 1} heading`} value={c.heading} onChange={(e) => setClause(c.id, 'heading', e.target.value)}
-                      placeholder="Heading (optional) — e.g. Scope of Work" className="easy-inp" style={{ marginBottom: '0.5rem' }} />
+                      placeholder="Heading (optional), e.g. Scope of Work" className="easy-inp" style={{ marginBottom: '0.5rem' }} />
                     <textarea aria-label={`Clause ${i + 1} text`} value={c.body} onChange={(e) => setClause(c.id, 'body', e.target.value)}
                       placeholder="Paragraph text. Each new line starts a new paragraph."
                       rows={4} className="easy-inp" style={{ resize: 'vertical', lineHeight: '1.6' }} />

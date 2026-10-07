@@ -110,7 +110,7 @@ const InvoicingPage = () => (
                         <div className="sp-df-line-item">
                           <div className="sp-df-line-num">1</div>
                           <div className="sp-df-line-fields">
-                            <div className="sp-df-input" style={{ marginBottom: '0.375rem' }}>UI/UX Design Services — Homepage Redesign</div>
+                            <div className="sp-df-input" style={{ marginBottom: '0.375rem' }}>UI/UX Design Services: Homepage Redesign</div>
                             <div className="sp-df-row-4">
                               <div><span className="sp-df-label">Qty</span><div className="sp-df-input">1</div></div>
                               <div><span className="sp-df-label">Price</span><div className="sp-df-input">₹45,000</div></div>
@@ -122,7 +122,7 @@ const InvoicingPage = () => (
                         <div className="sp-df-line-item">
                           <div className="sp-df-line-num">2</div>
                           <div className="sp-df-line-fields">
-                            <div className="sp-df-input" style={{ marginBottom: '0.375rem' }}>Frontend Development — React Components</div>
+                            <div className="sp-df-input" style={{ marginBottom: '0.375rem' }}>Frontend Development: React Components</div>
                             <div className="sp-df-row-4">
                               <div><span className="sp-df-label">Qty</span><div className="sp-df-input">40</div></div>
                               <div><span className="sp-df-label">Price</span><div className="sp-df-input">₹2,500</div></div>
@@ -243,7 +243,7 @@ const InvoicingPage = () => (
         {/* Workflow */}
         <div className="sp-section-label eos-parallax">
           <h2>How Invoice Flow Works</h2>
-          <p>From creation to payment — a seamless pipeline.</p>
+          <p>From creation to payment, a seamless pipeline.</p>
         </div>
         <div className="sp-flow eos-parallax">
           <div className="sp-flow-step">
@@ -277,7 +277,7 @@ const InvoicingPage = () => (
           {[
             { icon: Receipt, title: 'GST-Compliant', desc: 'Auto-calculate CGST, SGST, and IGST with HSN/SAC codes. Tax-ready out of the box.' },
             { icon: CreditCard, title: 'Payment Tracking', desc: 'Track paid, pending, and overdue invoices. Collect advances via UPI QR or bank transfer.' },
-            { icon: Shield, title: 'Making Cost & Profit', desc: 'Track making costs per item to see real profit margins — visible only to you, never on the invoice.' },
+            { icon: Shield, title: 'Making Cost & Profit', desc: 'Track making costs per item to see real profit margins, visible only to you and never on the invoice.' },
             { icon: Send, title: 'Instant WhatsApp Delivery', desc: 'Share invoices via WhatsApp with a portal link. Clients view and pay without logging in.' },
             { icon: BarChart3, title: 'Revenue Analytics', desc: 'Real-time dashboards showing revenue trends, outstanding amounts, and collection rates.' },
             { icon: FileText, title: 'Two Beautiful Templates', desc: 'Choose between a clean Standard template or an ornamental Saffron template with decorative borders.' },

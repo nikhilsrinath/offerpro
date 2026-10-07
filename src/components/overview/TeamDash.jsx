@@ -7,7 +7,7 @@ import { Columns, RankBars, SplitBar, EmptyNote, Delta } from './vizKit';
 import { Dashboard, Card, Tile, BigCount, More, TileRow, CardGrid, ListRow } from './dashKit';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Dashboard · Team — who is here, who is coming and going, who is out today,
+   Dashboard · Team: who is here, who is coming and going, who is out today,
    and who is carrying the work.
 
    Headcount, joiners and leavers follow the period. Attendance, leave and the
@@ -82,15 +82,15 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
             <Tile icon={UserMinus} label="Left" value={String(k.headcount.exits)} exact={`${k.headcount.exits} left in period`}
                 foot={attrition === null ? 'left in this period' : `${attrition.toFixed(1)}% attrition`} tone={k.headcount.exits ? 'down' : null}
                 onClick={() => navigate('/employees/ex-employees')} />
-            <Tile icon={CalendarCheck} label="In today" value={attendance ? String(attendance.present) : '—'}
+            <Tile icon={CalendarCheck} label="In today" value={attendance ? String(attendance.present) : '-'}
                 exact={attendance ? `${attendance.present} of ${staff.length}` : 'not available'}
                 foot={att === undefined ? 'loading…' : attendance ? `${attendance.unmarked} not marked yet` : 'not available to your role'}
                 onClick={() => navigate('/attendance')} />
-            <Tile icon={Plane} label="On leave today" value={leaves ? String(leaves.outToday.length) : '—'}
+            <Tile icon={Plane} label="On leave today" value={leaves ? String(leaves.outToday.length) : '-'}
                 exact={leaves ? `${leaves.outToday.length} people` : 'not available'}
                 foot={leave === undefined ? 'loading…' : leaves ? `${leaves.upcoming.length} upcoming` : 'not available to your role'}
                 onClick={() => navigate('/attendance/leave')} />
-            <Tile icon={Inbox} label="Leave to decide" value={leaves ? String(leaves.pending.length) : '—'}
+            <Tile icon={Inbox} label="Leave to decide" value={leaves ? String(leaves.pending.length) : '-'}
                 exact={leaves ? `${leaves.pending.length} pending` : 'not available'} tone={leaves?.pending.length ? 'down' : null}
                 foot={leaves?.pending.length ? 'waiting for a decision' : 'nothing waiting'}
                 onClick={() => navigate('/attendance/leave')} />
@@ -115,7 +115,7 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
 
             <Card title="Attendance today" note={fmtDay(today)} right={<More label="Sheet" to="/attendance" />}>
                 {att === undefined ? <EmptyNote>Loading…</EmptyNote> : !attendance ? <EmptyNote>Attendance is not available to your role</EmptyNote> : (<>
-                    <BigCount value={staff.length ? `${Math.round((attendance.present / staff.length) * 100)}%` : '—'} label="of the team in today" />
+                    <BigCount value={staff.length ? `${Math.round((attendance.present / staff.length) * 100)}%` : '-'} label="of the team in today" />
                     <SplitBar format={(v) => String(v)} unit="People" parts={[
                         ...ATTENDANCE_STATUSES.map((s) => ({ id: s.key, label: s.label, value: attendance.byStatus[s.key], color: attColor[s.key] })),
                         { id: 'unmarked', label: 'Not marked', value: attendance.unmarked, color: t.lineStrong },
@@ -137,7 +137,7 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
 
             <Card title="Joiners & leavers" note="in this period">
                 {movers.length === 0 ? <EmptyNote>Nobody joined or left in this period</EmptyNote> : movers.slice(0, 7).map(({ e, kind, day }) => (
-                    <ListRow key={e.id + kind} label={e.name || 'Unnamed'} sub={[e.role, e.department].filter(Boolean).join(' · ') || '—'}
+                    <ListRow key={e.id + kind} label={e.name || 'Unnamed'} sub={[e.role, e.department].filter(Boolean).join(' · ') || '-'}
                         value={`${kind} ${fmtDay(day).slice(0, 6)}`} tone={kind === 'joined' ? 'up' : 'down'}
                         onClick={() => navigate(kind === 'joined' ? '/employees' : '/employees/ex-employees')} />
                 ))}

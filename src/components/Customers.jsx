@@ -18,13 +18,13 @@ import { useClientProjects } from './shared/useClientProjects';
 import { OTHERS, initialProject, assignProject, filterByProject } from '../services/clientProjects';
 
 const EMPTY_CUSTOMER = {
-  // clientName is the billing name — the company, or the person when the
+  // clientName is the billing name. The company, or the person when the
   // client is an individual. person_name is who you deal with there.
   clientName: '', person_name: '', clientEmail: '', clientAddress: '',
   buyerGSTIN: '', buyerState: '', contactPhone: '', notes: '',
   // Optional. Left blank, a document billed to this customer falls back to the
   // GST state (an Indian state implies India) and then to your organisation's
-  // own country — so Sales by Countries works without anyone filling this in.
+  // own country: so Sales by Countries works without anyone filling this in.
   // It is here for the cases inference gets wrong.
   country_code: '',
   // Which project they belong to; OTHERS until they are on one.
@@ -164,7 +164,7 @@ function CustomerDetail({ customer, orgId, onBack, onEdit }) {
       {/* Note */}
       {customer.notes && (
         <div style={{ padding: '0.75rem 1rem', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: '10px' }}>
-          <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Note</div>
+          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Note</div>
           <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{customer.notes}</div>
         </div>
       )}
@@ -182,7 +182,7 @@ function CustomerDetail({ customer, orgId, onBack, onEdit }) {
             style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderTop: `2px solid ${s.color}`, borderRadius: '10px', padding: '0.875rem 1rem' }}
           >
             <div style={{ fontSize: '1.375rem', fontWeight: 800, color: s.color, lineHeight: 1, letterSpacing: '-0.03em' }}>{s.value}</div>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: '0.3rem' }}>{s.label}</div>
             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>{s.sub}</div>
           </div>
         ))}
@@ -232,7 +232,7 @@ function CustomerDetail({ customer, orgId, onBack, onEdit }) {
               const rawDate = doc.issue_date || doc.created_at;
               const dateStr = rawDate
                 ? new Date(rawDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-                : '—';
+                : '-';
               return (
                 <div
                   key={doc.id}
@@ -282,7 +282,7 @@ export default function Customers() {
   const [searchTerm, setSearchTerm] = useState('');
   // Since 0016 merged customers and crm_leads into one `clients` table, this page
   // and the CRM board read the same rows. 'billable' is the default because this
-  // screen is about parties you invoice — the pipeline has its own board — and
+  // screen is about parties you invoice. The pipeline has its own board, and
   // without it the Customers list silently became the lead list too. The
   // status and sort pickers were removed; the list is customers, A–Z.
   const statusFilter = 'billable';
@@ -381,7 +381,7 @@ export default function Customers() {
           const { keptPrimary } = await assignProject(clientId, project, fromProject, cp.projects, cp.links);
           if (keptPrimary) {
             const p = cp.projects.find(x => x.id === keptPrimary);
-            toast(`Still the main client of ${p?.name || 'their project'} — change that from the project`, 'info');
+            toast(`Still the main client of ${p?.name || 'their project'}. Change that from the project`, 'info');
           }
         } catch (err) {
           toast('Client saved, but the project could not be set: ' + err.message, 'error');

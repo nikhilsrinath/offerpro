@@ -56,8 +56,6 @@ export default function RecipientStatusBadge({ status }) {
             color: style.color,
             fontSize: '0.75rem',
             fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em'
         }}>
             {status === 'pending' && (
                 <motion.div

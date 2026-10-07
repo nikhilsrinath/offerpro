@@ -1,8 +1,8 @@
-// EmployeeAvatar.jsx — an employee's photo, or their initials.
+// EmployeeAvatar.jsx: an employee's photo, or their initials.
 //
 // The `employee-photos` bucket is private (0029 §9), so a stored path is not a
 // URL an <img> can use: it has to be signed, which is async. That is the whole
-// reason this is a component rather than a src attribute — initials render
+// reason this is a component rather than a src attribute, initials render
 // immediately and the photo replaces them when the signed URL arrives.
 import { useEffect, useState } from 'react';
 import { resolveImageUrl } from '../../services/imageUploadService';
@@ -60,7 +60,7 @@ export default function EmployeeAvatar({ name, photoPath, size = 36, title }) {
 }
 
 /**
- * The photo alone, filling whatever round tile it is dropped into — for the
+ * The photo alone, filling whatever round tile it is dropped into, for the
  * places that already draw their own avatar (Employees.jsx's gradient initials,
  * the org chart node) and only need the image laid over it when one exists.
  * Renders nothing while the signed URL is in flight, so the initials stay put.

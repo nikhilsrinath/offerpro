@@ -1,9 +1,9 @@
-// profileCompletion.js — what registration deliberately did not ask for.
+// profileCompletion.js: what registration deliberately did not ask for.
 //
 // The onboarding wizard collects the six answers an organization cannot be
-// created without. Everything a document actually needs to look official —
+// created without. Everything a document actually needs to look official,
 // address, phone, the title under the signature, the logo and the signature
-// image — is left to the company profile, where there is a real form with a
+// image: is left to the company profile, where there is a real form with a
 // live letterhead preview beside it.
 //
 // Nothing chases the user for those unless something says they are missing,

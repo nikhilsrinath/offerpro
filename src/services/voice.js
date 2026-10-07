@@ -1,4 +1,4 @@
-// voice.js — the text side of a voice call with EdgeAI.
+// voice.js: the text side of a voice call with EdgeAI.
 //
 // What is spoken is not what is shown: an answer written for the screen has
 // Markdown, tables and "₹4,50,000", and read aloud as-is it is noise. These
@@ -7,9 +7,9 @@
 //
 // Pure functions except pickVoice, which only reads the list it is given.
 
-/** Added to the question sent to the model during a call — never shown in the chat. */
+/** Added to the question sent to the model during a call, never shown in the chat. */
 export const VOICE_INSTRUCTION = '(This is a live phone-style voice call. Reply the way a sharp colleague '
-  + 'would out loud: one or two short sentences, under 35 words in total. Lead with the answer itself — '
+  + 'would out loud: one or two short sentences, under 35 words in total. Lead with the answer itself, '
   + 'no greeting, no restating the question, no "Great question". Plain spoken words only: no lists, '
   + 'tables, headings, symbols or Markdown. Round figures the way people say them, like "about 4.5 lakh". '
   + 'If there is more worth knowing, end with a very short offer such as "Want the breakdown?")';
@@ -20,9 +20,9 @@ export const MAX_SPOKEN_SENTENCES = 3;
 // Said while the answer is on its way, so the pause never reads as a dead
 // line. Grouped by what was asked; never the same one twice in a row.
 const FILLERS = {
-  question: ['Hmm, good question.', 'Let me check that.', 'Hmm, let me see.', 'Good question — one sec.', 'Let me look that up.'],
+  question: ['Hmm, good question.', 'Let me check that.', 'Hmm, let me see.', 'Good question, one sec.', 'Let me look that up.'],
   numbers: ['Let me pull up the numbers.', 'One sec, checking the figures.', 'Hmm, let me run the numbers.'],
-  request: ['Okay, on it.', 'Sure, one moment.', 'Got it — give me a second.', 'Alright, let me do that.'],
+  request: ['Okay, on it.', 'Sure, one moment.', 'Got it, give me a second.', 'Alright, let me do that.'],
   generic: ['Hmm…', 'Okay, one sec.', 'Right, let me see.', 'Let me think about that.'],
   still: ['Still pulling that together…', 'Almost there…', 'Bear with me, just a moment more.', 'Nearly done…'],
 };
@@ -61,7 +61,7 @@ export function speakable(md = '') {
 }
 
 // A sentence ends at . ! ? followed by a space or the end, or at a line break.
-// Decimals ("4.5") never qualify — no space follows the dot — and these
+// Decimals ("4.5") never qualify: no space follows the dot. And these
 // abbreviations are not ends either: "Rs. 500", "e.g. this", "Dr. Rao".
 const NO_SPLIT = /\b(?:rs|dr|mr|mrs|ms|no|vs|etc|e\.g|i\.e|approx|inc|ltd|pvt)\.$/i;
 

@@ -29,7 +29,7 @@ export default function ImageEditor({ imageSrc, onSave, onCancel }) {
   const imgRef = useRef(null);
   const [state, setState] = useState(INITIAL_STATE);
   const [imgLoaded, setImgLoaded] = useState(false);
-  // Original image before any crop — kept for Reset All
+  // Original image before any crop, kept for Reset All
   const [originalSrc] = useState(imageSrc);
   // Current working source (updated after crop apply)
   const [workingSrc, setWorkingSrc] = useState(imageSrc);
@@ -215,7 +215,7 @@ export default function ImageEditor({ imageSrc, onSave, onCancel }) {
     cropCanvas.getContext('2d').drawImage(tempCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
 
     const croppedDataUrl = cropCanvas.toDataURL('image/png');
-    // All transforms are baked in — fully reset state
+    // All transforms are baked in, fully reset state
     setWorkingSrc(croppedDataUrl);
     setState(INITIAL_STATE);
     setImgLoaded(false);

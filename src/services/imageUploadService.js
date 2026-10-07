@@ -1,4 +1,4 @@
-// imageUploadService.js — image processing and upload to Supabase Storage.
+// imageUploadService.js: image processing and upload to Supabase Storage.
 //
 // Previously this file resized onto a canvas and returned a base64 data URL,
 // which was stored inline in the organization row: no CDN, re-transferred on
@@ -54,7 +54,7 @@ export const IMAGE_KINDS = {
 const PRIVATE_BUCKETS = new Set(['signatures', 'employee-photos']);
 
 // SVG has no reliable intrinsic size: many exports carry only a viewBox, and an
-// <img> then reports the CSS default 150x150 rather than 0x0 — small enough to
+// <img> then reports the CSS default 150x150 rather than 0x0, small enough to
 // look blurry once scaled up. Rasterize the longest edge to this instead.
 const SVG_RASTER_SIZE = 1024;
 
@@ -65,7 +65,7 @@ const QUALITY_STEPS = [0.85, 0.75, 0.65, 0.55, 0.45, 0.35];
 let _webpSupport = null;
 
 // Safari only gained canvas WebP encoding in 14. toBlob() does not fail on an
-// unsupported type — it silently hands back a PNG — so the encoded blob's type
+// unsupported type: it silently hands back a PNG. So the encoded blob's type
 // has to be checked rather than trusted.
 async function supportsWebpEncoding() {
   if (_webpSupport !== null) return _webpSupport;
@@ -107,7 +107,7 @@ function decodeViaImgElement(blob, { isSvg } = {}) {
       let height = img.naturalHeight;
 
       // SVG is resolution-independent, but an <img> reports whatever intrinsic
-      // size the document declares — and a viewBox-only SVG gets the CSS
+      // size the document declares. And a viewBox-only SVG gets the CSS
       // default 150x150, not 0x0. Rasterizing at that would produce a blurry
       // logo. Scale the box up first: drawImage re-renders the vector at the
       // destination size, so a bigger canvas means genuinely sharper output.
@@ -132,7 +132,7 @@ async function decode(blob) {
   const isSvg = blob.type === 'image/svg+xml';
 
   // createImageBitmap applies EXIF orientation, which matters for photos taken
-  // on a phone — without it a portrait shot uploads sideways. It is also the
+  // on a phone: without it a portrait shot uploads sideways. It is also the
   // one path that will not decode SVG consistently, so SVG skips it.
   if (!isSvg && typeof createImageBitmap === 'function') {
     try {
@@ -194,7 +194,7 @@ function hasTransparency(canvas) {
   const { width, height } = canvas;
   try {
     const { data } = ctx.getImageData(0, 0, width, height);
-    // Every 4th byte is alpha. Sampling is enough — a fully opaque image has no
+    // Every 4th byte is alpha. Sampling is enough. A fully opaque image has no
     // transparent pixel anywhere, so any hit is decisive.
     for (let i = 3; i < data.length; i += 4) {
       if (data[i] < 255) return true;
@@ -319,7 +319,7 @@ export async function uploadOrgImage({ orgId, kind, source, folder = '' }) {
 /**
  * Turn a stored value into something an <img> can display.
  *
- * Passes through anything that is not a storage path — external URLs entered by
+ * Passes through anything that is not a storage path, external URLs entered by
  * hand during registration, and base64 left over from the Firebase era.
  */
 export async function resolveImageUrl(value, bucket) {
@@ -340,7 +340,7 @@ export async function resolveImageUrl(value, bucket) {
   return supabase.storage.from(bucket).getPublicUrl(value).data.publicUrl;
 }
 
-/** Remove a previously uploaded object. Never throws — a stale object is not worth failing a save over. */
+/** Remove a previously uploaded object. Never throws. A stale object is not worth failing a save over. */
 export async function deleteOrgImage(path, bucket) {
   if (!path || isDataUrl(path) || isHttpUrl(path)) return;
   const { error } = await supabase.storage.from(bucket).remove([path]);

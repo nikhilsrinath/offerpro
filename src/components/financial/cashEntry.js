@@ -44,7 +44,7 @@ export const billAllocationsOf = (allocations, billId) => allocations
 /**
  * A new payment against a purchase bill: a money-out entry linked to the bill
  * (0080). Vendor, type, GST and project all come from the bill and cannot be
- * changed — the bill already counts the cost and its GST, so the entry is cash
+ * changed: the bill already counts the cost and its GST, so the entry is cash
  * only.
  */
 export function billPaymentEntry(bill, { allocations, projects }) {

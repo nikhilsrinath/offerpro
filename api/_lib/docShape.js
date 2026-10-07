@@ -9,16 +9,16 @@
  *
  * One deliberate exception: the app's version joins `payments(*)` and this one
  * does not. The recipient of an invoice has no business seeing the payment
- * ledger — including any other party's transaction references — so do not add
+ * ledger: including any other party's transaction references: so do not add
  * that join to loadDocument() in api/portal.js.
  */
 
-/** records — offer, certificate, nda, mou, role_change, termination. */
+/** records: offer, certificate, nda, mou, role_change, termination. */
 export function recordFromRow(r) {
   const d = r.data || {};
   // Snapshot first, promoted columns second: the columns are authoritative.
   // `recipient_name` is null on documents saved from the form pages, which keep
-  // the candidate under data.studentName — without the fallback the portal
+  // the candidate under data.studentName, without the fallback the portal
   // addresses the letter to nobody.
   return {
     ...d,
@@ -33,7 +33,7 @@ export function recordFromRow(r) {
   };
 }
 
-/** financial_documents (+ document_line_items) — invoice, quotation, proforma. */
+/** financial_documents (+ document_line_items), invoice, quotation, proforma. */
 export function financialDocFromRow(r) {
   const items = (r.document_line_items || [])
     .slice()

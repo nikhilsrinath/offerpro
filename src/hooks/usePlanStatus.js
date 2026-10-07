@@ -47,8 +47,8 @@ export function usePlanStatus() {
           invoices: 0,
           quotations: 0,
           // usage_counters.ai_messages, incremented server-side by /api/nvidia.
-          // This used to read `activeOrg.ai_message_count` — a column that does
-          // not exist on `organizations` — so the AI quota was always 0.
+          // This used to read `activeOrg.ai_message_count` · a column that does
+          // not exist on `organizations` · so the AI quota was always 0.
           aiMessages: orgStore.getUsage().ai_messages || 0,
         };
 

@@ -1,4 +1,4 @@
-// documentConversion.js — how a quotation becomes a proforma or an invoice,
+// documentConversion.js: how a quotation becomes a proforma or an invoice,
 // and how a proforma becomes its tax invoice.
 //
 // Two roads out of an accepted quotation:
@@ -8,7 +8,7 @@
 //
 // Which one is a judgement call, so the issuer picks. recommendTarget() only
 // suggests, and every reason it gives is a fact read from this organization's
-// own documents — a count, a term, a currency — never a guess.
+// own documents: a count, a term, a currency, never a guess.
 //
 // Pure functions. InvoiceList does the writes.
 import { withoutResponses, advanceOf, DEFAULT_ADVANCE_PERCENT } from './proformaAdvance.js';
@@ -19,7 +19,7 @@ import { todayIso } from './dates.js';
 export const DUE_DAYS = { proforma: 15, invoice: 30 };
 
 // Payment terms that ask for money before the work. Word-bounded so
-// "advanced analytics" in a line description never counts — only the terms,
+// "advanced analytics" in a line description never counts. Only the terms,
 // notes and payment instructions are read anyway.
 const ADVANCE_TERMS = /\b(advance|upfront|up-front|prepaid|prepayment|pre-payment|proforma|pro-forma)\b/i;
 
@@ -38,7 +38,7 @@ const clientKey = (d) => d.customer_id
  *
  * A quotation must be accepted: the database refuses to build from a version
  * the client never agreed to (0064, SOURCE_NOT_LOCKED). A proforma goes to its
- * tax invoice once the advance is in — or at once when it asked for none.
+ * tax invoice once the advance is in. Or at once when it asked for none.
  */
 export function conversionTargets(doc) {
   if (!doc) return [];
@@ -68,7 +68,7 @@ export function existingConversion(source, docs) {
  *   · the client owes on an overdue invoice right now
  *   · the client has never paid an invoice here (a first order)
  *   · the sale is billed in a foreign currency or to a client abroad
- * With none of them — a client with a paid record and nothing overdue — the
+ * With none of them. A client with a paid record and nothing overdue, the
  * invoice can go straight out.
  *
  * @param {object} quotation
@@ -104,7 +104,7 @@ export function recommendTarget(quotation, docs, today = todayIso()) {
   } else if (paid.length === 0) {
     reasons.push(history.length
       ? `None of this client’s ${history.length} invoice${history.length > 1 ? 's has' : 's have'} been paid yet.`
-      : 'First order from this client — no invoice has been issued to them before.');
+      : 'First order from this client. No invoice has been issued to them before.');
   }
   if (facts.foreign) {
     reasons.push(currency !== 'INR' ? `Billed in ${currency}.` : `Client is outside India (${quotation.country_code.toUpperCase()}).`);
@@ -121,8 +121,8 @@ export function recommendTarget(quotation, docs, today = todayIso()) {
 /**
  * The new document, ready for documentStore.save().
  *
- * It keeps what the source SAYS — client, line items (with their catalogue
- * ids), GST, discount, terms, country — and none of what happened TO it:
+ * It keeps what the source SAYS, client, line items (with their catalogue
+ * ids), GST, discount, terms, country. And none of what happened TO it:
  * acceptance, signatures, views, payments, version pointers. It is dated
  * today, because an invoice carries the date it is issued, not the date of
  * the quote; and it has no number, so the database draws the next one in the
@@ -167,7 +167,7 @@ export function buildConversion(source, target, { advancePercent, today = todayI
   if (target === 'proforma') {
     const pct = advancePercent ?? source.advance_percent;
     // Without a percentage the proforma asked for no advance and the portal
-    // showed ₹0; an explicit 0 is kept — it means "confirm the order, no advance".
+    // showed ₹0; an explicit 0 is kept. It means "confirm the order, no advance".
     doc.advance_percent = pct === null || pct === undefined || pct === ''
       ? DEFAULT_ADVANCE_PERCENT
       : Math.min(100, Math.max(0, Number(pct) || 0));
@@ -182,7 +182,7 @@ export function buildConversion(source, target, { advancePercent, today = todayI
 /**
  * The advance a proforma collected, as the payment it becomes on the tax
  * invoice. Without it the invoice demanded the whole amount again from a
- * client who had already paid part of it — and, since only invoices count as
+ * client who had already paid part of it, and, since only invoices count as
  * revenue, the advance was never counted as collected at all.
  *
  * Confirmed money only. Null when nothing was received.

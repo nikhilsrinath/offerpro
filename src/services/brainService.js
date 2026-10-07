@@ -5,13 +5,13 @@ import { supabase } from '../lib/supabase';
  *
  * Two routes into the brain, chosen by what the call needs:
  *
- *   · /api/brain  for anything privileged — building, resynchronising, asking.
+ *   · /api/brain  for anything privileged, building, resynchronising, asking.
  *     Those read every tenant table or spend money upstream, so they run on the
  *     server behind a bearer token.
  *   · supabase directly for reads. brain_nodes, brain_edges and brain_metrics
  *     have RLS policies that apply the same app.has_permission() check the
  *     source tables do, so reading them from here is confined to the role's own
- *     access by the database itself — and the graph gets its data in one round
+ *     access by the database itself. And the graph gets its data in one round
  *     trip instead of two.
  *
  * Neither route can show a user something their role could not already read.
@@ -67,7 +67,7 @@ export const ask = (orgId, question, history = []) =>
 
 /**
  * An industry-specific work breakdown for a project, from what the company
- * and the project say about themselves. Suggests only — nothing is written.
+ * and the project say about themselves. Suggests only. Nothing is written.
  * Resolves { status: 'ok', industry, summary, nodes } or
  * { status: 'needs_context', missing, asks } when there is too little to go on.
  */
@@ -82,7 +82,7 @@ export const suggestWbs = (orgId, projectId) =>
  * supplies the facts. Costs no AI quota.
  *
  * Never throws. A brain that is missing, still building, or refused to this
- * role means the caller falls back to whatever context it had before — a chat
+ * role means the caller falls back to whatever context it had before. A chat
  * that answers less well is far better than one that answers with an error.
  */
 export async function getContext(orgId, question, { maxEntities } = {}) {
@@ -109,7 +109,7 @@ export async function getContext(orgId, question, { maxEntities } = {}) {
  * Watches this organization's brain and calls back whenever it changes.
  *
  * Every sync writes brain_state, so that one row is the signal that the brain
- * moved — there is no need to subscribe to the nodes themselves, which would
+ * moved: there is no need to subscribe to the nodes themselves, which would
  * mean a message per changed record for a change the page redraws wholesale
  * anyway.
  *

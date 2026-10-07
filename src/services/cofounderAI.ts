@@ -79,7 +79,7 @@ export function buildEdgeContext(edgeData: {
   const paidInvoices = finInvoices.filter((d: any) => d.status === 'paid');
   const revenue = paidInvoices.reduce((acc: number, d: any) => acc + (d.grand_total || d.amount || d.subtotal || 0), 0);
   // Issued but not collected. Mirrors app.catalog_is_sold() minus
-  // app.catalog_is_collected() in 0011_product_catalog.sql — the definition the
+  // app.catalog_is_collected() in 0011_product_catalog.sql. The definition the
   // rest of the product already uses. The old filter was 'pending' or 'sent'
   // only, which silently excluded viewed, partially_paid, overdue,
   // payment_submitted and advance_paid.
@@ -330,22 +330,22 @@ ${dataSection}${insightsSection}${opportunitiesSection}${risksSection}
 HOW TO ANSWER:
 
 For questions about THIS company's specific data (employees, revenue, invoices, tasks, customers):
-• Use ONLY the data shown above — never invent numbers, names, or facts
-• Follow "HOW TO ANSWER FROM THIS CONTEXT" in the data. When a HEADLINE FIGURE answers the question (net cash, total revenue, receivables, payables…), that figure IS the answer: quote it exactly and never build your own total from other numbers — a hand-made total leaves something out
+• Use ONLY the data shown above, never invent numbers, names, or facts
+• Follow "HOW TO ANSWER FROM THIS CONTEXT" in the data. When a HEADLINE FIGURE answers the question (net cash, total revenue, receivables, payables…), that figure IS the answer: quote it exactly and never build your own total from other numbers. A hand-made total leaves something out
 • Keep bases apart: revenue is not cash, invoiced is not collected, funding is not revenue
-• If data shows company name "Gomma Inc", say "Gomma Inc" — not any other name
-• If revenue is ₹21,797.64, report exactly that — never round or change it
+• If data shows company name "Gomma Inc", say "Gomma Inc" · not any other name
+• If revenue is ₹21,797.64, report exactly that, never round or change it
 • If a specific record is missing, say "I don't see that in our records"
-• DOCUMENT LIBRARY passages are quoted from the company's uploaded files. When you use one, name the document and its page/slide/section. If the passages don't contain the answer, say so and name the document that likely does — never fill in what such a document "usually" says
+• DOCUMENT LIBRARY passages are quoted from the company's uploaded files. When you use one, name the document and its page/slide/section. If the passages don't contain the answer, say so and name the document that likely does, never fill in what such a document "usually" says
 
 For general business, strategy, finance, marketing, operations, or any other topic:
-• Use your expertise as an experienced AI co-founder — answer helpfully and completely
+• Use your expertise as an experienced AI co-founder, answer helpfully and completely
 • Relate advice to the company context where relevant
 • Do NOT say "I can only answer from company data" for general questions
 
 Always:
 • Address ${userName} by name when appropriate
-• Be direct, practical, and concise — no fluff
+• Be direct, practical, and concise. No fluff
 • Base company-specific claims only on the data above`;
 }
 
@@ -405,7 +405,7 @@ export async function callCofounderAI(
       systemPrompt = buildOnboardingPrompt(currentQuestion, memory);
       console.log('[callCofounderAI] Using ONBOARDING prompt');
     } else if (rawData) {
-      // Always use raw data when available — covers factual, combined, and reasoning.
+      // Always use raw data when available, covers factual, combined, and reasoning.
       // Using memory-only for reasoning was the root cause of hallucinations.
       const memoryInsights = memory ? {
         insights: (memory.insights || []).slice(0, 3),
@@ -478,8 +478,8 @@ export async function callCofounderAI(
       try {
         const errorData = JSON.parse(errorText);
         // /api/nvidia answers `{ error: '<string>', details?: '<string>' }`. Reading
-        // only `error.message` meant every one of those replies — including the
-        // 410 the endpoint returned for months after the model went end-of-life —
+        // only `error.message` meant every one of those replies, including the
+        // 410 the endpoint returned for months after the model went end-of-life,
         // was thrown away and reported as a bare status code, which is why the
         // panel could not say what had actually gone wrong.
         const err = errorData.error;
@@ -487,7 +487,7 @@ export async function callCofounderAI(
           (typeof err === 'string' ? err : err?.message) ||
           errorData.message ||
           errorMessage;
-        if (errorData.details) errorMessage += ` — ${String(errorData.details).substring(0, 200)}`;
+        if (errorData.details) errorMessage += ` · ${String(errorData.details).substring(0, 200)}`;
       } catch {
         if (errorText) errorMessage += ` - ${errorText.substring(0, 200)}`;
       }
@@ -504,7 +504,7 @@ export async function callCofounderAI(
     // An SSE frame is not a network chunk. Gemini's frames are several hundred
     // bytes each and a read() boundary lands in the middle of one regularly,
     // so splitting each chunk on '\n' and parsing the pieces threw away the
-    // half-frame at the end AND the half-frame that started the next chunk —
+    // half-frame at the end AND the half-frame that started the next chunk,
     // the answer stopped mid-sentence with no error, which is exactly what it
     // looked like. Hold the trailing partial line here until its rest arrives.
     let buffer = '';
@@ -515,7 +515,7 @@ export async function callCofounderAI(
 
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
-      // The last element is either an incomplete line or '' — either way it is
+      // The last element is either an incomplete line or '' · either way it is
       // not ready to parse, so it goes back in the buffer.
       buffer = lines.pop() ?? '';
 
@@ -534,7 +534,7 @@ export async function callCofounderAI(
             const parsed = JSON.parse(data);
             const token = parsed.choices?.[0]?.delta?.content || '';
 
-            // A reply that hits the token budget ends silently — same shape as
+            // A reply that hits the token budget ends silently, same shape as
             // a finished one. Say so in the log, or the next truncated answer
             // looks like a stream that dropped.
             if (parsed.choices?.[0]?.finish_reason === 'length') {
@@ -567,7 +567,7 @@ export async function callCofounderAI(
     }
 
     // fetch() rejects with a bare TypeError('Failed to fetch') when the request
-    // never reached a response at all — dev server restarted mid-request, the
+    // never reached a response at all, dev server restarted mid-request, the
     // connection dropped, the deployment has no /api function. That string tells
     // the user nothing, so name the shape of the failure instead.
     const raw = (error as Error).message || '';
@@ -704,10 +704,10 @@ REQUEST: "${userMessage}"
 
 ASSIGNEE: ${empName} (${employee.role || 'Team Member'}, ${employee.department || 'General'})
 
-Extract the task details from the request and output EXACTLY in this format — nothing else:
+Extract the task details from the request and output EXACTLY in this format. Nothing else:
 
 TITLE: [clear, action-oriented task title, max 8 words]
-PRIORITY: [low|medium|high — infer from urgency/context]
+PRIORITY: [low|medium|high, infer from urgency/context]
 DESCRIPTION: [1-2 sentences describing what needs to be done. Be specific.]
 
 RULES:

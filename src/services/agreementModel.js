@@ -1,4 +1,4 @@
-// agreementModel.js — the one description of a Partnership or Custom agreement.
+// agreementModel.js: the one description of a Partnership or Custom agreement.
 //
 // AgreementPreview (the live sheet) and pdfService.generateAgreement (the PDF)
 // both render what buildAgreement() returns, so the page on screen and the file

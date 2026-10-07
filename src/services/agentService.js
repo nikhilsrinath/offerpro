@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 /**
  * The browser's side of EdgeAI's agent (api/agent.js).
  *
- * `streamAgent` sends one message and reads back a stream of events — words,
+ * `streamAgent` sends one message and reads back a stream of events, words,
  * proposed-change cards, choices, questions, page changes. Nothing it
  * receives has changed any data: a card is only a proposal until
  * `confirmAction` is called from the card's own button.
@@ -85,5 +85,5 @@ export const cancelAction = (orgId, actionId) => json({ mode: 'cancel', org_id: 
 
 export const undoAction = (orgId, actionId) => json({ mode: 'undo', org_id: orgId, action_id: actionId });
 
-/** The latest state of these cards — for a thread reopened after a reload. */
+/** The latest state of these cards, for a thread reopened after a reload. */
 export const actionStatus = (orgId, ids) => json({ mode: 'status', org_id: orgId, ids });

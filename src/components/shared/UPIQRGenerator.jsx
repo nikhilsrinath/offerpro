@@ -28,7 +28,7 @@ export default function UPIQRGenerator({ upiId, payeeName, amount, transactionNo
           Copy
         </button>
       </div>
-      <p className="upi-qr-hint">Scan with any UPI app — GPay, PhonePe, Paytm</p>
+      <p className="upi-qr-hint">Scan with any UPI app: GPay, PhonePe, Paytm</p>
       <div className="upi-qr-logos">
         <span className="upi-qr-logo-pill">GPay</span>
         <span className="upi-qr-logo-pill">PhonePe</span>

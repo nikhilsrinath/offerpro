@@ -293,8 +293,8 @@ export async function loadCompanyMemory(orgId: string): Promise<CompanyMemory | 
   if (!orgId) return null;
 
   try {
-    // The Firebase version called .val() on a Firestore snapshot — an
-    // RTDB-only method — so this path always threw and memory never loaded.
+    // The Firebase version called .val() on a Firestore snapshot, an
+    // RTDB-only method: so this path always threw and memory never loaded.
     const existing = await readMemoryRow(orgId);
     if (existing) return existing;
 
@@ -417,7 +417,7 @@ function extractKeyMetrics(orgData: any): CompanyFacts['key_metrics'] {
   }
 
   // Clients come from the customers table, not from the pipeline. There is no
-  // 'customer' or 'won' stage in crm_leads — the old filter for them always
+  // 'customer' or 'won' stage in crm_leads. The old filter for them always
   // returned zero.
   const clients = orgData.customers;
   if (clients && typeof clients === 'object') {
@@ -658,7 +658,7 @@ export function detectQueryIntent(message: string): QueryIntent {
 
 /**
  * Read org data from the in-memory orgStore cache.
- * Never hits Firebase — orgStore is loaded once on login and updated
+ * Never hits Firebase: orgStore is loaded once on login and updated
  * locally on every write, so newly added employees/invoices/etc. are
  * visible to the AI immediately with zero reads.
  *
@@ -669,7 +669,7 @@ export async function fetchRawOrgData(orgId: string): Promise<any | null> {
   if (!orgId) return null;
 
   if (!orgStore.isLoaded() || orgStore.getOrgId() !== orgId) {
-    console.log('[Raw Data] orgStore not loaded — bootstrapping for', orgId);
+    console.log('[Raw Data] orgStore not loaded, bootstrapping for', orgId);
     await orgStore.load(orgId);
   }
 
@@ -693,7 +693,7 @@ export async function fetchRawOrgData(orgId: string): Promise<any | null> {
 // 0011_product_catalog.sql, which is the database's definition of a sale and
 // the one Product Performance and Sales by Countries already use. The filter
 // here used to be `status === 'pending' || status === 'sent'`, which missed
-// viewed, partially_paid, overdue, payment_submitted and advance_paid — so the
+// viewed, partially_paid, overdue, payment_submitted and advance_paid. So the
 // AI under-reported outstanding money and disagreed with every other screen.
 const COLLECTED_STATUSES = new Set(['paid']);
 const UNPAID_ISSUED_STATUSES = new Set([
@@ -757,7 +757,7 @@ function formatFinancials(finDocs: any, expenses: any): string {
 }
 
 /**
- * Format the ROADMAP for the AI prompt — orgStore's `products` section, which
+ * Format the ROADMAP for the AI prompt, orgStore's `products` section, which
  * is ProductPlanner's backlog. What the company SELLS is a different section
  * (`catalog`) and a different formatter; see formatCatalog below.
  */
@@ -767,7 +767,7 @@ function formatProducts(products: any): string {
   if (items.length === 0) return 'No roadmap items found.';
 
   const formatted = items.map((p, idx) =>
-    `${idx + 1}. ${p.name || 'Unnamed'} — ${p.status || 'planned'} (${p.priority || 'medium'} priority)${p.due_date ? `, due ${p.due_date}` : ''}`
+    `${idx + 1}. ${p.name || 'Unnamed'} · ${p.status || 'planned'} (${p.priority || 'medium'} priority)${p.due_date ? `, due ${p.due_date}` : ''}`
   );
   return `PRODUCT ROADMAP (planned/in-progress work, NOT the sales catalogue):\n${formatted.join('\n')}`;
 }
@@ -777,7 +777,7 @@ function formatProducts(products: any): string {
  *
  * units_sold / revenue / revenue_paid / last_sold_at are maintained in Postgres
  * by app.recompute_catalog_sales() off the issued invoices, so these are the
- * same numbers the Products page shows — the model is not asked to add anything
+ * same numbers the Products page shows. The model is not asked to add anything
  * up, only to read the ranking. That matters: totals an LLM derives itself from
  * a list of invoices are exactly the kind of number it gets confidently wrong.
  */
@@ -792,7 +792,7 @@ function formatCatalog(catalog: any): string {
   const lines = ranked.map((p, idx) => {
     const parts = [`${idx + 1}. ${p.name || 'Unnamed'}`];
     if (p.sku) parts.push(`[${p.sku}]`);
-    parts.push(`— ${money(p.unit_price)} per ${p.unit || 'Nos'}`);
+    parts.push(` · ${money(p.unit_price)} per ${p.unit || 'Nos'}`);
     parts.push(`(${p.category || 'Uncategorised'}, ${p.tax_rate ?? 18}% GST${p.hsn_sac ? `, HSN ${p.hsn_sac}` : ''})`);
     if (Number(p.units_sold) > 0) {
       parts.push(`| sold ${Number(p.units_sold).toLocaleString('en-IN')} units across ${p.invoice_count} invoice(s), ${money(p.revenue)} billed, ${money(p.revenue_paid)} collected, last sold ${p.last_sold_at || 'unknown'}`);
@@ -857,8 +857,8 @@ function formatCRM(crm: any): string {
 
   // company_name / person_name / stage / value are what orgStore's
   // crm_leads.fromRow emits. This used to read item.name / item.company /
-  // item.contact and bucket on stages named 'customer' and 'won' — none of
-  // which exist — so every lead rendered as "Unknown [unknown]" and both
+  // item.contact and bucket on stages named 'customer' and 'won' · none of
+  // which exist: so every lead rendered as "Unknown [unknown]" and both
   // buckets were empty on real data.
   const nameOf = (i: any) =>
     i.company_name || i.person_name || i.name || i.company || 'Unnamed lead';
@@ -910,7 +910,7 @@ function formatCRM(crm: any): string {
 }
 
 /**
- * Format the client directory — the `customers` table — for the AI prompt.
+ * Format the client directory. The `customers` table: for the AI prompt.
  *
  * There was no formatter for this section at all, so nothing in the AI's
  * context ever mentioned a client. Deliberately separate from formatCRM: a lead
@@ -1068,7 +1068,7 @@ export function formatRawDataForPrompt(
     intent,
   });
 
-  // Include relevant data sections based on query content — regardless of intent type.
+  // Include relevant data sections based on query content, regardless of intent type.
   // Reasoning queries ("should I hire?") need the same raw data as factual queries
   // to avoid hallucination.
   if (needsEmployees) {
@@ -1086,7 +1086,7 @@ export function formatRawDataForPrompt(
   }
   if (needsFinancials || needsProducts) {
     // The catalogue is what answers "what is our best-selling product this
-    // quarter" — a question the invoices alone cannot answer, because without
+    // quarter" · a question the invoices alone cannot answer, because without
     // catalog_item_id the model would be matching product names against
     // free-text line descriptions and guessing.
     sections.push(formatCatalog(orgData.catalog));

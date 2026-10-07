@@ -15,7 +15,7 @@ import {
 } from '../../services/libraryService';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Document library — General Documents, Organisational Process Assets and
+   Document library: General Documents, Organisational Process Assets and
    the Lessons Learned Register. Three registers, one way of working: the
    switch at the top picks the register, and uploads land in it.
 
@@ -43,14 +43,14 @@ const METHOD = {
 };
 
 function fmtSize(b) {
-    if (!b) return '—';
+    if (!b) return '-';
     if (b < 1024) return `${b} B`;
     if (b < 1048576) return `${Math.round(b / 1024)} KB`;
     return `${(b / 1048576).toFixed(1)} MB`;
 }
 
 function fmtDate(iso) {
-    if (!iso) return '—';
+    if (!iso) return '-';
     return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
@@ -296,7 +296,7 @@ export default function DocumentLibrary() {
                                         <Muted>{d.file_name}{d.page_count ? ` · ${d.page_count} ${d.extraction_method === 'pptx' ? 'slides' : d.extraction_method === 'sheet' ? 'sheets' : 'pages'}` : ''}</Muted>
                                         {hit && (
                                             <div style={{ fontSize: 12, color: t.dim, marginTop: 4, lineHeight: 1.5 }}>
-                                                {hit.heading && <span style={{ color: t.faint }}>{hit.heading} — </span>}{hit.snippet}
+                                                {hit.heading && <span style={{ color: t.faint }}>{hit.heading} · </span>}{hit.snippet}
                                             </div>
                                         )}
                                     </Td>
@@ -388,12 +388,12 @@ function UploadOverlay({ queue, active, onMore, onClose }) {
                         : `${added} file${added === 1 ? '' : 's'} uploaded`}
                 </div>
                 <div style={{ fontSize: 12.5, color: t.dim, marginTop: 4, lineHeight: 1.5 }}>
-                    {busy ? `${active} of ${queue.length} remaining — reading can take up to a minute per file`
+                    {busy ? `${active} of ${queue.length} remaining: reading can take up to a minute per file`
                         : failed.length && added ? `${failed.length} could not be added` : ''}
                 </div>
                 {!busy && failed.length > 0 && (
                     <ul style={{ listStyle: 'none', margin: '10px 0 0', padding: 0, textAlign: 'left', fontSize: 12, color: t.down }}>
-                        {failed.map((j) => <li key={j.key} style={{ padding: '2px 0' }}>{j.name} — {j.error}</li>)}
+                        {failed.map((j) => <li key={j.key} style={{ padding: '2px 0' }}>{j.name} · {j.error}</li>)}
                     </ul>
                 )}
                 {!busy && (
@@ -523,7 +523,7 @@ function DocumentSheet({ id, orgId, canEdit, canDelete, onClose, onChanged, onRe
                                 onChange={(e) => setForm({ ...form, tags: e.target.value })} />
                         </Field>
                     </div>
-                    <Field label="Description" hint="What this document is for — EdgeBrain reads this too" wide>
+                    <Field label="Description" hint="What this document is for, EdgeBrain reads this too" wide>
                         <Textarea rows={2} value={form.description} maxLength={2000} disabled={!canEdit}
                             onChange={(e) => setForm({ ...form, description: e.target.value })} />
                     </Field>

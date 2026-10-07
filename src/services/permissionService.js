@@ -69,7 +69,7 @@ export function nextFlags(flags, resource, action, value) {
   return next;
 }
 
-/** One person's exceptions, keyed by resource — or null when this database
+/** One person's exceptions, keyed by resource. Or null when this database
     predates 0062 and cannot hold any. */
 export async function loadMemberOverrides(membershipId) {
   const { data, error } = await supabase
@@ -105,7 +105,7 @@ export async function clearMemberOverride(membershipId, resource) {
 }
 
 /**
- * The caller's effective permissions — role plus their own exceptions — as
+ * The caller's effective permissions: role plus their own exceptions, as
  * { resource: { view, create, edit, delete } }. Falls back to the role alone
  * where 0062 has not been applied yet, so a lagging database shows what it
  * still enforces instead of nothing.

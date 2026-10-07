@@ -5,8 +5,8 @@
  *
  * Everything privileged lives here: building and resynchronising the brain
  * (which reads every tenant table through the service role) and answering a
- * question (which spends money on Gemini). Plain reads — search, the graph, a
- * node's neighbourhood — are also offered here as generic capabilities, but the
+ * question (which spends money on Gemini). Plain reads, search, the graph, a
+ * node's neighbourhood: are also offered here as generic capabilities, but the
  * browser can equally read brain_nodes / brain_edges / brain_metrics directly,
  * because their RLS policies enforce exactly the same permission check this
  * file applies by hand. Two paths, one rule, and the database has the final say
@@ -110,7 +110,7 @@ async function status(orgId, perms, allowed, role) {
       .order('started_at', { ascending: false }).limit(5),
   ]);
 
-  // What the brain holds, by kind — the coverage figure the health view reads.
+  // What the brain holds, by kind. The coverage figure the health view reads.
   let byKind = [];
   if (state?.status === 'ready') {
     const { data } = await db
@@ -167,7 +167,7 @@ async function sync(orgId, userId, perms, mode) {
     .rpc('brain_sync', { p_org: orgId, p_mode: mode, p_actor: userId });
   if (error) throw new HttpError(500, `Synchronisation failed: ${error.message}`);
 
-  // Another sync already holds this org's lock. Not an error — the work the
+  // Another sync already holds this org's lock. Not an error. The work the
   // caller asked for is happening; it just is not this call doing it.
   if (data?.skipped) {
     return { success: true, skipped: true, message: data.reason, result: data };
@@ -190,7 +190,7 @@ async function sync(orgId, userId, perms, mode) {
  *
  * This is what the AI co-founder and the assistant panel call. They already
  * have streaming, conversation history, company memory and their own persona;
- * what they lacked was data — one was handed a fistful of hardcoded zeroes and
+ * what they lacked was data, one was handed a fistful of hardcoded zeroes and
  * the other loaded the entire org cache into the browser to run a thousand-line
  * formatter over it. Both now get the same permission-filtered, provenance-
  * stamped package the EdgeBrain Ask view reasons over, assembled server-side in
@@ -207,7 +207,7 @@ async function context(res, { orgId, perms, allowed, body }) {
     .from('brain_state')
     .select('status, last_sync_at').eq('org_id', orgId).maybeSingle();
 
-  // No brain yet is not an error — the caller falls back to its own context.
+  // No brain yet is not an error. The caller falls back to its own context.
   // The document library does not depend on a build (it is read at upload),
   // so its passages are still offered on their own.
   if (!state || state.status === 'absent') {
@@ -246,32 +246,32 @@ to what this user is permitted to see.
 
 Rules:
 1. AUTHORITATIVE AGGREGATES are computed in PostgreSQL. Quote them exactly. Never
-   recompute a total by adding up the ENTITIES you were shown — that list is a
+   recompute a total by adding up the ENTITIES you were shown. That list is a
    relevant sample, not the whole table.
 2. A breakdown you were given as an aggregate is the answer to that breakdown.
-   If the question asks for a split — by country, by month, by department — and
+   If the question asks for a split, by country, by month, by department, and
    an aggregate covers it, read the ranking off those buckets. Do not rebuild
    the same split by joining the ENTITIES yourself: they are a sample, so the
    ranking you get from them is a ranking of the sample, which is how the same
    question ends up with a different answer each time it is asked.
 3. Where an aggregate's definition says which field it uses and an entity
-   carries a conflicting value, the definition wins. Say which one you used —
-   "by the country on the invoice" — rather than switching silently.
+   carries a conflicting value, the definition wins. Say which one you used,
+   "by the country on the invoice" · rather than switching silently.
 4. ENTITIES are verbatim records. Their values are current as of the as_of stamp.
 5. NEVER claim something does not exist, or that a list is everything, unless
    INVENTORY or an aggregate says so. "We have no other X", "that is all of
    them", "X has zero" and "there are none" are claims about a whole table, and
    the ENTITIES block is a selection, so it cannot support one. Where INVENTORY
    counts more records than you were shown, say what you were given and that
-   more exist — "the three largest of twelve clients", not "our clients".
+   more exist: "the three largest of twelve clients", not "our clients".
 6. If the context does not contain the answer, say so plainly and name what is
-   missing, then say what would answer it — an aggregate that is not computed,
+   missing, then say what would answer it. An aggregate that is not computed,
    a field that is empty, records not retrieved. A precise "I cannot tell you
    that from this, because…" is a correct answer. A confident wrong one is not.
    Never estimate, extrapolate or invent a figure to avoid saying it.
 7. Do not change your answer between turns unless the records changed or you
    were wrong. If you were wrong, say which of the two answers was wrong and
-   why — a silently different second answer destroys trust in both. If the user
+   why: a silently different second answer destroys trust in both. If the user
    pushes back and the records still say what they said, hold the answer and
    show the record behind it.
 8. If you offer an interpretation or a recommendation, mark it clearly as your

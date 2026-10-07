@@ -1,4 +1,4 @@
-// Announcements — broadcast to the whole team or one department.
+// Announcements: broadcast to the whole team or one department.
 //
 // The audience is `department_id`: null means everyone. Who can actually read a
 // notice is decided by RLS (0029 §6), not by this screen, so an announcement

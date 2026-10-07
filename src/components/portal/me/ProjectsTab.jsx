@@ -6,7 +6,7 @@ import { statusLabel } from '../../../services/projectAnalytics';
 import { fmtLongDay } from './portalUtils';
 
 /* "My projects": the projects you are on, your role, the manager, what is due
-   next, and your own tasks — which you can move along here. No money and no
+   next, and your own tasks, which you can move along here. No money and no
    one else's time share: it all comes from my_projects() (0052), which returns
    neither. */
 

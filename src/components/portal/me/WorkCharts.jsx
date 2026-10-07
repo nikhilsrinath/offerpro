@@ -1,4 +1,4 @@
-// WorkCharts.jsx — the attendance charts, drawn once and used twice: in the
+// WorkCharts.jsx: the attendance charts, drawn once and used twice: in the
 // employee's own portal and in the admin's sheet for that employee, so both
 // sides of the same record read the same picture.
 //
@@ -71,7 +71,7 @@ export function MonthsWorkedChart({ months, currentKey, height = 210, empty = 'N
                 [monthLabel(m.key), null],
                 ['Days worked', m.days],
                 ['Hours', hoursLabel(m.minutes)],
-                ['Attendance', m.rate == null ? '—' : `${Math.round(m.rate * 100)}%`],
+                ['Attendance', m.rate == null ? '-' : `${Math.round(m.rate * 100)}%`],
               ]} />}
             />
             <Bar dataKey="days" radius={[4, 4, 0, 0]} maxBarSize={26}>

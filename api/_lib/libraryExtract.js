@@ -3,20 +3,20 @@
  *
  * Turns an uploaded file into one Markdown document, then cuts that Markdown
  * into passages for retrieval. Nothing here touches the database or the
- * network except `ocr`, which the caller injects — so every format path is a
+ * network except `ocr`, which the caller injects. So every format path is a
  * pure function of the bytes, and testable as one.
  *
  * ─── Why Markdown ──────────────────────────────────────────────────────────
  * It is the one representation every format degrades into without losing what
  * the AI needs: headings survive as `##`, a spreadsheet as a table, a deck as a
- * section per slide. And every section heading is provenance — "Page 4",
- * "Slide 7", "Sheet: Q3" — so a passage retrieved months later still says
+ * section per slide. And every section heading is provenance, "Page 4",
+ * "Slide 7", "Sheet: Q3" · so a passage retrieved months later still says
  * where in the file it came from.
  *
  * ─── Deterministic first ───────────────────────────────────────────────────
  * Text, PDFs with a text layer, Office files and spreadsheets are read by
- * parsing, which is exact and free. Only what has no text to parse — a photo,
- * a scan — goes to the model, and the result says which path was taken, so a
+ * parsing, which is exact and free. Only what has no text to parse. A photo,
+ * a scan: goes to the model, and the result says which path was taken, so a
  * reader knows whether they are looking at the file's own words or a
  * transcription of them.
  */
@@ -47,7 +47,7 @@ export function extOf(fileName) {
   return m ? m[1] : '';
 }
 
-/** Which reader a file needs. Extension first — browsers report office MIME types unreliably. */
+/** Which reader a file needs. Extension first, browsers report office MIME types unreliably. */
 export function formatOf(fileName, mimeType = '') {
   const byExt = EXT_FORMAT[extOf(fileName)];
   if (byExt) return byExt;
@@ -247,7 +247,7 @@ function tidyMarkdown(md) {
  *
  * `ocr(bytes, mimeType, hint)` is injected by the caller and returns Markdown;
  * it is only invoked for images and PDFs with no text layer. When it is absent
- * those files come back `unsupported` rather than failing — the file is still
+ * those files come back `unsupported` rather than failing: the file is still
  * stored, it just cannot be read.
  *
  * Returns { status, method, markdown, pages, error }. `status` is `ready`,
@@ -341,7 +341,7 @@ function normaliseImageMime(mimeType, ext) {
  * Cuts the Markdown into passages of about `target` characters.
  *
  * Boundaries are paragraphs, never mid-sentence, and a `##` heading always
- * starts a new passage — so a passage never straddles two pages or two slides,
+ * starts a new passage. So a passage never straddles two pages or two slides,
  * and its `heading` is exactly where in the file it came from. A paragraph
  * longer than the limit on its own (a big table, a wall of text) is split on
  * lines, then hard-split as a last resort.

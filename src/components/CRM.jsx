@@ -29,7 +29,7 @@ const STAGE_IDS = new Set(COLUMNS.map(c => c.id));
 
 // The pipeline column lives in crm_leads.stage. Leads written before this
 // component used the column carry it as `status` inside the jsonb `extra`
-// instead, and their `stage` was left at the 'lead' default — so fall back to
+// instead, and their `stage` was left at the 'lead' default: so fall back to
 // `status` only when `stage` still reads as the default. Both are written
 // together now, which makes the fallback a no-op for anything saved since.
 function leadStage(lead) {
@@ -152,7 +152,7 @@ export default function CRM({ project = null }) {
           const { keptPrimary } = await assignProject(leadId, chosen, fromProject, cp.projects, cp.links);
           if (keptPrimary) {
             const p = cp.projects.find(x => x.id === keptPrimary);
-            toast(`Still the main client of ${p?.name || 'their project'} — change that from the project`, 'info');
+            toast(`Still the main client of ${p?.name || 'their project'}. Change that from the project`, 'info');
           }
         } catch (err) {
           toast('Lead saved, but the project could not be set: ' + err.message, 'error');
@@ -178,7 +178,7 @@ export default function CRM({ project = null }) {
   // Moving a card is now one update to one row.
   //
   // Under the split tables, dragging to "Deal" also upserted a copy of the lead
-  // into `customers` — entity-decision.md §5 row 5 marks that copy as deleted by
+  // into `customers` · entity-decision.md §5 row 5 marks that copy as deleted by
   // the merge. Since 0016 both screens read `clients`, so the stage change IS the
   // promotion: the crm_leads adapter maps stage 'deal' to status 'active', which
   // is exactly what the Customers page filters on. The old call also wrote
@@ -265,7 +265,7 @@ export default function CRM({ project = null }) {
         </div>
         <div className="crm-card-person">
           <User size={12} />
-          {lead.person_name || '—'}
+          {lead.person_name || '-'}
         </div>
         {!project && (
           <div className="crm-card-detail" style={cp.namesOf(lead.id).length ? undefined : { opacity: 0.6 }}>
@@ -380,7 +380,6 @@ export default function CRM({ project = null }) {
         {/* Column Tab Switcher */}
         <div className="crm-tabs">
           {COLUMNS.map(col => {
-            const count = (grouped[col.id] || []).length;
             const isActive = mobileTab === col.id;
             return (
               <button
@@ -391,7 +390,6 @@ export default function CRM({ project = null }) {
               >
                 <span className="crm-tab-dot" style={{ background: col.color }} />
                 <span className="crm-tab-label">{col.label}</span>
-                <span className="crm-tab-count">{count}</span>
               </button>
             );
           })}
@@ -446,7 +444,7 @@ export default function CRM({ project = null }) {
                 <ClientProjectSelect id="lead-project" cp={cp} value={formData.project}
                   onChange={p => setFormData({ ...formData, project: p })} />
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem', display: 'block' }}>
-                  Choose Others when they are not on a project yet — you can move them onto one any time.
+                  Choose Others when they are not on a project yet. You can move them onto one any time.
                 </span>
               </div>
               <div className="easy-field">

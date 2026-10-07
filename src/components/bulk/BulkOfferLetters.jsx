@@ -244,7 +244,7 @@ export default function BulkOfferLetters() {
                                     title={res.candidate_name}
                                     subtitle={[res.role, res.department].filter(Boolean).join(' · ')}
                                     status={res.status}
-                                    timestamp={res.status === 'Generated' ? `ID ${res.docId}` : (res.error || '—')}
+                                    timestamp={res.status === 'Generated' ? `ID ${res.docId}` : (res.error || '-')}
                                     onPreview={res.status === 'Generated' ? () => window.open(res.portalUrl, '_blank', 'noopener') : null}
                                     previewLabel="Open portal"
                                     onDownload={res.status === 'Generated' ? () => handleCopyLink(res.portalUrl, res.docId) : null}

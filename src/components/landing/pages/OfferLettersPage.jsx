@@ -117,7 +117,7 @@ const OfferLettersPage = () => (
                           <div style={{ fontWeight: 700, fontSize: '8pt', marginBottom: 4 }}>To,</div>
                           <div style={{ fontSize: '7.5pt', marginBottom: 10 }}>Priya Sharma<br/>Bangalore, Karnataka</div>
                           <div style={{ fontWeight: 700, fontSize: '8pt', marginBottom: 8, borderBottom: '1px solid #eee', paddingBottom: 6 }}>
-                            Subject: Offer of Full-Time Employment — Senior Frontend Engineer
+                            Subject: Offer of Full-Time Employment: Senior Frontend Engineer
                           </div>
                           <div style={{ fontSize: '7pt', marginBottom: 6 }}>Dear Priya Sharma,</div>
                           <div style={{ fontSize: '6.5pt', color: '#333', lineHeight: 1.5, marginBottom: 6 }}>
@@ -151,7 +151,7 @@ const OfferLettersPage = () => (
         {/* Workflow */}
         <div className="sp-section-label eos-parallax">
           <h2>Hiring Pipeline</h2>
-          <p>From offer creation to candidate acceptance — fully tracked.</p>
+          <p>From offer creation to candidate acceptance, fully tracked.</p>
         </div>
         <div className="sp-flow eos-parallax">
           <div className="sp-flow-step"><div className="sp-flow-icon"><FileText size={22} /></div><span className="sp-flow-label">Create Offer</span></div>

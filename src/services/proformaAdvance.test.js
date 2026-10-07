@@ -14,7 +14,7 @@ describe('advanceOf', () => {
     expect(a.advance).toBe(22420);
   });
 
-  it('honours an explicit 0% — no advance at all', () => {
+  it('honours an explicit 0%. No advance at all', () => {
     expect(advanceOf({ grand_total: 1000, advance_percent: 0 })).toMatchObject({ advance: 0, balance: 1000 });
   });
 

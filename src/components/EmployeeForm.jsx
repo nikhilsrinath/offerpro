@@ -1,9 +1,11 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGoBack } from './shell/navHistory';
 import { storageService } from '../services/storageService';
 import { uploadOrgImage } from '../services/imageUploadService';
 import EmployeeAvatar from './shared/EmployeeAvatar';
+import DepartmentsPanel from './people/DepartmentsPanel';
+import { departmentRows } from './people/departments';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 import { orgStore } from '../services/orgStore';
@@ -63,6 +65,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
     const [saving, setSaving] = useState(false);
     const [done, setDone] = useState(false);
     const [depts, setDepts] = useState([]);
+    const [showDepts, setShowDepts] = useState(false);
     const photoInput = useRef(null);
     const [photoBusy, setPhotoBusy] = useState(false);
     const [photoError, setPhotoError] = useState('');
@@ -71,12 +74,19 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
         ? { ...blank(org), ...employee, studentName: employee.studentName || employee.first_name || '', id: employee.id }
         : blank(org)));
 
-    useEffect(() => {
-        if (!activeOrg?.id) return;
-        storageService.getDepartments(activeOrg.id)
-            .then((d) => setDepts(d.map((x) => x.name)))
+    const loadDepts = useCallback(() => {
+        if (!activeOrg?.id) return Promise.resolve();
+        return storageService.getDepartments(activeOrg.id)
+            .then((d) => setDepts(d))
             .catch(() => setDepts([]));
     }, [activeOrg?.id]);
+    useEffect(() => { loadDepts(); }, [loadDepts]);
+
+    // Head-counts for the departments panel come from the people already on
+    // the registry, the same figures the Employees page shows.
+    const people = useMemo(() => (showDepts ? orgStore.getSectionAsList('employees') : []), [showDepts]);
+    const deptRows = useMemo(() => departmentRows(people, depts), [people, depts]);
+    const deptNames = useMemo(() => [...new Set(depts.map((d) => d.name))].sort(), [depts]);
 
     const set = (field) => (e) => setForm((p) => ({
         ...p, [field]: e?.target ? (e.target.type === 'checkbox' ? e.target.checked : e.target.value) : e,
@@ -85,6 +95,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
     // The saved department_id outranks the name when the row is written, so a
     // new pick has to drop it or the edit keeps the old department.
     const setDepartment = (e) => setForm((p) => ({ ...p, department: e.target.value, department_id: undefined }));
+    const pickDepartment = (name) => setForm((p) => ({ ...p, department: name, department_id: undefined }));
 
     const dated = form.offerType === 'internship' || form.offerType === 'collaboration';
     // A new hire needs all four; an edit only needs a name, so records made
@@ -134,7 +145,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                 // registry immediately and the offer letter is filed as a
                 // record they can download. It is not a portal offer awaiting a
                 // signature, so it is stored as already accepted and linked to
-                // the employee — that keeps it out of the Recruitment Tracker's
+                // the employee: that keeps it out of the Recruitment Tracker's
                 // pending list and stops the acceptance sync creating the same
                 // person twice.
                 const saved = await storageService.saveEmployee(form, activeOrg?.id);
@@ -204,8 +215,8 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
 
                         <div style={{ flex: '1 1 320px', minWidth: 0 }}>
                             <Grid min={200} gap={13}>
-                                <Field label="Employee ID" hint={isEdit ? undefined : 'Generated when they are added'}>
-                                    <Input value={form.employee_code || ''} disabled placeholder="EMP-0001" aria-label="Employee ID" />
+                                <Field label="Employee ID">
+                                    <Input value={form.employee_code || ''} disabled placeholder={isEdit ? '' : 'Generated when they are added'} aria-label="Employee ID" />
                                 </Field>
                                 <Field required label="Full name"><Input value={form.studentName} onChange={set('studentName')} /></Field>
                                 <Field required={!isEdit} label="Email">
@@ -230,19 +241,30 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                     <div style={{ height: 13 }} />
                     <Grid min={200} gap={13}>
                         <Field required={!isEdit} label="Job title"><Input value={form.role} onChange={set('role')} /></Field>
-                        <Field label="Department">
-                            {depts.length > 0 ? (
-                                <Select value={form.department} onChange={setDepartment}>
-                                    <option value="">None</option>
-                                    {depts.map((d) => <option key={d} value={d}>{d}</option>)}
-                                    {form.department && !depts.includes(form.department) && (
-                                        <option value={form.department}>{form.department}</option>
-                                    )}
-                                </Select>
-                            ) : (
-                                <Input value={form.department} onChange={setDepartment} />
-                            )}
-                        </Field>
+                        <Row gap={8} align="flex-end" wrap>
+                            <div style={{ flex: '1 1 140px', minWidth: 0 }}>
+                                <Field label="Department">
+                                    <Select value={form.department} onChange={setDepartment}>
+                                        <option value="">None</option>
+                                        {deptNames.map((d) => <option key={d} value={d}>{d}</option>)}
+                                        {form.department && !deptNames.includes(form.department) && (
+                                            <option value={form.department}>{form.department}</option>
+                                        )}
+                                    </Select>
+                                </Field>
+                            </div>
+                            <Btn onClick={() => setShowDepts((v) => !v)} aria-expanded={showDepts}>
+                                {showDepts ? 'Close' : 'Add new department'}
+                            </Btn>
+                        </Row>
+                        {showDepts && (
+                            <div style={{ gridColumn: '1 / -1', maxWidth: 340 }}>
+                                <DepartmentsPanel rows={deptRows} total={people.length} orgId={activeOrg?.id}
+                                    onChanged={loadDepts} active={form.department}
+                                    onPick={pickDepartment}
+                                    onAdded={(name) => { pickDepartment(name); setShowDepts(false); }} />
+                            </div>
+                        )}
                         <Field label="Reports to"><Input value={form.supervisorName} onChange={set('supervisorName')} /></Field>
                         <Field required={!isEdit} label="Start date"><Input type="date" value={form.startDate} onChange={set('startDate')} /></Field>
                         {dated && <Field label="End date"><Input type="date" value={form.endDate} onChange={set('endDate')} /></Field>}

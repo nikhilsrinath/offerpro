@@ -27,7 +27,7 @@ const cashOut = (over) => ({
   status: 'paid', payment_method: 'bank_transfer', ...over,
 });
 
-describe('profitAndLoss — what counts as income', () => {
+describe('profitAndLoss: what counts as income', () => {
   it('adds cash-book receipts to invoiced income, at net of GST', () => {
     const pl = profitAndLoss({
       docs: [inv()],
@@ -38,7 +38,7 @@ describe('profitAndLoss — what counts as income', () => {
     expect(pl.income).toBe(2000);
   });
 
-  it('leaves funding out of income — a loan is cash, not revenue', () => {
+  it('leaves funding out of income. A loan is cash, not revenue', () => {
     const pl = profitAndLoss({
       income: [
         cashIn({ category: 'loan_received', treatment: 'capital_in', amount: 500000, net_amount: 500000 }),
@@ -81,7 +81,7 @@ describe('profitAndLoss — what counts as income', () => {
   });
 });
 
-describe('profitAndLoss — what counts as a cost', () => {
+describe('profitAndLoss: what counts as a cost', () => {
   it('excludes spend that moves cash without reducing profit', () => {
     const pl = profitAndLoss({
       docs: [inv()],
@@ -215,7 +215,7 @@ describe('taxSummary', () => {
   });
 });
 
-describe('periodSeries — the P&L chart follows the period', () => {
+describe('periodSeries: the P&L chart follows the period', () => {
   const data = () => ({
     docs: [inv({ issue_date: '2026-09-10' })],
     purchases: [],
@@ -252,7 +252,7 @@ describe('periodSeries — the P&L chart follows the period', () => {
   });
 });
 
-describe('periodOptions — financial years', () => {
+describe('periodOptions: financial years', () => {
   it('lists FYs a year apart, April to March', () => {
     const [a, b] = periodOptions('fy', 2);
     expect(a.from.slice(5)).toBe('04-01');

@@ -1,7 +1,7 @@
 /**
  * Entity resolution: from what somebody said to the one record they meant.
  *
- * "that task", "the pricing one", "Acme", "INV-0042", "him" — each has to land
+ * "that task", "the pricing one", "Acme", "INV-0042", "him" · each has to land
  * on exactly one row, or on a short list the person picks from, or on an
  * honest "I looked for X and found nothing". It never lands on a guess: two
  * plausible matches are always shown as a choice.
@@ -43,7 +43,7 @@ export function normalize(s) {
 
 export const words = (s) => normalize(s).split(' ').filter((w) => w && !STOP.has(w));
 
-/** Levenshtein distance, capped — only ever asked whether it is ≤ 1 or 2. */
+/** Levenshtein distance, capped: only ever asked whether it is ≤ 1 or 2. */
 function editDistance(a, b, cap = 3) {
   if (Math.abs(a.length - b.length) > cap) return cap;
   const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
@@ -122,7 +122,7 @@ export const FLOOR = 30;       // below this it is not a candidate at all
  *
  * `rows` are `{ id, aliases, updatedAt?, mine?, inactive? }`. `recentIds` are
  * ids the conversation already mentioned (newest first); `pageId` is the
- * record open on screen. Those break ties between equally good names — they
+ * record open on screen. Those break ties between equally good names. They
  * never lift a poor name over a good one.
  *
  * Returns { status: 'one', match } | { status: 'many', candidates } |
@@ -172,7 +172,7 @@ export const CODE = /^[a-z]{2,6}[-/ ]?\d[\w/-]*$/i;
 /**
  * What each kind of entity is, where it lives and what it may be called.
  * `resource` is the permission key a user needs `view` on for the kind to be
- * searchable at all — an array means any of those keys (the live database
+ * searchable at all: an array means any of those keys (the live database
  * calls attendance `attendance`, the migrations `attendance_days`).
  */
 export const KINDS = {
@@ -272,8 +272,8 @@ export function entityOf(kind, row) {
  *
  * Returns
  *   { status: 'one',  row, entity }
- *   { status: 'many', candidates: [{ row, entity }] }   — never more than 5
- *   { status: 'none', searched }                        — what was looked for
+ *   { status: 'many', candidates: [{ row, entity }] } · never more than 5
+ *   { status: 'none', searched } · what was looked for
  */
 export async function resolveEntity(kind, ref, ctx, { filter = null } = {}) {
   const def = KINDS[kind];
@@ -294,7 +294,7 @@ export async function resolveEntity(kind, ref, ctx, { filter = null } = {}) {
   if (isBackReference(text)) {
     // The newest things of this kind the conversation touched, else the one
     // on screen. If the latest turn that mentioned this kind mentioned
-    // several — a list of three overdue tasks — "it" is one of them, and
+    // several: a list of three overdue tasks, "it" is one of them, and
     // which one is asked, not assumed. If nothing fits, "it" means nothing
     // yet, and we ask.
     const live = recent.filter((e) => rows.some((r) => r.id === e.id));
@@ -342,7 +342,7 @@ export async function resolveEntity(kind, ref, ctx, { filter = null } = {}) {
 }
 
 /**
- * Several references at once — a batch. Unresolvable or ambiguous ones are
+ * Several references at once. A batch. Unresolvable or ambiguous ones are
  * reported rather than dropped, so the card can say what it left out.
  */
 export async function resolveMany(kind, refs, ctx) {

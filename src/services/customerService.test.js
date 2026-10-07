@@ -101,7 +101,7 @@ describe('customerService.syncFromInvoices', () => {
     const svc = await freshService();
     const org = `${ORG}-${syncOrgCounter}`;
 
-    // A hand-added client, and a CRM lead just dragged to "Deal" — neither has
+    // A hand-added client, and a CRM lead just dragged to "Deal" · neither has
     // been invoiced yet. Both were destroyed by the old delete arm.
     await svc.create(org, { clientName: 'Hand Added Ltd', clientEmail: 'a@example.com' });
     await svc.create(org, { clientName: 'Fresh Deal Co', clientEmail: 'b@example.com' });

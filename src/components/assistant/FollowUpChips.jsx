@@ -1,7 +1,7 @@
 import React from 'react';
 
 /* One missing detail, asked as one question. The chips are the likely
-   answers; typing any other answer works too — the next message is read as
+   answers; typing any other answer works too. The next message is read as
    the answer first (api/agent.js `pending`), and only reaches the model if
    it cannot be. */
 export default function FollowUpChips({ options, onPick, disabled, label }) {

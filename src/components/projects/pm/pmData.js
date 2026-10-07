@@ -58,7 +58,7 @@ export function usePmData(project) {
                 create: orgStore.can('tasks', 'create'),
                 // The matrix's actions are view / create / edit / delete
                 // (permissionService). Asking for 'update' was always false,
-                // which left every WBS edit — Save, reassign, move — disabled.
+                // which left every WBS edit, Save, reassign, move, disabled.
                 edit: orgStore.can('tasks', 'edit'),
                 remove: orgStore.can('tasks', 'delete'),
                 // Marking a task important is an owner's or admin's call (0077).
@@ -94,7 +94,7 @@ export function pmError(e) {
     return m || 'That did not save. Try again.';
 }
 
-/** Add a node under `parentId` (null: a sub-project at the top). */
+/** Add a node under `parentId` (null: a deliverable at the top). */
 export function createNode(data, { parentId = null, title, assignedTo = '', startDate = null, deadline = null, description = '', priority = 'medium', important, position }) {
     const siblings = parentId ? data.tree.kids.get(parentId) || [] : data.tree.roots;
     const emp = data.empById.get(assignedTo) || {};
@@ -119,7 +119,7 @@ export function createNode(data, { parentId = null, title, assignedTo = '', star
     });
 }
 
-/** Several task updates at once — a move, a renumber, a reschedule. */
+/** Several task updates at once. A move, a renumber, a reschedule. */
 export async function applyWrites(writes) {
     for (const w of writes) {
         const { id, ...rest } = w;
@@ -128,7 +128,7 @@ export async function applyWrites(writes) {
 }
 
 /**
- * Mark a task important, or not — it then shows (or stops showing) under
+ * Mark a task important, or not. It then shows (or stops showing) under
  * "Needs attention" on the project dashboards. The cache is written first;
  * if the database refuses, the tasks are re-read so the star goes back.
  */
@@ -171,7 +171,7 @@ export function deleteBranch(data, id) {
 }
 
 /**
- * Ask, then delete a node with its whole branch — the database cascades
+ * Ask, then delete a node with its whole branch. The database cascades
  * sub-tasks (0072), so the question names how many go with it rather than
  * leaving them behind. Resolves true once deleted, false if not confirmed.
  * If the database refuses, the tasks are re-read so nothing vanishes from the
@@ -210,11 +210,11 @@ export function removeLink(id) {
 /* ── reading ──────────────────────────────────────────────────────────────── */
 
 export const fmtD = (day) => {
-    if (day == null) return '—';
+    if (day == null) return '-';
     return new Date(day * 86400000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 };
 export const fmtDY = (day) => {
-    if (day == null) return '—';
+    if (day == null) return '-';
     return new Date(day * 86400000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 };
 

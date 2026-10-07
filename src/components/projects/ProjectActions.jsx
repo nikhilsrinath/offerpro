@@ -12,7 +12,7 @@ import {
 import { RowMenu } from './pm/pmUi';
 import ProjectForm from './ProjectForm';
 
-/* The project's own controls — its status, and Edit / Duplicate / Archive /
+/* The project's own controls: its status, and Edit / Duplicate / Archive /
    Delete under one Actions menu. Shown on the project's home and its
    Overview dashboard only; every other page is about its section. */
 export default function ProjectActions({ project }) {

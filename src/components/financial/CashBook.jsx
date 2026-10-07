@@ -40,7 +40,7 @@ const VIEWS = [
 
 /**
  * The cash book: every rupee in and out that no invoice or vendor bill already
- * records — counter sales, retainers, interest, a founder putting money in, a
+ * records: counter sales, retainers, interest, a founder putting money in, a
  * salary run, a laptop, a loan repayment.
  *
  * The screen is built around one distinction that a single "add expense" box
@@ -56,8 +56,8 @@ export default function CashBook({ projectId = null }) {
   const [params, setParams] = useSearchParams();
 
   // With `projectId` (a project's Cash Book) only the entries linked to the
-  // project are listed and totalled — at the project's share of any entry
-  // split across projects — and a new entry starts on the project.
+  // project are listed and totalled, at the project's share of any entry
+  // split across projects: and a new entry starts on the project.
   const scope = useProjectScope(projectId);
   const allIncome = useSection('income_entries');
   const allExpenses = useSection('expenses');
@@ -74,7 +74,7 @@ export default function CashBook({ projectId = null }) {
   const bills = useSection('purchase_invoices');
 
   // On the company ledger every entry is split between the projects it is on
-  // and "General or Others" — office, rent, fuel, a loan. Only for those who
+  // and "General or Others" · office, rent, fuel, a loan. Only for those who
   // can see project money: without the allocations everything would look
   // General.
   const splitting = !scope && canSeeFinancials();
@@ -354,8 +354,8 @@ export default function CashBook({ projectId = null }) {
           <Banknote size={40} strokeWidth={1} aria-hidden="true" />
           <p>{rows.length === 0 ? (scope ? 'Nothing recorded against this project yet' : 'Nothing in the general ledger yet') : 'Nothing in this period or filter'}</p>
           <span>
-            Record cash that came in without an invoice and anything you spent — on product, on
-            labour, on the office, on tax. Both sides land in Profit &amp; Loss and in the Tax
+            Record cash that came in without an invoice and anything you spent (on product, on
+            labour, on the office, on tax). Both sides land in Profit &amp; Loss and in the Tax
             Summary straight away.
           </span>
         </div>
@@ -407,9 +407,9 @@ export default function CashBook({ projectId = null }) {
                         {r._share < 1 ? ` · ${where === GENERAL ? 'the general' : 'this project’s'} share of ${money(r._full.amount, 2)}` : ''}
                       </div>
                     </td>
-                    <td>{r.party || '—'}</td>
+                    <td>{r.party || '-'}</td>
                     {splitting && <td style={{ fontSize: '0.75rem' }}>{partsLabel(r)}</td>}
-                    <td style={{ fontSize: '0.75rem' }}>{r.country_code || '—'}</td>
+                    <td style={{ fontSize: '0.75rem' }}>{r.country_code || '-'}</td>
                     <td style={{ fontSize: '0.75rem' }}>{methodLabel(r.payment_method)}</td>
                     <td className="num strong" style={{ color: r.direction === 'in' ? 'var(--success)' : undefined }}>
                       {r.direction === 'in' ? money(r.amount, 2) : ''}
@@ -448,7 +448,7 @@ export default function CashBook({ projectId = null }) {
   );
 }
 
-// 1 … 4 5 6 … 12 — the first, last and neighbours of the current page.
+// 1 … 4 5 6 … 12. The first, last and neighbours of the current page.
 function pageList(page, count) {
   const keep = new Set([1, count, page - 1, page, page + 1].filter((n) => n >= 1 && n <= count));
   const out = [];

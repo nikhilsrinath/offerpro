@@ -100,7 +100,7 @@ export const taskStore = {
     notifyTasksChanged();
   },
 
-  /** Delete several tasks and wait for the database — a WBS branch, deepest
+  /** Delete several tasks and wait for the database. A WBS branch, deepest
       first (the database cascades too, this keeps the cache in step). */
   async removeMany(ids: string[]): Promise<void> {
     try {

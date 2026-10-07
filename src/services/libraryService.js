@@ -1,4 +1,4 @@
-// libraryService.js — the general document library (0063).
+// libraryService.js: the general document library (0063).
 //
 // Files live in the private 'library' bucket at '<org_id>/<uuid>.<ext>'; the
 // row stores the path, never a URL. After an upload, /api/library reads the
@@ -30,11 +30,11 @@ export const categoryLabel = (id) => CATEGORIES.find((c) => c.id === id)?.label 
  */
 export const COLLECTIONS = [
   { id: 'general', label: 'General Documents', short: 'General',
-    blurb: 'Any file the company keeps — policies, contracts, decks, price lists, scans.' },
+    blurb: 'Any file the company keeps: policies, contracts, decks, price lists, scans.' },
   { id: 'opa', label: 'Organisational Process Assets', short: 'Process Assets',
     blurb: 'Templates, procedures, standards and guidelines the company works to.' },
   { id: 'lessons', label: 'Lessons Learned Register', short: 'Lessons Learned',
-    blurb: 'What past projects taught — what went well, what did not, and what to repeat.' },
+    blurb: 'What past projects taught: what went well, what did not, and what to repeat.' },
 ];
 export const collectionOf = (id) => COLLECTIONS.find((c) => c.id === id) || COLLECTIONS[0];
 
@@ -105,7 +105,7 @@ export const libraryService = {
 
   /**
    * Stores the file, creates its row, then asks the server to read it.
-   * Resolves with the row once reading has finished (or failed — a file that
+   * Resolves with the row once reading has finished (or failed. A file that
    * could not be read is still stored, and says why).
    */
   async upload(orgId, file, meta = {}) {

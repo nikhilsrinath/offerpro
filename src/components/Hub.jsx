@@ -27,7 +27,7 @@ import './hub/hub.css';
 import { confirmDialog } from '../services/confirm';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   EdgeOS hub — the module rail, a board of widgets the person chooses, and
+   EdgeOS hub: the module rail, a board of widgets the person chooses, and
    EdgeAI docked on the right. Notifications and the account menu sit at the
    foot of the rail, so the board runs to the top of the window; phones, with
    no rail, keep a slim top bar for them.
@@ -91,7 +91,7 @@ function IconBtn({ t, children, title, onClick, active, size = 28 }) {
     );
 }
 
-/* A dropdown surface, anchored under the button that opened it — or, from
+/* A dropdown surface, anchored under the button that opened it, or, from
    the rail, fixed beside it (`at`), since the rail clips its overflow. */
 function Pop({ t, children, width = 260, align = 'right', at, label }) {
     return (
@@ -145,7 +145,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
     const now = useNow(60000);
     const isMobile = winW < 760;
 
-    // The rail widens on hover, and stays wide when pinned — the choice is
+    // The rail widens on hover, and stays wide when pinned. The choice is
     // remembered across the app, so the hub and the modules agree.
     const [railPinned, setRailPinned] = useRailPin();
     const [hoverRail, setHoverRail] = useState(false);
@@ -477,7 +477,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                         <button
                             type="button" className="nm-nav"
                             aria-label={`Account: ${displayName}, ${orgName}`
-                                + (profile.incomplete ? ` — company profile incomplete, ${profile.summary.toLowerCase()}` : '')}
+                                + (profile.incomplete ? ` · company profile incomplete, ${profile.summary.toLowerCase()}` : '')}
                             aria-expanded={menu === 'account'} aria-haspopup="dialog"
                             onClick={() => setMenu((m) => (m === 'account' ? null : 'account'))}
                             style={{
@@ -540,7 +540,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                         borderBottom: '1px solid ' + t.line,
                         background: t.panel, position: 'sticky', top: 0, zIndex: 40,
                     }}>
-                        {/* brand — the rail carries it on every other width */}
+                        {/* brand: the rail carries it on every other width */}
                         <Link to="/hub" style={{
                             display: 'flex', alignItems: 'center', gap: 8,
                             flexShrink: 0, textDecoration: 'none', color: t.text,
@@ -578,12 +578,12 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                             )}
                         </div>
 
-                        {/* account — org, profile, plan, log out */}
+                        {/* account: org, profile, plan, log out */}
                         <div style={{ position: 'relative', flexShrink: 0 }}>
                             <button
                                 type="button" className="nm-chip"
                                 aria-label={`Account: ${displayName}, ${orgName}`
-                                    + (profile.incomplete ? ` — company profile incomplete, ${profile.summary.toLowerCase()}` : '')}
+                                    + (profile.incomplete ? ` · company profile incomplete, ${profile.summary.toLowerCase()}` : '')}
                                 aria-expanded={menu === 'account'} aria-haspopup="menu"
                                 onClick={() => setMenu((m) => (m === 'account' ? null : 'account'))}
                                 style={{
@@ -635,7 +635,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                         gridTemplateColumns: 'minmax(0, 1fr)',
                     }}>
 
-                        {/* — greeting — */}
+                        {/*: greeting, */}
                         <div style={{ padding: '2px 2px 0', display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 13.5, fontWeight: 600, color: t.text, letterSpacing: '0.08em', marginBottom: 6 }}>

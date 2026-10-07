@@ -1,4 +1,4 @@
-// portalUtils.js — the numbers the employee portal derives about a person.
+// portalUtils.js: the numbers the employee portal derives about a person.
 //
 // Kept out of the component files so fast refresh keeps working and so every
 // tab computes "attendance rate" or "average check-in" the same way. Nothing
@@ -26,7 +26,7 @@ export const monthLabel = (monthKey, style = 'long') => new Date(`${monthKey}-01
 
 export const fmtLongDay = (d) => (d
   ? new Date(`${String(d).slice(0, 10)}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-  : '—');
+  : '-');
 
 export const fmtWeekday = (d) => new Date(`${String(d).slice(0, 10)}T00:00:00`)
   .toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -37,7 +37,7 @@ export const clockTime = (iso) => (iso
 
 /** Minutes since local midnight → "09:42". */
 export const minutesToClock = (mins) => {
-  if (mins == null || Number.isNaN(mins)) return '—';
+  if (mins == null || Number.isNaN(mins)) return '-';
   const m = Math.round(mins);
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 };
@@ -105,7 +105,7 @@ export function monthInsights(monthKey, rowsByDate = {}) {
 /**
  * Consecutive working days attended, counting back from today. A weekend
  * or holiday without a record is skipped; one worked adds to the streak. Today only
- * breaks the streak once it is over — not checking in by 9am is not a miss yet.
+ * breaks the streak once it is over. Not checking in by 9am is not a miss yet.
  */
 export function attendanceStreak(allRowsByDate) {
   let streak = 0;
@@ -154,7 +154,7 @@ export function useSignedPhoto(path) {
   return url;
 }
 
-/** Which of the personal fields are filled — drives the "complete your profile" nudge. */
+/** Which of the personal fields are filled, drives the "complete your profile" nudge. */
 export const PROFILE_FIELDS = [
   ['photo_path', 'Photo'],
   ['phone', 'Phone'],

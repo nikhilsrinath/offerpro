@@ -8,7 +8,7 @@ import { conversationHistory } from '../brain.js';
  * `facts` is a jsonb column, and Postgres stores jsonb object keys ordered by
  * (length, bytes) rather than in the order they were written. compactFacts used
  * to keep "the first 14 entries", which therefore meant "the 14 shortest key
- * names" — so every invoice reached the model carrying gst_rate and revision
+ * names" · so every invoice reached the model carrying gst_rate and revision
  * but not grand_total, bill_to_name or country_code, and the assistant was then
  * asked which country generated the most revenue.
  *
@@ -78,7 +78,7 @@ describe('fitToBudget', () => {
     expect(context).toBe(sections.join('\n\n'));
   });
 
-  it('never cuts a line in half — a half-written record reads as a real one', () => {
+  it('never cuts a line in half. A half-written record reads as a real one', () => {
     const { context } = fitToBudget(sections, 600);
     for (const line of context.split('\n')) {
       if (!line.startsWith('- [client]')) continue;

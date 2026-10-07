@@ -58,8 +58,8 @@ export function useDialog(ref, onClose, open = true) {
 
 export const fmtDate = (d) => (d
     ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-    : '—');
+    : '-');
 
 export const fmtDay = (d) => (d
     ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
-    : '—');
+    : '-');

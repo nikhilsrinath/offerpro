@@ -8,11 +8,11 @@ import { Dashboard, Card, Tile, Figure, BigCount, More, MiniSeg, TileRow, CardGr
 import { plainBtn } from './vizHooks';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Dashboard · Finance — money in, money out, and who owes whom.
+   Dashboard · Finance: money in, money out, and who owes whom.
 
    Period-scoped: income, collections, spending, invoice health, GST.
    Snapshots (they have no history, and say so): receivables, payables and
-   the all-time cash position — the same cashPosition() the hub tile and
+   the all-time cash position. The same cashPosition() the hub tile and
    EdgeBrain's cash.* aggregates (0066) are pinned to.
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -58,7 +58,7 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
         return { total, overdue, overdueCount, rows: [...map.values()].sort((a, b) => b.value - a.value) };
     }, [purchases, vendors, today]);
 
-    // Who owes you: every open invoice, not just this period's — a debt does
+    // Who owes you: every open invoice, not just this period's: a debt does
     // not stop being owed because it was raised last year.
     const debtors = useMemo(() => {
         const map = new Map();
@@ -122,15 +122,15 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
         </TileRow>
 
         <TileRow cols={tileCols(3)}>
-            <Tile icon={Users} label="Avg revenue / head" value={perHead === null ? '—' : fmtShort(model.pl.income / heads)}
+            <Tile icon={Users} label="Avg revenue / head" value={perHead === null ? '-' : fmtShort(model.pl.income / heads)}
                 exact={perHead === null ? 'no headcount' : fmtInr(model.pl.income / heads)}
                 foot={perHead === null ? 'no employees on the team' : `${fmtShort(model.pl.income)} income · ${heads} people`}
                 onClick={() => navigate('/dashboard/team')} />
-            <Tile icon={Receipt} label="Avg expenses / head" value={perHead === null ? '—' : fmtShort(model.pl.expenses / heads)}
+            <Tile icon={Receipt} label="Avg expenses / head" value={perHead === null ? '-' : fmtShort(model.pl.expenses / heads)}
                 exact={perHead === null ? 'no headcount' : fmtInr(model.pl.expenses / heads)}
                 foot={perHead === null ? 'no employees on the team' : `${fmtShort(model.pl.expenses)} expenses · ${heads} people`}
                 onClick={() => navigate('/dashboard/team')} />
-            <Tile icon={Percent} label="Gross profit operating ratio" value={opRatio === null ? '—' : `${opRatio.toFixed(1)}%`}
+            <Tile icon={Percent} label="Gross profit operating ratio" value={opRatio === null ? '-' : `${opRatio.toFixed(1)}%`}
                 exact={opRatio === null ? 'no income in period' : `expenses are ${opRatio.toFixed(1)}% of income`} tone={opRatio !== null && opRatio > 100 ? 'down' : null}
                 foot={opRatio === null ? 'no income in period' : `gross profit ${fmtShort(model.pl.net)} · ${(100 - opRatio).toFixed(1)}% margin`}
                 onClick={() => open({ kind: 'metric', id: 'net' })} />
@@ -154,7 +154,7 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
 
             <Card title="Collection health" note="receivables as of today">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
-                    <button type="button" className="ov-plain" aria-label="Collected share — open detail" onClick={() => open({ kind: 'metric', id: 'collected' })} style={plainBtn}>
+                    <button type="button" className="ov-plain" aria-label="Collected share: open detail" onClick={() => open({ kind: 'metric', id: 'collected' })} style={plainBtn}>
                         <Gauge value={model.collectionRate} label="COLLECTED" size={140} color={cat[2]} />
                     </button>
                     <div style={{ flex: 1, minWidth: 130, display: 'grid', gap: 10 }}>

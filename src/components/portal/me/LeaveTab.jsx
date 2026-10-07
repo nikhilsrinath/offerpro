@@ -1,4 +1,4 @@
-// LeaveTab — what you have left, asking for more, and what happened to what
+// LeaveTab: what you have left, asking for more, and what happened to what
 // you asked for. The balance sits above the form because it is the number
 // people check before deciding which dates to pick.
 import { useEffect, useMemo, useState } from 'react';
@@ -40,7 +40,7 @@ export default function LeaveTab({ orgId, me, types, balances, requests, setRequ
       const created = await leaveService.applyForLeave(orgId, { employeeId: me.id, ...form });
       setRequests((prev) => [created, ...prev]);
       setForm((f) => ({ ...f, reason: '', halfDay: false }));
-      toast('Leave requested — your manager has been notified.', 'success');
+      toast('Leave requested: your manager has been notified.', 'success');
       onChanged();
     } catch (err) {
       toast(err.message || 'Could not submit your request.', 'error');
@@ -147,7 +147,7 @@ export default function LeaveTab({ orgId, me, types, balances, requests, setRequ
                 and the approver is the one who should decide. */}
             {wouldOverdraw && (
               <div style={{ fontSize: 12, color: t.down, lineHeight: 1.5 }}>
-                This is more than your remaining balance. You can still apply — your manager will see it.
+                This is more than your remaining balance. You can still apply. Your manager will see it.
               </div>
             )}
             <Btn type="submit" primary full disabled={busy || !days || !form.leaveTypeId}>

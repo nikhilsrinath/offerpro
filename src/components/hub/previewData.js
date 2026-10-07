@@ -3,7 +3,7 @@ import { PERIODS } from './periods';
 
 /* Sample data for the widget gallery. The picker draws every widget with its
    real body, fed these figures instead of the org's, so a person sees what a
-   widget looks like before adding it — even one whose module they have not
+   widget looks like before adding it, even one whose module they have not
    used yet. Nothing here is ever shown on the board itself. */
 
 /** Set by the picker around a preview; project widgets read their data from it. */
@@ -118,7 +118,7 @@ export function previewHubData() {
             tasks: {
                 total: 124, open: 37, overdue: 4, today: 6, done: 87,
                 next: [
-                    { id: 't1', title: 'Client review — Phase 2', deadline: dayKey(daysFrom(0)) },
+                    { id: 't1', title: 'Client review, Phase 2', deadline: dayKey(daysFrom(0)) },
                     { id: 't2', title: 'Submit site drawings', deadline: dayKey(daysFrom(1)) },
                     { id: 't3', title: 'Vendor quotes for fit-out', deadline: dayKey(daysFrom(3)) },
                     { id: 't4', title: 'Payroll sign-off', deadline: dayKey(daysFrom(4)) },

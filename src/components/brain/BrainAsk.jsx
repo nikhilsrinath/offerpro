@@ -35,7 +35,7 @@ export default function BrainAsk({ orgId, stale, syncedAt }) {
         setQuestion('');
         setBusy(true);
         // The thread so far, so the answer can build on what was already said
-        // rather than contradicting it. Errors are left out — they are not
+        // rather than contradicting it. Errors are left out. They are not
         // something the assistant said about the company. Bounded here as well
         // as on the server, because the cheapest place to not send a thousand
         // turns is before the request.

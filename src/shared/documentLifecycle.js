@@ -1,4 +1,4 @@
-// documentLifecycle.js — when a quotation, proforma or invoice may be deleted,
+// documentLifecycle.js: when a quotation, proforma or invoice may be deleted,
 // when it may be cancelled, and what cancelling it undoes.
 //
 // The rule a company's books need:
@@ -25,7 +25,7 @@ const LABEL = { invoice: 'invoice', quotation: 'quotation', proforma: 'proforma'
 /**
  * Payments on an invoice that are a proforma's advance carried across at
  * conversion (see carriedAdvance). They are a copy of money that lives on the
- * proforma, so they do not stop the invoice being cancelled — they go with it.
+ * proforma, so they do not stop the invoice being cancelled. They go with it.
  */
 export function isCarriedAdvance(payment, parent) {
   return !!parent && payment.method === 'Advance' && !!payment.reference
@@ -70,9 +70,9 @@ export function lifecycleOf(doc, docs) {
   if (doc.type === 'invoice') {
     del = no('Tax invoices are cancelled, not deleted, so the invoice number series stays complete for GST.');
   } else if (!neverSent(doc)) {
-    del = no(`This ${kind} has been sent to the client — cancel it instead.`);
+    del = no(`This ${kind} has been sent to the client. Cancel it instead.`);
   } else if (child) {
-    del = no(`Converted to ${docNumber(child)} — cancel that first.`);
+    del = no(`Converted to ${docNumber(child)}. Cancel that first.`);
   } else if (received > 0 || pending) {
     del = no('A payment is recorded against it.');
   } else {
@@ -84,7 +84,7 @@ export function lifecycleOf(doc, docs) {
   if (del.allowed) {
     cancel = no(`A draft that was never sent is deleted, not cancelled.`);
   } else if (child) {
-    cancel = no(`Converted to ${docNumber(child)} — cancel that first.`);
+    cancel = no(`Converted to ${docNumber(child)}. Cancel that first.`);
   } else if (pending) {
     cancel = no('The client has submitted a payment. Verify or reject it first.');
   } else if (received > 0) {
@@ -103,7 +103,7 @@ export function lifecycleOf(doc, docs) {
  * cancelled or deleted, so it can be converted again. Null when it should be
  * left alone (it was not marked converted).
  *
- * A quotation goes back to accepted — the client did accept it. A proforma
+ * A quotation goes back to accepted. The client did accept it. A proforma
  * goes back to where its money put it.
  */
 export function revertedStatusOf(parent) {

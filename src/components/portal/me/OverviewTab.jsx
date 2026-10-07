@@ -1,4 +1,4 @@
-// OverviewTab — the portal's first screen: today, how the month is going, and
+// OverviewTab: the portal's first screen: today, how the month is going, and
 // the three things a person most often comes here to do.
 import { useMemo } from 'react';
 import { Plane, CalendarDays, Megaphone, UserRound, Pin, ArrowRight } from 'lucide-react';
@@ -94,7 +94,7 @@ export default function OverviewTab({
         <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
           <Kpi
             label="Attendance rate"
-            value={ins.rate == null ? '—' : `${Math.round(ins.rate * 100)}%`}
+            value={ins.rate == null ? '-' : `${Math.round(ins.rate * 100)}%`}
             share={ins.rate}
             note={`${ins.daysWorked} of ${ins.expected} working days`}
           />

@@ -6,8 +6,8 @@ import { useSection, money } from './financeHooks';
 
 /**
  * Where the money stands right now: invoiced, collected, outstanding, overdue.
- * Kept apart from the document/trend summary on purpose — these are balances,
- * not activity — and each card opens the invoice list filtered to match.
+ * Kept apart from the document/trend summary on purpose. These are balances,
+ * not activity: and each card opens the invoice list filtered to match.
  *
  * Styled with the `pro-stat-card` kit rather than a local one so that Finance
  * Status reads as the same dashboard as Billing & Revenue; the cards stay

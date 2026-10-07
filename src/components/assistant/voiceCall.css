@@ -28,7 +28,7 @@
 .vc-top {
   width: 100%; max-width: 460px;
   display: flex; justify-content: space-between; align-items: center;
-  font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--vc-dim);
+  font-size: 12px; color: var(--vc-dim);
 }
 .vc-time { font-variant-numeric: tabular-nums; letter-spacing: .08em; }
 
@@ -44,7 +44,7 @@
 
 .vc-status {
   display: inline-flex; align-items: center; gap: 8px;
-  font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--vc-dim);
+  font-size: 12px; color: var(--vc-dim);
 }
 .vc-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .7; }
 .vc-status.is-listening .vc-dot { background: #5eead4; opacity: 1; animation: vc-breathe 1.6s ease-in-out infinite; }
@@ -80,7 +80,7 @@
 }
 .vc-who {
   display: block; margin-bottom: 4px;
-  font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: rgba(244, 246, 251, 0.34);
+  font-size: 11px; color: rgba(244, 246, 251, 0.34);
 }
 .vc-more { margin: 14px 0 0; font-size: 13px; color: var(--vc-dim); }
 .vc-wait { display: inline-flex; gap: 6px; height: 34px; align-items: center; margin: 0; }

@@ -11,7 +11,7 @@ import { MonthBars, PlanTag, SubStatus, KeyVal, Link } from './adminUi';
 import { money, moneyShort, ago, fmtDate } from './adminUtils';
 
 /* One tenant, completely: the company record, every person who can sign in,
-   the money, the documents, and the two controls that change anything — the
+   the money, the documents, and the two controls that change anything, the
    plan and the soft delete. Tabs rather than one long sheet, because the
    question you open this with is usually one of four. */
 
@@ -31,7 +31,7 @@ export default function OrgDetail({ orgId, summary, onClose, onChanged, onMailTo
   const [error, setError] = useState('');
 
   // AdminOrgs keys this component by orgId, so a different tenant is a fresh
-  // mount with fresh state — there is nothing to reset here.
+  // mount with fresh state. There is nothing to reset here.
   useEffect(() => {
     let cancelled = false;
     adminService.orgDetail(orgId)
@@ -189,7 +189,7 @@ function PeopleTab({ t, data, onMailTo }) {
               <Td>
                 <span style={{ display: 'block' }}>{m.email || m.id.slice(0, 8)}</span>
                 <span style={{ display: 'block', fontSize: 11, color: t.ghost, marginTop: 2 }}>
-                  {m.name || '—'}{m.isOwner && ' · owner'}
+                  {m.name || '-'}{m.isOwner && ' · owner'}
                 </span>
               </Td>
               <Td muted>{m.role}</Td>
@@ -216,10 +216,10 @@ function PeopleTab({ t, data, onMailTo }) {
                 <Td>
                   <span style={{ color: e.exited_at ? t.faint : t.text }}>{e.full_name}</span>
                   <span style={{ display: 'block', fontSize: 11, color: t.ghost, marginTop: 2 }}>
-                    {e.email || '—'}
+                    {e.email || '-'}
                   </span>
                 </Td>
-                <Td muted>{e.exited_at ? 'exited' : (e.role || '—')}</Td>
+                <Td muted>{e.exited_at ? 'exited' : (e.role || '-')}</Td>
               </Tr>
             ))}
           </Table>
@@ -233,7 +233,7 @@ function PeopleTab({ t, data, onMailTo }) {
             {customers.slice(0, 12).map((c) => (
               <Tr key={c.id}>
                 <Td>{c.name}</Td>
-                <Td muted>{c.email || c.phone || '—'}</Td>
+                <Td muted>{c.email || c.phone || '-'}</Td>
               </Tr>
             ))}
           </Table>
@@ -314,8 +314,8 @@ function RevenueTab({ t, data }) {
           {payments.map((p, i) => (
             <Tr key={`${p.paid_on}-${p.reference || i}`}>
               <Td nowrap muted>{fmtDate(p.paid_on)}</Td>
-              <Td muted>{p.method || '—'}</Td>
-              <Td muted>{p.reference || '—'}</Td>
+              <Td muted>{p.method || '-'}</Td>
+              <Td muted>{p.reference || '-'}</Td>
               <Td align="right" nowrap>{money(p.amount)}</Td>
             </Tr>
           ))}
@@ -361,7 +361,7 @@ function ActivityTab({ data }) {
                 day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
               })}</Td>
               <Td>{a.action}</Td>
-              <Td muted>{a.entity_type || '—'}</Td>
+              <Td muted>{a.entity_type || '-'}</Td>
             </Tr>
           ))}
         </Table>
@@ -427,7 +427,7 @@ function PlanTab({ t, data, toast, deletedAt, onSaved, onLifecycle }) {
           <KeyVal label="Current plan"><PlanTag plan={sub.plan} /></KeyVal>
           <KeyVal label="Current status"><SubStatus status={sub.status} /></KeyVal>
           <KeyVal label="Renews">{sub.current_period_end ? fmtDate(sub.current_period_end) : 'no end date'}</KeyVal>
-          <KeyVal label="Changed">{sub.updated_at ? ago(sub.updated_at) : '—'}</KeyVal>
+          <KeyVal label="Changed">{sub.updated_at ? ago(sub.updated_at) : '-'}</KeyVal>
         </Row>
 
         <div style={{ display: 'grid', gap: 13, maxWidth: 460 }}>
@@ -466,7 +466,7 @@ function PlanTab({ t, data, toast, deletedAt, onSaved, onLifecycle }) {
         {deletedAt ? (
           <Row gap={12} wrap>
             <div style={{ flex: 1, minWidth: 220, fontSize: 12.5, color: t.dim, lineHeight: 1.7 }}>
-              Deleted {ago(deletedAt)}. The rows are intact — restoring makes the
+              Deleted {ago(deletedAt)}. The rows are intact, and restoring makes the
               workspace visible to its members again.
             </div>
             <Btn onClick={() => lifecycle(true)} disabled={busy}>
@@ -477,7 +477,7 @@ function PlanTab({ t, data, toast, deletedAt, onSaved, onLifecycle }) {
           <Row gap={12} wrap>
             <div style={{ flex: 1, minWidth: 220, fontSize: 12.5, color: t.dim, lineHeight: 1.7 }}>
               A soft delete. The tenant disappears from every member's app at once,
-              and nothing is erased — you can restore it from this same panel.
+              and nothing is erased. You can restore it from this same panel.
             </div>
             <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
               <Trash2 size={12} aria-hidden="true" style={{ color: t.down }} />

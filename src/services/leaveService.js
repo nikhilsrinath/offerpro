@@ -1,4 +1,4 @@
-// leaveService.js — leave types, applications, approvals and balances.
+// leaveService.js: leave types, applications, approvals and balances.
 //
 // The two rules that matter are in the database, not here:
 //   · nobody approves their own request      app.guard_leave_decision (0029 §7)
@@ -29,7 +29,7 @@ const REQ_SELECT = `id, org_id, employee_id, leave_type_id, start_date, end_date
  *
  * Built from UTC midnights on purpose: a plain `new Date('2026-03-29')`
  * difference is short by an hour across a DST boundary, and `Math.round` on
- * 0.958 days still gives 1 — until a fortnight's range accumulates enough drift
+ * 0.958 days still gives 1, until a fortnight's range accumulates enough drift
  * to lose a day. Date.UTC has no DST.
  */
 export function countLeaveDays(startDate, endDate, { halfDay = false, skipWeekends = false } = {}) {
@@ -51,7 +51,7 @@ export function countLeaveDays(startDate, endDate, { halfDay = false, skipWeeken
   return days;
 }
 
-/** True when two ranges touch at all — used to warn about a double booking. */
+/** True when two ranges touch at all, used to warn about a double booking. */
 export function rangesOverlap(aStart, aEnd, bStart, bEnd) {
   return aStart <= bEnd && bStart <= aEnd;
 }
@@ -152,7 +152,7 @@ export const leaveService = {
     return data;
   },
 
-  /** Edit a pending request in place — dates or reason, never the status. */
+  /** Edit a pending request in place, dates or reason, never the status. */
   async updateRequest(id, { startDate, endDate, halfDay, reason, leaveTypeId, skipWeekends = false }) {
     const days = countLeaveDays(startDate, endDate, { halfDay, skipWeekends });
     if (!days) throw new Error('Pick a start and end date; the end cannot be before the start.');

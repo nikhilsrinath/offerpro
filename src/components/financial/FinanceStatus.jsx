@@ -225,7 +225,7 @@ export default function FinanceStatus() {
 
   const ageingTotal = ageing.reduce((t, b) => t + b.value, 0);
 
-  /** Who owes the most right now — the collections call list, in order. */
+  /** Who owes the most right now. The collections call list, in order. */
   const topDebtors = useMemo(() => {
     const byClient = {};
     issuedInvoices(documents).forEach((d) => {
@@ -248,7 +248,7 @@ export default function FinanceStatus() {
 
   return (
     <div className="finance-page animate-in">
-      {/* Where the money stands — balances, and each card drills into the
+      {/* Where the money stands, balances, and each card drills into the
           invoices behind it. */}
       <PaymentPositionCards />
 
@@ -338,7 +338,7 @@ export default function FinanceStatus() {
       </div>
 
       {/* Issued vs collected. `collected` is what came back on the invoices
-          issued in that month, not cash received in it — an invoice paid late
+          issued in that month, not cash received in it. An invoice paid late
           still counts against the month it was raised, which is the only way
           the bars answer "did that month's billing convert?". */}
       <div className="pro-card">

@@ -1,7 +1,7 @@
-// financeAnalytics.js — Tax Summary, P&L, cash flow, payment position and
+// financeAnalytics.js: Tax Summary, P&L, cash flow, payment position and
 // overdue logic.
 //
-// Everything here is derived from what has already been recorded — issued
+// Everything here is derived from what has already been recorded, issued
 // invoices, purchase invoices, expense entries and income entries. Nothing is
 // entered twice and nothing here writes: pure functions over orgStore's cached
 // lists, cheap to recompute on each render.
@@ -23,7 +23,7 @@ const n = (v) => Number(v) || 0;
  *
  * Computed here rather than read from the stored `net_amount`, deliberately. The
  * column is derived by a trigger, and a row written while that trigger was not
- * attached keeps the column default of zero — which made the entry show its full
+ * attached keeps the column default of zero, which made the entry show its full
  * value under "Money in" and contribute nothing at all to revenue or profit. A
  * figure that can be silently zero is worse than one recomputed on every render,
  * and the subtraction is the same definition the trigger uses.
@@ -34,7 +34,7 @@ const iso = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2,
 export const todayIso = () => iso(new Date());
 
 // Which invoices are receivables, and when one is overdue, live in
-// src/shared/finDocs.js — the agent's list_invoices counts by the same rule.
+// src/shared/finDocs.js. The agent's list_invoices counts by the same rule.
 export { issuedInvoices, balanceOf } from '../shared/finDocs.js';
 export const isOverdue = (d, today = todayIso()) => isOverdueShared(d, today);
 
@@ -95,7 +95,7 @@ export function periodOptions(kind, count = 12) {
 /**
  * Output GST on issued invoices and on income entries, against input GST on
  * purchase invoices and expenses, for [from, to]. Positive netPayable is tax
- * owed; negative is a credit carried forward. A preparation aid only — it knows
+ * owed; negative is a credit carried forward. A preparation aid only. It knows
  * nothing about reverse charge, blocked credits, credit notes or amendments.
  */
 export function taxSummary({ docs, purchases, expenses, income, vendors = [] }, from, to) {
@@ -182,7 +182,7 @@ export function taxSummary({ docs, purchases, expenses, income, vendors = [] }, 
 // ── Profit & Loss ────────────────────────────────────────────────────────────
 
 /**
- * Income is issued invoices at taxable value plus income entries at net value —
+ * Income is issued invoices at taxable value plus income entries at net value,
  * GST collected is owed to the government, not earned. Expenses are expense
  * entries plus purchase invoices, each net of input GST for the same reason.
  *
@@ -250,7 +250,7 @@ export function profitAndLoss({ docs, purchases, expenses, income: incomeRows },
 // ── Cash flow ────────────────────────────────────────────────────────────────
 
 /**
- * Every rupee in and out over [from, to], whatever its treatment — the question
+ * Every rupee in and out over [from, to], whatever its treatment. The question
  * "did the bank balance go up" as opposed to "did we make money". They differ
  * by the funding, the asset purchases, the loan repayments, the drawings and
  * the tax remittances, which is exactly why both are worth showing.
@@ -350,7 +350,7 @@ export function periodSeries(data, from, to) {
 
 // ── Payment position ─────────────────────────────────────────────────────────
 
-/** Invoiced, collected, outstanding and overdue — all-time, over live receivables. */
+/** Invoiced, collected, outstanding and overdue, all-time, over live receivables. */
 export function paymentPosition(docs, today = todayIso()) {
   const inv = issuedInvoices(docs);
   const overdue = inv.filter((d) => isOverdue(d, today));
@@ -387,7 +387,7 @@ export function downloadCsv(filename, header, rows) {
 }
 
 /**
- * Net cash, all time — the dashboard's Net cash tile, on the same rules as
+ * Net cash, all time. The dashboard's Net cash tile, on the same rules as
  * EdgeBrain's cash.* aggregates (0066), so the tile and the assistant cannot
  * disagree. Every rupee once:
  *
@@ -395,7 +395,7 @@ export function downloadCsv(filename, header, rows) {
  *              advances), except the advance COPIED onto a tax invoice at
  *              conversion, which is the proforma's money
  *            + cash-book receipts not tied to a document, and those tied to a
- *              document that has no confirmed payment — any reason: sales,
+ *              document that has no confirmed payment, any reason: sales,
  *              funding, refunds. It is cash.
  *   paidOut  = expenses actually paid (not 'pending') + payments on vendor bills
  *

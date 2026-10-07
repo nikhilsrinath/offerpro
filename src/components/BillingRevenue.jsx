@@ -52,7 +52,7 @@ export default function BillingRevenue() {
 
       // Product catalogue. units_sold / revenue / revenue_paid on each row are
       // maintained by trigger from the issued invoices, so this needs no
-      // aggregation here — it is already the answer.
+      // aggregation here: it is already the answer.
       setCatalog(catalogService.getActive());
 
       // Load expenses from orgStore
@@ -94,7 +94,7 @@ export default function BillingRevenue() {
 
     // Grouped by reason rather than by raw category: fifty-odd categories make
     // a pie chart unreadable, and "where does the money go" is a question about
-    // product, labour, marketing and overhead — not about forty line items.
+    // product, labour, marketing and overhead. Not about forty line items.
     const categoryBreakdown = {};
     expenses.forEach(e => {
       const g = groupOf(e.category);
@@ -318,7 +318,7 @@ export default function BillingRevenue() {
         </div>
       </div>
 
-      {/* Top products — only worth the space once something has been sold
+      {/* Top products: only worth the space once something has been sold
           against the catalogue. Revenue here is what was BILLED on issued
           invoices; `Collected` is the paid-only subset, which is the same
           definition the revenue card above uses. */}
@@ -492,7 +492,7 @@ export default function BillingRevenue() {
               <Banknote size={40} strokeWidth={1} aria-hidden="true" />
               <p>Nothing recorded outside invoices</p>
               <span>
-                Cash sales, retainers, interest, a grant, money you or an investor put in — record it
+                Cash sales, retainers, interest, a grant, money you or an investor put in. Record it
                 here and it reaches revenue, the P&amp;L and the Tax Summary straight away.
               </span>
             </div>
@@ -534,7 +534,7 @@ export default function BillingRevenue() {
             <div className="pro-empty" style={{ padding: '3rem' }}>
               <Wallet size={40} strokeWidth={1} />
               <p>No expenses recorded</p>
-              <span>Add one in the General Ledger — it asks what the money was for and works out whether it cuts profit or only cash.</span>
+              <span>Add one in the General Ledger. It asks what the money was for and works out whether it cuts profit or only cash.</span>
             </div>
           ) : (
             expenses.map(exp => (

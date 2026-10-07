@@ -1,4 +1,4 @@
-// EmployeePortal.jsx — what an employee sees when they sign in.
+// EmployeePortal.jsx: what an employee sees when they sign in.
 //
 // Deliberately not the admin shell: no org switcher and no modules, just the
 // five places a person goes for themselves. It wears the same terminal theme
@@ -193,7 +193,7 @@ export default function EmployeePortal() {
           <UserCircle size={28} style={{ color: t.faint }} />
           <div style={{ fontSize: 15.5, margin: '10px 0 8px' }}>Your employee record isn&rsquo;t linked yet</div>
           <Empty>
-            Your sign-in works, but no employee record in {orgName} is connected to it — so there is no
+            Your sign-in works, but no employee record in {orgName} is connected to it, so there is no
             attendance or leave to show. Ask an admin to link your record from the Employees page.
           </Empty>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>

@@ -12,7 +12,7 @@ const LegalDocumentsPage = () => (
         <div className="sp-hero-badge"><Scale size={12} /> Legal Documents</div>
         <h1 className="sp-hero-title">Legal documents<br /><em>without</em> the lawyers.</h1>
         <p className="sp-hero-subtitle">
-          Generate NDAs, MoUs, and other legal agreements from professional templates. Share, sign, and store — all in one platform.
+          Generate NDAs, MoUs, and other legal agreements from professional templates. Share, sign, and store, all in one platform.
         </p>
         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
           <a href="/" className="eos-btn eos-btn-primary">Create Document <ArrowRight size={16} /></a>
@@ -154,7 +154,7 @@ const LegalDocumentsPage = () => (
         <div className="sp-features-grid" style={{ marginTop: '3rem' }}>
           {[
             { icon: Scale, title: 'MoUs & NDAs', desc: 'Draft comprehensive MoUs for partnerships and NDAs with mutual or one-way confidentiality terms.' },
-            { icon: FileText, title: 'Proper Legal Formatting', desc: 'Numbered sections, defined terms, and signature blocks — all following proper legal document standards.' },
+            { icon: FileText, title: 'Proper Legal Formatting', desc: 'Numbered sections, defined terms, and signature blocks, all following proper legal document standards.' },
             { icon: Send, title: 'Portal-Based Signing', desc: 'Share through a secure portal. Recipients review, sign digitally, and download without an account.' },
             { icon: Lock, title: 'Tamper-Proof Storage', desc: 'Unique IDs, timestamps, and version history. Ideal for compliance and legal audits.' },
             { icon: History, title: 'Complete Archive', desc: 'Access all issued legal documents with search, filter, and export capabilities.' },

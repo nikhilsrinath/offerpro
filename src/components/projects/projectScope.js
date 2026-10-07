@@ -17,8 +17,8 @@ import { projectSectionPath, projectBillingFormPath } from './projectPaths';
 const n = (v) => Number(v) || 0;
 const round2 = (v) => Math.round(v * 100) / 100;
 
-// What each source is worth before GST — the figure an allocation is made
-// against (the same as ProjectFinance's sources) — and the money fields that
+// What each source is worth before GST. The figure an allocation is made
+// against (the same as ProjectFinance's sources): and the money fields that
 // scale with the project's share of it.
 const SOURCES = {
     invoice: {
@@ -59,7 +59,7 @@ export function scopeRows(rows, sourceType, projectId, allocations) {
 /**
  * The quotations, proformas and invoices that belong to a project: linked on
  * the project (project_documents), the quotation it was started from, the
- * invoices allocated to it, and anything converted from one of those — the
+ * invoices allocated to it, and anything converted from one of those, the
  * same walk as app.project_of_document (0054), four hops deep.
  */
 export function projectDocIds(projectId, { docs, projects, allocations, links }) {
@@ -172,7 +172,7 @@ export function useClientAsParty(client, setFormData, { name, address }) {
 
 /**
  * Puts an NDA, MoU or agreement saved from a project on that project. Like
- * linkToProject, resolves to an error message or '' — the record is kept
+ * linkToProject, resolves to an error message or '' · the record is kept
  * either way.
  */
 export async function linkRecordToProject(projectId, recordId) {
@@ -189,7 +189,7 @@ export async function linkRecordToProject(projectId, recordId) {
  * Puts a quotation or proforma saved from a project on that project
  * (project_documents). Invoices are not linked here: their link is money,
  * made by the invoice form's project picker. Resolves to an error message,
- * or '' when linked (or already linked) — the document is saved either way.
+ * or '' when linked (or already linked). The document is saved either way.
  */
 export async function linkToProject(projectId, docId) {
     if (!projectId || !docId) return '';
@@ -204,9 +204,9 @@ export async function linkToProject(projectId, docId) {
     }
 }
 
-/** "For PRJ-4 · Website rebuild" — shown at the top of a form opened from a project. */
+/** "For PRJ-4 · Website rebuild" · shown at the top of a form opened from a project. */
 export const projectFormNote = (project) => (project
-    ? `For ${[project.code, project.name].filter(Boolean).join(' · ')} — saved to this project`
+    ? `For ${[project.code, project.name].filter(Boolean).join(' · ')}, saved to this project`
     : '');
 
 /**

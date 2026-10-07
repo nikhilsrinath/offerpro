@@ -1,29 +1,34 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-    Panel, Row, Btn, Seg, Select, Table, Tr, Td, Empty, Muted, Avatar, Modal, Field, Input, Grid, ConfirmBtn, Status,
+    Panel, Row, Btn, Seg, Select, Table, Tr, Td, Empty, Avatar, Modal, Field, Input, Grid, ConfirmBtn, Status,
     Search, StatBand,
 } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
-import { useSection, money, fmtDate } from '../financial/financeHooks';
+import { useSection, fmtDate } from '../financial/financeHooks';
 import { useToast } from '../shared/Toast';
 import { MEMBER_ROLES, memberActive } from '../../services/projectAnalytics';
 import {
-    addMember, updateMember, endMember, employeeAllocation, canSeeFinancials, projectHours,
+    addMember, updateMember, endMember, employeeAllocation, projectHours,
 } from '../../services/projectService';
 import { orgStore } from '../../services/orgStore';
 import { PERSON_STATUS, isoDay } from '../../services/projectTeam';
 import { useProjectPeople, teamError } from './team/teamData';
 import AllocationBar from './AllocationBar';
 
-/* Team Management › Team Members — who is on the project. A membership is
+/* Team Management › Team Members, who is on the project. A membership is
    ended, never deleted, once it has begun: labour cost is pay × time on the
    project, so the dates are history worth keeping. One that has not started
-   yet is simply taken back out. */
+   yet is simply taken back out.
+
+   Removing someone ends their membership yesterday, so they are Inactive at
+   once: ending it today would leave them on the team until midnight. Each
+   row's Details holds everything else: department, project role, time on
+   the project, status (Active / Inactive), Remove and Delete. */
 
 const STATUS_FILTERS = [
     { id: 'current', label: 'Current' },
     { id: 'inactive', label: 'Inactive' },
-    { id: 'all', label: 'Everyone' },
+    { id: 'all', label: 'All' },
 ];
 const SORTS = [
     { id: 'name', label: 'Name' },
@@ -31,6 +36,14 @@ const SORTS = [
     { id: 'role', label: 'Project role' },
     { id: 'department', label: 'Department' },
 ];
+const CUSTOM_ROLE = 'custom';
+const yesterdayOf = (day) => {
+    const d = new Date(`${day}T12:00:00`);
+    d.setDate(d.getDate() - 1);
+    return isoDay(d);
+};
+/** What a person's project role reads as: the typed title, else Manager / Lead / Member. */
+const roleText = (m) => m.role_title || MEMBER_ROLES.find((r) => r.id === m.role)?.label || '';
 const ROLE_ORDER = Object.fromEntries(MEMBER_ROLES.map((r, i) => [r.id, i]));
 
 export default function ProjectTeam({ project }) {
@@ -42,15 +55,15 @@ export default function ProjectTeam({ project }) {
     const [query, setQuery] = useState('');
     const [sort, setSort] = useState('name');
     const [adding, setAdding] = useState(false);
+    const [details, setDetails] = useState(null);   // employee id whose Details are open
     const [load, setLoad] = useState({});
     const [hours, setHours] = useState({});
     const today = isoDay();
-    const fin = canSeeFinancials();
     const canEdit = orgStore.can('project_members', 'edit') && !locked;
     const canAdd = orgStore.can('project_members', 'create') && !locked;
     const canDelete = orgStore.can('project_members', 'delete') && !locked;
 
-    // Everyone's total booking today, across every open project — the
+    // Everyone's total booking today, across every open project, the
     // over-allocation warning. Percentages only; no money in this RPC.
     useEffect(() => {
         let cancelled = false;
@@ -102,13 +115,17 @@ export default function ProjectTeam({ project }) {
         try { await fn(); if (ok) toast(ok, 'success'); } catch (e) { toast(teamError(e), 'error'); }
     };
 
-    /** Take someone off: end a membership that has begun, remove one that has not. */
+    /**
+     * Take someone off. A membership that began before today ends yesterday,
+     * so the person moves to Inactive straight away; one that begins today or
+     * later has no history yet and is deleted.
+     */
     const removePerson = (p) => {
         const m = p.membership;
-        if (String(m.start_date).slice(0, 10) > today) {
+        if (String(m.start_date).slice(0, 10) >= today) {
             return run(() => orgStore.removeItem('project_members', m.id), `${p.name} removed from the project`);
         }
-        return run(() => endMember(m.id, today), `${p.name} leaves the project today`);
+        return run(() => endMember(m.id, yesterdayOf(today)), `${p.name} is now inactive on this project`);
     };
 
     return (
@@ -133,9 +150,7 @@ export default function ProjectTeam({ project }) {
                         <div style={{ padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft }}>
                             <Row gap={8} wrap>
                                 <Search value={query} onChange={setQuery} placeholder="Search name, email, department" width={260} />
-                                <Seg size="sm" value={show} onChange={setShow} label="Status" options={STATUS_FILTERS.map((s) => ({
-                                    ...s, count: s.id === 'current' ? counts.current + counts.upcoming : s.id === 'inactive' ? counts.inactive : people.length,
-                                }))} />
+                                <Seg size="sm" value={show} onChange={setShow} label="Status" options={STATUS_FILTERS} />
                                 <Select aria-label="Filter by project role" value={role} onChange={(e) => setRole(e.target.value)} style={{ width: 140, height: 29 }}>
                                     <option value="">All roles</option>
                                     {MEMBER_ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
@@ -160,12 +175,12 @@ export default function ProjectTeam({ project }) {
                                     { key: 'end', label: 'Ends', def: false },
                                     { key: 's', label: 'Status' },
                                     ...(showHours ? [{ key: 'h', label: 'Logged / planned h', align: 'right' }] : []),
-                                    ...(fin ? [{ key: 'b', label: 'Bill rate', align: 'right' }] : []),
+
                                     { key: 'x', label: '', align: 'right', always: true },
                                 ]}>
                                     {(shows) => rows.map((p) => (
                                         <MemberRow key={p.id} p={p} today={today} load={load} hours={hours} showHours={showHours}
-                                            fin={fin} canEdit={canEdit} canDelete={canDelete} run={run} onRemove={removePerson} show={shows} />
+                                            onDetails={() => setDetails(p.id)} show={shows} />
                                     ))}
                                 </Table>
                             </div>
@@ -173,22 +188,24 @@ export default function ProjectTeam({ project }) {
                     </>
                 )}
             </Panel>
-            {adding && <AddMember project={project} fin={fin} onClose={() => setAdding(false)}
+            {adding && <AddMember project={project} onClose={() => setAdding(false)}
                 onTeam={new Set(people.filter((p) => p.status !== 'inactive').map((p) => p.id))} />}
+            {details && people.some((p) => p.id === details) && (
+                <MemberDetails key={details} project={project} p={people.find((x) => x.id === details)} today={today}
+                    canEdit={canEdit} canAdd={canAdd} canDelete={canDelete} run={run} onRemove={removePerson}
+                    onClose={() => setDetails(null)} />
+            )}
         </div>
     );
 }
 
-function MemberRow({ p, today, load, hours, showHours, fin, canEdit, canDelete, run, onRemove, show }) {
+function MemberRow({ p, today, load, hours, showHours, onDetails, show }) {
     const t = useT();
     const m = p.membership;
     const live = memberActive(m, today);
-    const upcoming = p.status === 'upcoming';
     const total = load[p.id];
     const over = live && total > 100;
     const st = PERSON_STATUS[p.status];
-    const editable = canEdit && (live || upcoming);
-    const removable = upcoming ? canDelete : canEdit && live && !m.end_date;
     return (
         <Tr>
             {show('p') && (
@@ -207,25 +224,15 @@ function MemberRow({ p, today, load, hours, showHours, fin, canEdit, canDelete, 
                     </Row>
                 </Td>
             )}
-            {show('em') && <Td muted nowrap>{p.email || '—'}</Td>}
-            {show('ph') && <Td muted nowrap>{p.employee?.phone || '—'}</Td>}
-            {show('d') && <Td muted nowrap>{p.designation || '—'}</Td>}
-            {show('dep') && <Td muted nowrap>{p.department || '—'}</Td>}
-            {show('lo') && <Td muted nowrap>{p.employee?.location || '—'}</Td>}
-            {show('r') && (
-                <Td nowrap>
-                    {editable ? (
-                        <Select aria-label={`Project role of ${p.name}`} value={m.role}
-                            onChange={(ev) => run(() => updateMember(m.id, { role: ev.target.value }), 'Role changed')}
-                            style={{ width: 120, height: 27 }}>
-                            {MEMBER_ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-                        </Select>
-                    ) : <Muted>{m.role_title || MEMBER_ROLES.find((r) => r.id === m.role)?.label}</Muted>}
-                </Td>
-            )}
+            {show('em') && <Td muted nowrap>{p.email || '-'}</Td>}
+            {show('ph') && <Td muted nowrap>{p.employee?.phone || '-'}</Td>}
+            {show('d') && <Td muted nowrap>{p.designation || '-'}</Td>}
+            {show('dep') && <Td muted nowrap>{p.department || '-'}</Td>}
+            {show('lo') && <Td muted nowrap>{p.employee?.location || '-'}</Td>}
+            {show('r') && <Td nowrap>{roleText(m)}</Td>}
             {show('a') && <Td nowrap><AllocationBar pct={m.allocation_pct} /></Td>}
             {show('add') && <Td muted nowrap>{fmtDate(m.start_date)}</Td>}
-            {show('end') && <Td muted nowrap>{m.end_date ? fmtDate(m.end_date) : '—'}</Td>}
+            {show('end') && <Td muted nowrap>{m.end_date ? fmtDate(m.end_date) : '-'}</Td>}
             {show('s') && (
                 <Td nowrap>
                     <Status tone={st.tone}>{st.label}</Status>
@@ -235,57 +242,202 @@ function MemberRow({ p, today, load, hours, showHours, fin, canEdit, canDelete, 
             )}
             {showHours && show('h') && (
                 <Td align="right" nowrap>
-                    {hours[p.id] ? `${hours[p.id].logged_hours} / ${hours[p.id].planned_hours}` : '—'}
+                    {hours[p.id] ? `${hours[p.id].logged_hours} / ${hours[p.id].planned_hours}` : '-'}
                 </Td>
             )}
-            {fin && show('b') && <Td align="right" nowrap>{m.bill_rate == null ? '—' : `${money(m.bill_rate)}/h`}</Td>}
+
             {show('x') && (
                 <Td align="right">
-                    <Row gap={6} style={{ justifyContent: 'flex-end' }}>
-                        {editable && (
-                            <EditShare member={m} name={p.name} onSave={(pct) => run(() => updateMember(m.id, { allocation_pct: pct }), 'Time share updated')} />
-                        )}
-                        {removable && (
-                            <ConfirmBtn label="Remove" confirmLabel="Remove" title={`Remove ${p.name}?`}
-                                message={upcoming
-                                    ? `${p.name} has not started on this project yet, so the membership is deleted.`
-                                    : `${p.name}’s time on the project ends today. Their past hours and dates stay on record, and they lose access to the project’s announcements and RACI matrix.`}
-                                onConfirm={() => onRemove(p)} />
-                        )}
-                    </Row>
+                    <Btn size="sm" aria-label={`Details for ${p.name}`} onClick={onDetails}>Details</Btn>
                 </Td>
             )}
         </Tr>
     );
 }
 
-function EditShare({ member, name, onSave }) {
-    const [open, setOpen] = useState(false);
-    const [pct, setPct] = useState(String(member.allocation_pct));
+/**
+ * One person on the project: department, project role, time on the project
+ * and status, with Remove and Delete. Role, time and status are saved
+ * together; Remove and Delete act at once, after asking.
+ *
+ * Status: Active → Inactive is the same as Remove. Inactive → Active adds a
+ * new membership from today (the old one stays as history); a membership
+ * that was set to end later just loses its end date.
+ */
+function MemberDetails({ project, p, today, canEdit, canAdd, canDelete, run, onRemove, onClose }) {
+    const t = useT();
+    const toast = useToast();
+    const allMembers = useSection('project_members');
+    const departments = useSection('departments');
+    const m = p.membership;
+    const inactive = p.status === 'inactive';
+    const standard = MEMBER_ROLES.some((r) => r.id === m.role) && !m.role_title;
+    const [form, setForm] = useState(() => ({
+        department: p.department || '',
+        role: standard ? m.role : CUSTOM_ROLE,
+        role_title: m.role_title || '',
+        allocation_pct: String(m.allocation_pct),
+        status: inactive ? 'inactive' : 'active',
+    }));
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+    const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e?.target ? e.target.value : e }));
+    const history = allMembers.filter((x) => x.project_id === project.id && x.employee_id === p.id);
+    const custom = form.role === CUSTOM_ROLE;
+    const roleChanged = (custom ? 'member' : form.role) !== m.role || (custom ? form.role_title.trim() : '') !== (m.role_title || '');
+    const pctChanged = Number(form.allocation_pct) !== Number(m.allocation_pct);
+    const statusChanged = form.status !== (inactive ? 'inactive' : 'active');
+    const deptChanged = form.department !== (p.department || '');
+    const dirty = deptChanged || roleChanged || pctChanged || statusChanged;
+    const deptNames = [...new Set(departments.map((d) => d.name).filter(Boolean))].sort();
+    const canSave = statusChanged && form.status === 'active' && inactive ? canAdd : canEdit;
+
+    const save = async () => {
+        if (custom && !form.role_title.trim()) { setError('Type the role, for example Site Engineer.'); return; }
+        if (!(Number(form.allocation_pct) > 0 && Number(form.allocation_pct) <= 100)) { setError('Time share is between 1 and 100%.'); return; }
+        const role = custom ? 'member' : form.role;
+        const roleTitle = custom ? form.role_title.trim() : null;
+        setSaving(true); setError('');
+        try {
+            // The department lives on the employee record, not the membership.
+            // A saved department_id outranks the name, so it is dropped here.
+            if (deptChanged) {
+                await orgStore.updateItem('employees', p.id, { department: form.department || null, department_id: undefined });
+            }
+            if (statusChanged && form.status === 'active' && inactive) {
+                // Back on the project: a new membership from today.
+                await addMember(project.id, {
+                    employee_id: p.id, role, role_title: roleTitle || '', allocation_pct: Number(form.allocation_pct),
+                    start_date: today, end_date: null, bill_rate: null,
+                });
+                toast(`${p.name} is active on the project again`, 'success');
+                onClose();
+                return;
+            }
+            if (!inactive && (roleChanged || pctChanged)) {
+                await updateMember(m.id, {
+                    ...(roleChanged ? { role, role_title: roleTitle } : {}),
+                    ...(pctChanged ? { allocation_pct: Number(form.allocation_pct) } : {}),
+                });
+            }
+            if (statusChanged && form.status === 'active' && m.end_date) {
+                await updateMember(m.id, { end_date: null });
+            }
+            if (statusChanged && form.status === 'inactive') {
+                await onRemove(p);
+                onClose();
+                return;
+            }
+            toast('Saved', 'success');
+            onClose();
+        } catch (e) {
+            setError(teamError(e));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const deleteAll = () => run(async () => {
+        for (const x of history) await orgStore.removeItem('project_members', x.id);
+        onClose();
+    }, `${p.name} deleted from the project`);
+
+    const started = String(m.start_date).slice(0, 10) < today;
+    const removable = inactive ? false : started ? canEdit : canDelete;
+
     return (
-        <>
-            <Btn size="sm" onClick={() => { setPct(String(member.allocation_pct)); setOpen(true); }}>Change %</Btn>
-            <Modal open={open} onClose={() => setOpen(false)} title={`Time share — ${name || 'member'}`} width={380}
-                footer={<>
-                    <Btn onClick={() => setOpen(false)}>Cancel</Btn>
-                    <Btn primary disabled={!(Number(pct) > 0 && Number(pct) <= 100)}
-                        onClick={() => { onSave(Number(pct)); setOpen(false); }}>Save</Btn>
-                </>}>
-                <Field required label="Share of their time (%)" hint="Between 1 and 100. Over 100% across projects is allowed, and shown.">
-                    <Input type="number" min="1" max="100" value={pct} onChange={(e) => setPct(e.target.value)} autoFocus />
+        <Modal open onClose={onClose} title={p.name} note={p.email || undefined} width={760}
+            footer={<>
+                {removable && (
+                    <ConfirmBtn label="Remove" confirmLabel="Remove" title={`Remove ${p.name}?`}
+                        message={started
+                            ? `${p.name} moves to Inactive now. Their past dates and hours stay on record, and they lose access to the project’s announcements and RACI matrix.`
+                            : `${p.name} has not started on this project yet, so the membership is deleted.`}
+                        onConfirm={async () => { await onRemove(p); onClose(); }} />
+                )}
+                {canDelete && (
+                    <ConfirmBtn label="Delete" confirmLabel="Delete" title={`Delete ${p.name} from this project?`}
+                        message={`Every membership ${p.name} has had on this project is deleted, with its dates, so their past time no longer counts toward the project’s labour cost. To keep that history, use Remove instead.`}
+                        onConfirm={deleteAll} />
+                )}
+                <div style={{ flex: 1 }} />
+                <Btn onClick={onClose}>Cancel</Btn>
+                <Btn primary disabled={saving || !dirty || !canSave} onClick={save}>{saving ? 'Saving…' : 'Save'}</Btn>
+            </>}>
+            <Row gap={10} style={{ marginBottom: 14 }}>
+                <Avatar name={p.name} size={34} />
+                <span style={{ minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 13.5, color: t.text }}>{p.designation || 'No job title'}</span>
+                    <span style={{ display: 'block', fontSize: 11.5, color: t.faint }}>
+                        {PERSON_STATUS[p.status].label}
+                        {m.end_date && p.status !== 'inactive' ? ` · until ${fmtDate(m.end_date)}` : ''}
+                        {p.status === 'inactive' && m.end_date ? ` · left ${fmtDate(m.end_date)}` : ''}
+                    </span>
+                </span>
+            </Row>
+
+            <Grid min={190} gap={14}>
+                <Field label="Department">
+                    <Select value={form.department} onChange={set('department')} disabled={!canEdit}>
+                        <option value="">No department</option>
+                        {deptNames.map((d) => <option key={d} value={d}>{d}</option>)}
+                        {form.department && !deptNames.includes(form.department) && (
+                            <option value={form.department}>{form.department}</option>
+                        )}
+                    </Select>
                 </Field>
-            </Modal>
-        </>
+                <Field label="On the project since">
+                    <Input value={fmtDate(m.start_date)} readOnly aria-readonly="true" />
+                </Field>
+                <Field required label="Time on project (%)">
+                    <Input type="number" min="1" max="100" value={form.allocation_pct} onChange={set('allocation_pct')} />
+                </Field>
+            </Grid>
+            <div style={{ height: 14 }} />
+            <Row gap={14} wrap align="flex-start" style={{ justifyContent: 'space-between' }}>
+                <Field label="Project role">
+                    <Seg value={form.role} onChange={set('role')} label="Project role"
+                        options={[...MEMBER_ROLES, { id: CUSTOM_ROLE, label: 'Custom' }]} />
+                </Field>
+                <Field label="Status">
+                    <Seg value={form.status} onChange={set('status')} label="Status" options={[
+                        { id: 'active', label: 'Active' }, { id: 'inactive', label: 'Inactive' },
+                    ]} />
+                </Field>
+            </Row>
+            {custom && (
+                <>
+                    <div style={{ height: 10 }} />
+                    <Input value={form.role_title} maxLength={80} aria-label="Custom project role"
+                        placeholder="Type the role, e.g. Site Engineer, Architect" onChange={set('role_title')} />
+                </>
+            )}
+            {statusChanged && (
+                <p style={{ margin: '10px 0 0', fontSize: 12, color: t.dim }}>
+                    {form.status === 'inactive'
+                        ? `On Save, ${p.name} moves to Inactive, the same as Remove.`
+                        : inactive ? `On Save, ${p.name} rejoins the project from today. Their earlier time stays on record.`
+                            : `On Save, the end date is cleared and ${p.name} stays on the project.`}
+                </p>
+            )}
+            {history.length > 1 && (
+                <p style={{ margin: '10px 0 0', fontSize: 12, color: t.faint }}>
+                    Earlier on this project: {history.filter((x) => x.id !== m.id)
+                        .map((x) => `${fmtDate(x.start_date)} → ${x.end_date ? fmtDate(x.end_date) : 'now'}`).join(' · ')}
+                </p>
+            )}
+            {error && <div role="alert" style={{ marginTop: 12, fontSize: 12.5, color: t.down }}>{error}</div>}
+        </Modal>
     );
 }
 
-function AddMember({ project, fin, onClose, onTeam }) {
+function AddMember({ project, onClose, onTeam }) {
     const t = useT();
     const toast = useToast();
     const employees = useSection('employees');
     const [form, setForm] = useState({
-        employee_id: '', role: 'member', allocation_pct: '100', start_date: project.start_date && project.start_date > isoDay() ? project.start_date : isoDay(),
-        end_date: '', bill_rate: '',
+        employee_id: '', role: 'member', role_title: '', allocation_pct: '100', start_date: project.start_date && project.start_date > isoDay() ? project.start_date : isoDay(),
+        end_date: '',
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -295,10 +447,15 @@ function AddMember({ project, fin, onClose, onTeam }) {
 
     const save = async () => {
         if (!form.employee_id) { setError('Choose a person.'); return; }
+        if (form.role === CUSTOM_ROLE && !form.role_title.trim()) { setError('Type the role, for example Site Engineer.'); return; }
         if (!(Number(form.allocation_pct) > 0 && Number(form.allocation_pct) <= 100)) { setError('Time share is between 1 and 100%.'); return; }
         setSaving(true); setError('');
         try {
-            await addMember(project.id, { ...form, end_date: form.end_date || null, bill_rate: fin ? form.bill_rate : null });
+            const custom = form.role === CUSTOM_ROLE;
+            await addMember(project.id, {
+                ...form, role: custom ? 'member' : form.role, role_title: custom ? form.role_title.trim() : '',
+                end_date: form.end_date || null, bill_rate: null,
+            });
             toast('Added to the project', 'success');
             onClose();
         } catch (e) {
@@ -309,7 +466,7 @@ function AddMember({ project, fin, onClose, onTeam }) {
     };
 
     return (
-        <Modal open onClose={onClose} title="Add a person" width={520}
+        <Modal open onClose={onClose} title="Add a person" width={680}
             footer={<>
                 <Btn onClick={onClose}>Cancel</Btn>
                 <Btn primary disabled={saving || !choices.length} onClick={save}>{saving ? 'Adding…' : 'Add to project'}</Btn>
@@ -323,19 +480,26 @@ function AddMember({ project, fin, onClose, onTeam }) {
                     <Field required label="Person">
                         <Select value={form.employee_id} onChange={set('employee_id')}>
                             <option value="">Choose…</option>
-                            {choices.map((e) => <option key={e.id} value={e.id}>{e.name}{e.role ? ` — ${e.role}` : ''}</option>)}
+                            {choices.map((e) => <option key={e.id} value={e.id}>{e.name}{e.role ? ` · ${e.role}` : ''}</option>)}
                         </Select>
                     </Field>
                     <div style={{ height: 12 }} />
                     <Field label="Project role">
-                        <Seg value={form.role} onChange={set('role')} label="Project role" options={MEMBER_ROLES} />
-                    </Field>
+                        <Seg value={form.role} onChange={set('role')} label="Project role"
+                            options={[...MEMBER_ROLES, { id: CUSTOM_ROLE, label: 'Custom' }]} />
+                        </Field>
+                        {form.role === CUSTOM_ROLE && (
+                            <>
+                                <div style={{ height: 10 }} />
+                                <Input autoFocus value={form.role_title} maxLength={80} aria-label="Custom project role"
+                                    placeholder="Type the role, e.g. Site Engineer, Architect" onChange={set('role_title')} />
+                            </>
+                        )}
                     <div style={{ height: 12 }} />
                     <Grid min={140} gap={10}>
                         <Field required label="Time %"><Input type="number" min="1" max="100" value={form.allocation_pct} onChange={set('allocation_pct')} /></Field>
                         <Field label="From"><Input type="date" value={form.start_date} onChange={set('start_date')} /></Field>
-                        <Field label="Until" hint="Blank = ongoing"><Input type="date" value={form.end_date} onChange={set('end_date')} /></Field>
-                        {fin && <Field label="Bill rate (₹/h)" hint="For time & materials"><Input type="number" min="0" step="0.01" value={form.bill_rate} onChange={set('bill_rate')} /></Field>}
+                        <Field label="Until"><Input type="date" value={form.end_date} onChange={set('end_date')} /></Field>
                     </Grid>
                 </>
             )}

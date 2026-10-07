@@ -77,7 +77,7 @@ export default function TaxSummary({ projectId = null }) {
       >
         <Info size={16} style={{ flexShrink: 0, marginTop: 2 }} />
         <span>
-          {scope && <>Only this project’s invoices, bills and cash-book entries — and only its share of any split
+          {scope && <>Only this project’s invoices, bills and cash-book entries, and only its share of any split
             across projects. GST is filed for the whole company, so use the company Tax Summary to file. </>}
           <strong>A preparation aid, not a filing tool.</strong> These figures come from invoices, bills and
           expenses recorded in EdgeOS. They do not account for reverse charge, ineligible input credit,
@@ -174,8 +174,8 @@ export default function TaxSummary({ projectId = null }) {
                   <td style={{ color: r.kind === 'Output' ? 'var(--error)' : 'var(--success)', fontWeight: 600, fontSize: '0.75rem' }}>{r.kind}</td>
                   <td>{r.ref}</td>
                   <td>{r.party}</td>
-                  <td className="num">{r.rate ? `${Number(r.rate)}%` : '—'}</td>
-                  <td style={{ fontSize: '0.75rem' }}>{r.gst > 0 ? (r.interState ? 'IGST' : 'CGST+SGST') : '—'}</td>
+                  <td className="num">{r.rate ? `${Number(r.rate)}%` : '-'}</td>
+                  <td style={{ fontSize: '0.75rem' }}>{r.gst > 0 ? (r.interState ? 'IGST' : 'CGST+SGST') : '-'}</td>
                   <td className="num">{money(r.taxable, 2)}</td>
                   <td className="num strong">{money(r.gst, 2)}</td>
                 </tr>

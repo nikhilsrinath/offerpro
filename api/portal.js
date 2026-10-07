@@ -11,7 +11,7 @@ import { recordFromRow, financialDocFromRow } from './_lib/docShape.js';
  *
  * Recipients have no account. Under Firebase the portal called
  * signInAnonymously() and then read and wrote Firestore and RTDB directly,
- * which — with rules that only asked for `auth != null` — handed every
+ * which: with rules that only asked for `auth != null` · handed every
  * anonymous visitor the whole database. Here `anon` has no grants on any table
  * at all; the token is verified against portal_tokens and this endpoint does
  * the reads and writes under the service role, scoped to the one document the
@@ -79,7 +79,7 @@ async function loadDocument(grant) {
 /**
  * The live organization profile, so a logo or address changed after issue is
  * reflected. Banking details go out only for the documents that ask to be paid
- * — org_banking is admin-only for every client role, and an offer letter has
+ *: org_banking is admin-only for every client role, and an offer letter has
  * no business carrying account numbers to a candidate.
  */
 async function loadCompany(orgId, document, table) {
@@ -155,7 +155,7 @@ async function signIfPresent(path) {
  * decides. `signs` marks the actions that capture a signature image.
  *
  * `types` is which documents an action belongs to. A quotation is accepted, a
- * proforma is confirmed and its advance paid, an invoice is paid — and a link
+ * proforma is confirmed and its advance paid, an invoice is paid. And a link
  * to one can never perform the others' actions. `from` is the status an action
  * must start from, where order matters: the advance comes after the order.
  *
@@ -206,7 +206,7 @@ async function postAction(req, res) {
   // Claim the document before doing any of the work.
   //
   // The check above reads and this writes, and between the two there is a window
-  // — a double-tapped Sign button, or the same link open on a phone and a laptop,
+  //: a double-tapped Sign button, or the same link open on a phone and a laptop,
   // sends two requests that both see a non-terminal status and both proceed. The
   // signature row is protected by sig_one_per_record, but that failure is only
   // warned about, so the second response still merged itself into the payload and
@@ -236,8 +236,8 @@ async function postAction(req, res) {
   }
 
   // A payment claim becomes a row in the ledger, unconfirmed. Until an admin
-  // verifies it, app.recompute_amount_paid() ignores it — so the document's
-  // amount_paid and status are untouched — but the claim is now queryable
+  // verifies it, app.recompute_amount_paid() ignores it. So the document's
+  // amount_paid and status are untouched. But the claim is now queryable
   // instead of living only inside the jsonb side-channel.
   if (extra.payment_confirmation) {
     await recordClaimedPayment(grant, extra.payment_confirmation);
@@ -301,7 +301,7 @@ function buildExtra(action, payload, document) {
   }
 }
 
-/** The recipient's claim about a transfer — evidence for the org, not a ledger entry. */
+/** The recipient's claim about a transfer, evidence for the org, not a ledger entry. */
 function sanitizePayment(payment = {}) {
   return {
     amountPaid: Number(payment.amountPaid) || 0,
@@ -318,7 +318,7 @@ function sanitizePayment(payment = {}) {
  * responded. Returns false if another request got there first.
  *
  * PostgREST applies the filters as the UPDATE's WHERE clause, so the terminal
- * check and the write are one statement and one row lock — which is what makes
+ * check and the write are one statement and one row lock, which is what makes
  * this a claim rather than a check followed by a hope.
  */
 async function claimDocument(grant, table, newStatus, fromStatuses) {
@@ -396,7 +396,7 @@ async function storeSignature(grant, dataUrl) {
  *
  * confirmed_at stays null: the trigger sums only confirmed rows, so nothing
  * about the invoice moves until an admin verifies it in the finance screen.
- * `amount > 0` is a check constraint, and a claim of zero is not a payment —
+ * `amount > 0` is a check constraint, and a claim of zero is not a payment,
  * the jsonb copy in the document payload is still the evidence either way, so a
  * failure here is a warning rather than a lost response.
  */
@@ -507,7 +507,7 @@ const EMPLOYMENT_TYPE = {
 
 async function onboardAcceptedCandidate(grant, document, signerName) {
   if (document.type !== 'offer' && document.type !== 'offer_letter') return;
-  // Already an employee — an offer issued to someone on the registry, or a
+  // Already an employee: an offer issued to someone on the registry, or a
   // second acceptance that slipped past the TERMINAL guard.
   if (document.employee_id) return;
 
@@ -517,8 +517,8 @@ async function onboardAcceptedCandidate(grant, document, signerName) {
   const email = String(document.recipient_email || data.email || '').trim();
   if (!fullName) return;
 
-  // Email is the app's identity key for a person — Employees.jsx dedupes on it
-  // and deletes the older row when two share one — so an offer accepted at an
+  // Email is the app's identity key for a person, Employees.jsx dedupes on it
+  // and deletes the older row when two share one. So an offer accepted at an
   // address already on the registry attaches to that employee instead of
   // creating a second row that would later be culled. Say so in the
   // notifications, or the acceptance looks like it did nothing.
@@ -577,7 +577,7 @@ async function noteMatchedEmployee(grant, fullName, email, existing) {
   const { error } = await supabaseAdmin().from('notifications').insert({
     org_id: grant.org_id,
     type: 'offer_signed',
-    title: `${fullName} accepted — matched to an existing employee`,
+    title: `${fullName} accepted, matched to an existing employee`,
     message: `${email} is already on the registry as "${existing.full_name}", so the offer was linked `
       + `to that employee instead of adding a second one. Use a different address if these are different people.`,
     record_id: grant.record_id,
@@ -623,9 +623,9 @@ const NOTIFICATION_COPY = {
   decline:              (who, doc, p) => ['document_declined', 'Document declined', `${who} declined ${doc.doc_number || doc.id}. Reason: ${p.reason || 'Not specified'}`],
   request_revision:     (who, doc, p) => ['revision_requested', `Revision requested for ${doc.doc_number || doc.id}`, p.notes || ''],
   confirm_order:        (who, doc) => ['order_confirmed', `Order confirmed for ${doc.doc_number || doc.id}`, `${who} confirmed the order.`],
-  payment_confirmation: (who, doc, p) => ['payment_submitted', `Payment submitted for ${doc.doc_number || doc.id}`, `${formatAmount(p.payment)} — UTR: ${p.payment?.transactionId || '—'}`],
+  payment_confirmation: (who, doc, p) => ['payment_submitted', `Payment submitted for ${doc.doc_number || doc.id}`, `${formatAmount(p.payment)} · UTR: ${p.payment?.transactionId || '-'}`],
   // Submitted, not received: the org has not verified it yet.
-  proforma_payment:     (who, doc, p) => ['advance_submitted', `Advance submitted for ${doc.doc_number || doc.id}`, `${formatAmount(p.payment)} — UTR: ${p.payment?.transactionId || '—'}. Verify it on Proforma Invoices.`],
+  proforma_payment:     (who, doc, p) => ['advance_submitted', `Advance submitted for ${doc.doc_number || doc.id}`, `${formatAmount(p.payment)} · UTR: ${p.payment?.transactionId || '-'}. Verify it on Proforma Invoices.`],
 };
 
 function labelFor(type) {

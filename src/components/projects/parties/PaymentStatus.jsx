@@ -17,7 +17,7 @@ import { todayIso } from './partyData';
 import { Badge, Legend, AttachedFiles, Bar } from './partyUi';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Client Management › Payment Status & Pendings — what the client owes on
+   Client Management › Payment Status & Pendings, what the client owes on
    this project, invoice by invoice.
 
    The rows are the project's invoices (the ones on its Billing page), at the
@@ -63,7 +63,7 @@ export default function PaymentStatus({ project }) {
             return {
                 doc: d, share, ...st,
                 milestone: ms || null,
-                what: ms?.title || d.items?.[0]?.description || '—',
+                what: ms?.title || d.items?.[0]?.description || '-',
                 mode: last?.method || '', reference: last?.reference || '',
                 remarks: last?.note || d.notes || '',
             };
@@ -190,7 +190,7 @@ function InvoiceRow({ r, money, files, project, open, onToggle, canPay, onPay, o
                 <td style={{ ...td(), maxWidth: 220 }}>{r.what}</td>
                 <td style={{ ...td(), whiteSpace: 'nowrap', color: t.dim }}>{fmtDate(r.doc.issue_date)}</td>
                 <td style={{ ...td(), whiteSpace: 'nowrap', color: r.status === 'overdue' ? t.down : t.dim }}>
-                    {r.due ? fmtDate(r.due) : '—'}
+                    {r.due ? fmtDate(r.due) : '-'}
                     {r.status === 'overdue' && <div style={{ fontSize: 10.5 }}>{r.daysLate}d late</div>}
                     {r.dueSoon && <div style={{ fontSize: 10.5, color: t.faint }}>due soon</div>}
                 </td>
@@ -198,9 +198,9 @@ function InvoiceRow({ r, money, files, project, open, onToggle, canPay, onPay, o
                 <td style={{ ...td('right'), whiteSpace: 'nowrap' }}>{money(r.paid)}</td>
                 <td style={{ ...td('right'), whiteSpace: 'nowrap', fontWeight: r.balance ? 600 : 400 }}>{money(r.balance)}</td>
                 <td style={td()}><Badge color={s.color}>{s.label}</Badge></td>
-                <td style={{ ...td(), color: t.dim, whiteSpace: 'nowrap' }}>{r.mode || '—'}</td>
-                <td style={{ ...td(), color: t.dim }}>{r.reference || '—'}</td>
-                <td style={{ ...td(), color: t.dim, maxWidth: 200 }}>{r.remarks || '—'}</td>
+                <td style={{ ...td(), color: t.dim, whiteSpace: 'nowrap' }}>{r.mode || '-'}</td>
+                <td style={{ ...td(), color: t.dim }}>{r.reference || '-'}</td>
+                <td style={{ ...td(), color: t.dim, maxWidth: 200 }}>{r.remarks || '-'}</td>
                 <td style={{ ...td('right'), whiteSpace: 'nowrap' }}>
                     <Row gap={6} style={{ justifyContent: 'flex-end' }}>
                         {canPay && r.balance > 0 && <Btn size="sm" primary onClick={onPay}>Record payment</Btn>}
@@ -220,7 +220,7 @@ function InvoiceRow({ r, money, files, project, open, onToggle, canPay, onPay, o
                                             <Row key={p.id} gap={8} style={{ fontSize: 12.5, borderBottom: '1px solid ' + t.lineSoft, paddingBottom: 6 }}>
                                                 <span style={{ width: 96, color: t.dim }}>{fmtDate(p.paid_on)}</span>
                                                 <span style={{ flex: 1, minWidth: 0, color: t.dim }}>
-                                                    {[p.method, p.reference, p.note].filter(Boolean).join(' · ') || '—'}
+                                                    {[p.method, p.reference, p.note].filter(Boolean).join(' · ') || '-'}
                                                     {!p.confirmed_at && <span style={{ color: t.down }}> · unconfirmed</span>}
                                                 </span>
                                                 <span style={{ whiteSpace: 'nowrap' }}>{money(Number(p.amount) * r.share)}</span>
@@ -275,7 +275,7 @@ function RecordPayment({ r, money, onClose }) {
         } catch (e) { toast(fileError(e), 'error'); } finally { setSaving(false); }
     };
     return (
-        <Modal open onClose={onClose} width={480} title={`Record a payment — ${r.doc.doc_number}`}
+        <Modal open onClose={onClose} width={480} title={`Record a payment · ${r.doc.doc_number}`}
             note={`Balance on the invoice ${money(fullBalance)}${r.share < 1 ? ` (the whole invoice; this project’s share is ${Math.round(r.share * 100)}%)` : ''}`}
             footer={<><Btn onClick={onClose}>Cancel</Btn><Btn primary disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Record'}</Btn></>}>
             <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
@@ -308,7 +308,7 @@ function AttachFile({ r, project, onClose }) {
         try {
             await uploadProjectFile(project.id, file, {
                 linkType: 'invoice', linkId: r.doc.id, tags: [kind, 'payments'],
-                name: `${kind === 'receipt' ? 'Receipt' : 'Invoice'} ${r.doc.doc_number} — ${file.name}`,
+                name: `${kind === 'receipt' ? 'Receipt' : 'Invoice'} ${r.doc.doc_number} · ${file.name}`,
             });
             toast('File attached', 'success');
             onClose();

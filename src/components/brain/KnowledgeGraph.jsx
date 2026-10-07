@@ -25,7 +25,7 @@ import { domainOf, DOMAINS, kindLabel } from '../../services/brainService';
    straight to the screen. A wheel notch sets a new target scale and the frames
    in between are interpolation, which is the whole difference between a graph
    that jumps and one that glides. Dragging is the exception: a pan follows the
-   pointer exactly, because a map that lags behind your hand feels broken — the
+   pointer exactly, because a map that lags behind your hand feels broken, the
    easing there is on release instead, as momentum that coasts to a stop.
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -34,7 +34,7 @@ const HUB_R = 9;
 const MIN_K = 0.06;
 const MAX_K = 4.5;
 
-/** Cluster centres, one per domain, on a ring — with the organisation at the middle. */
+/** Cluster centres, one per domain, on a ring, with the organisation at the middle. */
 function clusterCentres(domains, radius) {
     const out = {};
     const ring = domains.filter((d) => d.id !== 'organization');
@@ -246,7 +246,7 @@ const KnowledgeGraph = forwardRef(function KnowledgeGraph({
         if (snap) viewRef.current = { ...targetRef.current };
     }, []);
 
-    /** Centres one node at a chosen scale — how the list and search reach the canvas. */
+    /** Centres one node at a chosen scale, how the list and search reach the canvas. */
     const focusNode = useCallback((id, k) => {
         const n = stateRef.current.byId?.get(id);
         if (!n) return;
@@ -286,8 +286,8 @@ const KnowledgeGraph = forwardRef(function KnowledgeGraph({
         // A force graph that spends ten seconds crawling outwards from a seed is
         // ten seconds during which nothing can be clicked and every label is in
         // the wrong place; the warm-up pass costs a few milliseconds and lands
-        // the clusters where they belong. What is left — a short, visible
-        // settling — is the part that shows the shape, and reduced motion skips
+        // the clusters where they belong. What is left. A short, visible
+        // settling: is the part that shows the shape, and reduced motion skips
         // even that.
         const warm = reduceMotion ? 190 : 120;
         for (let i = 0; i < warm; i++) {
@@ -351,8 +351,8 @@ const KnowledgeGraph = forwardRef(function KnowledgeGraph({
                 tick(st.sim, st.links, st.centres, st.alpha);
                 st.alpha *= 0.972;
                 // The layout is still spreading, so the framing is still wrong.
-                // Re-aiming at the bounding box every frame — and easing towards
-                // it like any other camera move — means the graph is composed in
+                // Re-aiming at the bounding box every frame. And easing towards
+                // it like any other camera move, means the graph is composed in
                 // the viewport when it stops moving rather than drifting into a
                 // corner and waiting to be found.
                 if (!interactedRef.current) fitRef.current();
@@ -403,7 +403,7 @@ const KnowledgeGraph = forwardRef(function KnowledgeGraph({
             // React hears about the camera only when the number a human reads
             // actually changes. Posting every frame would re-render the page
             // beside the canvas eleven times a second for a percentage that did
-            // not move — which is how a smooth canvas ends up in a janky app.
+            // not move: which is how a smooth canvas ends up in a janky app.
             const pct = Math.round(cam.k * 100);
             if (pct !== lastZoomPost) {
                 lastZoomPost = pct;

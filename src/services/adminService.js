@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase';
 
 /**
  * The platform console's client. Every call is one POST to /api/admin with an
- * `action`, carrying the Supabase access token — the route verifies the
+ * `action`, carrying the Supabase access token. The route verifies the
  * `platform_admin` claim and the allow-listed address before it answers.
  *
  * Nothing here queries Supabase directly. A cross-tenant read from the browser
@@ -48,7 +48,7 @@ export const adminService = {
 /**
  * Whether the signed-in session may open the console.
  *
- * Both halves matter. `platform_admin` is the authorization — the server checks
+ * Both halves matter. `platform_admin` is the authorization: the server checks
  * the same claim and no client assertion can forge it. The address check is so
  * the UI refuses the same account the server would refuse, rather than showing
  * a console whose every request comes back 403.

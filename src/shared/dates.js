@@ -1,7 +1,7 @@
-// dates.js — calendar dates as people say them, resolved against a known today.
+// dates.js: calendar dates as people say them, resolved against a known today.
 //
 // Shared by the browser and the serverless functions (src/shared/ is the one
-// directory both may import, and it imports nothing outside itself — see
+// directory both may import, and it imports nothing outside itself, see
 // sharedBoundary.test.js). The agent runs in UTC on Vercel while the company
 // runs on Asia/Kolkata time, so "today" is never read off the machine clock
 // here: every function takes it as an argument, and todayIn() computes it for
@@ -65,16 +65,16 @@ export function endOfMonth(isoDate) {
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/** "2 Oct 2026" — the absolute form every confirmation card shows. */
+/** "2 Oct 2026" · the absolute form every confirmation card shows. */
 export function formatDate(isoDate) {
-  if (!isIsoDate(isoDate)) return isoDate ? String(isoDate) : '—';
+  if (!isIsoDate(isoDate)) return isoDate ? String(isoDate) : '-';
   const d = at(isoDate);
   return `${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
 /** "25 Sep" when the year is the one in `today`, "25 Sep 2025" otherwise. */
 export function formatDateShort(isoDate, today) {
-  if (!isIsoDate(isoDate)) return isoDate ? String(isoDate) : '—';
+  if (!isIsoDate(isoDate)) return isoDate ? String(isoDate) : '-';
   const d = at(isoDate);
   const sameYear = today && isIsoDate(today) && at(today).getUTCFullYear() === d.getUTCFullYear();
   return `${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]}${sameYear ? '' : ` ${d.getUTCFullYear()}`}`;
@@ -94,7 +94,7 @@ const WEEKDAY_RE = '(sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)(?:day|nesday|r
 // How far a year-less date may sit on the "wrong" side of today before it is
 // read as belonging to the neighbouring year. A few weeks of slack, because
 // "5 Oct" typed in late September for a payment is somebody writing it down
-// early, not a payment from eleven months ago — and "20 Sep" typed on the 26th
+// early, not a payment from eleven months ago. And "20 Sep" typed on the 26th
 // as a deadline is a deadline already missed, not one next September.
 const YEAR_SLACK_DAYS = 45;
 
@@ -126,7 +126,7 @@ function placeYear(month, day, today, prefer) {
 function resolveWeekday(target, qualifier, today, prefer) {
   const now = weekday(today);
   if (qualifier === 'next') {
-    // "Next Friday" is the Friday of next week (weeks start on Monday) — on a
+    // "Next Friday" is the Friday of next week (weeks start on Monday), on a
     // Saturday that is six days away, not thirteen, and on a Monday it is
     // eleven days away rather than four.
     const toMonday = ((8 - now) % 7) || 7;
@@ -202,9 +202,9 @@ export function parseDate(text, today = todayIso(), { prefer = 'past' } = {}) {
   const isoHit = s.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
   if (isoHit && isIsoDate(isoHit[0])) return { date: isoHit[0], match: isoHit[0] };
 
-  // dd/mm[/yy(yy)] — day first, as every date on these screens already is.
+  // dd/mm[/yy(yy)], day first, as every date on these screens already is.
   // A dotted date needs its year (12.09.2026): "1.2" on its own is one point
-  // two — of a lakh, usually — not the first of February.
+  // two: of a lakh, usually. Not the first of February.
   const dmy = s.match(/\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b(?!\.\d)/)
     || s.match(/\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b/);
   if (dmy) {
@@ -242,7 +242,7 @@ export function parseDate(text, today = todayIso(), { prefer = 'past' } = {}) {
     return { date: resolveWeekday(target, qualifier, today, prefer), match: wd[0] };
   }
 
-  // "the 5th" — a day of the month on its own. A bare "5th" counts only when
+  // "the 5th" · a day of the month on its own. A bare "5th" counts only when
   // it is the whole value (a tool argument), never inside a sentence, where
   // "the 18th birthday" is not a date.
   const dom = s.match(/\b(?:on\s+)?the\s+(\d{1,2})(?:st|nd|rd|th)\b/)

@@ -19,7 +19,7 @@ import {
 /**
  * The money in / money out form, shared by the General Ledger and Purchase
  * Bills (whose "Record payment" opens it in place). `fresh(direction)` gives
- * the blank entry when the direction is switched — on a project's page it is
+ * the blank entry when the direction is switched, on a project's page it is
  * already the project's.
  */
 export default function CashEntryModal({ entry, fresh = blank, onClose }) {
@@ -72,7 +72,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
 
   const set = (k, v) => setEditing((e) => ({ ...e, [k]: v }));
 
-  // What the entry is worth in rupees — the figure the database will store as
+  // What the entry is worth in rupees. The figure the database will store as
   // `amount` and every total will sum. Shown live so a foreign-currency entry is
   // never a surprise after saving.
   const baseAmount = editing
@@ -80,7 +80,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
     : 0;
 
   /**
-   * Picking a rate fills the GST amount, inclusive of tax — the same arithmetic
+   * Picking a rate fills the GST amount, inclusive of tax. The same arithmetic
    * app.cash_entry_tax() applies, so the form and the database never disagree
    * about what "18%" means on a gross figure.
    */
@@ -211,7 +211,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
           </div>
         )}
 
-        {/* — the essentials: how much, when, what for, why, how, who — */}
+        {/*: the essentials: how much, when, what for, why, how, who, */}
         <div className="prod-form-grid">
           <div className="prod-field">
             <label className="req" htmlFor="cb-amount">Amount</label>
@@ -239,7 +239,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
           <div className="prod-field full">
             <label className="req" htmlFor="cb-desc">What was it for?</label>
             <input id="cb-desc" value={editing.description} required
-              placeholder={editing.direction === 'in' ? 'e.g. Counter sale — 3 units' : 'e.g. September salaries'}
+              placeholder={editing.direction === 'in' ? 'e.g. Counter sale of 3 units' : 'e.g. September salaries'}
               onChange={(e) => set('description', e.target.value)} />
           </div>
 
@@ -249,7 +249,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
           <div className="prod-field">
             <label htmlFor="cb-cat">Type</label>
             <input id="cb-cat" readOnly
-              value={`${[payingBill.category, payingBill.description].filter(Boolean).join(' · ') || 'Purchase'} — bill payment`} />
+              value={`${[payingBill.category, payingBill.description].filter(Boolean).join(' · ') || 'Purchase'} (bill payment)`} />
             <p className="prod-field-note">From the bill. It already counts the cost and its GST, so this is cash only.</p>
           </div>
           ) : (
@@ -296,20 +296,20 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
           )}
 
           {/* Project-specific or General: asked up front, because it is how
-              the ledger is read — per project, and everything else. */}
+              the ledger is read, per project, and everything else. */}
           {payingBill ? (
             <div className="prod-field full">
               <label>Project or General</label>
               <p className="prod-field-note">
                 {billAllocations(payingBill.id).length === 0
                   ? 'Others, as the bill is.'
-                  : `${billAllocations(payingBill.id).map((a) => projectName(a.project_id)).join(', ')} — from the bill.`}
+                  : `${billAllocations(payingBill.id).map((a) => projectName(a.project_id)).join(', ')}, from the bill.`}
               </p>
             </div>
           ) : (
           <ProjectPicker
             label="Project or General"
-            noneLabel="Others — not for a project"
+            noneLabel="Others (not for a project)"
             note={editing.direction === 'in' ? 'General: a loan, credits, interest…' : 'General: office expenses, petrol, rent…'}
             value={editing._picker || pickerFromAllocations(
               editing.direction === 'in' ? 'income_entry' : 'expense', editing.id)}
@@ -334,7 +334,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
             <div className="prod-field full">
               <label>GST</label>
               <p className="prod-field-note">
-                None on this entry — the bill's input GST of {money(payingBill.tax_amount, 2)} is already in the Tax Summary.
+                None on this entry. The bill's input GST of {money(payingBill.tax_amount, 2)} is already in the Tax Summary.
               </p>
             </div>
           ) : (
@@ -354,7 +354,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
           )}
         </div>
 
-        {/* — everything else, one click away — */}
+        {/*: everything else, one click away, */}
         <MoreDetails initialOpen={!!editing.id} force={editing.currency !== 'INR'}>
           <div className="prod-form-grid">
             <div className="prod-field">
@@ -367,7 +367,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
 
             {editing.currency !== 'INR' ? (
               <div className="prod-field">
-                <label className="req" htmlFor="cb-fx">Rate — 1 {editing.currency} in ₹</label>
+                <label className="req" htmlFor="cb-fx">Rate for 1 {editing.currency} in ₹</label>
                 <input id="cb-fx" type="number" min="0.000001" step="0.000001" required
                   value={editing.fx_rate} onChange={(e) => set('fx_rate', e.target.value)} />
                 <p className="prod-field-note">The rate on the day the money moved.</p>
@@ -451,8 +451,8 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
                   <label htmlFor="cb-status">Has it been paid?</label>
                   <select id="cb-status" value={editing.status}
                     onChange={(e) => set('status', e.target.value)}>
-                    <option value="paid">Yes — paid</option>
-                    <option value="pending">Not yet — committed</option>
+                    <option value="paid">Yes, paid</option>
+                    <option value="pending">Not yet, committed</option>
                   </select>
                 </div>
                 )}

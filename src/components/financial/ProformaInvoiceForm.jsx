@@ -385,7 +385,7 @@ export default function ProformaInvoiceForm() {
     setSavedDocId(doc.id);
     setPortalLink(issued);
     setShowPortalLink(true);
-    toast('Proforma sent — WhatsApp opened', 'success');
+    toast('Proforma sent, WhatsApp opened', 'success');
     setTimeout(() => navigate(fromProject.returnTo), 2000);
   };
 
@@ -726,7 +726,7 @@ export default function ProformaInvoiceForm() {
               <div className="easy-total-divider" />
 
               <div className="easy-total-row easy-total-grand">
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-tertiary)' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>
                   Grand Total
                 </span>
                 <span>{fmt(totals.grandTotal)}</span>

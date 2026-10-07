@@ -1,4 +1,4 @@
-// storageService.js — Thin wrapper around orgStore
+// storageService.js: Thin wrapper around orgStore
 // Same exported API as before. All data now under organizations/{orgId}/.
 import { orgStore } from './orgStore';
 import { agreementRecordTitle } from './agreementModel';
@@ -80,6 +80,12 @@ export const storageService = {
   deleteEmployee: async (id, orgId, reason) => {
     if (!orgId) throw new Error('Organization ID is required');
     await orgStore.removeItem('employees', id, { reason });
+  },
+
+  // An ex-employee joining again: their own record comes back (orgStore.rejoinEmployee).
+  rejoinEmployee: async (id, updates, orgId) => {
+    if (!orgId) throw new Error('Organization ID is required');
+    return orgStore.rejoinEmployee(id, updates);
   },
 
   updateEmployee: async (id, updates, orgId) => {

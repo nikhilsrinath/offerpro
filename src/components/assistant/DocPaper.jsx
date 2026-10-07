@@ -6,7 +6,7 @@ import { toInvoiceForm } from './invoiceForm';
    InvoicePreview renders at true A4 pixel width (the PDF capture depends on
    it), so it is scaled down to the card here rather than restyled: what the
    card shows is the component the invoice screen and the PDF use, fed the
-   figures the database will store. Loaded on demand — most chats never open
+   figures the database will store. Loaded on demand, most chats never open
    one. */
 
 const InvoicePreview = lazy(() => import('../InvoicePreview'));

@@ -63,7 +63,7 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                         color: t.dim, maxWidth: 580,
                     }}>
                         EdgeBrain organises the data already in EdgeOS into one connected
-                        context your AI can reason over — so a question about a customer,
+                        context your AI can reason over. So a question about a customer,
                         an invoice and the person who owns the account is one question
                         rather than three screens.
                     </p>
@@ -73,7 +73,7 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                     }}>
                         Nothing to upload and nothing to type. It reads the records this
                         organisation already holds, and your database stays the source of
-                        truth — EdgeBrain is a view onto it, never a copy that drifts.
+                        truth: EdgeBrain is a view onto it, never a copy that drifts.
                     </p>
                 </div>
 
@@ -133,7 +133,7 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                         </Btn>
                         <span style={{ fontSize: 12, color: t.faint }}>
                             {!canBuild
-                                ? 'Your role cannot build the Company Brain — ask an owner or admin.'
+                                ? 'Your role cannot build the Company Brain. Ask an owner or admin.'
                                 : building
                                     ? 'Reading your records and connecting them. This runs once.'
                                     : 'Takes a few seconds. You can keep working while it runs.'}

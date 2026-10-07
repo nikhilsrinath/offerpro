@@ -18,7 +18,7 @@ import { useToast } from '../shared/Toast';
 import { useProjectScope } from './projectScope';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Two of a project's finance pages — Financial Status and Profit & Loss —
+   Two of a project's finance pages: Financial Status and Profit & Loss,
    both from public.project_financials, never recomputed here. The other four
    (Cash Book, Billing, Purchase Bills, Tax Summary) are the company pages
    scoped to the project (projectScope.js).
@@ -112,9 +112,9 @@ function PeriodPicker({ value, onChange, choices, note }) {
 }
 
 /**
- * Financial Status: where the project's money stands — what was invoiced,
+ * Financial Status: where the project's money stands: what was invoiced,
  * collected and is still owed, how much of the contract and the budget is
- * used, which invoices are open — and the money links themselves, the one
+ * used, which invoices are open. And the money links themselves, the one
  * place to add or remove a link after the fact.
  */
 export default function ProjectFinanceStatus({ project, onOpen }) {
@@ -136,12 +136,12 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
             const rows = await unbilledHours(project.id);
             if (rows.length === 0) { toast('No approved, unbilled hours on this project.', 'info'); return; }
             const missing = rows.filter((r) => !(Number(r.bill_rate) > 0)).map((r) => r.full_name);
-            if (missing.length) toast(`No bill rate for ${missing.join(', ')} — set it on the Team tab; their lines start at ₹0.`, 'error', 6000);
+            if (missing.length) toast(`No bill rate for ${missing.join(', ')}. Set it on the Team tab; their lines start at ₹0.`, 'error', 6000);
             navigate('/billing/invoices/new', {
                 state: {
                     projectId: project.id, clientId: project.client_id,
                     lines: rows.map((r) => ({
-                        description: `${project.name} — ${r.full_name}, ${r.hours} h`,
+                        description: `${project.name} · ${r.full_name}, ${r.hours} h`,
                         quantity: Number(r.hours), rate: Number(r.bill_rate) || 0,
                     })),
                     timesheetIds: rows.flatMap((r) => r.entry_ids),
@@ -194,7 +194,7 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
                     <Grid min={300} gap={14}>
                         <Panel title="Contract" pad={15} note={BILLING_LABEL[project.billing_type] || 'Fixed price'}>
                             <Meter label="Billed" used={Number(f.revenue_invoiced) || 0} total={contract}
-                                empty="No contract value set — add one with Edit to track billing against it." />
+                                empty="No contract value set. Add one with Edit to track billing against it." />
                             <p style={{ margin: '10px 0 0', fontSize: 12.5, color: t.dim }}>
                                 {contract > 0
                                     ? `${money(f.unbilled_value)} of ${money(contract)} still to bill.`
@@ -203,9 +203,9 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
                         </Panel>
                         <Panel title="Budget" pad={15} note={Number(f.budget_total) > 0 ? `${money(f.budget_total)} planned` : undefined}>
                             <Meter label="Used" pct={f.budget_burn_pct} total={Number(f.budget_total) || 0}
-                                empty="No budget set — add labour, vendor or other budget with Edit." />
+                                empty="No budget set. Add labour, vendor or other budget with Edit." />
                             <p style={{ margin: '10px 0 0', fontSize: 12.5, color: t.dim }}>
-                                Costs so far {money(costs)} — bills, expenses and labour.
+                                Costs so far {money(costs)}: bills, expenses and labour.
                             </p>
                         </Panel>
                     </Grid>
@@ -268,8 +268,8 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
                                         ) : <Link to={SOURCE_PATH[a.source_type]()} style={{ color: t.text }}>{s?.label || 'Entry'}</Link>}
                                         {splitCount > 1 && <Muted> · split {splitCount} ways</Muted>}
                                     </Td>
-                                    <Td muted nowrap>{s ? fmtDate(s.date) : '—'}</Td>
-                                    <Td align="right" nowrap>{s ? money(s.net) : '—'}</Td>
+                                    <Td muted nowrap>{s ? fmtDate(s.date) : '-'}</Td>
+                                    <Td align="right" nowrap>{s ? money(s.net) : '-'}</Td>
                                     <Td align="right" nowrap>
                                         {a.mode === 'full' ? <Status tone="neutral">All · {s ? money(s.net) : ''}</Status> : money(a.amount)}
                                     </Td>
@@ -310,7 +310,7 @@ function Meter({ label, used, total, pct, empty }) {
 }
 
 /**
- * Profit & Loss, from public.project_financials — never recomputed here:
+ * Profit & Loss, from public.project_financials, never recomputed here:
  * revenue against direct costs for the gross margin, then labour (pay × time
  * on the project) for the net.
  */

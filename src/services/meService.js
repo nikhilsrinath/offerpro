@@ -1,9 +1,9 @@
-// meService.js — "which employee am I?", and the link that makes that answerable.
+// meService.js: "which employee am I?", and the link that makes that answerable.
 //
 // An employee record and a login are separate things (0029 §1): the record
 // exists from the day someone is hired, the login arrives when an admin creates
 // it (0031). `employees.user_id` is the join, and app.my_employee_id(org) is
-// the same question asked from inside an RLS policy — so what this file returns
+// the same question asked from inside an RLS policy. So what this file returns
 // and what the database will let the caller read are the same answer.
 
 import { supabase } from '../lib/supabase';
@@ -26,7 +26,7 @@ const EMPLOYEE_SELECT_LEGACY = `id, org_id, full_name, email, phone, role, depar
 export const meService = {
   /**
    * The caller's own employee record in this org, with the department name and
-   * manager resolved. Null when they have a login but no record — an owner who
+   * manager resolved. Null when they have a login but no record. An owner who
    * never added themselves, which is normal and must not throw.
    */
   async getMyEmployee(orgId) {
@@ -112,7 +112,7 @@ export const meService = {
     return row;
   },
 
-  /** The caller's role in this org — 'employee' is what routes them to /me. */
+  /** The caller's role in this org, 'employee' is what routes them to /me. */
   async getMyRole(orgId) {
     if (!orgId) return null;
     const { data: { user } } = await supabase.auth.getUser();
@@ -125,7 +125,7 @@ export const meService = {
 
   /**
    * Attaches a login to an employee record. Done by an admin from the Employees
-   * screen after the person accepts their invitation — matching by email alone
+   * screen after the person accepts their invitation, matching by email alone
    * would hand someone else's record to whoever registered that address first.
    *
    * @param userId the auth user id, taken from the member list (org_members).

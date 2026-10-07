@@ -16,7 +16,7 @@ const PRESETS = [
 
 /**
  * Income, expenses and net profit for any period, from the same documents the
- * rest of Finance uses — issued invoices, purchase invoices and expenses —
+ * rest of Finance uses, issued invoices, purchase invoices and expenses,
  * never entered a second time. Figures are before GST on both sides.
  */
 export default function ProfitLoss() {
@@ -46,8 +46,8 @@ export default function ProfitLoss() {
 
   const exportCsv = () => {
     const rows = [
-      ['Income — invoiced (before GST)', pl.invoiced.toFixed(2)],
-      ['Income — cash book (before GST)', pl.direct.toFixed(2)],
+      ['Income, invoiced (before GST)', pl.invoiced.toFixed(2)],
+      ['Income, cash book (before GST)', pl.direct.toFixed(2)],
       ['Total income', pl.income.toFixed(2)],
       ...pl.byCategory.map((c) => [`Expense: ${categoryLabel(c.name)}`, (-c.value).toFixed(2)]),
       ['Total expenses', (-pl.expenses).toFixed(2)],
@@ -77,13 +77,13 @@ export default function ProfitLoss() {
         <Stat icon={<TrendingDown size={15} />} label="Expenses" value={money(pl.expenses)} accent="var(--error)" />
         <Stat icon={<Wallet size={15} />} label={pl.net >= 0 ? 'Net profit' : 'Net loss'} value={money(Math.abs(pl.net))}
           accent={pl.net >= 0 ? 'var(--success)' : 'var(--error)'} />
-        <Stat icon={<Percent size={15} />} label="Net margin" value={pl.margin == null ? '—' : `${pl.margin.toFixed(1)}%`} />
+        <Stat icon={<Percent size={15} />} label="Net margin" value={pl.margin == null ? '-' : `${pl.margin.toFixed(1)}%`} />
       </div>
 
       <p className="prod-perf-note">
         {range.from ? `${fmtDate(range.from)} – ${fmtDate(range.to)}` : 'All time'}. Income is issued invoices at
         taxable value plus cash-book receipts at net value (GST collected is not income). Expenses are expense entries
-        and purchase invoices, net of input GST. Drafts, cancelled invoices and voided bills are excluded — and so is
+        and purchase invoices, net of input GST. Drafts, cancelled invoices and voided bills are excluded, and so is
         anything that moves cash without changing profit: funding taken in, assets bought, loan principal repaid,
         owner drawings and tax remitted. Those are on the General Ledger.
       </p>

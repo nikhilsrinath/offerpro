@@ -35,7 +35,7 @@ async function runCheck() {
       const urgency = isOverdue ? 'overdue' : 'due today';
       const subject = isOverdue
         ? `[Action Required] Task overdue: ${task.title}`
-        : `Reminder: Task due today — ${task.title}`;
+        : `Reminder: Task due today: ${task.title}`;
       const body = `Hi ${task.assignedName.split(' ')[0]},\n\nThis is a reminder that the following task is ${urgency}:\n\nTask: ${task.title}\nDeadline: ${formatDeadline(task.deadline!)}\n${task.description ? `\nDetails: ${task.description}` : ''}\n\nPlease complete or update the status as soon as possible.\n\nBest regards,\n${profile.company_name || 'Your Manager'}`;
 
       try {

@@ -10,7 +10,7 @@ const dayOf = (d) => (d ? String(d).slice(0, 10) : '');
 
 /**
  * Annual recurring revenue: every active recurring template (fin_recurring)
- * that has not run past its end date, annualised on its subtotal — net of GST,
+ * that has not run past its end date, annualised on its subtotal, net of GST,
  * like every revenue figure. `today` is an ISO day.
  */
 export function annualRecurring(recurring, today) {
@@ -28,7 +28,7 @@ export const isAcquisition = (cat) => cat === 'Marketing' || groupOf(cat) === 'S
 
 /**
  * Sales & marketing spend between two ISO days (inclusive), from expense
- * events (overviewModel.expenseEvents — net of GST), and what it came to per
+ * events (overviewModel.expenseEvents: net of GST), and what it came to per
  * CRM lead created in the same days.
  */
 export function acquisitionSpend(spend, leads, from, to) {

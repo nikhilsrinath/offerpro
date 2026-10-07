@@ -5,8 +5,8 @@ import {
 } from 'lucide-react';
 import { useT, MONO } from '../ui/edgeUtils';
 
-/* The console's frame. Deliberately the same object as ModuleShell — a rail of
-   sections on the left, a hairline top bar, the account at its right end — so
+/* The console's frame. Deliberately the same object as ModuleShell. A rail of
+   sections on the left, a hairline top bar, the account at its right end, so
    the platform console reads as part of EdgeOS rather than a second product
    bolted to the side of it. It does not reuse ModuleShell itself because that
    one is built around an active tenant, and the console has none. */

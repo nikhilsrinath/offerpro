@@ -1,4 +1,4 @@
-// projectTeam.js — the rules behind a project's Team Management pages that
+// projectTeam.js: the rules behind a project's Team Management pages that
 // are worth testing on their own: who counts as on the team, what makes a
 // RACI row valid, and what one person's day on the attendance grid shows.
 //
@@ -59,8 +59,8 @@ export const isCurrent = (p) => p.status === 'active' || p.status === 'leaving';
 export const RACI_ROLES = [
   { id: 'R', label: 'Responsible', color: '#3b82f6', desc: 'Does the work. At least one per row.' },
   { id: 'A', label: 'Accountable', color: '#8b5cf6', desc: 'Owns the outcome and signs it off. Exactly one per row.' },
-  { id: 'C', label: 'Consulted', color: '#f59e0b', desc: 'Asked for input before the work is done — two-way.' },
-  { id: 'I', label: 'Informed', color: '#14b8a6', desc: 'Kept up to date on progress — one-way.' },
+  { id: 'C', label: 'Consulted', color: '#f59e0b', desc: 'Asked for input before the work is done (two-way).' },
+  { id: 'I', label: 'Informed', color: '#14b8a6', desc: 'Kept up to date on progress (one-way).' },
 ];
 export const RACI_BY_ID = Object.fromEntries(RACI_ROLES.map((r) => [r.id, r]));
 
@@ -68,6 +68,7 @@ export const RACI_KINDS = [
   { id: 'task', label: 'Task' },
   { id: 'deliverable', label: 'Deliverable' },
   { id: 'milestone', label: 'Milestone' },
+  { id: 'subtask', label: 'Sub-task' },
 ];
 
 /**
@@ -79,7 +80,7 @@ export function raciProblems(letters) {
   const r = letters.filter((x) => x === 'R').length;
   const out = [];
   if (a === 0) out.push('No one is Accountable');
-  if (a > 1) out.push(`${a} people are Accountable — keep one`);
+  if (a > 1) out.push(`${a} people are Accountable, keep one`);
   if (r === 0) out.push('No one is Responsible');
   return out;
 }
@@ -104,6 +105,123 @@ export function raciTable(items, people, cells) {
     return [it.title, RACI_KINDS.find((k) => k.id === it.kind)?.label || it.kind, ...letters, problems.join('; ') || 'OK'];
   });
   return { header, rows };
+}
+
+/**
+ * Whether a RACI row is a deliverable: one made as one, or one linked to a
+ * top-level WBS item (rows added from the plan before 0083 were made as tasks).
+ */
+export function isDeliverableRow(item, taskById) {
+  if (item.parent_id) return false;
+  if (item.kind === 'deliverable') return true;
+  const task = item.task_id ? taskById.get(item.task_id) : null;
+  return !!task && !task.parentId;
+}
+
+/**
+ * The matrix as an outline: each deliverable, then underneath it the WBS
+ * sub-tasks of its deliverable (to any depth) and the task rows linked to it;
+ * every other row on its own. A WBS sub-task with no RACI row yet is still
+ * listed, with `item: null` · giving it a letter creates its row.
+ *
+ * @param items  the project's RACI rows
+ * @param tasks  the project's tasks ({ id, parentId, position, title })
+ * @returns [{ key, item, task, title, depth, kind, deliverable, under, hasChildren }]
+ *   kind is 'deliverable' | 'task' | 'milestone' | 'subtask'; `under` is the
+ *   deliverable row the row sits beneath.
+ */
+export function raciOutline(items, tasks) {
+  const taskById = new Map(tasks.map((x) => [x.id, x]));
+  const kids = new Map();
+  for (const x of tasks) {
+    if (!x.parentId) continue;
+    if (!kids.has(x.parentId)) kids.set(x.parentId, []);
+    kids.get(x.parentId).push(x);
+  }
+  for (const list of kids.values()) list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  const topOf = (task) => {
+    let x = task;
+    const seen = new Set();
+    while (x?.parentId && taskById.has(x.parentId) && !seen.has(x.id)) { seen.add(x.id); x = taskById.get(x.parentId); }
+    return x;
+  };
+  const byPos = (a, b) => a.position - b.position || String(a.created_at).localeCompare(String(b.created_at));
+  const ordered = [...items].sort(byPos);
+  const ids = new Set(items.map((x) => x.id));
+
+  // The deliverable row standing for each top-level WBS item, first one wins.
+  const delivForTask = new Map();
+  for (const it of ordered) {
+    if (it.task_id && isDeliverableRow(it, taskById) && !delivForTask.has(it.task_id)) delivForTask.set(it.task_id, it);
+  }
+  // A sub-task's own row, by task.
+  const rowForTask = new Map();
+  for (const it of ordered) {
+    const task = it.task_id ? taskById.get(it.task_id) : null;
+    if (task?.parentId && !rowForTask.has(it.task_id)) rowForTask.set(it.task_id, it);
+  }
+
+  const out = [];
+  const placed = new Set();
+  const nestsUnder = (it) => {
+    if (it.parent_id && ids.has(it.parent_id)) return true;
+    const task = it.task_id ? taskById.get(it.task_id) : null;
+    return !!task?.parentId && rowForTask.get(it.task_id) === it && delivForTask.has(topOf(task)?.id);
+  };
+
+  for (const it of ordered) {
+    if (placed.has(it.id) || nestsUnder(it)) continue;
+    const deliverable = isDeliverableRow(it, taskById);
+    const row = {
+      key: it.id, item: it, task: it.task_id ? taskById.get(it.task_id) || null : null, title: it.title, depth: 0,
+      kind: deliverable ? 'deliverable' : it.kind, deliverable, under: null, hasChildren: false,
+    };
+    out.push(row);
+    placed.add(it.id);
+    if (!deliverable) continue;
+    const start = out.length;
+    if (it.task_id && delivForTask.get(it.task_id) === it) {
+      const walk = (parentId, depth) => (kids.get(parentId) || []).forEach((x) => {
+        const own = rowForTask.get(x.id) || null;
+        if (own) placed.add(own.id);
+        out.push({
+          key: own ? own.id : `task:${x.id}`, item: own, task: x, title: own?.title || x.title, depth,
+          kind: 'subtask', deliverable: false, under: it, hasChildren: false,
+        });
+        walk(x.id, depth + 1);
+      });
+      walk(it.task_id, 1);
+    }
+    for (const c of ordered) {
+      if (c.parent_id !== it.id || placed.has(c.id)) continue;
+      placed.add(c.id);
+      out.push({
+        key: c.id, item: c, task: null, title: c.title, depth: 1, kind: c.kind === 'deliverable' ? 'task' : c.kind,
+        deliverable: false, under: it, hasChildren: false,
+      });
+    }
+    row.hasChildren = out.length > start;
+  }
+  // Anything left (a row under a parent that is gone) stands on its own.
+  for (const it of ordered) {
+    if (placed.has(it.id)) continue;
+    out.push({ key: it.id, item: it, task: null, title: it.title, depth: 0, kind: it.kind, deliverable: false, under: null, hasChildren: false });
+  }
+  return out;
+}
+
+/**
+ * One person's letters, as the Reporting structure shows them: for R, A, C
+ * and I, the titles of the rows they hold it on, in matrix order.
+ */
+export function personRaci(personId, assignments, rows) {
+  const at = new Map(rows.map((r, i) => [r.item?.id, i]));
+  const out = { R: [], A: [], C: [], I: [] };
+  assignments
+    .filter((a) => a.employee_id === personId && at.has(a.item_id) && out[a.role])
+    .sort((a, b) => at.get(a.item_id) - at.get(b.item_id))
+    .forEach((a) => out[a.role].push(rows[at.get(a.item_id)].title));
+  return out;
 }
 
 /**

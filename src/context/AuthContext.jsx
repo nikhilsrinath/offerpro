@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }) => {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      // During email signup, skip — signup() owns the state transition so that
+      // During email signup, skip, signup() owns the state transition so that
       // the organization exists before the app re-renders around the new user.
       if (cancelled || signupInProgressRef.current) return;
       applySession(session);
@@ -81,7 +81,7 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
 
       // With "Confirm email" enabled in the Supabase project, signUp returns a
-      // user but no session — there is no auth.uid() yet, so create_organization
+      // user but no session. There is no auth.uid() yet, so create_organization
       // would fail its `authentication required` guard. Fail loudly rather than
       // stranding the user in a half-registered state.
       if (!data.session) {
@@ -104,12 +104,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Redirect-based, unlike Firebase's popup. The browser leaves the page here
-  // and returns to `redirectTo`, where onAuthStateChange picks the session up —
+  // and returns to `redirectTo`, where onAuthStateChange picks the session up,
   // so this does not resolve with a user, and callers must not expect one.
   //
   // `next` is where to come back to. /join passes its own URL so an employee
   // redeeming an invitation returns to the page that was mid-redemption rather
-  // than to /hub, which would show them the create-a-company gate — they have
+  // than to /hub, which would show them the create-a-company gate. They have
   // no membership yet, which is the entire reason they are on /join.
   const loginWithGoogle = async (next) => {
     const { error } = await supabase.auth.signInWithOAuth({

@@ -204,7 +204,7 @@ const LandingPage = ({ onEnter }) => {
             </h1>
 
             <p className="eos-hero-subtitle">
-              Documents, finances, hiring, decisions — every operation distilled into one calm workspace, with an AI Co-founder that reads your live data and runs alongside you.
+              Documents, finances, hiring, decisions: every operation distilled into one calm workspace, with an AI Co-founder that reads your live data and runs alongside you.
             </p>
 
             <div className="eos-hero-actions">
@@ -311,12 +311,12 @@ const LandingPage = ({ onEnter }) => {
             <div className="eos-section-badge"><Zap size={12} /> The Complete Suite</div>
             <h2 className="eos-section-title">Everything you need.<br /><em>Nothing</em> you don't.</h2>
             <p className="eos-section-subtitle">
-              From quotations to certificates — manage your entire business document pipeline in one calm, opinionated workspace.
+              From quotations to certificates, manage your entire business document pipeline in one calm, opinionated workspace.
             </p>
           </div>
 
           <div className="eos-features-grid">
-            {/* AI CO-FOUNDER — full width hero card */}
+            {/* AI CO-FOUNDER: full width hero card */}
             <a href="/ai-cofounder" className="eos-feature-card eos-fc-cofounder eos-fc-span-12 eos-parallax" style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '2rem', flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 280 }}>
@@ -327,7 +327,7 @@ const LandingPage = ({ onEnter }) => {
                     AI Co-founder
                   </h3>
                   <p className="eos-fc-desc" style={{ maxWidth: 720 }}>
-                    A real co-founder built into EdgeOS — not a chatbot. It reads your live business data, makes structured decisions, drafts polite-firm-urgent follow-ups to clients and team, runs guided onboarding, remembers your facts, opportunities & risks, and answers any question about your company in seconds. Always context-aware. Never invents data.
+                    A real co-founder built into EdgeOS, not a chatbot. It reads your live business data, makes structured decisions, drafts polite-firm-urgent follow-ups to clients and team, runs guided onboarding, remembers your facts, opportunities & risks, and answers any question about your company in seconds. Always context-aware. Never invents data.
                   </p>
                   <div className="eos-cf-skills">
                     <div className="eos-cf-skill"><Brain size={14} /> Decision Mode</div>
@@ -346,7 +346,7 @@ const LandingPage = ({ onEnter }) => {
                   </div>
                   <div className="eos-cf-bubble eos-cf-bubble-ai">
                     <span className="eos-cf-bubble-tag">DECISION</span>
-                    Hold off until Q3. Pending revenue (₹4.2L) covers 1.5 months of runway, and your last 3 invoices closed faster — pipeline {'>'} capacity right now.
+                    Hold off until Q3. Pending revenue (₹4.2L) covers 1.5 months of runway, and your last 3 invoices closed faster, so pipeline {'>'} capacity right now.
                   </div>
                   <div className="eos-cf-bubble eos-cf-bubble-user">
                     Draft a polite follow-up for the Acme invoice
@@ -368,7 +368,7 @@ const LandingPage = ({ onEnter }) => {
               </div>
               <h3 className="eos-fc-title" style={{ marginTop: '1rem' }}>Smart Invoicing & Quotations</h3>
               <p className="eos-fc-desc">
-                Create GST-compliant tax invoices with auto-calculated CGST, SGST, and IGST. Build dynamic quotations with full revision tracking — clients can accept, request changes, or reject directly from a branded portal. Generate proforma invoices with advance payment splits and convert them into final tax invoices in one click. Track making costs per line item to see real profit margins (hidden from clients). Export polished PDFs and share instantly via WhatsApp or email.
+                Create GST-compliant tax invoices with auto-calculated CGST, SGST, and IGST. Build dynamic quotations with full revision tracking, so clients can accept, request changes, or reject directly from a branded portal. Generate proforma invoices with advance payment splits and convert them into final tax invoices in one click. Track making costs per line item to see real profit margins (hidden from clients). Export polished PDFs and share instantly via WhatsApp or email.
               </p>
               <div className="eos-fc-image">
                 <svg viewBox="0 0 480 210" fill="none" xmlns="http://www.w3.org/2000/svg" className="eos-fc-svg">
@@ -405,7 +405,7 @@ const LandingPage = ({ onEnter }) => {
                   <rect x="395" y="144" width="55" height="9" rx="4.5" fill="rgba(255,255,255,0.55)" filter="url(#g1)" />
                   <rect x="290" y="162" width="35" height="4" rx="2" fill="rgba(255,255,255,0.3)" />
                   <rect x="400" y="162" width="48" height="4" rx="2" fill="rgba(255,255,255,0.25)" />
-                  {/* Grand total — bright glow */}
+                  {/* Grand total: bright glow */}
                   <line x1="280" y1="176" x2="452" y2="176" stroke="rgba(255,255,255,0.25)" strokeWidth="0.7" />
                   <rect x="290" y="183" width="60" height="7" rx="3.5" fill="rgba(255,255,255,0.6)" filter="url(#g1)" />
                   <rect x="388" y="182" width="64" height="10" rx="5" fill="#fff" opacity="0.75" filter="url(#g1s)" />
@@ -453,14 +453,14 @@ const LandingPage = ({ onEnter }) => {
                   {[98, 106, 114, 122].map((y, i) => (
                     <rect key={`b${i}`} x="32" y={y} width={260 - (i === 3 ? 100 : i === 1 ? 30 : 0)} height="3.5" rx="1.75" fill={`rgba(255,255,255,${0.18 + i * 0.03})`} />
                   ))}
-                  {/* Signatures — bright white glow */}
+                  {/* Signatures: bright white glow */}
                   <line x1="32" y1="150" x2="140" y2="150" stroke="rgba(255,255,255,0.3)" strokeWidth="0.7" strokeDasharray="3 2" />
                   <line x1="180" y1="150" x2="288" y2="150" stroke="rgba(255,255,255,0.3)" strokeWidth="0.7" strokeDasharray="3 2" />
                   <path d="M45 142 Q58 128 70 138 Q80 148 92 134 Q100 126 112 136" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round" filter="url(#g2)" />
                   <path d="M195 142 Q208 126 218 137 Q226 148 238 132 Q246 124 258 135" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round" filter="url(#g2)" />
                   <rect x="48" y="156" width="65" height="4" rx="2" fill="rgba(255,255,255,0.4)" />
                   <rect x="198" y="156" width="65" height="4" rx="2" fill="rgba(255,255,255,0.4)" />
-                  {/* Seal — glowing white */}
+                  {/* Seal: glowing white */}
                   <circle cx="160" cy="182" r="16" stroke="#fff" strokeWidth="1.5" fill="rgba(255,255,255,0.08)" filter="url(#g2b)" />
                   <circle cx="160" cy="182" r="11" stroke="rgba(255,255,255,0.5)" strokeWidth="0.7" fill="none" />
                   <text x="160" y="185" textAnchor="middle" fill="rgba(255,255,255,0.85)" fontSize="5.5" fontWeight="700" fontFamily="Inter,sans-serif">SEAL</text>
@@ -486,12 +486,12 @@ const LandingPage = ({ onEnter }) => {
                   <rect x="10" y="5" width="300" height="200" rx="6" fill="#0a0a0a" stroke="url(#cb)" strokeWidth="1.5" />
                   <rect x="10" y="5" width="300" height="200" rx="6" fill="url(#cg)" />
                   <rect x="20" y="15" width="280" height="180" rx="4" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" fill="none" strokeDasharray="6 3" />
-                  {/* Star — bright white glow */}
+                  {/* Star: bright white glow */}
                   <polygon points="160,28 165,43 180,43 168,52 172,67 160,58 148,67 152,52 140,43 155,43" fill="#fff" opacity="0.7" filter="url(#g3b)" />
                   {/* Title */}
                   <rect x="90" y="78" width="140" height="9" rx="4.5" fill="rgba(255,255,255,0.7)" />
                   <rect x="75" y="94" width="170" height="5" rx="2.5" fill="rgba(255,255,255,0.35)" />
-                  {/* Name — glowing white */}
+                  {/* Name: glowing white */}
                   <rect x="85" y="112" width="150" height="8" rx="4" fill="#fff" opacity="0.6" filter="url(#g3)" />
                   <line x1="70" y1="126" x2="250" y2="126" stroke="rgba(255,255,255,0.25)" strokeWidth="0.5" />
                   {/* Description */}
@@ -522,7 +522,7 @@ const LandingPage = ({ onEnter }) => {
                   <div className="eos-fc-badge">HR Suite</div>
                   <h3 className="eos-fc-title" style={{ marginTop: '0.75rem' }}>Offer Letters</h3>
                   <p className="eos-fc-desc">
-                    Generate professional offer letters for full-time employees and interns. Customize with your company logo, digital signature, job title, department, compensation details, start date, and reporting manager. Recipients receive the offer through a branded portal where they can review all terms, digitally sign, and confirm acceptance — no account required. Track acceptance status in real time. Upload a CSV to generate hundreds of personalized offers in one batch.
+                    Generate professional offer letters for full-time employees and interns. Customize with your company logo, digital signature, job title, department, compensation details, start date, and reporting manager. Recipients receive the offer through a branded portal where they can review all terms, digitally sign, and confirm acceptance with no account required. Track acceptance status in real time. Upload a CSV to generate hundreds of personalized offers in one batch.
                   </p>
                 </div>
               </div>
@@ -550,14 +550,14 @@ const LandingPage = ({ onEnter }) => {
                   {[98, 108, 118, 128].map((y, i) => (
                     <rect key={i} x="28" y={y} width={420 - (i === 3 ? 130 : 0)} height="3.5" rx="1.75" fill={`rgba(255,255,255,${0.15 + i * 0.02})`} />
                   ))}
-                  {/* CTC boxes — glowing */}
+                  {/* CTC boxes: glowing */}
                   <rect x="28" y="144" width="195" height="24" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.25)" strokeWidth="0.7" />
                   <rect x="38" y="150" width="35" height="3.5" rx="1.75" fill="rgba(255,255,255,0.4)" />
                   <rect x="38" y="158" width="60" height="6" rx="3" fill="#fff" opacity="0.6" filter="url(#g4)" />
                   <rect x="240" y="144" width="195" height="24" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.25)" strokeWidth="0.7" />
                   <rect x="250" y="150" width="45" height="3.5" rx="1.75" fill="rgba(255,255,255,0.4)" />
                   <rect x="250" y="158" width="70" height="6" rx="3" fill="#fff" opacity="0.6" filter="url(#g4)" />
-                  {/* Accept — bright white glow */}
+                  {/* Accept: bright white glow */}
                   <rect x="28" y="180" width="90" height="22" rx="11" fill="#fff" opacity="0.5" filter="url(#g4b)" />
                   <text x="73" y="194" textAnchor="middle" fill="#fff" fontSize="7.5" fontWeight="600" fontFamily="Inter,sans-serif">Accept</text>
                   <rect x="128" y="180" width="90" height="22" rx="11" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="0.7" />
@@ -571,7 +571,7 @@ const LandingPage = ({ onEnter }) => {
               <div className="eos-fc-icon"><Globe size={22} /></div>
               <h3 className="eos-fc-title">Recipient Portal</h3>
               <p className="eos-fc-desc">
-                Every document you send opens in a secure, branded portal customized with your company identity. Recipients can view the full document, download a high-quality PDF, pay advance amounts via UPI QR or bank transfer, and digitally sign — all without creating an account. The portal tracks every interaction including views, downloads, and payments, giving you complete visibility into document status.
+                Every document you send opens in a secure, branded portal customized with your company identity. Recipients can view the full document, download a high-quality PDF, pay advance amounts via UPI QR or bank transfer, and digitally sign, all without creating an account. The portal tracks every interaction including views, downloads, and payments, giving you complete visibility into document status.
               </p>
               <div className="eos-fc-image">
                 <svg viewBox="0 0 260 180" fill="none" xmlns="http://www.w3.org/2000/svg" className="eos-fc-svg">
@@ -607,7 +607,7 @@ const LandingPage = ({ onEnter }) => {
                   <rect x="32" y="88" width="150" height="3.5" rx="1.75" fill="rgba(255,255,255,0.2)" />
                   <rect x="32" y="96" width="130" height="3.5" rx="1.75" fill="rgba(255,255,255,0.2)" />
                   <rect x="32" y="104" width="100" height="3.5" rx="1.75" fill="rgba(255,255,255,0.2)" />
-                  {/* Amount — bright glow */}
+                  {/* Amount: bright glow */}
                   <rect x="155" y="115" width="75" height="8" rx="4" fill="#fff" opacity="0.5" filter="url(#g5b)" />
                   {/* Buttons */}
                   <rect x="20" y="146" width="75" height="20" rx="10" fill="#fff" opacity="0.35" filter="url(#g5b)" />
@@ -653,7 +653,7 @@ const LandingPage = ({ onEnter }) => {
                       <line x1="40" y1={y + 1} x2="160" y2={y + 1} stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
                     </g>
                   ))}
-                  {/* Chart line — bright white glow */}
+                  {/* Chart line: bright white glow */}
                   <path d="M42 125 L58 108 L74 115 L90 88 L106 94 L122 74 L138 66 L155 58" stroke="url(#lg6)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" filter="url(#g6)" />
                   <path d="M42 125 L58 108 L74 115 L90 88 L106 94 L122 74 L138 66 L155 58 L155 148 L42 148 Z" fill="url(#cg6)" />
                   {/* Glowing data points */}
@@ -687,7 +687,7 @@ const LandingPage = ({ onEnter }) => {
               <div className="eos-fc-icon"><Lock size={22} /></div>
               <h3 className="eos-fc-title">Enterprise Security</h3>
               <p className="eos-fc-desc">
-                Your data is protected with industry-standard security measures. All documents are synced to Firebase cloud with encrypted storage and real-time backup across devices. Access controls ensure only authorized team members can view or edit sensitive documents. Every action — creation, edit, download, and signature — is logged in a complete audit trail. Your company data, banking details, and client information are never shared or exposed.
+                Your data is protected with industry-standard security measures. All documents are synced to Firebase cloud with encrypted storage and real-time backup across devices. Access controls ensure only authorized team members can view or edit sensitive documents. Every action (creation, edit, download, and signature) is logged in a complete audit trail. Your company data, banking details, and client information are never shared or exposed.
               </p>
               <div className="eos-fc-image">
                 <svg viewBox="0 0 260 180" fill="none" xmlns="http://www.w3.org/2000/svg" className="eos-fc-svg">
@@ -703,12 +703,12 @@ const LandingPage = ({ onEnter }) => {
                   {/* Orbit rings */}
                   <ellipse cx="130" cy="76" rx="100" ry="35" stroke="rgba(255,255,255,0.08)" strokeWidth="0.5" fill="none" />
                   <ellipse cx="130" cy="76" rx="75" ry="25" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" fill="none" />
-                  {/* Shield — bright white glow */}
+                  {/* Shield: bright white glow */}
                   <path d="M130 24 L165 38 L165 76 C165 100 150 116 130 124 C110 116 95 100 95 76 L95 38 Z" fill="url(#sf)" stroke="#fff" strokeWidth="1.5" opacity="0.6" filter="url(#g7b)" />
                   <path d="M130 36 L157 47 L157 76 C157 94 146 107 130 114 C114 107 103 94 103 76 L103 47 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.3)" strokeWidth="0.7" />
-                  {/* Checkmark — pure white glow */}
+                  {/* Checkmark: pure white glow */}
                   <path d="M117 74 L126 84 L145 60" stroke="#fff" strokeWidth="3.5" fill="none" strokeLinecap="round" strokeLinejoin="round" filter="url(#g7b)" />
-                  {/* Nodes — left */}
+                  {/* Nodes: left */}
                   {[{ x: 22, y: 36 }, { x: 18, y: 68 }, { x: 22, y: 100 }].map((n, i) => (
                     <g key={i}>
                       <rect x={n.x} y={n.y} width="62" height="24" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5" />
@@ -718,7 +718,7 @@ const LandingPage = ({ onEnter }) => {
                       <line x1={n.x + 62} y1={n.y + 12} x2="95" y2={i === 0 ? 50 : i === 1 ? 76 : 100} stroke="rgba(255,255,255,0.15)" strokeWidth="0.7" strokeDasharray="3 2" />
                     </g>
                   ))}
-                  {/* Nodes — right */}
+                  {/* Nodes: right */}
                   {[{ x: 176, y: 36 }, { x: 180, y: 68 }, { x: 176, y: 100 }].map((n, i) => (
                     <g key={i}>
                       <rect x={n.x} y={n.y} width="62" height="24" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5" />
@@ -728,7 +728,7 @@ const LandingPage = ({ onEnter }) => {
                       <line x1={n.x} y1={n.y + 12} x2="165" y2={i === 0 ? 50 : i === 1 ? 76 : 100} stroke="rgba(255,255,255,0.15)" strokeWidth="0.7" strokeDasharray="3 2" />
                     </g>
                   ))}
-                  {/* Status bar — glowing */}
+                  {/* Status bar: glowing */}
                   <rect x="50" y="138" width="160" height="8" rx="4" fill="rgba(255,255,255,0.06)" />
                   <rect x="50" y="138" width="128" height="8" rx="4" fill="#fff" opacity="0.25" filter="url(#g7s)" />
                   <text x="130" y="158" textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="5.5" fontWeight="500" fontFamily="Inter,sans-serif" letterSpacing="0.5">ALL SYSTEMS PROTECTED</text>
@@ -739,14 +739,14 @@ const LandingPage = ({ onEnter }) => {
         </div>
       </section>
 
-      {/* ════════════════ TIMELINE — PARALLAX SCROLL ════════════════ */}
+      {/* ════════════════ TIMELINE: PARALLAX SCROLL ════════════════ */}
       <section id="how-it-works" className="eos-tl-section">
         <div className="eos-container">
           <div className="eos-section-header eos-parallax" style={{ marginBottom: '6rem' }}>
             <div className="eos-section-badge"><Activity size={12} /> The Process</div>
             <h2 className="eos-section-title">From first invoice to <em>scale</em>.</h2>
             <p className="eos-section-subtitle">
-              A step-by-step journey from setup to scaling — making every operation effortless and profitable.
+              A step-by-step journey from setup to scaling that makes every operation effortless and profitable.
             </p>
           </div>
 
@@ -761,26 +761,26 @@ const LandingPage = ({ onEnter }) => {
                 number: '01',
                 badge: 'Define',
                 title: 'Setup Your Business Identity',
-                desc: 'Sign up in under 2 minutes. Add your company logo, address, GSTIN, bank details, and digital signature — your entire business identity, ready to deploy across every document you create.',
+                desc: 'Sign up in under 2 minutes. Add your company logo, address, GSTIN, bank details, and digital signature, so your entire business identity is ready to deploy across every document you create.',
                 cta: true,
               },
               {
                 number: '02',
                 badge: 'Create',
                 title: 'Generate Any Document Instantly',
-                desc: 'Build GST-compliant invoices, dynamic quotations with revision tracking, proforma invoices with advance payment splits, professional offer letters, MoUs, NDAs, and certificates — all from polished templates.',
+                desc: 'Build GST-compliant invoices, dynamic quotations with revision tracking, proforma invoices with advance payment splits, professional offer letters, MoUs, NDAs, and certificates, all from polished templates.',
               },
               {
                 number: '03',
                 badge: 'Deliver',
                 title: 'Share via Branded Portal',
-                desc: 'Send documents instantly via WhatsApp or email. Your recipients open a secure, branded portal to view, digitally sign, and pay advances — no login required. Every interaction is tracked live.',
+                desc: 'Send documents instantly via WhatsApp or email. Your recipients open a secure, branded portal to view, digitally sign, and pay advances with no login required. Every interaction is tracked live.',
               },
               {
                 number: '04',
                 badge: 'Automate',
                 title: 'Seamless Payment & Conversion',
-                desc: 'Convert accepted quotations into proformas, then into tax invoices — one click at each stage. Collect advances via UPI QR or bank transfer. Manage recurring invoices on autopilot.',
+                desc: 'Convert accepted quotations into proformas, then into tax invoices with one click at each stage. Collect advances via UPI QR or bank transfer. Manage recurring invoices on autopilot.',
               },
               {
                 number: '05',
@@ -889,7 +889,7 @@ const LandingPage = ({ onEnter }) => {
           <div className="eos-cta-box eos-parallax">
             <h2 className="eos-cta-title">Run a sharper business.<br />Starting today.</h2>
             <p className="eos-cta-subtitle">
-              Free to begin. No credit card. Bring your AI Co-founder along — and never stare at a blank invoice again.
+              Free to begin. No credit card. Bring your AI Co-founder along and never stare at a blank invoice again.
             </p>
             <div className="eos-cta-actions">
               <button onClick={onEnter} className="eos-btn eos-btn-primary">

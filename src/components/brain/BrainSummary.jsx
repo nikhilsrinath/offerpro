@@ -6,8 +6,8 @@ import { indexMetrics, DOMAINS, domainOf } from '../../services/brainService';
 
 /* What the brain knows, as a column beside the graph.
 
-   The numbers are read from brain_metrics — the same aggregates the AI is
-   given — so the panel and the answers can never disagree about what revenue
+   The numbers are read from brain_metrics. The same aggregates the AI is
+   given: so the panel and the answers can never disagree about what revenue
    means. Every figure carries its definition in a tooltip for the same reason:
    a number nobody can define is a number nobody should act on.
 
@@ -19,8 +19,8 @@ export default function BrainSummary({ status, metrics, onAsk }) {
     const t = useT();
     const { single, grouped } = useMemo(() => indexMetrics(metrics), [metrics]);
 
-    const money = (v) => (v === undefined || v === null ? '—' : `₹${fmtCompact(v)}`);
-    const num = (v) => (v === undefined || v === null ? '—' : String(v));
+    const money = (v) => (v === undefined || v === null ? '-' : `₹${fmtCompact(v)}`);
+    const num = (v) => (v === undefined || v === null ? '-' : String(v));
 
     const byDomain = useMemo(() => {
         const tally = new Map();

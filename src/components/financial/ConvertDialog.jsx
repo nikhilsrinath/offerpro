@@ -19,7 +19,7 @@ const OPTIONS = {
 };
 
 /* Choose how an accepted quotation moves to billing: via a proforma or
-   straight to the invoice. The recommendation is only a default — both are
+   straight to the invoice. The recommendation is only a default, both are
    always offered, and every reason shown is a fact from this org's records. */
 export default function ConvertDialog({ source, ...rest }) {
   // Keyed on the source so the choice starts from the suggestion once per
@@ -116,7 +116,7 @@ function ConvertSheet({ source, docs, busy, onClose, onConvert }) {
           </Field>
           <div style={{ fontSize: 12.5, color: t.dim, paddingBottom: 8 }}>
             {pct === 0
-              ? 'No advance — the client only confirms the order.'
+              ? 'No advance. The client only confirms the order.'
               : <>Advance {money(a.advance)} · balance {money(a.balance)} on the tax invoice</>}
           </div>
         </div>

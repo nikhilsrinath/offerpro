@@ -13,7 +13,7 @@ import { PlanTag } from './adminUi';
    address is a typo and a typo is a message that silently never arrives.
 
    The send itself uses the platform's own mailbox, not any tenant's stored
-   Gmail credentials — a customer's SMTP quota is theirs, not the operator's. */
+   Gmail credentials: a customer's SMTP quota is theirs, not the operator's. */
 
 const AUDIENCE = [
   { id: 'picked', label: 'Picked' },
@@ -31,19 +31,19 @@ const TEMPLATES = [
     id: 'announce',
     label: 'Product update',
     subject: "What's new in EdgeOS",
-    body: 'Hi there,\n\nWe have shipped a few things to EdgeOS this month that we think will save you time:\n\n• \n• \n\nAs always, reply to this email if anything is in your way.\n\n— The EdgeOS team',
+    body: 'Hi there,\n\nWe have shipped a few things to EdgeOS this month that we think will save you time:\n\n• \n• \n\nAs always, reply to this email if anything is in your way.\n\nThe EdgeOS team',
   },
   {
     id: 'upgrade',
     label: 'Plan nudge',
     subject: 'More room on your EdgeOS workspace',
-    body: 'Hi there,\n\nYou have been getting a lot out of EdgeOS lately. Your current plan caps a few things you are close to — upgrading lifts those limits and unlocks bulk operations.\n\nHappy to walk you through it; just reply here.\n\n— The EdgeOS team',
+    body: 'Hi there,\n\nYou have been getting a lot out of EdgeOS lately. Your current plan caps a few things you are close to. Upgrading lifts those limits and unlocks bulk operations.\n\nHappy to walk you through it; just reply here.\n\nThe EdgeOS team',
   },
   {
     id: 'dues',
     label: 'Payment reminder',
     subject: 'A quick note about your EdgeOS subscription',
-    body: 'Hi there,\n\nWe were not able to process the most recent payment for your EdgeOS subscription. Nothing has changed on your workspace yet.\n\nYou can update the payment details any time, or reply here and we will sort it out together.\n\n— The EdgeOS team',
+    body: 'Hi there,\n\nWe were not able to process the most recent payment for your EdgeOS subscription. Nothing has changed on your workspace yet.\n\nYou can update the payment details any time, or reply here and we will sort it out together.\n\nThe EdgeOS team',
   },
 ];
 
@@ -60,7 +60,7 @@ export default function AdminMail({ orgs, preset }) {
   const [sent, setSent] = useState(null);
 
   // A preset arriving from Organisations replaces the picked set and switches
-  // the audience to it — the operator clicked "email these", so that is the
+  // the audience to it. The operator clicked "email these", so that is the
   // list they mean. `mailTo` hands over a fresh array each time, so clicking
   // it again with the same addresses still re-applies.
   useEffect(() => {
@@ -190,7 +190,7 @@ export default function AdminMail({ orgs, preset }) {
       {/* ── message ─────────────────────────────────────────────────────── */}
       <Panel title="Message" pad={14}>
         <div style={{ display: 'grid', gap: 13 }}>
-          <Field label="Start from" hint="A starting point, not a send — edit before it goes out.">
+          <Field label="Start from" hint="A starting point, not a send. Edit before it goes out.">
             <Row gap={6} wrap>
               {TEMPLATES.map((tpl) => (
                 <Btn key={tpl.id} size="sm" onClick={() => applyTemplate(tpl.id)}>{tpl.label}</Btn>

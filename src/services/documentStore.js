@@ -1,10 +1,10 @@
-// documentStore.js — financial documents, HR notices, notifications and
+// documentStore.js: financial documents, HR notices, notifications and
 // recurring invoices. A thin wrapper over orgStore, as before.
 //
 // Three things changed with Supabase:
 //   • Document numbers come from the next_document_number() RPC at save time,
 //     not from a client-side count. nextId() is gone.
-//   • HR notices (role_change, termination) live in `records`, not `fin_docs` —
+//   • HR notices (role_change, termination) live in `records`, not `fin_docs`,
 //     they are employee documents with an employee_id, no line items and no GST.
 //   • Notifications are rows with per-user read state, not one array on the org.
 //
@@ -20,14 +20,14 @@ const FINANCIAL_TYPES = new Set(['invoice', 'quotation', 'proforma']);
 // types plus the two notices that used to be squeezed into fin_docs.
 const HR_TYPES = new Set(['offer', 'certificate', 'nda', 'mou', 'agreement', 'role_change', 'termination']);
 
-// The app is inconsistent about the offer key — storageService says 'offer',
+// The app is inconsistent about the offer key, storageService says 'offer',
 // the portal and bulk tools say 'offer_letter'. The enum says 'offer'.
 const normalizeType = (type) => (type === 'offer_letter' ? 'offer' : type);
 
 // The human-facing document number. Firebase used it AS the document id, so
 // the UI printed `doc.id` wherever a number belonged; in Postgres `id` is a
-// uuid primary key and the number lives in doc_number. Anything user-visible —
-// a list column, a PDF header, a filename, an alert — must go through this.
+// uuid primary key and the number lives in doc_number. Anything user-visible,
+// a list column, a PDF header, a filename, an alert, must go through this.
 export { docNumber } from '../shared/finDocs.js';
 
 let _contextOrgId = null;
@@ -51,7 +51,7 @@ export const documentStore = {
 
   getSavedClients: () => orgStore.getSectionAsList('customers'),
 
-  // Financial documents only — the finance screens' list.
+  // Financial documents only: the finance screens' list.
   getAll: () => orgStore
     .getSectionAsList('fin_docs')
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
@@ -87,7 +87,7 @@ export const documentStore = {
   /**
    * Save an edit to an existing quotation or proforma, the way its lifecycle
    * allows. Never sent: updated in place (and sent now, if `send`). Already
-   * sent: published as the next version, which goes back to the client — the
+   * sent: published as the next version, which goes back to the client, the
    * database refuses any other write to a sent document's content.
    *
    * @returns {Promise<{doc: object, published: boolean}>}

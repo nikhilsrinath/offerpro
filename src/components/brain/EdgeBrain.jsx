@@ -15,8 +15,8 @@ import {
    EdgeBrain.
 
    The page is the graph. It fills the shell edge to edge, and everything else
-   — the figures, the entity list, the inspector, Ask, the health of the thing
-   that produced all of it — sits in one dock on the right behind a rail of
+: the figures, the entity list, the inspector, Ask, the health of the thing
+   that produced all of it, sits in one dock on the right behind a rail of
    icons. Nothing floats over the middle of the canvas, and nothing stacks
    above it pushing the graph into a letterbox.
 
@@ -150,7 +150,7 @@ export default function EdgeBrain() {
 
     /* A deployment without pg_cron has no background drain, so the brain would
        sit stale until someone pressed Sync. Opening the page with changes
-       outstanding syncs them — quietly, because the user asked to look at the
+       outstanding syncs them: quietly, because the user asked to look at the
        brain, not to be told it was briefly behind. Once per mount: the flag is
        what stops this from retriggering on the status reload it causes. */
     useEffect(() => {
@@ -176,7 +176,7 @@ export default function EdgeBrain() {
                 const failed = res.result?.failed_domains || [];
                 setActionError(
                     `Finished with ${failed.length} domain${failed.length === 1 ? '' : 's'} failing `
-                    + `(${failed.join(', ')}). The rest of the brain is up to date — see Health.`,
+                    + `(${failed.join(', ')}). The rest of the brain is up to date. See Health.`,
                 );
             }
             return next;
@@ -341,7 +341,7 @@ export default function EdgeBrain() {
                         )}
                         {broken && (
                             <Chip t={t} tone={t.down}>
-                                Nothing in the brain can be trusted — open Health
+                                Nothing in the brain can be trusted. Open Health
                             </Chip>
                         )}
                     </div>
@@ -527,7 +527,7 @@ function SyncChip({ t, busy, stale, pending, failed, live, onClick }) {
                 width: 6, height: 6, borderRadius: 999, background: tone, flexShrink: 0,
             }} />
             {text}
-            {/* Only claimed when the websocket actually reported SUBSCRIBED —
+            {/* Only claimed when the websocket actually reported SUBSCRIBED,
                 a "live" badge that lies is worse than none. */}
             {live && !busy && (
                 <span style={{ color: t.ghost }} title="Updating live as your records change">· live</span>

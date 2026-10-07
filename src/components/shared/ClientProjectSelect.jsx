@@ -1,7 +1,7 @@
 import { projectLabel } from '../../services/projectAnalytics';
 import { OTHERS } from '../../services/clientProjects';
 
-/* Which project a client or lead belongs to — the dropdown on the Add Client
+/* Which project a client or lead belongs to. The dropdown on the Add Client
    and Add Lead forms, and the project filter beside their lists. `cp` is
    useClientProjects(). */
 

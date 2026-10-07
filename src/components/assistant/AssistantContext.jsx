@@ -227,7 +227,7 @@ export function AssistantProvider({ edgeContext, children }) {
                     add({ kind: 'choice', content: data.choice.question, choice: data.choice });
                     break;
                 case 'input': {
-                    // The amount is usually already in the conversation — a
+                    // The amount is usually already in the conversation, a
                     // figure named a few lines up. Offer it back as a chip.
                     const msgs = chatsRef.current.find((c) => c.id === chatId)?.messages || [];
                     const hints = data.input.param === 'amount'
@@ -270,7 +270,7 @@ export function AssistantProvider({ edgeContext, children }) {
                 page: pageRef.current,
                 recentEntities: recent,
                 // Cards still waiting, so "scrap that" or (on a call) "yes, do it"
-                // is understood against them by the model — not matched by the app.
+                // is understood against them by the model. Not matched by the app.
                 openCards: (chatNow?.messages || [])
                     .filter((m) => m.kind === 'action' && m.card?.status === 'proposed')
                     .slice(-5)
@@ -321,7 +321,7 @@ export function AssistantProvider({ edgeContext, children }) {
                 return;
             }
             if (res.status === 'repreviewed') {
-                setCard(chatId, messageId, { ...msg.card, status: 'expired', error: 'Changed since — see the updated card below.' });
+                setCard(chatId, messageId, { ...msg.card, status: 'expired', error: 'Changed since then. See the updated card below.' });
                 append(chatId, [{ id: uid('m'), role: 'assistant', kind: 'action', actionId: res.card.action_id, card: res.card, content: cardLine(res.card) }]);
                 return;
             }
@@ -427,7 +427,7 @@ export function AssistantProvider({ edgeContext, children }) {
 
     const dismissQuestion = useCallback((chatId, messageId) => {
         patchMessage(chatId, messageId, { resolved: true });
-        append(chatId, [{ id: uid('m'), role: 'assistant', content: 'Left it there — nothing was changed.' }]);
+        append(chatId, [{ id: uid('m'), role: 'assistant', content: 'Left it there. Nothing was changed.' }]);
     }, [patchMessage, append]);
 
     /**
@@ -520,14 +520,14 @@ export function AssistantProvider({ edgeContext, children }) {
 
     /**
      * Share: the system share sheet where there is one, the clipboard where
-     * there is not. Not a link — these chats live in this browser only.
+     * there is not. Not a link. These chats live in this browser only.
      */
     const shareChat = useCallback(async (chat) => {
         const text = (chat.messages || [])
             .filter((m) => !m.error && m.content)
             .map((m) => `${m.role === 'user' ? 'You' : 'EdgeAI'}: ${m.content}`)
             .join('\n\n');
-        if (!text) { setNote('That chat is empty — nothing to share yet.'); return; }
+        if (!text) { setNote('That chat is empty. Nothing to share yet.'); return; }
         const payload = `${chat.title}\n\n${text}`;
         try {
             if (navigator.share) {

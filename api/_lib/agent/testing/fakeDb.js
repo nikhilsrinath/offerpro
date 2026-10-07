@@ -1,6 +1,6 @@
 /**
  * An in-memory stand-in for the slice of the supabase-js query builder the
- * agent uses — enough to run tools, the executor and the loop in a unit test
+ * agent uses: enough to run tools, the executor and the loop in a unit test
  * without a database. Not a test file itself (no .test.js), so it is never
  * collected as one.
  *

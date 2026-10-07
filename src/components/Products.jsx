@@ -11,7 +11,7 @@ import { useSection } from './financial/financeHooks';
 import { useToast } from './shared/Toast';
 import BelongsToSelect, { BelongsToFilter } from './shared/BelongsToSelect';
 import {
-  GENERAL, splitChoice, productChoice, inScope, choiceLabel, saveWithBelongsTo,
+  GENERAL, splitChoice, productChoice, inScope, choiceLabel, saveWithOptional,
 } from '../services/belongsTo';
 
 const money = (n, digits = 0) => (Number(n) || 0).toLocaleString('en-IN', {
@@ -27,9 +27,18 @@ const qty = (n) => {
 
 const fmtDate = (d) => (d
   ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-  : '—');
+  : '-');
+
+// A catalogue row is a product (goods, with an HSN code, a price and maybe
+// stock) or a service (a SAC code and a tax rate), 0083's item_kind.
+const KINDS = [
+  { id: 'product', label: 'Product' },
+  { id: 'service', label: 'Service' },
+];
+const isService = (p) => p?.item_kind === 'service';
 
 const BLANK = {
+  item_kind: 'product',
   name: '', sku: '', description: '', category: '',
   unit_price: '', unit: 'Nos', hsn_sac: '', tax_rate: 0,
   track_inventory: false, stock_qty: '', low_stock_at: '',
@@ -54,7 +63,7 @@ const RANGES = [
 
 const iso = (d) => (d ? new Date(d).toISOString().slice(0, 10) : null);
 
-// With `projectId` (a project's Product & Service Directory) only the products
+// With `projectId` (a project's SKUs page) only the products and services
 // that belong to the project are listed, and a new one starts on it.
 export default function Products({ projectId = null }) {
   const { activeOrg } = useOrg();
@@ -67,6 +76,7 @@ export default function Products({ projectId = null }) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [scope, setScope] = useState('');
+  const [kind, setKind] = useState('');
   const projects = useSection('projects');
   const toast = useToast();
   const [showArchived, setShowArchived] = useState(false);
@@ -84,7 +94,7 @@ export default function Products({ projectId = null }) {
   const loading = !activeOrg;
   const reload = useCallback(() => setVersion((v) => v + 1), []);
 
-  // `version` is a cache-invalidation token, not a value this reads — orgStore
+  // `version` is a cache-invalidation token, not a value this reads, orgStore
   // is mutable and outside React, so bumping it is how a write here becomes a
   // re-read. The lint rule cannot see that and calls it unnecessary.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -95,7 +105,7 @@ export default function Products({ projectId = null }) {
   // All-time needs no query at all: units_sold, revenue, revenue_paid and
   // last_sold_at are already on each row, maintained by trigger. Only a
   // narrower window has to be asked for, and that is aggregated in Postgres by
-  // catalog_performance() — summing line items in the browser would mean
+  // catalog_performance(): summing line items in the browser would mean
   // shipping the whole ledger over to do it.
   const allTimePerf = useMemo(
     () => items.filter((p) => !p.archived_at).map((p) => ({
@@ -135,17 +145,19 @@ export default function Products({ projectId = null }) {
     return items.filter((p) => {
       if (showArchived ? !p.archived_at : !!p.archived_at) return false;
       if (category !== 'all' && (p.category || '') !== category) return false;
+      if (kind && (isService(p) ? 'service' : 'product') !== kind) return false;
       if (!inScope(scope, p.project_id ? [p.project_id] : [], p.belongs_to)) return false;
       if (!q) return true;
       return [p.name, p.sku, p.category, p.description, p.hsn_sac]
         .some((f) => String(f || '').toLowerCase().includes(q));
     });
-  }, [items, search, category, showArchived, scope]);
+  }, [items, search, category, showArchived, scope, kind]);
 
   const totals = useMemo(() => {
     const active = items.filter((p) => !p.archived_at);
     return {
       count: active.length,
+      services: active.filter(isService).length,
       revenue: active.reduce((a, p) => a + (Number(p.revenue) || 0), 0),
       collected: active.reduce((a, p) => a + (Number(p.revenue_paid) || 0), 0),
       lowStock: active.filter((p) =>
@@ -163,28 +175,36 @@ export default function Products({ projectId = null }) {
     setFormError('');
     try {
       const { belongs, ...rest } = editing;
+      const service = isService(editing);
       const payload = {
         ...rest,
         ...splitChoice(belongs),
+        item_kind: service ? 'service' : 'product',
         name: editing.name.trim(),
         sku: (editing.sku || '').trim(),
         unit_price: Number(editing.unit_price) || 0,
         tax_rate: Number(editing.tax_rate) || 0,
-        stock_qty: editing.track_inventory ? (Number(editing.stock_qty) || 0) : 0,
-        low_stock_at: editing.track_inventory && editing.low_stock_at !== ''
+        // A service has no stock.
+        track_inventory: service ? false : !!editing.track_inventory,
+        stock_qty: !service && editing.track_inventory ? (Number(editing.stock_qty) || 0) : 0,
+        low_stock_at: !service && editing.track_inventory && editing.low_stock_at !== ''
           ? Number(editing.low_stock_at) : null,
       };
       const save = (d) => (editing.id ? catalogService.update(editing.id, d) : catalogService.create(d));
-      const { skipped } = await saveWithBelongsTo(save, payload);
-      if (skipped) toast('Product saved. "Belongs to" needs database update 0078 before it is kept.', 'info');
+      const { dropped } = await saveWithOptional(save, payload, [['belongs_to', 'project_id'], ['item_kind']]);
+      const missing = [
+        dropped.some((g) => g.includes('belongs_to')) && '"Belongs to" needs database update 0078',
+        dropped.some((g) => g.includes('item_kind')) && 'Product / Service needs database update 0083',
+      ].filter(Boolean);
+      if (missing.length) toast(`Saved. ${missing.join('; ')} before it is kept.`, 'info');
       setEditing(null);
       reload();
     } catch (err) {
-      // 23505 is the partial unique index on (org_id, lower(sku)) — worth
+      // 23505 is the partial unique index on (org_id, lower(sku)), worth
       // naming, because "duplicate key value violates..." tells nobody which
       // field to fix.
       setFormError(err?.code === '23505'
-        ? 'That SKU is already used by another product.'
+        ? 'That SKU code is already used by another product or service.'
         : `Could not save: ${err.message}`);
     }
     setSaving(false);
@@ -201,7 +221,7 @@ export default function Products({ projectId = null }) {
   const handleDelete = async (p) => {
     if (!(await confirmDialog({
       title: 'Delete product',
-      message: `Permanently delete “${p.name}”? This cannot be undone — archive it instead if you may want the record back.`,
+      message: `Permanently delete “${p.name}”? This cannot be undone, archive it instead if you may want the record back.`,
     }))) return;
     try { await catalogService.destroy(p.id); reload(); }
     catch (err) { alert(`Could not delete: ${err.message}`); }
@@ -224,7 +244,8 @@ export default function Products({ projectId = null }) {
     <div style={{ maxWidth: '100%' }}>
       {/* Summary */}
       <div className="prod-stats">
-        <Stat icon={<Boxes size={15} />} label="Products" value={totals.count} />
+        <Stat icon={<Boxes size={15} />} label={projectId ? 'SKUs' : 'Products & services'} value={totals.count} />
+        {totals.services > 0 && <Stat icon={<Tag size={15} />} label="Services" value={totals.services} />}
         <Stat icon={<TrendingUp size={15} />} label="Billed" value={money(totals.revenue)} />
         <Stat icon={<IndianRupee size={15} />} label="Collected" value={money(totals.collected)} accent="var(--success)" />
         {totals.lowStock > 0 && (
@@ -269,6 +290,12 @@ export default function Products({ projectId = null }) {
               {categories.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
 
+            <select aria-label="Products or services" value={kind} onChange={(e) => setKind(e.target.value)} className="prod-select">
+              <option value="">Products & services</option>
+              <option value="product">Products only</option>
+              <option value="service">Services only</option>
+            </select>
+
             {!projectId && <BelongsToFilter value={scope} onChange={setScope} className="prod-select" />}
 
             <button
@@ -279,14 +306,14 @@ export default function Products({ projectId = null }) {
             </button>
 
             <button className="prod-add-btn" onClick={() => { setEditing({ ...BLANK, belongs: projectId || scope || GENERAL }); setFormError(''); }}>
-              <Plus size={15} /> New product
+              <Plus size={15} /> {projectId ? 'New SKU' : 'New product / service'}
             </button>
           </div>
 
           {filtered.length === 0 ? (
             <EmptyState
               archived={showArchived}
-              filtered={!!search || category !== 'all' || !!scope}
+              filtered={!!search || category !== 'all' || !!scope || !!kind}
               onAdd={() => { setEditing({ ...BLANK, belongs: projectId || scope || GENERAL }); setFormError(''); }}
             />
           ) : (
@@ -353,6 +380,7 @@ function ProductCard({ product: p, belongsLabel, onEdit, onArchive, onDelete }) 
   // Anything else must be archived: the FK is ON DELETE SET NULL, so deleting a
   // sold product would leave its invoices intact but strip their attribution.
   const neverSold = !p.invoice_count;
+  const service = isService(p);
 
   return (
     <div className={`prod-card ${p.archived_at ? 'archived' : ''}`}>
@@ -374,18 +402,21 @@ function ProductCard({ product: p, belongsLabel, onEdit, onArchive, onDelete }) 
         <span className="prod-tag" title="Belongs to">{belongsLabel}</span>
         {p.sku && <span className="prod-tag mono">{p.sku}</span>}
         {p.category && <span className="prod-tag"><Tag size={9} /> {p.category}</span>}
-        {p.hsn_sac && <span className="prod-tag">HSN {p.hsn_sac}</span>}
+        <span className="prod-tag">{service ? 'Service' : 'Product'}</span>
+        {p.hsn_sac && <span className="prod-tag">{service ? 'SAC' : 'HSN'} {p.hsn_sac}</span>}
         <span className="prod-tag">{p.tax_rate}% GST</span>
       </div>
 
       {p.description && <p className="prod-card-desc">{p.description}</p>}
 
-      <div className="prod-card-price">
-        <span className="prod-card-amount">{money(p.unit_price, 2)}</span>
-        <span className="prod-card-unit">per {p.unit}</span>
-      </div>
+      {!service && (
+        <div className="prod-card-price">
+          <span className="prod-card-amount">{money(p.unit_price, 2)}</span>
+          <span className="prod-card-unit">per {p.unit}</span>
+        </div>
+      )}
 
-      {p.track_inventory && (
+      {!service && p.track_inventory && (
         <div className={`prod-card-stock ${low ? 'low' : ''}`}>
           {low && <AlertTriangle size={11} />}
           {qty(p.stock_qty)} {p.unit} in stock
@@ -415,7 +446,7 @@ function EmptyState({ archived, filtered, onAdd }) {
           <p>Your product catalogue is empty.</p>
           <span>
             Add what you sell, and it becomes selectable on every quotation,
-            proforma and invoice — with its HSN code, rate and tax rate filled in.
+            proforma and invoice, with its HSN code, rate and tax rate filled in.
           </span>
           <button className="prod-add-btn" onClick={onAdd}>
             <Plus size={15} /> Add your first product
@@ -428,12 +459,14 @@ function EmptyState({ archived, filtered, onAdd }) {
 
 function ProductForm({ value, setValue, onSubmit, onClose, saving, error, categories }) {
   const set = (k, v) => setValue((prev) => ({ ...prev, [k]: v }));
+  const service = isService(value);
+  const noun = service ? 'service' : 'product';
 
   return (
     <div className="prod-modal-backdrop" onClick={onClose}>
       <DialogSheet className="prod-modal" labelledBy="product-form-title" onClose={onClose} style={{ maxWidth: 820 }}>
         <div className="prod-modal-head">
-          <h3 id="product-form-title">{value.id ? 'Edit product' : 'New product'}</h3>
+          <h3 id="product-form-title">{value.id ? `Edit ${noun}` : `New ${noun}`}</h3>
           <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)"><X aria-hidden="true" size={16} /></button>
         </div>
 
@@ -442,11 +475,24 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
 
           <div className="prod-form-grid">
             <div className="prod-field full">
+              <label id="product-kind-label">Type</label>
+              <div className="prod-rate-chips" role="radiogroup" aria-labelledby="product-kind-label">
+                {KINDS.map((k) => (
+                  <button key={k.id} type="button" role="radio" aria-checked={(value.item_kind || 'product') === k.id}
+                    className={`easy-chip ${(value.item_kind || 'product') === k.id ? 'active' : ''}`}
+                    onClick={() => set('item_kind', k.id)}>
+                    {k.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="prod-field full">
               <label className="req">Name</label>
               <input aria-label="Name"
                 value={value.name}
                 onChange={(e) => set('name', e.target.value)}
-                placeholder="e.g. IoT Gateway Module"
+                placeholder={service ? 'e.g. Site supervision' : 'e.g. IoT Gateway Module'}
                 autoFocus
                 required
               />
@@ -458,11 +504,11 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
             </div>
 
             <div className="prod-field">
-              <label>SKU / code</label>
-              <input aria-label="SKU / code"
+              <label>SKU code</label>
+              <input aria-label="SKU code"
                 value={value.sku || ''}
                 onChange={(e) => set('sku', e.target.value)}
-                placeholder="e.g. IOT-GW-01"
+                placeholder={service ? 'e.g. SRV-SUP-01' : 'e.g. IOT-GW-01'}
               />
             </div>
 
@@ -471,7 +517,7 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
               <input aria-label="Category"
                 value={value.category || ''}
                 onChange={(e) => set('category', e.target.value)}
-                placeholder="e.g. Hardware"
+                placeholder={service ? 'e.g. Consulting' : 'e.g. Hardware'}
                 list="prod-categories"
               />
               <datalist id="prod-categories">
@@ -489,6 +535,7 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
               />
             </div>
 
+            {!service && (<>
             <div className="prod-field">
               <label>Unit price (₹)</label>
               <input aria-label="Unit price (₹)"
@@ -506,12 +553,14 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
               </select>
             </div>
 
+            </>)}
+
             <div className="prod-field">
-              <label>HSN / SAC code</label>
-              <input aria-label="HSN / SAC code"
+              <label>{service ? 'SAC code' : 'HSN code'}</label>
+              <input aria-label={service ? 'SAC code' : 'HSN code'}
                 value={value.hsn_sac || ''}
                 onChange={(e) => set('hsn_sac', e.target.value)}
-                placeholder="e.g. 8517"
+                placeholder={service ? 'e.g. 998313' : 'e.g. 8517'}
               />
             </div>
 
@@ -532,8 +581,9 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
             </div>
           </div>
 
-          {/* Inventory is opt-in — a services business has no stock, and a
+          {/* Inventory is opt-in. A services business has no stock, and a
               zero on every row is worse than no field at all. */}
+          {!service && (
           <div className="prod-inventory">
             <label className="prod-toggle">
               <input
@@ -566,18 +616,19 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
                 </div>
                 <p className="prod-field-note full">
                   Stock is a figure you maintain here. Billing a product does not
-                  decrement it — there is nowhere yet to record goods received or
+                  decrement it. There is nowhere yet to record goods received or
                   returned, and a count that only ever falls would drift out of
                   step with the shelf within a month.
                 </p>
               </div>
             )}
           </div>
+          )}
 
           <div className="prod-modal-foot">
             <button type="button" onClick={onClose} className="prod-btn-ghost">Cancel</button>
             <button type="submit" disabled={saving} className="prod-btn-primary">
-              {saving ? 'Saving...' : value.id ? 'Save changes' : 'Add product'}
+              {saving ? 'Saving...' : value.id ? 'Save changes' : `Add ${noun}`}
             </button>
           </div>
         </form>
@@ -625,7 +676,7 @@ function PerformanceView({
       </div>
 
       <p className="prod-perf-note">
-        Counts a product once the invoice carrying it has been issued — sent,
+        Counts a product once the invoice carrying it has been issued, sent,
         viewed, overdue, part-paid or paid. Drafts, quotations and proformas are
         excluded, and <strong>Collected</strong> narrows to invoices marked paid.
       </p>

@@ -268,7 +268,7 @@ function FollowUpDraftCard({
         </div>
         <span style={{
           padding: '0.2rem 0.5rem', borderRadius: 5, fontSize: '0.625rem',
-          fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em',
+          fontWeight: 700,
           background: tc.bg, color: tc.color,
         }}>
           {tc.label}
@@ -475,10 +475,10 @@ export default function CopilotPanel({
   // Follow-up state
   const [employees, setEmployees] = useState<any[]>([]);
 
-  // Task clarification state — set when intent fires but details are missing
+  // Task clarification state: set when intent fires but details are missing
   const [taskPendingEmployee, setTaskPendingEmployee] = useState<any | null>(null);
 
-  // Employee operation state — multi-step employee management via AI
+  // Employee operation state: multi-step employee management via AI
   const [employeeOp, setEmployeeOp] = useState<EmployeeOperation | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -584,7 +584,7 @@ export default function CopilotPanel({
       }
     }
 
-    // ── Employee operation mode (pure form flow — no AI call needed) ────────
+    // ── Employee operation mode (pure form flow. No AI call needed) ────────
     if (!isOnboarding) {
       // ① Continuing a multi-step employee op
       if (employeeOp !== null) {
@@ -631,7 +631,7 @@ export default function CopilotPanel({
           return;
         }
 
-        // Not done yet — show next question
+        // Not done yet: show next question
         const nextPrompt = getStepPrompt(nextOp);
         setMessages(prev => [...prev, userMsg, {
           id: (Date.now() + 1).toString(), role: 'assistant',
@@ -677,7 +677,7 @@ export default function CopilotPanel({
     // ── Company context ──────────────────────────────────────────────────
     // EdgeBrain first. It is assembled server-side from the same rows, already
     // filtered to this user's permissions and stamped with where each fact came
-    // from, in a few indexed queries — where getContextForQuery pulls the whole
+    // from, in a few indexed queries, where getContextForQuery pulls the whole
     // org cache into the browser and formats it there on every message.
     //
     // The old path stays as the fallback for an organization that has not built
@@ -751,7 +751,7 @@ export default function CopilotPanel({
         if (matched) {
           const empFullName = getEmployeeFullName(matched);
           if (hasTaskTitle(trimmedText, empFullName)) {
-            // Enough detail — create task now
+            // Enough detail: create task now
             isTaskMode = true;
             activeTaskEmployee = matched;
             taskDeadline = parseDateFromMessage(trimmedText);
@@ -760,7 +760,7 @@ export default function CopilotPanel({
             );
             maxTokensOverride = 200;
           } else {
-            // No task details yet — ask clarifying questions, skip AI call
+            // No task details yet, ask clarifying questions, skip AI call
             const clarifyMsg = `Sure! I'll create a task for ${empFullName}. Please tell me:\n\n• What is the task? (e.g. "Fix the login bug")\n• What's the deadline? (e.g. "by Friday" or "next week")\n• What priority? (low / medium / high)`;
             const userMsg: Message = {
               id: Date.now().toString(),
@@ -838,7 +838,7 @@ export default function CopilotPanel({
                 prev.map(m => (m.id === aiMsgId ? { ...m, content: fullContent } : m))
               );
             } else if (activeDecisionCtx !== null) {
-              // Don't stream raw QUESTION:/OPTIONS: text — show placeholder instead
+              // Don't stream raw QUESTION:/OPTIONS: text, show placeholder instead
               setMessages(prev =>
                 prev.map(m => (m.id === aiMsgId && !m.content ? { ...m, content: '…' } : m))
               );
@@ -870,7 +870,7 @@ export default function CopilotPanel({
                 }
               }
               const confirmMsg = createdTask
-                ? `Task "${createdTask.title}" assigned to ${getEmployeeFullName(activeTaskEmployee)}${taskDeadline ? ` — due ${new Date(taskDeadline + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}.`
+                ? `Task "${createdTask.title}" assigned to ${getEmployeeFullName(activeTaskEmployee)}${taskDeadline ? `, due ${new Date(taskDeadline + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}.`
                 : `I couldn't parse the task details. Please try again with a clearer description.`;
               setMessages(prev =>
                 prev.map(m =>
@@ -1084,7 +1084,7 @@ export default function CopilotPanel({
       }}>
         <Users size={12} />
         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {label}{empName ? ` — ${empName}` : ''}
+          {label}{empName ? ` · ${empName}` : ''}
         </span>
         <button
           onClick={() => setEmployeeOp(null)}
@@ -1114,7 +1114,6 @@ export default function CopilotPanel({
       }}>
         <span style={{
           fontSize: '0.625rem', fontWeight: 600, color: 'var(--text-muted)',
-          letterSpacing: '0.07em', textTransform: 'uppercase',
         }}>
           Suggested replies
         </span>
@@ -1355,7 +1354,6 @@ export default function CopilotPanel({
                 fontSize: '0.625rem', fontWeight: 700, color: '#10b981',
                 background: 'rgba(16,185,129,0.1)', borderRadius: 4,
                 padding: '0.125rem 0.375rem', marginBottom: '0.5rem',
-                textTransform: 'uppercase', letterSpacing: '0.06em',
               }}>
                 <CheckCircle2 size={10} /> Recommendation Ready
               </div>
@@ -1797,7 +1795,6 @@ export default function CopilotPanel({
                   fontSize: '0.625rem', fontWeight: 700, color: '#10b981',
                   background: 'rgba(16,185,129,0.1)', borderRadius: 4,
                   padding: '0.125rem 0.375rem', marginBottom: '0.5rem',
-                  textTransform: 'uppercase', letterSpacing: '0.06em',
                 }}
               >
                 <CheckCircle2 size={10} /> Recommendation Ready

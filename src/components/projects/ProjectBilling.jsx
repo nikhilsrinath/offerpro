@@ -13,7 +13,7 @@ import { RecurringInvoiceForm } from '../financial/RecurringInvoiceForm';
 
 /* ══════════════════════════════════════════════════════════════════════════
    A project's Billing: its quotations, proformas, invoices and recurring
-   invoices on one page, one kind at a time — the last part of the path
+   invoices on one page, one kind at a time. The last part of the path
    (/projects/:id/finance/billing/proforma). Each list is the company
    list scoped to the project, and anything started from here opens its form
    already pointed at the project and its client, and comes back here.

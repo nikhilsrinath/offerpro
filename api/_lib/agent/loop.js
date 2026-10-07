@@ -52,7 +52,7 @@ export function emitOutcome(out, emit) {
 }
 
 /**
- * A tapped chip, or an offer taken — straight back into the tool, no model.
+ * A tapped chip, or an offer taken, straight back into the tool, no model.
  * `resume` is { tool, args, param?, value? }; the args are re-validated like
  * any model's, so a client that edits them gains nothing.
  */
@@ -66,7 +66,7 @@ export async function runResume(ctx, resume, emit, ids) {
 }
 
 /* ── controls: acting on what is already on the table ──────────────────────
-   Not write tools — they propose nothing new. They let the model act on its
+   Not write tools: they propose nothing new. They let the model act on its
    own understanding of the message ("scrap that", "yes go ahead" on a call)
    instead of the client matching words. cancel_proposal withdraws a card the
    user no longer wants; confirm_proposal exists only on a voice call, only

@@ -1,7 +1,7 @@
 /**
  * Employee AI Engine
  * Handles conversational create / edit / role-change / terminate flows
- * via the AI Co-founder panel — no AI tokens needed per step.
+ * via the AI Co-founder panel. No AI tokens needed per step.
  */
 
 // @ts-ignore
@@ -165,7 +165,7 @@ export function processEmployeeInput(op: EmployeeOperation, userInput: string): 
     const no  = /^(no|n|nope|dont|don't|cancel|stop)\b/i.test(raw);
     if (yes) return { op: { ...op, step: op.step + 1 }, done: true, confirmed: true, cancelled: false };
     if (no)  return { op, done: true, confirmed: false, cancelled: true };
-    // unclear — stay and re-ask
+    // unclear: stay and re-ask
     return { op, done: false, confirmed: false, cancelled: false };
   }
 

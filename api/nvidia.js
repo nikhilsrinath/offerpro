@@ -14,7 +14,7 @@
  * request to it returned HTTP 410.
  *
  * Every accepted request is metered against usage_counters.ai_messages. Before
- * this the endpoint was open to the internet — no token, no org, no count — and
+ * this the endpoint was open to the internet. No token, no org, no count, and
  * `usePlanStatus` read the quota from `organizations.ai_message_count`, a column
  * that does not exist. The number was always 0, so the limit every plan declares
  * (free: 10) was never enforced and the spend was unbounded.
@@ -41,7 +41,7 @@ const DEFAULT_MODEL = 'gemini-3.6-flash';
 // Gemini 3.x models think before answering, and the thinking is billed against
 // max_tokens. At the 400 the co-founder UI asks for, the entire budget goes to
 // reasoning and the response streams back with finish_reason "length" and no
-// content at all — an empty bubble, not an error. 'none' turns that off and
+// content at all: an empty bubble, not an error. 'none' turns that off and
 // brings a full answer back in ~2s, which is what the sub-7-second target in
 // cofounderAI.ts needs. A caller may ask for more by sending reasoning_effort,
 // but then it must send a max_tokens large enough to pay for it.
@@ -168,7 +168,7 @@ export default async function handler(req, res) {
  * +1 if this were a read-modify-write from here.
  *
  * A failure is logged and treated as "not over the limit". Losing a count is
- * better than refusing to answer because the meter is unavailable — and it is
+ * better than refusing to answer because the meter is unavailable. And it is
  * what happens before 0010_ai_usage.sql is applied.
  */
 async function meterMessage(orgId) {

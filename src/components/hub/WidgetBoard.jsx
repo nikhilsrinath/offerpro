@@ -8,7 +8,7 @@ import { PERIODS, DEFAULT_PERIOD, periodOf } from './periods';
 import './hub.css';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   A board of widgets the person chooses — the hub's, and each project's.
+   A board of widgets the person chooses. The hub's, and each project's.
 
    The board is the person's own: any of the catalog addable, each removable,
    resizable and movable (menu, keyboard or drag). It is a grid of square
@@ -16,7 +16,7 @@ import './hub.css';
    side, or a two-by-two block. The caller owns the layout (useWidgetLayout)
    and the data every widget body is handed (`widgetProps`).
 
-   Must sit inside an `.eo-surface` with a data-theme — hub.css reads its
+   Must sit inside an `.eo-surface` with a data-theme, hub.css reads its
    palette from there.
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -47,7 +47,7 @@ function useSquareGrid(gap) {
             let cols = Math.max(2, Math.floor((w + gap) / (CELL_MIN + gap)));
             // Hysteresis: gain a column only with clear room to spare. A new
             // column changes the board's height, which can add or drop the
-            // page scrollbar and nudge the width back — without this margin
+            // page scrollbar and nudge the width back, without this margin
             // the two could chase each other forever.
             const prev = Number(el.dataset.cols) || 0;
             if (prev && cols > prev && w < cols * CELL_MIN + (cols - 1) * gap + 24) cols = prev;
@@ -126,7 +126,7 @@ export default function WidgetBoard({
 
     return (
         <>
-            {/* — widgets bar — */}
+            {/*: widgets bar, */}
             <div className="hx-bar">
                 <h2>WIDGETS{layout.length > 0 && <span>{layout.length} / {widgets.length}</span>}</h2>
                 <div className="hx-actions">
@@ -209,7 +209,7 @@ export default function WidgetBoard({
                                 <div className="w-head">
                                     {open ? (
                                         <button type="button" className="w-title w-title-btn" id={`wt-${item.id}`}
-                                            aria-label={`${w.title} — open page`} onClick={open}>{w.title}</button>
+                                            aria-label={`${w.title}, open page`} onClick={open}>{w.title}</button>
                                     ) : (
                                         <span className="w-title" id={`wt-${item.id}`}>{w.title}</span>
                                     )}
@@ -228,7 +228,7 @@ export default function WidgetBoard({
                                         onClose={() => { setWidgetMenu(null); document.getElementById(`wbtn-${item.id}`)?.focus(); }}
                                     />
                                 )}
-                                {/* A tap anywhere on the body opens the widget's page —
+                                {/* A tap anywhere on the body opens the widget's page,
                                     except on the body's own buttons and links, which
                                     keep doing what they say. The title button above is
                                     the keyboard route to the same page. */}
@@ -345,8 +345,8 @@ function WidgetMenu({ widget, size, period, first, last, onAction, onClose }) {
 /* ── widget gallery ─────────────────────────────────────────────────────── */
 
 /* The picker is a gallery, the way iOS adds widgets: no names and blurbs to
-   read, just each widget drawn as it will look — on sample data when the
-   board supplies it — sorted into sections. A widget can be tried at each
+   read, just each widget drawn as it will look, on sample data when the
+   board supplies it: sorted into sections. A widget can be tried at each
    of its sizes before it goes on; tapping the preview adds or removes it. */
 
 const COUNT_WORD = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
@@ -410,13 +410,12 @@ function WidgetPicker({ layout, lay, widgets, defaultCount, groups, previewProps
                 {sections.length > 1 && (
                     <div className="hx-gtabs" role="tablist" aria-label="Widget sections" onKeyDown={onTabKey}>
                         {sections.map((g) => {
-                            const count = g.items.filter((w) => placed.has(w.id)).length;
                             const sel = g.id === active.id;
                             return (
                                 <button key={g.id} id={`hx-gtab-${g.id}`} type="button" role="tab" className="hx-gtab"
                                     aria-selected={sel} aria-controls="hx-gpanel" tabIndex={sel ? 0 : -1}
                                     onClick={() => setTab(g.id)}>
-                                    {g.label}{count > 0 && <span className="hx-gtab-n">{count}</span>}
+                                    {g.label}
                                 </button>
                             );
                         })}
@@ -442,7 +441,7 @@ function WidgetPicker({ layout, lay, widgets, defaultCount, groups, previewProps
                                             <div className="w-body"><Body {...props} size={size} period={w.periods ? (w.period || DEFAULT_PERIOD) : undefined} setPeriod={() => {}} /></div>
                                         </div>
                                         <button type="button" className="hx-gtoggle" aria-pressed={on}
-                                            aria-label={`${w.title}, ${SIZE_LABEL[size].toLowerCase()}. ${w.desc}. ${on ? 'On your board — tap to remove' : 'Tap to add'}`}
+                                            aria-label={`${w.title}, ${SIZE_LABEL[size].toLowerCase()}. ${w.desc}. ${on ? 'On your board, tap to remove' : 'Tap to add'}`}
                                             onClick={() => {
                                                 if (on) { lay.remove(w.id); say(`${w.title} removed.`); }
                                                 else { lay.add(w.id, size); say(`${w.title} added.`); }

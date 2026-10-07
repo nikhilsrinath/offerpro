@@ -1,11 +1,11 @@
-// projectAnalytics.js — pure functions over projects, their milestones, tasks
+// projectAnalytics.js: pure functions over projects, their milestones, tasks
 // and money links.
 //
 // Nothing here computes money that leaves the database as a figure of its own:
 // project P&L, labour cost and margins come from public.project_financials
 // (0051), which is the only place pay is read. What lives here is the arithmetic
-// a screen needs around those figures — time elapsed against budget burnt,
-// milestone progress from tasks, what is left of a split — so it is testable
+// a screen needs around those figures, time elapsed against budget burnt,
+// milestone progress from tasks, what is left of a split. So it is testable
 // without a database and identical on every screen that shows it.
 
 const DAY = 86400000;
@@ -22,13 +22,30 @@ export const PROJECT_STATUSES = [
     { id: 'completed', label: 'Completed' },
     { id: 'cancelled', label: 'Cancelled' },
 ];
-export const statusLabel = (s) => PROJECT_STATUSES.find((x) => x.id === s)?.label || s || '—';
+export const statusLabel = (s) => PROJECT_STATUSES.find((x) => x.id === s)?.label || s || '-';
 
 export const BILLING_TYPES = [
     { id: 'fixed_price', label: 'Fixed price' },
     { id: 'time_materials', label: 'Time & materials' },
     { id: 'retainer', label: 'Retainer' },
 ];
+
+/** How a project is run (0083's projects.delivery_method), as the New project form offers it. */
+export const DELIVERY_METHODS = [
+    {
+        id: 'waterfall', label: 'Waterfall', desc: 'A linear and sequential approach',
+        examples: 'Construction, Manufacturing, Healthcare, Retail',
+    },
+    {
+        id: 'agile', label: 'Agile', desc: 'A flexible, iterative approach',
+        examples: 'Software, Banking, Finance, Marketing',
+    },
+    {
+        id: 'hybrid', label: 'Hybrid', desc: 'A combination of Waterfall and Agile',
+        examples: 'Not sure? Go with Hybrid',
+    },
+];
+export const deliveryLabel = (id) => DELIVERY_METHODS.find((m) => m.id === id)?.label || '';
 
 export const MEMBER_ROLES = [
     { id: 'manager', label: 'Manager' },
@@ -48,7 +65,7 @@ export const memberActive = (m, on) => !!m
 /**
  * How much of the schedule has passed, next to how much of the budget has gone.
  * `gap` is burn minus time, in points: positive means spending ahead of the
- * calendar. Null parts mean "not knowable" — no dates, or no budget.
+ * calendar. Null parts mean "not knowable" · no dates, or no budget.
  */
 export function burnVsTime(project, burnPct, today) {
     const start = toDate(project?.start_date);
@@ -67,7 +84,7 @@ export function burnVsTime(project, burnPct, today) {
 /**
  * A milestone's progress, 0–1. The share of its tasks that are done when it
  * has any; otherwise its own status stands in (completed or invoiced is 1,
- * anything else 0) — a milestone with no tasks is either done or not.
+ * anything else 0): a milestone with no tasks is either done or not.
  */
 export function milestoneProgress(milestone, tasks = []) {
     if (!milestone) return 0;
@@ -88,7 +105,7 @@ export function projectProgress(milestones = [], tasks = []) {
 
 /**
  * Where the project will land if it keeps its current pace: elapsed time
- * divided by progress. Null when there is no start or no progress yet —
+ * divided by progress. Null when there is no start or no progress yet,
  * extrapolating from zero is a guess, not a projection.
  */
 export function projectedEnd(project, progress, today) {

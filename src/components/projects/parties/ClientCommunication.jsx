@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-    Panel, Row, Btn, Seg, Select, Field, Input, Textarea, Empty, Modal, ConfirmBtn, Table, Tr, Td, Muted,
+    Panel, Row, Btn, Seg, Select, Field, Input, Textarea, Empty, Modal, ConfirmBtn, RowMenu, Table, Tr, Td, Muted,
 } from '../../ui/edge';
 import { useT, fmtDate } from '../../ui/edgeUtils';
 import { useToast } from '../../shared/Toast';
 import { useSection } from '../../financial/financeHooks';
 import { orgStore } from '../../../services/orgStore';
+import { periodBounds } from '../../../services/financeAnalytics';
 import { useAuth } from '../../../context/AuthContext';
 import { uploadProjectFile, attachmentsOf, fileError, deleteProjectFiles } from '../../../services/projectFiles';
 import { validate } from '../../../services/projectWorkspace';
@@ -14,22 +15,23 @@ import { useProjectClients, useSetup, useUserNames, todayIso } from './partyData
 import { SetupGate, Badge, Legend, FieldError, FilePicker, AttachedFiles, Bar } from './partyUi';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Client Management › Client's Communication — what was said to the
-   client, what they were asked to approve, and how they like to be reached.
+   Client Management › Client's Communication: what was said to the
+   client and what they were asked to approve.
 
-   Timeline is everything in one line of time, newest first: each logged
-   conversation, each item sent for approval, and each response. Approvals is
-   the same sign-offs as a table to act on; Channels is the client's
-   preferred ways in.
+   General is the logged conversations, newest first. Approvals is what was
+   sent to the client to sign off, as a table to act on.
    ══════════════════════════════════════════════════════════════════════════ */
 
 const CHANNELS = [
     { id: 'email', label: 'Email', color: '#3b82f6' },
     { id: 'phone', label: 'Phone', color: '#10b981' },
     { id: 'whatsapp', label: 'WhatsApp', color: '#22c55e' },
-    { id: 'meeting', label: 'Meeting', color: '#8b5cf6' },
+    { id: 'online_meet', label: 'Online meet', color: '#8b5cf6' },
+    { id: 'in_person_meet', label: 'In person meet', color: '#a855f7' },
     { id: 'other', label: 'Other', color: '#94a3b8' },
 ];
+// Older entries were logged as a plain "Meeting"; still shown, no longer offered.
+const LEGACY_CHANNELS = [{ id: 'meeting', label: 'Meeting', color: '#8b5cf6' }];
 const APPROVAL_STATUSES = [
     { id: 'pending', label: 'Pending', color: '#f59e0b' },
     { id: 'approved', label: 'Approved', color: '#10b981' },
@@ -40,7 +42,11 @@ const ITEM_TYPES = [
     { id: 'design', label: 'Design' }, { id: 'document', label: 'Document' }, { id: 'milestone', label: 'Milestone' },
     { id: 'quote', label: 'Quote' }, { id: 'other', label: 'Other' },
 ];
-const CH = Object.fromEntries(CHANNELS.map((c) => [c.id, c]));
+const PERIODS = [
+    { id: 'all', label: 'All time' }, { id: 'month', label: 'This month' }, { id: 'quarter', label: 'This quarter' },
+    { id: 'fy', label: 'This financial year' }, { id: 'custom', label: 'Custom' },
+];
+const CH = Object.fromEntries([...CHANNELS, ...LEGACY_CHANNELS].map((c) => [c.id, c]));
 const AP = Object.fromEntries(APPROVAL_STATUSES.map((c) => [c.id, c]));
 
 const localInput = (iso) => {
@@ -55,22 +61,22 @@ export default function ClientCommunication({ project }) {
     const t = useT();
     const toast = useToast();
     const [params] = useSearchParams();
-    const setup = useSetup('client_communications', ['client_communications', 'client_approvals', 'client_channels']);
+    const setup = useSetup('client_communications', ['client_communications', 'client_approvals']);
     const { clients } = useProjectClients(project);
     const comms = useSection('client_communications');
     const approvals = useSection('client_approvals');
-    const channels = useSection('client_channels');
     const files = useSection('project_files');
     const nameOf = useUserNames();
 
-    const [view, setView] = useState('timeline');
+    const [view, setView] = useState('general');
     const [client, setClient] = useState(() => params.get('client') || '');
-    const [from, setFrom] = useState('');
-    const [to, setTo] = useState('');
+    const [period, setPeriod] = useState('all');
+    const [customFrom, setCustomFrom] = useState('');
+    const [customTo, setCustomTo] = useState('');
+    const { from, to } = period === 'custom' ? { from: customFrom, to: customTo } : periodBounds(period);
     const [channel, setChannel] = useState('');
-    const [apStatus, setApStatus] = useState('');
     const [contact, setContact] = useState('');
-    const [editing, setEditing] = useState(null);   // { kind: 'comm'|'approval'|'channel', row? }
+    const [editing, setEditing] = useState(null);   // { kind: 'comm'|'approval', row? }
 
     const can = { create: orgStore.can('clients', 'create'), edit: orgStore.can('clients', 'edit'), remove: orgStore.can('clients', 'delete') };
     const clientName = (id) => clients.find((c) => c.id === id)?.name || '';
@@ -78,42 +84,28 @@ export default function ClientCommunication({ project }) {
     const mine = useMemo(() => ({
         comms: comms.filter((x) => x.project_id === project.id && (!client || x.client_id === client)),
         approvals: approvals.filter((x) => x.project_id === project.id && (!client || x.client_id === client)),
-        channels: channels.filter((x) => x.project_id === project.id && (!client || x.client_id === client)),
-    }), [comms, approvals, channels, project.id, client]);
+    }), [comms, approvals, project.id, client]);
 
     const contacts = useMemo(() => [...new Set([
         ...mine.comms.map((x) => x.contact_name), ...mine.approvals.map((x) => x.contact_name),
         ...clients.flatMap((c) => (c.contacts || []).map((x) => x.name)),
     ].filter(Boolean))].sort(), [mine, clients]);
 
-    // One line of time: conversations, approvals sent, and approval responses.
+    // General is only what was logged as a communication; sign-offs live in Approvals.
     const timeline = useMemo(() => {
         const inRange = (day) => (!from || day >= from) && (!to || day <= to);
         const events = [];
-        if (!apStatus) {
-            for (const c of mine.comms) {
-                if (channel && c.channel !== channel) continue;
-                if (contact && c.contact_name !== contact && !c.participants.includes(contact)) continue;
-                if (!inRange(dayOf(c.occurred_at))) continue;
-                events.push({ kind: 'comm', at: c.occurred_at, row: c });
-            }
-        }
-        if (!channel) {
-            for (const a of mine.approvals) {
-                if (apStatus && a.status !== apStatus) continue;
-                if (contact && a.contact_name !== contact) continue;
-                if (inRange(a.sent_on)) events.push({ kind: 'sent', at: `${a.sent_on}T09:00:00`, row: a });
-                if (a.responded_on && a.status !== 'pending' && inRange(a.responded_on)) {
-                    events.push({ kind: 'response', at: `${a.responded_on}T18:00:00`, row: a });
-                }
-            }
+        for (const c of mine.comms) {
+            if (channel && c.channel !== channel) continue;
+            if (contact && c.contact_name !== contact && !c.participants.includes(contact)) continue;
+            if (!inRange(dayOf(c.occurred_at))) continue;
+            events.push({ kind: 'comm', at: c.occurred_at, row: c });
         }
         return events.sort((a, b) => new Date(b.at) - new Date(a.at));
-    }, [mine, from, to, channel, apStatus, contact]);
+    }, [mine, from, to, channel, contact]);
 
-    const filtered = !!(from || to || channel || apStatus || contact);
-    const clear = () => { setFrom(''); setTo(''); setChannel(''); setApStatus(''); setContact(''); };
-    const pendingCount = mine.approvals.filter((a) => a.status === 'pending').length;
+    const filtered = !!(period !== 'all' || from || to || channel || contact);
+    const clear = () => { setPeriod('all'); setCustomFrom(''); setCustomTo(''); setChannel(''); setContact(''); };
 
     const remove = async (table, row, attachType) => {
         try {
@@ -133,9 +125,8 @@ export default function ClientCommunication({ project }) {
             <div style={{ display: 'grid', gap: 14 }}>
                 <Row gap={8} wrap>
                     <Seg value={view} onChange={setView} label="View" options={[
-                        { id: 'timeline', label: 'Timeline' },
-                        { id: 'approvals', label: 'Approvals', count: pendingCount || undefined },
-                        { id: 'channels', label: 'Channels' },
+                        { id: 'general', label: 'General' },
+                        { id: 'approvals', label: 'Approvals' },
                     ]} />
                     {clients.length > 1 && (
                         <Select aria-label="Client" value={client} onChange={(e) => setClient(e.target.value)} style={{ width: 200, height: 31 }}>
@@ -144,31 +135,30 @@ export default function ClientCommunication({ project }) {
                         </Select>
                     )}
                     <div style={{ flex: 1 }} />
-                    {can.create && view === 'timeline' && <Btn onClick={() => setEditing({ kind: 'approval' })}>Send for approval</Btn>}
-                    {can.create && view !== 'channels' && (
+                    {can.create && (
                         <Btn primary onClick={() => setEditing({ kind: view === 'approvals' ? 'approval' : 'comm' })}>
                             {view === 'approvals' ? 'Send for approval' : 'Log communication'}
                         </Btn>
                     )}
-                    {can.create && view === 'channels' && <Btn primary onClick={() => setEditing({ kind: 'channel' })}>Add channel</Btn>}
                 </Row>
 
-                {view === 'timeline' && (
+                {view === 'general' && (
                     <Panel>
                         <Bar>
-                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.faint }}>
-                                From <Input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} style={{ width: 145, height: 29 }} aria-label="From date" />
-                            </label>
-                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.faint }}>
-                                To <Input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} style={{ width: 145, height: 29 }} aria-label="To date" />
-                            </label>
+                            <Select aria-label="Period" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ width: 170, height: 29 }}>
+                                {PERIODS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                            </Select>
+                            {period === 'custom' && (<>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.faint }}>
+                                    From <Input type="date" value={customFrom} max={customTo || undefined} onChange={(e) => setCustomFrom(e.target.value)} style={{ width: 145, height: 29 }} aria-label="From date" />
+                                </label>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.faint }}>
+                                    To <Input type="date" value={customTo} min={customFrom || undefined} onChange={(e) => setCustomTo(e.target.value)} style={{ width: 145, height: 29 }} aria-label="To date" />
+                                </label>
+                            </>)}
                             <Select aria-label="Channel" value={channel} onChange={(e) => setChannel(e.target.value)} style={{ width: 140, height: 29 }}>
                                 <option value="">Every channel</option>
                                 {CHANNELS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-                            </Select>
-                            <Select aria-label="Approval status" value={apStatus} onChange={(e) => setApStatus(e.target.value)} style={{ width: 170, height: 29 }}>
-                                <option value="">Every approval status</option>
-                                {APPROVAL_STATUSES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
                             </Select>
                             {contacts.length > 0 && (
                                 <Select aria-label="Contact person" value={contact} onChange={(e) => setContact(e.target.value)} style={{ width: 170, height: 29 }}>
@@ -178,13 +168,9 @@ export default function ClientCommunication({ project }) {
                             )}
                             {filtered && <Btn size="sm" onClick={clear}>Clear</Btn>}
                         </Bar>
-                        <div style={{ padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft, display: 'grid', gap: 6 }}>
-                            <Legend label="Channels" items={CHANNELS} />
-                            <Legend label="Approval statuses" items={APPROVAL_STATUSES} />
-                        </div>
                         {timeline.length === 0 ? (
                             <Empty action={!filtered && can.create && <Btn primary onClick={() => setEditing({ kind: 'comm' })}>Log the first one</Btn>}>
-                                {filtered ? 'Nothing matches these filters.' : 'Nothing logged yet. Record calls, emails and meetings with the client, and what you send them to approve.'}
+                                {filtered ? 'Nothing matches these filters.' : 'Nothing logged yet. Record calls, emails and meetings with the client.'}
                             </Empty>
                         ) : (
                             <ol aria-label="Communication timeline" style={{ listStyle: 'none', margin: 0, padding: '6px 13px 14px' }}>
@@ -197,7 +183,7 @@ export default function ClientCommunication({ project }) {
                                                 onEdit={() => setEditing({ kind: ev.kind === 'comm' ? 'comm' : 'approval', row: ev.row })}
                                                 onDelete={() => (ev.kind === 'comm'
                                                     ? remove('client_communications', ev.row, 'communication')
-                                                    : remove('client_approvals', ev.row, null))} />
+                                                    : remove('client_approvals', ev.row, 'approval'))} />
                                         </li>
                                     );
                                 })}
@@ -210,30 +196,20 @@ export default function ClientCommunication({ project }) {
                     <Approvals rows={mine.approvals} clientName={clientName} can={can}
                         onAdd={() => setEditing({ kind: 'approval' })}
                         onEdit={(row) => setEditing({ kind: 'approval', row })}
-                        onDelete={(row) => remove('client_approvals', row, null)} />
-                )}
-
-                {view === 'channels' && (
-                    <Channels rows={mine.channels} clientName={clientName} can={can}
-                        onAdd={() => setEditing({ kind: 'channel' })}
-                        onEdit={(row) => setEditing({ kind: 'channel', row })}
-                        onDelete={(row) => remove('client_channels', row, null)} />
+                        onDelete={(row) => remove('client_approvals', row, 'approval')} />
                 )}
             </div>
 
             {editing?.kind === 'comm' && <CommForm project={project} clients={clients} contacts={contacts} row={editing.row} defaultClient={client} onClose={() => setEditing(null)} />}
-            {editing?.kind === 'approval' && <ApprovalForm project={project} clients={clients} contacts={contacts} row={editing.row} defaultClient={client} onClose={() => setEditing(null)} />}
-            {editing?.kind === 'channel' && <ChannelForm project={project} clients={clients} row={editing.row} defaultClient={client} onClose={() => setEditing(null)} />}
-        </SetupGate>
+            {editing?.kind === 'approval' && <ApprovalForm project={project} clients={clients} row={editing.row} defaultClient={client} onClose={() => setEditing(null)} />}        </SetupGate>
     );
 }
 
 function TimelineItem({ ev, project, files, clientName, nameOf, can, onEdit, onDelete }) {
     const t = useT();
     const r = ev.row;
-    const attached = ev.kind === 'comm'
-        ? files.filter((f) => f.project_id === project.id && f.link_type === 'communication' && f.link_id === r.id)
-        : [];
+    const attached = files.filter((f) => f.project_id === project.id && f.link_id === r.id
+        && f.link_type === (ev.kind === 'comm' ? 'communication' : 'approval'));
     const doc = ev.kind !== 'comm' && r.file_id ? files.find((f) => f.id === r.file_id) : null;
     const edge = ev.kind === 'comm' ? CH[r.channel]?.color : AP[ev.kind === 'sent' ? 'pending' : r.status]?.color;
     return (
@@ -244,7 +220,7 @@ function TimelineItem({ ev, project, files, clientName, nameOf, can, onEdit, onD
             <Row gap={8} wrap align="flex-start">
                 <div style={{ flex: '1 1 260px', minWidth: 0 }}>
                     <Row gap={8} wrap style={{ marginBottom: 4 }}>
-                        {ev.kind === 'comm' && <Badge color={CH[r.channel].color}>{CH[r.channel].label}</Badge>}
+                        {ev.kind === 'comm' && <Badge color={CH[r.channel].color}>{r.channel === 'other' && r.channel_other ? `Other · ${r.channel_other}` : CH[r.channel].label}</Badge>}
                         {ev.kind === 'sent' && <Badge color="#64748b">Sent for approval</Badge>}
                         {ev.kind !== 'comm' && <Badge color={AP[r.status].color}>{AP[r.status].label}</Badge>}
                         <span style={{ fontSize: 11.5, color: t.faint }}>
@@ -269,7 +245,7 @@ function TimelineItem({ ev, project, files, clientName, nameOf, can, onEdit, onD
                         ].filter(Boolean).join(' · ')}
                     </div>
                     {(attached.length > 0 || doc) && (
-                        <div style={{ marginTop: 8 }}><AttachedFiles files={doc ? [doc] : attached} canRemove={false} /></div>
+                        <div style={{ marginTop: 8 }}><AttachedFiles files={doc && !attached.includes(doc) ? [doc, ...attached] : attached} canRemove={false} /></div>
                     )}
                 </div>
                 {(can.edit || can.remove) && (
@@ -289,6 +265,7 @@ function Approvals({ rows, clientName, can, onAdd, onEdit, onDelete }) {
     const employees = useSection('employees');
     const files = useSection('project_files');
     const [status, setStatus] = useState('');
+    const [deleting, setDeleting] = useState(null);
     const shown = rows.filter((r) => !status || r.status === status);
     const setStatusOf = async (r, next) => {
         try {
@@ -314,21 +291,22 @@ function Approvals({ rows, clientName, can, onAdd, onEdit, onDelete }) {
                 <div style={{ padding: 12 }}>
                     <Table cols={[
                         { key: 'i', label: 'Item' }, { key: 's', label: 'Sent' }, { key: 'b', label: 'Sent by' },
-                        { key: 'st', label: 'Status' }, { key: 'r', label: 'Client remarks' }, { key: 'd', label: 'Response' },
+                        { key: 'st', label: 'Status' }, { key: 'r', label: 'Description' }, { key: 'd', label: 'Response' },
                         { key: 'x', label: '', align: 'right' },
                     ]}>
                         {shown.map((r) => {
                             const doc = r.file_id && files.find((f) => f.id === r.file_id);
+                            const count = files.filter((f) => f.link_type === 'approval' && f.link_id === r.id).length;
                             return (
                                 <Tr key={r.id}>
                                     <Td>
                                         <span style={{ display: 'block' }}>{r.item_name}</span>
                                         <span style={{ display: 'block', fontSize: 11.5, color: t.faint }}>
-                                            {[ITEM_TYPES.find((x) => x.id === r.item_type)?.label, clientName(r.client_id), doc && `file: ${doc.name}`].filter(Boolean).join(' · ')}
+                                            {[r.item_type === 'other' && r.item_type_other ? `Other · ${r.item_type_other}` : ITEM_TYPES.find((x) => x.id === r.item_type)?.label, clientName(r.client_id), doc && `file: ${doc.name}`, count > 0 && `${count} attached`].filter(Boolean).join(' · ')}
                                         </span>
                                     </Td>
                                     <Td muted nowrap>{fmtDate(r.sent_on)}</Td>
-                                    <Td muted nowrap>{employees.find((e) => e.id === r.sent_by)?.name || '—'}</Td>
+                                    <Td muted nowrap>{employees.find((e) => e.id === r.sent_by)?.name || '-'}</Td>
                                     <Td nowrap>
                                         {can.edit ? (
                                             <Select aria-label={`Status of ${r.item_name}`} value={r.status} onChange={(e) => setStatusOf(r, e.target.value)} style={{ width: 170, height: 27 }}>
@@ -336,13 +314,19 @@ function Approvals({ rows, clientName, can, onAdd, onEdit, onDelete }) {
                                             </Select>
                                         ) : <Badge color={AP[r.status].color}>{AP[r.status].label}</Badge>}
                                     </Td>
-                                    <Td muted><span style={{ display: 'block', maxWidth: 260 }}>{r.client_remarks || '—'}</span></Td>
-                                    <Td muted nowrap>{r.responded_on ? fmtDate(r.responded_on) : '—'}</Td>
+                                    <Td muted>
+                                        <span title={r.client_remarks || undefined} style={{
+                                            display: 'block', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                        }}>{r.client_remarks || '-'}</span>
+                                    </Td>
+                                    <Td muted nowrap>{r.responded_on ? fmtDate(r.responded_on) : '-'}</Td>
                                     <Td align="right">
-                                        <Row gap={6} style={{ justifyContent: 'flex-end' }}>
-                                            {can.edit && <Btn size="sm" onClick={() => onEdit(r)}>Edit</Btn>}
-                                            {can.remove && <ConfirmBtn label="Delete" title="Delete this approval?" message="It is removed from the project’s history." onConfirm={() => onDelete(r)} />}
-                                        </Row>
+                                        {(can.edit || can.remove) && (
+                                            <RowMenu label={`Actions for ${r.item_name}`} items={[
+                                                can.edit && { label: 'Edit', onClick: () => onEdit(r) },
+                                                can.remove && { label: 'Delete', tone: 'danger', onClick: () => setDeleting(r) },
+                                            ]} />
+                                        )}
                                     </Td>
                                 </Tr>
                             );
@@ -351,51 +335,13 @@ function Approvals({ rows, clientName, can, onAdd, onEdit, onDelete }) {
                 </div>
             )}
             <div style={{ padding: '0 13px 12px' }}><Legend label="Approval statuses" items={APPROVAL_STATUSES} /></div>
+            {deleting && (
+                <Modal open onClose={() => setDeleting(null)} width={420} title="Delete this approval?"
+                    footer={<><Btn onClick={() => setDeleting(null)}>Cancel</Btn><Btn primary onClick={() => { const r = deleting; setDeleting(null); onDelete(r); }}>Delete</Btn></>}>
+                    <Muted>“{deleting.item_name}” is removed from the project’s history, with any files attached to it.</Muted>
+                </Modal>
+            )}
 
-        </Panel>
-    );
-}
-
-function Channels({ rows, clientName, can, onAdd, onEdit, onDelete }) {
-    const t = useT();
-    if (!rows.length) {
-        return (
-            <Panel>
-                <Empty action={can.create && <Btn primary onClick={onAdd}>Add a channel</Btn>}>
-                    No channels recorded. Note how the client likes to be reached — email, phone, WhatsApp, meetings — and who to contact on each.
-                </Empty>
-            </Panel>
-        );
-    }
-    return (
-        <Panel>
-            <div style={{ padding: 12 }}>
-                <Table cols={[
-                    { key: 'c', label: 'Channel' }, { key: 'p', label: 'Contact person' }, { key: 'd', label: 'Address / number' },
-                    { key: 'n', label: 'Notes' }, { key: 'x', label: '', align: 'right' },
-                ]}>
-                    {rows.map((r) => (
-                        <Tr key={r.id}>
-                            <Td nowrap>
-                                <Row gap={8}>
-                                    <Badge color={CH[r.channel].color}>{CH[r.channel].label}</Badge>
-                                    {r.preferred && <span style={{ fontSize: 10.5, color: t.faint, letterSpacing: '0.06em' }}>PREFERRED</span>}
-                                </Row>
-                                <span style={{ display: 'block', fontSize: 11.5, color: t.faint, marginTop: 3 }}>{clientName(r.client_id)}</span>
-                            </Td>
-                            <Td>{r.contact_name || '—'}</Td>
-                            <Td muted><span style={{ overflowWrap: 'anywhere' }}>{r.detail || '—'}</span></Td>
-                            <Td muted>{r.notes || '—'}</Td>
-                            <Td align="right">
-                                <Row gap={6} style={{ justifyContent: 'flex-end' }}>
-                                    {can.edit && <Btn size="sm" onClick={() => onEdit(r)}>Edit</Btn>}
-                                    {can.remove && <ConfirmBtn label="Delete" title="Delete this channel?" onConfirm={() => onDelete(r)} />}
-                                </Row>
-                            </Td>
-                        </Tr>
-                    ))}
-                </Table>
-            </div>
         </Panel>
     );
 }
@@ -419,7 +365,7 @@ function CommForm({ project, clients, contacts, row, defaultClient, onClose }) {
     const [form, setForm] = useState({
         client_id: row?.client_id || defaultClient || clients[0]?.id || '',
         occurred_at: localInput(row?.occurred_at), channel: row?.channel || 'email',
-        subject: row?.subject || '', summary: row?.summary || '', contact_name: row?.contact_name || '',
+        channel_other: row?.channel_other || '', subject: row?.subject || '', summary: row?.summary || '', contact_name: row?.contact_name || '',
         participants: (row?.participants || []).join(', '),
     });
     const [files, setFiles] = useState([]);
@@ -461,10 +407,16 @@ function CommForm({ project, clients, contacts, row, defaultClient, onClose }) {
                     </Field>
                     <Field label="Channel">
                         <Select value={form.channel} onChange={set('channel')}>
+                            {form.channel === 'meeting' && <option value="meeting">Meeting</option>}
                             {CHANNELS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
                         </Select>
                     </Field>
                 </div>
+                {form.channel === 'other' && (
+                    <Field label="What was it?" hint="Optional">
+                        <Input value={form.channel_other} maxLength={100} onChange={set('channel_other')} placeholder="Site visit, letter, video message…" />
+                    </Field>
+                )}
                 <Field required label="Subject">
                     <Input value={form.subject} maxLength={300} onChange={set('subject')} placeholder="Kick-off call, revised scope…" />
                     <FieldError>{errors.subject}</FieldError>
@@ -489,9 +441,9 @@ function CommForm({ project, clients, contacts, row, defaultClient, onClose }) {
     );
 }
 
-function ApprovalForm({ project, clients, contacts, row, defaultClient, onClose }) {
+function ApprovalForm({ project, clients, row, defaultClient, onClose }) {
     const toast = useToast();
-    const files = useSection('project_files');
+    const existing = row ? attachmentsOf(project.id, 'approval', row.id) : [];
     const employees = useSection('employees');
     const members = useSection('project_members');
     const milestones = useSection('project_milestones');
@@ -502,12 +454,12 @@ function ApprovalForm({ project, clients, contacts, row, defaultClient, onClose 
         item_name: row?.item_name || '', item_type: row?.item_type || 'document', file_id: row?.file_id || '',
         milestone_id: row?.milestone_id || '', sent_on: row?.sent_on || todayIso(), sent_by: row?.sent_by || me?.id || '',
         status: row?.status || 'pending', client_remarks: row?.client_remarks || '', responded_on: row?.responded_on || '',
-        contact_name: row?.contact_name || '',
+        item_type_other: row?.item_type_other || '',
     });
+    const [files, setFiles] = useState([]);
     const [errors, setErrors] = useState({});
     const [saving, setSaving] = useState(false);
     const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e?.target ? e.target.value : e }));
-    const projectFiles = files.filter((f) => f.project_id === project.id).sort((a, b) => a.name.localeCompare(b.name));
     const team = new Set(members.filter((m) => m.project_id === project.id).map((m) => m.employee_id));
     const people = employees.filter((e) => team.has(e.id) || e.id === form.sent_by);
     const ms = milestones.filter((m) => m.project_id === project.id);
@@ -524,8 +476,10 @@ function ApprovalForm({ project, clients, contacts, row, defaultClient, onClose 
         setSaving(true);
         try {
             const data = { ...form, project_id: project.id, responded_on: form.status === 'pending' ? null : form.responded_on };
-            if (row) await orgStore.updateItem('client_approvals', row.id, data);
-            else await orgStore.addItem('client_approvals', data);
+            const saved = row
+                ? (await orgStore.updateItem('client_approvals', row.id, data), row)
+                : await orgStore.addItem('client_approvals', data);
+            for (const f of files) await uploadProjectFile(project.id, f, { linkType: 'approval', linkId: saved.id });
             toast(row ? 'Updated' : 'Sent for approval', 'success');
             onClose();
         } catch (e) { toast(fileError(e), 'error'); } finally { setSaving(false); }
@@ -546,12 +500,11 @@ function ApprovalForm({ project, clients, contacts, row, defaultClient, onClose 
                             {ITEM_TYPES.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
                         </Select>
                     </Field>
-                    <Field label="Project document" hint="Optional — from Project Documents">
-                        <Select value={form.file_id} onChange={set('file_id')}>
-                            <option value="">None</option>
-                            {projectFiles.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-                        </Select>
-                    </Field>
+                    {form.item_type === 'other' && (
+                        <Field label="What is it?" hint="Optional">
+                            <Input value={form.item_type_other} maxLength={100} onChange={set('item_type_other')} placeholder="Brochure, sample, drawing…" />
+                        </Field>
+                    )}
                     {form.item_type === 'milestone' && (
                         <Field label="Milestone">
                             <Select value={form.milestone_id} onChange={set('milestone_id')}>
@@ -566,13 +519,9 @@ function ApprovalForm({ project, clients, contacts, row, defaultClient, onClose 
                     </Field>
                     <Field label="Sent by">
                         <Select value={form.sent_by} onChange={set('sent_by')}>
-                            <option value="">—</option>
+                            <option value="">-</option>
                             {people.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
                         </Select>
-                    </Field>
-                    <Field label="Client contact">
-                        <Input list="approval-contacts" value={form.contact_name} onChange={set('contact_name')} />
-                        <datalist id="approval-contacts">{contacts.map((c) => <option key={c} value={c} />)}</datalist>
                     </Field>
                     <Field label="Status">
                         <Select value={form.status} onChange={set('status')}>
@@ -586,47 +535,11 @@ function ApprovalForm({ project, clients, contacts, row, defaultClient, onClose 
                         </Field>
                     )}
                 </div>
-                <Field label="Client remarks">
+                <Field label="Description">
                     <Textarea rows={3} value={form.client_remarks} onChange={set('client_remarks')} />
                 </Field>
-            </div>
-        </Modal>
-    );
-}
-
-function ChannelForm({ project, clients, row, defaultClient, onClose }) {
-    const toast = useToast();
-    const [form, setForm] = useState({
-        client_id: row?.client_id || defaultClient || clients[0]?.id || '', channel: row?.channel || 'email',
-        contact_name: row?.contact_name || '', detail: row?.detail || '', preferred: row?.preferred || false, notes: row?.notes || '',
-    });
-    const [saving, setSaving] = useState(false);
-    const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e?.target ? (e.target.type === 'checkbox' ? e.target.checked : e.target.value) : e }));
-    const save = async () => {
-        setSaving(true);
-        try {
-            const data = { ...form, project_id: project.id };
-            if (row) await orgStore.updateItem('client_channels', row.id, data);
-            else await orgStore.addItem('client_channels', data);
-            toast('Saved', 'success');
-            onClose();
-        } catch (e) { toast(fileError(e), 'error'); } finally { setSaving(false); }
-    };
-    return (
-        <Modal open onClose={onClose} width={520} title={row ? 'Edit channel' : 'Add channel'}
-            footer={<><Btn onClick={onClose}>Cancel</Btn><Btn primary disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</Btn></>}>
-            <div style={{ display: 'grid', gap: 12 }}>
-                <ClientField clients={clients} value={form.client_id} onChange={set('client_id')} />
-                <div style={{ overflowX: 'auto' }}>
-                    <Seg value={form.channel} onChange={set('channel')} label="Channel" options={CHANNELS} />
-                </div>
-                <Field label="Contact person"><Input value={form.contact_name} onChange={set('contact_name')} /></Field>
-                <Field label="Address / number / link" hint="Email address, phone number, meeting link…"><Input value={form.detail} onChange={set('detail')} maxLength={300} /></Field>
-                <Field label="Notes"><Textarea rows={2} value={form.notes} onChange={set('notes')} style={{ minHeight: 56 }} /></Field>
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: 'pointer', minHeight: 24 }}>
-                    <input type="checkbox" checked={form.preferred} onChange={set('preferred')} />
-                    Preferred channel
-                </label>
+                {existing.length > 0 && <div><Muted>Attached already</Muted><div style={{ marginTop: 6 }}><AttachedFiles files={existing} canRemove={orgStore.can('clients', 'edit')} /></div></div>}
+                <FilePicker files={files} onChange={setFiles} />
             </div>
         </Modal>
     );

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
  * ISO 3166-1 country picker.
  *
  * The list lives in the generated world-map module, which is ~150KB and has no
- * business in the main bundle just so a form can offer a dropdown — so it is
+ * business in the main bundle just so a form can offer a dropdown. So it is
  * imported on mount and the control renders as a plain disabled input until it
  * arrives. ALL_COUNTRIES is the full ISO list rather than only the countries
  * the map can draw: a customer in Singapore has to be selectable even though

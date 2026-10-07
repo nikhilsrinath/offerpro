@@ -8,7 +8,7 @@ import { isPlatformAdmin, PLATFORM_ADMIN_EMAIL } from '../../services/adminServi
 /**
  * The console's door.
  *
- * This is a real Supabase sign-in, not a password compared in the browser —
+ * This is a real Supabase sign-in, not a password compared in the browser,
  * the old panel kept `admin123` in localStorage and let anyone past who could
  * open devtools. The credential is checked by the auth server; the console
  * then opens only if the resulting session carries the `platform_admin` claim

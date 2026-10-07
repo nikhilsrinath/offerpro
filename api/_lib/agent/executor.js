@@ -3,8 +3,8 @@ import { AgentError, friendlyDbError } from './db.js';
 /**
  * Applies a write plan as the user.
  *
- * Tools do not write. They return a plan — a list of the row operations the
- * change amounts to — and this file carries it out through the caller's own
+ * Tools do not write. They return a plan. A list of the row operations the
+ * change amounts to: and this file carries it out through the caller's own
  * Supabase client. That keeps the parts every write needs in one place:
  *
  *   · optimistic concurrency: an update or delete names the `updated_at` it
@@ -23,7 +23,7 @@ import { AgentError, friendlyDbError } from './db.js';
  *
  * `then` runs follow-ups that need the new row's id (a project allocation for
  * a cash entry). A follow-up failing leaves the main write standing and is
- * reported as a warning — the card says so rather than pretending either way.
+ * reported as a warning. The card says so rather than pretending either way.
  */
 
 export async function applyPlan(db, plan, { dryRun = false, stopOnError = true } = {}) {
@@ -132,7 +132,7 @@ async function explainMiss(db, op) {
 
 /**
  * Two timestamptz strings for the same instant ("…+00:00" vs "…Z"), to the
- * microsecond Postgres keeps — Date.parse alone would drop the last three
+ * microsecond Postgres keeps: Date.parse alone would drop the last three
  * digits and call two different versions equal.
  */
 export function sameInstant(a, b) {
@@ -151,7 +151,7 @@ function micros(ts) {
 /**
  * The plan that undoes an executed one, from what it recorded.
  *
- * An update is reversed by writing back the columns it changed — only if the
+ * An update is reversed by writing back the columns it changed. Only if the
  * row still carries the version this action left it at, so an undo never
  * overwrites somebody's later edit. An insert is reversed by deleting the row
  * it created. A delete cannot be undone here and makes the whole action

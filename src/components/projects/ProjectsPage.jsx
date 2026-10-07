@@ -6,22 +6,26 @@ import {
 } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
 import { useAuth } from '../../context/AuthContext';
+import { useOrg } from '../../context/OrgContext';
 import { useSection, money, fmtDate } from '../financial/financeHooks';
 import {
-    PROJECT_STATUSES, statusLabel, groupByStatus, projectProgress, matchProject, isClosed,
+    PROJECT_STATUSES, statusLabel, groupByStatus, projectProgress, matchProject, isClosed, deliveryLabel,
 } from '../../services/projectAnalytics';
 import { canSeeFinancials, canCreateProjects, portfolio, activeProjectCount } from '../../services/projectService';
 import { isLimitReached, getPlanConfig } from '../../services/planConfig';
 import { orgStore } from '../../services/orgStore';
 import HealthChip from './HealthChip';
+import { useProjectPins, togglePin, movePin, withPinsFirst } from './projectPins';
+import { Pin, PinOff, ChevronUp, ChevronDown } from 'lucide-react';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Projects.
 
-   List by default — code, client, manager, dates, progress — and a board by
+   List by default: code, client, manager, dates, progress. And a board by
    status for the shape of the pipeline. Money columns appear only for people
    holding Project financials, and they come from project_portfolio(), never
-   from sums over cached rows.
+   from sums over cached rows. Each person can pin projects to the top of the
+   list and move the pinned ones up and down (projectPins).
    ══════════════════════════════════════════════════════════════════════════ */
 
 const STATUS_TONE = { active: 'up', on_hold: 'neutral', planned: 'mute', completed: 'mute', cancelled: 'mute' };
@@ -30,6 +34,8 @@ export default function ProjectsPage() {
     const t = useT();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { activeOrg } = useOrg();
+    const [pins, setPins] = useProjectPins(activeOrg?.id, user?.id);
     const projects = useSection('projects');
     const milestones = useSection('project_milestones');
     const tasks = useSection('tasks');
@@ -76,7 +82,7 @@ export default function ProjectsPage() {
         return out;
     }, [projects, milestones, tasks]);
 
-    const filtered = useMemo(() => projects.filter((p) => {
+    const filtered = useMemo(() => withPinsFirst(projects.filter((p) => {
         if (!showArchived && p.archived_at) return false;
         if (status === 'open' && isClosed(p)) return false;
         if (status !== 'open' && status !== 'all' && p.status !== status) return false;
@@ -89,7 +95,8 @@ export default function ProjectsPage() {
             if (!onIt) return false;
         }
         return matchProject(p, query, clientName[p.client_id]);
-    }), [projects, showArchived, status, client, manager, healthFilter, money_, mine, myEmployeeId, members, query, clientName]);
+    }), pins), [projects, showArchived, status, client, manager, healthFilter, money_, mine, myEmployeeId, members, query, clientName, pins]);
+    const pinnedShown = filtered.filter((p) => pins.includes(p.id)).map((p) => p.id);
 
     const counts = useMemo(() => {
         const live = projects.filter((p) => !p.archived_at);
@@ -110,9 +117,9 @@ export default function ProjectsPage() {
     const newProject = !canCreateProjects() ? null : atLimit ? (
         <Row gap={8}>
             <Muted>{getPlanConfig(plan).name} plan: {getPlanConfig(plan).limits.activeProjects} active projects reached</Muted>
-            <Btn primary onClick={() => navigate('/pricing')}>Upgrade</Btn>
+            <Btn primary onClick={() => navigate('/pricing')} style={{ height: 31 }}>Upgrade</Btn>
         </Row>
-    ) : <Btn primary onClick={() => navigate('/projects/new')}>New project</Btn>;
+    ) : <Btn primary onClick={() => navigate('/projects/new')} style={{ height: 31 }}>New project</Btn>;
 
     const open = (p) => navigate(`/projects/${p.id}`);
     const nameOf = (e) => e?.name || e?.full_name || e?.studentName || '';
@@ -124,7 +131,7 @@ export default function ProjectsPage() {
                 <Panel>
                     <Empty action={newProject}>
                         No projects yet. A project ties together the invoices, bills and expenses
-                        of a piece of work, the people on it and its tasks — so you can see whether it pays.
+                        of a piece of work, the people on it and its tasks, so you can see whether it pays.
                     </Empty>
                 </Panel>
             </Page>
@@ -139,17 +146,17 @@ export default function ProjectsPage() {
                 <Seg value={view} onChange={setView} label="View" options={[
                     { id: 'list', label: 'List' }, { id: 'board', label: 'Board' },
                 ]} />
-                <Search value={query} onChange={setQuery} placeholder="Search name, code, client…" width={220} />
+                <Search value={query} onChange={setQuery} placeholder="Search name, code, client…" width={220} height={31} />
                 {view === 'list' && (
-                    <Seg size="sm" value={status} onChange={setStatus} label="Status" options={[
-                        { id: 'open', label: 'Open', count: counts.open },
-                        { id: 'active', label: 'Active', count: counts.active },
-                        { id: 'planned', label: 'Planned', count: counts.planned },
-                        { id: 'on_hold', label: 'On hold', count: counts.onHold },
-                        { id: 'all', label: 'All', count: counts.all },
+                    <Seg value={status} onChange={setStatus} label="Status" options={[
+                        { id: 'open', label: 'Open' },
+                        { id: 'active', label: 'Active' },
+                        { id: 'planned', label: 'Planned' },
+                        { id: 'on_hold', label: 'On hold' },
+                        { id: 'all', label: 'All' },
                     ]} />
                 )}
-                <Select aria-label="Client" value={client} onChange={(e) => setClient(e.target.value)} style={{ width: 160, height: 29 }}>
+                <Select aria-label="Client" value={client} onChange={(e) => setClient(e.target.value)} style={{ width: 160, height: 31 }}>
                     <option value="all">Every client</option>
                     <option value="internal">Internal only</option>
                     {clients.filter((c) => projects.some((p) => p.client_id === c.id)).map((c) => (
@@ -157,23 +164,23 @@ export default function ProjectsPage() {
                     ))}
                 </Select>
                 {managers.length > 0 && (
-                    <Select aria-label="Manager" value={manager} onChange={(e) => setManager(e.target.value)} style={{ width: 150, height: 29 }}>
+                    <Select aria-label="Manager" value={manager} onChange={(e) => setManager(e.target.value)} style={{ width: 150, height: 31 }}>
                         <option value="all">Any manager</option>
                         {managers.map((e) => <option key={e.id} value={e.id}>{nameOf(e)}</option>)}
                     </Select>
                 )}
                 {myEmployeeId && (
-                    <Btn size="sm" aria-pressed={mine} onClick={() => setMine((v) => !v)}>
+                    <Btn aria-pressed={mine} style={{ height: 31 }} onClick={() => setMine((v) => !v)}>
                         {mine ? '✓ ' : ''}My projects
                     </Btn>
                 )}
-                <Select aria-label="Health" value={healthFilter} onChange={(e) => setHealthFilter(e.target.value)} style={{ width: 130, height: 29 }}>
+                <Select aria-label="Health" value={healthFilter} onChange={(e) => setHealthFilter(e.target.value)} style={{ width: 130, height: 31 }}>
                     <option value="all">Any health</option>
                     <option value="on_track">On track</option>
                     <option value="at_risk">At risk</option>
                     <option value="off_track">Off track</option>
                 </Select>
-                <Btn size="sm" aria-pressed={showArchived} onClick={() => setShowArchived((v) => !v)}>
+                <Btn aria-pressed={showArchived} style={{ height: 31 }} onClick={() => setShowArchived((v) => !v)}>
                     {showArchived ? 'Hide archived' : 'Show archived'}
                 </Btn>
             </Toolbar>
@@ -197,6 +204,7 @@ export default function ProjectsPage() {
                 <Panel><Empty>Nothing matches those filters.</Empty></Panel>
             ) : (
                 <Table id="projects" cols={[
+                    { key: 'pin', label: 'Pin', width: 84, always: true },
                     { key: 'c', label: 'Code', width: 110 },
                     { key: 'n', label: 'Project', always: true },
                     { key: 'cl', label: 'Client', def: false },
@@ -205,6 +213,7 @@ export default function ProjectsPage() {
                     { key: 'h', label: 'Health' },
                     { key: 'd', label: 'Dates' },
                     { key: 'p', label: 'Progress', width: 120 },
+                    { key: 'ty', label: 'Type of project', def: false },
                     { key: 'bt', label: 'Billing type', def: false },
                     { key: 'cur', label: 'Currency', def: false },
                     { key: 'tg', label: 'Tags', def: false },
@@ -226,10 +235,18 @@ export default function ProjectsPage() {
                         const prog = progressOf[p.id];
                         const mgr = empById[p.manager_employee_id];
                         const f = money_[p.id];
-                        const dash = <span style={{ color: t.ghost }}>—</span>;
+                        const dash = <span style={{ color: t.ghost }}>-</span>;
                         const amt = (v) => (v == null ? dash : money(v));
                         return (
                             <Tr key={p.id} onClick={() => open(p)} label={`Open ${p.name}`}>
+                                {show('pin') && (
+                                    <Td nowrap>
+                                        <PinControls name={p.name} pinned={pins.includes(p.id)}
+                                            first={pinnedShown[0] === p.id} last={pinnedShown[pinnedShown.length - 1] === p.id}
+                                            onToggle={() => setPins((x) => togglePin(x, p.id))}
+                                            onMove={(by) => setPins((x) => movePin(x, p.id, by))} />
+                                    </Td>
+                                )}
                                 {show('c') && <Td muted nowrap>{p.code}</Td>}
                                 {show('n') && (
                                     <Td>
@@ -252,7 +269,7 @@ export default function ProjectsPage() {
                                 {show('h') && <Td nowrap><HealthChip health={f?.health} reasons={f?.health_reasons || []} /></Td>}
                                 {show('d') && (
                                     <Td muted nowrap>
-                                        {p.start_date ? fmtDate(p.start_date) : '—'} → {p.target_end_date ? fmtDate(p.target_end_date) : '—'}
+                                        {p.start_date ? fmtDate(p.start_date) : '-'} → {p.target_end_date ? fmtDate(p.target_end_date) : '-'}
                                     </Td>
                                 )}
                                 {show('p') && (
@@ -265,11 +282,12 @@ export default function ProjectsPage() {
                                         )}
                                     </Td>
                                 )}
-                                {show('bt') && <Td nowrap muted>{p.billing_type ? String(p.billing_type).replace(/_/g, ' ') : '—'}</Td>}
-                                {show('cur') && <Td nowrap muted>{p.currency || '—'}</Td>}
-                                {show('tg') && <Td muted>{p.tags?.length ? p.tags.join(', ') : '—'}</Td>}
-                                {show('ae') && <Td muted nowrap>{p.actual_end_date ? fmtDate(p.actual_end_date) : '—'}</Td>}
-                                {show('cr') && <Td muted nowrap>{p.created_at ? fmtDate(p.created_at) : '—'}</Td>}
+                                {show('ty') && <Td nowrap muted>{deliveryLabel(p.delivery_method) || '-'}</Td>}
+                                {show('bt') && <Td nowrap muted>{p.billing_type ? String(p.billing_type).replace(/_/g, ' ') : '-'}</Td>}
+                                {show('cur') && <Td nowrap muted>{p.currency || '-'}</Td>}
+                                {show('tg') && <Td muted>{p.tags?.length ? p.tags.join(', ') : '-'}</Td>}
+                                {show('ae') && <Td muted nowrap>{p.actual_end_date ? fmtDate(p.actual_end_date) : '-'}</Td>}
+                                {show('cr') && <Td muted nowrap>{p.created_at ? fmtDate(p.created_at) : '-'}</Td>}
                                 {show('v') && <Td align="right" nowrap>{money(p.contract_value)}</Td>}
                                 {show('g') && (
                                     <Td align="right" nowrap>
@@ -298,6 +316,30 @@ export default function ProjectsPage() {
                 </Table>
             )}
         </Page>
+    );
+}
+
+/** Pin / unpin, and for a pinned project, move it up or down among the pinned. */
+function PinControls({ name, pinned, first, last, onToggle, onMove }) {
+    const t = useT();
+    // The row opens the project on click; these buttons do their own thing.
+    const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
+    const btn = (label, onClick, children, disabled, pressed) => (
+        <button type="button" aria-label={label} title={label} disabled={disabled} aria-pressed={pressed}
+            onClick={stop(onClick)} className="edge-btn"
+            style={{
+                width: 24, height: 24, padding: 0, display: 'inline-grid', placeItems: 'center', borderRadius: 6,
+                border: '1px solid ' + (pressed ? t.text : t.line), background: pressed ? t.panelAlt : 'transparent',
+                color: disabled ? t.ghost : t.text, cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1,
+            }}>{children}</button>
+    );
+    return (
+        <span style={{ display: 'inline-flex', gap: 3 }}>
+            {btn(pinned ? `Unpin ${name}` : `Pin ${name} to the top`, onToggle,
+                pinned ? <PinOff size={13} aria-hidden="true" /> : <Pin size={13} aria-hidden="true" />, false, pinned)}
+            {pinned && btn(`Move ${name} up`, () => onMove(-1), <ChevronUp size={14} aria-hidden="true" />, first)}
+            {pinned && btn(`Move ${name} down`, () => onMove(1), <ChevronDown size={14} aria-hidden="true" />, last)}
+        </span>
     );
 }
 

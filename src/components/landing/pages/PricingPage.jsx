@@ -4,7 +4,7 @@ import { CreditCard, Check, ArrowRight, Mail, Sparkles, Shield } from 'lucide-re
 const SALES_EMAIL = 'edgeossuite@gmail.com';
 
 const buildEmailLink = (tier, price) => {
-  const subject = `Interested in EdgeOS ${tier} Plan — Schedule a meeting`;
+  const subject = `Interested in EdgeOS ${tier} Plan, schedule a meeting`;
   const body =
 `Hi EdgeOS team,
 
@@ -20,13 +20,13 @@ Could we set up a 15–20 minute call this week or next?
 
 Thanks,
 `;
-  // Gmail web compose — works in any browser without requiring a native mail client.
+  // Gmail web compose: works in any browser without requiring a native mail client.
   // We pass `mailto:` as the primary intent so any existing native mail handler also works.
   return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(SALES_EMAIL)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 };
 
 const buildMailtoFallback = (tier, price) => {
-  const subject = `Interested in EdgeOS ${tier} Plan — Schedule a meeting`;
+  const subject = `Interested in EdgeOS ${tier} Plan, schedule a meeting`;
   const body =
 `Hi EdgeOS team,
 
@@ -55,7 +55,7 @@ const TIERS = [
     name: 'Free',
     price: '$0',
     priceMeta: '',
-    desc: 'Get started with EdgeOS — no card required.',
+    desc: 'Get started with EdgeOS. No card required.',
     features: [
       '5 Offer Letters',
       '1 MoU / NDA',
@@ -267,7 +267,7 @@ const PricingPage = () => (
         <div className="eos-cta-box eos-parallax">
           <h2 className="eos-cta-title">Still unsure which plan <em>fits</em>?</h2>
           <p className="eos-cta-subtitle">
-            Tell us about your business and we'll point you to the right plan — and answer anything else on a quick call.
+            Tell us about your business and we'll point you to the right plan and answer anything else on a quick call.
           </p>
           <div className="eos-cta-actions">
             <a

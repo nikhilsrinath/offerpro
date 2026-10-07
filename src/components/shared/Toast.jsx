@@ -21,7 +21,7 @@ const COLORS = {
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
-  // `action` ({ label, onClick }) adds one button — e.g. "Start project" after
+  // `action` ({ label, onClick }) adds one button: e.g. "Start project" after
   // a CRM deal is won. A toast with an action stays long enough to use it.
   const addToast = useCallback((message, type = 'success', duration = 3000, action = null) => {
     const id = Date.now() + Math.random();

@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   Important tasks (0077) — the ones an owner or admin has marked, while
+   Important tasks (0077): the ones an owner or admin has marked, while
    they are still open, are what the project dashboards list under
    "Needs attention".
 
@@ -45,7 +45,7 @@ function doneFn(tasks) {
  * The open important tasks among `tasks`, most urgent first: late ones
  * (oldest deadline first), then the rest by deadline, then those with no
  * deadline, most recently marked first.
- * Each comes back as { task, late, due } — `due` the deadline as YYYY-MM-DD.
+ * Each comes back as { task, late, due } · `due` the deadline as YYYY-MM-DD.
  * `projectIds`, when given, keeps only tasks of those projects.
  */
 export function needsAttention(tasks, today, projectIds = null) {

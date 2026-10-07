@@ -110,7 +110,7 @@ export function RowMenu({ label, items, children = 'More' }) {
 export function PersonOptions({ data, none = 'Unassigned' }) {
     const on = data.employees.filter((e) => data.teamIds.has(e.id));
     const off = data.employees.filter((e) => !data.teamIds.has(e.id));
-    const opt = (e) => <option key={e.id} value={e.id}>{empName(e)}{e.role ? ` — ${e.role}` : ''}</option>;
+    const opt = (e) => <option key={e.id} value={e.id}>{empName(e)}{e.role ? ` · ${e.role}` : ''}</option>;
     return (
         <>
             <option value="">{none}</option>
@@ -153,7 +153,7 @@ export function ImportantStar({ data, node, size = 14 }) {
     if (!data.can.flag) {
         if (!on) return null;
         return (
-            <span title="Important — listed under Needs attention" style={{ display: 'inline-flex', flexShrink: 0, color: t.down }}>
+            <span title="Important, listed under Needs attention" style={{ display: 'inline-flex', flexShrink: 0, color: t.down }}>
                 <Star size={size} fill="currentColor" aria-hidden="true" />
                 <span className="eo-sr">Important</span>
             </span>
@@ -165,13 +165,13 @@ export function ImportantStar({ data, node, size = 14 }) {
         setBusy(true);
         try {
             await setImportant(node, !on);
-            toast(on ? `${node.title} is no longer important` : `${node.title} marked important — it shows under Needs attention`, 'success');
+            toast(on ? `${node.title} is no longer important` : `${node.title} marked important and now shows under Needs attention`, 'success');
         } catch (err) { toast(pmError(err), 'error'); } finally { setBusy(false); }
     };
     return (
         <button type="button" onClick={flip} disabled={busy} aria-pressed={on}
             aria-label={on ? `${node.title} is important. Unmark it` : `Mark ${node.title} important`}
-            title={on ? 'Important — click to unmark' : 'Mark important — list it under Needs attention'}
+            title={on ? 'Important, click to unmark' : 'Mark important and list it under Needs attention'}
             style={{
                 width: 24, height: 24, flexShrink: 0, display: 'grid', placeItems: 'center', padding: 0,
                 border: '1px solid transparent', borderRadius: 6, background: 'transparent',
@@ -196,7 +196,7 @@ export function LevelTag({ depth }) {
 /**
  * Create or edit one node of the breakdown.
  * `node` null with `parentId` is a new node under that parent (null: a new
- * sub-project).
+ * deliverable).
  */
 export function NodeSheet({ data, node, parentId = null, onClose }) {
     const t = useT();
@@ -313,7 +313,7 @@ export function NodeSheet({ data, node, parentId = null, onClose }) {
                     {gap}
                     <Field label="Sits under" hint="Move it, with everything under it">
                         <Select value={form.parentId} onChange={set('parentId')}>
-                            <option value="">{data.project.name} (top level — a sub-project)</option>
+                            <option value="">{data.project.name} (top level, a deliverable)</option>
                             {hosts.map((x) => (
                                 <option key={x.id} value={x.id}>
                                     {'  '.repeat(data.tree.depth.get(x.id) + 1)}{data.tree.code.get(x.id)} {x.title}
@@ -345,7 +345,7 @@ export function NodeSheet({ data, node, parentId = null, onClose }) {
                             {form.status === 'in-progress' && (
                                 <>
                                     {gap}
-                                    <Field label={`Progress — ${form.progress}%`}>
+                                    <Field label={`Progress: ${form.progress}%`}>
                                         <input type="range" min={0} max={99} step={5} value={form.progress}
                                             aria-valuetext={`${form.progress} percent`}
                                             onChange={(e) => set('progress')(Number(e.target.value))}
@@ -380,7 +380,7 @@ export function NodeSheet({ data, node, parentId = null, onClose }) {
                 </>
             )}
             {gap}
-            <Field label="Details" hint="Optional — what done looks like">
+            <Field label="Details" hint="Optional, what done looks like">
                 <Textarea rows={2} value={form.description} onChange={set('description')} style={{ minHeight: 56 }} />
             </Field>
 
@@ -422,7 +422,7 @@ function LinksOf({ data, node }) {
     return (
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid ' + t.lineSoft }}>
             <div style={{ fontSize: 12.5, color: t.text, marginBottom: 8 }}>Comes after</div>
-            {incoming.length === 0 && <Muted>Nothing — it can start whenever it is planned to.</Muted>}
+            {incoming.length === 0 && <Muted>Nothing yet. It can start whenever it is planned to.</Muted>}
             <div style={{ display: 'grid', gap: 6 }}>
                 {incoming.map((l) => {
                     const e = edge(l.id);
@@ -452,7 +452,7 @@ function LinksOf({ data, node }) {
                     <div style={{ flex: '1 1 140px' }}>
                         <Field label="Link">
                             <Select value={kind} onChange={(e) => setKind(e.target.value)}>
-                                {LINK_KINDS.map((k) => <option key={k.id} value={k.id}>{k.id} — {k.label}</option>)}
+                                {LINK_KINDS.map((k) => <option key={k.id} value={k.id}>{k.id} · {k.label}</option>)}
                             </Select>
                         </Field>
                     </div>
@@ -499,7 +499,7 @@ export function LinkSheet({ data, onClose }) {
 
     return (
         <Modal open onClose={onClose} width={560} title="Link two tasks"
-            note="Precedence Diagramming Method — the second task is scheduled from the first"
+            note="Precedence Diagramming Method, the second task is scheduled from the first"
             footer={<>
                 <div style={{ flex: 1 }} />
                 <Btn onClick={onClose}>Cancel</Btn>

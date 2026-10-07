@@ -4,7 +4,7 @@ import { canAllocate } from '../../services/projectService';
 import { useSection, money } from '../financial/financeHooks';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Which project(s) a piece of money belongs to — inside the invoice, cash-book
+   Which project(s) a piece of money belongs to, inside the invoice, cash-book
    and purchase-bill forms.
 
    Single (the default): one project gets the whole entry, or none does. Split:
@@ -50,7 +50,7 @@ export default function ProjectPicker({ value, onChange, net = 0, clientId = nul
             <option value="">{split ? 'Choose a project…' : noneLabel}</option>
             {optionList(row.project_id).map((p) => (
                 <option key={p.id} value={p.id}>
-                    {projectLabel(p)}{p.client_id && names[p.client_id] ? ` — ${names[p.client_id]}` : ''}
+                    {projectLabel(p)}{p.client_id && names[p.client_id] ? ` · ${names[p.client_id]}` : ''}
                 </option>
             ))}
         </select>
@@ -85,7 +85,7 @@ export default function ProjectPicker({ value, onChange, net = 0, clientId = nul
                         style={over ? { color: 'var(--error)' } : undefined}>
                         {over
                             ? `Split is ${money(-remainder, 2)} more than the entry's ${money(net, 2)} before GST.`
-                            : `${money(remainder, 2)} of ${money(net, 2)} before GST — the rest goes to Others.`}
+                            : `${money(remainder, 2)} of ${money(net, 2)} before GST. The rest goes to Others.`}
                     </p>
                 </div>
             )}

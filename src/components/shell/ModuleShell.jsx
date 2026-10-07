@@ -34,10 +34,10 @@ const writeFlag = (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } ca
 /* ══════════════════════════════════════════════════════════════════════════
    The frame a module's pages sit inside: the same rail and top bar the hub
    uses, so moving from the hub into Team is a change of content, not a change
-   of application. The rail lists the pages of the module you are in — which is
-   what the old sidebar did — and the hub is one click away at the top of it.
+   of application. The rail lists the pages of the module you are in, which is
+   what the old sidebar did. And the hub is one click away at the top of it.
    With `topNav` the pages sit in a segmented strip under the top bar and the
-   rail is the hub's own — every module — and the way back is the arrow at the
+   rail is the hub's own: every module. And the way back is the arrow at the
    start of the bar.
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -71,8 +71,8 @@ function PopRow({ t, icon, label, note, onClick, danger, dot }) {
     );
 }
 
-/* `workspace` lays the frame out the way the hub is: no top bar on desktop —
-   the page carries its own heading — notifications and the account at the
+/* `workspace` lays the frame out the way the hub is: no top bar on desktop,
+   the page carries its own heading, notifications and the account at the
    foot of the rail, and EdgeAI docked on the right. A project uses it, so
    opening one feels like entering its own hub. */
 export default function ModuleShell({
@@ -85,8 +85,8 @@ export default function ModuleShell({
     const { activeOrg } = useOrg();
     const profile = useProfileCompletion();
     const navigate = useNavigate();
-    // `back` is where the arrow goes, always: the hub, or — inside a
-    // project — the project list (App.jsx). It is the only back control.
+    // `back` is where the arrow goes, always: the hub, or, inside a
+    // project: the project list (App.jsx). It is the only back control.
     // The module's own page links (rail, tabs, phone strip) replace rather than
     // push: moving between a module's pages is moving within one place.
     const winW = useWindowWidth();
@@ -176,7 +176,7 @@ export default function ModuleShell({
     const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
     const orgName = activeOrg?.company_name || activeOrg?.name || 'Workspace';
     const accountLabel = `Account: ${displayName}, ${orgName}`
-        + (profile.incomplete ? ` — company profile incomplete, ${profile.summary.toLowerCase()}` : '');
+        + (profile.incomplete ? ` · company profile incomplete, ${profile.summary.toLowerCase()}` : '');
 
     const railW = railSlot ? 232 : rail ? 214 : 58;
 
@@ -189,8 +189,8 @@ export default function ModuleShell({
         }}>{displayName.slice(0, 2).toUpperCase()}</span>
     ));
 
-    /* The notification list and the account menu: under the top bar, or —
-       in a workspace — beside the foot of the rail. */
+    /* The notification list and the account menu: under the top bar, or,
+       in a workspace: beside the foot of the rail. */
     const notifPanel = (
         <>
             <div style={{

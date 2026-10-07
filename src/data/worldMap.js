@@ -1,4 +1,4 @@
-// GENERATED FILE — do not edit by hand.
+// GENERATED FILE: do not edit by hand.
 // Regenerate with:  node scripts/generate-world-map.js
 //
 // Source: world-atlas countries-110m (Natural Earth, public domain),

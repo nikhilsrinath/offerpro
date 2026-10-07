@@ -4,9 +4,9 @@ import { formatDate, formatDateShort, parseDate, isIsoDate } from '../../../src/
  * Small pieces every tool uses: how figures and dates read on a card, and
  * the three ways a tool can stop short of a proposal.
  *
- *   choice  — the reference matched several records; show them as chips.
- *   input   — something required is missing; ask one short question.
- *   none    — nothing matched; say what was searched (and offer to create it).
+ *   choice: the reference matched several records; show them as chips.
+ *   input: something required is missing; ask one short question.
+ *   none: nothing matched; say what was searched (and offer to create it).
  *
  * A tool never guesses its way past any of these.
  */
@@ -26,7 +26,7 @@ export { formatDate, formatDateShort };
 export const change = (key, label, from, to) => ({ key, label, from: show(from), to: show(to) });
 
 export function show(v) {
-  if (v === null || v === undefined || v === '') return '—';
+  if (v === null || v === undefined || v === '') return '-';
   if (typeof v === 'boolean') return v ? 'Yes' : 'No';
   return String(v);
 }

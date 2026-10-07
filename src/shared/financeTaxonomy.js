@@ -1,9 +1,9 @@
-// financeTaxonomy.js — the reasons money moves, without the loading.
+// financeTaxonomy.js: the reasons money moves, without the loading.
 //
 // The pure half of services/financeCategories.js, split out so the agent's
 // serverless executors can use the same treatments, payment rails and category
-// lookups as the browser. Whoever loads public.finance_categories (0038) —
-// financeCategories.js in the browser, api/_lib/agent on the server — hands the
+// lookups as the browser. Whoever loads public.finance_categories (0038),
+// financeCategories.js in the browser, api/_lib/agent on the server, hands the
 // rows to setCategories(); everything else reads them from here.
 //
 // The table, not this file, is the definition of the categories. The treatment
@@ -13,7 +13,7 @@ export const TREATMENTS = {
   // in
   revenue:       { label: 'Revenue',            income: true,  note: 'Earned from customers. Counts in the P&L.' },
   other_income:  { label: 'Other income',       income: true,  note: 'Earned, but not from your main trade. Counts in the P&L.' },
-  capital_in:    { label: 'Funding',            income: false, note: 'Cash in, but not earned — it never reaches the P&L.' },
+  capital_in:    { label: 'Funding',            income: false, note: 'Cash in, but not earned. It never reaches the P&L.' },
   cost_recovery: { label: 'Recovery',           income: false, note: 'Money back on something you paid for. Reduces that cost.' },
   // out
   operating:     { label: 'Operating cost',     expense: true,  note: 'An ordinary cost of running. Reduces profit.' },
@@ -60,7 +60,7 @@ export function categoriesFor(direction) {
 export const categoryOf = (key) => allCategories().find((c) => c.key === key) || null;
 
 /** Readable name for a stored key, falling back to the key for unknown values. */
-export const categoryLabel = (key) => categoryOf(key)?.label || key || '—';
+export const categoryLabel = (key) => categoryOf(key)?.label || key || '-';
 
 /**
  * The treatment of a category. Mirrors app.finance_treatment(): an unknown key

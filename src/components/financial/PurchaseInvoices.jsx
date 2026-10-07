@@ -37,7 +37,7 @@ export default function PurchaseInvoices({ projectId = null }) {
   const allocations = useSection('project_allocations');
   const projects = useSection('projects');
   // With `projectId` (a project's Purchase Bills) only bills linked to the
-  // project are listed, whole — a bill is paid in full whatever its split —
+  // project are listed, whole. A bill is paid in full whatever its split,
   // while the totals count the project's share. A new bill starts on it.
   const scope = useProjectScope(projectId);
   const bills = useMemo(() => (scope
@@ -285,7 +285,7 @@ export default function PurchaseInvoices({ projectId = null }) {
                       const on = projectsByBill[b.id] || [];
                       return (
                         <td title={on.map((p) => [p.code, p.name].filter(Boolean).join(' · ')).join(', ') || undefined}>
-                          {on.length === 0 ? '—' : (
+                          {on.length === 0 ? '-' : (
                             <>
                               <div>{projectLabel(on[0])}</div>
                               {on[0].code && on[0].name && <div className="prod-perf-meta">{on[0].name}{on.length > 1 ? ` · +${on.length - 1} more` : ''}</div>}
@@ -302,7 +302,7 @@ export default function PurchaseInvoices({ projectId = null }) {
                         {b._share < 1 ? ` · ${money(b._shareNet, 2)} of it on this project` : ''}
                       </div>
                     </td>
-                    <td>{vendorById[b.vendor_id]?.company_name || '—'}</td>
+                    <td>{vendorById[b.vendor_id]?.company_name || '-'}</td>
                     <td className="prod-perf-date" style={late ? { color: 'var(--error)', fontWeight: 600 } : undefined}>
                       {fmtDate(b.due_date)}{late ? ' · overdue' : ''}
                     </td>

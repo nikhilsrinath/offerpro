@@ -28,12 +28,12 @@ const stagger = {
 };
 
 function fmtSignedAt(d) {
-  if (!d) return '—';
+  if (!d) return '-';
   try { return new Date(d).toLocaleString('en-IN'); } catch { return String(d); }
 }
 
 function fmtOfferDate(d) {
-  if (!d) return '—';
+  if (!d) return '-';
   try { return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }); }
   catch { return d; }
 }
@@ -91,7 +91,7 @@ export default function RecipientPortal({ documentId }) {
   const [partyBAgreed, setPartyBAgreed] = useState(false);
   const [copied, setCopied] = useState('');
   const [downloading, setDownloading] = useState(false);
-  // The live company profile now arrives with the document from /api/portal —
+  // The live company profile now arrives with the document from /api/portal,
   // the recipient has no database access to look it up with.
   const [company, setCompany] = useState({});
   const [portalError, setPortalError] = useState('');
@@ -119,7 +119,7 @@ export default function RecipientPortal({ documentId }) {
         //  • the database stores offers as 'offer'; this screen keys everything
         //    off 'offer_letter';
         //  • documents saved from the form pages keep the recipient inside
-        //    `data` (studentName), so `issued_to` can be empty on older rows —
+        //    `data` (studentName), so `issued_to` can be empty on older rows,
         //    without this the letter is addressed to nobody.
         setDocData({
           ...loaded,
@@ -310,7 +310,7 @@ export default function RecipientPortal({ documentId }) {
         const getAdjustedBreak = (targetY) => {
           for (const range of protectedRanges) {
             if (targetY > range.top && targetY < range.bottom) {
-              // Break would split this section — move break to just before it
+              // Break would split this section, move break to just before it
               return Math.max(0, range.top - Math.floor(4 * scaleFactor));
             }
           }
@@ -699,8 +699,8 @@ export default function RecipientPortal({ documentId }) {
                       <table className="rp-doc-table" style={{ marginBottom: '1.5em' }}>
                         <thead><tr><th colSpan={2} style={{ textAlign: 'left' }}>Role Change Details</th></tr></thead>
                         <tbody>
-                          <tr><td style={{ width: '38%', color: '#6b7280', fontWeight: 500 }}>Current Role</td><td style={{ fontWeight: 600 }}>{docData.current_role || '—'}</td></tr>
-                          <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>New Role</td><td style={{ fontWeight: 700 }}>{docData.new_role || '—'}</td></tr>
+                          <tr><td style={{ width: '38%', color: '#6b7280', fontWeight: 500 }}>Current Role</td><td style={{ fontWeight: 600 }}>{docData.current_role || '-'}</td></tr>
+                          <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>New Role</td><td style={{ fontWeight: 700 }}>{docData.new_role || '-'}</td></tr>
                           {docData.current_department && <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>Current Dept.</td><td style={{ fontWeight: 600 }}>{docData.current_department}</td></tr>}
                           {docData.new_department && <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>New Dept.</td><td style={{ fontWeight: 700 }}>{docData.new_department}</td></tr>}
                           {docData.new_salary && <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>New Compensation</td><td style={{ fontWeight: 700 }}>₹ {Number(docData.new_salary).toLocaleString('en-IN')} / {docData.salary_frequency || 'month'}</td></tr>}
@@ -824,7 +824,7 @@ export default function RecipientPortal({ documentId }) {
                       <div className="rp-doc-sig-grid" style={{ marginTop: '2.5em' }}>
                         <div className="rp-doc-sig-col">
                           <p className="rp-doc-sig-heading">{docData.party_a?.company}</p>
-                          <p>{docData.party_a?.representative} — {docData.party_a?.designation}</p>
+                          <p>{docData.party_a?.representative} · {docData.party_a?.designation}</p>
                           {docData.party_a?.signed_at && <p className="rp-doc-signed-badge">Signed: {docData.party_a.signed_at}</p>}
                           {docData.party_a?.signature ? (
                             <img src={docData.party_a.signature} alt="" className="rp-doc-sig-img" style={{ opacity: 0.6 }} />
@@ -834,7 +834,7 @@ export default function RecipientPortal({ documentId }) {
                         </div>
                         <div className="rp-doc-sig-col">
                           <p className="rp-doc-sig-heading">{docData.party_b?.company}</p>
-                          <p>{docData.party_b?.representative} — {docData.party_b?.designation}</p>
+                          <p>{docData.party_b?.representative} · {docData.party_b?.designation}</p>
                           {status === 'fully_signed' && partyBSignature ? (
                             <>
                               <p className="rp-doc-signed-badge">Signed: {new Date().toLocaleString()}</p>
@@ -983,7 +983,7 @@ export default function RecipientPortal({ documentId }) {
 
             {/* ════════ OFFER LETTER ════════ */}
             {/* Opening the link flips 'pending' to 'viewed', and a letter saved
-                from the documents page starts as 'draft' — gate on whether a
+                from the documents page starts as 'draft' · gate on whether a
                 response has been recorded, not on one particular status, or
                 the accept panel vanishes on the candidate's second visit. */}
             {docData.type === 'offer_letter' && !isActionTaken && (
@@ -1035,7 +1035,7 @@ export default function RecipientPortal({ documentId }) {
                 subtitle={`This letter is on record for ${docData.issued_to || 'you'}. Nothing further is needed.`}
                 details={[
                   { label: 'Status', value: 'Accepted' },
-                  { label: 'Issued on', value: docData.issue_date || '—' },
+                  { label: 'Issued on', value: docData.issue_date || '-' },
                   { label: 'Document', value: docData.doc_number || docData.id },
                 ]}
               />
@@ -1054,7 +1054,7 @@ export default function RecipientPortal({ documentId }) {
                     <Check size={14} />
                     <div>
                       <strong>{docData.party_a?.company}</strong>
-                      <span>Signed by {docData.party_a?.representative} — {docData.party_a?.signed_at}</span>
+                      <span>Signed by {docData.party_a?.representative} · {docData.party_a?.signed_at}</span>
                     </div>
                   </div>
                   <div className="rp-party-row rp-party-pending">
@@ -1104,7 +1104,7 @@ export default function RecipientPortal({ documentId }) {
             {isCancelled && (
               <StatusCard icon={<AlertCircle size={28} />} color="#ef4444"
                 title={`${docData.type === 'invoice' ? 'Invoice' : docData.type === 'proforma' ? 'Proforma invoice' : 'Quotation'} cancelled`}
-                subtitle={`${company?.company_name || 'The issuer'} has cancelled this document. No action or payment is needed — contact them if you have questions.`} />
+                subtitle={`${company?.company_name || 'The issuer'} has cancelled this document. No action or payment is needed, contact them if you have questions.`} />
             )}
 
             {/* ════════ INVOICE ════════ */}
@@ -1244,7 +1244,7 @@ export default function RecipientPortal({ documentId }) {
             )}
 
             {docData.type === 'quotation' && status === 'converted' && (
-              <SuccessCard title="Quotation Converted" subtitle="This quotation has moved to billing. You will receive the invoice separately — no further action is needed here." />
+              <SuccessCard title="Quotation Converted" subtitle="This quotation has moved to billing. You will receive the invoice separately. No further action is needed here." />
             )}
 
             {/* ════════ PROFORMA ════════ */}
@@ -1428,7 +1428,7 @@ export default function RecipientPortal({ documentId }) {
         )}
       </AnimatePresence>
 
-      {/* ── Footer — always visible ── */}
+      {/* ── Footer: always visible ── */}
       <footer className="rp-footer">
         <div className="rp-footer-inner">
           <div className="rp-footer-brand">
@@ -1510,7 +1510,7 @@ function BankRow({ label, value, copyable, onCopy, copied }) {
     <div className="rp-bank-row">
       <span>{label}</span>
       <div className="rp-bank-val">
-        <strong>{value || '—'}</strong>
+        <strong>{value || '-'}</strong>
         {copyable && value && (
           <button onClick={() => onCopy(value)} className="rp-copy-btn" title="Copy">
             {copied ? <Check size={11} /> : <Copy size={11} />}
@@ -1566,7 +1566,7 @@ function DocTotals({ doc, totalLabel, splitGst }) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Proforma — its own document and its own flow, not an invoice's.
+   Proforma: its own document and its own flow, not an invoice's.
 
    A proforma is an offer to supply at a price, sent so the client can commit:
    confirm the order, then pay the advance it asks for. It is not a demand for
@@ -1662,7 +1662,7 @@ function ProformaActions({
       <StatusCard
         icon={<Clock size={28} />}
         color="#b45309"
-        title="Advance submitted — being verified"
+        title="Advance submitted: being verified"
         subtitle={`${company.company_name || 'The issuer'} is checking your payment against ${number}. You'll hear from them once it's confirmed.`}
       />
     );
@@ -1709,7 +1709,7 @@ function ProformaActions({
         </p>
       )}
 
-      {/* Step 1 — commit to the order. */}
+      {/* Step 1: commit to the order. */}
       {!confirmed ? (
         <div className="rp-step">
           <div className="rp-step-num">1</div>
@@ -1731,12 +1731,12 @@ function ProformaActions({
         </div>
       )}
 
-      {/* Step 2 — the advance, only once the order stands. */}
+      {/* Step 2: the advance, only once the order stands. */}
       {needsAdvance && (
         <div className="rp-step" style={confirmed ? undefined : { opacity: 0.5 }}>
           <div className="rp-step-num">2</div>
           <div className="rp-step-body">
-            <h4 className="rp-step-title">Pay the advance — {inr(a.advanceDue)}</h4>
+            <h4 className="rp-step-title">Pay the advance · {inr(a.advanceDue)}</h4>
             {!confirmed ? (
               <p style={{ margin: 0, fontSize: '0.8125rem', color: '#71717a' }}>Payment details appear once the order is confirmed.</p>
             ) : (

@@ -1,4 +1,4 @@
-// portalKit.jsx — the few pieces the portal needs that the edge kit does not
+// portalKit.jsx: the few pieces the portal needs that the edge kit does not
 // have: a photo avatar at any size, a KPI tile with a bar, a chart tooltip, and
 // the check-in card. Everything reads the same tokens as ui/edge.jsx.
 import { LogIn, LogOut, Check } from 'lucide-react';
@@ -106,7 +106,7 @@ export function ClockCard({ today, clocking, onClock, compact }) {
         <div style={{ fontSize: 30, fontWeight: 500, letterSpacing: '-0.04em', lineHeight: 1, color: t.text }}>
           {running != null ? hoursLabel(running) : outAt ? formatDuration(workedMinutes(today)) : '0h'}
         </div>
-        <div style={{ fontSize: 12, color: t.faint, marginTop: 6 }}>{state}{running != null && ' — the clock is running'}</div>
+        <div style={{ fontSize: 12, color: t.faint, marginTop: 6 }}>{state}{running != null && ' · the clock is running'}</div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', border: '1px solid ' + t.lineSoft, borderRadius: 8 }}>
@@ -145,7 +145,7 @@ export function ClockCard({ today, clocking, onClock, compact }) {
   );
 }
 
-/** A photo that fills its column — the admin sheet's portrait. */
+/** A photo that fills its column. The admin sheet's portrait. */
 export function PhotoPortrait({ name = '', path, radius = 14 }) {
   const t = useT();
   const url = useSignedPhoto(path);

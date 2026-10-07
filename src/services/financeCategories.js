@@ -1,4 +1,4 @@
-// financeCategories.js — the reasons money moves, and what each one does to
+// financeCategories.js: the reasons money moves, and what each one does to
 // profit.
 //
 // Reads public.finance_categories (0038). That table, not this file, is the
@@ -6,7 +6,7 @@
 // aggregates, and a second list here would eventually disagree with them.
 //
 // Reference data shared by every org, so it is fetched once per session and
-// mirrored to localStorage for instant paint — the country_codes arrangement,
+// mirrored to localStorage for instant paint. The country_codes arrangement,
 // for the same reason.
 import { supabase } from '../lib/supabase';
 import {

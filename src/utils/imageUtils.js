@@ -127,7 +127,7 @@ export function stampGeometry(companyName, city, size = 200) {
   const citySpacing = Math.min(12, 110 / Math.max(cityText.length, 1));
   const cityChars = arcChars(cityText, textR, 180, citySpacing, cityFontSize, false, true);
 
-  // Decorative dots — skip zones where text lives
+  // Decorative dots: skip zones where text lives
   const nameHalfArc = (name.length * nameSpacing) / 2 + 10;
   const cityHalfArc = cityText ? (cityText.length * citySpacing) / 2 + 10 : 0;
   const dots = [];
@@ -175,7 +175,7 @@ export function stampGeometry(companyName, city, size = 200) {
  * Text content is XML-escaped here. It is the only remaining place in the app
  * where company-supplied text is concatenated into markup, and the escape is
  * what keeps a name containing `<` or `&` from producing an SVG the parser
- * rejects outright — a stamp that silently fails to render.
+ * rejects outright: a stamp that silently fails to render.
  */
 export function buildStampSvg(companyName, city, size = 200) {
   const g = stampGeometry(companyName, city, size);

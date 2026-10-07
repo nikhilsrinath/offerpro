@@ -11,7 +11,7 @@ import { parseAmount } from '../../../../src/shared/cashIntent.js';
  *     stage    lead   contacted   deal     lost   (archived)
  *     status   lead   contacted   active   lost   archived
  *
- * — the same mapping orgStore's crm_leads adapter applies, so a stage moved
+ *: the same mapping orgStore's crm_leads adapter applies, so a stage moved
  * here lands in the same column on the board.
  */
 
@@ -142,7 +142,7 @@ const create_client = {
     const all = await loadKind('client', ctx);
     const dupe = all.find((c) => normalize(c.name) === normalize(args.name)
       || (args.email && c.email && c.email.toLowerCase() === args.email.toLowerCase()));
-    if (dupe) problems.push(`${q(dupe.name)} is already a client${dupe.archived_at ? ' (archived)' : ''} — update that one instead of adding a second.`);
+    if (dupe) problems.push(`${q(dupe.name)} is already a client${dupe.archived_at ? ' (archived)' : ''}. Update that one instead of adding a second.`);
     return problems;
   },
 
@@ -378,14 +378,14 @@ const add_client_note = {
     return {
       title: 'Add note to client',
       target: entityOf('client', row),
-      diff: [change('notes', 'New note', null, `${formatDate(ctx.today)} — ${args.note}`)],
+      diff: [change('notes', 'New note', null, `${formatDate(ctx.today)}: ${args.note}`)],
       fields: [{ key: 'note', label: 'Note', type: 'textarea', value: args.note }],
     };
   },
 
   async plan(args, ctx) {
     const [row] = await rowsById([args.client], ctx);
-    const line = `${formatDate(ctx.today)} — ${args.note}`;
+    const line = `${formatDate(ctx.today)}: ${args.note}`;
     const notes = row.notes ? `${row.notes.replace(/\s+$/, '')}\n${line}` : line;
     return [{ op: 'update', table: 'clients', id: row.id, version: row.updated_at, patch: { notes }, before: { notes: row.notes ?? null }, label: row.name }];
   },
@@ -420,7 +420,7 @@ const delete_client = {
   kind: 'write',
   risk: 'high',
   permission: { resource: 'clients', action: 'delete' },
-  description: 'Delete a client permanently — only when the user explicitly says delete/remove. Prefer move_client_stage to "archived" when they just want it out of the way.',
+  description: 'Delete a client permanently, only when the user explicitly says delete/remove. Prefer move_client_stage to "archived" when they just want it out of the way.',
   params: { type: 'object', properties: { client: CLIENT_PARAM }, required: ['client'] },
   undoable: false,
 
@@ -457,7 +457,7 @@ const delete_client = {
       target: entityOf('client', row),
       preview: {
         kind: 'delete',
-        rows: [['Client', row.name], ['Stage', STATUS_LABEL[row.status] || row.status], ['Contact', row.person_name || row.email || '—']],
+        rows: [['Client', row.name], ['Stage', STATUS_LABEL[row.status] || row.status], ['Contact', row.person_name || row.email || '-']],
         note: unlink.length
           ? `Kept, but no longer linked to this client: ${unlink.join(', ')}.`
           : 'Nothing else is linked to this client.',

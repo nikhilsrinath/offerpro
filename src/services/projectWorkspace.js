@@ -1,4 +1,4 @@
-// projectWorkspace.js — the rules behind a project's Client, Vendor and
+// projectWorkspace.js: the rules behind a project's Client, Vendor and
 // Documents pages that are worth testing on their own: validation, invoice
 // state, template placeholders, and turning a template's HTML into something
 // a PDF or a Word file can be built from. Nothing here touches the network or
@@ -105,25 +105,56 @@ export function paymentTotals(contractValue, states) {
 
 // ─── Template placeholders ───────────────────────────────────────────────────
 
-export const PLACEHOLDERS = [
-  { key: 'client_name', label: 'Client name' },
-  { key: 'client_contact', label: 'Client contact person' },
-  { key: 'client_email', label: 'Client email' },
-  { key: 'client_phone', label: 'Client phone' },
-  { key: 'client_address', label: 'Client billing address' },
-  { key: 'client_gstin', label: 'Client GSTIN' },
-  { key: 'project_name', label: 'Project name' },
-  { key: 'project_code', label: 'Project code' },
-  { key: 'project_start', label: 'Project start date' },
-  { key: 'project_end', label: 'Project target end date' },
-  { key: 'project_manager', label: 'Project manager' },
-  { key: 'amount', label: 'Contract value' },
-  { key: 'vendor_name', label: 'Vendor name' },
-  { key: 'vendor_contact', label: 'Vendor contact person' },
-  { key: 'vendor_email', label: 'Vendor email' },
-  { key: 'company_name', label: 'Your company name' },
-  { key: 'date', label: "Today's date" },
+export const PLACEHOLDER_GROUPS = [
+  { id: 'company', label: 'Your company' },
+  { id: 'project', label: 'Project' },
+  { id: 'client', label: 'Client' },
+  { id: 'vendor', label: 'Vendor' },
+  { id: 'date', label: 'Dates' },
 ];
+
+export const PLACEHOLDERS = [
+  { key: 'company_name', label: 'Company name', group: 'company' },
+  { key: 'company_address', label: 'Company address', group: 'company' },
+  { key: 'company_email', label: 'Company email', group: 'company' },
+  { key: 'company_phone', label: 'Company phone', group: 'company' },
+  { key: 'company_website', label: 'Company website', group: 'company' },
+  { key: 'company_gstin', label: 'Company GSTIN', group: 'company' },
+  { key: 'company_cin', label: 'Company CIN', group: 'company' },
+  { key: 'project_name', label: 'Project name', group: 'project' },
+  { key: 'project_code', label: 'Project code', group: 'project' },
+  { key: 'project_description', label: 'Project description', group: 'project' },
+  { key: 'project_start', label: 'Start date', group: 'project' },
+  { key: 'project_end', label: 'Target end date', group: 'project' },
+  { key: 'project_manager', label: 'Project manager', group: 'project' },
+  { key: 'amount', label: 'Contract value', group: 'project' },
+  { key: 'client_name', label: 'Client name', group: 'client' },
+  { key: 'client_contact', label: 'Contact person', group: 'client' },
+  { key: 'client_email', label: 'Client email', group: 'client' },
+  { key: 'client_phone', label: 'Client phone', group: 'client' },
+  { key: 'client_address', label: 'Billing address', group: 'client' },
+  { key: 'client_gstin', label: 'Client GSTIN', group: 'client' },
+  { key: 'vendor_name', label: 'Vendor name', group: 'vendor' },
+  { key: 'vendor_contact', label: 'Contact person', group: 'vendor' },
+  { key: 'vendor_email', label: 'Vendor email', group: 'vendor' },
+  { key: 'vendor_phone', label: 'Vendor phone', group: 'vendor' },
+  { key: 'vendor_address', label: 'Vendor address', group: 'vendor' },
+  { key: 'vendor_gstin', label: 'Vendor GSTIN', group: 'vendor' },
+  { key: 'date', label: "Today's date", group: 'date' },
+];
+export const PLACEHOLDER_BY_KEY = Object.fromEntries(PLACEHOLDERS.map((p) => [p.key, p]));
+
+// What people actually type for a variable, mapped to its key.
+const ALIASES = {
+  company: 'company_name', your_company: 'company_name', your_company_name: 'company_name', organisation: 'company_name',
+  organization: 'company_name', org_name: 'company_name',
+  client: 'client_name', customer: 'client_name', customer_name: 'client_name',
+  vendor: 'vendor_name', supplier: 'vendor_name', supplier_name: 'vendor_name',
+  project: 'project_name', manager: 'project_manager', project_manager_name: 'project_manager',
+  contract_value: 'amount', value: 'amount', project_value: 'amount',
+  today: 'date', todays_date: 'date', current_date: 'date',
+  start_date: 'project_start', end_date: 'project_end', target_end_date: 'project_end',
+};
 
 const fmtDay = (d) => (d
   ? new Date(`${String(d).slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
@@ -138,48 +169,90 @@ export const fmtMoney = (v, currency = 'INR') => {
   }
 };
 
-/** What each placeholder fills with, from whatever the project knows. Unknowns are ''. */
+const str = (v) => (v == null ? '' : String(v).trim());
+
+/**
+ * What each placeholder fills with, from whatever the project knows. Unknowns
+ * are ''. `company` is the org profile (or just its name).
+ */
 export function placeholderValues({ project = {}, client = null, vendor = null, manager = '', company = '', today }) {
   const primary = (client?.contacts || []).find((c) => c.primary) || null;
   const vPrimary = (vendor?.contacts || []).find((c) => c.primary) || null;
+  const co = typeof company === 'string' ? { company_name: company } : (company || {});
   return {
-    client_name: client?.name || client?.clientName || '',
-    client_contact: primary?.name || client?.person_name || '',
-    client_email: primary?.email || client?.email || '',
-    client_phone: primary?.phone || client?.phone || '',
-    client_address: client?.address || '',
-    client_gstin: client?.gstin || '',
-    project_name: project.name || '',
-    project_code: project.code || '',
+    company_name: str(co.company_name || co.name),
+    company_address: str(co.company_address),
+    company_email: str(co.company_email),
+    company_phone: str(co.company_phone),
+    company_website: str(co.company_website),
+    company_gstin: str(co.gstin).toUpperCase(),
+    company_cin: str(co.cin).toUpperCase(),
+    project_name: str(project.name),
+    project_code: str(project.code),
+    project_description: str(project.description),
     project_start: fmtDay(project.start_date),
     project_end: fmtDay(project.target_end_date),
-    project_manager: manager || '',
-    amount: project.contract_value ? fmtMoney(project.contract_value, project.currency || 'INR') : '',
-    vendor_name: vendor?.company_name || '',
-    vendor_contact: vPrimary?.name || vendor?.contact_name || '',
-    vendor_email: vPrimary?.email || vendor?.email || '',
-    company_name: company || '',
+    project_manager: str(manager),
+    amount: Number(project.contract_value) > 0 ? fmtMoney(project.contract_value, project.currency || 'INR') : '',
+    client_name: str(client?.name || client?.clientName),
+    client_contact: str(primary?.name || client?.person_name),
+    client_email: str(primary?.email || client?.email),
+    client_phone: str(primary?.phone || client?.phone),
+    client_address: str(client?.address),
+    client_gstin: str(client?.gstin).toUpperCase(),
+    vendor_name: str(vendor?.company_name),
+    vendor_contact: str(vPrimary?.name || vendor?.contact_name),
+    vendor_email: str(vPrimary?.email || vendor?.email),
+    vendor_phone: str(vPrimary?.phone || vendor?.phone),
+    vendor_address: str(vendor?.address),
+    vendor_gstin: str(vendor?.gstin).toUpperCase(),
     date: fmtDay(today),
   };
 }
 
-const PH = /\{\{\s*([a-z_]+)\s*\}\}/g;
+/** The variables that have something to fill with, in display order. */
+export function availablePlaceholders(values) {
+  return PLACEHOLDERS.filter((p) => str(values[p.key]));
+}
+
+// {{ … }} with anything but braces inside, tags included: a rich-text editor
+// happily wraps part of a variable in <b> or a stray <span>.
+const PH = /\{\{((?:[^{}<]|<[^>]*>){1,120}?)\}\}/g;
+
+/**
+ * The key a placeholder means. Forgiving about how it was typed,
+ * `{{ Company Name }}`, `{{company-name}}`, `{{<b>company</b>_name}}` and
+ * `{{company}}` all mean company_name. Returns '' for something that is not
+ * a name at all.
+ */
+export function placeholderKey(inner) {
+  const text = decode(String(inner).replace(/<[^>]*>/g, ''))
+    .toLowerCase().trim().replace(/['’]/g, '').replace(/[\s\-.]+/g, '_').replace(/_+/g, '_');
+  if (!/^[a-z][a-z0-9_]*$/.test(text)) return '';
+  return ALIASES[text] || text;
+}
 
 /** The placeholder keys a text uses, once each, in order. */
 export function findPlaceholders(text) {
   const seen = [];
-  for (const m of String(text || '').matchAll(PH)) if (!seen.includes(m[1])) seen.push(m[1]);
+  for (const m of String(text || '').matchAll(PH)) {
+    const key = placeholderKey(m[1]);
+    if (key && !seen.includes(key)) seen.push(key);
+  }
   return seen;
 }
 
 /**
  * Fills {{key}} from `values`, HTML-escaped. A key with no value is left as
- * it is, so the reader can see what still needs filling.
+ * it is, so the reader can see what still needs filling. Tags caught inside
+ * the braces are kept after the value so the markup stays balanced.
  */
 export function fillPlaceholders(html, values) {
-  return String(html || '').replace(PH, (whole, key) => {
-    const v = values[key];
-    return v == null || v === '' ? whole : escapeHtml(v);
+  return String(html || '').replace(PH, (whole, inner) => {
+    const key = placeholderKey(inner);
+    const v = key ? values[key] : '';
+    if (v == null || String(v).trim() === '') return whole;
+    return escapeHtml(v) + (inner.match(/<[^>]*>/g) || []).join('');
   });
 }
 

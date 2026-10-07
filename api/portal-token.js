@@ -69,7 +69,7 @@ export default async function handler(req, res) {
 }
 
 /**
- * Documents live in two tables and the caller does not know which — the same
+ * Documents live in two tables and the caller does not know which. The same
  * ambiguity documentStore.getById() resolves on the client.
  */
 async function locateDocument(orgId, documentId) {
@@ -102,7 +102,7 @@ async function locateDocument(orgId, documentId) {
 
 /**
  * The link is built from the caller's origin so that preview deployments and
- * localhost work, but only after checking it is a real origin — the value ends
+ * localhost work, but only after checking it is a real origin. The value ends
  * up in an email, and an attacker-supplied one would make a convincing
  * phishing link carrying a genuine token.
  */
@@ -118,7 +118,7 @@ function safeOrigin(requested, req) {
   // No allowlist configured. Fall back to the host the request arrived on.
   const host = req.headers['x-forwarded-host'] || req.headers.host || '';
 
-  // A caller-supplied origin pointing at THIS host is not an attack — it is the
+  // A caller-supplied origin pointing at THIS host is not an attack. It is the
   // app telling us the scheme and port it is actually served on. Accepting it
   // keeps dev (http://localhost:5173) and any port-forwarded setup working,
   // while an origin naming a different host is still ignored.

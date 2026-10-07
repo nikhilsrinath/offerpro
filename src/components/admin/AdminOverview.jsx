@@ -7,7 +7,7 @@ import { money, moneyShort, ago } from './adminUtils';
 
 /* The platform on one screen: how many tenants exist, what they pay, what they
    have billed, and where the curve is going. Everything here is a link into
-   Organisations — a number you cannot open is a number you cannot act on. */
+   Organisations: a number you cannot open is a number you cannot act on. */
 
 export default function AdminOverview({ data, orgs, loading, error }) {
   const t = useT();
@@ -91,7 +91,7 @@ export default function AdminOverview({ data, orgs, loading, error }) {
               <Td>
                 <span style={{ display: 'block' }}>{o.name}</span>
                 <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 2 }}>
-                  {o.owner.email || '—'}
+                  {o.owner.email || '-'}
                 </span>
               </Td>
               <Td><PlanTag plan={o.plan} /></Td>

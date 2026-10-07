@@ -25,11 +25,11 @@ const TABLE_KIND = Object.fromEntries(Object.entries(KINDS).map(([k, d]) => [d.t
 
 /**
  * Returns one of
- *   { kind: 'card',   card }                         — proposed, awaiting a tap
- *   { kind: 'choice', choice }                       — several records matched
- *   { kind: 'input',  input }                        — one required field missing
- *   { kind: 'none',   message, offer }               — nothing matched
- *   { kind: 'error',  message }                      — the model should rethink
+ *   { kind: 'card',   card } · proposed, awaiting a tap
+ *   { kind: 'choice', choice } · several records matched
+ *   { kind: 'input',  input } · one required field missing
+ *   { kind: 'none',   message, offer } · nothing matched
+ *   { kind: 'error',  message } · the model should rethink
  * `stops` says whether the turn ends here (everything but 'error').
  */
 export async function propose(tool, rawArgs, ctx, { chatId, messageId } = {}) {
@@ -58,7 +58,7 @@ export async function propose(tool, rawArgs, ctx, { chatId, messageId } = {}) {
   // ctx.actionStore lets the eval harness capture proposals without a database.
   const store = ctx.actionStore || actionLog;
   if (chatId && await store.countPending(ctx, chatId) >= MAX_PENDING_PER_CHAT) {
-    return { kind: 'none', stops: true, message: `There are already ${MAX_PENDING_PER_CHAT} changes waiting for your confirmation in this chat — confirm or cancel those first.` };
+    return { kind: 'none', stops: true, message: `There are already ${MAX_PENDING_PER_CHAT} changes waiting for your confirmation in this chat. Confirm or cancel those first.` };
   }
 
   const preview = await tool.preview(r.args, ctx);
@@ -84,7 +84,7 @@ function verbOf(tool) {
 /** What the model is told about a proposal. It must not claim the change is done. */
 export function modelView(out) {
   switch (out.kind) {
-    case 'card': return { status: 'proposed', card: out.card.title, note: 'Shown to the user as a confirmation card. NOT done yet — do not say it is done.' };
+    case 'card': return { status: 'proposed', card: out.card.title, note: 'Shown to the user as a confirmation card. NOT done yet. Do not say it is done.' };
     case 'choice': return { status: 'needs_choice', note: 'The user is being shown the matching records to pick from. Stop here.' };
     case 'input': return { status: 'needs_input', question: out.input.question, note: 'The user is being asked this. Stop here.' };
     case 'none': return { status: 'stopped', message: out.message, note: 'This was said to the user. Stop here.' };
@@ -160,7 +160,7 @@ export async function confirm(ctx, id, { selected = null, edits = null } = {}) {
     const preview = await tool.preview(r.args, ctx);
     preview.undoable = undoableFor(tool, r.args, ctx);
     preview.entities = r.entities || [];
-    preview.notes = ['This changed since I first proposed it — here it is again with the current values.'];
+    preview.notes = ['This changed since I first proposed it. Here it is again with the current values.'];
     const fresh = await actionLog.insertProposal(ctx, { chatId: row.chat_id, messageId: row.message_id, tool, args: r.args, targets: r.targets, preview });
     await transition(id, 'proposed', { status: 'expired', decided_at: new Date().toISOString(), error: 'Changed since proposed; re-previewed.' });
     return { status: 'repreviewed', card: toCard(fresh), replaces: id };
@@ -230,7 +230,7 @@ export async function undo(ctx, id) {
   if (Date.now() - Date.parse(row.executed_at) > UNDO_WINDOW_MS) {
     return { status: 'invalid', message: 'The 10-minute undo window has closed. Change it back from its page, or ask me to.' };
   }
-  // A tool may undo differently from the generic reversal — an invoice draft
+  // A tool may undo differently from the generic reversal. An invoice draft
   // is cancelled rather than deleted, so its number stays in the GST series.
   const tool = getTool(row.tool);
   const plan = tool?.undoPlan ? tool.undoPlan(row.result.results, row.args) : undoPlan(row.result.results);

@@ -27,7 +27,7 @@ async function captureAtFullSize(element, options) {
  * Left: logo + tagline. Right: company name, CIN, address, phone, email, website.
  * Returns the new Y position after the header.
  */
-function renderDocumentHeader(doc, data, options = {}) {
+export function renderDocumentHeader(doc, data, options = {}) {
   const { margin = 25, pageWidth = 210 } = options;
   const contentWidth = pageWidth - margin * 2;
   let y = options.startY || 15;
@@ -134,7 +134,7 @@ function preRotateStamp(src, angleDeg) {
     img.onload = () => {
       // Use the larger dimension so the rotated image fits in a square
       const dim = Math.max(img.width, img.height);
-      // After rotation the bounding box grows — pad enough
+      // After rotation the bounding box grows, pad enough
       const rad = (angleDeg * Math.PI) / 180;
       const sin = Math.abs(Math.sin(rad));
       const cos = Math.abs(Math.cos(rad));
@@ -168,7 +168,7 @@ async function renderStamp(doc, data, x, y, size = 35) {
     doc.addImage(rotated, 'PNG', x, y, size, size);
   } catch {
     // Fallback without rotation. If even the unrotated image will not add, the
-    // stamp is simply left off the page — it is decoration, and a missing stamp
+    // stamp is simply left off the page. It is decoration, and a missing stamp
     // must not cost the caller their document.
     try {
       doc.addImage(stampImg, 'PNG', x, y, size, size);

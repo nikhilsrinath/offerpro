@@ -1,4 +1,4 @@
-// orgStore.js — org-scoped data layer over Supabase.
+// orgStore.js: org-scoped data layer over Supabase.
 //
 // The public API is unchanged from the Firebase version on purpose: there are
 // ~88 call sites across 20 files, and they only ever touch these methods. Keep
@@ -8,7 +8,7 @@
 //   1. getSection/getItem/getProfile are SYNCHRONOUS reads of an in-memory
 //      cache. load(orgId) hydrates every section in one batch up front.
 //   2. A localStorage mirror gives instant paint on reload. It is now only a
-//      cache — never a pending-write buffer, since there is one authoritative
+//      cache: never a pending-write buffer, since there is one authoritative
 //      store instead of two disagreeing ones.
 //
 // What the app calls a "section" is a Postgres table. Sections keep their old
@@ -27,7 +27,7 @@ let _loaded = false;
 let _channels = [];
 // Every listener gets its own channel. supabase.channel(name) returns the
 // existing channel when the name is taken, and adding postgres_changes to an
-// already-subscribed channel throws — which is what two components listening
+// already-subscribed channel throws, which is what two components listening
 // to the same section on one page (ProjectDetail + a tab) used to hit.
 let _channelSeq = 0;
 
@@ -126,8 +126,8 @@ const SECTIONS = {
   // task that existed before Projects.
   //
   // parentId / startDate / progress (0072) place a task in its project's work
-  // breakdown and on the Gantt chart. They stay undefined — and so are never
-  // sent — against a database without those columns, so task writes keep
+  // breakdown and on the Gantt chart. They stay undefined. And so are never
+  // sent: against a database without those columns, so task writes keep
   // working until 0072 is applied.
   //
   // important (0077) is set by an owner or admin and puts an open task under
@@ -199,6 +199,7 @@ const SECTIONS = {
       budget_vendor: Number(r.budget_vendor) || 0,
       budget_other: Number(r.budget_other) || 0,
       other_budgets: Array.isArray(r.other_budgets) ? r.other_budgets : [],
+      delivery_method: r.delivery_method || null,
       start_date: r.start_date, target_end_date: r.target_end_date, actual_end_date: r.actual_end_date,
       manager_employee_id: r.manager_employee_id || null,
       source_quotation_id: r.source_quotation_id || null,
@@ -221,6 +222,8 @@ const SECTIONS = {
       budget_other: num(i.budget_other, 0),
       // 0081: only sent when there is one, so a database without it still saves.
       ...(Array.isArray(i.other_budgets) && i.other_budgets.length ? { other_budgets: i.other_budgets } : {}),
+      // 0083: likewise only when chosen.
+      ...(['waterfall', 'agile', 'hybrid'].includes(i.delivery_method) ? { delivery_method: i.delivery_method } : {}),
       start_date: date(i.start_date), target_end_date: date(i.target_end_date),
       actual_end_date: date(i.actual_end_date),
       source_quotation_id: nn(i.source_quotation_id),
@@ -265,8 +268,8 @@ const SECTIONS = {
     }),
     toRow: (i) => ({
       project_id: i.project_id, employee_id: i.employee_id, role: i.role || 'member',
-      // 0081: only sent when typed.
-      ...(i.role_title && i.role_title.trim() ? { role_title: i.role_title.trim() } : {}),
+      // 0081: only sent when typed, or when it is being cleared (null).
+      ...(i.role_title && i.role_title.trim() ? { role_title: i.role_title.trim() } : i.role_title === null ? { role_title: null } : {}),
       allocation_pct: num(i.allocation_pct, 100),
       start_date: date(i.start_date) || date(nowIso()), end_date: date(i.end_date),
       bill_rate: i.bill_rate === '' || i.bill_rate == null ? null : num(i.bill_rate),
@@ -281,12 +284,15 @@ const SECTIONS = {
     fromRow: (r) => ({
       id: r.id, project_id: r.project_id, title: r.title, kind: r.kind || 'task',
       task_id: r.task_id || null, milestone_id: r.milestone_id || null,
+      parent_id: r.parent_id || null,
       position: r.position ?? 0, created_at: r.created_at,
     }),
     toRow: (i) => ({
       project_id: i.project_id, title: String(i.title || '').trim(),
       kind: ['task', 'deliverable', 'milestone'].includes(i.kind) ? i.kind : 'task',
       task_id: nn(i.task_id), milestone_id: nn(i.milestone_id),
+      // 0083: only sent for a row under a deliverable.
+      ...(i.parent_id ? { parent_id: i.parent_id } : {}),
       position: Math.round(num(i.position, 0)),
     }),
   },
@@ -348,13 +354,16 @@ const SECTIONS = {
     fromRow: (r) => ({
       id: r.id, project_id: r.project_id, client_id: r.client_id || null, occurred_at: r.occurred_at,
       channel: r.channel, subject: r.subject, summary: r.summary || '', participants: r.participants || [],
-      contact_name: r.contact_name || '', logged_by: r.logged_by || null, created_at: r.created_at, updated_at: r.updated_at,
+      contact_name: r.contact_name || '', channel_other: r.channel_other || '',
+      logged_by: r.logged_by || null, created_at: r.created_at, updated_at: r.updated_at,
     }),
     toRow: (i) => ({
       project_id: i.project_id, client_id: nn(i.client_id), occurred_at: i.occurred_at || nowIso(),
       channel: i.channel, subject: String(i.subject || '').trim(), summary: nn(i.summary),
       participants: jsonList(i.participants).map((x) => String(x).trim()).filter(Boolean),
       contact_name: nn(i.contact_name),
+      // Only sent when filled, so saving still works before migration 0085.
+      ...(i.channel === 'other' && nn(i.channel_other) ? { channel_other: nn(i.channel_other) } : {}),
     }),
   },
   client_approvals: {
@@ -363,7 +372,7 @@ const SECTIONS = {
     orderDesc: true,
     fromRow: (r) => ({
       id: r.id, project_id: r.project_id, client_id: r.client_id || null, item_name: r.item_name,
-      item_type: r.item_type, file_id: r.file_id || null, milestone_id: r.milestone_id || null,
+      item_type: r.item_type, item_type_other: r.item_type_other || '', file_id: r.file_id || null, milestone_id: r.milestone_id || null,
       sent_on: r.sent_on, sent_by: r.sent_by || null, status: r.status, client_remarks: r.client_remarks || '',
       responded_on: r.responded_on || null, contact_name: r.contact_name || '', created_by: r.created_by,
       created_at: r.created_at, updated_at: r.updated_at,
@@ -373,6 +382,7 @@ const SECTIONS = {
       item_type: i.item_type || 'document', file_id: nn(i.file_id), milestone_id: nn(i.milestone_id),
       sent_on: date(i.sent_on) || date(nowIso()), sent_by: nn(i.sent_by), status: i.status || 'pending',
       client_remarks: nn(i.client_remarks), responded_on: date(i.responded_on), contact_name: nn(i.contact_name),
+      ...(i.item_type === 'other' && nn(i.item_type_other) ? { item_type_other: nn(i.item_type_other) } : {}),
     }),
   },
   project_folders: {
@@ -426,11 +436,18 @@ const SECTIONS = {
     fromRow: (r) => ({
       id: r.id, project_id: r.project_id, name: r.name, category: r.category, body_html: r.body_html || '',
       file_path: r.file_path || null, file_name: r.file_name || '', created_by: r.created_by,
+      // 0084, present only when the database has the columns.
+      ...('letterhead' in r ? { type_label: r.type_label || '', letterhead: !!r.letterhead } : {}),
       created_at: r.created_at, updated_at: r.updated_at,
     }),
     toRow: (i) => ({
       project_id: i.project_id, name: String(i.name || '').trim(), category: i.category || 'other',
       body_html: nn(i.body_html), file_path: nn(i.file_path), file_name: nn(i.file_name),
+      // 0084: only sent when the caller sets them, so uploads keep working before it lands.
+      ...('letterhead' in i ? {
+        letterhead: !!i.letterhead,
+        type_label: i.category === 'other' ? nn(String(i.type_label || '').trim().slice(0, 60)) : null,
+      } : {}),
     }),
   },
 
@@ -501,7 +518,7 @@ const SECTIONS = {
   // distinction matters: customerService.upsert() dedupes an incoming client
   // against this cache by GSTIN, then email, then name, and a cache that held
   // only billable clients would never match a party still sitting in the
-  // pipeline — so saving an invoice for them would create a second row for
+  // pipeline: so saving an invoice for them would create a second row for
   // someone the CRM already knows.
   customers: {
     table: 'clients',
@@ -509,7 +526,7 @@ const SECTIONS = {
     fromRow: (r) => ({
       // `extra` is spread FIRST, so a stray key inside it can never shadow a real
       // column. It used to be spread last, and CRM.jsx wrote `status` into extra
-      // on every stage change — which then overwrote the real client_status here
+      // on every stage change, which then overwrote the real client_status here
       // with a CRM stage name like 'deal'.
       ...(r.extra || {}),
       id: r.id,
@@ -535,7 +552,7 @@ const SECTIONS = {
       created_at: r.created_at,
       updated_at: r.updated_at,
       // 0074: the profile a project's Client Directory keeps. Present only
-      // when the database has the columns — an update round-trips the cached
+      // when the database has the columns. An update round-trips the cached
       // item, and these must not be sent to a database without them.
       ...('contacts' in r ? {
         industry: r.industry || '', website: r.website || '', logo_path: r.logo_path || null,
@@ -569,7 +586,7 @@ const SECTIONS = {
     order: 'position',
     // The board shows the pipeline. A client who has been billed and is not in
     // any conversation is a customer, not a lead, and belongs on the other screen
-    // — but 'active' stays here because that is what the "Deal" column is.
+    //: but 'active' stays here because that is what the "Deal" column is.
     filter: (q) => q.in('status', ['lead', 'contacted', 'active', 'lost']),
     fromRow: (r) => ({
       // extra first, for the same reason as the customers adapter above: a key
@@ -624,7 +641,7 @@ const SECTIONS = {
   },
 
   // The sellable catalogue. NOT the same thing as `products` above, which is
-  // the retired Product Planner's roadmap — see 0011_product_catalog.sql for
+  // the retired Product Planner's roadmap: see 0011_product_catalog.sql for
   // why the two are separate tables. The UI calls this one "Products Directory";
   // the planner's page is gone, its rows kept only for old expense links.
   //
@@ -649,12 +666,15 @@ const SECTIONS = {
       last_sold_at: r.last_sold_at,
       // 0078, present only when the database has the columns.
       ...('belongs_to' in r ? { belongs_to: r.belongs_to || 'general', project_id: r.project_id || null } : {}),
+      // 0083, present only when the database has the column: an update
+      // round-trips the cached row, so a missing column must stay missing.
+      ...('item_kind' in r ? { item_kind: r.item_kind === 'service' ? 'service' : 'product' } : {}),
       created_at: r.created_at, updated_at: r.updated_at,
     }),
     toRow: (i) => ({
       name: i.name || 'Untitled',
       // Blank is not a SKU. nn() turns '' into null, which is what the partial
-      // unique index wants — otherwise every product without a code would
+      // unique index wants: otherwise every product without a code would
       // collide with every other one on the empty string.
       sku: nn(i.sku ? String(i.sku).trim() : null),
       description: nn(i.description),
@@ -668,6 +688,7 @@ const SECTIONS = {
       low_stock_at: num(i.low_stock_at),
       archived_at: nn(i.archived_at),
       ...optional(i, { belongs_to: belongsTo, project_id: nn }),
+      ...optional(i, { item_kind: (v) => (v === 'service' ? 'service' : 'product') }),
     }),
   },
 
@@ -851,7 +872,7 @@ const SECTIONS = {
   },
 
   // HR documents. doc_number is NOT NULL with unique(org_id, doc_number), and
-  // HR records never had a number under Firebase — so one is allocated by the
+  // HR records never had a number under Firebase. So one is allocated by the
   // next_document_number() RPC before insert.
   records: {
     table: 'records',
@@ -894,14 +915,14 @@ const SECTIONS = {
         // document, and it is NOT NULL. OfferTracker and the notices don't send
         // one, so name it after the type and the person it is addressed to.
         title: title || [RECORD_TITLES[docType] || 'Document', recipientName]
-          .filter(Boolean).join(' — '),
+          .filter(Boolean).join(' · '),
         employee_id: nn(employee_id ?? d.employee_id),
         recipient_name: recipientName,
         recipient_email: nn(recipient_email || rest.email || d.email),
         issue_date: date(issue_date) || date(nowIso()),
         // The forms reach this table two ways. documentStore.save() passes the
         // profile at the top level, but storageService.save() nests the whole
-        // form under `data` — so a document saved from the HR pages left
+        // form under `data` · so a document saved from the HR pages left
         // company_snapshot as {} while its branding sat one level down. Look in
         // both, or the snapshot column is empty for exactly the documents that
         // outlive a rebrand.
@@ -934,9 +955,9 @@ const SECTIONS = {
     table: 'recurring_invoices',
     order: 'created_at',
     // The recurring form and list (RecurringInvoiceForm.jsx) speak camelCase.
-    // Both directions translate — the form's names win, since an edited row
-    // still carries the stale columns — so a saved template keeps its client, dates,
-    // cycle and totals — before this only the name, items and project survived
+    // Both directions translate: the form's names win, since an edited row
+    // still carries the stale columns. So a saved template keeps its client, dates,
+    // cycle and totals: before this only the name, items and project survived
     // the round trip, and the list showed '-' for every client. A paused or
     // cancelled template is stored as active = false and reads back as paused.
     fromRow: (r) => ({
@@ -1010,7 +1031,7 @@ function employeeFromRow(r) {
     user_id: r.user_id,
     access_revoked_at: r.access_revoked_at,
     // employee_compensation is admin-only under RLS. A non-admin simply gets
-    // no row back — not an error — so these stay undefined rather than throwing.
+    // no row back: not an error. So these stay undefined rather than throwing.
     ...(comp ? {
       stipend: comp.amount, salary: comp.amount, currency: comp.currency,
       isPaid: comp.is_paid, paymentFrequency: comp.payment_frequency,
@@ -1061,8 +1082,8 @@ function normalizeDocType(type) {
 // Banking is on this list as well as the credentials, and it has to be: _profile
 // is org columns PLUS org_banking (see loadProfile below), and company_snapshot
 // is handed to recipients. api/portal.js deliberately skips the org_banking
-// lookup for records — an offer letter has no business carrying account numbers
-// to a candidate — but it merges the snapshot underneath the live profile, so
+// lookup for records: an offer letter has no business carrying account numbers
+// to a candidate: but it merges the snapshot underneath the live profile, so
 // anything left in here reaches the recipient anyway and defeats that check.
 // 0001_init.sql:380 states the same contract for the ETL ("strips
 // gmail_app_password / bank_* / gstin"); this is the app honouring it.
@@ -1087,10 +1108,10 @@ const SINGLETONS = {
 //
 // Firebase kept all 42 profile fields in one document. The schema splits them by
 // sensitivity, and RLS enforces the split:
-//   organizations  — readable by any member
-//   org_banking    — owner/admin only
-//   org_secrets    — NO client policy: write-only from the browser, never read
-//   subscriptions  — select only; plan can no longer be self-granted
+//   organizations: readable by any member
+//   org_banking: owner/admin only
+//   org_secrets: NO client policy: write-only from the browser, never read
+//   subscriptions: select only; plan can no longer be self-granted
 
 const BANKING_FIELDS = ['gstin', 'cin', 'upi_id', 'bank_name',
   'bank_account_number', 'bank_ifsc', 'bank_account_type'];
@@ -1124,16 +1145,16 @@ function splitProfileUpdates(updates) {
     const key = URL_TO_PATH[rawKey] || rawKey;
     // A blank banking field means "not set". org_banking's gstin and bank_ifsc
     // checks accept NULL but reject '', and the profile form always posts every
-    // field, so an org with no IFSC could not save anything — email settings
-    // included — until the blank became a NULL.
+    // field, so an org with no IFSC could not save anything, email settings
+    // included: until the blank became a NULL.
     if (BANKING_FIELDS.includes(key)) {
       banking[key] = typeof value === 'string' && value.trim() === '' ? null : value;
     }
     else if (SECRET_FIELDS.includes(key)) {
       // An empty secret means "the form could not show me what is stored", not
-      // "delete what is stored". org_secrets is write-only — the profile form
+      // "delete what is stored". org_secrets is write-only. The profile form
       // reloads with a blank App Password every time because there is no way to
-      // read one back — so passing the blank through would make every unrelated
+      // read one back: so passing the blank through would make every unrelated
       // profile edit (a new address, a new logo) silently wipe the org's Gmail
       // credentials and break all outbound email. Clearing is a deliberate act
       // and has to send an explicit null.
@@ -1212,8 +1233,8 @@ function readFromLS(orgId) {
 
 // ─── The caller's own permissions ─────────────────────────────────────────────
 //
-// A snapshot of the caller's permissions — their role's, with their own
-// exceptions (0062) applied — so screens can decide what to SHOW. It decides
+// A snapshot of the caller's permissions: their role's, with their own
+// exceptions (0062) applied: so screens can decide what to SHOW. It decides
 // nothing else: RLS reads the same rows on every request, and a stale snapshot
 // can only ever hide a control that would have worked or show one the
 // database then refuses.
@@ -1331,7 +1352,7 @@ export const orgStore = {
   /** The caller's role in the active org ('owner', 'member', …), or null. */
   getRole: () => _cache._role || null,
 
-  /** Whether the caller's role holds `action` on `resource` — for showing and
+  /** Whether the caller's role holds `action` on `resource` · for showing and
       hiding controls only; the database decides. */
   can: (resource, action = 'view') => canDo(resource, action),
 
@@ -1365,7 +1386,7 @@ export const orgStore = {
   // insert and delete; ai_messages by the server on each AI call.
   getUsage: () => _cache._usage || {},
 
-  /** Re-read after something the server counts — an AI message, notably. */
+  /** Re-read after something the server counts. An AI message, notably. */
   async refreshUsage() {
     if (!_orgId) return {};
     const { data, error } = await supabase
@@ -1522,7 +1543,7 @@ export const orgStore = {
   },
 
   // `options.reason` fills employees.exit_reason, which existed from the start
-  // and had no writer — every archived employee left without a recorded reason.
+  // and had no writer. Every archived employee left without a recorded reason.
   // `options.exitedAt` backdates the exit to the real last working day.
   async removeItem(section, id, options = {}) {
     if (!_orgId) return;
@@ -1569,10 +1590,38 @@ export const orgStore = {
     }
   },
 
+  // Someone who left and is joining again keeps their record, same id, same
+  // Employee ID: rather than getting a second row (the email and the ID would
+  // both clash with the one they left behind). The exit is cleared and the new
+  // details (role, department, start date …) laid over what was kept. Portal
+  // access is not given back: the exit removed the membership (0029), so they
+  // are invited again like anyone new.
+  async rejoinEmployee(id, updates = {}) {
+    if (!_orgId) throw new Error('[orgStore] No orgId set');
+    const before = _cache.ex_employees?.[id];
+    const merged = { ...(before || {}), ...updates, endDate: null };
+    // A department given by name must not lose to the id kept from before.
+    if ('department' in updates && !('department_id' in updates)) merged.department_id = undefined;
+    const { data: updated, error } = await supabase.from('employees')
+      .update({ ...stripNulls(employeeToRow(merged)), exited_at: null, exit_reason: null })
+      .eq('id', id).select().single();
+    if (error) throw error;
+
+    if (_cache.ex_employees) delete _cache.ex_employees[id];
+    if (!_cache.employees) _cache.employees = {};
+    _cache.employees[id] = employeeFromRow(updated);
+    bumpWrite('employees');
+    bumpWrite('ex_employees');
+    persistToLS();
+    notifySection('employees');
+    notifySection('ex_employees');
+    return _cache.employees[id];
+  },
+
   async setSection(section, value) {
     const singleton = SINGLETONS[section];
     if (!singleton) {
-      console.warn(`[orgStore] setSection is only supported for ${Object.keys(SINGLETONS).join(', ')} — ` +
+      console.warn(`[orgStore] setSection is only supported for ${Object.keys(SINGLETONS).join(', ')} · ` +
         `use addItem/updateItem/removeItem for '${section}'.`);
       return;
     }
@@ -1791,8 +1840,8 @@ export const orgStore = {
   // financial_documents.amount_paid and the paid/partially_paid status are
   // computed by app.recompute_amount_paid() from CONFIRMED payment rows, so
   // none of these write a status: they write the ledger and read the document
-  // back. Marking an invoice paid by setting the status alone — which is what
-  // the app did — left amount_paid at 0 forever and made partially_paid
+  // back. Marking an invoice paid by setting the status alone, which is what
+  // the app did: left amount_paid at 0 forever and made partially_paid
   // unreachable.
 
   /**

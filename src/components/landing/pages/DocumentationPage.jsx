@@ -32,12 +32,12 @@ const DocumentationPage = () => (
             {
               icon: Zap,
               title: '1. Create Your Account',
-              desc: 'Sign up with your email or Google account. No credit card is required — start on the Free plan with access to invoicing, offer letters, certificates, and 10 messages with the AI Co-founder. Upgrade to Pro, Max, or Enterprise anytime.'
+              desc: 'Sign up with your email or Google account. No credit card is required. Start on the Free plan with access to invoicing, offer letters, certificates, and 10 messages with the AI Co-founder. Upgrade to Pro, Max, or Enterprise anytime.'
             },
             {
               icon: Settings,
               title: '2. Set Up Company Profile',
-              desc: 'Go to Settings and add your company name, address, GSTIN (for Indian businesses), PAN number, and contact details. Upload your company logo and digital signature — these will appear on every document you generate.'
+              desc: 'Go to Settings and add your company name, address, GSTIN (for Indian businesses), PAN number, and contact details. Upload your company logo and digital signature. They will appear on every document you generate.'
             },
             {
               icon: CreditCard,
@@ -47,7 +47,7 @@ const DocumentationPage = () => (
             {
               icon: FileText,
               title: '4. Generate Your First Document',
-              desc: 'Navigate to any document type from the sidebar — Invoices, Quotations, Offer Letters, or Certificates. Fill in the form, see a live preview on the right, and click Save to generate a professional PDF instantly.'
+              desc: 'Navigate to any document type from the sidebar: Invoices, Quotations, Offer Letters, or Certificates. Fill in the form, see a live preview on the right, and click Save to generate a professional PDF instantly.'
             },
           ].map((g, i) => (
             <div key={i} className="sp-guide-card eos-parallax">
@@ -78,7 +78,7 @@ const DocumentationPage = () => (
             {
               icon: BarChart3,
               title: 'Making Cost & Profit Tracking',
-              desc: 'For each line item, you can optionally enter a "making cost" — the actual cost to you for delivering that service or product. EdgeOS calculates your real profit margin by subtracting making costs from the invoice total. This information is visible only to you and never appears on the client-facing PDF or portal.'
+              desc: 'For each line item, you can optionally enter a "making cost", the actual cost to you for delivering that service or product. EdgeOS calculates your real profit margin by subtracting making costs from the invoice total. This information is visible only to you and never appears on the client-facing PDF or portal.'
             },
             {
               icon: Layers,
@@ -98,7 +98,7 @@ const DocumentationPage = () => (
             {
               icon: Globe,
               title: 'GST Compliance',
-              desc: 'EdgeOS supports intra-state (CGST + SGST) and inter-state (IGST) tax calculations. Enter your company GSTIN and your client\'s GSTIN — the system determines the supply type and applies the correct tax rates. HSN/SAC codes are supported for each line item. All invoices meet Indian GST invoice format requirements.'
+              desc: 'EdgeOS supports intra-state (CGST + SGST) and inter-state (IGST) tax calculations. Enter your company GSTIN and your client\'s GSTIN, and the system determines the supply type and applies the correct tax rates. HSN/SAC codes are supported for each line item. All invoices meet Indian GST invoice format requirements.'
             },
           ].map((g, i) => (
             <div key={i} className="sp-guide-card eos-parallax">
@@ -129,12 +129,12 @@ const DocumentationPage = () => (
             {
               icon: Clock,
               title: 'Revision Tracking',
-              desc: 'When a client requests changes to a quotation, create a new revision instead of editing the original. EdgeOS maintains a complete revision history — Rev 1, Rev 2, Rev 3, etc. Each revision is a separate document with its own PDF, so you always have a full audit trail of how the deal evolved over time.'
+              desc: 'When a client requests changes to a quotation, create a new revision instead of editing the original. EdgeOS maintains a complete revision history (Rev 1, Rev 2, Rev 3, etc.). Each revision is a separate document with its own PDF, so you always have a full audit trail of how the deal evolved over time.'
             },
             {
               icon: Activity,
               title: 'Quotation-to-Invoice Pipeline',
-              desc: 'Once a client accepts your quotation, convert it into a proforma invoice with one click. The proforma lets you collect an advance payment. After receiving the advance, convert the proforma into a final tax invoice — again with one click. All line items, client details, and amounts carry over automatically at each stage.'
+              desc: 'Once a client accepts your quotation, convert it into a proforma invoice with one click. The proforma lets you collect an advance payment. After receiving the advance, convert the proforma into a final tax invoice, again with one click. All line items, client details, and amounts carry over automatically at each stage.'
             },
             {
               icon: CreditCard,
@@ -144,7 +144,7 @@ const DocumentationPage = () => (
             {
               icon: Send,
               title: 'Client Portal Sharing',
-              desc: 'Send quotations to clients via WhatsApp with a portal link. Clients open the link and see a professional, branded page with the full quotation details. They can accept the quotation, request a revision with comments, or decline — all from the portal without needing to log in.'
+              desc: 'Send quotations to clients via WhatsApp with a portal link. Clients open the link and see a professional, branded page with the full quotation details. They can accept the quotation, request a revision with comments, or decline. All from the portal without needing to log in.'
             },
             {
               icon: BarChart3,
@@ -308,7 +308,7 @@ const DocumentationPage = () => (
             {
               icon: Settings,
               title: 'Business Information',
-              desc: 'Set up your company name, full address, state, phone number, email, and website. For Indian businesses, add your GSTIN and PAN number. This information automatically appears on every invoice, quotation, offer letter, and legal document you generate — you only need to enter it once.'
+              desc: 'Set up your company name, full address, state, phone number, email, and website. For Indian businesses, add your GSTIN and PAN number. This information automatically appears on every invoice, quotation, offer letter, and legal document you generate. You only need to enter it once.'
             },
             {
               icon: Layers,
@@ -323,7 +323,7 @@ const DocumentationPage = () => (
             {
               icon: Shield,
               title: 'Cloud Sync & Backup',
-              desc: 'All your data — company profile, documents, client records — is synced to Firebase cloud in real time. Access your workspace from any device with your account. Your data is automatically backed up, so you never lose a document. The sync happens instantly, so changes on one device appear on all others within seconds.'
+              desc: 'All your data (company profile, documents, client records) is synced to Firebase cloud in real time. Access your workspace from any device with your account. Your data is automatically backed up, so you never lose a document. The sync happens instantly, so changes on one device appear on all others within seconds.'
             },
           ].map((g, i) => (
             <div key={i} className="sp-guide-card eos-parallax">

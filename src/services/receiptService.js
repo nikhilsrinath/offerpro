@@ -1,4 +1,4 @@
-// receiptService.js — receipts for expenses and purchase invoices.
+// receiptService.js: receipts for expenses and purchase invoices.
 //
 // Private 'receipts' bucket (0028): 5 MB ceiling, png/jpeg/webp/pdf only. The
 // row stores the object path, never a URL; viewing mints a signed URL that

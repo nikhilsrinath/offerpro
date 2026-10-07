@@ -5,8 +5,8 @@ import { todayIso } from '../../services/financeAnalytics';
 import { buildOverview } from './overviewModel';
 
 /**
- * The one overview model every dashboard page — and the hub's widget
- * drill-downs — reads from, so the same figure can never disagree between them.
+ * The one overview model every dashboard page. And the hub's widget
+ * drill-downs: reads from, so the same figure can never disagree between them.
  */
 export function useOverviewModel(periodId, today = todayIso()) {
     const finDocs = useSection('fin_docs');

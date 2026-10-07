@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-    projectPeople, raciProblems, raciCells, raciTable, reportingTree,
+    projectPeople, raciProblems, raciCells, raciTable, reportingTree, raciOutline, personRaci,
     daysBetween, isWeekend, dayCell, summarisePerson,
 } from './projectTeam';
 
@@ -43,7 +43,7 @@ describe('raciProblems', () => {
     });
     it('flags a missing A, several As, and a missing R', () => {
         expect(raciProblems(['R'])).toEqual(['No one is Accountable']);
-        expect(raciProblems(['A', 'A', 'R'])).toEqual(['2 people are Accountable — keep one']);
+        expect(raciProblems(['A', 'A', 'R'])).toEqual(['2 people are Accountable, keep one']);
         expect(raciProblems(['A', 'C'])).toEqual(['No one is Responsible']);
         expect(raciProblems([])).toHaveLength(2);
     });
@@ -62,6 +62,70 @@ describe('raciTable', () => {
         expect(header).toEqual(['Row', 'Type', 'Ann', 'Bo', 'Check']);
         expect(rows[0]).toEqual(['Design', 'Deliverable', 'A', 'R', 'OK']);
         expect(rows[1]).toEqual(['Build', 'Task', '', 'R', 'No one is Accountable']);
+    });
+});
+
+describe('raciOutline', () => {
+    // WBS: Design (D) with Drawings, Permits; Civil (C) with Site prep → Survey.
+    const tasks = [
+        { id: 'D', parentId: null, position: 1, title: 'Design' },
+        { id: 'C', parentId: null, position: 2, title: 'Civil' },
+        { id: 'd2', parentId: 'D', position: 2, title: 'Permits' },
+        { id: 'd1', parentId: 'D', position: 1, title: 'Drawings' },
+        { id: 'c1', parentId: 'C', position: 1, title: 'Site prep' },
+        { id: 'c1a', parentId: 'c1', position: 1, title: 'Survey' },
+    ];
+    const row = (id, extra) => ({ id, title: id, kind: 'task', task_id: null, parent_id: null, position: 0, created_at: '', ...extra });
+
+    it('lists each deliverable with its WBS sub-tasks underneath, rows or not', () => {
+        const items = [
+            row('rD', { kind: 'task', task_id: 'D', title: 'Design', position: 1 }), // added from the plan before 0083
+            row('rC', { kind: 'deliverable', task_id: 'C', title: 'Civil', position: 2 }),
+            row('rd1', { task_id: 'd1', title: 'Drawings', position: 9 }),
+        ];
+        const out = raciOutline(items, tasks);
+        expect(out.map((r) => [r.title, r.depth, r.kind, r.item?.id || null])).toEqual([
+            ['Design', 0, 'deliverable', 'rD'],
+            ['Drawings', 1, 'subtask', 'rd1'],
+            ['Permits', 1, 'subtask', null],
+            ['Civil', 0, 'deliverable', 'rC'],
+            ['Site prep', 1, 'subtask', null],
+            ['Survey', 2, 'subtask', null],
+        ]);
+        expect(out[0].hasChildren).toBe(true);
+        expect(out[2].under.id).toBe('rD');
+    });
+
+    it('puts a task linked to a deliverable under it, and an unlinked one on its own', () => {
+        const items = [
+            row('m', { kind: 'deliverable', title: 'Handover', position: 1 }),
+            row('t1', { title: 'Keys', parent_id: 'm', position: 3 }),
+            row('t2', { title: 'Snag list', position: 2 }),
+        ];
+        expect(raciOutline(items, []).map((r) => [r.title, r.depth])).toEqual([
+            ['Handover', 0], ['Keys', 1], ['Snag list', 0],
+        ]);
+    });
+
+    it('keeps a sub-task row on its own when its deliverable has no row', () => {
+        const items = [row('rd1', { task_id: 'd1', title: 'Drawings' })];
+        expect(raciOutline(items, tasks).map((r) => [r.title, r.depth])).toEqual([['Drawings', 0]]);
+    });
+
+    it('reads one person’s letters by row, in matrix order', () => {
+        const items = [
+            row('a', { kind: 'deliverable', title: 'Design & approval', position: 1 }),
+            row('b', { kind: 'deliverable', title: 'Civil works', position: 2 }),
+            row('c', { kind: 'deliverable', title: 'MEP', position: 3 }),
+        ];
+        const rows = raciOutline(items, []);
+        const cells = [
+            { item_id: 'c', employee_id: 'sai', role: 'A' },
+            { item_id: 'a', employee_id: 'sai', role: 'R' },
+            { item_id: 'b', employee_id: 'sai', role: 'A' },
+            { item_id: 'b', employee_id: 'kim', role: 'R' },
+        ];
+        expect(personRaci('sai', cells, rows)).toEqual({ R: ['Design & approval'], A: ['Civil works', 'MEP'], C: [], I: [] });
     });
 });
 

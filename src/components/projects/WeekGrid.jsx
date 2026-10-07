@@ -116,13 +116,13 @@ export default function WeekGrid({ employeeId, projects, entries, readOnly = fal
                                                 </td>
                                             );
                                         })}
-                                        <td style={{ ...td, fontSize: 12.5 }}>{fmtH(total) || '—'}</td>
+                                        <td style={{ ...td, fontSize: 12.5 }}>{fmtH(total) || '-'}</td>
                                     </tr>
                                 );
                             })}
                             <tr>
                                 <th scope="row" style={{ ...td, textAlign: 'left', fontSize: 11, color: t.faint, fontWeight: 400 }}>DAY TOTAL</th>
-                                {dayKeys.map((dk) => <td key={dk} style={{ ...td, fontSize: 12.5, color: t.dim }}>{fmtH(dayTotal(dk)) || '—'}</td>)}
+                                {dayKeys.map((dk) => <td key={dk} style={{ ...td, fontSize: 12.5, color: t.dim }}>{fmtH(dayTotal(dk)) || '-'}</td>)}
                                 <td style={td} />
                             </tr>
                         </tbody>
@@ -131,7 +131,7 @@ export default function WeekGrid({ employeeId, projects, entries, readOnly = fal
             )}
             <Row gap={14} wrap style={{ marginTop: 8 }}>
                 <Status tone="mute">Draft</Status><Status tone="neutral">Submitted</Status>
-                <Status tone="up">Approved (locked)</Status><Status tone="down">Rejected — edit and resubmit</Status>
+                <Status tone="up">Approved (locked)</Status><Status tone="down">Rejected, edit and resubmit</Status>
             </Row>
         </div>
     );

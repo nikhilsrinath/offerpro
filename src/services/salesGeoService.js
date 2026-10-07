@@ -1,7 +1,7 @@
-// salesGeoService.js — revenue by country, for the Sales by Countries widget.
+// salesGeoService.js: revenue by country, for the Sales by Countries widget.
 //
 // Every number here comes from public.sales_by_country(), which aggregates in
-// Postgres over three sources' country_code — financial_documents,
+// Postgres over three sources' country_code: financial_documents,
 // income_entries and expenses (0042). Nothing is summed in the browser and
 // nothing is hardcoded; this file only picks a date window and reshapes rows.
 //
@@ -13,7 +13,7 @@
 // The country on each document is frozen at issue time and carries a
 // country_source saying where it came from. Today that is the customer record
 // or the org default. When a storefront ships and checkout starts writing
-// 'checkout_geoip' / 'checkout_form', this file does not change — the source
+// 'checkout_geoip' / 'checkout_form', this file does not change. The source
 // is invisible to the aggregation, which is the entire point of putting country
 // on the transaction rather than reading it off the customer.
 import { supabase } from '../lib/supabase';
@@ -44,8 +44,8 @@ export const salesGeoService = {
    *
    * `catalogItemId` is the "All Products" filter: null aggregates whole
    * documents at their grand total, a product id aggregates only that
-   * product's line items. Those are different bases — a line total is before
-   * tax and discount — because apportioning a document's GST across its
+   * product's line items. Those are different bases. A line total is before
+   * tax and discount: because apportioning a document's GST across its
    * products is not a real quantity.
    */
   async byCountry(orgId, { from = null, to = null, catalogItemId = null } = {}) {
@@ -65,7 +65,7 @@ export const salesGeoService = {
 
     // 0042 widened the row: `revenue` is now invoiced + direct, and the cash
     // book's own figures come back beside it. The pre-0042 columns are read the
-    // same way as before, and the new ones default to 0 — so a database that
+    // same way as before, and the new ones default to 0. So a database that
     // has not had 0042 applied yet renders exactly as it used to instead of
     // showing NaN everywhere.
     return (data || []).map((r) => ({
@@ -109,7 +109,7 @@ export const salesGeoService = {
  * The left-hand panel's three figures, derived from the rows above.
  *
  * Growth compares the window against the equal-length window immediately
- * before it — the comparison the RPC computed prev_revenue for. The "driving"
+ * before it: the comparison the RPC computed prev_revenue for. The "driving"
  * countries are those that added the most absolute revenue against last
  * period, which is not the same list as the largest countries: a big market
  * that stayed flat drove nothing.

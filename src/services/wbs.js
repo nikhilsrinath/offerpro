@@ -5,13 +5,13 @@
    links (orgStore 'task_dependencies'); the pages only draw what these
    return.
 
-   · The project is the root. Its top-level tasks are sub-projects (work
+   · The project is the root. Its top-level tasks are deliverables (work
      packages); everything under them is a task, then a sub-task, to any
-     depth. Each node's code is its path — 1, 1.2, 1.2.3 — in sibling order.
+     depth. Each node's code is its path, 1, 1.2, 1.2.3, in sibling order.
    · A node with children is a summary: its dates, progress and counts roll
      up from the work items (leaves) under it and are never typed in.
    · The schedule is the Critical Path Method over the work items and the
-     links between them — FS, SS, FF, SF, each with a lag (negative is a
+     links between them: FS, SS, FF, SF, each with a lag (negative is a
      lead). A planned start is honoured as "start no earlier than", so the
      forward pass says both where the network allows a task to start and
      how far a planned date has to move to respect its links.
@@ -30,7 +30,7 @@ export const LINK_KINDS = [
 
 /** What a node is called at its depth: the project sits above depth 0. */
 export function levelName(depth) {
-    return depth === 0 ? 'Sub-project' : depth === 1 ? 'Task' : 'Sub-task';
+    return depth === 0 ? 'Deliverable' : depth === 1 ? 'Task' : 'Sub-task';
 }
 
 /* ── days ─────────────────────────────────────────────────────────────────── */
@@ -106,7 +106,7 @@ export function buildTree(tasks) {
     return { roots, byId, kids, depth, code, parentOf, flat };
 }
 
-/** Every node under `id`, deepest first — the order a branch is deleted in. */
+/** Every node under `id`, deepest first: the order a branch is deleted in. */
 export function descendants(tree, id) {
     const out = [];
     const walk = (x) => (tree.kids.get(x) || []).forEach((k) => { walk(k.id); out.push(k); });
@@ -395,7 +395,7 @@ const weekday = (day) => (((day + 3) % 7) + 7) % 7;
  * The days a Gantt chart shows: every dated span with a margin either side,
  * so no bar touches an edge. `spans` are [start, finish] day pairs, finish
  * inclusive. With nothing dated the `fallback` pair is shown instead and
- * `empty` is set — the axis still reads, but no date is invented for a task.
+ * `empty` is set: the axis still reads, but no date is invented for a task.
  *
  * @returns {{ from, to, empty }} to is exclusive
  */
@@ -413,7 +413,7 @@ const MIN_DAY_W = { day: 30, week: 12, month: 4, quarter: 1.5 };
 /**
  * How a window of days is drawn in `avail` pixels: the tick unit and the
  * width of one day. Short plans get a tick per day, longer ones a tick per
- * week, then per month, then per quarter — whatever keeps the labels apart.
+ * week, then per month, then per quarter, whatever keeps the labels apart.
  * The window is widened to whole units so the first and last ticks are full.
  *
  * @returns {{ from, to, unit, dayW }}
@@ -442,7 +442,7 @@ export function ganttScale({ from, to }, avail = 0) {
 
 /**
  * The ticks along the axis. `minor` are the grid lines and the lower row of
- * labels (days, weeks, months or quarters); `major` is the upper row — the
+ * labels (days, weeks, months or quarters); `major` is the upper row, the
  * month over days and weeks, the year over months and quarters. The first
  * major tick is always the window's start so its label is never missing.
  */
@@ -481,7 +481,7 @@ export function ganttTicks(from, to, unit) {
 /**
  * Standard breakdowns to start a project from. Each node is [name, children],
  * where a child is a plain name (a work item) or another [name, children] to
- * go a level deeper. The top level becomes the project's sub-projects.
+ * go a level deeper. The top level becomes the project's deliverables.
  */
 export const WBS_TEMPLATES = [
     {
@@ -522,7 +522,7 @@ export const WBS_TEMPLATES = [
 /** A template node as { name, kids }, whichever way it was written. */
 const asNode = (n) => (Array.isArray(n) ? { name: String(n[0] ?? ''), kids: n[1] || [] } : { name: String(n ?? ''), kids: [] });
 
-/** How many sub-projects and how many nodes under them a breakdown adds. */
+/** How many deliverables and how many nodes under them a breakdown adds. */
 export function templateCounts(nodes) {
     let below = 0;
     const walk = (list) => list.forEach((n) => { const x = asNode(n); below += 1; walk(x.kids); });

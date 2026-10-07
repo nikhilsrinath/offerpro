@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   EdgeOS — Terminal theme tokens.
+   EdgeOS: Terminal theme tokens.
 
    One palette, two inversions. Monochrome by default: colour is reserved for
    signal (up / down / live / a department's identity) and never spent on

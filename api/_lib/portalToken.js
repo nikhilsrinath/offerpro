@@ -6,7 +6,7 @@ import { HttpError } from './auth.js';
  * Signed, expiring, revocable recipient-portal tokens.
  *
  * Replaces PortalLinkGenerator's `Math.random().toString(36).substring(2, 10)`,
- * which was regenerated on every render and never checked by anything — the
+ * which was regenerated on every render and never checked by anything, the
  * portal read documents out of Firebase under an anonymous sign-in, so the
  * token was decoration and the document id alone was the real credential.
  *

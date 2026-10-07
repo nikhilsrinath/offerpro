@@ -15,7 +15,7 @@ import {
     ProjectSpendBudget, ProjectMarginPct,
 } from './projectWidgets';
 
-/* `to` is the page a widget opens when it is tapped — the one that holds the
+/* `to` is the page a widget opens when it is tapped. The one that holds the
    rest of what it shows. Its own buttons and links keep doing what they say.
    `tapBody: false` keeps a widget whose body is itself interactive (the map
    pans and zooms) to its title, so a drag is never read as a tap. */
@@ -24,7 +24,7 @@ import {
 
 /* Sizes follow the Apple widget grid: every widget sits on square cells.
    'sm' is one cell, 'md' two cells side by side, 'lg' a two-by-two block.
-   `size` is the default, `sizes` what the widget can be switched to — each
+   `size` is the default, `sizes` what the widget can be switched to, each
    body lays itself out for the size it is given. */
 const ALL = ['sm', 'md', 'lg'];
 const SM_MD = ['sm', 'md'];
@@ -35,7 +35,7 @@ const MD_LG = ['md', 'lg'];
    is the one it starts on. */
 
 export const WIDGETS = [
-    // Projects — the default board.
+    // Projects: the default board.
     { id: 'projects_list', to: '/projects', group: 'projects', title: 'Projects', desc: 'Every open project and how far through its milestones it is', icon: FolderOpen, size: 'lg', sizes: ALL, render: ProjectsList },
     { id: 'projects_health', to: '/projects', group: 'projects', title: 'Project health', desc: 'Open projects by health, and the ones at risk', icon: FolderKanban, size: 'md', sizes: ALL, render: ProjectsHealth },
     { id: 'project_budget', to: '/portfolio', group: 'projects', title: 'Budget burn', desc: 'Budget spent so far on open projects, worst first', icon: PieChart, size: 'sm', sizes: ALL, render: ProjectBudget },
@@ -46,7 +46,7 @@ export const WIDGETS = [
     { id: 'project_margin', to: '/portfolio', group: 'projects', title: 'Project margin', desc: 'Best and worst projects by net margin', icon: TrendingUp, size: 'md', sizes: MD_LG, render: ProjectMargin },
     { id: 'project_margin_pct', to: '/portfolio', group: 'projects', title: 'Project margin %', desc: 'Net margin as a share of what each project invoiced', icon: Percent, size: 'md', sizes: ALL, render: ProjectMarginPct },
     { id: 'project_shortcuts', to: '/projects', group: 'projects', title: 'Project shortcuts', desc: 'New project, kanban chart, portfolio', icon: Rocket, size: 'sm', sizes: ['sm'], render: ProjectShortcuts },
-    // Business — available from the picker.
+    // Business: available from the picker.
     { id: 'revenue', to: '/billing/invoices', group: 'finance', title: 'Revenue', desc: 'Money in over 1, 3, 6 or 12 months, against the stretch before', icon: IndianRupee, size: 'sm', sizes: SM_MD, periods: true, render: Revenue },
     { id: 'expenses', to: '/general-ledger', group: 'finance', title: 'Expenses', desc: 'Money out over 1, 3, 6 or 12 months, against the stretch before', icon: TrendingDown, size: 'sm', sizes: SM_MD, periods: true, render: Expenses },
     { id: 'revenue_per_head', to: '/dashboard/finance', group: 'finance', title: 'Revenue per head', desc: 'Average revenue per person on the team', icon: UserRound, size: 'sm', sizes: ALL, periods: true, period: '1Y', render: RevenuePerHead },
@@ -59,7 +59,7 @@ export const WIDGETS = [
         id: 'receivables', to: '/billing/invoices', group: 'finance', title: 'Awaiting payment', desc: 'Open invoices, soonest due first', icon: Clock, size: 'md', sizes: ALL,
         meta: (d) => (d.money.open.length ? `${d.money.open.length} open` : ''), render: Receivables,
     },
-    { id: 'geomap', to: '/dashboard/sales', tapBody: false, group: 'sales', title: 'Geography', desc: 'World map of revenue — zoom, pan, click a country', icon: MapIcon, size: 'lg', sizes: MD_LG, render: GeoMap },
+    { id: 'geomap', to: '/dashboard/sales', tapBody: false, group: 'sales', title: 'Geography', desc: 'World map of revenue. Zoom, pan, click a country', icon: MapIcon, size: 'lg', sizes: MD_LG, render: GeoMap },
     { id: 'edgebrain', to: '/edgebrain', group: 'general', title: 'EdgeBrain', desc: 'Brain health, and a quick question to the copilot', icon: BrainCircuit, size: 'sm', sizes: ALL, render: Brain },
     { id: 'team', to: '/employees', group: 'people', title: 'Team', desc: 'Headcount, and each department\'s share of it', icon: Users, size: 'sm', sizes: ALL, render: Team },
     { id: 'people_location', to: '/employees', group: 'people', title: 'People by location', desc: 'Where the team works', icon: MapPin, size: 'md', sizes: ALL, render: PeopleByLocation },

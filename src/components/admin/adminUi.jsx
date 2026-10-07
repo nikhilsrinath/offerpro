@@ -3,7 +3,7 @@ import { Status } from '../ui/edge';
 import { money, monthLabel } from './adminUtils';
 
 /* The few display pieces the console needs that the shared kit does not
-   already carry. Everything else — Panel, Table, Stat, Modal, Btn — comes from
+   already carry. Everything else, Panel, Table, Stat, Modal, Btn, comes from
    components/ui/edge so the console is the same object as the rest of EdgeOS.  */
 
 /* ── plan ─────────────────────────────────────────────────────────────────── */
@@ -14,8 +14,8 @@ export function PlanTag({ plan }) {
     <span style={{
       display: 'inline-flex', alignItems: 'center', height: 19, padding: '0 7px',
       borderRadius: 5, border: '1px solid ' + t.line, background: t.panelAlt,
-      fontSize: 11, letterSpacing: '0.07em', color: plan === 'max' ? t.up : t.dim,
-      textTransform: 'uppercase', whiteSpace: 'nowrap',
+      fontSize: 11, color: plan === 'max' ? t.up : t.dim,
+      whiteSpace: 'nowrap',
     }}>{plan || 'free'}</span>
   );
 }
@@ -30,7 +30,7 @@ export function SubStatus({ status }) {
 
 /**
  * Twelve months of two figures. Paired bars rather than a line: the two series
- * are billed against collected, and the gap between them is the reading — a
+ * are billed against collected, and the gap between them is the reading, a
  * line chart makes that gap something you measure instead of something you see.
  *
  * The figures are also in the bar's title, so the chart is not the only way to
@@ -58,12 +58,12 @@ export function MonthBars({ series, height = 132, keys = ['billed', 'collected']
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6 }}>
         {series.map((p) => (
           <div key={p.month} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-            {/* An explicit pixel height, not flex: 1 — a percentage height on
+            {/* An explicit pixel height, not flex: 1. A percentage height on
                 the bars only resolves against a parent whose own height is
                 definite, and a flex item's computed height is not. */}
             <div
               style={{ height: plot, width: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 2 }}
-              title={`${monthLabel(p.month)} — ${keys.map((k, i) => `${labels[i]} ${isMoney ? money(p[k]) : (p[k] || 0)}`).join(' · ')}`}
+              title={`${monthLabel(p.month)} · ${keys.map((k, i) => `${labels[i]} ${isMoney ? money(p[k]) : (p[k] || 0)}`).join(' · ')}`}
             >
               {keys.map((k, i) => (
                 <span key={k} style={{
@@ -94,7 +94,7 @@ export function KeyVal({ label, children, mono }) {
       <div style={{
         fontSize: 13, color: t.text, wordBreak: 'break-word',
         fontFamily: mono ? 'ui-monospace, SFMono-Regular, Menlo, monospace' : MONO,
-      }}>{children || <span style={{ color: t.ghost }}>—</span>}</div>
+      }}>{children || <span style={{ color: t.ghost }}>-</span>}</div>
     </div>
   );
 }
@@ -102,7 +102,7 @@ export function KeyVal({ label, children, mono }) {
 /** A mailto/tel/href that looks like body text until you hover it. */
 export function Link({ href, children }) {
   const t = useT();
-  if (!href) return <span style={{ color: t.ghost }}>—</span>;
+  if (!href) return <span style={{ color: t.ghost }}>-</span>;
   const external = href.startsWith('http');
   return (
     <a

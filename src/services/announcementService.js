@@ -1,10 +1,10 @@
-// announcementService.js — broadcasts to the whole team or one department.
+// announcementService.js: broadcasts to the whole team or one department.
 //
 // `department_id: null` means everyone. The audience is decided by RLS
 // (0029 §6 announcements_self_select), not by a filter here: an announcement
 // aimed at Engineering is invisible to Sales even if someone asks for it by id.
 //
-// Read state is per user, mirroring notification_reads (0001) — one person
+// Read state is per user, mirroring notification_reads (0001), one person
 // opening a notice must not clear the badge for the rest of the team.
 
 import { supabase } from '../lib/supabase';
@@ -156,7 +156,7 @@ export const announcementService = {
     }
   },
 
-  /** Only the pin changes — the rest of the notice is left as it is. */
+  /** Only the pin changes. The rest of the notice is left as it is. */
   async setPinned(id, isPinned) {
     const { data, error } = await supabase.from('announcements')
       .update({ is_pinned: !!isPinned }).eq('id', id).select('id').maybeSingle();

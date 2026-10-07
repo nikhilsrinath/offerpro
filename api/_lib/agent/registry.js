@@ -8,7 +8,7 @@ import financeTools from './tools/finance.js';
 /**
  * The one catalogue of what EdgeAI can do.
  *
- * A module adds tools by adding a file under tools/ and listing it here — the
+ * A module adds tools by adding a file under tools/ and listing it here, the
  * loop, the confirm path, the cards and the tests read everything they need
  * from the tool definition itself. See docs/edgeai-agent.md.
  *
@@ -89,7 +89,7 @@ export function registryProblems(tools = ALL_TOOLS) {
         if (typeof t[fn] !== 'function') problems.push(`${t.name}: missing ${fn}()`);
       }
       if (t.undoable === undefined) problems.push(`${t.name}: say whether it can be undone`);
-      if (t.run) problems.push(`${t.name}: a write tool must not have run() — writes go through plan()`);
+      if (t.run) problems.push(`${t.name}: a write tool must not have run(), writes go through plan()`);
     } else if (typeof t.run !== 'function') {
       problems.push(`${t.name}: a ${t.kind} tool needs run()`);
     }

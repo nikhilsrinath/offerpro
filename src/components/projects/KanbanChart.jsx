@@ -13,8 +13,8 @@ import { canSeeFinancials, canCreateProjects, portfolio } from '../../services/p
 import HealthChip from './HealthChip';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Kanban Chart: every project as a card in the column of its status —
-   Planned, Active, On hold, Completed, Cancelled — with when it started, when
+   Kanban Chart: every project as a card in the column of its status,
+   Planned, Active, On hold, Completed, Cancelled, with when it started, when
    it is due (or ended), how far along it is and whether it is running late.
    Read-only: a card opens the project. Money appears only for people holding
    Project financials; health comes from project_portfolio() like the list.

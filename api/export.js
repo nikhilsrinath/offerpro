@@ -18,7 +18,7 @@ import { requireUser, requireOrgRole, sendError, methodIs, HttpError } from './_
  * Deliberately NOT included:
  *
  *   org_secrets   the encrypted Gmail password. It is not the customer's data in
- *                 any useful sense — it is a credential, it would be ciphertext
+ *                 any useful sense: it is a credential, it would be ciphertext
  *                 without the server key, and an export that contains it turns
  *                 every downloaded file into a secret to look after.
  *   portal_tokens live credentials for documents. The audit trail of who was sent
@@ -125,9 +125,9 @@ export default async function handler(req, res) {
           row_counts: counts,
           file_urls_expire_at: new Date(Date.now() + SIGNED_URL_TTL * 1000).toISOString(),
           excluded: [
-            'org_secrets — encrypted email credential, not exportable by design',
-            'portal_tokens — live document credentials',
-            'legacy_id_map — internal migration plumbing',
+            'org_secrets (encrypted email credential, not exportable by design)',
+            'portal_tokens (live document credentials)',
+            'legacy_id_map (internal migration plumbing)',
           ],
           ...(Object.keys(skipped).length ? { unavailable: skipped } : {}),
         },

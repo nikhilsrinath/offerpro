@@ -1,4 +1,4 @@
-// customerService.js — Thin wrapper around orgStore for customer data
+// customerService.js: Thin wrapper around orgStore for customer data
 // Same exported API as before. Data now under organizations/{orgId}/customers.
 import { orgStore } from './orgStore';
 import { documentStore } from './documentStore';
@@ -93,7 +93,7 @@ export const customerService = {
   // Deleting a customer is NOT symmetrical with creating one:
   // financial_documents.customer_id and recurring_invoices.customer_id are both
   // ON DELETE SET NULL (0001_init.sql), so removing a client who has been billed
-  // does not fail — it silently detaches their documents, which then fall out of
+  // does not fail: it silently detaches their documents, which then fall out of
   // the sales-by-country attribution that reads through customer_id (0013). So
   // count the references first and refuse rather than orphan them.
   //
@@ -121,7 +121,7 @@ export const customerService = {
     }
   },
 
-  // NOT called by syncFromInvoices any more — see the note there. This deletes
+  // NOT called by syncFromInvoices any more, see the note there. This deletes
   // rows, so it must stay an explicit, deliberate action. It is also very likely
   // dead: `customers_org_name_idx` (0001_init.sql) is a unique index on
   // (org_id, lower(btrim(name))), so the duplicates this was written to clean up
@@ -155,7 +155,7 @@ export const customerService = {
   // the delete arm is gone and the deduplicate() call with it. Nothing here
   // removes a row; the only writes are create.
   //
-  // No soft-delete or archive flag is introduced in its place on purpose — that
+  // No soft-delete or archive flag is introduced in its place on purpose, that
   // is a Phase 1 decision (docs/phase-0/entity-decision.md, E3).
   syncFromInvoices: async (orgId) => {
     if (!orgId) return;

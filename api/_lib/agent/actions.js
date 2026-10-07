@@ -2,7 +2,7 @@ import { supabaseAdmin } from '../supabaseAdmin.js';
 import { AGENT_PROMPT_VERSION } from './prompt.js';
 
 /**
- * public.ai_actions (0068) — every change EdgeAI proposed, and what became of it.
+ * public.ai_actions (0068). Every change EdgeAI proposed, and what became of it.
  *
  * Written only here, with the service role: the table grants the browser
  * SELECT on its own rows and nothing else, because a log of what the AI did
@@ -21,7 +21,7 @@ export const MAX_PENDING_PER_CHAT = 5;
 
 const db = () => supabaseAdmin();
 
-/** Whether 0068 is missing — the agent then reads but never proposes. */
+/** Whether 0068 is missing. The agent then reads but never proposes. */
 export const isMissingTable = (error) => error && (error.code === '42P01' || error.code === 'PGRST205'
   || /ai_actions/.test(error.message || '') && /does not exist|schema cache/.test(error.message || ''));
 

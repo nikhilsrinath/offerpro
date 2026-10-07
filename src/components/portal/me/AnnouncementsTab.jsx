@@ -1,4 +1,4 @@
-// AnnouncementsTab — the board, newest first with pinned notices on top.
+// AnnouncementsTab: the board, newest first with pinned notices on top.
 // Opening a notice (or "mark all read") is what clears the unread dot.
 import { useState } from 'react';
 import { Pin } from 'lucide-react';

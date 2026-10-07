@@ -45,7 +45,7 @@ const formFromOrg = (org) => Object.fromEntries(
 );
 
 // Soft checks. They explain a likely typo next to the field but never block a
-// save — a legitimately unusual value should not lock someone out.
+// save: a legitimately unusual value should not lock someone out.
 const CHECKS = {
   company_email: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'This does not look like an email address.'],
   gmail_user: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'This does not look like an email address.'],
@@ -181,7 +181,7 @@ export default function CompanyProfile() {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       const data = await res.json().catch(() => ({}));
-      // A plain member gets a 403. Not an error worth showing — the email
+      // A plain member gets a 403. Not an error worth showing. The email
       // fields are admin-only anyway.
       if (!res.ok || !data.success) { setEmailStatus(off); return; }
       setEmailStatus({
@@ -316,7 +316,7 @@ export default function CompanyProfile() {
 
   const openFile = (file, field) => {
     if (!file) return;
-    if (!file.type.startsWith('image/')) { setError('Choose an image file — PNG, JPG or WebP.'); return; }
+    if (!file.type.startsWith('image/')) { setError('Choose a PNG, JPG or WebP image file.'); return; }
     const reader = new FileReader();
     reader.onload = () => { setEditorImage(reader.result); setEditorField(field); };
     reader.readAsDataURL(file);
@@ -359,7 +359,7 @@ export default function CompanyProfile() {
   const testEmailDisabled = testingEmail || !(emailStatus.configured || (form.gmail_user && form.gmail_app_password));
 
   // The server tests the credentials it has stored, never credentials posted
-  // with the request — see api/email.js. So new settings are saved first,
+  // with the request: see api/email.js. So new settings are saved first,
   // keeping the test a single click.
   const handleTestEmail = async () => {
     if (!activeOrg) return;
@@ -640,7 +640,7 @@ export default function CompanyProfile() {
                   <StatusLine t={t} ok={emailStatus.configured}>
                     {emailStatus.configured
                       ? `Connected as ${emailStatus.gmail_user}${emailStatus.rotated_at ? ` · saved ${new Date(emailStatus.rotated_at).toLocaleDateString('en-IN')}` : ''}`
-                      : 'Not connected — email features are off'}
+                      : 'Not connected, so email features are off'}
                   </StatusLine>
                 )}>
                 <Fields>
@@ -765,7 +765,7 @@ export default function CompanyProfile() {
           }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: saved && !dirty ? t.up : t.text }} />
             <span style={{ fontSize: 13.5, color: t.text, flex: 1, minWidth: 140 }}>
-              {saved && !dirty ? 'Saved — new documents will use these details.' : 'You have unsaved changes'}
+              {saved && !dirty ? 'Saved. New documents will use these details.' : 'You have unsaved changes'}
               {!narrow && dirty && <span style={{ color: t.faint, marginLeft: 8, fontSize: 12 }}>Ctrl + S</span>}
             </span>
             {dirty && <Btn onClick={handleDiscard} disabled={saving}>Discard</Btn>}

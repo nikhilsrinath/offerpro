@@ -1,5 +1,5 @@
 /**
- * Follow-Up Engine — detects follow-up intent, fuzzy-matches employees,
+ * Follow-Up Engine: detects follow-up intent, fuzzy-matches employees,
  * builds AI prompts, and parses draft output.
  */
 
@@ -137,7 +137,7 @@ Department: ${employee.department || 'General'}
 COMPANY CONTEXT:
 ${rawData || 'No additional context available.'}
 
-Output EXACTLY in this format — start with TONE: and end after the WhatsApp text, nothing else:
+Output EXACTLY in this format, start with TONE: and end after the WhatsApp text, nothing else:
 
 TONE: [polite|firm|urgent]
 SUBJECT: [concise subject, max 8 words, no trailing period]

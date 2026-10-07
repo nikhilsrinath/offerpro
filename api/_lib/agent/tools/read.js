@@ -5,8 +5,8 @@ import { readDate, formatDate, money } from '../helpers.js';
 import { getMetrics, headlineSection, buildContext, CONTEXT_RULES } from '../../brainRetrieval.js';
 
 /**
- * Read tools. They run the moment the model calls them — no card, no
- * confirmation — and what they return goes back to the model as data.
+ * Read tools. They run the moment the model calls them. No card, no
+ * confirmation: and what they return goes back to the model as data.
  *
  * Every figure a read tool returns is computed over the whole filtered set,
  * and says so: `total_matching` is a count of all matching rows, and the list
@@ -84,7 +84,7 @@ const get_record = {
   module: 'core',
   kind: 'read',
   permission: null,
-  description: 'Everything about one record — a task, client, person, project, invoice or vendor — by name, code or "it".',
+  description: 'Everything about one record (a task, client, person, project, invoice or vendor) by name, code or "it".',
   params: {
     type: 'object',
     properties: {
@@ -357,7 +357,7 @@ const finance_summary = {
   module: 'finance',
   kind: 'read',
   permission: { resource: 'edgebrain', action: 'view' },
-  description: 'The headline money figures — net cash, received, paid out, revenue, receivables, overdue, payables, expenses — exactly as the dashboard tiles compute them.',
+  description: 'The headline money figures (net cash, received, paid out, revenue, receivables, overdue, payables, expenses), exactly as the dashboard tiles compute them.',
   params: { type: 'object', properties: {} },
   status: 'Reading the figures…',
   async run(_args, ctx) {

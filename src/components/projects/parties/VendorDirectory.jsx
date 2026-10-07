@@ -12,10 +12,11 @@ import {
     validate, isEmail, isPhone, isUrl, isGstin, isIfsc, isSwift, contactErrors, fmtMoney,
 } from '../../../services/projectWorkspace';
 import { useProjectVendors, useSetup, todayIso } from './partyData';
+import { projectLabel } from '../../../services/projectAnalytics';
 import { SetupGate, Badge, Logo, LogoField, ContactsEditor, Detail, FieldError, AttachedFiles, Bar } from './partyUi';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Vendor Management › Vendor Directory — who the project buys from.
+   Vendor Management › Vendor Directory, who the project buys from.
 
    A vendor is the company's vendor record (Finance › Vendors), so an edit
    here shows there too. What belongs to this project is the link, its
@@ -87,7 +88,7 @@ export default function VendorDirectory({ project }) {
                 actions={canCreate && <Btn size="sm" primary onClick={() => setAdding(true)}>Add vendor</Btn>}>
                 {vendors.length === 0 ? (
                     <Empty action={canCreate && <Btn primary onClick={() => setAdding(true)}>Add the first vendor</Btn>}>
-                        No vendors on this project yet. Add the suppliers and contractors working on it — their contacts, contract and documents stay here.
+                        No vendors on this project yet. Add the suppliers and contractors working on it. Their contacts, contract and documents stay here.
                     </Empty>
                 ) : (
                     <>
@@ -197,10 +198,10 @@ function VendorRow({ vendor: v, currency, onOpen }) {
             <Td nowrap>
                 {v.contract_end
                     ? <span style={{ color: ended ? t.down : t.text }}>{fmtDate(v.contract_end)}{ended && <span style={{ fontSize: 11.5 }}> · ended</span>}</span>
-                    : <span style={{ color: t.ghost }}>—</span>}
+                    : <span style={{ color: t.ghost }}>-</span>}
             </Td>
             <Td nowrap align="right">
-                {v.contract_value != null ? fmtMoney(v.contract_value, currency || 'INR') : <span style={{ color: t.ghost }}>—</span>}
+                {v.contract_value != null ? fmtMoney(v.contract_value, currency || 'INR') : <span style={{ color: t.ghost }}>-</span>}
             </Td>
         </Tr>
     );
@@ -211,6 +212,8 @@ function VendorSheet({ vendor: v, project, canEdit, canRemove, onEdit, onClose }
     const toast = useToast();
     const files = useSection('project_files');
     const banks = useSection('vendor_bank_accounts');
+    const links = useSection('project_vendors');
+    const projects = useSection('projects');
     const input = useRef(null);
     const [uploading, setUploading] = useState(false);
     const [reveal, setReveal] = useState(false);
@@ -235,6 +238,16 @@ function VendorSheet({ vendor: v, project, canEdit, canRemove, onEdit, onClose }
             await orgStore.removeItem('project_vendors', v._link.id);
             toast(`${v.company_name} taken off the project`, 'success');
             onClose();
+        } catch (e) { toast(fileError(e), 'error'); }
+    };
+    // The vendor's other projects, each with its own Remove from project.
+    const elsewhere = links.filter((l) => l.vendor_id === v.id && l.project_id !== project.id)
+        .map((l) => ({ link: l, project: projects.find((p) => p.id === l.project_id) }))
+        .sort((a, b) => projectLabel(a.project).localeCompare(projectLabel(b.project)));
+    const removeElsewhere = async (row) => {
+        try {
+            await orgStore.removeItem('project_vendors', row.link.id);
+            toast(`${v.company_name} taken off ${row.project?.name || 'that project'}`, 'success');
         } catch (e) { toast(fileError(e), 'error'); }
     };
 
@@ -297,16 +310,37 @@ function VendorSheet({ vendor: v, project, canEdit, canRemove, onEdit, onClose }
                             <div key={i} style={{ border: '1px solid ' + t.line, borderRadius: 8, padding: '8px 10px' }}>
                                 <Row gap={8}><span style={{ fontSize: 13, flex: 1 }}>{x.name}</span>{x.primary && <span style={{ fontSize: 10.5, color: t.faint }}>PRIMARY</span>}</Row>
                                 {x.role && <div style={{ fontSize: 11.5, color: t.faint }}>{x.role}</div>}
-                                <div style={{ fontSize: 12, color: t.dim, overflowWrap: 'anywhere' }}>{[x.email, x.phone].filter(Boolean).join(' · ') || '—'}</div>
+                                <div style={{ fontSize: 12, color: t.dim, overflowWrap: 'anywhere' }}>{[x.email, x.phone].filter(Boolean).join(' · ') || '-'}</div>
                             </div>
                         ))}
                     </Grid>
                 )}
             </section>
 
+            <section aria-label="Other projects" style={{ marginTop: 18 }}>
+                <div style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, marginBottom: 6 }}>ALSO ON THESE PROJECTS</div>
+                {elsewhere.length === 0 ? <Muted>Only on this project.</Muted> : (
+                    <div style={{ display: 'grid', gap: 6 }}>
+                        {elsewhere.map((row) => (
+                            <Row key={row.link.id} gap={8} style={{ border: '1px solid ' + t.line, borderRadius: 8, padding: '6px 10px' }}>
+                                <span style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
+                                    {row.project ? projectLabel(row.project) : 'A project you cannot open'}
+                                    {row.link.scope && <span style={{ display: 'block', fontSize: 11.5, color: t.faint }}>{row.link.scope}</span>}
+                                </span>
+                                {canRemove && row.project && (
+                                    <ConfirmBtn label="Remove from project" title={`Remove ${v.company_name} from ${row.project.name}?`}
+                                        message={`${v.company_name} stays in your vendors and on this project. Only its link to ${row.project.name} is removed.`}
+                                        onConfirm={() => removeElsewhere(row)} />
+                                )}
+                            </Row>
+                        ))}
+                    </div>
+                )}
+            </section>
+
             <section aria-label="Documents" style={{ marginTop: 18 }}>
                 <Row gap={8} style={{ marginBottom: 6 }}>
-                    <span style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, flex: 1 }}>DOCUMENTS — CONTRACTS, AGREEMENTS, CERTIFICATES</span>
+                    <span style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, flex: 1 }}>DOCUMENTS (CONTRACTS, AGREEMENTS, CERTIFICATES)</span>
                     {canUpload && (
                         <>
                             <input ref={input} type="file" multiple hidden aria-label="Vendor documents" onChange={(e) => e.target.files?.length && upload([...e.target.files])} />
@@ -350,7 +384,7 @@ function AddVendor({ project, all, linked, onNew, onClose }) {
                     <Field required label="An existing vendor">
                         <Select value={id} onChange={(e) => setId(e.target.value)} autoFocus>
                             <option value="">Choose…</option>
-                            {choices.map((v) => <option key={v.id} value={v.id}>{v.company_name}{v.category ? ` — ${v.category}` : ''}</option>)}
+                            {choices.map((v) => <option key={v.id} value={v.id}>{v.company_name}{v.category ? ` · ${v.category}` : ''}</option>)}
                         </Select>
                     </Field>
                     <Field label="Scope on this project" hint="Optional"><Input value={scope} maxLength={500} onChange={(e) => setScope(e.target.value)} placeholder="Printing, hosting, site work…" /></Field>
@@ -448,7 +482,7 @@ function VendorForm({ vendor, project, onClose }) {
                 </div>
                 {canBank && (
                     <fieldset style={{ border: '1px solid ' + t.line, borderRadius: 9, padding: 12, margin: 0 }}>
-                        <legend style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, padding: '0 6px' }}>BANK DETAILS — VISIBLE ONLY WITH THE BANK DETAILS PERMISSION</legend>
+                        <legend style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, padding: '0 6px' }}>BANK DETAILS (VISIBLE ONLY WITH THE BANK DETAILS PERMISSION)</legend>
                         <div style={grid}>
                             {F({ k: 'account_name', label: 'Account name', children: <Input value={form.account_name} onChange={set('account_name')} autoComplete="off" /> })}
                             {F({ k: 'account_number', label: 'Account number', children: <Input value={form.account_number} onChange={set('account_number')} autoComplete="off" inputMode="numeric" /> })}

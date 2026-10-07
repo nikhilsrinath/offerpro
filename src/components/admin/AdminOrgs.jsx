@@ -152,9 +152,9 @@ export default function AdminOrgs({ orgs, loading, error, onChanged, onMailTo })
               </span>
             </Td>
             <Td muted>
-              <span style={{ display: 'block' }}>{o.email || o.owner?.email || '—'}</span>
+              <span style={{ display: 'block' }}>{o.email || o.owner?.email || '-'}</span>
               <span style={{ display: 'block', fontSize: 11, color: t.ghost, marginTop: 2 }}>
-                {o.owner?.name || o.phone || '—'}
+                {o.owner?.name || o.phone || '-'}
               </span>
             </Td>
             <Td><PlanTag plan={o.plan} /></Td>

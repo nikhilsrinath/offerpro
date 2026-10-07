@@ -1,4 +1,4 @@
-// projectService.js — everything the Projects screens do to the database.
+// projectService.js: everything the Projects screens do to the database.
 //
 // Rows go through orgStore's sections (projects, project_members,
 // project_milestones, project_documents, project_allocations) so every screen
@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase';
 import { orgStore } from './orgStore';
 import { documentStore } from './documentStore';
 import { isClosed, toSplits } from './projectAnalytics';
+import { saveWithOptional } from './belongsTo';
 
 const today = () => {
     const d = new Date();
@@ -84,9 +85,13 @@ export const isOwnerOrAdmin = () => ['owner', 'admin'].includes(orgStore.getRole
  * after the project row exists (they reference it); a failure part-way leaves
  * the project in place with whatever did save, and says which part failed.
  */
+// Columns a later migration added: until it is applied, a write leaves them out.
+const PROJECT_OPTIONAL = [['delivery_method']];
+const NEEDS_0083 = 'The type of project was not kept: it needs database update 0083.';
+
 export async function createProject(data, { members = [], milestones = [] } = {}) {
-    const project = await run(() => orgStore.addItem('projects', data));
-    const problems = [];
+    const { result: project, dropped } = await run(() => saveWithOptional((d) => orgStore.addItem('projects', d), data, PROJECT_OPTIONAL));
+    const problems = dropped.length ? [NEEDS_0083] : [];
     for (const m of members.filter((x) => x.employee_id)) {
         try { await orgStore.addItem('project_members', { ...m, project_id: project.id }); }
         catch (e) { problems.push(friendlyError(e).message); }
@@ -100,7 +105,10 @@ export async function createProject(data, { members = [], milestones = [] } = {}
     return { project: getProject(project.id) || project, problems };
 }
 
-export const updateProject = (id, patch) => run(() => orgStore.updateItem('projects', id, patch));
+export const updateProject = (id, patch) => run(async () => {
+    const { result } = await saveWithOptional((d) => orgStore.updateItem('projects', id, d), patch, PROJECT_OPTIONAL);
+    return result;
+});
 
 /** Moves to completed or cancelled; the database stamps closed_at and locks. */
 export const closeProject = (id, status = 'completed') => updateProject(id, { status });
@@ -168,7 +176,7 @@ export const addMember = (projectId, member) =>
 export const updateMember = (memberId, patch) =>
     run(() => orgStore.updateItem('project_members', memberId, patch));
 
-/** Memberships end; they are not deleted — labour cost needs the dates. */
+/** Memberships end; they are not deleted, labour cost needs the dates. */
 export const endMember = (memberId, endDate = today()) => updateMember(memberId, { end_date: endDate });
 
 // ─── Milestones ───────────────────────────────────────────────────────────────
@@ -181,7 +189,7 @@ export const removeMilestone = (id) => run(() => orgStore.removeItem('project_mi
 // ─── Money links ──────────────────────────────────────────────────────────────
 
 /**
- * Makes a source's allocations exactly `splits` — [{ project_id, amount }],
+ * Makes a source's allocations exactly `splits`: [{ project_id, amount }],
  * with a single `amount: null` row meaning the whole entry and [] meaning none
  * (all overhead). One transaction (public.set_project_allocations), so a split
  * is never half-saved.
@@ -314,7 +322,7 @@ export async function setMyTaskStatus(taskId, status) {
     });
 }
 
-/** Open (planned, active, on hold) and not archived — what the plan quota counts. */
+/** Open (planned, active, on hold) and not archived, what the plan quota counts. */
 export const activeProjectCount = () => listProjects()
     .filter((p) => !p.archived_at && !isClosed(p)).length;
 
@@ -377,7 +385,7 @@ export const isProjectClosed = (id) => isClosed(getProject(id));
 /**
  * What the ProjectPicker should show for a source: its current split read from
  * the cache, or an empty single pick for a new entry. `touched` stays false
- * until the person changes something, and an untouched picker is never saved —
+ * until the person changes something, and an untouched picker is never saved,
  * which is what keeps forms saving exactly as before for anyone who ignores it.
  */
 export function pickerFromAllocations(sourceType, sourceId) {

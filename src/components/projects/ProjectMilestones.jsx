@@ -65,7 +65,7 @@ export default function ProjectMilestones({ project }) {
     const createInvoice = (m) => navigate('/billing/invoices/new', {
         state: {
             projectId: project.id, milestoneId: m.id, clientId: project.client_id,
-            line: { description: `${project.name} — ${m.title}`, amount: Number(m.billing_amount) || 0 },
+            line: { description: `${project.name} · ${m.title}`, amount: Number(m.billing_amount) || 0 },
         },
     });
 
@@ -112,10 +112,10 @@ export default function ProjectMilestones({ project }) {
                                         {m.description && <span style={{ display: 'block', fontSize: 11, color: t.faint }}>{m.description}</span>}
                                     </Td>
                                 )}
-                                {show('d') && <Td nowrap>{m.due_date ? <Status tone={late ? 'down' : 'mute'}>{fmtDate(m.due_date)}{late ? ' · late' : ''}</Status> : <Muted>—</Muted>}</Td>}
+                                {show('d') && <Td nowrap>{m.due_date ? <Status tone={late ? 'down' : 'mute'}>{fmtDate(m.due_date)}{late ? ' · late' : ''}</Status> : <Muted>-</Muted>}</Td>}
                                 {show('b') && (
                                     <Td align="right" nowrap>
-                                        {m.billing_amount != null ? money(m.billing_amount) : <Muted>—</Muted>}
+                                        {m.billing_amount != null ? money(m.billing_amount) : <Muted>-</Muted>}
                                         {m.billing_pct != null && <span style={{ color: t.faint, fontSize: 11.5 }}> · {m.billing_pct}%</span>}
                                     </Td>
                                 )}
@@ -137,9 +137,9 @@ export default function ProjectMilestones({ project }) {
                                         )}
                                     </Td>
                                 )}
-                                {show('inv') && <Td muted nowrap>{inv ? inv.doc_number || inv.invoiceNumber || 'Invoice' : '—'}</Td>}
-                                {show('done') && <Td muted nowrap>{m.completed_at ? fmtDate(m.completed_at) : '—'}</Td>}
-                                {show('cr') && <Td muted nowrap>{m.created_at ? fmtDate(m.created_at) : '—'}</Td>}
+                                {show('inv') && <Td muted nowrap>{inv ? inv.doc_number || inv.invoiceNumber || 'Invoice' : '-'}</Td>}
+                                {show('done') && <Td muted nowrap>{m.completed_at ? fmtDate(m.completed_at) : '-'}</Td>}
+                                {show('cr') && <Td muted nowrap>{m.created_at ? fmtDate(m.created_at) : '-'}</Td>}
                                 {show('x') && <Td align="right">
                                     <Row gap={6} style={{ justifyContent: 'flex-end' }}>
                                         {canEdit && (m.status === 'pending' || m.status === 'in_progress') && (

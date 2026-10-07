@@ -3,7 +3,7 @@ import { KINDS, resolveEntity } from '../resolvers.js';
 /**
  * Navigation. The agent can take the person to a screen or a record, and it
  * is also how it answers honestly when there is no tool for what was asked:
- * "I can't change salaries from chat — here's the employee page", with the
+ * "I can't change salaries from chat, here's the employee page", with the
  * page opened rather than described.
  *
  * Opening a page reads nothing and writes nothing, so it needs no card. The
@@ -57,7 +57,7 @@ const open_page = {
   module: 'core',
   kind: 'navigate',
   permission: null,
-  description: 'Open a screen of EdgeOS — only when the user asks to go somewhere, or when no tool can do what they want (then say so plainly). Never instead of a tool that can do the job, and never just to collect details.',
+  description: 'Open a screen of EdgeOS, only when the user asks to go somewhere, or when no tool can do what they want (then say so plainly). Never instead of a tool that can do the job, and never just to collect details.',
   params: {
     type: 'object',
     properties: { page: { type: 'string', enum: Object.keys(PAGES) } },
@@ -75,7 +75,7 @@ const open_record = {
   module: 'core',
   kind: 'navigate',
   permission: null,
-  description: 'Open the screen for one record — a task, client, project, invoice, person or vendor — by name, code or "it".',
+  description: 'Open the screen for one record (a task, client, project, invoice, person or vendor) by name, code or "it".',
   params: {
     type: 'object',
     properties: {

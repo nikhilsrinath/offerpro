@@ -1,7 +1,7 @@
-// PortalJoinCode.jsx — the self-serve way in.
+// PortalJoinCode.jsx: the self-serve way in.
 //
 // One code per organization, shared the way a door code is: in the team chat,
-// on the induction slide. Knowing it is not enough on its own — claiming a seat
+// on the induction slide. Knowing it is not enough on its own, claiming a seat
 // also needs an employee record an admin already created at that address, and a
 // verified sign-in on it (claim_portal_seat, 0030 §5). So it can be pasted in a
 // group without becoming a way in for whoever forwards it.
@@ -81,7 +81,7 @@ export default function PortalJoinCode({ orgId }) {
       <div>
         <p className="prod-field-note" style={{ marginBottom: '0.6rem' }}>
           Instead of inviting people one at a time, share a code. Staff open the link, sign in with
-          their work email, and land in their own portal — but only if you have already added them
+          their work email, and land in their own portal, but only if you have already added them
           as an employee with that address.
         </p>
         <button type="button" className="prod-btn-primary" onClick={() => rotate(true)} disabled={busy}>
@@ -131,7 +131,7 @@ export default function PortalJoinCode({ orgId }) {
             entitled to know exactly how far it reaches. */}
         Anyone with this code can join <strong>only</strong> as an employee, and only if you have
         already added them with the email address they sign in with. It always grants the employee
-        role — never an admin seat.
+        role, never an admin seat.
         {row.portal_join_expires_at && (
           <> The code {expired ? 'expired on' : 'expires on'} {fmtDate(row.portal_join_expires_at)};
           issue a new one to extend it.</>

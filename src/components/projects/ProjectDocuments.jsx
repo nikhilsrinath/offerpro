@@ -9,18 +9,19 @@ import { useToast } from '../shared/Toast';
 import { orgStore } from '../../services/orgStore';
 import { linkDocument, unlinkDocument, canSeeFinancials } from '../../services/projectService';
 import { uploadProjectFile, fileError } from '../../services/projectFiles';
+import { receiptService } from '../../services/receiptService';
 import { useProjectScope, projectBillingPath, projectFormPath } from './projectScope';
 import { projectSectionPath } from './projectPaths';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Documents Management › Business documents — the project's paperwork in
+   Documents Management › Business documents. The project's paperwork in
    the order it happens: the quotation that priced it, the proforma for the
    advance, the tax invoices that bill it, the agreements signed around it
    and the vendor bills it ran up.
 
    "New document" starts any of them already pointed at this project: the
    forms fill in the client and the contract value, save the document onto
-   the project and come back here. Nothing is stored twice — a quotation is
+   the project and come back here. Nothing is stored twice. A quotation is
    still the Finance quotation, an NDA the Records NDA; this page only lists
    what belongs to the project and links anything made before it existed.
    ══════════════════════════════════════════════════════════════════════════ */
@@ -31,11 +32,11 @@ const FIN_LABEL = { quotation: 'Quotation', proforma: 'Proforma', invoice: 'Tax 
 // The list's filter, in the order the documents happen.
 const KINDS = [
     { id: 'all', label: 'All' },
+    { id: 'bill', label: 'Purchase Bills' },
     { id: 'quotation', label: 'Quotations' },
     { id: 'proforma', label: 'Proformas' },
     { id: 'invoice', label: 'Invoices' },
     { id: 'agreement', label: 'Agreements' },
-    { id: 'bill', label: 'Vendor bills' },
 ];
 
 const DONE = new Set(['paid', 'accepted', 'signed', 'converted', 'active', 'issued']);
@@ -119,6 +120,7 @@ function useBusinessDocuments(project, fin) {
             bills.filter((b) => allocated.has(b.id)).forEach((b) => rows.push({
                 key: b.id, kind: 'bill', type: 'Vendor bill', name: b.bill_number || 'Bill', party: vendorName[b.vendor_id] || '',
                 date: b.bill_date, amount: b.total, paid: b.amount_paid, status: b.status, to: projectSectionPath(project.id, 'bills'), link: null,
+                                receipt: b.receipt_path || null,
             }));
         }
         const recById = new Map(records.map((r) => [r.id, r]));
@@ -157,11 +159,6 @@ export default function ProjectDocuments({ project, onUploaded }) {
     const canUnlink = orgStore.can('project_documents', 'delete');
     const options = newDocumentOptions(project.id, { fin, can: orgStore.can });
 
-    const counts = useMemo(() => {
-        const c = Object.fromEntries(KINDS.map((k) => [k.id, 0]));
-        rows.forEach((r) => { c.all += 1; if (c[r.kind] != null) c[r.kind] += 1; });
-        return c;
-    }, [rows]);
     const shown = useMemo(() => {
         const q = query.trim().toLowerCase();
         return rows.filter((r) => (kind === 'all' || r.kind === kind)
@@ -189,7 +186,7 @@ export default function ProjectDocuments({ project, onUploaded }) {
             )}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft }}>
                 <Seg size="sm" label="Kind of document" value={kind} onChange={setKind}
-                    options={kinds.map((k) => ({ id: k.id, label: counts[k.id] ? `${k.label} · ${counts[k.id]}` : k.label }))} />
+                    options={kinds.map((k) => ({ id: k.id, label: k.label }))} />
                 <span style={{ flex: 1 }} />
                 <Search value={query} onChange={setQuery} placeholder="Search number, party, status" width={220} />
             </div>
@@ -226,31 +223,34 @@ export default function ProjectDocuments({ project, onUploaded }) {
                                         )}
                                     </Td>
                                 )}
-                                {show('p') && <Td muted>{r.party || '—'}</Td>}
-                                {show('d') && <Td muted nowrap>{r.date ? fmtDate(r.date) : '—'}</Td>}
+                                {show('p') && <Td muted>{r.party || '-'}</Td>}
+                                {show('d') && <Td muted nowrap>{r.date ? fmtDate(r.date) : '-'}</Td>}
                                 {fin && show('a') && (
                                     <Td align="right" nowrap>
-                                        {r.amount != null ? money(r.amount) : '—'}
+                                        {r.amount != null ? money(r.amount) : '-'}
                                         {r.paid != null && Number(r.paid) > 0 && Number(r.paid) < Number(r.amount) && (
                                             <div style={{ fontSize: 11, color: t.faint }}>{money(r.paid)} paid</div>
                                         )}
                                     </Td>
                                 )}
-                                {fin && show('pd') && <Td align="right" nowrap>{r.paid != null ? money(r.paid) : '—'}</Td>}
+                                {fin && show('pd') && <Td align="right" nowrap>{r.paid != null ? money(r.paid) : '-'}</Td>}
                                 {fin && show('bal') && (
                                     <Td align="right" nowrap>
-                                        {r.amount != null && r.paid != null ? money(Math.max(0, Number(r.amount) - Number(r.paid))) : '—'}
+                                        {r.amount != null && r.paid != null ? money(Math.max(0, Number(r.amount) - Number(r.paid))) : '-'}
                                     </Td>
                                 )}
-                                {show('s') && <Td nowrap>{r.status ? <Status tone={toneOf(r.status)}>{words(r.status)}</Status> : <Muted>—</Muted>}</Td>}
+                                {show('s') && <Td nowrap>{r.status ? <Status tone={toneOf(r.status)}>{words(r.status)}</Status> : <Muted>-</Muted>}</Td>}
                                 {show('x') && (
                                     <Td align="right">
-                                        {r.link && canUnlink && (
+                                    <Row gap={6} style={{ justifyContent: 'flex-end' }}>
+                                    {r.receipt && <Btn size="sm" onClick={() => receiptService.open(r.receipt)}>View receipt</Btn>}
+                                    {r.link && canUnlink && (
                                             <ConfirmBtn label="Unlink" title="Remove from project"
                                                 message="Take this document off the project? The document itself is kept."
                                                 onConfirm={() => unlink(r.link)} />
-                                        )}
-                                    </Td>
+                                                )}
+                                                </Row>
+                                                </Td>
                                 )}
                             </Tr>
                         ))}
@@ -306,7 +306,7 @@ function NewDocumentDialog({ project, groups, onUploaded, onClose }) {
                 {groups.map((g) => (
                     <section key={g.id} aria-labelledby={`newdoc-${g.id}`}>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-                            <h3 id={`newdoc-${g.id}`} style={{ margin: 0, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: t.dim, fontWeight: 600 }}>{g.label}</h3>
+                            <h3 id={`newdoc-${g.id}`} style={{ margin: 0, fontSize: 11, color: t.dim, fontWeight: 600 }}>{g.label}</h3>
                             <span style={{ fontSize: 11.5, color: t.faint }}>{g.note}</span>
                         </div>
                         <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>

@@ -1,4 +1,4 @@
-// catalogService.js — the sellable product/service catalogue.
+// catalogService.js: the sellable product/service catalogue.
 //
 // Thin over orgStore, in the shape storageService uses, plus the one thing
 // orgStore cannot express: a date-ranged sales report, which is aggregated in
@@ -40,7 +40,7 @@ export const catalogService = {
 
   /**
    * Hard delete. Admin-only under RLS, and offered in the UI only for a product
-   * that has never been sold — `invoice_count === 0`. The FK is ON DELETE SET
+   * that has never been sold, `invoice_count === 0`. The FK is ON DELETE SET
    * NULL, so an invoice would survive it, but its attribution would not.
    */
   destroy: (id) => orgStore.removeItem('catalog', id),
@@ -50,7 +50,7 @@ export const catalogService = {
    * `from`/`to` are 'YYYY-MM-DD' or null for open-ended.
    *
    * The all-time equivalents live on the row itself (units_sold, revenue,
-   * revenue_paid, last_sold_at), maintained by trigger — read those when the
+   * revenue_paid, last_sold_at), maintained by trigger, read those when the
    * range is "everything" and skip the round trip.
    */
   async performance(orgId, from = null, to = null) {
@@ -86,9 +86,9 @@ export const catalogService = {
 /**
  * Map a catalogue row onto a document line item.
  *
- * The three finance forms each spell their line fields differently — Quotation
+ * The three finance forms each spell their line fields differently, Quotation
  * and Proforma use hsnSac/rate, InvoiceForm uses hsnCode/price and has no unit
- * — so each passes its own key names in. What they share is the rule: the
+ *: so each passes its own key names in. What they share is the rule: the
  * product supplies DEFAULTS, the line owns the values from then on, and
  * catalog_item_id is what carries the sale back to Product Performance.
  */

@@ -6,7 +6,7 @@ const entries = [
     date: 'March 2026',
     version: 'v2.4.0',
     items: [
-      { tag: 'new', text: 'Finance Status Tracker — track all financial documents through their lifecycle' },
+      { tag: 'new', text: 'Finance Status Tracker: track all financial documents through their lifecycle' },
       { tag: 'new', text: 'Recipient Portal redesign with payment submission and digital signatures' },
       { tag: 'new', text: 'Banking profile management in Company Profile' },
       { tag: 'improve', text: 'WhatsApp sharing now includes a direct portal link' },

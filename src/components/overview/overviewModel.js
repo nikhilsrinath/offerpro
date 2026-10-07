@@ -1,22 +1,22 @@
-// overviewModel.js — every figure the Overview page draws, and every
+// overviewModel.js: every figure the Overview page draws, and every
 // drill-down behind it.
 //
 // Pure functions over the orgStore lists, so the page, its drill-downs and the
 // tests all read the same arithmetic. The definitions deliberately match the
 // finance pages rather than inventing new ones:
 //
-//   · Invoiced   — issued sales invoices (financeAnalytics.issuedInvoices) at
+//   · Invoiced: issued sales invoices (financeAnalytics.issuedInvoices) at
 //                  grand total, on their issue date.
-//   · Collected  — confirmed payments, on the day they were paid. A document
+//   · Collected: confirmed payments, on the day they were paid. A document
 //                  whose ledger was not joined falls back to amount_paid on its
 //                  issue date, which is the only date it has.
-//   · Income / Expenses / Net — exactly profitAndLoss(): taxable value in,
+//   · Income / Expenses / Net: exactly profitAndLoss(): taxable value in,
 //                  plus cash-book receipts that were earned, against expenses
 //                  and purchase bills net of input GST. Cash-book entries that
-//                  only move cash — funding in, assets bought, loan principal
-//                  repaid, drawings, tax remitted — are in neither, which is
+//                  only move cash: funding in, assets bought, loan principal
+//                  repaid, drawings, tax remitted, are in neither, which is
 //                  what keeps this page's "Net" a profit figure.
-//   · Outstanding / Overdue — balances as of today, whatever the period.
+//   · Outstanding / Overdue: balances as of today, whatever the period.
 
 import {
   issuedInvoices, balanceOf, isOverdue, daysOverdue, profitAndLoss, inRange, periodBounds, netOfTax,
@@ -131,12 +131,12 @@ const bucketOf = (buckets, day) => {
 /* ── primitive event streams ──────────────────────────────────────────────── */
 
 export const customerKey = (d) => d.customer_id || `name:${(d.clientName || 'Unnamed').trim().toLowerCase()}`;
-export const invoiceNo = (d) => d.doc_number || d.invoiceNumber || '—';
+export const invoiceNo = (d) => d.doc_number || d.invoiceNumber || '-';
 
 /**
  * One row per rupee received: confirmed payments against invoices, the
- * amount_paid fallback for a document whose ledger was not joined, and — since
- * the cash book exists — money earned and received without an invoice at all.
+ * amount_paid fallback for a document whose ledger was not joined, and, since
+ * the cash book exists, money earned and received without an invoice at all.
  *
  * A cash-book event carries `doc: null`, because there is no document behind it.
  * Every reader must check before dereferencing it; leaving these out instead
@@ -154,7 +154,7 @@ export function collectionEvents(docs, income) {
     }
   });
   // Gross, like every other collection event: what arrived in the bank. Only
-  // entries that were EARNED — funding and refunds are cash but not takings.
+  // entries that were EARNED, funding and refunds are cash but not takings.
   (income || []).filter(countsAsIncome).forEach((e) => out.push({
     date: dayOf(e.date || e.received_on), amount: n(e.amount), doc: null,
     method: e.payment_method || '', cashBook: true, label: e.description || 'Cash book',
@@ -163,7 +163,7 @@ export function collectionEvents(docs, income) {
 }
 
 /**
- * Money out, net of input GST, as profitAndLoss counts it — so the same filter
+ * Money out, net of input GST, as profitAndLoss counts it. So the same filter
  * it applies: an asset purchase, a loan repayment, a drawing and a tax
  * remittance are cash leaving, not costs, and belong on the Cash Book rather
  * than in a spend total that feeds a profit figure.
@@ -313,8 +313,8 @@ export function buildOverview(src, periodId, today) {
   });
   collections.forEach((c) => { const i = bucketOf(buckets, c.date); if (i >= 0) series[i].collected += c.amount; });
   // Earned without an invoice: part of income, and part of the cash that came
-  // in. `collected` stays invoice-only — the drill-downs behind it read each
-  // event's document — so the cash view names it "Collected on invoices".
+  // in. `collected` stays invoice-only: the drill-downs behind it read each
+  // event's document: so the cash view names it "Collected on invoices".
   data.income.filter(countsAsIncome).forEach((e) => {
     const i = bucketOf(buckets, dayOf(e.date || e.received_on));
     if (i >= 0) series[i].income += netOfTax(e);
@@ -380,7 +380,7 @@ export function buildOverview(src, periodId, today) {
     prev: plPrev ? (plPrev.byCategory.find((p) => p.name === c.name)?.value || 0) : null,
   }));
 
-  /* products — line items on invoices issued in the period */
+  /* products: line items on invoices issued in the period */
   const prodMap = new Map();
   pInvoices.forEach((d) => (d.items || []).forEach((li) => {
     const cat = li.catalog_item_id ? data.catalog.find((c) => c.id === li.catalog_item_id) : null;
@@ -428,7 +428,7 @@ export function buildOverview(src, periodId, today) {
   staff.forEach((e) => { const k = TYPES[e.offerType] || 'Full-time'; typeMap.set(k, (typeMap.get(k) || 0) + 1); });
   const employmentTypes = [...typeMap.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
 
-  /* tasks — a snapshot; the board has no history */
+  /* tasks: a snapshot; the board has no history */
   const taskState = (x) => {
     const s = String(x.status || 'pending').replace('_', '-');
     if (s === 'done') return 'done';
@@ -452,7 +452,7 @@ export function buildOverview(src, periodId, today) {
   });
   const workload = [...loadMap.values()].sort((a, b) => b.open - a.open);
 
-  /* activity calendar — the last 26 weeks ending today, Monday-aligned */
+  /* activity calendar: the last 26 weeks ending today, Monday-aligned */
   const end = today;
   const startMonday = (() => {
     const s = addDays(end, -7 * 26 + 1);
@@ -470,7 +470,7 @@ export function buildOverview(src, periodId, today) {
 
   // The top line as a business reads it: billed on invoices PLUS earned without
   // one. `invoiced` stays exactly what its name says, because the invoice
-  // drill-downs behind it are invoice detail — the two are reported side by side
+  // drill-downs behind it are invoice detail. The two are reported side by side
   // rather than one quietly standing in for the other.
   //
   // GROSS on both sides, and that is the whole care needed here. `invoiced` is
@@ -519,7 +519,7 @@ function buildInsights({ kpis, customers, categories, aging, pl, invoiced, overd
   }
   if (customers.length >= 2 && invoiced > 0) {
     const share = (customers[0].invoiced / invoiced) * 100;
-    if (share >= 35) out.push({ tone: 'warn', text: `${customers[0].name} accounts for ${share.toFixed(0)}% of invoicing — a concentration risk.`, drill: { kind: 'customer', key: customers[0].key } });
+    if (share >= 35) out.push({ tone: 'warn', text: `${customers[0].name} accounts for ${share.toFixed(0)}% of invoicing: a concentration risk.`, drill: { kind: 'customer', key: customers[0].key } });
   }
   const late = aging.filter((a) => a.id === '61-90' || a.id === '90+').reduce((s, a) => s + a.amount, 0);
   if (late > 0) out.push({ tone: 'down', text: `${fmtInr(late)} has been overdue for more than 60 days.`, drill: { kind: 'metric', id: 'outstanding' } });
@@ -549,7 +549,7 @@ export const fmtShort = (v) => {
   return `${s}₹${a}`;
 };
 export const fmtAxis = (v) => fmtShort(v).replace('₹', '');
-export const fmtDay = (s) => (s ? parse(dayOf(s)).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
+export const fmtDay = (s) => (s ? parse(dayOf(s)).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-');
 
 /* ── drill-down slices ────────────────────────────────────────────────────── */
 

@@ -27,7 +27,7 @@ export default function HubActivity({ onDrill }) {
                 <div className="hx-activity-figs">
                     <span><b>{total.toLocaleString('en-IN')}</b>documents</span>
                     <span><b>{active}</b>active days</span>
-                    <span><b>{busiest.count ? `${busiest.count} · ${fmtDay(busiest.date).slice(0, 6)}` : '—'}</b>busiest day</span>
+                    <span><b>{busiest.count ? `${busiest.count} · ${fmtDay(busiest.date).slice(0, 6)}` : '-'}</b>busiest day</span>
                 </div>
             </div>
         </section>

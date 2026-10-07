@@ -14,7 +14,7 @@ import { useT, fmtDate, MONO } from './ui/edgeUtils';
 /* ══════════════════════════════════════════════════════════════════════════
    Offer tracker.
 
-   The page answers one question — where is each offer up to — so the status
+   The page answers one question, where is each offer up to. So the status
    is the spine. A progress strip shows the pipeline at a glance, the tabs
    carry their own counts, and each row ends with the one action that makes
    sense next rather than a row of five identical icon buttons.
@@ -169,8 +169,8 @@ function OfferModal({ activeOrg, offer, onClose }) {
             };
 
             if (isEdit) {
-                // Keep what the document already carries — status, number, the
-                // company snapshot — and overwrite only what this form owns.
+                // Keep what the document already carries, status, number, the
+                // company snapshot: and overwrite only what this form owns.
                 // The portal link is bound to the id, so it serves the fix.
                 await documentStore.save({
                     ...offer, ...doc, id: offer.id, status: offer.status,
@@ -200,7 +200,7 @@ function OfferModal({ activeOrg, offer, onClose }) {
             <Modal open onClose={onClose} title="Offer created" note={created.docId}
                 footer={<Btn primary onClick={onClose}>Done</Btn>}>
                 <p style={{ margin: '0 0 12px', fontSize: 12.5, color: t.faint, lineHeight: 1.7 }}>
-                    Send {form.studentName} this link. They read the letter and sign it there — the
+                    Send {form.studentName} this link. They read the letter and sign it there, and the
                     tracker moves to Opened and then Accepted on its own.
                 </p>
                 <code style={{
@@ -410,7 +410,7 @@ export default function OfferTracker() {
         const lines = doc.type === 'role_change'
             ? [`Hello *${doc.issued_to}*,`, '',
                 `*${company}* has issued a Role Change Notice for you.`,
-                `Your role will be updated from *${doc.current_role || '—'}* to *${doc.new_role || '—'}*.`,
+                `Your role will be updated from *${doc.current_role || '-'}* to *${doc.new_role || '-'}*.`,
                 doc.effective_date ? `Effective date: *${fmtDate(doc.effective_date)}*` : '', '',
                 'Please review and acknowledge it here:', link]
             : doc.type === 'termination'
@@ -468,7 +468,7 @@ export default function OfferTracker() {
                         ? <Btn primary onClick={() => setShowCreate(true)}>Create the first offer</Btn> : undefined}>
                         {pool.length === 0
                             ? (tab === 'offers'
-                                ? 'No offers yet. Create one here and you get a link to send — acceptance is tracked automatically.'
+                                ? 'No offers yet. Create one here and you get a link to send, acceptance is tracked automatically.'
                                 : `No ${noun}s yet. These are raised from a person's profile in the registry.`)
                             : 'Nothing matches that search.'}
                     </Empty>
@@ -498,7 +498,7 @@ export default function OfferTracker() {
                                         <Row gap={9}>
                                             <Avatar name={doc.issued_to || '?'} size={26} />
                                             <span style={{ minWidth: 0 }}>
-                                                <span style={{ display: 'block' }}>{doc.issued_to || '—'}</span>
+                                                <span style={{ display: 'block' }}>{doc.issued_to || '-'}</span>
                                                 <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>
                                                     {doc.recipient_email || 'No email'}
                                                 </span>
@@ -506,20 +506,20 @@ export default function OfferTracker() {
                                         </Row>
                                     </Td>
                                 )}
-                                {show('em') && <Td muted nowrap>{doc.recipient_email || '—'}</Td>}
+                                {show('em') && <Td muted nowrap>{doc.recipient_email || '-'}</Td>}
                                 {show('r') && (
                                     <Td muted nowrap>
                                         {tab === 'role_changes'
-                                            ? `${doc.current_role || '—'} → ${doc.new_role || '—'}`
-                                            : (doc.role || doc.current_role || '—')}
+                                            ? `${doc.current_role || '-'} → ${doc.new_role || '-'}`
+                                            : (doc.role || doc.current_role || '-')}
                                     </Td>
                                 )}
-                                {show('dep') && <Td muted nowrap>{doc.department || '—'}</Td>}
+                                {show('dep') && <Td muted nowrap>{doc.department || '-'}</Td>}
                                 {show('s') && <Td nowrap><Status tone={st.tone}>{st.label}</Status></Td>}
                                 {show('d') && <Td muted nowrap>{fmtDate(doc.created_at)}</Td>}
-                                {show('sd') && <Td muted nowrap>{doc.start_date ? fmtDate(doc.start_date) : '—'}</Td>}
-                                {show('vu') && <Td muted nowrap>{doc.valid_until ? fmtDate(doc.valid_until) : '—'}</Td>}
-                                {show('sal') && <Td align="right" nowrap>{doc.salary ? `${doc.currency || ''} ${doc.salary}`.trim() : '—'}</Td>}
+                                {show('sd') && <Td muted nowrap>{doc.start_date ? fmtDate(doc.start_date) : '-'}</Td>}
+                                {show('vu') && <Td muted nowrap>{doc.valid_until ? fmtDate(doc.valid_until) : '-'}</Td>}
+                                {show('sal') && <Td align="right" nowrap>{doc.salary ? `${doc.currency || ''} ${doc.salary}`.trim() : '-'}</Td>}
                                 {show('n') && <Td muted nowrap>{docNumber(doc)}</Td>}
                                 {show('a') && <Td align="right">
                                     <Row gap={6} style={{ justifyContent: 'flex-end' }}>

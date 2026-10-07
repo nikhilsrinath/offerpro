@@ -1,4 +1,4 @@
-// JoinPortal.jsx — the one page an employee sees before they have an account.
+// JoinPortal.jsx: the one page an employee sees before they have an account.
 //
 // Reached two ways:
 //   /join?t=<token>   the link in the invitation email
@@ -6,7 +6,7 @@
 //
 // It renders outside the app shell and outside the onboarding gate on purpose.
 // A person arriving here has no membership, and the gate reads "no membership"
-// as "needs to create a company" — which is the opposite of what is happening.
+// as "needs to create a company" · which is the opposite of what is happening.
 //
 // Redemption is idempotent and runs on its own as soon as there is a session,
 // so a Google round-trip lands back here and finishes without another click.
@@ -213,7 +213,7 @@ export default function JoinPortal() {
             Continue <ArrowRight size={15} />
           </button>
           <p className="join-note">
-            {/* Sign-in and sign-up are the same button on purpose — nobody
+            {/* Sign-in and sign-up are the same button on purpose. Nobody
                 arriving here knows or cares which of the two they are doing.
                 Sign-in with a provider is deliberately absent: the address has
                 to be the one on the employee record, and a provider returns

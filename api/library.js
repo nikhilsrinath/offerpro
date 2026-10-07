@@ -7,7 +7,7 @@
  * row under RLS; this endpoint then reads it. It runs server-side because the
  * parsers are heavy, the AI key must not reach the browser, and the passages
  * the AI later retrieves (library_chunks) are writable by the service role
- * only — so what the assistant quotes is always what the file said, never
+ * only: so what the assistant quotes is always what the file said, never
  * something a client posted.
  *
  * Deterministic parsing for anything with text in it; Gemini only for images

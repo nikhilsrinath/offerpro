@@ -9,10 +9,10 @@ import {
 import { useT } from '../ui/edgeUtils';
 
 /* The task sheet. Status and priority are segmented controls rather than
-   dropdowns — three options each, all worth seeing without opening anything.
+   dropdowns: three options each, all worth seeing without opening anything.
 
    A task belongs to a project (optionally one of its milestones) or to
-   nobody — "General". With a project chosen, its current team is listed first
+   nobody: "General". With a project chosen, its current team is listed first
    among the assignees; picking someone outside it offers to add them to the
    team, since a project's tasks are its members' work.
 
@@ -159,14 +159,14 @@ export default function TaskModal({ task, onClose, onSaved, defaultProjectId = n
                 <Input value={form.title} onChange={set('title')} placeholder="What needs doing" autoFocus />
             </Field>
             <div style={{ height: 13 }} />
-            <Field label="Details" hint="Optional — what done looks like">
+            <Field label="Details" hint="Optional, what done looks like">
                 <Textarea rows={3} value={form.description} onChange={set('description')} />
             </Field>
             <div style={{ height: 13 }} />
             <Field label="Project" hint={lockProject ? undefined : 'Leave as General for work that belongs to no project'}>
                 <Select value={form.projectId} disabled={lockProject}
                     onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value, milestoneId: '' }))}>
-                    <option value="">General — no project</option>
+                    <option value="">General (no project)</option>
                     {pickable.map((p) => <option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}
                 </Select>
             </Field>
@@ -188,21 +188,21 @@ export default function TaskModal({ task, onClose, onSaved, defaultProjectId = n
                     {form.projectId && onTeam.length > 0 ? (
                         <>
                             <optgroup label="On this project">
-                                {onTeam.map((e) => <option key={e.id} value={e.id}>{empName(e)}{e.role ? ` — ${e.role}` : ''}</option>)}
+                                {onTeam.map((e) => <option key={e.id} value={e.id}>{empName(e)}{e.role ? ` · ${e.role}` : ''}</option>)}
                             </optgroup>
                             <optgroup label="Everyone else">
-                                {offTeam.map((e) => <option key={e.id} value={e.id}>{empName(e)}{e.role ? ` — ${e.role}` : ''}</option>)}
+                                {offTeam.map((e) => <option key={e.id} value={e.id}>{empName(e)}{e.role ? ` · ${e.role}` : ''}</option>)}
                             </optgroup>
                         </>
                     ) : employees.map((e) => (
-                        <option key={e.id} value={e.id}>{empName(e)}{e.role ? ` — ${e.role}` : ''}</option>
+                        <option key={e.id} value={e.id}>{empName(e)}{e.role ? ` · ${e.role}` : ''}</option>
                     ))}
                 </Select>
             </Field>
             {outsider && canJoin && (
                 <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, fontSize: 12, color: t.dim }}>
                     <input type="checkbox" checked={addToTeam} onChange={(e) => setAddToTeam(e.target.checked)} />
-                    Also add them to the project team ({JOIN_PCT}% of their time — adjust on the Team tab)
+                    Also add them to the project team ({JOIN_PCT}% of their time, adjust on the Team tab)
                 </label>
             )}
             <div style={{ height: 13 }} />

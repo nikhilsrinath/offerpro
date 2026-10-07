@@ -1,12 +1,12 @@
 import { supabase } from '../lib/supabase';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   AI usage — what the Usage dashboard reads.
+   AI usage: what the Usage dashboard reads.
 
    Two sources, deliberately kept apart:
-     · usage_counters.ai_messages (0010) — the running total the plan limit is
+     · usage_counters.ai_messages (0010). The running total the plan limit is
        enforced against. The headline number always comes from here.
-     · ai_usage_events (0067) — one row per call, written best-effort by the
+     · ai_usage_events (0067), one row per call, written best-effort by the
        API. Only the breakdowns (by day, by feature, by person) come from here,
        and they only go back as far as the day 0067 was applied.
    ══════════════════════════════════════════════════════════════════════════ */
@@ -26,7 +26,7 @@ export const aiUsageService = {
     /**
      * The last 90 days of events, newest first.
      * `available: false` means the table is not there yet (0067 not applied on
-     * this database) — the page says so instead of showing an empty history
+     * this database): the page says so instead of showing an empty history
      * that reads as "nobody used the AI".
      */
     async recent(orgId, days = HISTORY_DAYS) {
@@ -130,7 +130,7 @@ export function summariseUsage(rows = [], { today = localDay(Date.now()), days =
 
 /**
  * Where the allowance is heading. `null` when there is nothing to project from
- * (no limit, or no use in the last 30 days) — a runway computed from zero use
+ * (no limit, or no use in the last 30 days). A runway computed from zero use
  * is a division, not a forecast.
  */
 export function runway({ used, limit, perDay }) {

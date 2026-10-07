@@ -27,7 +27,7 @@ const TOP_OPTIONS = [
 /**
  * ISO alpha-2 to the regional-indicator pair that renders as a flag.
  *
- * Windows has no flag glyphs, so there it falls back to the two letters — which
+ * Windows has no flag glyphs, so there it falls back to the two letters, which
  * inside the circular chip reads as a country code rather than as breakage. The
  * alternative is fetching images from a flag CDN on every render, which trades
  * a cosmetic gap for a third-party request on the dashboard.
@@ -44,8 +44,8 @@ const money = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 /**
  * Keep callouts from sitting on top of each other.
  *
- * Countries are laid out by geography, not by convenience — Finland and Norway
- * are 6 map-units apart — so drawn at their anchors two callouts would overlap
+ * Countries are laid out by geography, not by convenience, Finland and Norway
+ * are 6 map-units apart. So drawn at their anchors two callouts would overlap
  * into an unreadable stack. Boxes are placed strongest-first and any that
  * collides with one already placed is lifted above it, keeping the pointer on
  * the right country while the label moves out of the way.
@@ -112,7 +112,7 @@ function Dropdown({ value, options, onChange, ariaLabel }) {
         className="sbc-dd-btn"
         onClick={() => setOpen((v) => !v)}
       >
-        <span>{current?.label ?? '—'}</span>
+        <span>{current?.label ?? '-'}</span>
         <ChevronDown size={13} />
       </button>
       {open && (
@@ -226,7 +226,7 @@ export default function SalesByCountries() {
           <div className="sbc-metric">
             <span className="sbc-metric-label">Top Performing Country</span>
             <strong className="sbc-metric-value">
-              {summary.top ? money(summary.top.revenue) : '—'}
+              {summary.top ? money(summary.top.revenue) : '-'}
             </strong>
             <span className="sbc-metric-note">
               {summary.top ? (names[summary.top.code] || summary.top.code) : 'No sales in this period'}
@@ -244,7 +244,7 @@ export default function SalesByCountries() {
                 ? { color: 'var(--error)' } : undefined}
             >
               {summary.growthPct == null
-                ? '—'
+                ? '-'
                 : `${summary.growthPct >= 0 ? '+' : ''}${summary.growthPct.toFixed(0)}%`}
             </strong>
             <span className="sbc-metric-note">
@@ -297,8 +297,8 @@ export default function SalesByCountries() {
                 ))}
 
                 {/* Leader lines, drawn here rather than in CSS. A stem sized as
-                    a percentage resolves against the bubble it hangs off — a
-                    few pixels — not against the map, so it never reached the
+                    a percentage resolves against the bubble it hangs off, a
+                    few pixels: not against the map, so it never reached the
                     country. In map units it scales with everything else. */}
                 {callouts.map((c) => (
                   <g key={`pin-${c.code}`} className="sbc-pin">
@@ -333,8 +333,8 @@ export default function SalesByCountries() {
 
               {!loading && ranked.length === 0 && (
                 <div className="sbc-map-empty">
-                  Nothing with a country in this period yet — neither an invoice
-                  nor a cash entry.
+                  Nothing with a country in this period yet: no invoice and
+                  no cash entry.
                 </div>
               )}
             </div>
@@ -347,14 +347,14 @@ export default function SalesByCountries() {
           sitting in no country at all. */}
       {summary.direct > 0 && (
         <p className="sbc-foot">
-          {money(summary.direct)} of this came in without an invoice — cash-book
-          receipts, attributed to the country on the entry.
+          {money(summary.direct)} of this came in without an invoice (cash-book
+          receipts), attributed to the country on the entry.
         </p>
       )}
       {summary.unspecified && summary.unspecified.revenue > 0 && (
         <p className="sbc-foot">
-          {money(summary.unspecified.revenue)} is not attributed to any country —
-          those entries have no country on them and none could be inferred from
+          {money(summary.unspecified.revenue)} is not attributed to any country.
+          Those entries have no country on them and none could be inferred from
           the customer or your organisation profile.
         </p>
       )}

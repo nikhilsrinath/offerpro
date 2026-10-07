@@ -1,11 +1,11 @@
-// portalAccessService.js — giving an employee their way in.
+// portalAccessService.js: giving an employee their way in.
 //
 // Two routes, both ending at the same place (a membership row plus
 // employees.user_id):
 //
 //   invite   an admin clicks "Give portal access" on someone. One call raises
 //            the invitation and one sends the mail, through the org's own Gmail
-//            — the same pipeline offer letters already go out on, so there is
+//: the same pipeline offer letters already go out on, so there is
 //            no Supabase SMTP to configure before onboarding a group.
 //   join     the org shares a code. Staff let themselves in, but only into an
 //            employee record an admin already created at their address.
@@ -32,9 +32,9 @@ function inviteEmail({ employeeName, companyName, link }) {
     `${safeCompany} has set up your employee portal. You can check in and out, ` +
     `see your attendance, apply for leave and read team announcements there.\n\n` +
     `Open it here:\n${link}\n\n` +
-    `Sign in with Google, or set a password — whichever you prefer. ` +
+    `Sign in with Google, or set a password, whichever you prefer. ` +
     `The link works for 14 days.\n\n` +
-    `— ${safeCompany}`;
+    ` · ${safeCompany}`;
 
   const html = `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
@@ -52,7 +52,7 @@ function inviteEmail({ employeeName, companyName, link }) {
         </a>
       </p>
       <p style="margin:0 0 18px;color:#52525b;font-size:14px">
-        Sign in with Google, or set a password — whichever you prefer. The link works for 14 days.
+        Sign in with Google, or set a password, whichever you prefer. The link works for 14 days.
       </p>
       <p style="margin:0;color:#a1a1aa;font-size:12px;word-break:break-all">
         If the button does not work, paste this into your browser:<br>${escapeHtml(link)}
@@ -75,7 +75,7 @@ export const portalAccessService = {
    * Creates the login for an employee and returns the credentials once.
    *
    * The password exists in this app's memory for as long as the admin has the
-   * dialog open, and nowhere else — not in the database, not in the audit log,
+   * dialog open, and nowhere else. Not in the database, not in the audit log,
    * not in an email. If they close it without copying, the answer is a reset,
    * which is one click.
    *
@@ -125,7 +125,7 @@ export const portalAccessService = {
   /**
    * Raises the invitation and mails it. Returns the link either way, so an
    * admin can still copy it into WhatsApp when the org has no Gmail connected
-   * — a failed send must not cost them the invitation they just created.
+   *: a failed send must not cost them the invitation they just created.
    *
    * @returns {Promise<{link: string, email: string, sent: boolean, sendError?: string}>}
    */
@@ -162,7 +162,7 @@ export const portalAccessService = {
    * go through one Gmail account with a per-org rate limit (0024), and forty
    * simultaneous sends would trip it and lose most of them.
    *
-   * Never rejects — one bad address must not abandon the other thirty-nine.
+   * Never rejects: one bad address must not abandon the other thirty-nine.
    * @returns {Promise<{ok: string[], failed: {id, name, reason}[], unsent: number}>}
    */
   async inviteMany(employeeIds, { orgProfile, employeesById = {}, onProgress } = {}) {
@@ -221,7 +221,7 @@ export const portalAccessService = {
 
   // ── Redeeming, from the /join page ─────────────────────────────────────────
 
-  /** What to show before anyone signs in. Never throws — a bad link is content. */
+  /** What to show before anyone signs in. Never throws. A bad link is content. */
   async previewInvite(token) {
     const { data, error } = await supabase.rpc('portal_invite_preview', { p_token: token });
     if (error) return { problem: 'This link is not valid.' };

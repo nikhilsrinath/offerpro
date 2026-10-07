@@ -7,8 +7,8 @@ import { PLANS, DEFAULT_PLAN } from '../../../src/services/planConfig.js';
 /**
  * Everything a tool may know about who is asking, built fresh per request.
  *
- * The permission map comes from public.my_permissions — the role plus the
- * person's own exceptions (0062), the same function the app's sidebar reads —
+ * The permission map comes from public.my_permissions. The role plus the
+ * person's own exceptions (0062), the same function the app's sidebar reads,
  * called with the user's token, so it is theirs by construction. Tools are
  * filtered on it before the model sees the catalogue, and every write is
  * refused by RLS anyway if the map were ever wrong: the filter is for honesty
@@ -116,7 +116,7 @@ function cleanCards(list) {
 
 /**
  * The entities this chat has referred to, newest first. Ids are only pointers
- * — a tool still loads the row through the user's client, so an id for a
+ *: a tool still loads the row through the user's client, so an id for a
  * record they cannot see resolves to nothing.
  */
 export function cleanEntities(list) {

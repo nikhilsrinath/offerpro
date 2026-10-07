@@ -11,14 +11,14 @@ import { resolveEntity, loadKind, byId } from '../resolvers.js';
 import { choiceFrom, needsInput, notFound, money, formatDate } from '../helpers.js';
 
 /**
- * create_cash_entry — money in or out that no invoice represents.
+ * create_cash_entry: money in or out that no invoice represents.
  *
  * Replaces the browser-only cash flow (AssistantContext + CashEntryCard): the
  * questions it asked, the parsers it read the sentence with and the checks it
  * made before saving are the same functions, now called here. The model
- * decides that money moved and which way; everything about the figure — the
+ * decides that money moved and which way; everything about the figure, the
  * amount, "1.2 lakh", the date "yesterday", the 18% inside it, the rail, the
- * category — is read by src/shared/cashIntent.js, not by the model.
+ * category: is read by src/shared/cashIntent.js, not by the model.
  *
  * High risk: it records money. The card shows the whole row the executor
  * will write, and the button names the amount.
@@ -28,7 +28,7 @@ const GST_RATES = [0, 5, 12, 18, 28];
 const TABLE = { in: 'income_entries', out: 'expenses' };
 const DATE_COL = { in: 'received_on', out: 'incurred_on' };
 
-/** finance_categories is reference data every org shares — loaded once per instance. */
+/** finance_categories is reference data every org shares, loaded once per instance. */
 async function ensureCategories(ctx) {
   if (allCategories().length) return;
   const { data, error } = await ctx.db.from('finance_categories')
@@ -45,7 +45,7 @@ async function openProjects(ctx) {
     .map((p) => ({ id: p.id, code: p.code, name: p.name, client: names[p.client_id] || '' }));
 }
 
-/** The rail used on this side of the ledger most recently — the default when none was said. */
+/** The rail used on this side of the ledger most recently. The default when none was said. */
 async function lastMethod(direction, ctx) {
   const { data } = await ctx.db.from(TABLE[direction]).select('payment_method')
     .order('created_at', { ascending: false }).limit(1);
@@ -186,8 +186,8 @@ const create_cash_entry = {
   params,
   undoable: (args, ctx) => ctx.can(TABLE[args.direction], 'delete'),
 
-  // The real category list goes to the model, so it chooses by meaning —
-  // "office chairs" is furniture you own, "chair repair" a running cost —
+  // The real category list goes to the model, so it chooses by meaning,
+  // "office chairs" is furniture you own, "chair repair" a running cost,
   // rather than a keyword table choosing for it.
   async prepare(ctx) { await ensureCategories(ctx); },
   modelParams() {
@@ -224,7 +224,7 @@ const create_cash_entry = {
       return needsInput(param, qn.text, qn.options || [], { hint: qn.hint || null });
     }
     if (draft.currency !== 'INR' && !(Number(args.fx_rate) > 0) && Number(draft.fx_rate) === 1) {
-      return needsInput('fx_rate', `What rate did you get — 1 ${draft.currency} in ₹?`, [],
+      return needsInput('fx_rate', `What rate did you get for 1 ${draft.currency} in ₹?`, [],
         { hint: 'There is no rate feed; the rate you enter is the one the books use.' });
     }
 
@@ -251,7 +251,7 @@ const create_cash_entry = {
     if (!built.draft) return ['Some details are missing.'];
     const problems = validateDraft(built.draft);
     if (!isIsoDate(built.draft.date)) problems.push('Choose a date.');
-    if (built.draft.date > ctx.today) problems.push(`${formatDate(built.draft.date)} has not happened yet — record money once it has moved.`);
+    if (built.draft.date > ctx.today) problems.push(`${formatDate(built.draft.date)} has not happened yet. Record money once it has moved.`);
     return problems;
   },
 
@@ -271,7 +271,7 @@ const create_cash_entry = {
       ['Category', categoryLabel(draft.category)],
       ['Date', formatDate(draft.date)],
       [inward ? 'Received by' : 'Paid by', methodLabel(draft.payment_method)],
-      ['GST inside', Number(draft.tax_rate) > 0 ? `${draft.tax_rate}% — ${money(draft.tax_amount)}` : 'None'],
+      ['GST inside', Number(draft.tax_rate) > 0 ? `${draft.tax_rate}% (${money(draft.tax_amount)})` : 'None'],
     ];
     if (party) rows.push([inward ? 'From' : 'To', party]);
     if (project) rows.push(['Project', `${project.code} · ${project.name}`]);
@@ -314,7 +314,7 @@ const create_cash_entry = {
     const row = r.after || {};
     const amount = Number(row.amount) || (Number(row.original_amount) || 0) * (Number(row.fx_rate) || 1);
     const date = row[DATE_COL[args.direction]];
-    let line = `Recorded ${args.direction === 'in' ? 'money in' : 'an expense'} of **${money(amount)}** — ${row.description} (${categoryLabel(row.category)})${date ? ` on ${formatDate(date)}` : ''}.`;
+    let line = `Recorded ${args.direction === 'in' ? 'money in' : 'an expense'} of **${money(amount)}**: ${row.description} (${categoryLabel(row.category)})${date ? ` on ${formatDate(date)}` : ''}.`;
     if (outcome.warnings?.length) line += ` Recorded, but not linked to the project: ${outcome.warnings[0]}`;
     return line;
   },

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { Minus, Plus, MoveHorizontal, Square } from 'lucide-react';
 
 /*
- * A4Stage — the right-hand paper pane of every document editor.
+ * A4Stage: the right-hand paper pane of every document editor.
  *
  * The preview roots (.a4-sheet, .certificate-preview-root, .inv-saffron-page)
  * are rendered at their true pixel size so the PDF capture stays sharp; this
@@ -19,8 +19,8 @@ import { Minus, Plus, MoveHorizontal, Square } from 'lucide-react';
  * Zooming by hand pins the scale until a fit is chosen again.
  */
 
-const A4_RATIO = 1.41421356; /* √2 — an A4 page's long side over its short side */
-const PAD_X = 18;            /* .a4-stage-scroll padding — keep in sync with the CSS */
+const A4_RATIO = 1.41421356; /* √2. An A4 page's long side over its short side */
+const PAD_X = 18;            /* .a4-stage-scroll padding, keep in sync with the CSS */
 const PAD_Y = 16;
 const STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2];
 const MIN = STEPS[0];

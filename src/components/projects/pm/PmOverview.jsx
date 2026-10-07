@@ -5,9 +5,9 @@ import { toDay } from '../../../services/wbs';
 import { usePmData, empName, fmtD, fmtDY } from './pmData';
 import { Progress } from './pmUi';
 
-/* Portfolio — the project's work breakdown at a glance: how far
+/* Overview: the project's work breakdown at a glance: how far
    along it is, whether the network finishes by the target date, and each
-   sub-project with the person who answers for it. */
+   deliverable with the person who answers for it. */
 
 export default function PmOverview({ project, onOpen }) {
     const t = useT();
@@ -18,7 +18,7 @@ export default function PmOverview({ project, onOpen }) {
         return (
             <Panel>
                 <Empty action={<Btn primary onClick={() => onOpen('wbs')}>Build the work breakdown</Btn>}>
-                    No work breakdown yet. Add sub-projects, tasks and the people responsible on Tasks (WBS).
+                    No work breakdown yet. Add deliverables, tasks and the people responsible on Tasks (WBS).
                 </Empty>
             </Panel>
         );
@@ -39,7 +39,7 @@ export default function PmOverview({ project, onOpen }) {
                 { label: 'Critical path', value: sched.critical.length, note: broken ? `${broken} link${broken === 1 ? '' : 's'} broken` : 'tasks with no float' },
             ]} />
 
-            <Panel title="Sub-projects" note="each with the person responsible"
+            <Panel title="Deliverables" note="each with the person responsible"
                 actions={<Btn size="sm" onClick={() => onOpen('wbs')}>Open WBS</Btn>} pad={12}>
                 <Grid min={240}>
                     {tree.roots.map((x) => {

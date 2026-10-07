@@ -60,7 +60,7 @@ export default function Timesheets() {
 
     if (!allowed) {
         return <Page><Panel><Empty action={<Btn primary onClick={() => navigate('/pricing')}>See plans</Btn>}>
-            Timesheets — log hours, approve them, cost projects by time and bill hours — are part of the Max plan.
+            Timesheets (log hours, approve them, cost projects by time and bill hours) are part of the Max plan.
         </Empty></Panel></Page>;
     }
 

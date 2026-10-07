@@ -36,8 +36,8 @@ export default async function handler(req, res) {
     await requireOrgRole(user.id, orgId, isTest ? 'admin' : 'member');
 
     // Credentials are never read from the request, not even for a test. A test
-    // that accepted them from the body was an oracle: any org admin — including
-    // one who had just signed up for a free account — could post somebody else's
+    // that accepted them from the body was an oracle: any org admin, including
+    // one who had just signed up for a free account, could post somebody else's
     // Gmail address and a guessed App Password and read the answer off the status
     // code. Testing now means testing what this org has stored, which is the only
     // thing an admin has a legitimate interest in testing.
@@ -61,8 +61,8 @@ export default async function handler(req, res) {
 
     // verify() runs only for a test, where proving the credentials work IS the
     // operation. On a normal send it was a second round-trip that told a caller
-    // whether an arbitrary Gmail address and password pair was valid — a
-    // credential-checking oracle — and sendMail reports an auth failure anyway.
+    // whether an arbitrary Gmail address and password pair was valid, a
+    // credential-checking oracle: and sendMail reports an auth failure anyway.
     if (isTest) {
       try {
         await transporter.verify();
@@ -156,7 +156,7 @@ const MAX_RECIPIENTS = 50;
  * Two things are being prevented here. The first is header injection: a newline
  * inside a subject or an address used to become the start of a new SMTP header,
  * which is how a Bcc gets added to somebody else's mail. The second is using an
- * authenticated org as a bulk relay — `to` arrived as an unbounded array and was
+ * authenticated org as a bulk relay, `to` arrived as an unbounded array and was
  * passed straight through.
  */
 export function validateMessage(body) {
@@ -218,12 +218,12 @@ function smtpMessage(err) {
   return 'Could not reach Gmail. Check the saved email settings and try again.';
 }
 
-/** A test can only ever reach the org's own stored address — never an arbitrary recipient. */
+/** A test can only ever reach the org's own stored address, never an arbitrary recipient. */
 function buildTestMessage(gmailUser) {
   return {
     recipients: [gmailUser],
     fromName: 'EdgeOS',
-    subject: 'EdgeOS — Email Test',
+    subject: 'EdgeOS Email Test',
     text: 'This is a test email from EdgeOS. If you received this, your Gmail SMTP is configured correctly.',
     html: `
       <div style="font-family:'Segoe UI',sans-serif;max-width:500px;margin:0 auto;padding:24px;">

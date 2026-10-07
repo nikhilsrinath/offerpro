@@ -3,7 +3,7 @@ import { useSection } from '../financial/financeHooks';
 import { pickerOrder, projectLabel } from '../../services/projectAnalytics';
 import { GENERAL, INTERNAL } from '../../services/belongsTo';
 
-/* What a vendor or product belongs to — the dropdown on the Vendor Directory
+/* What a vendor or product belongs to. The dropdown on the Vendor Directory
    and Products Directory forms, and the filter beside their lists. Open
    projects are offered; a closed one stays listed while it is the value, so
    editing an old row never silently drops its project. */
@@ -30,6 +30,19 @@ export default function BelongsToSelect({ id, value, onChange }) {
                     {options.map((p) => <option key={p.id} value={p.id}>{projectLabel(p)}</option>)}
                 </optgroup>
             )}
+        </select>
+    );
+}
+
+/** A project only: the extra rows under Belongs to, for a vendor on several projects. */
+export function ProjectOnlySelect({ id, value, onChange, exclude = [], label }) {
+    const options = useProjectOptions(value);
+    return (
+        <select id={id} aria-label={label} value={value || ''} onChange={(e) => onChange(e.target.value)}>
+            <option value="">Choose a project…</option>
+            {options.filter((p) => p.id === value || !exclude.includes(p.id)).map((p) => (
+                <option key={p.id} value={p.id}>{projectLabel(p)}</option>
+            ))}
         </select>
     );
 }

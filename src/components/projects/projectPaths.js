@@ -1,7 +1,7 @@
 /* ══════════════════════════════════════════════════════════════════════════
    Where each page of a project lives. The path follows the project's rail:
-   the group, then the page inside it, then — for a page with its own
-   switcher — the view chosen there.
+   the group, then the page inside it, then, for a page with its own
+   switcher: the view chosen there.
 
      /projects/:id                                         the project's hub
      /projects/:id/finance/billing/proforma                Finance › Billing › Proforma
@@ -23,7 +23,7 @@ export const SECTION_PATHS = {
     wbs: 'project-management/tasks-wbs',
     tasks: 'project-management/kanban-board',
     gantt: 'project-management/gantt-chart',
-    products: 'product-management/product-service-directory',
+    products: 'project-management/sku',
     team: 'team-management/team-members',
     raci: 'team-management/team-hierarchy',
     attendance: 'team-management/attendance',
@@ -81,7 +81,7 @@ export function projectSectionPath(projectId, section, view, query) {
 }
 
 /**
- * The section and view a project path is on: { section, view } — 'home' for
+ * The section and view a project path is on: { section, view } · 'home' for
  * the bare /projects/:id, null for a path that is no project page.
  */
 export function parseProjectPath(pathname) {

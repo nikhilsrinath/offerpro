@@ -52,7 +52,7 @@ export function niceMax(v) {
 }
 
 
-/** The window's width, kept current — the dashboards pick column counts from it. */
+/** The window's width, kept current. The dashboards pick column counts from it. */
 export function useWinW() {
     const [w, setW] = useState(() => window.innerWidth);
     useEffect(() => {

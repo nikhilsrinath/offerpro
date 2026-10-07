@@ -4,14 +4,14 @@ import { Seg } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   A page with more than one way of working — one offer or a batch of them —
+   A page with more than one way of working, one offer or a batch of them,
    switched by a segmented control under the shell header.
 
    The page is registered as flush in App.jsx, so this owns the whole body:
    a `flush` tab (the form-beside-preview editors) fills it edge to edge; any
    other tab scrolls inside it with the padding the shell gives a normal page.
-   The chosen tab is part of the path — the page's own path for the first
-   tab, `<base>/<path>` for the others (/employees/ex-employees) — so links
+   The chosen tab is part of the path. The page's own path for the first
+   tab, `<base>/<path>` for the others (/employees/ex-employees). So links
    and refreshes land on it.
    ══════════════════════════════════════════════════════════════════════════ */
 

@@ -1,6 +1,6 @@
 // Where each General Ledger entry's money belongs: to one or more projects
-// (through project_allocations), or to "General or Others" — office, rent,
-// fuel, a loan — whatever no project carries.
+// (through project_allocations), or to "General or Others" · office, rent,
+// fuel, a loan: whatever no project carries.
 //
 // An allocation is made against the entry's value before GST, so a project's
 // share is a fraction of the entry (shareOf), and General is what is left.
@@ -39,7 +39,7 @@ export function withParts(rows, allocations) {
 
 /**
  * The rows that touch `where` (a project id or GENERAL), each at that part's
- * share — the same `_share` / `_full` shape a project's own ledger uses.
+ * share: the same `_share` / `_full` shape a project's own ledger uses.
  * 'all' returns the rows untouched.
  */
 export function rowsFor(rows, where) {

@@ -10,7 +10,7 @@
  * The approach it replaces matched a question against a list of phrases and
  * called a bespoke function per phrase, so any question nobody had anticipated
  * produced either nothing or a confident guess. What is here instead is four
- * generic capabilities — discover, traverse, retrieve, aggregate — composed per
+ * generic capabilities: discover, traverse, retrieve, aggregate, composed per
  * question. A question about something no one anticipated still resolves,
  * because "find the entities this names, pull what is attached to them, and
  * include every authoritative aggregate the asker may see" does not depend on
@@ -32,7 +32,7 @@ function resourceFilter(query, allowed) {
   const keys = [...allowed];
   if (keys.length === 0) return query.is('resource', null);
   // Keys are drawn from permission_resources and match ^[a-z][a-z0-9_]+$, so
-  // there is nothing here to escape — but they are never user input either.
+  // there is nothing here to escape. But they are never user input either.
   return query.or(`resource.is.null,resource.in.(${keys.join(',')})`);
 }
 
@@ -103,7 +103,7 @@ export function queryTerms(question) {
  * "Name our employees" contains nothing that any employee row actually says:
  * the labels are people's names and the summaries are job titles, so both the
  * full-text and the trigram pass return nothing and the model is handed an
- * empty ENTITIES block — which is exactly how it ends up answering "I don't see
+ * empty ENTITIES block: which is exactly how it ends up answering "I don't see
  * any employees listed". A question about a category has to be answered by
  * listing that category, not by matching the category's name against its
  * members' text.
@@ -117,7 +117,7 @@ const KIND_HINTS = [
   // The money words, not just the paperwork words. "Which country generates the
   // most revenue" named no kind at all before this line, so the roster pass
   // returned nothing and the question was answered off whatever the fuzzy search
-  // happened to match — which is how one question got four different answers.
+  // happened to match: which is how one question got four different answers.
   [/\b(revenue|revenues|sales|sold|selling|income|turnover|earnings|profit|grossing)\b/, ['financial_document']],
   [/\b(payment|payments|receipt|receipts|collected|collection|collections)\b/, ['payment']],
   [/\b(subscription|subscriptions|recurring)\b/, ['recurring_invoice', 'subscription']],
@@ -171,7 +171,7 @@ export async function searchNodes(orgId, allowed, { text = '', kinds = null, lim
   const db = supabaseAdmin();
   // `facts` is in the list because buildContext renders it. Leaving it out made
   // every searched entity arrive with no facts at all, so the record the
-  // question actually matched reached the model as a bare label — the one
+  // question actually matched reached the model as a bare label. The one
   // column the answer most often depends on was the one not being fetched.
   const select = 'id, kind, entity_id, label, summary, state, resource, source_table, source_updated_at, synced_at, facts, metrics';
   const hits = new Map();
@@ -187,15 +187,15 @@ export async function searchNodes(orgId, allowed, { text = '', kinds = null, lim
   if (terms.length) {
     // `simple` config, matching the generated column: no stemming, no stop-word
     // list of its own, so a company's vocabulary is matched as written.
-    // Letters and digits only. Anything else — an ampersand, a bracket, a
-    // hyphen — is an operator to to_tsquery, so leaving it in turns a question
+    // Letters and digits only. Anything else. An ampersand, a bracket, a
+    // hyphen: is an operator to to_tsquery, so leaving it in turns a question
     // containing "INV-2026 & co" into a syntax error rather than a search.
     // The ILIKE pass matches those literally.
     const tsq = terms.map((t) => t.replace(/[^\p{L}\p{N}]/gu, '')).filter(Boolean).join(' | ');
 
     // Fired together, not one after another. These are independent lookups
     // against the same indexes, and awaiting each in turn made a six-word
-    // question cost six sequential round trips to Postgres — the single
+    // question cost six sequential round trips to Postgres. The single
     // largest component of the old answer latency.
     const lookups = [];
     if (tsq) {
@@ -245,8 +245,8 @@ export async function getNode(orgId, allowed, nodeId) {
 
 /**
  * The neighbourhood of a node, `depth` hops out. Edges are followed in both
- * directions — an invoice's customer and a customer's invoices are the same
- * relationship read from opposite ends — and every hop is permission-filtered
+ * directions: an invoice's customer and a customer's invoices are the same
+ * relationship read from opposite ends. And every hop is permission-filtered
  * again, so traversal can never walk out of the caller's access.
  */
 export async function neighbors(orgId, allowed, nodeId, { depth = 1, limitPerHop = 60 } = {}) {
@@ -408,17 +408,17 @@ export function headlineSection(metrics) {
     .map((h) => {
       const m = byKey.get(h.key);
       const parts = h.parts?.(m);
-      return `- ${h.label}: ${inr(m.value)}${parts ? ` (${parts})` : ''} — key ${h.key}; answers ${h.asks}`;
+      return `- ${h.label}: ${inr(m.value)}${parts ? ` (${parts})` : ''} · key ${h.key}; answers ${h.asks}`;
     });
   if (!lines.length) return '';
   return '## HEADLINE FIGURES\n' +
     'The exact answers to the questions people ask most, computed in PostgreSQL on the same rules as ' +
     'the dashboard tiles. When a question matches one of these, the answer IS this figure: quote it as ' +
-    'written, then give its parts if useful. Do not rebuild it from other aggregates or from records — ' +
+    'written, then give its parts if useful. Do not rebuild it from other aggregates or from records: ' +
     'a total assembled by hand leaves something out.\n' + lines.join('\n');
 }
 
-/** How to read the context — sent with it, so every caller's model gets the rules. */
+/** How to read the context, sent with it, so every caller's model gets the rules. */
 export const CONTEXT_RULES = '## HOW TO ANSWER FROM THIS CONTEXT\n' +
   '1. For a figure, use HEADLINE FIGURES first, then AUTHORITATIVE AGGREGATES. Quote them exactly.\n' +
   '2. Never compute a total, difference or ratio yourself when an aggregate already states it. Only ' +
@@ -434,7 +434,7 @@ export const CONTEXT_RULES = '## HOW TO ANSWER FROM THIS CONTEXT\n' +
    Every aggregate is recomputed by the same sync that moves brain_state's
    last_sync_at, so that timestamp is an exact version stamp: while it is
    unchanged, the rows cannot have changed. That makes this a correctness-free
-   cache rather than a staleness trade — a new sync produces a new key and the
+   cache rather than a staleness trade. A new sync produces a new key and the
    old entry is never read again.
 
    The permission set is part of the key too. Two roles see different subsets of
@@ -474,7 +474,7 @@ async function getMetricsCached(orgId, allowed, syncedAt) {
  * stating what the company does NOT have. "We have no other clients with paid
  * invoices in the system." "India has ₹0." "I don't see any employees listed."
  * Every one of those is a claim about a whole table, and every one was read off
- * the ENTITIES block — a list capped at a few dozen rows, selected for one
+ * the ENTITIES block: a list capped at a few dozen rows, selected for one
  * question. A capped list cannot answer "is that all of them?", so the model
  * was answering a question the context had not been given the means to answer,
  * and it had no way to notice.
@@ -485,7 +485,7 @@ async function getMetricsCached(orgId, allowed, syncedAt) {
  *
  * Counted from brain_nodes rather than the source tables on purpose: the answer
  * has to describe what the model was actually given. If the brain is behind
- * Postgres, the freshness line says so — inventing a total the retrieved rows
+ * Postgres, the freshness line says so, inventing a total the retrieved rows
  * cannot support would just move the bluff somewhere harder to see.
  */
 export async function inventory(orgId, allowed) {
@@ -536,7 +536,7 @@ async function inventoryCached(orgId, allowed, syncedAt) {
  * OR, not AND: a question's words are rarely all in one passage, and the rank
  * (ts_rank_cd in library_search) already puts the passages holding most of
  * them first. Prefix-matched, and trimmed by two letters when long, because
- * the `simple` config does not stem — "policies" has to find "policy" and
+ * the `simple` config does not stem, "policies" has to find "policy" and
  * "refunds" has to find "refund".
  */
 export function libraryQuery(question) {
@@ -560,7 +560,7 @@ const REGISTER = {
  * The library's part of the context: how many documents exist, a catalogue of
  * them, and the passages that best match the question.
  *
- * Null when the caller may not view the library or it is empty — nothing is
+ * Null when the caller may not view the library or it is empty. Nothing is
  * said about a library the user cannot see, not even its size.
  */
 export async function libraryContext(orgId, allowed, question, { passages = 6, catalogue = 40 } = {}) {
@@ -600,7 +600,7 @@ export async function libraryContext(orgId, allowed, question, { passages = 6, c
     'PASSAGES are quoted verbatim from the file named, at the page, slide or section given. ' +
     'When you use one, name the document and where in it ("HR Policy.pdf, page 3"). They are the ' +
     'best matches for this question, not whole files: if the answer is not in them, say which ' +
-    'document looks relevant and that the passage retrieved does not contain it — never fill the ' +
+    'document looks relevant and that the passage retrieved does not contain it, never fill the ' +
     'gap with what such a document usually says.',
     `Catalogue (${docs.length} of ${total}, most recently changed first):`,
     ...docs.map((d) => {
@@ -608,7 +608,7 @@ export async function libraryContext(orgId, allowed, question, { passages = 6, c
       if (d.page_count) bits.push(`${d.page_count} page(s)/slide(s)/sheet(s)`);
       bits.push(d.chunk_count > 0 ? 'readable' : `not readable (${d.extraction_status})`);
       return `- "${d.title}" (${bits.join(' · ')})` +
-             (d.summary ? ` — ${String(d.summary).slice(0, 160)}` : '');
+             (d.summary ? ` · ${String(d.summary).slice(0, 160)}` : '');
     }),
   ];
   if (hits.length) {
@@ -642,7 +642,7 @@ export async function libraryContext(orgId, allowed, question, { passages = 6, c
  * Keys that decide answers, hoisted ahead of the rest.
  *
  * This list exists because of a silent, total data loss. `facts` is a jsonb
- * column, and Postgres stores jsonb object keys ordered by (length, bytes) —
+ * column, and Postgres stores jsonb object keys ordered by (length, bytes),
  * NOT in the order the sync wrote them. So "keep the first N entries" was
  * really "keep the N shortest key names", and for every invoice in the system
  * that meant keeping `gst_rate`, `revision` and `subtotal` while dropping
@@ -698,7 +698,7 @@ const MAX_CONTEXT_CHARS = 28000;
  * list lines, and says how many went.
  *
  * The previous version sliced the joined string at a character offset. That cut
- * the final entity in half — and half a line of JSON facts still reads as a
+ * the final entity in half. And half a line of JSON facts still reads as a
  * plausible record, so a truncated number arrived at the model looking like a
  * real one. It also cut whichever section happened to be last, which could take
  * the INVENTORY counts with it. Trailing entity lines are the one thing here
@@ -763,7 +763,7 @@ export async function buildContext(orgId, allowed, question, { maxEntities = 14,
   ]);
 
   // One hop out from the strongest few matches, so a question that names an
-  // entity also gets what that entity is connected to — in two queries for all
+  // entity also gets what that entity is connected to, in two queries for all
   // of them rather than two per seed.
   let related = [];
   let relEdges = [];
@@ -791,7 +791,7 @@ export async function buildContext(orgId, allowed, question, { maxEntities = 14,
     // "Owner/Founder: <name>" is the exact shape cofounderAI's
     // extractOwnerFromRawData() looks for. Keeping the line means the co-founder
     // still greets the founder by name on this context instead of falling back
-    // to "Founder" — a small contract, but breaking it would be a visible
+    // to "Founder" · a small contract, but breaking it would be a visible
     // regression for every existing user.
     if (f.owner_name) lines.push(`Owner/Founder: ${f.owner_name}`);
     for (const [label, key] of [
@@ -811,7 +811,7 @@ export async function buildContext(orgId, allowed, question, { maxEntities = 14,
     `Everything below is EdgeBrain's projection of this organisation's Supabase records, ` +
     `last synchronised ${syncedAt ? `at ${syncedAt}` : 'at an unrecorded time'}. ` +
     'Anything changed in Supabase since then is not here yet. It is already filtered to what ' +
-    'this user may see, so a record they are not permitted to read is absent — absent from ' +
+    'this user may see, so a record they are not permitted to read is absent, absent from ' +
     'this context is not the same as absent from the company.',
   );
 
@@ -827,7 +827,7 @@ export async function buildContext(orgId, allowed, question, { maxEntities = 14,
       'Exact count of every record of each kind the brain holds for this user. This is the ' +
       'ONLY section that says what exists. The ENTITIES list further down is a selection made ' +
       'for this question, never the full table, so a kind counted here with rows you cannot ' +
-      'see listed means they were not retrieved — not that they do not exist.\n' +
+      'see listed means they were not retrieved. Not that they do not exist.\n' +
       (lines.length ? lines.join('\n') : '- (the brain holds no records this user may see)') +
       (inv.capped ? '\n- (count ceiling reached; the real totals are higher)' : ''),
     );
@@ -841,7 +841,7 @@ export async function buildContext(orgId, allowed, question, { maxEntities = 14,
       ? metrics.map((m) => {
           // Some buckets are ids, because the id is what makes the row unique
           // (two departments may share a name). The readable name travels in
-          // dims, and it is the name the model has to be able to say back —
+          // dims, and it is the name the model has to be able to say back,
           // "headcount.by_department[Engineering] = 3", not a UUID.
           const named = m.dims && typeof m.dims === 'object'
             ? (m.dims.department || m.dims.name || m.dims.label || null)
@@ -849,7 +849,7 @@ export async function buildContext(orgId, allowed, question, { maxEntities = 14,
           const bucket = named || m.bucket;
           const name = bucket ? `${m.key}[${bucket}]` : m.key;
           const val = m.value !== null && m.value !== undefined ? m.value : m.value_text;
-          return `- ${name} = ${val}${m.definition ? ` — ${m.definition}` : ''}`;
+          return `- ${name} = ${val}${m.definition ? ` · ${m.definition}` : ''}`;
         }).join('\n')
       : '- (none visible to this user)'),
   );
@@ -886,7 +886,7 @@ export async function buildContext(orgId, allowed, question, { maxEntities = 14,
                  `as_of=${n.source_updated_at || 'unknown'} facts=${facts}${derived}`;
         }).join('\n')
       // Deliberately about the retrieval, not about the company. The old
-      // wording — "nothing matched this question" — reads as "the company has
+      // wording: "nothing matched this question" · reads as "the company has
       // none", which is how an unlucky search turned into "I don't see any
       // employees listed" for a company that has eleven.
       : '- (the search retrieved no records for this question; see INVENTORY for what exists)'),
@@ -917,7 +917,7 @@ export async function buildContext(orgId, allowed, question, { maxEntities = 14,
   // Trimmed by whole lines, from the end, with a count of what went.
   //
   // Slicing the joined string at a character offset cut the last entity in half
-  // — and half a line of JSON facts still parses as a plausible record, so the
+  //: and half a line of JSON facts still parses as a plausible record, so the
   // model read a truncated number as a real one. Worse, the cut landed on
   // whichever section happened to be last, which could remove the INVENTORY the
   // rest of this file exists to provide. Dropping trailing entity lines is the

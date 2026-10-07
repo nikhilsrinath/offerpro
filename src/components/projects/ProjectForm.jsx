@@ -5,7 +5,7 @@ import {
 } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
 import { useSection, money } from '../financial/financeHooks';
-import { BILLING_TYPES, MEMBER_ROLES } from '../../services/projectAnalytics';
+import { BILLING_TYPES, MEMBER_ROLES, DELIVERY_METHODS } from '../../services/projectAnalytics';
 import {
     createProject, updateProject, prefillFromQuotation, prefillFromClient, canSeeFinancials,
 } from '../../services/projectService';
@@ -13,7 +13,7 @@ import { projectSectionPath } from './projectPaths';
 import AddClientDialog from '../shared/AddClientDialog';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   New project — and, with `project` passed, the edit sheet for one.
+   New project: and, with `project` passed, the edit sheet for one.
 
    Opened three ways: blank, from a quotation (?fromQuotation=<id>: client,
    name, net value and one milestone per line), or from a client
@@ -70,6 +70,7 @@ export default function ProjectForm({ project = null, onDone }) {
         description: project?.description || '',
         client_id: project?.client_id || prefill?.client_id || '',
         billing_type: project?.billing_type || 'fixed_price',
+        delivery_method: project?.delivery_method || '',
         currency: project?.currency || 'INR',
         contract_value: String(project?.contract_value ?? prefill?.contract_value ?? ''),
         budget_labour: String(project?.budget_labour ?? ''),
@@ -106,6 +107,7 @@ export default function ProjectForm({ project = null, onDone }) {
         e?.preventDefault();
         if (!form.name.trim()) { setError('Give the project a name.'); return; }
         if (form.kind === 'client' && !form.client_id) { setError('Choose the client, or make it an internal project.'); return; }
+        if (!isEdit && !form.delivery_method) { setError('Choose the type of project: Waterfall, Agile or Hybrid. Not sure? Go with Hybrid.'); return; }
         if (form.target_end_date && form.start_date && form.target_end_date < form.start_date) {
             setError('The target end date is before the start.'); return;
         }
@@ -147,8 +149,8 @@ export default function ProjectForm({ project = null, onDone }) {
     const body = (
         <form onSubmit={save} noValidate>
             <Panel title="The project" pad={15} style={{ marginBottom: 14 }}>
-                <Field label="Type">
-                    <Seg value={form.kind} onChange={set('kind')} label="Project type" options={[
+                <Field label="Client or internal">
+                    <Seg value={form.kind} onChange={set('kind')} label="Client or internal" options={[
                         { id: 'client', label: 'For a client' }, { id: 'internal', label: 'Internal' },
                     ]} />
                 </Field>
@@ -173,7 +175,9 @@ export default function ProjectForm({ project = null, onDone }) {
                     <Input value={form.name} onChange={set('name')} placeholder="What is being delivered" autoFocus={!isEdit} />
                 </Field>
                 <div style={{ height: 13 }} />
-                <Field label="Description" hint="Optional — scope, links, anything the team should know">
+                <MethodPicker value={form.delivery_method} onChange={set('delivery_method')} required={!isEdit} />
+                <div style={{ height: 13 }} />
+                <Field label="Description" >
                     <Textarea rows={3} value={form.description} onChange={set('description')} />
                 </Field>
                 <div style={{ height: 13 }} />
@@ -211,7 +215,7 @@ export default function ProjectForm({ project = null, onDone }) {
                     <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
                         {form.other_budgets.map((b, i) => (
                             <Grid key={i} cols="minmax(0,2fr) minmax(0,1fr) auto" gap={8}>
-                                <Field label={i === 0 ? 'Others — name' : undefined}>
+                                <Field label={i === 0 ? 'Others (name)' : undefined}>
                                     <Input value={b.name} aria-label={`Other budget ${i + 1} name`} placeholder="e.g. Approval budget"
                                         onChange={(e) => setOther(i, { name: e.target.value })} />
                                 </Field>
@@ -219,8 +223,8 @@ export default function ProjectForm({ project = null, onDone }) {
                                     <Input type="number" min="0" step="1" inputMode="decimal" aria-label={`Other budget ${i + 1} amount`}
                                         value={b.amount} onChange={(e) => setOther(i, { amount: e.target.value })} />
                                 </Field>
-                                <div style={{ alignSelf: 'end' }}>
-                                    <Btn size="sm" aria-label={`Remove other budget ${i + 1}`}
+                                <div style={{ alignSelf: 'end', marginBottom: '0.5rem' }}>
+                                    <Btn size="sm" style={{ height: 31 }} aria-label={`Remove other budget ${i + 1}`}
                                         onClick={() => setForm((f) => ({ ...f, other_budgets: f.other_budgets.filter((_, j) => j !== i) }))}>Remove</Btn>
                                 </div>
                             </Grid>
@@ -263,8 +267,8 @@ export default function ProjectForm({ project = null, onDone }) {
                                 <Field label="Until">
                                     <Input type="date" value={m.end_date} onChange={(e) => setMember(i, { end_date: e.target.value })} />
                                 </Field>
-                                <div style={{ alignSelf: 'end', display: 'flex' }}>
-                                    <Btn size="sm" aria-label={`Remove person ${i + 1}`}
+                                <div style={{ alignSelf: 'end', marginBottom: '0.5rem', display: 'flex' }}>
+                                    <Btn size="sm" style={{ height: 31 }} aria-label={`Remove person ${i + 1}`}
                                         onClick={() => setMembers((ms) => ms.filter((_, j) => j !== i))}>Remove</Btn>
                                 </div>
                             </Grid>
@@ -289,4 +293,40 @@ export default function ProjectForm({ project = null, onDone }) {
     );
 
     return isEdit ? body : <Page>{body}</Page>;
+}
+
+/** Type of project: Waterfall, Agile or Hybrid, each with what it suits. Native radios, drawn as cards. */
+function MethodPicker({ value, onChange, required }) {
+    const t = useT();
+    return (
+        <fieldset style={{ border: 'none', margin: 0, padding: 0, minWidth: 0 }}>
+            <legend style={{ padding: 0, fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, marginBottom: 5 }}>
+                TYPE OF PROJECT{required && <span aria-hidden="true" style={{ color: t.down, marginLeft: 3 }}>*</span>}
+            </legend>
+            <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+                {DELIVERY_METHODS.map((m) => {
+                    const on = value === m.id;
+                    return (
+                        <label key={m.id} style={{
+                            display: 'flex', gap: 9, alignItems: 'flex-start', padding: '10px 11px', cursor: 'pointer', margin: 0,
+                            // a card, not a field caption, opt out of the global uppercase label style
+                            textTransform: 'none', letterSpacing: 'normal', fontWeight: 400, lineHeight: 1.45,
+                            border: '1px solid ' + (on ? t.text : t.line), borderRadius: 8,
+                            background: on ? t.panelAlt : t.panel,
+                        }}>
+                            <input type="radio" name="delivery_method" value={m.id} checked={on} required={required}
+                                onChange={() => onChange(m.id)} style={{ marginTop: 2, accentColor: t.text, width: 15, height: 15 }} />
+                            <span style={{ minWidth: 0 }}>
+                                <span style={{ display: 'block', fontSize: 13.5, fontWeight: 600, color: t.text }}>{m.label} Method</span>
+                                <span style={{ display: 'block', fontSize: 12.5, color: t.dim, marginTop: 2 }}>{m.desc}</span>
+                                <span style={{ display: 'block', fontSize: 12, color: t.faint, marginTop: 4 }}>
+                                    {m.id === 'hybrid' ? m.examples : `e.g. ${m.examples}`}
+                                </span>
+                            </span>
+                        </label>
+                    );
+                })}
+            </div>
+        </fieldset>
+    );
 }

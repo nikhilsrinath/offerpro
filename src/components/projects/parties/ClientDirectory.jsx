@@ -12,7 +12,7 @@ import { useProjectClients, useSetup, CLIENT_STATUSES, clientActive, todayIso } 
 import { SetupGate, Badge, Logo, LogoField, ContactsEditor, Detail, FieldError, Bar } from './partyUi';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Client Management › Client Directory — who the project is for.
+   Client Management › Client Directory, who the project is for.
 
    The project's own client (set on the project) is always here; more can be
    added. A client is the company's client record, so an edit here is seen
@@ -70,7 +70,7 @@ export default function ClientDirectory({ project, onOpen }) {
                 actions={canCreate && <Btn size="sm" primary onClick={() => setAdding(true)}>Add client</Btn>}>
                 {clients.length === 0 ? (
                     <Empty action={canCreate && <Btn primary onClick={() => setAdding(true)}>Add the client</Btn>}>
-                        No client on this project yet. Add the company it is for — its contacts, communications and payments are kept here.
+                        No client on this project yet. Add the company it is for, and its contacts, communications and payments are kept here.
                     </Empty>
                 ) : (
                     <>
@@ -215,7 +215,7 @@ function ClientSheet({ client: c, project, primary, link, canEdit, canRemove, on
                                     </Row>
                                     {x.role && <div style={{ fontSize: 11.5, color: t.faint }}>{x.role}</div>}
                                     <div style={{ fontSize: 12, color: t.dim, marginTop: 2, overflowWrap: 'anywhere' }}>
-                                        {[x.email, x.phone].filter(Boolean).join(' · ') || '—'}
+                                        {[x.email, x.phone].filter(Boolean).join(' · ') || '-'}
                                     </div>
                                 </div>
                             ))}
@@ -258,7 +258,7 @@ function AddClient({ project, all, linked, onNew, onClose }) {
                 <Field required label="An existing client">
                     <Select value={id} onChange={(e) => setId(e.target.value)} autoFocus>
                         <option value="">Choose…</option>
-                        {choices.map((c) => <option key={c.id} value={c.id}>{c.name}{c.email ? ` — ${c.email}` : ''}</option>)}
+                        {choices.map((c) => <option key={c.id} value={c.id}>{c.name}{c.email ? ` · ${c.email}` : ''}</option>)}
                     </Select>
                 </Field>
             )}

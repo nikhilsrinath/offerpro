@@ -20,13 +20,13 @@ import AdminMail from './AdminMail';
    It is its own tree rather than a module of the workspace, because the
    workspace is scoped to one tenant and this is scoped to all of them. The
    gate is a real Supabase sign-in checked against the `platform_admin` claim
-   and the operator's address — and /api/admin re-checks both on every single
+   and the operator's address: and /api/admin re-checks both on every single
    request, so nothing here is load-bearing security on its own.
    ══════════════════════════════════════════════════════════════════════════ */
 
 const PAGES = {
   '/admin': { title: 'Overview', subtitle: 'Every tenant, their revenue and the last twelve months' },
-  '/admin/orgs': { title: 'Organisations', subtitle: 'Users, contacts, revenue and plans — open a row for the whole record' },
+  '/admin/orgs': { title: 'Organisations', subtitle: 'Users, contacts, revenue and plans. Open a row for the whole record' },
   '/admin/mail': { title: 'Mail', subtitle: 'Write to one tenant, a plan tier, or everybody' },
 };
 

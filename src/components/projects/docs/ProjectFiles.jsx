@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Documents Management › Project Documents — every file the project holds.
+   Documents Management › Project Documents. Every file the project holds.
 
    Folders nest as deep as needed. Dropping or choosing files uploads them
    into the folder you are in; a file with a name that is already there
@@ -200,7 +200,7 @@ function FilesView({ project }) {
                     border: '1px solid ' + (drag ? t.text : t.line), borderRadius: 10, background: t.panel, overflow: 'hidden',
                     outline: drag ? `2px dashed ${t.text}` : 'none', outlineOffset: -6,
                 }}>
-                {/* — where you are, and what you can do there — */}
+                {/*: where you are, and what you can do there, */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft }}>
                     <nav aria-label="Folder path" style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', flex: '1 1 240px', minWidth: 0, fontSize: 13 }}>
                         <Crumb onClick={() => setAt(null)} current={!at && !searching}>All documents</Crumb>
@@ -244,7 +244,7 @@ function FilesView({ project }) {
 
                 {searching && <div style={{ padding: '8px 13px 0', fontSize: 12, color: t.faint }}>{sortedFiles.length} file{sortedFiles.length === 1 ? '' : 's'} across every folder</div>}
 
-                {/* — the listing — */}
+                {/*: the listing, */}
                 {!searching && !at && linkedCount > 0 && (
                     <div style={{ padding: '10px 13px 0' }}>
                         <FolderTile name="Attached elsewhere" note={`${linkedCount} file${linkedCount === 1 ? '' : 's'} from communications, approvals, invoices, vendors…`}
@@ -293,7 +293,7 @@ function FilesView({ project }) {
                                     <Td muted>{nameOf(f.created_by)}</Td>
                                     <Td muted nowrap>{fmtDate(f.created_at)}</Td>
                                     <Td muted nowrap>{fmtDate(f.updated_at)}</Td>
-                                    <Td align="right" muted>—</Td>
+                                    <Td align="right" muted>-</Td>
                                     <Td align="right"><RowMenu label={`Actions for folder ${f.name}`} items={folderMenu(f)}>⋯</RowMenu></Td>
                                 </Tr>
                             ))}

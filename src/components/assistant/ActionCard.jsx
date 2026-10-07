@@ -10,8 +10,8 @@ const DocPaper = lazy(() => import('./DocPaper'));
 
    The agent never writes on its own: it sends this card, and the change
    happens only when the person presses the card's button. What the card
-   shows is what the server stored as the proposal — the same diff, the same
-   rows — and the server re-checks all of it at the moment of the tap.
+   shows is what the server stored as the proposal. The same diff, the same
+   rows: and the server re-checks all of it at the moment of the tap.
 
      proposed   low risk:  the record and a field-by-field diff.
                 high risk: the exact row / output that will be written, a
@@ -78,12 +78,12 @@ export default function ActionCard({ card, onConfirm, onCancel, onUndo, onOpen }
     };
 
     const statusText = useMemo(() => ({
-        proposed: expired ? 'Expired — nothing was changed.' : 'Waiting for your confirmation. Nothing has changed yet.',
+        proposed: expired ? 'Expired: nothing was changed.' : 'Waiting for your confirmation. Nothing has changed yet.',
         executing: 'Working…',
         executed: 'Done.',
         failed: 'Not done.',
-        cancelled: 'Cancelled — nothing was changed.',
-        expired: 'Expired — nothing was changed.',
+        cancelled: 'Cancelled: nothing was changed.',
+        expired: 'Expired: nothing was changed.',
         undone: 'Undone.',
     }[status] || ''), [status, expired]);
 
@@ -94,7 +94,7 @@ export default function ActionCard({ card, onConfirm, onCancel, onUndo, onOpen }
                 <span id={headingId} className="cp-card-closed">
                     {status === 'undone' ? <Undo2 size={13} aria-hidden="true" /> : <X size={13} aria-hidden="true" />}
                     <span>{card.title}</span>
-                    <span className="cp-card-dim">— {statusText}{card.error && status === 'expired' ? ` ${card.error}` : ''}</span>
+                    <span className="cp-card-dim">· {statusText}{card.error && status === 'expired' ? ` ${card.error}` : ''}</span>
                 </span>
             </div>
         );
@@ -132,7 +132,7 @@ export default function ActionCard({ card, onConfirm, onCancel, onUndo, onOpen }
             <div className="cp-card is-failed" role="group" aria-labelledby={headingId}>
                 <div className="cp-card-receipt">
                     <AlertTriangle size={15} className="cp-card-bad" aria-hidden="true" />
-                    <div id={headingId} className="cp-card-summary">{card.title} — not done</div>
+                    <div id={headingId} className="cp-card-summary">{card.title} (not done)</div>
                 </div>
                 <p className="cp-card-error" role="alert">{card.error || 'The change could not be saved.'}</p>
                 <p className="cp-card-dim cp-card-pad">Ask again and I’ll prepare it fresh.</p>
@@ -254,8 +254,8 @@ const inr = (v, currency = 'INR') => {
     }
 };
 
-/* The lines and the GST split of an invoice, quotation or proforma — the
-   figures the database will store — with the real invoice one tap away. */
+/* The lines and the GST split of an invoice, quotation or proforma, the
+   figures the database will store, with the real invoice one tap away. */
 function DocTable({ doc, full }) {
     const [paper, setPaper] = useState(full && doc.type === 'invoice');
     const t = doc.totals || {};
@@ -312,7 +312,7 @@ function Diff({ rows }) {
                 <div key={d.key} className="cp-card-row">
                     <dt>{d.label}</dt>
                     <dd>
-                        {d.from !== '—' && <><span className="cp-card-from">{d.from}</span><span aria-label="changes to"> → </span></>}
+                        {d.from !== '-' && <><span className="cp-card-from">{d.from}</span><span aria-label="changes to"> → </span></>}
                         <strong>{d.to}</strong>
                     </dd>
                 </div>

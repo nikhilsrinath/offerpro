@@ -2,7 +2,7 @@ import { LayoutDashboard, Wallet, BarChart3, UsersRound, FileStack } from 'lucid
 import { canSeeFinancials } from '../../services/projectService';
 
 /* The pages of one project's Dashboard (/projects/:id/dashboard/:view) and
-   their place in the project rail — kept apart from ProjectDashboards.jsx so that file exports
+   their place in the project rail, kept apart from ProjectDashboards.jsx so that file exports
    only components. */
 
 const DASHBOARDS = [

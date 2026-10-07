@@ -67,7 +67,7 @@
 .cp-prompts button:disabled { color: var(--dim); cursor: default; }
 .cp-prompts button svg { color: var(--dim); flex: none; }
 .cp-prompts button:hover svg { color: var(--text); }
-.cp-recent-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin: 26px 0 6px; display: flex; justify-content: space-between; align-items: center; }
+.cp-recent-label { font-size: 11px; font-weight: 700; color: var(--dim); margin: 26px 0 6px; display: flex; justify-content: space-between; align-items: center; }
 .cp-recent-label button { font-size: 12.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); min-height: 24px; }
 .cp-recent-label button:hover { color: var(--text); }
 .cp-recent button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 6px; text-align: left; font-size: 14px; color: var(--text); border-radius: 6px; }
@@ -110,7 +110,7 @@
 .cp-newbtn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 7px; background: var(--text) !important; color: var(--panel) !important; font-size: 13px; font-weight: 600; flex: none; }
 .cp-newbtn:hover { opacity: .88; }
 .cp-hist-list { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 8px 10px; }
-.cp-group { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); padding: 14px 10px 6px; }
+.cp-group { font-size: 11px; font-weight: 700; color: var(--dim); padding: 14px 10px 6px; }
 .cp-row { display: flex; align-items: center; border-radius: 7px; position: relative; margin-bottom: 1px; }
 .cp-row:hover, .cp-row:focus-within { background: var(--card-2); }
 .cp-row.is-active { background: var(--card-3); box-shadow: inset 2px 0 0 var(--text); }
@@ -194,7 +194,7 @@ html.cp-resizing iframe { pointer-events: none; }
 .cp-card.is-high { border-color: var(--text); }
 .cp-card:focus-within { box-shadow: 0 0 0 1px var(--line-3); }
 .cp-card-head { display: flex; align-items: center; gap: 7px; padding: 8px 13px; border-bottom: 1px solid var(--line); color: var(--dim); }
-.cp-card-kicker { font-size: 11.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.cp-card-kicker { font-size: 11.5px; font-weight: 700; }
 .cp-card-expiry { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
 .cp-card-warn { color: var(--neg); }
 .cp-card-body { padding: 11px 13px 12px; display: grid; gap: 9px; }
@@ -220,7 +220,7 @@ html.cp-resizing iframe { pointer-events: none; }
 .cp-card-item-label { color: var(--text); }
 .cp-card-edit { display: grid; gap: 8px; }
 .cp-field { display: grid; gap: 3px; }
-.cp-field label { font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--dim); }
+.cp-field label { font-size: 12.5px; color: var(--dim); }
 .cp-input { width: 100%; box-sizing: border-box; min-height: 30px; padding: 4px 9px; border-radius: 7px; border: 1px solid var(--line-2); background: var(--panel); color: var(--text); font: inherit; font-size: 13.5px; }
 .cp-input:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 .cp-card-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -248,7 +248,7 @@ html.cp-resizing iframe { pointer-events: none; }
 .cp-doc { display: grid; gap: 8px; }
 .cp-doc-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
 .cp-doc-table th, .cp-doc-table td { padding: 4px 0; text-align: left; font-weight: 500; vertical-align: top; }
-.cp-doc-table thead th { color: var(--dim); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--line); }
+.cp-doc-table thead th { color: var(--dim); font-size: 11.5px; border-bottom: 1px solid var(--line); }
 .cp-doc-table tbody td { color: var(--text); border-bottom: 1px solid var(--line-soft, var(--line)); }
 .cp-doc-table tfoot th { color: var(--dim); }
 .cp-doc-table tfoot td { color: var(--text); }

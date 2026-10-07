@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-    Panel, Row, Btn, Seg, Select, Empty, Loading, Modal, Field, Input, Avatar, Muted,
+    Panel, Row, Btn, Seg, Select, Empty, Loading, Modal, Field, Input, Avatar,
 } from '../../ui/edge';
 import { useT, MONO } from '../../ui/edgeUtils';
 import { useSection } from '../../financial/financeHooks';
@@ -11,22 +11,33 @@ import { orgStore } from '../../../services/orgStore';
 import { downloadCsv } from '../../../services/financeAnalytics';
 import { MEMBER_ROLES } from '../../../services/projectAnalytics';
 import {
-    RACI_ROLES, RACI_BY_ID, RACI_KINDS, raciProblems, raciCells, raciTable, reportingTree, isCurrent,
+    RACI_ROLES, RACI_BY_ID, RACI_KINDS, raciCells, raciTable, reportingTree, isCurrent, raciOutline, personRaci,
 } from '../../../services/projectTeam';
+import { ChevronRight, ChevronDown } from 'lucide-react';
 import { useProjectPeople, teamError, needsMigration } from './teamData';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Team Management › Team Hierarchy — the project's responsibility matrix.
+   Team Management › Team Hierarchy. The project's responsibility matrix.
 
    Rows are the work (tasks, deliverables, milestones); columns are the
    people on the project; a cell holds one letter. A row is sound with
    exactly one Accountable and at least one Responsible, and every row that
-   is not says why, in words, at the start of the row — the colour only
+   is not says why, in words, at the start of the row. The colour only
    repeats it.
 
    The header row and the first column stay put while the matrix scrolls
    either way. The same team can be seen as its reporting structure instead.
+
+   Rows are an outline (raciOutline): each deliverable, with its WBS
+   sub-tasks and the tasks linked to it underneath. A sub-task gets its own
+   row the first time someone is given a letter on it (the "+" in its cells).
+   Clicking a person: a column head, or a card in the reporting structure,
+   lists their R, A, C and I.
    ══════════════════════════════════════════════════════════════════════════ */
+
+/** A task linked to a deliverable needs 0083's parent_id. */
+const raciError = (e) => (['42703', 'PGRST204'].includes(e?.code) && /parent_id/.test(e?.message || '')
+    ? 'Putting a task under a deliverable needs database update 0083.' : teamError(e));
 
 const tint = (hex, a) => hex + Math.round(a * 255).toString(16).padStart(2, '0');
 
@@ -36,14 +47,16 @@ export default function RaciPage({ project, onOpen }) {
     const team = useProjectPeople(project);
     const allItems = useSection('project_raci_items');
     const allCells = useSection('project_raci_assignments');
+    const allTasks = useSection('tasks');
     const [setup, setSetup] = useState('loading');   // loading | ready | missing | error
     const [setupError, setSetupError] = useState('');
     const [probe, setProbe] = useState(0);
     const [view, setView] = useState('matrix');
     const [who, setWho] = useState('');
-    const [onlyBad, setOnlyBad] = useState('all');
     const [adding, setAdding] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [folded, setFolded] = useState(() => new Set());   // deliverable rows shown closed
+    const [person, setPerson] = useState(null);              // whose letters are listed
 
     const canCreate = orgStore.can('project_members', 'create') && !team.locked;
     const canEdit = orgStore.can('project_members', 'edit') && !team.locked;
@@ -76,44 +89,55 @@ export default function RaciPage({ project, onOpen }) {
         return allCells.filter((c) => ids.has(c.item_id));
     }, [allCells, items]);
     const cells = useMemo(() => raciCells(assignments), [assignments]);
+    const projectTasks = useMemo(() => allTasks.filter((x) => x.projectId === project.id), [allTasks, project.id]);
+    const outline = useMemo(() => raciOutline(items, projectTasks), [items, projectTasks]);
 
-    // The current team, plus anyone who has left but still holds a letter —
+    // The current team, plus anyone who has left but still holds a letter,
     // their column stays until the letters are moved.
     const columns = useMemo(() => {
         const holding = new Set(assignments.map((a) => a.employee_id));
         return team.people.filter((p) => isCurrent(p) || holding.has(p.id));
     }, [team.people, assignments]);
 
-    const problems = useMemo(() => new Map(items.map((it) => [
-        it.id, raciProblems([...(cells.get(it.id) || new Map()).values()].map((c) => c.role)),
-    ])), [items, cells]);
-    const badCount = [...problems.values()].filter((p) => p.length).length;
 
     const shownCols = who ? columns.filter((p) => p.id === who) : columns;
-    const shownRows = onlyBad === 'bad' ? items.filter((it) => problems.get(it.id).length) : items;
+    const shownRows = outline.filter((r) => !r.under || !folded.has(r.under.id));
+    const toggleFold = (id) => setFolded((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
-    const setCell = async (item, person, next) => {
-        const current = cells.get(item.id)?.get(person.id);
+    /** A letter in a cell. A WBS sub-task without a row gets one first. */
+    const setCell = async (row, member, next) => {
+        const current = row.item ? cells.get(row.item.id)?.get(member.id) : null;
         try {
             if (!next && current) await orgStore.removeItem('project_raci_assignments', current.id);
             else if (next && current) await orgStore.updateItem('project_raci_assignments', current.id, { ...current, role: next });
-            else if (next) await orgStore.addItem('project_raci_assignments', { item_id: item.id, employee_id: person.id, role: next });
+            else if (next) {
+                const item = row.item || await orgStore.addItem('project_raci_items', {
+                    project_id: project.id, title: String(row.task.title || 'Untitled').slice(0, 200), kind: 'task',
+                    task_id: row.task.id, position: nextPos(items),
+                });
+                await orgStore.addItem('project_raci_assignments', { item_id: item.id, employee_id: member.id, role: next });
+            }
         } catch (e) {
-            toast(teamError(e), 'error');
+            toast(raciError(e), 'error');
         }
     };
 
     const removeRow = async (item) => {
         try {
             await orgStore.removeItem('project_raci_items', item.id);
-            // The cells went with the row (on delete cascade); drop them here too.
+            // The cells, and any rows under it, went with the row (on delete
+            // cascade); drop them here too.
+            await orgStore.refreshSection('project_raci_items');
             await orgStore.refreshSection('project_raci_assignments');
             toast('Row removed', 'success');
         } catch (e) { toast(teamError(e), 'error'); }
     };
 
     const exportAs = async (kind) => {
-        const { header, rows } = raciTable(shownRows, shownCols, cells);
+        const asItems = outline.map((r) => ({
+            id: r.item?.id || r.key, title: `${'  '.repeat(r.depth)}${r.title}`, kind: r.kind,
+        }));
+        const { header, rows } = raciTable(asItems, shownCols, cells);
         const base = `raci-${(project.code || project.name || 'project').replace(/[^\w-]+/g, '-').toLowerCase()}`;
         if (kind === 'csv') { downloadCsv(`${base}.csv`, header, rows); return; }
         try {
@@ -158,14 +182,14 @@ export default function RaciPage({ project, onOpen }) {
                 {view === 'matrix' && canCreate && <Btn size="sm" primary onClick={() => setAdding(true)}>Add row</Btn>}
             </Row>
 
-            {view === 'org' ? <OrgView team={team} cells={assignments} /> : (
+            {view === 'org' ? <OrgView team={team} cells={assignments} onPerson={setPerson} /> : (
                 <>
                     <Legend />
 
                     {columns.length === 0 ? (
                         <Panel>
                             <Empty action={onOpen && <Btn primary onClick={() => onOpen('team')}>Go to Team Members</Btn>}>
-                                Add people to the project first — each person gets a column here.
+                                Add people to the project first. Each person gets a column here.
                             </Empty>
                         </Panel>
                     ) : items.length === 0 ? (
@@ -181,42 +205,58 @@ export default function RaciPage({ project, onOpen }) {
                         </Panel>
                     ) : (
                         <Panel pad={0}>
-                            <div style={{ padding: '9px 13px', borderBottom: '1px solid ' + t.lineSoft }}>
-                                <Row gap={8} wrap>
-                                    <span role="status" style={{ fontSize: 12.5, color: badCount ? t.down : t.up }}>
-                                        {badCount
-                                            ? `${badCount} of ${items.length} row${items.length === 1 ? '' : 's'} need one A and at least one R`
-                                            : `All ${items.length} row${items.length === 1 ? '' : 's'} have an owner and a doer`}
-                                    </span>
-                                    <div style={{ flex: 1 }} />
-                                    {columns.length > 4 && (
+                            {columns.length > 4 && (
+                                <div style={{ padding: '9px 13px', borderBottom: '1px solid ' + t.lineSoft }}>
+                                    <Row gap={8} wrap>
+                                        <div style={{ flex: 1 }} />
                                         <Select aria-label="Show one person" value={who} onChange={(e) => setWho(e.target.value)} style={{ width: 180, height: 27 }}>
                                             <option value="">Everyone</option>
                                             {columns.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                                         </Select>
-                                    )}
-                                    {badCount > 0 && badCount < items.length && (
-                                        <Seg size="sm" value={onlyBad} onChange={setOnlyBad} label="Rows" options={[
-                                            { id: 'all', label: 'All', count: items.length },
-                                            { id: 'bad', label: 'To fix', count: badCount },
-                                        ]} />
-                                    )}
-                                </Row>
-                            </div>
+                                    </Row>
+                                </div>
+                            )}
                             {shownRows.length === 0 ? (
-                                <Empty action={<Btn size="sm" onClick={() => { setWho(''); setOnlyBad('all'); }}>Show all</Btn>}>
+                                <Empty action={<Btn size="sm" onClick={() => setWho('')}>Show all</Btn>}>
                                     Nothing to show with this filter.
                                 </Empty>
                             ) : (
-                                <Matrix rows={shownRows} cols={shownCols} cells={cells} problems={problems}
-                                    canEdit={canEdit} canDelete={canDelete} onSet={setCell} onRemove={removeRow} />
+                                <Matrix rows={shownRows} cols={shownCols} cells={cells} folded={folded} onFold={toggleFold}
+                                    canEdit={canEdit} canCreate={canCreate} canDelete={canDelete} onSet={setCell} onRemove={removeRow}
+                                    onPerson={setPerson} />
                             )}
                         </Panel>
                     )}
                 </>
             )}
-            {adding && <AddRow project={project} items={items} onClose={() => setAdding(false)} />}
+            {adding && <AddRow project={project} items={items} tasks={projectTasks} onClose={() => setAdding(false)} />}
+            {person && (
+                <PersonRaci person={person} letters={personRaci(person.id, assignments, outline)} onClose={() => setPerson(null)} />
+            )}
         </div>
+    );
+}
+
+/** One person's letters: R, Design & approval; A, Civil works | MEP … */
+function PersonRaci({ person, letters, onClose }) {
+    const t = useT();
+    const projectRole = person.membership?.role_title || MEMBER_ROLES.find((r) => r.id === person.membership?.role)?.label;
+    return (
+        <Modal open onClose={onClose} title={`${person.name}’s RACI`} note={projectRole ? `${projectRole} on this project` : undefined}
+            width={560} footer={<Btn primary onClick={onClose}>Done</Btn>}>
+            <dl style={{ margin: 0, display: 'grid', gap: 10 }}>
+                {RACI_ROLES.map((r) => (
+                    <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '150px minmax(0, 1fr)', gap: 10, alignItems: 'start' }}>
+                        <dt style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: t.dim }}>
+                            <Letter id={r.id} size={22} />{r.label}
+                        </dt>
+                        <dd style={{ margin: 0, fontSize: 13, color: letters[r.id].length ? t.text : t.faint, lineHeight: 1.6, paddingTop: 2 }}>
+                            {letters[r.id].length ? letters[r.id].join(' | ') : '-'}
+                        </dd>
+                    </div>
+                ))}
+            </dl>
+        </Modal>
     );
 }
 
@@ -231,7 +271,7 @@ function Legend() {
             {RACI_ROLES.map((r) => (
                 <span key={r.id} role="listitem" title={r.desc} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <Letter id={r.id} size={20} />
-                    <span><span style={{ color: t.text }}>{r.label}</span> — {SHORT[r.id]}</span>
+                    <span><span style={{ color: t.text }}>{r.label}</span> ({SHORT[r.id]})</span>
                 </span>
             ))}
         </div>
@@ -266,7 +306,7 @@ function Letter({ id, size = 24 }) {
 
 /* ── the matrix ───────────────────────────────────────────────────────────── */
 
-function Matrix({ rows, cols, cells, problems, canEdit, canDelete, onSet, onRemove }) {
+function Matrix({ rows, cols, cells, folded, onFold, canEdit, canCreate, canDelete, onSet, onRemove, onPerson }) {
     const t = useT();
     const firstW = 260;
     const head = {
@@ -289,10 +329,13 @@ function Matrix({ rows, cols, cells, problems, canEdit, canDelete, onSet, onRemo
                             <th key={p.id} scope="col" style={{ ...head, minWidth: 92, maxWidth: 120, textAlign: 'center' }}>
                                 <span style={{ display: 'grid', justifyItems: 'center', gap: 4 }}>
                                     <Avatar name={p.name} size={22} />
-                                    <span title={p.name} style={{
-                                        fontSize: 11.5, color: t.text, maxWidth: 108, overflow: 'hidden',
-                                        textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                    }}>{p.name}</span>
+                                    <button type="button" onClick={() => onPerson(p)} title={`See ${p.name}’s RACI`}
+                                        aria-label={`See ${p.name}’s RACI`} className="edge-btn" style={{
+                                            fontSize: 11.5, color: t.text, maxWidth: 108, overflow: 'hidden',
+                                            textOverflow: 'ellipsis', whiteSpace: 'nowrap', border: 'none', background: 'transparent',
+                                            padding: '1px 3px', cursor: 'pointer', fontFamily: MONO, textDecoration: 'underline dotted',
+                                            textUnderlineOffset: 3, borderRadius: 4,
+                                        }}>{p.name}</button>
                                     <span style={{ fontSize: 10.5, color: isCurrent(p) ? t.faint : t.down }}>
                                         {isCurrent(p) ? MEMBER_ROLES.find((r) => r.id === p.membership.role)?.label : 'Left project'}
                                     </span>
@@ -302,27 +345,39 @@ function Matrix({ rows, cols, cells, problems, canEdit, canDelete, onSet, onRemo
                     </tr>
                 </thead>
                 <tbody>
-                    {rows.map((it) => {
-                        const bad = problems.get(it.id);
-                        const row = cells.get(it.id) || new Map();
+                    {rows.map((r) => {
+                        const row = (r.item && cells.get(r.item.id)) || new Map();
+                        const open = !folded.has(r.item?.id);
+                        const sub = r.depth > 0;
                         return (
-                            <tr key={it.id}>
+                            <tr key={r.key}>
                                 <th scope="row" style={{
                                     position: 'sticky', left: 0, zIndex: 1, textAlign: 'left', fontWeight: 400,
-                                    textTransform: 'none', letterSpacing: 'normal', background: t.panel,
-                                    minWidth: firstW, maxWidth: firstW, padding: '8px 10px 8px 13px',
+                                    textTransform: 'none', letterSpacing: 'normal', background: r.deliverable ? t.panelAlt : t.panel,
+                                    minWidth: firstW, maxWidth: firstW, padding: `8px 10px 8px ${13 + r.depth * 16}px`,
                                     borderRight: '1px solid ' + t.line, borderBottom: '1px solid ' + t.lineSoft,
-                                    boxShadow: bad.length ? `inset 3px 0 0 ${t.down}` : undefined,
                                 }}>
                                     <Row gap={6} align="flex-start">
+                                        {r.hasChildren ? (
+                                            <button type="button" onClick={() => onFold(r.item.id)} aria-expanded={open}
+                                                aria-label={`${open ? 'Hide' : 'Show'} what is under ${r.title}`} className="edge-btn"
+                                                style={{
+                                                    width: 22, height: 22, flexShrink: 0, padding: 0, display: 'grid', placeItems: 'center',
+                                                    border: '1px solid transparent', borderRadius: 6, background: 'transparent', color: t.dim, cursor: 'pointer',
+                                                }}>
+                                                {open ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
+                                            </button>
+                                        ) : sub && <span aria-hidden="true" style={{ width: 10, flexShrink: 0, color: t.ghost, paddingTop: 1 }}>·</span>}
                                         <span style={{ flex: 1, minWidth: 0 }}>
-                                            <span style={{ display: 'block', fontSize: 13, color: t.text, lineHeight: 1.4, overflowWrap: 'anywhere' }}>{it.title}</span>
-                                            <span style={{ display: 'block', fontSize: 11, color: bad.length ? t.down : t.faint, marginTop: 1 }}>
-                                                {RACI_KINDS.find((k) => k.id === it.kind)?.label}
-                                                {bad.length > 0 && ` · ${bad.join(', ').toLowerCase().replace(/^./, (c) => c.toUpperCase())}`}
+                                            <span style={{
+                                                display: 'block', fontSize: sub ? 12.5 : 13, color: t.text, lineHeight: 1.4, overflowWrap: 'anywhere',
+                                                fontWeight: r.deliverable ? 600 : 400,
+                                            }}>{r.title}</span>
+                                            <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>
+                                                {RACI_KINDS.find((k) => k.id === r.kind)?.label}
                                             </span>
                                         </span>
-                                        {canDelete && <RemoveRowBtn item={it} onRemove={onRemove} />}
+                                        {canDelete && r.item && <RemoveRowBtn item={r.item} nested={r.hasChildren} onRemove={onRemove} />}
                                     </Row>
                                 </th>
                                 {cols.map((p) => {
@@ -331,8 +386,9 @@ function Matrix({ rows, cols, cells, problems, canEdit, canDelete, onSet, onRemo
                                         <td key={p.id} style={{
                                             textAlign: 'center', padding: 5, borderBottom: '1px solid ' + t.lineSoft,
                                         }}>
-                                            <RolePicker value={value} disabled={!canEdit || (!isCurrent(p) && !value)}
-                                                label={`${p.name} on ${it.title}`} onPick={(next) => onSet(it, p, next)} />
+                                            <RolePicker value={value}
+                                                disabled={!canEdit || (!r.item && !canCreate) || (!isCurrent(p) && !value)}
+                                                label={`${p.name} on ${r.title}`} onPick={(next) => onSet(r, p, next)} />
                                         </td>
                                     );
                                 })}
@@ -346,12 +402,12 @@ function Matrix({ rows, cols, cells, problems, canEdit, canDelete, onSet, onRemo
 }
 
 /** A quiet × at the end of a row; asks before removing. */
-function RemoveRowBtn({ item, onRemove }) {
+function RemoveRowBtn({ item, nested, onRemove }) {
     const t = useT();
     const ask = async () => {
         const ok = await confirmDialog({
             title: 'Remove this row?',
-            message: `“${item.title}” and its letters are removed from the matrix. The task or milestone itself is not touched.`,
+            message: `“${item.title}” and its letters are removed from the matrix${nested ? ', with the tasks linked to it. WBS sub-tasks stay listed here, without their letters' : ''}. The task or milestone itself is not touched.`,
             confirmLabel: 'Remove', tone: 'danger',
         });
         if (ok) onRemove(item);
@@ -421,7 +477,7 @@ function RolePicker({ value, onPick, label, disabled }) {
             <button ref={btn} type="button" disabled={disabled}
                 aria-haspopup="menu" aria-expanded={open}
                 aria-label={`${label}: ${r ? r.label : 'no role'}${disabled ? '' : '. Change'}`}
-                title={r ? `${r.id} — ${r.label}` : disabled ? '' : 'Set a role'}
+                title={r ? `${r.id} · ${r.label}` : disabled ? '' : 'Set a role'}
                 onClick={() => setOpen((v) => !v)}
                 onKeyDown={(e) => {
                     const k = e.key.toUpperCase();
@@ -450,7 +506,7 @@ function RolePicker({ value, onPick, label, disabled }) {
                                 border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: MONO, fontSize: 12.5,
                                 background: o.id === value ? t.panelAlt : 'transparent', color: t.text, textAlign: 'left',
                             }}>
-                            {o.id ? <Letter id={o.id} size={22} /> : <span aria-hidden="true" style={{ width: 22, textAlign: 'center', color: t.faint }}>—</span>}
+                            {o.id ? <Letter id={o.id} size={22} /> : <span aria-hidden="true" style={{ width: 22, textAlign: 'center', color: t.faint }}>-</span>}
                             <span style={{ flex: 1 }}>{o.label}</span>
                             {o.id && <span aria-hidden="true" style={{ fontSize: 11, color: t.faint }}>{o.id}</span>}
                         </button>
@@ -463,47 +519,72 @@ function RolePicker({ value, onPick, label, disabled }) {
 
 /* ── rows ─────────────────────────────────────────────────────────────────── */
 
+// New rows are a Deliverable or a Task; Milestone rows made earlier still show.
+const ADD_KINDS = ['deliverable', 'task'].map((id) => RACI_KINDS.find((k) => k.id === id));
+
 const nextPos = (items) => items.reduce((m, x) => Math.max(m, x.position), 0) + 1;
 
-function AddRow({ project, items, onClose }) {
+/**
+ * A Deliverable row may stand for one of the WBS's deliverables (its top-level
+ * items), and then lists that deliverable's sub-tasks under it. A Task row may
+ * be linked to a deliverable, any of the WBS's, or a deliverable row made by
+ * hand: and then sits under it; not linked, it stands on its own.
+ */
+function AddRow({ project, items, tasks, onClose }) {
     const t = useT();
     const toast = useToast();
-    const tasks = useSection('tasks');
-    const milestones = useSection('project_milestones');
-    const [kind, setKind] = useState('task');
+    const [kind, setKind] = useState('deliverable');
     const [link, setLink] = useState('');
     const [title, setTitle] = useState('');
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
-    const taken = useMemo(() => new Set(items.flatMap((x) => [x.task_id, x.milestone_id]).filter(Boolean)), [items]);
-    const ownTasks = tasks.filter((x) => x.projectId === project.id && !taken.has(x.id))
-        .sort((a, b) => String(a.title).localeCompare(String(b.title)));
-    const ownMilestones = milestones.filter((m) => m.project_id === project.id && m.status !== 'cancelled' && !taken.has(m.id))
-        .sort((a, b) => a.sort_order - b.sort_order);
-    const options = kind === 'task' ? ownTasks.map((x) => ({ id: x.id, title: x.title }))
-        : kind === 'milestone' ? ownMilestones.map((m) => ({ id: m.id, title: m.title })) : [];
+    const wbsDeliverables = useMemo(() => tasks.filter((x) => !x.parentId)
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0)), [tasks]);
+    // The deliverable row already standing for a WBS deliverable, if any.
+    const rowFor = (taskId) => items.find((x) => !x.parent_id && x.task_id === taskId);
+    const handMade = items.filter((x) => !x.parent_id && x.kind === 'deliverable' && !x.task_id);
+    const options = kind === 'deliverable'
+        ? wbsDeliverables.filter((x) => !rowFor(x.id)).map((x) => ({ id: `task:${x.id}`, title: x.title }))
+        : [
+            ...wbsDeliverables.map((x) => ({ id: `task:${x.id}`, title: x.title })),
+            ...handMade.map((x) => ({ id: `row:${x.id}`, title: x.title })),
+        ];
 
     const choose = (id) => {
         setLink(id);
         const o = options.find((x) => x.id === id);
-        if (o) setTitle(o.title);
+        if (o && kind === 'deliverable') setTitle(o.title);
     };
 
     const save = async () => {
         if (!title.trim()) { setError('Give the row a name.'); return; }
         setSaving(true); setError('');
+        const [linkType, linkId] = link ? link.split(':') : [null, null];
         try {
-            await orgStore.addItem('project_raci_items', {
-                project_id: project.id, title: title.trim().slice(0, 200), kind,
-                task_id: kind === 'task' ? link || null : null,
-                milestone_id: kind === 'milestone' ? link || null : null,
-                position: nextPos(items),
-            });
+            if (kind === 'deliverable') {
+                await orgStore.addItem('project_raci_items', {
+                    project_id: project.id, title: title.trim().slice(0, 200), kind: 'deliverable',
+                    task_id: linkType === 'task' ? linkId : null, position: nextPos(items),
+                });
+            } else {
+                let parent = null;
+                if (linkType === 'row') parent = items.find((x) => x.id === linkId) || null;
+                if (linkType === 'task') {
+                    parent = rowFor(linkId) || await orgStore.addItem('project_raci_items', {
+                        project_id: project.id, kind: 'deliverable', task_id: linkId, position: nextPos(items),
+                        title: String(tasks.find((x) => x.id === linkId)?.title || 'Deliverable').slice(0, 200),
+                    });
+                }
+                await orgStore.addItem('project_raci_items', {
+                    project_id: project.id, title: title.trim().slice(0, 200), kind: 'task',
+                    parent_id: parent?.id || null, position: nextPos(items) + 1,
+                });
+            }
             toast('Row added', 'success');
             onClose();
         } catch (e) {
-            setError(teamError(e));
+            setError(raciError(e));
         } finally {
             setSaving(false);
         }
@@ -522,12 +603,15 @@ function AddRow({ project, items, onClose }) {
             </Field>
             <div style={{ height: 12 }} />
             <Field label="Type">
-                <Seg value={kind} onChange={(k) => { setKind(k); setLink(''); }} label="Type" options={RACI_KINDS} />
+                <Seg value={kind} onChange={(k) => { setKind(k); setLink(''); }} label="Type" options={ADD_KINDS} />
             </Field>
-            {options.length > 0 && (
+            {(kind === 'task' || options.length > 0) && (
                 <>
                     <div style={{ height: 12 }} />
-                    <Field label={kind === 'task' ? 'Link to a task (optional)' : 'Link to a milestone (optional)'}>
+                    <Field label={kind === 'task' ? 'Link to a deliverable' : 'Link to a WBS deliverable (optional)'}
+                        hint={kind === 'task'
+                            ? (link ? 'The task is listed under this deliverable.' : 'Not linked: the task is listed on its own.')
+                            : 'Its sub-tasks from the WBS are listed under it.'}>
                         <Select value={link} onChange={(e) => choose(e.target.value)}>
                             <option value="">Not linked</option>
                             {options.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
@@ -549,7 +633,7 @@ function ImportBtn({ project, items, busy, setBusy, primary }) {
     const fresh = [
         ...tasks.filter((x) => x.projectId === project.id && !x.parentId && !taken.has(x.id))
             .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-            .map((x) => ({ title: x.title, kind: 'task', task_id: x.id })),
+            .map((x) => ({ title: x.title, kind: 'deliverable', task_id: x.id })),
         ...milestones.filter((m) => m.project_id === project.id && m.status !== 'cancelled' && !taken.has(m.id))
             .sort((a, b) => a.sort_order - b.sort_order)
             .map((m) => ({ title: m.title, kind: 'milestone', milestone_id: m.id })),
@@ -580,8 +664,7 @@ function ImportBtn({ project, items, busy, setBusy, primary }) {
 
 /* ── reporting structure ──────────────────────────────────────────────────── */
 
-function OrgView({ team, cells }) {
-    const t = useT();
+function OrgView({ team, cells, onPerson }) {
     const people = team.current;
     const roots = useMemo(() => reportingTree(people, team.empById), [people, team.empById]);
     const counts = useMemo(() => {
@@ -596,24 +679,17 @@ function OrgView({ team, cells }) {
     if (!people.length) {
         return <Panel><Empty>No one is on this project yet, so there is no structure to show.</Empty></Panel>;
     }
-    const linked = people.some((p) => team.empById.get(p.id)?.reports_to);
 
     return (
-        <Panel title="Reporting structure" note="within this project’s team, from each person’s Reports to" pad={14}>
-            {!linked && (
-                <p style={{ margin: '0 0 8px', fontSize: 12.5, color: t.faint }}>
-                    No one here has a Reports to set yet, so everyone is shown at the top. Set it under Company › Team.
-                </p>
-            )}
+        <Panel title="Reporting structure" pad={14}>
             <ul style={{ margin: 0, padding: 0 }} aria-label="Project team by reporting line">
-                {roots.map((n) => <OrgNode key={n.person.id} node={n} depth={0} counts={counts} />)}
+                {roots.map((n) => <OrgNode key={n.person.id} node={n} depth={0} counts={counts} onPerson={onPerson} />)}
             </ul>
-            <div style={{ marginTop: 10 }}><Muted>A person whose manager is not on the project sits under the nearest manager above them who is.</Muted></div>
         </Panel>
     );
 }
 
-function OrgNode({ node, depth, counts }) {
+function OrgNode({ node, depth, counts, onPerson }) {
     const t = useT();
     const p = node.person;
     const c = counts.get(p.id);
@@ -626,7 +702,11 @@ function OrgNode({ node, depth, counts }) {
             }}>
                 <Avatar name={p.name} size={30} />
                 <span style={{ flex: 1, minWidth: 140 }}>
-                    <span style={{ display: 'block', fontSize: 13, color: t.text }}>{p.name}</span>
+                    <button type="button" onClick={() => onPerson(p)} aria-label={`See ${p.name}’s RACI`} title={`See ${p.name}’s RACI`}
+                        className="edge-btn" style={{
+                            display: 'block', fontSize: 13, color: t.text, border: 'none', background: 'transparent', padding: 0,
+                            cursor: 'pointer', fontFamily: MONO, textDecoration: 'underline dotted', textUnderlineOffset: 3, textAlign: 'left',
+                        }}>{p.name}</button>
                     <span style={{ display: 'block', fontSize: 11.5, color: t.faint }}>
                         {[p.designation, projectRole && `${projectRole} on this project`].filter(Boolean).join(' · ')}
                     </span>
@@ -645,7 +725,7 @@ function OrgNode({ node, depth, counts }) {
                 <ul aria-label={`Reports to ${p.name}`} style={{
                     margin: 0, paddingLeft: depth > 5 ? 10 : 18, marginLeft: 14, borderLeft: '1px solid ' + t.lineStrong,
                 }}>
-                    {node.children.map((n) => <OrgNode key={n.person.id} node={n} depth={depth + 1} counts={counts} />)}
+                    {node.children.map((n) => <OrgNode key={n.person.id} node={n} depth={depth + 1} counts={counts} onPerson={onPerson} />)}
                 </ul>
             )}
         </li>

@@ -12,7 +12,7 @@ import { fmtBytes } from '../../../services/projectWorkspace';
 
 const tint = (hex, a) => hex + Math.round(a * 255).toString(16).padStart(2, '0');
 
-/** Loading, "needs 0074", or a retryable error — else the page. */
+/** Loading, "needs 0074", or a retryable error, else the page. */
 export function SetupGate({ setup, what, children }) {
     if (setup.state === 'loading') return <Panel><Loading>Loading {what}…</Loading></Panel>;
     if (setup.state === 'missing') {
@@ -57,7 +57,7 @@ export function Detail({ label, children }) {
     return (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(110px, 34%) 1fr', gap: 10, padding: '7px 0', borderBottom: '1px solid ' + t.lineSoft }}>
             <span style={{ fontSize: 11.5, color: t.faint }}>{label}</span>
-            <span style={{ fontSize: 13, color: t.text, overflowWrap: 'anywhere', minWidth: 0 }}>{children || <span style={{ color: t.ghost }}>—</span>}</span>
+            <span style={{ fontSize: 13, color: t.text, overflowWrap: 'anywhere', minWidth: 0 }}>{children || <span style={{ color: t.ghost }}>-</span>}</span>
         </div>
     );
 }

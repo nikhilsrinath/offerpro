@@ -93,7 +93,7 @@ const clickable = (onClick) => (onClick ? {
 /**
  * `series`: [{ key, label, color }]. `data`: rows with those keys plus
  * `label` / `full`. Grouped by default; `stacked` stacks them. A `line` key
- * draws one series as a line over the columns on the same axis — same unit,
+ * draws one series as a line over the columns on the same axis, same unit,
  * so still one scale.
  */
 export function Columns({
@@ -387,7 +387,7 @@ export function SplitBar({ parts, format, height = 16, onSelect, selected, unit 
                         {p.note && <span style={{ fontSize: 11, color: t.faint }}>{p.note}</span>}
                         <span style={{ fontSize: 12.5, color: t.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{format(p.value)}</span>
                         <span style={{ fontSize: 11, color: t.faint, width: 32, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                            {total > 0 ? `${Math.round((p.value / total) * 100)}%` : '—'}
+                            {total > 0 ? `${Math.round((p.value / total) * 100)}%` : '-'}
                         </span>
                     </div>
                 ))}
@@ -558,7 +558,7 @@ export function Gauge({ value, label, size = 150, color }) {
             </svg>
             <div style={{ position: 'absolute', left: 0, right: 0, top: size / 2 - 22, textAlign: 'center' }}>
                 <div style={{ fontSize: 24, fontWeight: 600, color: t.text, letterSpacing: '-0.04em', lineHeight: 1 }}>
-                    {v === null ? '—' : v.toFixed(0)}{v !== null && <span style={{ fontSize: 13.5, color: t.dim }}>%</span>}
+                    {v === null ? '-' : v.toFixed(0)}{v !== null && <span style={{ fontSize: 13.5, color: t.dim }}>%</span>}
                 </div>
                 <div style={{ fontSize: 10.5, letterSpacing: '0.08em', color: t.faint, marginTop: 4 }}>{label}</div>
             </div>

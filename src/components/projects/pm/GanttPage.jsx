@@ -14,7 +14,7 @@ import { LinkSheet, NodeSheet } from './pmUi';
    The time axis is built from the tasks' own dates (ganttWindow) and ticks
    in days, weeks, months or quarters to suit the span (ganttScale). The task
    column stays put while the timeline scrolls under the axis. A task with
-   no dates keeps its row and says so — no bar is drawn for it. */
+   no dates keeps its row and says so. No bar is drawn for it. */
 
 const NAME_W = 300;
 const ROW_H = 32;
@@ -81,7 +81,7 @@ export default function GanttPage({ project }) {
                 {can.edit && writes.length > 0 && <Btn onClick={reschedule}>Reschedule {writes.length}</Btn>}
                 <span style={{ fontSize: 12, color: t.faint }}>
                     {axis.empty
-                        ? 'No task has dates yet — set Start and Finish on a task to place it on the timeline'
+                        ? 'No task has dates yet. Set Start and Finish on a task to place it on the timeline'
                         : <>Network finish {fmtD(sched.finish - 1)} · <span style={{ color: t.down }}>■</span> critical path</>}
                     {!axis.empty && undated ? ` · ${undated} without dates` : ''}
                     {sched.ignored ? ` · ${sched.ignored} link(s) on summary rows ignored` : ''}

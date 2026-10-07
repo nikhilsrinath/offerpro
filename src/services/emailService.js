@@ -1,5 +1,5 @@
 /**
- * Unified email service — all outbound email goes through /api/email, which
+ * Unified email service: all outbound email goes through /api/email, which
  * uses Gmail SMTP via Nodemailer.
  *
  * The browser no longer holds the credentials. It sends the org id and a
@@ -23,7 +23,7 @@ async function post(payload, { describeAs }) {
     return { success: false, message: 'Your session has expired. Sign in again to send email.' };
   }
   if (!payload.org_id) {
-    return { success: false, message: 'No active organization — cannot send email.' };
+    return { success: false, message: 'No active organization, so the email cannot be sent.' };
   }
 
   try {
@@ -46,7 +46,7 @@ async function post(payload, { describeAs }) {
     return { success: true, message: describeAs, messageId: data.messageId };
   } catch (err) {
     console.error('[emailService] network error:', err);
-    return { success: false, message: err?.message || 'Network error — could not reach email server.' };
+    return { success: false, message: err?.message || 'Network error. Could not reach the email server.' };
   }
 }
 
@@ -71,7 +71,7 @@ export const emailService = {
    *
    * No credentials are sent. The server reads what is stored in org_secrets and
    * mails the stored address, so the caller learns only whether their own saved
-   * settings work — posting somebody else's address and a guessed App Password
+   * settings work: posting somebody else's address and a guessed App Password
    * used to answer the same question about their account.
    *
    * Save before calling: CompanyProfile does that for the user, because a test
@@ -85,7 +85,7 @@ export const emailService = {
   },
 
   /**
-   * Generic send — used by follow-up system, notifications, tasks, etc.
+   * Generic send: used by follow-up system, notifications, tasks, etc.
    */
   async sendEmail({ to, subject, text, html, orgProfile, fromName }) {
     return send({
@@ -99,7 +99,7 @@ export const emailService = {
   },
 
   /**
-   * Offer letter notification — keeps existing HTML template.
+   * Offer letter notification: keeps existing HTML template.
    */
   async sendOfferNotification({ recordData, orgProfile, companyName }) {
     if (!recordData?.email) {
@@ -120,7 +120,7 @@ export const emailService = {
   },
 
   /**
-   * Secure portal link email — keeps existing HTML template.
+   * Secure portal link email, keeps existing HTML template.
    */
   async sendPortalLink({
     recipientEmail,

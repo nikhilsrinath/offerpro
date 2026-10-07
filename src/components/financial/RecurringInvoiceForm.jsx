@@ -550,7 +550,7 @@ function RecurringInvoiceForm({ editItem }) {
               )}
               <div className="easy-total-divider" />
               <div className="easy-total-row easy-total-grand">
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-tertiary)' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>
                   Grand Total
                 </span>
                 <span>{formatCurrency(totals.grandTotal)}</span>
@@ -745,7 +745,6 @@ function RecurringInvoicePreview({ formData, totals, dueDatePreview, company }) 
         background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',
         borderRadius: '6px', padding: '4px 10px',
         fontSize: '8pt', fontWeight: 700, color: '#3b82f6',
-        textTransform: 'uppercase', letterSpacing: '0.05em',
         display: 'flex', alignItems: 'center', gap: '4px',
       }}>
         <RotateCcw size={10} /> RECURRING
@@ -882,7 +881,7 @@ function RecurringInvoicePreview({ formData, totals, dueDatePreview, company }) 
    RecurringInvoiceList
    ═══════════════════════════════════════ */
 /**
- * The recurring templates — every one, or with `projectId` only that
+ * The recurring templates: every one, or with `projectId` only that
  * project's (its Billing page), where a new one starts on the project.
  */
 function RecurringInvoiceList({ projectId = null }) {
@@ -993,8 +992,8 @@ function RecurringInvoiceList({ projectId = null }) {
                 {['Client', 'Amount', 'Frequency', 'Next Date', 'Cycles', 'Status', 'Actions'].map(col => (
                   <th key={col} style={{
                     padding: '0.75rem 1rem', textAlign: 'left',
-                    fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase',
-                    letterSpacing: '0.05em', color: 'var(--text-muted)',
+                    fontSize: '0.75rem', fontWeight: 600,
+                    color: 'var(--text-muted)',
                     borderBottom: '1px solid var(--border-subtle)',
                     background: 'var(--bg-sunken)',
                   }}>

@@ -16,17 +16,17 @@ import { useT, MONO } from '../ui/edgeUtils';
 /* ══════════════════════════════════════════════════════════════════════════
    Task board.
 
-   Two ways to read the same list. Board is the default — three columns, one
+   Two ways to read the same list. Board is the default, three columns, one
    per state, because a board's value is seeing the shape of the work. List is
    for when you want to sort by deadline or scan one person's load.
 
    Status is changed from the card itself, so moving a task from pending to
    done is one click rather than open-edit-save. Priority is a word, not a
-   coloured chip, and only High and Overdue are allowed to use colour — if
+   coloured chip, and only High and Overdue are allowed to use colour, if
    everything is highlighted, nothing is.
 
    Tasks belong to a project or to nobody ("General"). With `projectId` the
-   board is that project's and the project filter is fixed — that is how the
+   board is that project's and the project filter is fixed. That is how the
    project page's Tasks tab uses it; on its own route it also honours
    ?project=<id>.
    ══════════════════════════════════════════════════════════════════════════ */
@@ -39,9 +39,9 @@ const COLUMNS = [
 
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
 
-/** Marked important by an owner or admin (0077) — listed under Needs attention. */
+/** Marked important by an owner or admin (0077), listed under Needs attention. */
 const Important = ({ t }) => (
-    <span title="Important — listed under Needs attention" style={{ display: 'inline-flex', flexShrink: 0, marginTop: 3, color: t.down }}>
+    <span title="Important, listed under Needs attention" style={{ display: 'inline-flex', flexShrink: 0, marginTop: 3, color: t.down }}>
         <Star size={13} fill="currentColor" aria-hidden="true" />
         <span className="eo-sr">Important</span>
     </span>
@@ -176,7 +176,7 @@ export default function TasksPage({ projectId = null, embedded = false }) {
     const openCreate = () => { setEditing(null); setShowModal(true); };
     const openEdit = (task) => { setEditing(task); setShowModal(true); };
 
-    // /tasks?task=<id> — EdgeAI's "Open" on a task card lands on that task.
+    // /tasks?task=<id> · EdgeAI's "Open" on a task card lands on that task.
     const linkedTask = params.get('task');
     const [openedLink, setOpenedLink] = useState(null);
     useEffect(() => {
@@ -305,7 +305,7 @@ export default function TasksPage({ projectId = null, embedded = false }) {
                             {Math.round((stats.done / stats.total) * 100)}%
                         </span>
                         <span style={{ fontSize: 11.5, letterSpacing: '0.09em', color: t.faint, alignSelf: 'center' }}>
-                            DONE — {stats.done} of {stats.total}
+                            DONE: {stats.done} of {stats.total}
                         </span>
                         <div style={{ flex: 1 }} />
                         {stats.overdue > 0 && (
@@ -320,7 +320,7 @@ export default function TasksPage({ projectId = null, embedded = false }) {
             {scoped.length === 0 ? (
                 <Panel>
                     <Empty action={<Btn primary onClick={openCreate}>Create the first task</Btn>}>
-                        No tasks yet. Assign work here and the person sees it — with its deadline — in their portal.
+                        No tasks yet. Assign work here and the person sees it, with its deadline, in their portal.
                     </Empty>
                 </Panel>
             ) : view === 'board' ? (
@@ -387,7 +387,7 @@ export default function TasksPage({ projectId = null, embedded = false }) {
                                     </Td>
                                 )}
                                 {!projectId && show('j') && <Td nowrap><ProjectBadge project={projectById[task.projectId]} /></Td>}
-                                {show('ms') && <Td muted nowrap>{milestones.find((m) => m.id === task.milestoneId)?.title || '—'}</Td>}
+                                {show('ms') && <Td muted nowrap>{milestones.find((m) => m.id === task.milestoneId)?.title || '-'}</Td>}
                                 {show('w') && (
                                     <Td nowrap>
                                         <Row gap={8}>
@@ -403,9 +403,9 @@ export default function TasksPage({ projectId = null, embedded = false }) {
                                         </Status>
                                     </Td>
                                 )}
-                                {show('p') && <Td muted nowrap>{PRIORITY_LABEL[task.priority] || '—'}</Td>}
-                                {show('d') && <Td nowrap>{dl ? <Status tone={over ? 'down' : dl.tone}>{dl.text}</Status> : <span style={{ color: t.ghost }}>—</span>}</Td>}
-                                {show('imp') && <Td muted nowrap>{task.important ? 'Yes' : '—'}</Td>}
+                                {show('p') && <Td muted nowrap>{PRIORITY_LABEL[task.priority] || '-'}</Td>}
+                                {show('d') && <Td nowrap>{dl ? <Status tone={over ? 'down' : dl.tone}>{dl.text}</Status> : <span style={{ color: t.ghost }}>-</span>}</Td>}
+                                {show('imp') && <Td muted nowrap>{task.important ? 'Yes' : '-'}</Td>}
                                 {show('a') && (
                                     <Td align="right">
                                         <Row gap={6} style={{ justifyContent: 'flex-end' }}>

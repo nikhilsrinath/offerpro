@@ -32,7 +32,7 @@ export function esc(value) {
 }
 
 /**
- * A URL safe to put in an `src`. Only https: and data:image/ survive — the
+ * A URL safe to put in an `src`. Only https: and data:image/ survive, the
  * schemes the branding buckets and any hand-pasted logo actually use.
  *
  * Escaping alone is not enough for an attribute that the browser will fetch and
@@ -53,7 +53,7 @@ export function safeImageUrl(value) {
     // stored Storage path does today; http: is refused because the sheet is
     // rasterised on an https: page and a mixed-content image is a blank box.
     // The base is guarded so this is callable under vitest's node environment,
-    // where there is no window — the fallback only ever affects which origin a
+    // where there is no window. The fallback only ever affects which origin a
     // relative path resolves to, never whether a scheme is allowed.
     const base = typeof window !== 'undefined' && window.location
       ? window.location.origin

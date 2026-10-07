@@ -12,14 +12,14 @@ const HEALTH = {
 /**
  * Project health, with its reasons one keypress or click away. Closed projects
  * have no health (the database returns null), and neither does a project the
- * health check has not run for — both show a dash rather than a guess.
+ * health check has not run for, both show a dash rather than a guess.
  */
 export default function HealthChip({ health, reasons = [] }) {
     const t = useT();
     const [open, setOpen] = useState(false);
     const id = useId();
     const h = HEALTH[health];
-    if (!h) return <span style={{ color: t.ghost, fontSize: 12 }}>—</span>;
+    if (!h) return <span style={{ color: t.ghost, fontSize: 12 }}>-</span>;
     const lines = formatHealthReasons(reasons);
     if (lines.length === 0) return <Status tone={h.tone}>{h.label}</Status>;
     return (

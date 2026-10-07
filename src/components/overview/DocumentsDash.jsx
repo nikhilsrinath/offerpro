@@ -7,7 +7,7 @@ import { Columns, CalendarHeat, RankBars, SplitBar, EmptyNote } from './vizKit';
 import { Dashboard, Card, Tile, Figure, More, TileRow, CardGrid } from './dashKit';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Dashboard · Documents — everything the company has issued or keeps.
+   Dashboard · Documents: everything the company has issued or keeps.
 
    Issued documents (HR letters and financial documents) follow the period;
    offer responses and the library are today's state.
@@ -79,7 +79,7 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
                 foot="NDAs, MoUs and notices" onClick={() => open({ kind: 'docs', id: 'agreement' })} />
             <Tile icon={Receipt} label="Financial" value={String(finCount)} exact={`${finCount} in period`}
                 foot={`${group('invoice')} invoices · ${group('quotation')} quotes`} onClick={() => open({ kind: 'docs', id: 'invoice' })} />
-            <Tile icon={FolderOpen} label="Library" value={lib ? String(lib.total) : '—'} exact={lib ? `${lib.total} files` : 'not available'}
+            <Tile icon={FolderOpen} label="Library" value={lib ? String(lib.total) : '-'} exact={lib ? `${lib.total} files` : 'not available'}
                 foot={library === undefined ? 'loading…' : lib ? `${fmtBytes(lib.bytes)} stored` : 'not available to your role'}
                 onClick={() => navigate('/document-library')} />
         </TileRow>
@@ -116,14 +116,14 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
                 <CalendarHeat days={model.calendar} onSelect={(d) => open({ kind: 'day', date: d.date })} />
                 <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
                     <Figure label="active days" value={String(model.calendar.filter((d) => d.count).length)} />
-                    <Figure label="busiest day" value={(() => { const b = model.calendar.reduce((m, d) => (d.count > m.count ? d : m), { count: 0 }); return b.count ? `${b.count} · ${fmtDay(b.date).slice(0, 6)}` : '—'; })()} />
+                    <Figure label="busiest day" value={(() => { const b = model.calendar.reduce((m, d) => (d.count > m.count ? d : m), { count: 0 }); return b.count ? `${b.count} · ${fmtDay(b.date).slice(0, 6)}` : '-'; })()} />
                 </div>
             </Card>
 
             <Card title="Offer responses" note="every offer letter · today" right={<More label="Tracker" to="/recruitment-tracker" />}>
                 {offers.total === 0 ? <EmptyNote>No offer letters yet</EmptyNote> : (<>
                     <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 12 }}>
-                        <Figure big label="acceptance" value={offers.rate === null ? '—' : `${offers.rate.toFixed(0)}%`} />
+                        <Figure big label="acceptance" value={offers.rate === null ? '-' : `${offers.rate.toFixed(0)}%`} />
                         <Figure big label="awaiting" value={String(offers.c.awaiting)} />
                         <Figure big label="total" value={String(offers.total)} />
                     </div>

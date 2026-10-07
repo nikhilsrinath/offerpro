@@ -1,12 +1,12 @@
-// LeaveRequests — the approval queue, the history, and the leave catalogue.
+// LeaveRequests: the approval queue, the history, and the leave catalogue.
 //
 // Approve / reject is a plain UPDATE: app.guard_leave_decision (0029 §7) refuses
 // a self-approval and stamps who decided, and app.notify_leave_request (0029 §8)
-// writes the notification. So this file never has to ask "may I?" — it shows the
+// writes the notification. So this file never has to ask "may I?" · it shows the
 // database's answer when the write comes back refused.
 //
 // The queue is the page. Approve and Reject sit at the end of each waiting row
-// where the decision is made, and only a rejection stops for a comment — an
+// where the decision is made, and only a rejection stops for a comment, an
 // approval with nothing to add should not cost a dialog. History and the
 // catalogue are the other two tabs, in that order of how often they are opened.
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -27,11 +27,22 @@ const BLANK_TYPE = {
 
 const TONE = { approved: 'up', rejected: 'down', pending: 'neutral', cancelled: 'mute' };
 
-export default function LeaveRequests() {
+/**
+ * With no props, the whole company. A project passes its team's
+ * `employeeIds`, and `renderActions({ types, requests, reload })` for what
+ * it adds to the toolbar (Apply for leave).
+ */
+export default function LeaveRequests({ employeeIds = null, renderActions = null } = {}) {
     const t = useT();
     const toast = useToast();
-    const employees = useSection('employees');
+    const allEmployees = useSection('employees');
     const orgId = orgStore.getOrgId();
+    const idKey = employeeIds ? employeeIds.join(',') : null;
+    const employees = useMemo(() => {
+        if (idKey == null) return allEmployees;
+        const keep = new Set(idKey ? idKey.split(',') : []);
+        return allEmployees.filter((e) => keep.has(e.id));
+    }, [allEmployees, idKey]);
 
     const [tab, setTab] = useState('pending');
     const [types, setTypes] = useState([]);
@@ -43,7 +54,7 @@ export default function LeaveRequests() {
     const [editingType, setEditingType] = useState(null);
     const [who, setWho] = useState('');
 
-    const byId = useMemo(() => Object.fromEntries(employees.map((e) => [e.id, e])), [employees]);
+    const byId = useMemo(() => Object.fromEntries(allEmployees.map((e) => [e.id, e])), [allEmployees]);
     const typeById = useMemo(() => Object.fromEntries(types.map((x) => [x.id, x])), [types]);
     const nameOf = (id) => byId[id]?.name || byId[id]?.full_name || 'Former employee';
 
@@ -53,7 +64,9 @@ export default function LeaveRequests() {
         try {
             const [ts, rs] = await Promise.all([
                 leaveService.listTypes(orgId, { includeInactive: true }),
-                leaveService.listRequests(orgId),
+                idKey == null
+                    ? leaveService.listRequests(orgId)
+                    : idKey ? leaveService.listRequests(orgId, { employeeIds: idKey.split(',') }) : [],
             ]);
             setTypes(ts);
             setRequests(rs);
@@ -62,7 +75,7 @@ export default function LeaveRequests() {
         } finally {
             setLoading(false);
         }
-    }, [orgId, toast]);
+    }, [orgId, toast, idKey]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -133,7 +146,7 @@ export default function LeaveRequests() {
             <span style={{ minWidth: 0 }}>
                 <span style={{ display: 'block' }}>{nameOf(r.employee_id)}</span>
                 <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>
-                    {byId[r.employee_id]?.role || '—'}
+                    {byId[r.employee_id]?.role || '-'}
                 </span>
             </span>
         </Row>
@@ -149,11 +162,13 @@ export default function LeaveRequests() {
 
     return (
         <Page>
-            <Toolbar right={tab === 'types' ? <Btn primary onClick={() => setEditingType({ ...BLANK_TYPE })}>New leave type</Btn> : null}>
+            <Toolbar right={tab === 'types'
+                ? <Btn primary onClick={() => setEditingType({ ...BLANK_TYPE })}>New leave type</Btn>
+                : renderActions ? renderActions({ types, requests, reload: load }) : null}>
                 <Seg value={tab} onChange={setTab} options={[
-                    { id: 'pending', label: 'Waiting', count: totals.pending },
-                    { id: 'history', label: 'History', count: requests.length - totals.pending },
-                    { id: 'types', label: 'Leave types', count: totals.activeTypes },
+                    { id: 'pending', label: 'Waiting' },
+                    { id: 'history', label: 'History' },
+                    { id: 'types', label: 'Leave types' },
                 ]} />
                 {tab === 'history' && (
                     <Select value={who} onChange={(e) => setWho(e.target.value)} style={{ width: 180, height: 29 }}>
@@ -188,7 +203,7 @@ export default function LeaveRequests() {
                                 <Td nowrap>{typeCell(r)}</Td>
                                 <Td muted nowrap>{dateSpan(r)}</Td>
                                 <Td align="right" nowrap>{r.days}{r.half_day && r.days === 0.5 ? ' (½)' : ''}</Td>
-                                <Td muted>{r.reason || '—'}</Td>
+                                <Td muted>{r.reason || '-'}</Td>
                                 <Td align="right">
                                     <Row gap={6} style={{ justifyContent: 'flex-end' }}>
                                         <Btn size="sm" primary disabled={busy} onClick={() => decide(r, 'approved')}>Approve</Btn>
@@ -258,7 +273,7 @@ export default function LeaveRequests() {
                                         </div>
                                         {quota > 0 && <Bar value={taken} max={quota} tone={taken > quota ? t.down : undefined} />}
                                     </Td>
-                                    <Td align="right" muted>{taken || '—'}</Td>
+                                    <Td align="right" muted>{taken || '-'}</Td>
                                     <Td muted>{ty.is_paid === false ? 'Unpaid' : 'Paid'}</Td>
                                     <Td>
                                         <Status tone={ty.is_active === false ? 'mute' : 'up'}>
@@ -271,7 +286,7 @@ export default function LeaveRequests() {
                         })}
                     </Table>
                     <p style={{ margin: '10px 2px 0', fontSize: 11.5, color: t.faint, lineHeight: 1.7 }}>
-                        {/* on delete restrict on leave_requests.leave_type_id — a type that has
+                        {/* on delete restrict on leave_requests.leave_type_id. A type that has
                             been used cannot be deleted without erasing the leave taken under it. */}
                         Retiring a type hides it from new applications and keeps the history intact.
                         Types cannot be deleted once leave has been taken under them.
@@ -281,7 +296,7 @@ export default function LeaveRequests() {
 
             {deciding && (
                 <Modal open onClose={() => setDeciding(null)} width={460}
-                    title={'Reject leave — ' + nameOf(deciding.request.employee_id)}
+                    title={'Reject leave: ' + nameOf(deciding.request.employee_id)}
                     note={`${typeById[deciding.request.leave_type_id]?.name || 'Leave'}, ${dateSpan(deciding.request)} · ${deciding.request.days} day${deciding.request.days === 1 ? '' : 's'}`}
                     footer={
                         <>

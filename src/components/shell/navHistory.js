@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
    NavHistoryProvider mirrors the browser's history stack for this tab: a push
    adds an entry, a replace swaps the top one, and a pop (the browser's own
    back or forward) moves to the entry it landed on. It is kept in
-   sessionStorage, so a reload keeps the trail — the browser keeps its history
+   sessionStorage, so a reload keeps the trail. The browser keeps its history
    across a reload too. Back is then history.back() whenever there is an
    in-app page behind the current one, and the page's own fallback only when
    there is not: the first page of a tab, or a link opened fresh.
@@ -26,7 +26,7 @@ function readStored() {
     try {
         const s = JSON.parse(sessionStorage.getItem(KEY) || 'null');
         if (s && Array.isArray(s.stack) && Number.isInteger(s.idx)) return s;
-    } catch { /* storage blocked or corrupt — start a fresh trail */ }
+    } catch { /* storage blocked or corrupt, start a fresh trail */ }
     return null;
 }
 
@@ -70,7 +70,7 @@ export function usePreviousPage() {
 
 /**
  * A back action: to the previous page when there is one, otherwise to
- * `fallback` (a path) — replacing, so Back from there does not bounce back here.
+ * `fallback` (a path): replacing, so Back from there does not bounce back here.
  */
 export function useGoBack() {
     const navigate = useNavigate();

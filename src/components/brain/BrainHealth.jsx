@@ -50,7 +50,7 @@ export default function BrainHealth({ status, syncing, onSync, onFullRebuild, er
                         )}
                     </div>
                     {/* The buttons beside this are a manual override, not the
-                        normal path — saying so stops "Sync now" from reading as
+                        normal path: saying so stops "Sync now" from reading as
                         a chore the brain depends on somebody remembering. */}
                     <div style={{ fontSize: 11.5, color: t.ghost, marginTop: 5, lineHeight: 1.6 }}>
                         Changes to your records sync on their own, within seconds. Sync now
@@ -132,8 +132,8 @@ export default function BrainHealth({ status, syncing, onSync, onFullRebuild, er
                         <Row t={t} label="Relationships" value={state.edge_count ?? 0} />
                         <Row t={t} label="Aggregates" value={state.metric_count ?? 0} />
                         <Row t={t} label="Status" value={state.status || 'absent'} />
-                        <Row t={t} label="First built" value={state.initialized_at ? fmtDate(state.initialized_at) : '—'} />
-                        <Row t={t} label="Last full sync" value={state.last_full_sync_at ? fmtDate(state.last_full_sync_at) : '—'} />
+                        <Row t={t} label="First built" value={state.initialized_at ? fmtDate(state.initialized_at) : '-'} />
+                        <Row t={t} label="Last full sync" value={state.last_full_sync_at ? fmtDate(state.last_full_sync_at) : '-'} />
                     </div>
                     <div style={{ marginTop: 11 }}>
                         <Muted size={11}>
@@ -167,7 +167,7 @@ export default function BrainHealth({ status, syncing, onSync, onFullRebuild, er
                                 </Td>
                                 <Td align="right">{r.nodes_upserted}{r.nodes_removed ? ` (−${r.nodes_removed})` : ''}</Td>
                                 <Td align="right">{r.edges_upserted}</Td>
-                                <Td align="right" muted>{r.duration_ms ? `${r.duration_ms} ms` : '—'}</Td>
+                                <Td align="right" muted>{r.duration_ms ? `${r.duration_ms} ms` : '-'}</Td>
                             </Tr>
                         ))}
                     </Table>

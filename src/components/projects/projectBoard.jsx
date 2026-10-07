@@ -12,7 +12,7 @@ import { describeActivity } from './activityText';
 import { projectSectionPath } from './projectPaths';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   One project's widget board — the hub's board (hub/WidgetBoard), filled
+   One project's widget board: the hub's board (hub/WidgetBoard), filled
    with this project's money, plan, people and work. Every widget answers one
    question about the project at its size, and its link opens the project
    section that holds the rest.
@@ -148,14 +148,14 @@ function Burn({ d, size }) {
     const ahead = gap != null && gap > 10;
     const stat = (
         <>
-            <Value size={size} neg={ahead} unit=" used">{burnPct == null ? '—' : `${Math.round(burnPct)}%`}</Value>
+            <Value size={size} neg={ahead} unit=" used">{burnPct == null ? '-' : `${Math.round(burnPct)}%`}</Value>
             <div className="w-cap">{ahead ? <b className="down">Spending ahead of time</b> : timePct == null ? 'No end date' : `${Math.round(timePct)}% of time gone`}</div>
         </>
     );
     const bars = (
         <div className="w-bars">
-            <Bar name="Time elapsed" value={timePct == null ? '—' : `${Math.round(timePct)}%`} pct={timePct || 0} />
-            <Bar name="Budget used" value={burnPct == null ? '—' : `${Math.round(burnPct)}%`} pct={burnPct || 0} strong neg={ahead} />
+            <Bar name="Time elapsed" value={timePct == null ? '-' : `${Math.round(timePct)}%`} pct={timePct || 0} />
+            <Bar name="Budget used" value={burnPct == null ? '-' : `${Math.round(burnPct)}%`} pct={burnPct || 0} strong neg={ahead} />
         </div>
     );
     if (size === 'sm') return <>{stat}<div className="w-bottom">{bars}</div></>;
@@ -281,8 +281,8 @@ function Schedule({ d, size }) {
     return (
         <Duo stat={stat}>
             <div className="w-kv">
-                <div>Start<b>{start ? short(start) : '—'}</b></div>
-                <div>Target end<b>{end ? short(end) : '—'}</b></div>
+                <div>Start<b>{start ? short(start) : '-'}</b></div>
+                <div>Target end<b>{end ? short(end) : '-'}</b></div>
             </div>
             {meter}
         </Duo>
@@ -377,7 +377,7 @@ function AskAI({ d, ask, size }) {
 const ALL = ['sm', 'md', 'lg'];
 const SM_MD = ['sm', 'md'];
 
-/* `to`: the project page a widget opens when it is tapped — the section that
+/* `to`: the project page a widget opens when it is tapped. The section that
    holds the rest of what it shows. Ask EdgeAI has none: it is a question box. */
 // The finance sections are only there with Project financials; without it the
 // widget says so and has nowhere to go.
@@ -387,7 +387,7 @@ const section = (tab) => ({ d }) => (FIN_TABS.has(tab) && !d.fin ? null : projec
 export const PROJECT_WIDGETS = [
     { id: 'p_contract', to: section('billing'), title: 'Contract', desc: 'Contract value, and how much is billed and collected', icon: Wallet, size: 'sm', sizes: SM_MD, render: Contract },
     { id: 'p_margin', to: section('pl'), title: 'Net margin', desc: 'Collected less everything spent on it', icon: TrendingUp, size: 'sm', sizes: SM_MD, render: Margin },
-    { id: 'p_health', to: section('pm'), title: 'Health', desc: 'On track, at risk or off track — and why', icon: HeartPulse, size: 'sm', sizes: ALL, render: Health },
+    { id: 'p_health', to: section('pm'), title: 'Health', desc: 'On track, at risk or off track. And why', icon: HeartPulse, size: 'sm', sizes: ALL, render: Health },
     { id: 'p_progress', to: section('milestones'), title: 'Progress', desc: 'How much of the plan is done', icon: CircleDashed, size: 'sm', sizes: SM_MD, render: Progress },
     { id: 'p_burn', to: section('finance'), title: 'Budget burn', desc: 'Budget used against time elapsed', icon: Gauge, size: 'md', sizes: SM_MD, render: Burn },
     { id: 'p_milestones', to: section('milestones'), title: 'Milestones', desc: 'What is due next, and what is late', icon: Flag, size: 'md', sizes: ALL, render: Milestones },

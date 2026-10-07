@@ -1,7 +1,7 @@
 import { orgStore } from './orgStore';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   What a vendor or product belongs to — the "Belongs to" dropdown on the
+   What a vendor or product belongs to. The "Belongs to" dropdown on the
    Vendor Directory and Products Directory forms (0078).
 
    The dropdown has one value: GENERAL, INTERNAL, or a project id.
@@ -59,7 +59,7 @@ export function choiceLabel(choice, projects = []) {
 /**
  * Moves the vendor's project link from `from` to `to` (either may be GENERAL
  * or INTERNAL, meaning no project). Other projects the vendor is on are left
- * alone — those are managed from each project's Vendor Directory.
+ * alone: those are managed from each project's Vendor Directory.
  */
 export async function assignVendorProject(vendorId, to, from, links = []) {
     if (to === from) return;
@@ -91,5 +91,49 @@ export async function saveWithBelongsTo(save, payload, fields = ['belongs_to', '
         const rest = { ...payload };
         fields.forEach((f) => { rest[f] = undefined; });
         return { result: await save(rest), skipped: true };
+    }
+}
+
+/**
+ * Like saveWithBelongsTo, for several migrations' columns at once. `groups`
+ * are lists of fields that arrive together (['belongs_to', 'project_id'] with
+ * 0078, ['item_kind'] with 0083). A write refused for a missing column drops
+ * that column's whole group and is tried again, until it saves or fails for
+ * another reason.
+ * @returns {Promise<{ result: any, dropped: string[][] }>} the groups left out
+ */
+export async function saveWithOptional(save, payload, groups) {
+    let rest = { ...payload };
+    const dropped = [];
+    for (;;) {
+        try {
+            return { result: await save(rest), dropped };
+        } catch (err) {
+            if (!['42703', 'PGRST204'].includes(err?.code)) throw err;
+            const msg = err?.message || '';
+            const hit = groups.find((g) => !dropped.includes(g) && g.some((f) => msg.includes(f)));
+            if (!hit) throw err;
+            dropped.push(hit);
+            rest = { ...rest };
+            hit.forEach((f) => { rest[f] = undefined; });
+        }
+    }
+}
+
+/** Project ids among Belongs to choices, without repeats, in order. */
+export const projectChoices = (choices = []) => [...new Set(choices.filter(isProject))];
+
+/**
+ * Makes the vendor's project links exactly `projectIds`: adds the missing
+ * ones and removes the rest. Used by the Vendor Directory form, where a
+ * vendor can be on as many projects as needed.
+ */
+export async function syncVendorProjects(vendorId, projectIds, links = []) {
+    const mine = links.filter((l) => l.vendor_id === vendorId);
+    for (const l of mine) {
+        if (!projectIds.includes(l.project_id)) await orgStore.removeItem('project_vendors', l.id);
+    }
+    for (const id of projectIds) {
+        if (!mine.some((l) => l.project_id === id)) await orgStore.addItem('project_vendors', { project_id: id, vendor_id: vendorId });
     }
 }

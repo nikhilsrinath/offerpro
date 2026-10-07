@@ -17,7 +17,7 @@ import '../../theme/surface.css';
 import './copilot.css';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   EdgeAI — one copilot, two frames.
+   EdgeAI: one copilot, two frames.
 
    · variant="dock"  the right-hand column of the hub. Chat and History share
                      the column as two tabs, so earlier conversations are one
@@ -519,7 +519,7 @@ function MessageActions({ a, message, canRegenerate, after }) {
             setCopied(true);
             setTimeout(() => setCopied(false), 1600);
         } catch {
-            a.setNote('Could not copy — your browser blocked the clipboard.');
+            a.setNote('Could not copy. Your browser blocked the clipboard.');
         }
     };
 
@@ -637,7 +637,7 @@ function Composer({ a, onCall, autoFocus }) {
                 type="button" className="cp-mic" onClick={toggleMic} disabled={!supported}
                 aria-label={listening ? 'Stop dictation' : 'Dictate'} aria-pressed={listening}
                 title={!supported ? 'Speech recognition is not available in this browser'
-                    : listening ? 'Stop — or just pause, it stops by itself' : 'Dictate'}
+                    : listening ? 'Stop, or just pause and it stops by itself' : 'Dictate'}
             >{listening ? <Square size={12} fill="currentColor" aria-hidden="true" /> : <Mic size={16} strokeWidth={1.8} aria-hidden="true" />}</button>
             {streaming ? (
                 <span className="cp-spin" role="status" aria-label="Generating answer"><span /></span>

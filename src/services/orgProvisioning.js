@@ -1,4 +1,4 @@
-// orgProvisioning.js — organization bootstrap.
+// orgProvisioning.js: organization bootstrap.
 //
 // Replaces dualWriteService.saveOrganizationData. Everything that service did
 // by hand across RTDB and Firestore (org, owner membership, default department,
@@ -6,8 +6,8 @@
 // runs in a single transaction and additionally seeds org_settings,
 // subscriptions, usage_counters and org_banking.
 //
-// The client cannot insert into `organizations` directly — that grant is
-// revoked from `authenticated` in 0003_rls.sql — so this RPC is the only way
+// The client cannot insert into `organizations` directly: that grant is
+// revoked from `authenticated` in 0003_rls.sql. So this RPC is the only way
 // an organization comes into existence.
 import { supabase } from '../lib/supabase';
 
@@ -19,7 +19,7 @@ import { supabase } from '../lib/supabase';
 function normalizeProfile(formData = {}) {
   const {
     industry,
-    // Not accepted by the RPC — the org has to exist before its id can path a
+    // Not accepted by the RPC. The org has to exist before its id can path a
     // Storage object. createOrganization() writes it immediately afterwards;
     // dropping it here was silently discarding the link typed at registration.
     logo_url: _logoUrl,
@@ -51,7 +51,7 @@ export async function createOrganization(companyName, formData = {}) {
 
   if (error) {
     // The RPC raises `authentication required` with errcode insufficient_privilege
-    // when auth.uid() is null — i.e. signUp returned a user but no session.
+    // when auth.uid() is null, i.e. signUp returned a user but no session.
     if (error.code === '42501') {
       throw new Error('You must be signed in to create an organization.');
     }

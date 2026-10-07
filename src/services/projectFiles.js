@@ -1,11 +1,11 @@
-// projectFiles.js — the writes behind a project's Client, Vendor and Documents
+// projectFiles.js: the writes behind a project's Client, Vendor and Documents
 // pages that are more than one orgStore call: files in the `project-files`
 // bucket with their versions, folder deletes, client and vendor profiles, and
 // building a PDF or Word file from a template.
 //
 // Every file a project holds is a project_files row (0074), whether it was
 // uploaded to Project Documents or attached to a communication, approval,
-// invoice, payment or vendor — so Project Documents is the one place they all
+// invoice, payment or vendor. So Project Documents is the one place they all
 // show. Uploading a file whose name already exists in the same place adds a
 // version to it instead of a second file.
 
@@ -27,6 +27,7 @@ export function fileError(e, fallback = 'That did not work. Try again.') {
   if (/project_folders_name_idx|duplicate key/.test(m)) return 'Something with that name is already there.';
   if (/Payload too large|exceeded the maximum/i.test(m)) return 'That file is too large (50 MB at most).';
   if (/row-level security|permission denied|42501|Unauthorized/i.test(m)) return 'You do not have permission to do that.';
+  if (/channel_other|item_type_other|client_communications_channel_check/.test(m)) return 'The new channel and kind options need database migration 0085 on this workspace.';
   if (/project_files|project_folders|project_templates|client_|project_clients|project_vendors|vendor_bank|contacts|industry/.test(m)
       && /relation|column|schema cache|does not exist/.test(m)) {
     return 'This is not set up on this workspace yet (database migration 0074).';
@@ -157,7 +158,7 @@ export const attachmentsOf = (projectId, linkType, linkId) => orgStore.getSectio
 
 // ─── Client and vendor profiles ──────────────────────────────────────────────
 // Written column by column rather than through updateItem, which round-trips
-// the whole cached client — and the cached client cannot carry its `extra`
+// the whole cached client. And the cached client cannot carry its `extra`
 // blob back intact.
 
 const CLIENT_COLUMNS = ['name', 'email', 'phone', 'address', 'gstin', 'status', 'person_name', 'industry', 'website',
@@ -203,32 +204,66 @@ export async function uploadLogo(kind, file) {
 
 // ─── Building documents from a template ──────────────────────────────────────
 
-export function docxBlob(html) {
+/** The company letterhead from the org profile, in the shape the agreement header reads. */
+export function letterheadData(profile = orgStore.getProfile() || {}) {
+  return {
+    companyName: profile.company_name || profile.name || '',
+    companyTagline: profile.company_tagline || '',
+    cin: profile.cin || '',
+    companyAddress: profile.company_address || '',
+    companyPhone: profile.company_phone || '',
+    companyEmail: profile.company_email || '',
+    companyWebsite: profile.company_website || '',
+    companyLogo: profile.logo_url || '',
+  };
+}
+
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** Word has no drawn header here, so the letterhead goes in as the opening lines. */
+function letterheadHtml(lh) {
+  const lines = [lh.cin && `CIN: ${lh.cin}`, lh.companyAddress, [lh.companyPhone, lh.companyEmail, lh.companyWebsite].filter(Boolean).join(' · ')]
+    .filter(Boolean).map(esc);
+  return `<p><b>${esc(lh.companyName.toUpperCase())}</b>${lines.map((l) => `<br>${l}`).join('')}</p><p></p>`;
+}
+
+export function docxBlob(html, { letterhead = null } = {}) {
+  const body = letterhead?.companyName ? letterheadHtml(letterhead) + html : html;
   const zip = zipSync({
     '[Content_Types].xml': strToU8(DOCX_PARTS['[Content_Types].xml']),
     '_rels/.rels': strToU8(DOCX_PARTS['_rels/.rels']),
-    'word/document.xml': strToU8(blocksToDocxXml(htmlToBlocks(html))),
+    'word/document.xml': strToU8(blocksToDocxXml(htmlToBlocks(body))),
   });
   return new Blob([zip], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
 
-/** A text PDF laid out from the template's blocks: headings, paragraphs and lists, with bold, italic and underline. */
-export async function pdfBlob(html, { title = '' } = {}) {
+/** A text PDF laid out from the template's blocks: headings, paragraphs and lists, with bold, italic and underline.
+    With `letterhead` (see letterheadData) the first page opens with the same header the agreements print. */
+export async function pdfBlob(html, { title = '', letterhead = null } = {}) {
   const { jsPDF } = await import('jspdf');
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  // Millimetres, so the shared letterhead drawer lines up; font sizes stay in points.
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const K = 25.4 / 72;
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
-  const M = 56;
+  const M = 56 * K;
   let y = M;
   if (title) doc.setProperties({ title });
+  if (letterhead) {
+    const { renderDocumentHeader } = await import('./pdfService');
+    const { resolveFormImages } = await import('../utils/imageUtils');
+    const data = letterhead.companyLogo ? await resolveFormImages(letterhead, ['companyLogo']).catch(() => ({ ...letterhead, companyLogo: '' })) : letterhead;
+    y = renderDocumentHeader(doc, data, { margin: M, pageWidth: W, startY: 15, showLine: true, spacing: 4 }) + 4;
+  }
   const SIZES = { h1: 20, h2: 16, h3: 13.5, p: 11, li: 11, quote: 11 };
 
   for (const block of htmlToBlocks(html)) {
     const size = SIZES[block.type] || 11;
-    const lh = size * 1.45;
-    const indent = block.type === 'li' ? 16 + 14 * block.depth : block.type === 'quote' ? 18 : 0;
+    const sz = size * K;
+    const lh = sz * 1.45;
+    const indent = (block.type === 'li' ? 16 + 14 * block.depth : block.type === 'quote' ? 18 : 0) * K;
     const heading = /^h/.test(block.type);
-    if (heading) y += size * 0.4;
+    if (heading) y += sz * 0.4;
     // Words with their style, so a line can mix bold and plain text.
     const words = [];
     if (block.type === 'li') words.push({ text: block.list === 'ol' ? `${block.index}.` : '•', b: false, i: false, u: false, bullet: true });
@@ -248,15 +283,18 @@ export async function pdfBlob(html, { title = '' } = {}) {
       if (w.br) { newLine(); continue; }
       doc.setFont('helvetica', w.b && w.i ? 'bolditalic' : w.b ? 'bold' : w.i ? 'italic' : 'normal');
       doc.setFontSize(size);
-      if (w.bullet) { doc.text(w.text, M + indent - 14, y + size); continue; }
+      if (w.bullet) { doc.text(w.text, M + indent - 14 * K, y + sz); continue; }
       const width = doc.getTextWidth(w.text);
       const space = doc.getTextWidth(' ');
       if (x > M + indent && x + width > W - M) newLine();
-      doc.text(w.text, x, y + size);
-      if (w.u) doc.line(x, y + size + 1.5, x + width, y + size + 1.5);
+      doc.text(w.text, x, y + sz);
+      if (w.u) {
+        doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2 * K);
+        doc.line(x, y + sz + 1.5 * K, x + width, y + sz + 1.5 * K);
+      }
       x += width + space;
     }
-    y += lh + (heading ? size * 0.3 : 6);
+    y += lh + (heading ? sz * 0.3 : 6 * K);
   }
   return doc.output('blob');
 }

@@ -12,7 +12,7 @@ import { catalogService } from '../../services/catalogService';
  * are typed as they always were.
  *
  * `linkedId` is the line's current catalog_item_id. When it is set the control
- * shows what the line is attributed to and offers to detach it — detaching
+ * shows what the line is attributed to and offers to detach it, detaching
  * leaves the typed values alone and only drops the attribution, which is the
  * difference between "we sold something else" and "we sold this, cheaper".
  */

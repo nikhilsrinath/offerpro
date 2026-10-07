@@ -1,4 +1,4 @@
-// portalService.js — the two sides of the recipient portal.
+// portalService.js: the two sides of the recipient portal.
 //
 // Issuing (inside the app, authenticated): createPortalLink() asks the server
 // to mint a portal_tokens row and returns a signed, expiring URL. The old
@@ -69,7 +69,7 @@ export async function revokePortalLink(jti) {
 /**
  * Every link ever issued for one document, newest first, so a link sent to the
  * wrong address can be found and killed. RLS scopes this to the caller's org;
- * the token strings themselves are not stored and cannot be listed — only their
+ * the token strings themselves are not stored and cannot be listed. Only their
  * jti, expiry and state.
  */
 export async function listPortalLinks({ documentId }) {
@@ -104,7 +104,7 @@ export async function fetchPortalDocument(token) {
 /**
  * @param action one of accept_offer, acknowledge, mou_sign, accept_quotation,
  *   decline, request_revision, confirm_order, payment_confirmation,
- *   proforma_payment — the server decides which status each one may set.
+ *   proforma_payment: the server decides which status each one may set.
  */
 export async function submitPortalAction(token, action, payload = {}) {
   const res = await fetch(PORTAL_API, {

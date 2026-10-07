@@ -3,7 +3,7 @@ import { useEdgeTheme } from '../../theme/EdgeTheme';
 import { MONO } from '../../theme/edge';
 import { subscribeConfirm, currentConfirm, settleConfirm } from '../../services/confirm';
 
-/* The app's one confirmation dialog — see services/confirm.js.
+/* The app's one confirmation dialog, see services/confirm.js.
 
    A compact card over a dimmed, blurred page: the title, one sentence of
    consequence, Cancel beside the action. The action is focused on open so

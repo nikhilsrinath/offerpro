@@ -19,8 +19,8 @@ import { useT } from '../ui/edgeUtils';
  *                 returns them to the role. A change made "for everyone in the
  *                 role" edits the role itself.
  *
- * The database enforces every rule shown here — owners are never limited, only
- * an owner shapes admins, nobody edits their own access — so the controls are
+ * The database enforces every rule shown here, owners are never limited, only
+ * an owner shapes admins, nobody edits their own access. So the controls are
  * disabled with the reason rather than failing on click. Pay, banking and
  * email credentials are owner/admin-only by policy and are not listed at all.
  *

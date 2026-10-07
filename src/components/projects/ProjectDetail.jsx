@@ -4,7 +4,7 @@ import { Page, Panel, Row, Btn, Status, Avatar, Empty, Muted } from '../ui/edge'
 import { useT, MONO } from '../ui/edgeUtils';
 import { useSection } from '../financial/financeHooks';
 import { useOrg } from '../../context/OrgContext';
-import { statusLabel, isClosed } from '../../services/projectAnalytics';
+import { statusLabel, isClosed, deliveryLabel } from '../../services/projectAnalytics';
 import { canSeeFinancials, health as fetchHealth } from '../../services/projectService';
 import { useAssistant } from '../assistant/assistantStore';
 import { useWidgetLayout } from '../hub/useWidgetLayout';
@@ -52,7 +52,7 @@ import {
    One project, as its own workspace. It is laid out the way the hub is: the
    project's sections are the rail (App.jsx), EdgeAI is docked on the right
    (ModuleShell `workspace`), and the page carries a large heading and a
-   footer. /projects/:id itself is the project's hub — a widget board
+   footer. /projects/:id itself is the project's hub: a widget board
    arranged per person. Dashboard's pages are their own routes
    (/projects/:id/dashboard/:view, ProjectDashboards) in the same rail;
    every other item is that section's full page, under the same heading, at
@@ -75,10 +75,13 @@ const TABS = [
     // Project Management is four pages over the project's tasks, folded the
     // same way. The Kanban board keeps the id 'tasks', so older ?tab=tasks
     // links (and EdgeAI's) still land on the board they used to.
-    { id: 'pm', parent: 'pm', label: 'Portfolio', icon: Briefcase },
+    { id: 'pm', parent: 'pm', label: 'Overview', icon: Briefcase },
     { id: 'wbs', parent: 'pm', label: 'Tasks (WBS)', icon: ListTree },
     { id: 'tasks', parent: 'pm', label: 'Kanban Board', icon: SquareKanban },
     { id: 'gantt', parent: 'pm', label: 'Gantt Chart', icon: ChartGantt },
+    // SKUs: the products and services the project sells, the company's
+    // catalogue narrowed to it. A page of Project, not a rail item.
+    { id: 'products', parent: 'pm', label: 'SKU', icon: Package },
     // Team Management is four pages over the project's people, folded the
     // same way. Team Members keeps the id 'team', so older ?tab=team links
     // (and the new-project redirect) still land on it.
@@ -86,8 +89,6 @@ const TABS = [
     { id: 'raci', parent: 'tm', label: 'Team Hierarchy', icon: Network },
     { id: 'attendance', parent: 'tm', label: 'Attendance', icon: CalendarCheck },
     { id: 'announcements', parent: 'tm', label: 'Announcements', icon: Megaphone },
-    // Products and services the project sells, the company's catalogue narrowed to it.
-    { id: 'products', parent: 'pd', label: 'Product & Service Directory', icon: Package },
     // Client, Vendor and Documents Management (0074), folded the same way.
     // Project Documents keeps the id 'documents', so older ?tab=documents
     // links land on it; the links it used to be are its Linked records view.
@@ -119,7 +120,6 @@ export function activeSection(pathname, sections = projectSections()) {
 const GROUPS = {
     finance: { label: 'Finance', icon: Wallet },
     pm: { label: 'Project', icon: FolderKanban },
-    pd: { label: 'Product', icon: Package },
     tm: { label: 'Team', icon: UsersRound },
     cm: { label: 'Client', icon: Handshake },
     vm: { label: 'Vendor', icon: Building2 },
@@ -251,7 +251,6 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
     const name = project.name || project.code || 'Project';
     const clientName = client ? (client.name || client.clientName) : null;
-    const dateStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
     const pad = isMobile ? 12 : 24;
 
     return (
@@ -268,8 +267,8 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                     // widget grid always sees the real width and re-flows.
                     gridTemplateColumns: 'minmax(0, 1fr)',
                 }}>
-                    {/* — heading: the greeting over the project on Overview,
-                        the project over the section everywhere else — */}
+                    {/*: heading: the greeting over the project on Overview,
+                        the project over the section everywhere else, */}
                     <div style={{ padding: '2px 2px 0', display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{
@@ -289,7 +288,7 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                         {tab === 'home' && <ProjectActions project={project} />}
                     </div>
 
-                    {/* — who and where: code, state, client, manager — */}
+                    {/*: who and where: code, state, client, manager, */}
                     <Row gap={10} wrap style={{ marginTop: -6, padding: '0 2px' }}>
                         {project.code && <span style={{ fontSize: 12, color: t.faint, letterSpacing: '0.04em' }}>{project.code}</span>}
                         <Status tone={STATUS_TONE[project.status]}>{statusLabel(project.status)}</Status>
@@ -300,6 +299,7 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                                 ? <>Client: <Link to={`/client-directory?client=${client.id}`} style={{ color: t.dim }}>{clientName}</Link></>
                                 : 'Internal project'}
                         </Muted>
+                        {project.delivery_method && <Muted>{deliveryLabel(project.delivery_method)} method</Muted>}
                         {manager && (
                             <Row gap={6}><Avatar name={manager.name || ''} size={18} /><Muted>{manager.name}</Muted></Row>
                         )}
@@ -358,21 +358,6 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                             {tab === 'activity' && <ProjectActivity project={project} />}
                         </div>
                     )}
-                </div>
-
-                {/* — footer, as on the hub — */}
-                <div style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    gap: 10, padding: `12px ${pad}px`, borderTop: '1px solid ' + t.line,
-                    fontSize: 12.5, color: t.dim, flexWrap: 'wrap',
-                }}>
-                    <span>EdgeOS · PROJECT WORKSPACE</span>
-                    <span style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                        {project.code && <span>{project.code.toUpperCase()}</span>}
-                        <span>{clientName ? `CLIENT ${clientName.toUpperCase()}` : 'INTERNAL'}</span>
-                        <span>{statusLabel(project.status).toUpperCase()}</span>
-                        <span>{dateStr}</span>
-                    </span>
                 </div>
             </div>
         </Page>

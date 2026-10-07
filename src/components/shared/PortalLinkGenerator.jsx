@@ -11,7 +11,7 @@ import { useT } from '../ui/edgeUtils';
  * The link is minted by the server, so it cannot be built during render: it is
  * a real credential recorded in portal_tokens, with an expiry and a revocation
  * switch. The token string itself is never stored, so an earlier link can be
- * listed and revoked but never shown again — which is why opening this panel
+ * listed and revoked but never shown again, which is why opening this panel
  * issues a fresh one, and why older ones are summarised in a single line with
  * one action instead of a row each.
  *

@@ -26,7 +26,7 @@ import { PLANS } from '../../../../src/services/planConfig.js';
  * from src/shared/finDocs.js (finDocToRow / lineItemRows, which orgStore also
  * uses), the totals the card promises follow app.recompute_document_totals()
  * exactly (documentTotals), and conversion, cancel and delete follow
- * src/shared/documentConversion.js and documentLifecycle.js — the rules
+ * src/shared/documentConversion.js and documentLifecycle.js. The rules
  * InvoiceList applies. The database still computes and guards every figure;
  * these only let the card say beforehand what it will compute.
  *
@@ -134,8 +134,8 @@ function readRate(v) {
 }
 
 /**
- * Line items as the model passed them — a list of {description, quantity,
- * rate, …}, or one sentence ("website design 50k") — with catalogue products
+ * Line items as the model passed them. A list of {description, quantity,
+ * rate, …}, or one sentence ("website design 50k"): with catalogue products
  * matched by name for their price, HSN and unit.
  */
 async function readItems(raw, ctx) {
@@ -150,7 +150,7 @@ async function readItems(raw, ctx) {
   const items = [];
   for (const it of list.slice(0, 50)) {
     const said = String(it.product || it.description || '').trim();
-    // A product named in passing — "Support retainer (3 months)" — is still
+    // A product named in passing, "Support retainer (3 months)" · is still
     // that product: every word of its name present, and nothing else as good.
     let product = said ? products.find((p) => normalize(p.name) === normalize(said) || (p.sku && normalize(p.sku) === normalize(said))) : null;
     if (!product && said && products.length) {
@@ -229,7 +229,7 @@ async function planProblem(type, ctx) {
 /* ── the draft tools ──────────────────────────────────────────────────────── */
 
 const DRAFT_PARAMS = {
-  client: { type: 'string', description: 'Who it is for — an existing client, by name.' },
+  client: { type: 'string', description: 'Who it is for: an existing client, by name.' },
   items: {
     type: 'array',
     description: 'The lines. Amounts as said ("50k", "1.2 lakh"). A catalogue product may be named instead of a rate.',
@@ -357,12 +357,12 @@ function draftTool(type) {
       const client = await byId('client', args.client, ctx);
       const doc = await docPreview(type, args, client, ctx);
       const rows = [
-        ['Client', client?.name || '—'],
+        ['Client', client?.name || '-'],
         ['Date', formatDate(args.issue_date)],
         type === 'quotation' ? ['Valid until', formatDate(args.valid_until)] : ['Due', formatDate(args.due_date)],
         ['GST', args.gst_enabled ? `${args.gst_rate}% ${args.is_inter_state ? 'IGST' : 'CGST + SGST'}` : 'None'],
       ];
-      if (type === 'proforma') rows.push(['Advance asked', `${args.advance_percent}% — ${money(doc.totals.grandTotal * args.advance_percent / 100)}`]);
+      if (type === 'proforma') rows.push(['Advance asked', `${args.advance_percent}% (${money(doc.totals.grandTotal * args.advance_percent / 100)}`]);
       if (args.project) {
         const p = await byId('project', args.project, ctx);
         if (p) rows.push(['Project', `${p.code} · ${p.name}`]);
@@ -446,7 +446,7 @@ function draftTool(type) {
     summary(outcome) {
       const d = outcome.results.find((x) => x.key === 'document');
       if (!d || d.ok === false) return `The ${noun} was not saved: ${d?.error || 'unknown error'}`;
-      let line = `Saved ${noun} draft **${d.after.doc_number}** for ${d.after.bill_to_name} — ${money(d.after.grand_total, d.after.currency || 'INR')}.`;
+      let line = `Saved ${noun} draft **${d.after.doc_number}** for ${d.after.bill_to_name}: ${money(d.after.grand_total, d.after.currency || 'INR')}.`;
       if (outcome.warnings?.length) line += ` Note: ${outcome.warnings[0]}`;
       return line;
     },
@@ -560,7 +560,7 @@ const convert_quotation = {
     const targets = conversionTargets(source);
     if (!targets.length) {
       const why = source.type === 'quotation'
-        ? `${docNumber(source)} is ${source.status}; only an accepted quotation can be converted — the client has to accept it first.`
+        ? `${docNumber(source)} is ${source.status}; only an accepted quotation can be converted, because the client has to accept it first.`
         : `${docNumber(source)} is ${source.status}; a proforma becomes its tax invoice once the advance is in.`;
       return { error: why, fatal: true };
     }
@@ -600,7 +600,7 @@ const convert_quotation = {
       ['New', `${TYPE_NOUN[args.target]} draft, dated ${formatDate(built.issue_date)}, due ${formatDate(built.due_date)}`],
       ['Total', money(row.grand_total, row.currency || 'INR')],
     ];
-    if (args.target === 'proforma') rows.push(['Advance asked', `${built.advance_percent}% — ${money(Number(row.grand_total) * built.advance_percent / 100)}`]);
+    if (args.target === 'proforma') rows.push(['Advance asked', `${built.advance_percent}% (${money(Number(row.grand_total) * built.advance_percent / 100)}`]);
     if (advance) rows.push(['Advance carried over', `${money(advance.amount)} already received, recorded on the invoice`]);
     return {
       title: `Convert to ${TYPE_NOUN[args.target]}`,
@@ -668,7 +668,7 @@ const convert_quotation = {
     const d = outcome.results.find((x) => x.key === 'document');
     if (!d || d.ok === false) return `Not converted: ${d?.error || 'unknown error'}`;
     const adv = outcome.results.find((x) => x.key === 'advance' && x.ok !== false);
-    let line = `Created ${TYPE_NOUN[args.target]} draft **${d.after.doc_number}** — ${money(d.after.grand_total, d.after.currency || 'INR')}${adv ? `, with the ${money(adv.after?.amount)} advance applied` : ''}.`;
+    let line = `Created ${TYPE_NOUN[args.target]} draft **${d.after.doc_number}**: ${money(d.after.grand_total, d.after.currency || 'INR')}${adv ? `, with the ${money(adv.after?.amount)} advance applied` : ''}.`;
     if (outcome.warnings?.length) line += ` Note: ${outcome.warnings[0]}`;
     return line;
   },
@@ -688,7 +688,7 @@ const issue_document = {
   risk: 'high',
   permission: { resource: 'financial_documents', action: 'edit' },
   description: 'Issue a draft invoice, quotation or proforma: it becomes "sent", its content is locked as version 1, and a tax invoice enters the books. '
-    + 'Does NOT email it — say so. "issue INV-2026-0042", "finalise the Acme invoice", "mark the Kite quote as sent".',
+    + 'Does NOT email it, say so. "issue INV-2026-0042", "finalise the Acme invoice", "mark the Kite quote as sent".',
   params: { type: 'object', properties: { document: { type: 'string' } }, required: ['document'] },
   undoable: false,
 
@@ -720,14 +720,14 @@ const issue_document = {
       target: entityOf('invoice', row),
       preview: {
         kind: 'document',
-        rows: [['To', row.bill_to_name], ['Email on file', row.bill_to_email || '— (none)'], ['Total', money(row.grand_total, row.currency || 'INR')]],
+        rows: [['To', row.bill_to_name], ['Email on file', row.bill_to_email || 'None'], ['Total', money(row.grand_total, row.currency || 'INR')]],
         document: storedPreview(doc),
         full: true,
       },
       confirmLabel: `Issue ${row.doc_number} · ${money(row.grand_total, row.currency || 'INR')}`,
       irreversible: row.type === 'invoice'
-        ? 'Once issued, the invoice counts as revenue and can only be cancelled, never deleted. It is not emailed — share it from the invoice list.'
-        : `Once issued, the ${noun} is locked as version 1; any change goes out as a new version. It is not emailed — share it from the list.`,
+        ? 'Once issued, the invoice counts as revenue and can only be cancelled, never deleted. It is not emailed, so share it from the invoice list.'
+        : `Once issued, the ${noun} is locked as version 1; any change goes out as a new version. It is not emailed, so share it from the list.`,
     };
   },
 
@@ -738,7 +738,7 @@ const issue_document = {
 
   summary(outcome) {
     const r = outcome.results[0];
-    return r?.ok === false ? `Not issued: ${r.error}` : `Issued **${r.after.doc_number}** to ${r.after.bill_to_name} — ${money(r.after.grand_total, r.after.currency || 'INR')}. It has not been emailed.`;
+    return r?.ok === false ? `Not issued: ${r.error}` : `Issued **${r.after.doc_number}** to ${r.after.bill_to_name}: ${money(r.after.grand_total, r.after.currency || 'INR')}. It has not been emailed.`;
   },
 };
 
@@ -771,7 +771,7 @@ function paymentTool({ name, full, description }) {
       },
       required: ['document'],
     },
-    // Undo deletes the payment row — only for a role that may delete payments.
+    // Undo deletes the payment row. Only for a role that may delete payments.
     undoable: (_args, ctx) => ctx.can('payments', 'delete'),
 
     async resolve(args, ctx) {
@@ -823,7 +823,7 @@ function paymentTool({ name, full, description }) {
             ['From', row.bill_to_name], ['Against', `${row.doc_number} · total ${money(row.grand_total, row.currency || 'INR')}`],
             ['Amount', money(args.amount, row.currency || 'INR')], ['Received on', formatDate(args.date)],
             ['Method', methodLabel(args.method)], ...(args.reference ? [['Reference', args.reference]] : []),
-            ['Still owed after', after <= 0.01 ? 'Nothing — it will show as paid' : money(after, row.currency || 'INR')],
+            ['Still owed after', after <= 0.01 ? 'Nothing, it will show as paid' : money(after, row.currency || 'INR')],
           ],
           note: 'Recorded as confirmed money received. Revenue, receivables and the cash position update from it.',
         },
@@ -928,8 +928,8 @@ const create_vendor = {
       preview: {
         kind: 'record',
         rows: [
-          ['Name', args.company_name], ['Contact', args.contact_name || '—'], ['Email', args.email || '—'],
-          ['Phone', args.phone || '—'], ['GSTIN', args.gstin || '—'], ['Credit', `${args.payment_terms_days} days`],
+          ['Name', args.company_name], ['Contact', args.contact_name || '-'], ['Email', args.email || '-'],
+          ['Phone', args.phone || '-'], ['GSTIN', args.gstin || '-'], ['Credit', `${args.payment_terms_days} days`],
         ],
       },
       confirmLabel: `Add ${args.company_name}`,
@@ -962,7 +962,7 @@ const create_purchase_bill = {
   risk: 'high',
   permission: { resource: 'purchase_invoices', action: 'create' },
   description: 'Record a bill received from a vendor (money we owe): "got Dell\'s bill 85k incl GST, bill no DL-9981", '
-    + '"Sharma Stationers billed us 4,200 plus 12% GST". Not for money already paid with no bill — that is create_cash_entry.',
+    + '"Sharma Stationers billed us 4,200 plus 12% GST". Not for money already paid with no bill (that is create_cash_entry).',
   params: {
     type: 'object',
     properties: {
@@ -1029,7 +1029,7 @@ const create_purchase_bill = {
       preview: {
         kind: 'bill',
         rows: [
-          ['Vendor', vendor?.company_name || '—'], ['Bill no.', args.bill_number],
+          ['Vendor', vendor?.company_name || '-'], ['Bill no.', args.bill_number],
           ['Bill date', formatDate(args.bill_date)], ['Due', formatDate(args.due_date)],
           ['Amount before GST', money(args.subtotal)], [`GST ${args.tax_rate}%`, money(tax)],
           ['Total owed', money(args.subtotal + tax)], ['Category', args.category],
@@ -1059,7 +1059,7 @@ const create_purchase_bill = {
 
   summary(outcome) {
     const r = outcome.results[0];
-    return r?.ok === false ? `Not recorded: ${r.error}` : `Recorded bill **${r.after.bill_number}** — ${money(r.after.total)} due ${formatDate(r.after.due_date)}.`;
+    return r?.ok === false ? `Not recorded: ${r.error}` : `Recorded bill **${r.after.bill_number}**: ${money(r.after.total)} due ${formatDate(r.after.due_date)}.`;
   },
 
   href: () => '/purchase-bills',
@@ -1085,7 +1085,7 @@ const delete_financial_document = {
   kind: 'write',
   risk: 'high',
   permission: { resource: 'financial_documents', action: 'delete' },
-  description: 'Delete a quotation or proforma draft that was never sent — only when the user says delete. Tax invoices are never deleted (use cancel_financial_document).',
+  description: 'Delete a quotation or proforma draft that was never sent, and only when the user says delete. Tax invoices are never deleted (use cancel_financial_document).',
   params: { type: 'object', properties: { document: { type: 'string' } }, required: ['document'] },
   undoable: false,
 
@@ -1202,7 +1202,7 @@ const cancel_financial_document = {
 
   summary(outcome, args) {
     const r = outcome.results.find((x) => x.key === 'document');
-    return r?.ok === false ? `Not cancelled: ${r.error}` : `Cancelled ${r.after.doc_number}${args.reason ? ` — ${args.reason}` : ''}.`;
+    return r?.ok === false ? `Not cancelled: ${r.error}` : `Cancelled ${r.after.doc_number}${args.reason ? ` · ${args.reason}` : ''}.`;
   },
 };
 

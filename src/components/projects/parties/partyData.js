@@ -3,6 +3,8 @@ import { useSection } from '../../financial/financeHooks';
 import { supabase } from '../../../lib/supabase';
 import { orgStore } from '../../../services/orgStore';
 import { fileError, needs0074 } from '../../../services/projectFiles';
+import { useAuth } from '../../../context/AuthContext';
+import { displayNameOf } from '../../../lib/user';
 
 /* ══════════════════════════════════════════════════════════════════════════
    What the Client, Vendor and Documents pages share: which clients and
@@ -78,11 +80,18 @@ export const clientActive = (c) => c.status === 'active';
 
 /** Who a signed-in user id is, by the employee record linked to it. */
 export function useUserNames() {
-    const employees = useSection('employees');
-    return useMemo(() => {
-        const m = new Map(employees.filter((e) => e.user_id).map((e) => [e.user_id, e.name]));
-        return (uid) => m.get(uid) || (uid ? 'A former member' : '—');
-    }, [employees]);
+const employees = useSection('employees');
+const { user } = useAuth();
+return useMemo(() => {
+const m = new Map(employees.filter((e) => e.user_id).map((e) => [e.user_id, e.name]));
+// Whoever is signed in may have no employee record (an owner who set the
+// workspace up); they still uploaded their own files under their own name.
+if (user?.id && !m.has(user.id)) {
+    const mine = displayNameOf(user) || orgStore.getProfile().owner_full_name || user.email;
+    if (mine) m.set(user.id, mine);
+}
+return (uid) => m.get(uid) || (uid ? 'A former member' : '-');
+}, [employees, user]);
 }
 
 export const todayIso = () => {

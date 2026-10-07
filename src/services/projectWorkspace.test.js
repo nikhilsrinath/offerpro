@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { unzipSync, strFromU8, zipSync, strToU8 } from 'fflate';
 import {
     isEmail, isPhone, isUrl, isGstin, isIfsc, isSwift, validate, contactErrors,
-    invoiceState, paymentTotals, placeholderValues, fillPlaceholders, findPlaceholders,
+    invoiceState, paymentTotals, placeholderValues, fillPlaceholders, findPlaceholders, availablePlaceholders,
     sanitizeHtml, htmlToBlocks, htmlToText, blocksToDocxXml, DOCX_PARTS,
     fileKind, canPreview, fmtBytes, folderPath, folderSubtree,
 } from './projectWorkspace';
@@ -87,6 +87,16 @@ describe('placeholders', () => {
         const out = fillPlaceholders('<p>{{client_name}} / {{ vendor_name }} / {{nope}}</p>', values);
         expect(out).toBe('<p>Acme &lt;Ltd&gt; / {{ vendor_name }} / {{nope}}</p>');
         expect(findPlaceholders(out)).toEqual(['vendor_name', 'nope']);
+    });
+    it('understands a variable however it was typed or formatted', () => {
+        const html = '<p>{{ Company Name }} · {{company-name}} · {{<b>company</b>_name}} · {{company}} · {{Today}} · {{&nbsp;project_code}}</p>';
+        expect(fillPlaceholders(html, values)).toBe('<p>EdgeCo · EdgeCo · EdgeCo<b></b> · EdgeCo · 29 September 2026 · PRJ-1</p>');
+        expect(findPlaceholders(html)).toEqual(['company_name', 'date', 'project_code']);
+    });
+    it('reads the company from the org profile and lists only what has a value', () => {
+        const v = placeholderValues({ project: { name: 'X' }, company: { company_name: 'Qbitio', company_email: 'hi@q.io', gstin: '29abcde1234f1z5' }, today: '2026-10-07' });
+        expect(v).toMatchObject({ company_name: 'Qbitio', company_email: 'hi@q.io', company_gstin: '29ABCDE1234F1Z5', company_address: '' });
+        expect(availablePlaceholders(v).map((p) => p.key)).toEqual(['company_name', 'company_email', 'company_gstin', 'project_name', 'date']);
     });
 });
 

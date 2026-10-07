@@ -2,7 +2,7 @@ import { orgStore } from './orgStore';
 import { updateProject, canEditProjects } from './projectService';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Which project a client (or lead — same `clients` row) belongs to.
+   Which project a client (or lead, same `clients` row) belongs to.
 
    A client is on a project when it is the project's own client_id, or when a
    project_clients row links them (0074). A client on no project is "Others":
@@ -41,8 +41,8 @@ export const initialProject = (clientId, projects, links) =>
 /**
  * Applies the form's choice. `from` is what the dropdown started on, so an
  * edit that changes it moves the client: the old link goes, the new one is
- * added. A project's own client_id is never cleared here — that is the
- * project's primary client, changed from the project — so the result says
+ * added. A project's own client_id is never cleared here. That is the
+ * project's primary client, changed from the project. So the result says
  * when the client stays on it.
  * @returns {Promise<{ keptPrimary: string|null }>}
  */

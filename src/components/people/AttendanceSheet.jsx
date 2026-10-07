@@ -1,12 +1,12 @@
-// AttendanceSheet — the manager's two views of attendance.
+// AttendanceSheet: the manager's two views of attendance.
 //
 //   Daily    the whole team on one date: status, times, a note, bulk marking.
 //   Monthly  the team's month as a calendar of daily counts (click a day for
-//            who was where), or one employee's month when one is picked —
+//            who was where), or one employee's month when one is picked,
 //            clicking a name on the daily sheet opens theirs.
 //
 // Both write through attendanceService.markDay(), which always stamps
-// `source: 'admin'` — that is what stops the employee's portal overwriting a
+// `source: 'admin'` · that is what stops the employee's portal overwriting a
 // correction afterwards (0029 §6).
 //
 // Marking is the job, so the status control is on the row itself: a segmented
@@ -88,12 +88,24 @@ const onSheet = (e, dateKey) => !joinedKey(e) || joinedKey(e) <= dateKey;
 const monthLabel = (monthKey) => new Date(`${monthKey}-01T00:00:00`)
     .toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 
-export default function AttendanceSheet() {
+/**
+ * With no props, the whole company. A project passes its own `people`
+ * (employee records) and `isOn(employeeId, dateKey)` · the days each one is
+ * on the project: and the same sheet is narrowed to them.
+ */
+export default function AttendanceSheet({ people, isOn, scope = 'company' } = {}) {
     const t = useT();
     const toast = useToast();
-    const employees = useSection('employees');
+    const allEmployees = useSection('employees');
+    const employees = people || allEmployees;
     const departments = useSection('departments');
     const orgId = orgStore.getOrgId();
+    const inProject = scope === 'project';
+    // On the sheet that day: joined the company, and (in a project) on it.
+    const sheetOn = useCallback(
+        (e, dateKey) => onSheet(e, dateKey) && (!isOn || isOn(e.id, dateKey)),
+        [isOn],
+    );
 
     const [tab, setTab] = useState('daily');
     const [date, setDate] = useState(todayKey());
@@ -116,10 +128,10 @@ export default function AttendanceSheet() {
     [employees, dept]);
 
     // Who is on the sheet for the day on screen.
-    const dayRoster = useMemo(() => roster.filter((e) => onSheet(e, date)), [roster, date]);
+    const dayRoster = useMemo(() => roster.filter((e) => sheetOn(e, date)), [roster, date, sheetOn]);
 
     const employeesById = useMemo(
-        () => Object.fromEntries(employees.map((e) => [e.id, e])), [employees],
+        () => Object.fromEntries([...allEmployees, ...employees].map((e) => [e.id, e])), [allEmployees, employees],
     );
 
     const loadDay = useCallback(async () => {
@@ -183,6 +195,10 @@ export default function AttendanceSheet() {
             toast(`${editing.name} joined on ${fmtDate(joinedKey(who))}; attendance cannot be marked before that.`, 'error');
             return;
         }
+        if (who && !sheetOn(who, dateKey)) {
+            toast(`${editing.name} was not on the project on ${fmtDate(dateKey)}.`, 'error');
+            return;
+        }
         if (checkIn && checkOut && checkOut < checkIn) {
             toast('Check-out cannot be before check-in.', 'error');
             return;
@@ -215,7 +231,8 @@ export default function AttendanceSheet() {
     const exportMonth = async () => {
         setExporting(true);
         try {
-            const n = await attendanceService.exportMonth(orgId, monthKey, employeesById);
+            const n = await attendanceService.exportMonth(orgId, monthKey, employeesById,
+                people ? employees.map((e) => e.id) : null);
             toast(n ? `Exported ${n} rows` : 'Nothing recorded in that month', n ? 'success' : 'info');
         } catch (err) {
             toast(err.message || 'Could not export.', 'error');
@@ -252,10 +269,10 @@ export default function AttendanceSheet() {
                         </Row>
                     )
                     : (
-                        // Exports the whole team, not just the person on screen — a
+                        // Exports the whole team, not just the person on screen, a
                         // month of attendance for payroll is never one row of people.
                         <Btn primary onClick={exportMonth} disabled={exporting}>
-                            {exporting ? 'Exporting…' : 'Export month (all staff)'}
+                            {exporting ? 'Exporting…' : inProject ? 'Export month (project team)' : 'Export month (all staff)'}
                         </Btn>
                     )
             }>
@@ -312,7 +329,9 @@ export default function AttendanceSheet() {
                     ]} />
 
                     {loading ? <Loading /> : dayRoster.length === 0 ? (
-                        <Panel><Empty>No one to mark. Add employees to the registry first.</Empty></Panel>
+                        <Panel><Empty>{inProject
+                            ? 'No one is on the project on this day. Add people on Team Members.'
+                            : 'No one to mark. Add employees to the registry first.'}</Empty></Panel>
                     ) : (
                         <Table cols={[
                             { key: 'w', label: 'Who' },
@@ -340,7 +359,7 @@ export default function AttendanceSheet() {
                                                 <span style={{ minWidth: 0 }}>
                                                     <span style={{ display: 'block', textDecoration: 'underline', textDecorationColor: t.line, textUnderlineOffset: 3 }}>{name}</span>
                                                     <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>
-                                                        {e.role || '—'}
+                                                        {e.role || '-'}
                                                     </span>
                                                 </span>
                                             </div>
@@ -352,10 +371,10 @@ export default function AttendanceSheet() {
                                                     options={QUICK.map((k) => ({ id: k, label: statusLabel(k) }))} />
                                             </div>
                                         </Td>
-                                        <Td align="right" muted nowrap>{toTimeInput(row?.check_in) || '—'}</Td>
-                                        <Td align="right" muted nowrap>{toTimeInput(row?.check_out) || '—'}</Td>
+                                        <Td align="right" muted nowrap>{toTimeInput(row?.check_in) || '-'}</Td>
+                                        <Td align="right" muted nowrap>{toTimeInput(row?.check_out) || '-'}</Td>
                                         <Td align="right" muted nowrap>
-                                            {row ? formatDuration(workedMinutes(row)) : '—'}
+                                            {row ? formatDuration(workedMinutes(row)) : '-'}
                                         </Td>
                                         <Td muted>{row?.note || ''}</Td>
                                         <Td align="right">
@@ -370,18 +389,18 @@ export default function AttendanceSheet() {
             ) : personId ? (
                 <MonthlyView
                     t={t} monthKey={monthKey} rows={monthRows} loading={loading}
-                    personId={personId} roster={roster}
+                    personId={personId} roster={roster} sheetOn={sheetOn}
                     onPick={(dateKey, row) => openEditor(personId, dateKey, row)}
                 />
             ) : (
                 <TeamMonthView
                     t={t} monthKey={monthKey} rows={teamMonth} loading={loading} roster={roster}
-                    onPick={setDayList}
+                    onPick={setDayList} inProject={inProject}
                 />
             )}
 
             {dayList && (
-                <DayListModal t={t} dateKey={dayList} roster={roster.filter((e) => onSheet(e, dayList))}
+                <DayListModal t={t} dateKey={dayList} roster={roster.filter((e) => sheetOn(e, dayList))}
                     rows={teamMonth.filter((r) => r.work_date === dayList)}
                     onClose={() => setDayList(null)}
                     onOpenDay={() => { setDate(dayList); setTab('daily'); setDayList(null); }}
@@ -448,7 +467,7 @@ export default function AttendanceSheet() {
 }
 
 /** One employee's month as a calendar grid, Monday-first. */
-function MonthlyView({ t, monthKey, rows, loading, personId, roster, onPick }) {
+function MonthlyView({ t, monthKey, rows, loading, personId, roster, sheetOn, onPick }) {
     const { days } = monthBounds(monthKey);
     // getDay() is Sunday-0; the grid starts on Monday, so rotate it.
     const firstDow = (new Date(`${monthKey}-01T00:00:00`).getDay() + 6) % 7;
@@ -482,13 +501,13 @@ function MonthlyView({ t, monthKey, rows, loading, personId, roster, onPick }) {
                         if (!dateKey) return <div key={'pad-' + i} />;
                         const row = rows[dateKey];
                         const today = dateKey === todayKey();
-                        const before = !!person && !onSheet(person, dateKey);
+                        const before = !!person && !sheetOn(person, dateKey);
                         return (
                             <button
                                 key={dateKey} type="button" className="edge-btn"
                                 onClick={() => onPick(dateKey, row)}
                                 disabled={before}
-                                title={before ? `Joined on ${fmtDate(joinedKey(person))}` : row ? `${statusLabel(row.status)}${row.note ? ' — ' + row.note : ''}` : 'Not marked'}
+                                title={before ? (onSheet(person, dateKey) ? 'Not on the project' : `Joined on ${fmtDate(joinedKey(person))}`) : row ? `${statusLabel(row.status)}${row.note ? ' · ' + row.note : ''}` : 'Not marked'}
                                 style={{
                                     display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 3, opacity: before ? 0.4 : 1,
                                     minHeight: 62, padding: '7px 8px', cursor: before ? 'not-allowed' : 'pointer', textAlign: 'left',
@@ -522,7 +541,7 @@ function MonthlyView({ t, monthKey, rows, loading, personId, roster, onPick }) {
 
 /** The whole team's month: each day shows how many were present, absent, on
     leave and remote; clicking a day lists who. */
-function TeamMonthView({ t, monthKey, rows, loading, roster, onPick }) {
+function TeamMonthView({ t, monthKey, rows, loading, roster, onPick, inProject }) {
     const { days } = monthBounds(monthKey);
     const firstDow = (new Date(`${monthKey}-01T00:00:00`).getDay() + 6) % 7;
     const byDay = useMemo(() => {
@@ -538,13 +557,15 @@ function TeamMonthView({ t, monthKey, rows, loading, roster, onPick }) {
     for (let d = 1; d <= days; d += 1) cells.push(`${monthKey}-${String(d).padStart(2, '0')}`);
 
     if (loading) return <Loading />;
-    if (!roster.length) return <Panel><Empty>Add employees to the registry to see the month.</Empty></Panel>;
+    if (!roster.length) {
+        return <Panel><Empty>{inProject ? 'Add people on Team Members to see the month.' : 'Add employees to the registry to see the month.'}</Empty></Panel>;
+    }
 
     return (
         <>
             <StatBand items={BUCKETS.map((b) => ({ label: `${b.label} · person-days`, value: totals[b.key] }))} />
 
-            <Panel title="Whole team" note={`${monthLabel(monthKey)} · ${roster.length} on the roster · click a day to see who`} pad={13}>
+            <Panel title={inProject ? 'Project team' : 'Whole team'} note={`${monthLabel(monthKey)} · ${roster.length} on the roster · click a day to see who`} pad={13}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0,1fr))', gap: 5 }}>
                     {WEEKDAYS.map((w) => (
                         <div key={w} style={{

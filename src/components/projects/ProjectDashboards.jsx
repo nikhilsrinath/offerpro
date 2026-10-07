@@ -24,7 +24,7 @@ import PageTabs from './PageTabs';
 import { projectSectionPath } from './projectPaths';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   One project's Dashboard — the company Dashboard's flow, for one project.
+   One project's Dashboard: the company Dashboard's flow, for one project.
    It is its own set of pages, /projects/:id/dashboard/:view, switched between
    by the tabs at the top (PageTabs). Each page is a row of figures and a few cards, built from the
    same kit as the company dashboards, so they read the same way.
@@ -137,7 +137,7 @@ function OverviewView({ board, open, navigate, t, status, cols, tileCols }) {
     const { project, today, fin, f, tasks: tk } = board;
     const employees = useSection('employees');
     const personOf = useMemo(() => Object.fromEntries(employees.map((e) => [e.id, e.name])), [employees]);
-    // Tasks an owner or admin marked important (0077), until done — late first.
+    // Tasks an owner or admin marked important (0077), until done, late first.
     const attention = useMemo(() => needsAttention(tk.all, today), [tk.all, today]);
     const pct = board.progress == null ? null : Math.round(board.progress * 100);
     const h = board.health;
@@ -150,9 +150,9 @@ function OverviewView({ board, open, navigate, t, status, cols, tileCols }) {
 
     return (<>
         <TileRow cols={tileCols(fin ? 6 : 4)}>
-            <Tile icon={CircleDashed} label="Progress" value={pct == null ? '—' : `${pct}%`}
+            <Tile icon={CircleDashed} label="Progress" value={pct == null ? '-' : `${pct}%`}
                 foot={pct == null ? 'no plan yet' : `${board.milestones.length} milestones · ${tk.all.length} tasks`} />
-            <Tile icon={HeartPulse} label="Health" value={h && HEALTH[h.health] ? HEALTH[h.health] : '—'}
+            <Tile icon={HeartPulse} label="Health" value={h && HEALTH[h.health] ? HEALTH[h.health] : '-'}
                 tone={h?.health === 'off_track' ? 'down' : null}
                 foot={reasons[0] || (h ? 'nothing flagged' : 'not checked yet')} />
             {fin && (
@@ -160,7 +160,7 @@ function OverviewView({ board, open, navigate, t, status, cols, tileCols }) {
                     foot={f?.billed_pct == null ? 'nothing billed yet' : `${f.billed_pct}% billed`} onClick={to('finance')} />
             )}
             {fin && (
-                <Tile icon={TrendingUp} label="Net margin" value={f ? fmtShort(f.net_margin) : '—'} tone={n(f?.net_margin) < 0 ? 'down' : null}
+                <Tile icon={TrendingUp} label="Net margin" value={f ? fmtShort(f.net_margin) : '-'} tone={n(f?.net_margin) < 0 ? 'down' : null}
                     foot={f?.net_margin_pct == null ? 'nothing invoiced yet' : `${f.net_margin_pct}% of revenue`} onClick={to('finance')} />
             )}
             <Tile icon={Users} label="People" value={String(board.team.length)} foot="on the project today" onClick={to('team')} />
@@ -194,9 +194,9 @@ function OverviewView({ board, open, navigate, t, status, cols, tileCols }) {
             <Card title="Schedule" note={end ? `due ${fmtDay(end)}` : 'no end date set'}>
                 <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginBottom: 14 }}>
                     <Figure big label={daysLeft != null && daysLeft < 0 ? 'days over' : 'days left'}
-                        value={daysLeft == null ? '—' : String(Math.abs(daysLeft))} tone={daysLeft != null && daysLeft < 0 ? 'down' : null} />
-                    <Figure big label="time gone" value={timePct == null ? '—' : `${Math.round(timePct)}%`} />
-                    <Figure big label="done" value={pct == null ? '—' : `${pct}%`} />
+                        value={daysLeft == null ? '-' : String(Math.abs(daysLeft))} tone={daysLeft != null && daysLeft < 0 ? 'down' : null} />
+                    <Figure big label="time gone" value={timePct == null ? '-' : `${Math.round(timePct)}%`} />
+                    <Figure big label="done" value={pct == null ? '-' : `${pct}%`} />
                 </div>
                 {timePct != null && pct != null && (
                     <div style={{ fontSize: 12, color: pct + 10 < timePct ? status.critical : t.faint }}>
@@ -284,8 +284,8 @@ function FinanceView({ board, open, t, cat, status, cols, tileCols }) {
 
             <Card title="Budget" note={f.budget_total ? `${fmtShort(f.budget_total)} budget` : 'no budget set'}>
                 <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginBottom: 14 }}>
-                    <Figure big label="budget used" value={burnPct == null ? '—' : `${Math.round(burnPct)}%`} tone={burnAhead ? 'down' : null} />
-                    <Figure big label="time gone" value={timePct == null ? '—' : `${Math.round(timePct)}%`} />
+                    <Figure big label="budget used" value={burnPct == null ? '-' : `${Math.round(burnPct)}%`} tone={burnAhead ? 'down' : null} />
+                    <Figure big label="time gone" value={timePct == null ? '-' : `${Math.round(timePct)}%`} />
                 </div>
                 <div style={{ fontSize: 12, color: burnAhead ? status.critical : t.faint, marginBottom: 12 }}>
                     {burnAhead ? 'Spending is running ahead of the schedule.' : burnPct == null ? 'Set a budget to track spending.' : 'Spending is in step with the schedule.'}
@@ -478,7 +478,7 @@ function DocumentsView({ board, open, navigate, cat, cols, tileCols }) {
             <Tile icon={FileText} label="All documents" value={String(items.length)} foot="linked to this project" />
             <Tile icon={FileSignature} label="Agreements" value={String(count('agreements'))} foot="NDAs, MoUs, offers" />
             <Tile icon={Briefcase} label="Quotations" value={String(count('sales'))} foot="quotations and proformas" />
-            <Tile icon={Receipt} label="Invoices" value={fin ? String(count('invoices')) : '—'} foot={fin ? 'raised on this project' : 'needs Project financials'} />
+            <Tile icon={Receipt} label="Invoices" value={fin ? String(count('invoices')) : '-'} foot={fin ? 'raised on this project' : 'needs Project financials'} />
         </TileRow>
 
         <CardGrid cols={cols}>

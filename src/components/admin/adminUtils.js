@@ -1,12 +1,12 @@
 /* Formatting helpers for the platform console. Kept out of adminUi.jsx so that
-   file only exports components and fast refresh keeps working — the same split
+   file only exports components and fast refresh keeps working. The same split
    the shared kit makes between edge.jsx and edgeUtils.js. */
 
 export const money = (v, digits = 0) => (Number(v) || 0).toLocaleString('en-IN', {
   style: 'currency', currency: 'INR', maximumFractionDigits: digits,
 });
 
-/** ₹1.24Cr / ₹3.10L / ₹4.5k — headline figures, where the exact rupee is noise. */
+/** ₹1.24Cr / ₹3.10L / ₹4.5k, headline figures, where the exact rupee is noise. */
 export const moneyShort = (v) => {
   const n = Math.round(Number(v) || 0);
   const a = Math.abs(n);
@@ -18,13 +18,13 @@ export const moneyShort = (v) => {
 
 export const fmtDate = (d) => (d
   ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-  : '—');
+  : '-');
 
-/** "3 days ago" — for last-seen columns, where the distance is the point. */
+/** "3 days ago" · for last-seen columns, where the distance is the point. */
 export const ago = (d) => {
   if (!d) return 'never';
   const days = Math.floor((Date.now() - Date.parse(d)) / 864e5);
-  if (Number.isNaN(days)) return '—';
+  if (Number.isNaN(days)) return '-';
   if (days <= 0) return 'today';
   if (days === 1) return 'yesterday';
   if (days < 30) return `${days}d ago`;

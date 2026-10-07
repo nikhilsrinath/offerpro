@@ -85,7 +85,7 @@ const QuotationsPage = () => (
                         <div className="sp-df-line-item">
                           <div className="sp-df-line-num">1</div>
                           <div className="sp-df-line-fields">
-                            <div className="sp-df-input" style={{ marginBottom: '0.375rem' }}>Brand Identity Package — Logo + Guidelines</div>
+                            <div className="sp-df-input" style={{ marginBottom: '0.375rem' }}>Brand Identity Package: Logo + Guidelines</div>
                             <div className="sp-df-row-4">
                               <div><span className="sp-df-label">Qty</span><div className="sp-df-input">1</div></div>
                               <div><span className="sp-df-label">Unit</span><div className="sp-df-input">Set</div></div>
@@ -97,7 +97,7 @@ const QuotationsPage = () => (
                         <div className="sp-df-line-item">
                           <div className="sp-df-line-num">2</div>
                           <div className="sp-df-line-fields">
-                            <div className="sp-df-input" style={{ marginBottom: '0.375rem' }}>Website Development — 12 Pages + CMS</div>
+                            <div className="sp-df-input" style={{ marginBottom: '0.375rem' }}>Website Development: 12 Pages + CMS</div>
                             <div className="sp-df-row-4">
                               <div><span className="sp-df-label">Qty</span><div className="sp-df-input">1</div></div>
                               <div><span className="sp-df-label">Unit</span><div className="sp-df-input">Project</div></div>
@@ -191,8 +191,8 @@ const QuotationsPage = () => (
         <div className="sp-features-grid" style={{ marginTop: '3rem' }}>
           {[
             { icon: RotateCcw, title: 'Revision Tracking', desc: 'Create new revisions with full history. Compare changes and maintain a complete audit trail.' },
-            { icon: Send, title: 'Client Portal', desc: 'Clients accept, request revisions, or reject directly from a branded portal — no login needed.' },
-            { icon: FileCheck, title: 'One-Click Conversion', desc: 'Convert accepted quotations into proforma invoices, then into tax invoices — one click each.' },
+            { icon: Send, title: 'Client Portal', desc: 'Clients accept, request revisions, or reject directly from a branded portal with no login needed.' },
+            { icon: FileCheck, title: 'One-Click Conversion', desc: 'Convert accepted quotations into proforma invoices, then into tax invoices, one click each.' },
             { icon: TrendingUp, title: 'Conversion Analytics', desc: 'Track quote-to-invoice conversion rates, average deal size, and win/loss ratios.' },
             { icon: Clock, title: 'Expiry Management', desc: 'Set validity periods and get notified before quotations expire.' },
             { icon: CreditCard, title: 'Multi-Unit Support', desc: 'Support for hours, sets, pieces, projects, and custom units per line item.' },

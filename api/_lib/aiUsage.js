@@ -4,8 +4,8 @@ import { supabaseAdmin } from './supabaseAdmin.js';
  * Leaves one row in ai_usage_events (0067) for the Usage dashboard.
  *
  * Best-effort by design: usage_counters.ai_messages is what the plan limit is
- * enforced against, and this is only the history behind it. A failure here —
- * including the table not existing yet on a database 0067 has not reached — is
+ * enforced against, and this is only the history behind it. A failure here,
+ * including the table not existing yet on a database 0067 has not reached, is
  * logged and swallowed, never allowed to fail the AI call it describes.
  */
 export async function logAiUsage({

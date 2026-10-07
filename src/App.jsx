@@ -109,7 +109,7 @@ const MODULE_FILTER = {
   business: ['client-directory', 'vendor-directory', 'products-directory'],
 };
 
-// Pages that belong to a module without having a place in its rail — the
+// Pages that belong to a module without having a place in its rail, the
 // editors reached from a list. They still wear that module's frame.
 const MODULE_EXTRA_PAGES = {
   // Recurring invoices live in each project's Billing; the company list keeps
@@ -220,30 +220,30 @@ const NAV_ITEMS = [
 
 const PAGE_META = {
   edgebrain: { title: 'EdgeBrain', subtitle: 'Your company, organised as one connected context your AI can reason over' },
-  dashboard: { title: 'Dashboard', subtitle: 'The whole organisation, one period — click anything for the analysis behind it' },
+  dashboard: { title: 'Dashboard', subtitle: 'The whole organisation for one period. Click anything for the analysis behind it' },
   'dashboard/finance': { title: 'Finance Dashboard', subtitle: 'Money in, money out, and who owes whom' },
   'dashboard/sales': { title: 'Sales & Marketing Dashboard', subtitle: 'Pipeline, recurring revenue, quotations, customers, markets and acquisition spend' },
   'dashboard/team': { title: 'Team Dashboard', subtitle: 'Headcount, attendance, leave and who is carrying the work' },
   'dashboard/projects': { title: 'Projects Dashboard', subtitle: 'What is being delivered, what is late, and whether it pays' },
   'dashboard/documents': { title: 'Documents Dashboard', subtitle: 'Everything issued, every reply, and the library EdgeBrain reads' },
-  'dashboard/usage': { title: 'Usage Dashboard', subtitle: 'AI messages and plan limits — how much you have used and what is left' },
+  'dashboard/usage': { title: 'Usage Dashboard', subtitle: 'AI messages and plan limits: how much you have used and what is left' },
   profile: { title: 'Company Profile', subtitle: 'The details every document you issue is signed with' },
   'offer-letters': { title: 'Offer Letters', subtitle: 'One offer at a time, or a whole batch from a CSV' },
   certificates: { title: 'Certificates', subtitle: 'Issue one certificate, or a whole batch from a CSV' },
-  templates: { title: 'Templates', subtitle: 'Agreements drafted on your letterhead — pick one to start' },
+  templates: { title: 'Templates', subtitle: 'Agreements drafted on your letterhead. Pick one to start' },
   'templates/nda': { title: 'Non-Disclosure Agreements', subtitle: 'Draft legal-grade confidentiality agreements' },
   'templates/mou': { title: 'Memorandum of Understanding', subtitle: 'Establish collaboration frameworks and partnerships' },
   'templates/partnership': { title: 'Partnership Agreement', subtitle: 'Contributions, profit sharing and terms between partners' },
   'templates/custom': { title: 'Custom Template', subtitle: 'Your own title and clauses on the company letterhead' },
   'finance-status': { title: 'Finance Status', subtitle: 'Track all financial documents through their lifecycle' },
-  'general-ledger': { title: 'General Ledger', subtitle: 'Money in and money out by project, and everything general — everything no invoice or vendor bill already covers' },
+  'general-ledger': { title: 'General Ledger', subtitle: 'Money in and money out by project, and everything general that no invoice or vendor bill already covers' },
   invoices: { title: 'Billing', subtitle: 'Quotations, proformas and invoices' },
   quotations: { title: 'Billing', subtitle: 'Quotations, proformas and invoices' },
   proforma: { title: 'Billing', subtitle: 'Quotations, proformas and invoices' },
   recurring: { title: 'Recurring Invoices', subtitle: 'Set up and manage recurring invoices' },
   'vendor-directory': { title: 'Vendor Directory', subtitle: 'Suppliers, payment terms and what you owe each of them' },
-  'purchase-bills': { title: 'Purchase Bills', subtitle: 'Bills received from vendors — money out as a tracked payable' },
-  'tax-summary': { title: 'Tax Summary', subtitle: 'Output GST against input GST — a preparation aid, not a filing tool' },
+  'purchase-bills': { title: 'Purchase Bills', subtitle: 'Bills received from vendors, tracked as money out' },
+  'tax-summary': { title: 'Tax Summary', subtitle: 'Output GST against input GST. A preparation aid, not a filing tool' },
   'profit-loss': { title: 'Profit & Loss', subtitle: 'Income, expenses and net profit for any period' },
   'new-invoice': { title: 'New Invoice', subtitle: 'Generate professional business invoices' },
   'new-quotation': { title: 'New Quotation', subtitle: 'Create a quotation for your client' },
@@ -253,22 +253,22 @@ const PAGE_META = {
   'products-directory': { title: 'Product & Service Directory', subtitle: 'Product and service catalogue, and what each one has sold' },
   revenue: { title: 'Billing & Revenue', subtitle: 'Track revenue, expenses, and profitability' },
   records: { title: 'Records', subtitle: 'Manage and download issued documents' },
-  'document-library': { title: 'Document Library', subtitle: 'General documents, process assets and lessons learned — read by EdgeBrain so the AI can answer from them' },
+  'document-library': { title: 'Document Library', subtitle: 'General documents, process assets and lessons learned. EdgeBrain reads them so the AI can answer from them' },
   employees: { title: 'Employee Registry', subtitle: 'Manage your internal team and onboarding' },
   'ex-employees': { title: 'Ex-Employees', subtitle: 'Archive of employees who have left the organization' },
   me: { title: 'My Portal', subtitle: 'Your attendance, leave and announcements' },
   attendance: { title: 'Attendance', subtitle: 'Daily sheet, monthly calendar, export and leave' },
   leave: { title: 'Leave', subtitle: 'Approve requests, track balances and set quotas' },
   announcements: { title: 'Announcements', subtitle: 'Broadcast to the whole team or one department' },
-  'company-hierarchy': { title: 'Company Hierarchy', subtitle: 'Visual org chart — drag nodes and connect reporting lines' },
+  'company-hierarchy': { title: 'Company Hierarchy', subtitle: 'Visual org chart: drag nodes and connect reporting lines' },
   'recruitment-tracker': { title: 'Recruitment Tracker', subtitle: 'Real-time acceptance status for all sent offer letters' },
-  tasks: { title: 'Tasks', subtitle: 'Assign and track work — by project, or General' },
+  tasks: { title: 'Tasks', subtitle: 'Assign and track work by project, or General' },
   projects: { title: 'Projects', subtitle: 'What the company is delivering, for whom, and whether it pays' },
   'new-project': { title: 'New project', subtitle: 'Client or internal work, its team, budget and plan' },
   'project-detail': { title: 'Project', subtitle: 'Money in, money out, people, plan and work' },
-  'kanban-chart': { title: 'Kanban Chart', subtitle: 'Every project by status — what has started, what is due and what has ended' },
+  'kanban-chart': { title: 'Kanban Chart', subtitle: 'Every project by status: what has started, what is due and what has ended' },
   portfolio: { title: 'Portfolio', subtitle: 'Every project: health, margin and team load' },
-  timesheets: { title: 'Timesheets', subtitle: 'Hours by person and project — submitted, approved, billed' },
+  timesheets: { title: 'Timesheets', subtitle: 'Hours by person and project: submitted, approved, billed' },
 };
 
 /* One page, several ways of working: the single-document editor, its batch
@@ -298,7 +298,7 @@ const EmployeesSection = () => (
 const AttendanceSection = () => (
   <SectionTabs label="Attendance" base="/attendance" tabs={[
     { id: 'sheet', label: 'Attendance', render: () => <AttendanceSheet /> },
-    { id: 'leave', label: 'Leave', note: 'Approve requests, track balances and set quotas', render: () => <LeaveRequests /> },
+    { id: 'leave', label: 'Leave', render: () => <LeaveRequests /> },
   ]} />
 );
 
@@ -345,7 +345,7 @@ function AppContent() {
 
   // The Co-founder's numeric context. This was an inline literal with every
   // figure hardcoded to 0, so the AI was told the company had no revenue, no
-  // invoices and no documents no matter what the database held —
+  // invoices and no documents no matter what the database held,
   // buildEdgeContext() has existed since the AI shipped and was never called.
   //
   // Recomputed when the org changes and each time the panel is opened, which is
@@ -395,8 +395,8 @@ function AppContent() {
     return () => { cancelled = true; };
   }, [activeOrg, user]);
 
-  // Both sides optional-chained meant that on the first render — builtContext
-  // still null, activeOrg not yet hydrated — this compared undefined to
+  // Both sides optional-chained meant that on the first render, builtContext
+  // still null, activeOrg not yet hydrated. This compared undefined to
   // undefined, took the truthy branch and dereferenced null. The org stamp is
   // only meaningful once there is both a built context and an org to match it
   // against; either one missing means there is no context to hand the AI.
@@ -405,7 +405,7 @@ function AppContent() {
       ? builtContext.ctx
       : null;
 
-  // An `employee` (0029) holds no org-wide permission at all — their access is
+  // An `employee` (0029) holds no org-wide permission at all. Their access is
   // to their own attendance and leave rows. Rendering the admin shell for them
   // would be a sidebar of screens that all come back empty, so they get the
   // portal instead. This is presentation only: the RLS policies are what

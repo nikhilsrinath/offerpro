@@ -12,9 +12,11 @@ import {
     DAY_STATUSES, DAY_BY_KEY, daysBetween, dayCell, summarisePerson, isoDay,
 } from '../../../services/projectTeam';
 import { useProjectPeople, canAttendance, teamError } from './teamData';
+import AttendanceSheet from '../../people/AttendanceSheet';
+import HubLeave from '../../people/LeaveRequests';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Team Management › Attendance — three plain views of the project's people:
+   Team Management › Attendance: three plain views of the project's people:
 
      Day     who is in today: one row per person, one click per status.
      Month   the month at a glance, with each person's totals at the end of
@@ -52,7 +54,66 @@ const fmtN = (n) => {
     return Number.isInteger(v) ? String(v) : v.toFixed(1);
 };
 
+/**
+ * Team Management › Attendance: the hub's Attendance and Leave pages, the
+ * same sheets narrowed to the people on this project and the days each one
+ * is on it.
+ */
 export default function ProjectAttendance({ project, onOpen }) {
+    const team = useProjectPeople(project);
+    const orgId = orgStore.getOrgId();
+    const [view, setView] = useState('sheet');
+    const [applying, setApplying] = useState(null);   // { types, requests, reload }
+
+    const people = useMemo(
+        () => team.people.map((p) => p.employee || { id: p.id, name: p.name }),
+        [team.people],
+    );
+    const byId = useMemo(() => new Map(team.people.map((p) => [p.id, p])), [team.people]);
+    const isOn = useCallback((id, day) => {
+        const p = byId.get(id);
+        return !!p && onProject(p.membership, day);
+    }, [byId]);
+    const ids = useMemo(() => team.people.map((p) => p.id), [team.people]);
+
+    const meOnTeam = team.me && byId.has(team.me);
+    const canApplyForOthers = orgStore.can('leave_requests', 'create');
+
+    if (!team.people.length) {
+        return (
+            <Panel>
+                <Empty action={onOpen && <Btn primary onClick={() => onOpen('team')}>Add team members</Btn>}>
+                    No one is on this project yet. Attendance and leave show here for each person on the team.
+                </Empty>
+            </Panel>
+        );
+    }
+
+    return (
+        <div style={{ display: 'grid', gap: 12 }}>
+            <Seg value={view} onChange={setView} label="Attendance" options={[
+                { id: 'sheet', label: 'Attendance' },
+                { id: 'leave', label: 'Leave' },
+            ]} />
+            {view === 'sheet'
+                ? <AttendanceSheet people={people} isOn={isOn} scope="project" />
+                : (
+                    <HubLeave employeeIds={ids} renderActions={(ctx) => (meOnTeam || canApplyForOthers) && (
+                        <Btn primary onClick={() => setApplying(ctx)}>Apply for leave</Btn>
+                    )} />
+                )}
+            {applying && (
+                <ApplyLeave orgId={orgId} people={team.people} team={team} types={applying.types}
+                    requests={applying.requests} forOthers={canApplyForOthers}
+                    onClose={() => setApplying(null)}
+                    onDone={() => { const { reload } = applying; setApplying(null); reload(); }} />
+            )}
+        </div>
+    );
+}
+
+// The project's own Day / Month / Leave views, before it used the hub's pages.
+function LegacyProjectAttendance({ project, onOpen }) {
     const team = useProjectPeople(project);
     const orgId = orgStore.getOrgId();
     const [view, setView] = useState('day');
@@ -379,7 +440,7 @@ function MonthView({ people, orgId, month, setMonth, stamp, requests, typeById, 
                                                 <td style={{ textAlign: 'center', fontSize: 12.5, color: g.sum.absent ? t.down : t.faint, borderBottom: '1px solid ' + t.lineSoft }}>{fmtN(g.sum.absent)}</td>
                                                 <td style={{ textAlign: 'center', fontSize: 12.5, color: g.sum.leave ? t.text : t.faint, borderBottom: '1px solid ' + t.lineSoft }}>{fmtN(g.sum.leave)}</td>
                                                 <td title={g.balanceNote} style={{ textAlign: 'center', fontSize: 12.5, color: t.dim, paddingRight: 13, borderBottom: '1px solid ' + t.lineSoft }}>
-                                                    {g.balance == null ? '—' : fmtN(g.balance)}
+                                                    {g.balance == null ? '-' : fmtN(g.balance)}
                                                 </td>
                                             </tr>
                                         );
@@ -494,7 +555,7 @@ function LeaveRequests({ people, team, requests, types, typeById, canDecide, org
                                     <Td muted nowrap>{fmtDate(r.start_date)}{r.end_date !== r.start_date ? ` → ${fmtDate(r.end_date)}` : ''}</Td>
                                     <Td align="right">{fmtN(r.days)}{r.half_day ? ' (½)' : ''}</Td>
                                     <Td muted>
-                                        <span style={{ display: 'block', maxWidth: 260 }}>{r.reason || '—'}</span>
+                                        <span style={{ display: 'block', maxWidth: 260 }}>{r.reason || '-'}</span>
                                         {r.decision_comment && <span style={{ display: 'block', fontSize: 11.5, color: t.faint, marginTop: 2 }}>“{r.decision_comment}”</span>}
                                     </Td>
                                     <Td nowrap><Status tone={TONE[r.status]}>{LEAVE_STATUSES[r.status]?.label || r.status}</Status></Td>
@@ -531,7 +592,7 @@ function LeaveRequests({ people, team, requests, types, typeById, canDecide, org
                             await act(r.id, () => leaveService.decide(r.id, 'rejected', comment), 'Leave rejected');
                         }}>Reject</Btn>
                     </>}>
-                    <Field label="Reason" hint="Optional — the person sees it with the decision">
+                    <Field label="Reason" hint="Optional, the person sees it with the decision">
                         <Textarea rows={3} value={comment} onChange={(e) => setComment(e.target.value)} autoFocus />
                     </Field>
                 </Modal>

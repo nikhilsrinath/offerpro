@@ -93,7 +93,7 @@ describe('document totals match the database trigger', () => {
 });
 
 describe('drafts', () => {
-  it('"invoice Acme 50k for the website" — a draft with the org\'s usual terms and the totals the DB will store', async () => {
+  it('"invoice Acme 50k for the website" · a draft with the org\'s usual terms and the totals the DB will store', async () => {
     const { db, ctx } = world();
     const p = await propose('create_invoice_draft', { client: 'Acme', items: 'website redesign 50k' }, ctx);
     expect(p.r.args).toMatchObject({
@@ -198,7 +198,7 @@ describe('payments', () => {
     const p = await propose('mark_invoice_paid', { document: 'Acme', method: 'upi' }, ctx);
     expect(p.r.args).toMatchObject({ document: INV1, amount: 54000, date: TODAY, method: 'upi' });
     expect(p.preview.confirmLabel).toBe('Record ₹54,000.00 payment');
-    expect(p.preview.preview.rows).toContainEqual(['Still owed after', 'Nothing — it will show as paid']);
+    expect(p.preview.preview.rows).toContainEqual(['Still owed after', 'Nothing, it will show as paid']);
     await confirm(p, ctx);
     expect(db.tables.payments.at(-1)).toMatchObject({ document_id: INV1, amount: 54000, method: 'UPI', confirmed_by: 'u-1' });
     expect(db.tables.payments.at(-1).confirmed_at).toBeTruthy();
@@ -218,7 +218,7 @@ describe('payments', () => {
 });
 
 describe('cancel and delete follow the app\'s rules', () => {
-  it('a tax invoice is never deleted — it offers to cancel; one with money received cannot be cancelled', async () => {
+  it('a tax invoice is never deleted. It offers to cancel; one with money received cannot be cancelled', async () => {
     const { ctx } = world();
     const del = await propose('delete_financial_document', { document: 'INV-2026-0007' }, ctx);
     expect(del.stopped.needs.message).toMatch(/cancelled, not deleted/);

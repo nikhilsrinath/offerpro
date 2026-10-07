@@ -5,7 +5,7 @@ import { useT } from '../../ui/edgeUtils';
 /* The pieces the bulk tools share, built on the edge kit: a numbered step, the
    two-column frame that makes room for the live feed, and the feed itself. */
 
-/** One numbered stage of a batch. Heading level 2 — the shell owns the h1. */
+/** One numbered stage of a batch. Heading level 2. The shell owns the h1. */
 export function Step({ n, title, note, actions, children }) {
     const t = useT();
     const id = `bulk-step-${n}`;

@@ -429,7 +429,7 @@ export default function OfferForm() {
                     <option value="">Select supervisor…</option>
                     {employees.map(e => {
                       const name = getDisplayName(e);
-                      return name ? <option key={e.id} value={name}>{name}{e.role ? ` — ${e.role}` : ''}</option> : null;
+                      return name ? <option key={e.id} value={name}>{name}{e.role ? ` · ${e.role}` : ''}</option> : null;
                     })}
                   </select>
                 ) : (

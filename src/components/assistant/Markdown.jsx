@@ -2,7 +2,7 @@ import React from 'react';
 import { MONO } from '../../theme/edge';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Markdown — the small subset the assistant actually emits.
+   Markdown: the small subset the assistant actually emits.
 
    The model answers in markdown (bold labels, bullet lists, the odd heading)
    and the bubbles used to print it verbatim, so "**Total Revenue:**" reached
@@ -11,7 +11,7 @@ import { MONO } from '../../theme/edge';
    bullet and numbered lists, bold, italic and inline code. Anything else
    falls through as plain text, which is the right failure for a chat bubble.
 
-   It runs on every streamed token, so it stays linear in the text length —
+   It runs on every streamed token, so it stays linear in the text length,
    no backtracking regex, no re-parsing of earlier lines.
    ══════════════════════════════════════════════════════════════════════════ */
 

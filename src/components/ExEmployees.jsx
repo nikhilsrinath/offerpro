@@ -16,7 +16,7 @@ import { useToast } from './shared/Toast';
 
    An archive, so it reads like one: a table sorted by when each person left,
    with a tenure column that turns two dates into the number people actually
-   want. The one live question — can they still sign in — is a status word on
+   want. The one live question, can they still sign in, is a status word on
    the row rather than a shield icon whose colour you have to interpret.
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -40,7 +40,7 @@ const leftOn = (e) => e.terminated_at || e.archived_at || e.exited_at || null;
 function tenure(emp) {
     const from = emp.startDate || emp.start_date || emp.created_at;
     const to = leftOn(emp);
-    if (!from || !to) return '—';
+    if (!from || !to) return '-';
     const months = Math.max(0, Math.round((new Date(to) - new Date(from)) / (1000 * 60 * 60 * 24 * 30.44)));
     if (months < 1) return 'Under a month';
     if (months < 12) return months + (months === 1 ? ' month' : ' months');
@@ -169,7 +169,7 @@ export default function ExEmployees() {
                         <Panel>
                             <Empty>
                                 {people.length === 0
-                                    ? 'Nobody has left yet. People arrive here once a termination notice is acknowledged — nothing is deleted.'
+                                    ? 'Nobody has left yet. People arrive here once a termination notice is acknowledged. Nothing is deleted.'
                                     : 'Nobody matches that search.'}
                             </Empty>
                         </Panel>
@@ -193,24 +193,24 @@ export default function ExEmployees() {
                                             <Row gap={9}>
                                                 <Avatar name={name} size={26} />
                                                 <span style={{ minWidth: 0 }}>
-                                                    <span style={{ display: 'block' }}>{name || '—'}</span>
+                                                    <span style={{ display: 'block' }}>{name || '-'}</span>
                                                     <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>{emp.email}</span>
                                                 </span>
                                             </Row>
                                         </Td>
-                                        <Td muted nowrap>{emp.employee_code || '—'}</Td>
-                                        <Td muted nowrap>{emp.role || '—'}</Td>
+                                        <Td muted nowrap>{emp.employee_code || '-'}</Td>
+                                        <Td muted nowrap>{emp.role || '-'}</Td>
                                         <Td nowrap>
                                             {emp.department ? (
                                                 <Row gap={7}>
                                                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: deptColor(emp.department), flexShrink: 0 }} />
                                                     <span style={{ color: t.dim, fontSize: 12.5 }}>{emp.department}</span>
                                                 </Row>
-                                            ) : <span style={{ color: t.ghost }}>—</span>}
+                                            ) : <span style={{ color: t.ghost }}>-</span>}
                                         </Td>
                                         <Td muted nowrap>{tenure(emp)}</Td>
                                         <Td muted nowrap>{fmtDate(leftOn(emp))}</Td>
-                                        <Td nowrap>{a ? <Status tone={a.tone}>{a.label}</Status> : <span style={{ color: t.ghost }}>—</span>}</Td>
+                                        <Td nowrap>{a ? <Status tone={a.tone}>{a.label}</Status> : <span style={{ color: t.ghost }}>-</span>}</Td>
                                         <Td align="right">
                                             <Row gap={6} style={{ justifyContent: 'flex-end' }}>
                                                 <Btn size="sm" onClick={(e) => { e.stopPropagation(); setSelected(emp); }}>Open</Btn>
@@ -248,7 +248,7 @@ export default function ExEmployees() {
                             ['Tenure', tenure(selected)],
                             ['Reported to', selected.supervisorName],
                             ['Reason', selected.termination_reason || selected.exit_reason],
-                        ].filter(([, v]) => v && v !== '—').map(([k, v], i) => (
+                        ].filter(([, v]) => v && v !== '-').map(([k, v], i) => (
                             <div key={k} style={{
                                 display: 'flex', gap: 12, padding: '9px 13px',
                                 borderTop: i ? '1px solid ' + t.lineSoft : 'none',

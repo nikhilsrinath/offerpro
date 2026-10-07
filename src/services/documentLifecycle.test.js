@@ -3,7 +3,7 @@ import { lifecycleOf, revertedStatusOf, ownMoneyReceived, isCarriedAdvance } fro
 
 const doc = (over = {}) => ({ id: 'd1', type: 'quotation', status: 'draft', doc_number: 'QT-1', grand_total: 1000, ...over });
 
-describe('lifecycleOf — delete', () => {
+describe('lifecycleOf: delete', () => {
   it('deletes a quotation or proforma draft that was never sent', () => {
     expect(lifecycleOf(doc(), []).delete.allowed).toBe(true);
     expect(lifecycleOf(doc({ type: 'proforma' }), []).delete.allowed).toBe(true);
@@ -11,7 +11,7 @@ describe('lifecycleOf — delete', () => {
     expect(lifecycleOf(doc(), []).cancel.allowed).toBe(false);
   });
 
-  it('never deletes a tax invoice, not even a draft — it is cancelled', () => {
+  it('never deletes a tax invoice, not even a draft. It is cancelled', () => {
     const l = lifecycleOf(doc({ type: 'invoice' }), []);
     expect(l.delete.allowed).toBe(false);
     expect(l.delete.reason).toMatch(/GST/);
@@ -27,7 +27,7 @@ describe('lifecycleOf — delete', () => {
   });
 });
 
-describe('lifecycleOf — cancel', () => {
+describe('lifecycleOf: cancel', () => {
   it('refuses a converted document until its successor is cancelled', () => {
     const q = doc({ status: 'converted' });
     const pf = { id: 'p1', type: 'proforma', status: 'draft', doc_number: 'PI-4', converted_from: 'd1' };

@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 /**
  * Service-role Supabase client. Bypasses RLS entirely, so it exists only in
- * server code — never imported from anything under src/.
+ * server code: never imported from anything under src/.
  *
  * Created lazily so that a missing key surfaces as a 500 on the one endpoint
  * that needed it rather than as a crash at module load for every function.

@@ -12,8 +12,8 @@ import { createClient } from '@supabase/supabase-js';
  *
  * Except for one header. A confirmed write carries `x-edgeos-agent-action:
  * <ai_actions.id>`, which PostgREST exposes to SQL as request.headers. 0068's
- * audit trigger reads it — and trusts it only if that id is a confirmed action
- * belonging to auth.uid() — to stamp the audit row `via = 'edgeai'`.
+ * audit trigger reads it. And trusts it only if that id is a confirmed action
+ * belonging to auth.uid(), to stamp the audit row `via = 'edgeai'`.
  *
  * The service role (supabaseAdmin) is used for the ai_actions log and the AI
  * meter only; see actions.js.
@@ -66,7 +66,7 @@ export function friendlyDbError(err) {
   if (code === '23514') return 'One of the values is outside what that field allows.';
   if (code === '22P02' || code === '22007' || code === '22008') return 'One of the values is not in a form the database accepts.';
   if (code === 'P0001' && msg) return msg.replace(/^ERROR:\s*/i, '');
-  if (code === 'PGRST116') return 'That record could not be found — it may have been deleted.';
+  if (code === 'PGRST116') return 'That record could not be found. It may have been deleted.';
   return 'The change could not be saved.';
 }
 

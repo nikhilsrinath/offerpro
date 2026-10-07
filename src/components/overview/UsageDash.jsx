@@ -10,9 +10,9 @@ import { Columns, RankBars, Legend, EmptyNote, Delta } from './vizKit';
 import { Dashboard, Card, Tile, Figure, More, TileRow, CardGrid, ListRow, Meter } from './dashKit';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Dashboard · Usage — how much of the plan the organisation has used.
+   Dashboard · Usage: how much of the plan the organisation has used.
 
-   The AI figure that matters — used against the limit — is read from
+   The AI figure that matters, used against the limit, is read from
    usage_counters, the same counter the server refuses requests against, so
    this page can never say "12 left" while the API says "limit reached".
    Everything else about AI (when, which feature, who) comes from the call log
@@ -80,16 +80,16 @@ function UsageBody({ t, cat, status, cols, grid, tileCols, orgId, navigate, toda
             <Tile icon={BatteryMedium} label="Remaining" value={unlimited ? '∞' : String(left)}
                 exact={unlimited ? 'unlimited' : `${left} messages left`} tone={!unlimited && left === 0 ? 'down' : null}
                 foot={unlimited ? 'no ceiling' : left === 0 ? 'AI is paused until you upgrade' : `${(100 - pct).toFixed(0)}% of the allowance`} />
-            <Tile icon={Timer} label="Runway" value={run === null ? '—' : run.days === 0 ? '0 days' : `~${run.days} d`}
+            <Tile icon={Timer} label="Runway" value={run === null ? '-' : run.days === 0 ? '0 days' : `~${run.days} d`}
                 exact={run === null ? 'not enough recent use to project' : `about ${run.days} days`}
                 tone={run && run.days <= 7 ? 'down' : null}
                 foot={unlimited ? 'unlimited plan' : run === null ? 'needs recent use to project' : `at ${perDay.toFixed(1)} a day (30-day pace)`} />
-            <Tile icon={CalendarDays} label="Last 7 days" value={history?.available ? String(s.last7) : '—'}
+            <Tile icon={CalendarDays} label="Last 7 days" value={history?.available ? String(s.last7) : '-'}
                 exact={history?.available ? `${s.last7} calls` : 'history unavailable'}
                 delta={weekDelta === null ? null : <Delta invert value={weekDelta} />}
                 foot={history?.available ? `${s.prev7} the week before` : 'call history not recorded yet'}
                 spark={history?.available ? s.series.slice(-14).map((d) => d.total) : undefined} sparkBars color={cat[0]} />
-            <Tile icon={Cpu} label="Tokens · 90 days" value={s.tokens.calls ? fmtTokens(s.tokens.prompt + s.tokens.completion) : '—'}
+            <Tile icon={Cpu} label="Tokens · 90 days" value={s.tokens.calls ? fmtTokens(s.tokens.prompt + s.tokens.completion) : '-'}
                 exact={s.tokens.calls ? `${(s.tokens.prompt + s.tokens.completion).toLocaleString('en-IN')} tokens` : 'no token counts yet'}
                 foot={s.tokens.calls ? `${fmtTokens(s.tokens.prompt)} in · ${fmtTokens(s.tokens.completion)} out` : 'reported by EdgeBrain & document reading'} />
         </TileRow>
@@ -121,14 +121,14 @@ function UsageBody({ t, cat, status, cols, grid, tileCols, orgId, navigate, toda
                     ))}
                 </div>
                 <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginTop: 12 }}>
-                    <Figure label="used" value={pct === null ? '—' : `${pct.toFixed(0)}%`} tone={pct >= 100 ? 'down' : null} />
+                    <Figure label="used" value={pct === null ? '-' : `${pct.toFixed(0)}%`} tone={pct >= 100 ? 'down' : null} />
                     <Figure label="left" value={unlimited ? '∞' : String(left)} />
-                    <Figure label="answered · 90d" value={history?.available ? String(s.answered) : '—'} />
-                    <Figure label="refused at limit" value={history?.available ? String(s.blocked) : '—'} tone={s.blocked ? 'down' : null} />
-                    <Figure label="provider errors" value={history?.available ? String(s.failed) : '—'} />
+                    <Figure label="answered · 90d" value={history?.available ? String(s.answered) : '-'} />
+                    <Figure label="refused at limit" value={history?.available ? String(s.blocked) : '-'} tone={s.blocked ? 'down' : null} />
+                    <Figure label="provider errors" value={history?.available ? String(s.failed) : '-'} />
                 </div>
                 <div style={{ fontSize: 11.5, color: t.faint, marginTop: 12, lineHeight: 1.6 }}>
-                    This is a running total for the organisation and does not reset each month. A request is counted when it is sent — before the answer —
+                    This is a running total for the organisation and does not reset each month. A request is counted when it is sent (before the answer),
                     so a refused request still moves the counter.
                     {refreshedAt && <> Updated {refreshedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}.</>}
                 </div>
@@ -151,7 +151,7 @@ function UsageBody({ t, cat, status, cols, grid, tileCols, orgId, navigate, toda
                                 <span style={{ flex: 1 }} />
                                 <Figure label="30 days" value={String(s.inWindow)} />
                                 <Figure label="active days" value={String(s.activeDays)} />
-                                <Figure label="busiest" value={s.busiest ? `${s.busiest.total} · ${s.busiest.label}` : '—'} />
+                                <Figure label="busiest" value={s.busiest ? `${s.busiest.total} · ${s.busiest.label}` : '-'} />
                             </div>
                         </>)}
             </Card>

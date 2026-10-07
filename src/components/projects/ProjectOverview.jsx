@@ -53,7 +53,7 @@ export default function ProjectOverview({ project, onTab }) {
             {fin && f && (
                 <StatBand items={[
                     { label: 'Contract', value: money(f.contract_value) },
-                    { label: 'Billed', value: f.billed_pct == null ? '—' : `${f.billed_pct}%`, note: money(f.billed_to_date) },
+                    { label: 'Billed', value: f.billed_pct == null ? '-' : `${f.billed_pct}%`, note: money(f.billed_to_date) },
                     { label: 'Collected', value: money(f.revenue_collected), note: 'Net of GST' },
                     { label: 'Cost to date', value: money(f.cost_to_date), note: 'Direct costs and labour' },
                     {

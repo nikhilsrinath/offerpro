@@ -7,7 +7,7 @@ import { PERIOD_IDS } from './periods';
    Kept per person and per organization in localStorage: a layout is a
    preference about how you like to look at a company, not a fact about the
    company, and two people in one org rarely want the same board. An empty
-   array is a deliberate "cleared" state and is stored as such — only a
+   array is a deliberate "cleared" state and is stored as such. Only a
    missing key falls back to the defaults.
 
    The hub's catalog is the default; a project workspace passes its own
