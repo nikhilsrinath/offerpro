@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { Plus, Trash2, ChevronRight, Eye, Lock, UserPlus } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { customerService } from '../services/customerService';
@@ -29,8 +29,11 @@ export default function InvoiceForm() {
   // Opened from a project (its page, or later a milestone) the invoice starts
   // allocated to it; otherwise the picker starts empty and, untouched, saves
   // nothing at all.
+  // The project can also come from the route (/projects/:projectId/...), which
+  // neither the navigation state nor ?project= carries.
+  const routeProjectId = useParams().projectId;
   const [projectPicker, setProjectPicker] = useState(() =>
-    pickerFor(location.state?.projectId || params.get('project') || ''));
+    pickerFor(routeProjectId || location.state?.projectId || params.get('project') || ''));
   // A milestone's "Create invoice" (ProjectMilestones.jsx) sends the milestone,
   // the client and one line. The milestone rides in the document's payload,
   // and the database links it and allocates the invoice on insert (0054).
@@ -64,7 +67,7 @@ export default function InvoiceForm() {
     buyerState: '',
     // ISO alpha-2, written straight to financial_documents.country_code. Blank
     // leaves it to the insert trigger, which reads the customer record and then
-    // the organisation — so this only has to be touched for a buyer the
+    // the organisation: so this only has to be touched for a buyer the
     // customer record does not already place correctly.
     buyerCountry: '',
     gstRate: 18,
@@ -107,7 +110,7 @@ export default function InvoiceForm() {
   });
 
   // A buyer in another country is an inter-state supply for GST purposes
-  // whatever the state boxes say — and those boxes only list Indian states, so
+  // whatever the state boxes say. And those boxes only list Indian states, so
   // a foreign buyer leaves `buyerState` empty and the state comparison alone
   // would quietly charge CGST+SGST on an export. Adding the country field is
   // what surfaced that; ignoring it here would leave the bug in place.
@@ -262,7 +265,7 @@ export default function InvoiceForm() {
 
   // This form is where a product actually becomes a sale: the catalog_item_id
   // carried here is what app.recompute_catalog_sales() attributes once the
-  // invoice is issued. `unit` is omitted because InvoiceForm has no unit field —
+  // invoice is issued. `unit` is omitted because InvoiceForm has no unit field,
   // document_line_items falls back to its 'Nos' default.
   const handleSelectProduct = (id, product) => {
     setFormData({
@@ -307,7 +310,7 @@ export default function InvoiceForm() {
       const dataToSave = { ...resolved, totals, isInterState, makingCharges: totalMakingCost, orgName: formData.orgName || activeOrg?.company_name || activeOrg?.name };
       await pdfService.generateInvoice(dataToSave);
 
-      // Save to documentStore (fin_docs) — single source of truth for invoices
+      // Save to documentStore (fin_docs), single source of truth for invoices
       if (activeOrg?.id) documentStore.setContext(activeOrg.id);
       await documentStore.init();
       // The customer row is resolved BEFORE the document is written, so the
@@ -315,8 +318,8 @@ export default function InvoiceForm() {
       // the id thrown away, which left financial_documents.customer_id null on
       // every row in the table: the Customers detail page had to fall back to
       // matching on name, and the first two steps of
-      // app.resolve_document_country() — the customer's own country, then the
-      // country implied by their GST state — were unreachable, so Sales by
+      // app.resolve_document_country(). The customer's own country, then the
+      // country implied by their GST state, were unreachable, so Sales by
       // Countries never saw a customer-sourced country.
       let customerId = selectedCustomerId || null;
       if (formData.clientName) {
@@ -367,7 +370,7 @@ export default function InvoiceForm() {
         // The bill_to_* columns are read from these top-level keys, not from
         // the nested `client` object above. Without them bill_to_name fell back
         // to the literal 'Unnamed' and the buyer's email, address, GSTIN and
-        // state were never stored — so the list, the portal and any reminder
+        // state were never stored. So the list, the portal and any reminder
         // email had no client on them.
         clientName: formData.clientName,
         clientEmail: formData.clientEmail,
@@ -409,9 +412,9 @@ export default function InvoiceForm() {
         ...(Array.isArray(location.state?.timesheetIds) ? { timesheet_ids: location.state.timesheetIds } : {}),
       });
 
-      // (The customer upsert moved above documentStore.save — see the note there.)
+      // (The customer upsert moved above documentStore.save, see the note there.)
       // The project split is saved after the invoice. A failure there leaves
-      // the invoice saved — it is said out loud, and the split can be made from
+      // the invoice saved: it is said out loud, and the split can be made from
       // the project's Finance tab.
       try {
         await saveSplitFromPicker('invoice', saved?.id, projectPicker);
@@ -715,7 +718,7 @@ export default function InvoiceForm() {
 
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
               <Lock size={11} style={{ display: 'inline', verticalAlign: '-1px', marginRight: '0.25rem' }} />
-              Making cost is internal — it won't appear on the invoice PDF. Used for profit tracking only.
+              Making cost is internal. It won't appear on the invoice PDF. Used for profit tracking only.
             </p>
           </div>
 
@@ -793,7 +796,7 @@ export default function InvoiceForm() {
                 <div className="easy-total-divider" />
 
                 <div className="easy-total-row easy-total-grand">
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-tertiary)' }}>Total</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>Total</span>
                   <span>{totals.grandTotal.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
                 </div>
 

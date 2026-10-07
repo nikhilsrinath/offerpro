@@ -54,7 +54,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
     projectLinks.filter((l) => l.financial_document_id).forEach((l) => add(l.financial_document_id, l.project_id));
     return (docId) => [...(map[docId] || [])].map((id) => byId[id]);
   }, [projects, allocations, projectLinks]);
-  const showProjects = !projectId && projects.length > 0 && (type !== 'invoice' || allocations.length > 0);
+  const showProjects = !projectId;
   // A project's own documents, including anything converted from one of them.
   const scope = useProjectScope(projectId);
   // A form opened from a project's Billing stays inside the project.
@@ -173,7 +173,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
 
   // The recipient submitted a claim through the portal; this is an admin
   // confirming it. Confirming the pending row is what moves the money onto the
-  // books — and the trigger, not this handler, decides whether the result is
+  // books: and the trigger, not this handler, decides whether the result is
   // `paid` or `partially_paid`.
   const handleVerifyPayment = async (id) => {
     const doc = documents.find((d) => d.id === id);
@@ -303,7 +303,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
 
         <!-- Title -->
         <div class="inv-header">
-          <div class="inv-header-title">${esc(titleText)}${doc.status === 'cancelled' ? ' <span style="color:#dc2626">— CANCELLED</span>' : ''}</div>
+          <div class="inv-header-title">${esc(titleText)}${doc.status === 'cancelled' ? ' <span style="color:#dc2626">(CANCELLED)</span>' : ''}</div>
           <div class="inv-header-number">${esc(docNo(doc))}</div>
         </div>
 
@@ -450,7 +450,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
   // A sent quotation is not pulled back to draft to be revised: the database
   // only lets its content change as a new version (0064). The editor opens on
   // the same document with the client's note in view, and sending publishes v2
-  // of THIS quotation — it used to save a brand-new quotation instead.
+  // of THIS quotation: it used to save a brand-new quotation instead.
   const handleReviseQuotation = (id) => navigate(formPath('quotation', id));
   const handleRedraftDeclined = (id) => navigate(formPath('quotation', id));
 
@@ -478,7 +478,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
       await documentStore.updateStatus(source.id, 'converted', { converted_to: built.id });
       const label = built.type === 'proforma' ? 'proforma' : 'invoice';
       toast(resumed
-        ? `${docNo(source)} was already converted to ${label} ${docNo(built)} — marked converted`
+        ? `${docNo(source)} was already converted to ${label} ${docNo(built)}, marked converted`
         : `Converted to ${label} ${docNo(built)}${advance ? ` with ₹${advance.amount.toLocaleString('en-IN')} advance applied` : ''}`,
       'success');
       setConvertSource(null);
@@ -525,7 +525,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
     try {
       await documentStore.delete(doc.id);
       const parent = await releaseParent(doc);
-      toast(parent ? `Deleted — ${docNo(parent)} can be converted again` : `${docNo(doc)} deleted`, 'success');
+      toast(parent ? `Deleted. ${docNo(parent)} can be converted again` : `${docNo(doc)} deleted`, 'success');
     } catch (err) {
       toast(`Could not delete: ${err.message}`, 'error');
     } finally {
@@ -560,10 +560,10 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
       Promise.resolve(documentStore.addNotification({
         type: 'document_cancelled',
         title: `${typeLabel} Cancelled`,
-        message: `${docNo(doc)} for ${doc.issued_to || doc.clientName || 'client'} cancelled${reason ? ` — ${reason}` : ''}`,
+        message: `${docNo(doc)} for ${doc.issued_to || doc.clientName || 'client'} cancelled${reason ? `: ${reason}` : ''}`,
         documentId: doc.id,
       })).catch(() => {});
-      toast(released ? `${docNo(doc)} cancelled — ${docNo(released)} can be converted again` : `${docNo(doc)} cancelled`, 'success');
+      toast(released ? `${docNo(doc)} cancelled. ${docNo(released)} can be converted again` : `${docNo(doc)} cancelled`, 'success');
       setCancelTarget(null);
     } catch (err) {
       toast(`Could not cancel: ${err.message}`, 'error');
@@ -697,7 +697,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                   <td><DocumentStatusBadge status={doc.status} size="small" /></td>
                   {showProjects && (
                     <td style={{ fontSize: '0.75rem' }}>
-                      {projectsOf(doc.id).length === 0 ? '—' : projectsOf(doc.id).map((p) => (
+                      {projectsOf(doc.id).length === 0 ? 'No project' : projectsOf(doc.id).map((p) => (
                         <div key={p.id}><ProjectBadge project={p} /></div>
                       ))}
                     </td>
@@ -719,7 +719,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                       {type === 'proforma' && conversionTargets(doc).includes('invoice') && (
                         <button className="fin-list-action-btn primary"
                           title={Number(doc.amount_paid) > 0
-                            ? `Convert to Tax Invoice — the ₹${Number(doc.amount_paid).toLocaleString('en-IN')} advance is applied`
+                            ? `Convert to Tax Invoice (the ₹${Number(doc.amount_paid).toLocaleString('en-IN')} advance is applied)`
                             : 'Convert to Tax Invoice'}
                           disabled={convertingId === doc.id} onClick={() => runConversion(doc, 'invoice')}>
                           {convertingId === doc.id ? 'Converting…' : 'Convert'}
@@ -853,7 +853,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
   );
 }
 
-/* Documents waiting on the issuer — a client submitted a payment, asked for a
+/* Documents waiting on the issuer. A client submitted a payment, asked for a
    revision, or declined. One quiet panel above the table instead of a card per
    document: the row says what happened and carries the action that answers it. */
 function AttentionPanel({ docs, type, onVerify, onReject, onRevise, onRedraft, onConvert }) {
@@ -894,7 +894,7 @@ function AttentionPanel({ docs, type, onVerify, onReject, onRevise, onRedraft, o
     if (doc.type === 'quotation' && conversionTargets(doc).length > 0) {
       return [{
         doc, tone: 'up', label: 'Accepted',
-        headline: `${client(doc)} accepted ${money(doc.grand_total ?? doc.amount)} — ready to bill`,
+        headline: `${client(doc)} accepted ${money(doc.grand_total ?? doc.amount)}, ready to bill`,
         detail: 'Convert to a proforma to collect an advance first, or straight to a tax invoice.',
         actions: <Btn size="sm" primary onClick={() => onConvert(doc)}>Convert</Btn>,
       }];
