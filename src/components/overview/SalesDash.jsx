@@ -6,7 +6,7 @@ import { categoryLabel } from '../../services/financeCategories';
 import { annualRecurring, acquisitionSpend, SALES_KEYS } from '../../services/salesMetrics';
 import { fmtShort, fmtInr, iso } from './overviewModel';
 import { RankBars, SplitBar, Funnel, EmptyNote, TipBody, Delta } from './vizKit';
-import { Dashboard, Card, Tile, BigCount, Figure, More, TileRow, CardGrid, ListRow, MiniSeg } from './dashKit';
+import { Dashboard, Card, Tile, Figure, FigureRow, More, TileRow, CardGrid, ListRow, MiniSeg } from './dashKit';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Dashboard · Sales & marketing: where the next rupee comes from, and what
@@ -80,7 +80,7 @@ function SalesBody({ model, open, navigate, t, cat, ramp, status, cols, tileCols
     const quoteColor = { accepted: status.good, open: t.faint, lost: status.critical, draft: t.ghost };
 
     return (<>
-        <TileRow cols={tileCols(5)}>
+        <TileRow bento cols={tileCols(5)}>
             <Tile icon={Target} label="Pipeline" value={fmtShort(k.pipeline.value)} exact={fmtInr(k.pipeline.value)}
                 delta={<span style={{ fontSize: 12, color: t.dim }}>{k.pipeline.open} open</span>}
                 foot="open leads on the CRM board · today" spark={k.pipeline.spark} sparkBars color={ramp[2]}
@@ -100,10 +100,10 @@ function SalesBody({ model, open, navigate, t, cat, ramp, status, cols, tileCols
         </TileRow>
 
         <CardGrid cols={cols}>
-            <Card title="Sales pipeline" note="CRM board · today" right={<More onClick={() => open({ kind: 'metric', id: 'pipeline' })} />}>
+            <Card accent title="Sales pipeline" note="CRM board · today" right={<More onClick={() => open({ kind: 'metric', id: 'pipeline' })} />}>
                 {model.stages.every((s) => s.count === 0) ? <EmptyNote>No leads on the CRM board</EmptyNote> : (
                     <Funnel format={fmtShort} onSelect={(s) => open({ kind: 'stage', id: s.id === 'all' ? undefined : s.id })} stages={[
-                        { ...model.stages[0], label: 'All leads', count: model.stages.reduce((s, x) => s + x.count, 0), value: model.stages.reduce((s, x) => s + x.value, 0), color: ramp[0], ink: '#0d366b', id: 'all' },
+                        { ...model.stages[0], label: 'All leads', count: model.stages.reduce((s, x) => s + x.count, 0), value: model.stages.reduce((s, x) => s + x.value, 0), color: ramp[0], ink: t.isDark ? '#fff' : '#0d366b', id: 'all' },
                         { ...model.stages[1], label: 'Contacted+', count: model.stages[1].count + model.stages[2].count + model.stages[3].count, value: model.stages[1].value + model.stages[2].value + model.stages[3].value, color: ramp[1], id: 'contacted' },
                         { ...model.stages[2], label: 'Won', color: ramp[3] },
                     ].map((s, i, arr) => ({ ...s, conversion: i === 0 ? undefined : arr[i - 1].count ? (s.count / arr[i - 1].count) * 100 : null }))} />
@@ -123,8 +123,7 @@ function SalesBody({ model, open, navigate, t, cat, ramp, status, cols, tileCols
             </Card>
 
             <Card title="Quotations" note="issued in period">
-                <BigCount value={model.quoteWinRate === null ? '-' : `${model.quoteWinRate.toFixed(0)}%`} label="win rate, decided quotes" />
-                <SplitBar format={fmtShort} unit="Quoted" parts={model.quotes.map((q) => ({ id: q.id, label: q.label, value: q.amount, color: quoteColor[q.id], note: `${q.count}` }))}
+                <SplitBar donut center={{ value: model.quoteWinRate === null ? '-' : `${model.quoteWinRate.toFixed(0)}%`, label: 'Win rate' }} format={fmtShort} unit="Quoted" parts={model.quotes.map((q) => ({ id: q.id, label: q.label, value: q.amount, color: quoteColor[q.id], note: `${q.count}` }))}
                     onSelect={(p) => open({ kind: 'quotes', id: p.id })} />
             </Card>
 
@@ -138,11 +137,11 @@ function SalesBody({ model, open, navigate, t, cat, ramp, status, cols, tileCols
 
             <Card title="Sales & marketing spend" note={`net of GST · ${winDef.note}`}
                 right={<MiniSeg label="Spend window" value={win} onChange={setWin} options={WINDOWS} />}>
-                <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 12 }}>
+                <FigureRow>
                     <Figure big label="sales spend" value={fmtShort(acq.sales)} />
                     <Figure big label="marketing spend" value={fmtShort(acq.marketing)} />
                     <Figure big label="avg expenses / lead" value={acq.perLead === null ? '-' : fmtShort(acq.perLead)} />
-                </div>
+                </FigureRow>
                 <RankBars rows={acq.cats.map((c) => ({
                     ...c,
                     tip: <TipBody title={c.name} rows={[{ label: SALES_KEYS.has(c.key) ? 'Sales' : 'Marketing', value: fmtInr(c.value), color: cat[4] }, { label: 'Share', value: `${((c.value / acq.total) * 100).toFixed(0)}%` }]} />,

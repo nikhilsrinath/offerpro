@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
     Panel, Row, Btn, Seg, Select, Field, Input, Textarea, Empty, Modal, StatBand, ConfirmBtn,
 } from '../../ui/edge';
-import { useT, MONO, fmtDate } from '../../ui/edgeUtils';
+import { useT, MONO, fmtDate, tableFrame, thStyle, tdStyle } from '../../ui/edgeUtils';
 import { useToast } from '../../shared/Toast';
 import { useSection } from '../../financial/financeHooks';
 import { orgStore } from '../../../services/orgStore';
@@ -138,15 +138,12 @@ export default function PaymentStatus({ project }) {
                             <Legend label="Payment statuses" items={[...PAYMENT_STATUSES, { id: 'soon', label: 'Due within 7 days', color: '#f59e0b' }]} />
                         </div>
                         {shown.length === 0 ? <Empty>No invoice matches these filters.</Empty> : (
-                            <div className="edge-scroll" style={{ overflowX: 'auto', padding: 12 }}>
+                            <div style={{ padding: 12 }}><div className="edge-scroll" style={{ ...tableFrame(t), overflowX: 'auto' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, minWidth: 1080 }}>
                                     <thead>
                                         <tr>
                                             {['Invoice', 'Milestone / description', 'Invoice date', 'Due', 'Amount', 'Paid', 'Balance', 'Status', 'Mode', 'Reference', 'Remarks', ''].map((h, i) => (
-                                                <th key={h || i} scope="col" style={{
-                                                    textAlign: i >= 4 && i <= 6 ? 'right' : 'left', padding: '8px 10px', fontSize: 10.5,
-                                                    letterSpacing: '0.09em', fontWeight: 400, color: t.faint, borderBottom: '1px solid ' + t.line, whiteSpace: 'nowrap',
-                                                }}>{h.toUpperCase()}</th>
+                                                <th key={h || i} scope="col" style={thStyle(t, i >= 4 && i <= 6 ? 'right' : 'left')}>{h}</th>
                                             ))}
                                         </tr>
                                     </thead>
@@ -158,7 +155,7 @@ export default function PaymentStatus({ project }) {
                                         ))}
                                     </tbody>
                                 </table>
-                            </div>
+                            </div></div>
                         )}
                     </>
                 )}
@@ -176,7 +173,7 @@ function InvoiceRow({ r, money, files, project, open, onToggle, canPay, onPay, o
     const s = PAYMENT_BY_ID[r.status];
     const bg = r.status === 'overdue' ? tint('#ef4444', t.isDark ? 0.1 : 0.06) : r.dueSoon ? tint('#f59e0b', t.isDark ? 0.1 : 0.07) : undefined;
     const attached = files.filter((f) => f.project_id === project.id && f.link_type === 'invoice' && f.link_id === r.doc.id);
-    const td = (align) => ({ padding: '9px 10px', fontSize: 12.5, color: t.text, borderBottom: open ? 'none' : '1px solid ' + t.lineSoft, textAlign: align, verticalAlign: 'top' });
+    const td = (align) => ({ ...tdStyle(t, align), borderBottom: open ? 'none' : '1px solid ' + t.line, verticalAlign: 'top' });
     return (
         <>
             <tr style={{ background: bg }}>
@@ -213,7 +210,7 @@ function InvoiceRow({ r, money, files, project, open, onToggle, canPay, onPay, o
                     <td colSpan={12} style={{ padding: '0 10px 12px', borderBottom: '1px solid ' + t.lineSoft }}>
                         <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', border: '1px solid ' + t.line, borderRadius: 9, padding: 12, background: t.panel }}>
                             <div>
-                                <div style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, marginBottom: 6 }}>PAYMENT HISTORY</div>
+                                <div style={{ fontSize: 12, fontWeight: 500, color: t.faint, marginBottom: 6 }}>Payment history</div>
                                 {r.doc.payments.length === 0 ? <span style={{ fontSize: 12.5, color: t.faint }}>No payments yet.</span> : (
                                     <div style={{ display: 'grid', gap: 6 }}>
                                         {r.doc.payments.map((p) => (
@@ -235,7 +232,7 @@ function InvoiceRow({ r, money, files, project, open, onToggle, canPay, onPay, o
                             </div>
                             <div>
                                 <Row gap={8} style={{ marginBottom: 6 }}>
-                                    <span style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, flex: 1 }}>INVOICE & RECEIPT FILES</span>
+                                    <span style={{ fontSize: 12, fontWeight: 500, color: t.faint, flex: 1 }}>Invoice & receipt files</span>
                                     {orgStore.can('payments', 'create') && <Btn size="sm" onClick={onAttach}>Attach file</Btn>}
                                 </Row>
                                 {attached.length ? <AttachedFiles files={attached} canRemove={orgStore.can('payments', 'delete')} />

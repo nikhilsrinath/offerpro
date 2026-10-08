@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import GlobalSearch from './shell/GlobalSearch';
 import { Link, useNavigate } from 'react-router-dom';
 import {
     Bell, Sun, Moon, LogOut, User as UserIcon, Building2, Check, ChevronDown,
+    ChevronsUpDown, LayoutGrid, Search, CalendarDays,
 } from 'lucide-react';
 import { useOrg } from '../context/OrgContext';
 import { documentStore } from '../services/documentStore';
@@ -10,6 +12,9 @@ import { makeTokens, MONO } from '../theme/edge';
 import { useProfileCompletion } from '../hooks/useProfileCompletion';
 import { MODULES } from './shell/modules';
 import { useRailPin, RailPinButton } from './shell/railPin';
+import {
+    RailIsland, RailHead, RailBrand, RailHeading, RailList, RailItem, IslandBtn, RailFoot, RailPlanCard, RailSpacer,
+} from './shell/railIsland';
 import MobileNav from './shell/MobileNav';
 import CountryDialog from './CountryDialog';
 import Copilot from './assistant/Copilot';
@@ -77,6 +82,26 @@ function useNow(every) {
 
 /* ── bar and rail primitives ───────────────────────────────────────────── */
 
+// The rail's sections. 'hub' is this page; the rest are MODULES ids.
+const RAIL_GROUPS = [
+    { label: 'Main menu', ids: ['hub', 'overall', 'projects', 'finance', 'team'] },
+    { label: 'Features', ids: ['business', 'documents', 'brain'] },
+];
+const MODULE_BY_ID = Object.fromEntries(MODULES.map((m) => [m.id, m]));
+
+function SquareBtn({ t, children, title, onClick, active, expanded }) {
+    return (
+        <button type="button" className="nm-sq" title={title} aria-label={title} onClick={onClick}
+            aria-expanded={expanded} aria-haspopup={expanded === undefined ? undefined : 'dialog'}
+            style={{
+                position: 'relative', width: 40, height: 40, display: 'grid', placeItems: 'center',
+                borderRadius: 11, border: '1px solid ' + (active ? t.lineStrong : t.line),
+                background: active ? t.panelAlt : t.card, boxShadow: t.highlight,
+                color: active ? t.text : t.dim, transition: 'color .15s, border-color .15s, background .15s',
+            }}>{children}</button>
+    );
+}
+
 function IconBtn({ t, children, title, onClick, active, size = 28 }) {
     return (
         <button className="nm-icon" title={title} aria-label={title} type="button" onClick={onClick} style={{
@@ -98,8 +123,8 @@ function Pop({ t, children, width = 260, align = 'right', at, label }) {
         <div role="dialog" aria-label={label} style={{
             ...(at ? { position: 'fixed', ...at } : { position: 'absolute', top: 'calc(100% + 9px)', [align]: 0 }),
             width, maxWidth: 'calc(100vw - 24px)', zIndex: 90,
-            background: t.panel, border: '1px solid ' + t.lineStrong,
-            borderRadius: 10, boxShadow: t.shadow, overflow: 'hidden',
+            background: t.card || t.panel, border: '1px solid ' + t.lineStrong,
+            borderRadius: 14, boxShadow: t.shadow, overflow: 'hidden',
             animation: 'nmPop .14s cubic-bezier(.16,1,.3,1)',
         }}>{children}</div>
     );
@@ -150,9 +175,8 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
     const [railPinned, setRailPinned] = useRailPin();
     const [hoverRail, setHoverRail] = useState(false);
     const [menu, setMenu] = useState(null);      // 'notifs' | 'account' | null
-    // Kept open while one of its menus is, so the menu doesn't jump.
-    const rail = railPinned || hoverRail || !!menu;
-    const [hoverMod, setHoverMod] = useState(null);
+    const rail = railPinned || hoverRail;
+    // The top bar's ask field: Enter hands the question to EdgeAI.
 
     const barRef = useRef(null);
     const footRef = useRef(null);
@@ -262,20 +286,20 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '9px 12px', borderBottom: '1px solid ' + t.lineSoft,
             }}>
-                <span style={{ fontSize: 11, letterSpacing: '0.1em', color: t.faint, flex: 1 }}>
-                    NOTIFICATIONS
+                <span style={{ fontSize: 13, fontWeight: 600, color: t.text, flex: 1 }}>
+                    Notifications
                 </span>
                 {unread > 0 && (
                     <span style={{
-                        fontSize: 10.5, padding: '1px 5px', borderRadius: 4,
+                        fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 999,
                         background: t.selBg, color: t.selText,
-                    }}>{unread} NEW</span>
+                    }}>{unread} new</span>
                 )}
                 {notifs.length > 0 && (
                     <button type="button" onClick={clearNotifs} style={{
                         background: 'none', border: 'none', cursor: 'pointer',
-                        fontFamily: MONO, fontSize: 11, color: t.faint, padding: 0,
-                    }}>CLEAR</button>
+                        fontFamily: MONO, fontSize: 12, color: t.dim, padding: 0,
+                    }}>Clear all</button>
                 )}
             </div>
             {notifs.length === 0 ? (
@@ -316,10 +340,10 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                     display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 8,
                     height: 20, padding: '0 8px', borderRadius: 999,
                     border: '1px solid ' + t.line, background: t.panelAlt,
-                    fontSize: 10.5, letterSpacing: '0.05em', color: t.dim,
+                    fontSize: 11, color: t.dim,
                 }}>
-                    <span style={{ width: 4, height: 4, borderRadius: '50%', background: plan.color }} />
-                    {plan.displayName.toUpperCase()}
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: plan.color }} />
+                    {plan.displayName}
                 </div>
             </div>
             <div style={{ padding: 4 }}>
@@ -347,7 +371,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
     );
 
     return (
-        <div className="nm-root eo-surface" data-theme={theme} style={{
+        <div className="nm-root eo-surface eo-v2" data-theme={theme} style={{
             width: '100%', height: '100vh', overflow: 'hidden', display: 'flex',
             flexDirection: isMobile ? 'column' : 'row',
             background: t.shell, fontFamily: MONO, color: t.text,
@@ -361,172 +385,119 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                 spending a fifth of the width on it. Hidden on phones, where the
                 bottom bar carries the same list. */}
             {!isMobile && (
-                <aside
-                    onMouseEnter={() => setHoverRail(true)}
-                    onMouseLeave={() => setHoverRail(false)}
-                    style={{
-                        width: rail ? 214 : 58, flexShrink: 0,
-                        background: t.panel, borderRight: '1px solid ' + t.line,
-                        display: 'flex', flexDirection: 'column',
-                        overflow: 'hidden', zIndex: 60,
-                        transition: 'width .22s cubic-bezier(.16,1,.3,1)',
-                    }}
-                >
-                    <div style={{
-                        display: 'flex', alignItems: 'center', gap: 11,
-                        height: 53, padding: '0 18px', flexShrink: 0,
-                        borderBottom: '1px solid ' + t.line,
-                    }}>
-                        <Link to="/hub" style={{
-                            display: 'flex', alignItems: 'center', gap: 11, minWidth: 0, flex: 1,
-                            textDecoration: 'none', color: t.text,
-                        }}>
-                            <svg width="21" height="21" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0, marginLeft: -1 }}>
-                                <path d="M10 1v18M1 10h18M3.5 3.5l13 13M16.5 3.5l-13 13" stroke={t.text} strokeWidth="1.3" />
-                                <circle cx="10" cy="10" r="2.6" fill={t.panel} stroke={t.text} strokeWidth="1.3" />
-                            </svg>
-                            <span style={{
-                                fontSize: 16, fontWeight: 500, letterSpacing: '-0.02em', whiteSpace: 'nowrap',
-                                opacity: rail ? 1 : 0, transition: 'opacity .16s',
-                            }}>EdgeOS</span>
-                        </Link>
+                <RailIsland t={t} open={rail} label="Workspace navigation" onHover={setHoverRail}>
+                    <RailHead pin={(
                         <RailPinButton
                             t={t} pinned={railPinned} visible={rail}
                             onToggle={() => { setRailPinned(!railPinned); setHoverRail(false); }}
                         />
-                    </div>
+                    )}>
+                        <RailBrand t={t} open={rail} />
+                    </RailHead>
 
-                    <div style={{
-                        padding: '11px 18px 6px', fontSize: 10.5, letterSpacing: '0.1em',
-                        color: t.ghost, whiteSpace: 'nowrap',
-                        opacity: rail ? 1 : 0, transition: 'opacity .16s',
-                    }}>WORKSPACE</div>
+                    <RailList label="Modules">
+                        {RAIL_GROUPS.map((g) => (
+                            <React.Fragment key={g.label}>
+                                <RailHeading t={t} open={rail}>{g.label}</RailHeading>
+                                {g.ids.map((id) => {
+                                    if (id === 'hub') return <RailItem key={id} t={t} open={rail} icon={LayoutGrid} label="Hub" to="/hub" end />;
+                                    const m = MODULE_BY_ID[id];
+                                    return m && <RailItem key={id} t={t} open={rail} icon={m.icon} label={m.label} to={'/' + m.defaultPage} active={false} />;
+                                })}
+                            </React.Fragment>
+                        ))}
+                    </RailList>
 
-                    <nav style={{ display: 'flex', flexDirection: 'column', gap: 1, padding: '0 9px' }}>
-                        {MODULES.map((m) => {
-                            const Icon = m.icon;
-                            const on = hoverMod === m.id;
-                            return (
-                                <Link
-                                    key={m.id} to={'/' + m.defaultPage} title={m.label}
-                                    onMouseEnter={() => setHoverMod(m.id)}
-                                    onMouseLeave={() => setHoverMod(null)}
-                                    style={{
-                                        display: 'flex', alignItems: 'center', gap: 12,
-                                        height: 36, padding: '0 8px', borderRadius: 7,
-                                        textDecoration: 'none', flexShrink: 0,
-                                        color: on ? t.text : t.dim,
-                                        background: on ? t.panelAlt : 'transparent',
-                                        transition: 'color .14s, background .14s',
-                                    }}
-                                >
-                                    <Icon size={17} strokeWidth={1.7} style={{ flexShrink: 0, marginLeft: 2 }} />
-                                    <span style={{
-                                        fontSize: 13, whiteSpace: 'nowrap', flex: 1,
-                                        opacity: rail ? 1 : 0, transition: 'opacity .16s',
-                                    }}>{m.label}</span>
-                                </Link>
-                            );
-                        })}
-                    </nav>
-
-                    <div style={{ flex: 1 }} />
-
-                    {/* ── rail foot ───────────────────────────────────────
-                        What the top bar used to carry, kept to what matters:
-                        notifications and the account (org, plan, profile,
-                        theme, log out). Collapsed, both read as icons with a
-                        red dot when they need attention. */}
-                    <div ref={footRef} style={{
-                        display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0,
-                        padding: '8px 9px 10px', borderTop: '1px solid ' + t.line,
-                    }}>
-                        <button
-                            type="button" className="nm-nav"
-                            aria-label={`Notifications${unread ? `, ${unread} new` : ''}`}
-                            aria-expanded={menu === 'notifs'} aria-haspopup="dialog"
-                            onClick={() => setMenu((m) => (m === 'notifs' ? null : 'notifs'))}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: 12, width: '100%',
-                                height: 36, padding: '0 8px', borderRadius: 7, textAlign: 'left',
-                                color: menu === 'notifs' ? t.text : t.dim,
-                                background: menu === 'notifs' ? t.panelAlt : undefined,
-                                transition: 'color .14s, background .14s',
-                            }}
-                        >
-                            <span style={{ position: 'relative', display: 'grid', flexShrink: 0, marginLeft: 2 }}>
-                                <Bell size={17} strokeWidth={1.7} aria-hidden="true" />
-                                {unread > 0 && (
-                                    <span aria-hidden="true" style={{
-                                        position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 999,
-                                        background: t.down, border: '1.5px solid ' + t.panel,
-                                    }} />
-                                )}
-                            </span>
-                            <span style={{ fontSize: 13, whiteSpace: 'nowrap', flex: 1, opacity: rail ? 1 : 0, transition: 'opacity .16s' }}>
-                                Notifications
-                            </span>
-                            {unread > 0 && (
-                                <span aria-hidden="true" style={{
-                                    fontSize: 11, fontWeight: 600, padding: '1px 6px', borderRadius: 999, flexShrink: 0,
-                                    background: t.selBg, color: t.selText, opacity: rail ? 1 : 0, transition: 'opacity .16s',
-                                }}>{unread}</span>
-                            )}
-                        </button>
-
-                        <button
-                            type="button" className="nm-nav"
-                            aria-label={`Account: ${displayName}, ${orgName}`
-                                + (profile.incomplete ? ` · company profile incomplete, ${profile.summary.toLowerCase()}` : '')}
-                            aria-expanded={menu === 'account'} aria-haspopup="dialog"
-                            onClick={() => setMenu((m) => (m === 'account' ? null : 'account'))}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                                height: 44, padding: '0 6px 0 5px', borderRadius: 8, textAlign: 'left',
-                                color: t.text, background: menu === 'account' ? t.panelAlt : undefined,
-                                transition: 'background .14s',
-                            }}
-                        >
-                            <span style={{ position: 'relative', flexShrink: 0 }}>
-                                {activeOrg?.logo_url ? (
-                                    <img src={activeOrg.logo_url} alt="" style={{ width: 28, height: 28, borderRadius: 7, objectFit: 'cover', display: 'block' }} />
-                                ) : (
-                                    <span style={{
-                                        width: 28, height: 28, borderRadius: 7, background: t.selBg, color: t.selText,
-                                        display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 600,
-                                    }}>{displayName.slice(0, 2).toUpperCase()}</span>
-                                )}
-                                {profile.incomplete && (
-                                    <span aria-hidden="true" style={{
-                                        position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 999,
-                                        background: t.down, border: '1.5px solid ' + t.panel,
-                                    }} />
-                                )}
-                            </span>
-                            <span style={{
-                                display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, lineHeight: 1.3,
-                                opacity: rail ? 1 : 0, transition: 'opacity .16s',
-                            }}>
-                                <span title={orgName} style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: plan.color, flexShrink: 0 }} />
-                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}</span>
-                                </span>
-                            </span>
-                            <ChevronDown size={13} strokeWidth={2} aria-hidden="true" style={{
-                                color: t.faint, flexShrink: 0, opacity: rail ? 1 : 0,
-                                transform: menu === 'account' ? 'none' : 'rotate(180deg)', transition: 'transform .18s, opacity .16s',
-                            }} />
-                        </button>
-
-                        {menu === 'notifs' && <Pop t={t} width={318} at={{ left: 222, bottom: 12 }} label="Notifications">{notifBody}</Pop>}
-                        {menu === 'account' && <Pop t={t} width={252} at={{ left: 222, bottom: 12 }} label="Account">{accountBody}</Pop>}
-                    </div>
-                </aside>
+                    <RailSpacer />
+                    <RailPlanCard t={t} open={rail} plan={plan} />
+                    <RailFoot t={t} open={rail}>
+                        <IslandBtn t={t} icon={Building2} label="Company profile" dot={profile.incomplete}
+                            to={profile.next ? `/profile#${profile.next.section}` : '/profile'} />
+                        <IslandBtn t={t} icon={UserIcon} label="My portal" to="/me" />
+                        <IslandBtn t={t} icon={LogOut} label="Log out" danger onClick={() => onLogout?.()} />
+                    </RailFoot>
+                </RailIsland>
             )}
 
+            <div style={{
+                flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column',
+                height: isMobile ? 'auto' : '100%',
+            }}>
+                {/* ── TOP BAR ─────────────────────────────────────────────
+                    On the canvas, above the page: search the workspace (Ctrl/⌘ K), the
+                    theme, notifications and the account. */}
+                {!isMobile && (
+                    <header ref={barRef} style={{
+                        display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
+                        height: 64, padding: '0 14px 0 4px',
+                    }}>
+                        <GlobalSearch t={t} />
+
+                        <div style={{ flex: 1 }} />
+
+                        <SquareBtn t={t} title={isDark ? 'Switch to light mode' : 'Switch to dark mode'} onClick={onToggleTheme}>
+                            {isDark ? <Sun size={17} strokeWidth={1.8} /> : <Moon size={17} strokeWidth={1.8} />}
+                        </SquareBtn>
+
+                        <div style={{ position: 'relative' }}>
+                            <SquareBtn
+                                t={t} title={`Notifications${unread ? `, ${unread} new` : ''}`} active={menu === 'notifs'}
+                                expanded={menu === 'notifs'}
+                                onClick={() => setMenu((m) => (m === 'notifs' ? null : 'notifs'))}
+                            >
+                                <Bell size={17} strokeWidth={1.8} />
+                                {unread > 0 && (
+                                    <span aria-hidden="true" style={{
+                                        position: 'absolute', top: 8, right: 9, width: 8, height: 8, borderRadius: 999,
+                                        background: t.down, border: '2px solid ' + t.card,
+                                    }} />
+                                )}
+                            </SquareBtn>
+                            {menu === 'notifs' && <Pop t={t} width={330} label="Notifications">{notifBody}</Pop>}
+                        </div>
+
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                type="button" className="nm-chip"
+                                aria-label={`Account: ${displayName}, ${orgName}`
+                                    + (profile.incomplete ? ` · company profile incomplete, ${profile.summary.toLowerCase()}` : '')}
+                                aria-expanded={menu === 'account'} aria-haspopup="dialog"
+                                onClick={() => setMenu((m) => (m === 'account' ? null : 'account'))}
+                                style={{
+                                    position: 'relative', display: 'flex', alignItems: 'center', gap: 8,
+                                    height: 40, padding: '0 8px 0 3px', borderRadius: 999,
+                                    border: '1px solid ' + (menu === 'account' ? t.lineStrong : 'transparent'),
+                                    color: t.dim,
+                                }}
+                            >
+                                {activeOrg?.logo_url ? (
+                                    <img src={activeOrg.logo_url} alt="" style={{ width: 34, height: 34, borderRadius: 999, objectFit: 'cover', display: 'block' }} />
+                                ) : (
+                                    <span style={{
+                                        width: 34, height: 34, borderRadius: 999, background: t.accentBtn, color: t.onAccent,
+                                        display: 'grid', placeItems: 'center', fontSize: 12.5, fontWeight: 600,
+                                    }}>{displayName.slice(0, 2).toUpperCase()}</span>
+                                )}
+                                <ChevronsUpDown size={15} strokeWidth={1.8} aria-hidden="true" />
+                                {profile.incomplete && (
+                                    <span aria-hidden="true" style={{
+                                        position: 'absolute', top: 1, left: 28, width: 9, height: 9, borderRadius: 999,
+                                        background: t.down, border: '2px solid ' + t.shell,
+                                    }} />
+                                )}
+                            </button>
+                            {menu === 'account' && <Pop t={t} width={260} label="Account">{accountBody}</Pop>}
+                        </div>
+                    </header>
+                )}
+
             <div className="nm-scroll" style={{
-                flex: 1, minWidth: 0, minHeight: 0, height: isMobile ? 'auto' : '100%',
+                flex: 1, minWidth: 0, minHeight: 0,
                 overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable',
+                ...(isMobile ? {} : {
+                    margin: '0 10px 10px 0', borderRadius: 20,
+                    border: '1px solid ' + t.line, background: t.panel,
+                }),
             }}>
                 <div style={{ background: t.panel, minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
 
@@ -635,23 +606,35 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                         gridTemplateColumns: 'minmax(0, 1fr)',
                     }}>
 
-                        {/*: greeting, */}
-                        <div style={{ padding: '2px 2px 0', display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
+                        {/* greeting */}
+                        <div style={{ padding: '4px 2px 2px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: 13.5, fontWeight: 600, color: t.text, letterSpacing: '0.08em', marginBottom: 6 }}>
-                                    {greeting.toUpperCase()}
-                                </div>
                                 <h1 style={{
-                                    margin: 0, fontSize: isMobile ? 24 : 32, fontWeight: 700,
-                                    letterSpacing: '-0.045em', color: t.text, lineHeight: 1.05,
+                                    margin: 0, fontSize: isMobile ? 23 : 30, fontWeight: 600,
+                                    letterSpacing: '-0.03em', color: t.text, lineHeight: 1.15,
                                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                }}>{orgName}</h1>
+                                }}>{greeting}, {displayName} <span aria-hidden="true">👋</span></h1>
+                                <p style={{ margin: '6px 0 0', fontSize: 13.5, color: t.dim }}>
+                                    Here is what is happening at {orgName} today.
+                                </p>
                             </div>
-                            {!showDock && winW >= DOCK_MIN && (
-                                <button type="button" className="hx-btn" onClick={() => setAi(false)} aria-label="Show the EdgeAI panel">
-                                    <span className="cp-orb" aria-hidden="true" style={{ width: 14, height: 14 }} />EdgeAI
-                                </button>
-                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                                {!isMobile && (
+                                    <span style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: 8, height: 38, padding: '0 13px',
+                                        borderRadius: 11, border: '1px solid ' + t.lineStrong, background: t.card,
+                                        boxShadow: t.highlight, fontSize: 13.5, color: t.text, whiteSpace: 'nowrap',
+                                    }}>
+                                        <CalendarDays size={15} strokeWidth={1.8} aria-hidden="true" style={{ color: t.dim }} />
+                                        {now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
+                                    </span>
+                                )}
+                                {!showDock && winW >= DOCK_MIN && (
+                                    <button type="button" className="hx-btn is-primary" onClick={() => setAi(false)} aria-label="Show the EdgeAI panel">
+                                        <span className="cp-orb" aria-hidden="true" style={{ width: 14, height: 14 }} />EdgeAI
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
                         {d.loadError && <div className="hx-alert" role="alert">Some data could not be loaded: {d.loadError}</div>}
@@ -669,6 +652,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                         <HubActivity onDrill={(v) => setDrill([v])} />
                     </div>
                 </div>
+            </div>
             </div>
 
             {/* ── EdgeAI ──────────────────────────────────────────────── */}
@@ -708,9 +692,13 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                 .nm-seg:hover { color: ${t.text} !important; }
                 .nm-icon:hover { color: ${t.text} !important; border-color: ${t.line} !important; }
                 .nm-nav:hover { color: ${t.text} !important; background: ${t.panelAlt}; }
+                .nm-sq:hover { color: ${t.text} !important; border-color: ${t.lineStrong} !important; }
+                .nm-chip:hover { color: ${t.text} !important; }
+                .nm-ask:focus-within { border-color: ${t.accent} !important; box-shadow: 0 0 0 3px ${t.isDark ? 'rgba(47,140,255,.18)' : 'rgba(31,122,240,.14)'} !important; }
+                .nm-ask input::placeholder { color: ${t.faint}; }
                 .nm-chip:hover, .nm-search:hover { border-color: ${t.lineStrong} !important; }
                 .nm-lrow:hover { background: ${t.panelAlt}; }
-                .nm-root ::selection { background: ${t.text}; color: ${t.panel}; }
+                .nm-root ::selection { background: ${t.accent}; color: #fff; }
                 .nm-pulse { animation: nmPulse 2s ease-in-out infinite; }
                 @keyframes nmPulse {
                     0%, 100% { opacity: 1; }

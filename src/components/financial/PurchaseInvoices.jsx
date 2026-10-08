@@ -17,6 +17,7 @@ import { confirmDialog } from '../../services/confirm';
 import CashEntryModal from './CashEntryModal';
 import { billPaymentEntry } from './cashEntry';
 import { RowMenu } from '../ui/edge';
+import { initialQuery } from '../../services/urlQuery';
 
 const CATEGORIES = ['Operations', 'Inventory', 'Software', 'Hardware', 'Marketing', 'Travel', 'Utilities', 'Professional fees', 'Rent', 'Other'];
 const FILTERS = ['all', 'paid', 'unpaid', 'partially_paid', 'overdue', 'void'];
@@ -47,7 +48,7 @@ export default function PurchaseInvoices({ projectId = null }) {
     ? { ...blank(vendorId), _picker: pickerFor(projectId) }
     : blank(vendorId)), [projectId]);
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialQuery);
   const [filter, setFilter] = useState('all');
   const [vendorFilter, setVendorFilter] = useState(params.get('vendor') || 'all');
   const [editing, setEditing] = useState(null);

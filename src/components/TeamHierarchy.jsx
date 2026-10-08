@@ -217,12 +217,13 @@ function Btn({ t, children, onClick, primary, disabled, title, danger }) {
       className={'th-btn' + (primary ? ' th-primary' : '')}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 6,
-        height: 29, padding: '0 12px', borderRadius: 7,
-        fontFamily: MONO, fontSize: 13, whiteSpace: 'nowrap',
+        height: 36, padding: '0 14px', borderRadius: 10,
+        fontFamily: MONO, fontSize: 13.5, fontWeight: 500, whiteSpace: 'nowrap',
         cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
-        border: '1px solid ' + (primary ? t.text : t.line),
-        background: primary ? t.text : t.panel,
-        color: primary ? t.panel : (danger ? t.down : t.text),
+        border: '1px solid ' + (primary ? 'transparent' : t.lineStrong),
+        background: primary ? t.accentBtn : t.panelAlt,
+        boxShadow: primary ? 'inset 0 1px 0 rgba(255,255,255,.25), 0 6px 16px -8px ' + t.accent : t.highlight,
+        color: primary ? t.onAccent : (danger ? t.down : t.text),
         transition: 'border-color .15s, background .15s, color .15s',
       }}
     >{children}</button>
@@ -578,11 +579,11 @@ function MobileEdit({ t, employees, initialMembers, onSave, onCancel, saving }) 
                   type="button" onClick={() => toggle(emp.id)}
                   aria-pressed={on} aria-label={(on ? 'Remove ' : 'Add ') + name}
                   style={{
-                    height: 26, padding: '0 10px', borderRadius: 6, cursor: 'pointer',
-                    fontFamily: MONO, fontSize: 12,
-                    border: '1px solid ' + (on ? t.text : t.line),
-                    background: on ? t.text : t.panel,
-                    color: on ? t.panel : t.dim,
+                    height: 28, padding: '0 11px', borderRadius: 8, cursor: 'pointer',
+                    fontFamily: MONO, fontSize: 12, fontWeight: 500,
+                    border: '1px solid ' + (on ? 'transparent' : t.lineStrong),
+                    background: on ? t.accentBtn : t.panelAlt,
+                    color: on ? t.onAccent : t.dim,
                   }}
                 >{on ? 'On' : 'Add'}</button>
               </div>

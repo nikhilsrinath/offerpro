@@ -4,7 +4,7 @@ import { MONO } from '../ui/edgeUtils';
 import { libraryService, categoryLabel } from '../../services/libraryService';
 import { DOC_GROUPS, fmtDay } from './overviewModel';
 import { Columns, CalendarHeat, RankBars, SplitBar, EmptyNote } from './vizKit';
-import { Dashboard, Card, Tile, Figure, More, TileRow, CardGrid } from './dashKit';
+import { Dashboard, Card, Tile, Figure, FigureRow, SubLabel, More, TileRow, CardGrid } from './dashKit';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Dashboard · Documents: everything the company has issued or keeps.
@@ -67,7 +67,7 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
     const finCount = group('invoice') + group('quotation') + group('proforma');
 
     return (<>
-        <TileRow cols={tileCols(6)}>
+        <TileRow bento cols={tileCols(6)}>
             <Tile icon={FileText} label="Issued" value={String(model.docTotal)} exact={`${model.docTotal} documents`}
                 foot="HR letters + financial documents" spark={model.series.map((s) => s.docs)} sparkBars color={cat[0]}
                 onClick={() => open({ kind: 'bucket', index: model.series.length - 1 })} />
@@ -85,7 +85,7 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
         </TileRow>
 
         <CardGrid cols={cols}>
-            <Card title="Documents issued" note={`${model.docTotal} in period · click a type to isolate`} style={grid(2)}>
+            <Card accent title="Documents issued" note={`${model.docTotal} in period · click a type to isolate`} style={grid(2)}>
                 <Columns data={mixData} series={mixSeries} stacked height={220} format={(v) => String(Math.round(v))} tipFormat={(v) => String(v)}
                     onSelect={(i) => open({ kind: 'bucket', index: i })} />
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
@@ -94,19 +94,19 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
                         return (
                             <button key={g.id} type="button" className="ov-chip" onClick={() => setMixFocus(on ? null : g.id)} aria-pressed={on}
                                 style={{
-                                    display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: 26, padding: '4px 9px', borderRadius: 7, cursor: 'pointer',
-                                    border: '1px solid ' + (on ? t.lineStrong : t.line), background: on ? t.panelAlt : t.panel,
+                                    display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: 28, padding: '4px 11px', borderRadius: 99, cursor: 'pointer',
+                                    border: '1px solid ' + (on ? t.accent : t.line), background: on ? t.accentSoft : t.panelAlt,
                                     fontFamily: MONO, fontSize: 12, color: mixFocus && !on ? t.dim : t.text,
                                 }}>
-                                <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 2, background: cat[i] }} />
+                                <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 99, background: cat[i] }} />
                                 {g.label}<b style={{ fontWeight: 600 }}>{g.count}</b>
                             </button>
                         );
                     })}
                     {mixFocus && (
                         <button type="button" className="ov-chip" onClick={() => open({ kind: 'docs', id: mixFocus })} style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 4, minHeight: 26, padding: '4px 9px', borderRadius: 7, cursor: 'pointer',
-                            border: '1px solid ' + t.text, background: t.text, color: t.panel, fontFamily: MONO, fontSize: 12,
+                            display: 'inline-flex', alignItems: 'center', gap: 4, minHeight: 28, padding: '4px 11px', borderRadius: 99, cursor: 'pointer',
+                            border: '1px solid transparent', background: t.accentBtn, color: t.onAccent, fontFamily: MONO, fontSize: 12, fontWeight: 500,
                         }}>Analyse {DOC_GROUPS.find((g) => g.id === mixFocus)?.label.toLowerCase()} <ChevronRight aria-hidden="true" size={11} /></button>
                     )}
                 </div>
@@ -114,20 +114,15 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
 
             <Card title="Activity" note="documents per day · last 26 weeks">
                 <CalendarHeat days={model.calendar} onSelect={(d) => open({ kind: 'day', date: d.date })} />
-                <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
+                <FigureRow style={{ marginTop: 12, marginBottom: 0 }}>
                     <Figure label="active days" value={String(model.calendar.filter((d) => d.count).length)} />
                     <Figure label="busiest day" value={(() => { const b = model.calendar.reduce((m, d) => (d.count > m.count ? d : m), { count: 0 }); return b.count ? `${b.count} · ${fmtDay(b.date).slice(0, 6)}` : '-'; })()} />
-                </div>
+                </FigureRow>
             </Card>
 
             <Card title="Offer responses" note="every offer letter · today" right={<More label="Tracker" to="/recruitment-tracker" />}>
                 {offers.total === 0 ? <EmptyNote>No offer letters yet</EmptyNote> : (<>
-                    <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 12 }}>
-                        <Figure big label="acceptance" value={offers.rate === null ? '-' : `${offers.rate.toFixed(0)}%`} />
-                        <Figure big label="awaiting" value={String(offers.c.awaiting)} />
-                        <Figure big label="total" value={String(offers.total)} />
-                    </div>
-                    <SplitBar format={(v) => String(v)} unit="Offers" parts={[
+                    <SplitBar donut center={{ value: offers.rate === null ? '-' : `${offers.rate.toFixed(0)}%`, label: 'Accepted' }} format={(v) => String(v)} unit="Offers" parts={[
                         { id: 'accepted', label: 'Accepted', value: offers.c.accepted, color: status.good },
                         { id: 'awaiting', label: 'Sent, awaiting', value: offers.c.awaiting, color: cat[0] },
                         { id: 'unsent', label: 'Not sent', value: offers.c.unsent, color: t.faint },
@@ -146,7 +141,7 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
                 {library === undefined ? <EmptyNote>Loading…</EmptyNote> : !lib ? <EmptyNote>The library is not available to your role</EmptyNote>
                     : lib.total === 0 ? <EmptyNote>No files in the library yet</EmptyNote> : (<>
                         <RankBars rows={lib.cats} format={(v) => String(v)} total={lib.total} max={5} color={cat[3]} onSelect={() => navigate('/document-library')} />
-                        <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, margin: '12px 0 6px' }}>READ BY EDGEBRAIN</div>
+                        <SubLabel style={{ marginTop: 14 }}>Read by EdgeBrain</SubLabel>
                         <SplitBar format={(v) => String(v)} unit="Files" parts={[
                             { id: 'ready', label: 'Readable', value: lib.st.ready, color: status.good },
                             { id: 'processing', label: 'Reading', value: lib.st.processing, color: cat[0] },

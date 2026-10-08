@@ -1,8 +1,9 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   EdgeOS: Terminal theme tokens.
+   EdgeOS theme tokens.
 
-   One palette, two inversions. Monochrome by default: colour is reserved for
-   signal (up / down / live / a department's identity) and never spent on
+   One palette, two inversions: near-black (or near-white) layered surfaces,
+   hairlines, Inter, and a single blue. Other colour is reserved for signal
+   (up / down / live / a department's identity) and never spent on
    decoration. Held as plain objects rather than CSS variables so a component
    can theme itself without depending on the global stylesheet.
 
@@ -11,51 +12,67 @@
    is only for markers and secondary counts. Check a new grey before lowering it.
    ══════════════════════════════════════════════════════════════════════════ */
 
-// Named MONO for history; the UI face is now Helvetica.
-export const MONO = "'Helvetica Neue', Helvetica, Arial, sans-serif";
+// Named MONO for history; the UI face is Inter (the hub's look, app-wide).
+export const MONO = "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif";
 
+/* Layered surfaces: `shell` is the canvas behind the rail and the page,
+   `panel` the page, `card` a tile on the page, then panelAlt and raised for
+   controls and hover. One blue (`accent`) is spent on the primary action, the
+   current page and the focused data point; everything else is grey. */
 export function makeTokens(isDark) {
     return isDark ? {
-        shell:      '#050506',
-        panel:      '#0d0d0f',
-        panelAlt:   '#121215',
-        raised:     '#17171b',
-        line:       '#1d1d21',
-        lineSoft:   '#161619',
-        lineStrong: '#2f2f36',
-        text:       '#f2f2f3',
-        dim:        '#9a9aa3',
-        faint:      '#7d7d86',
-        ghost:      '#65656e',
-        up:         '#4ade80',
-        down:       '#f87171',
-        scale:      ['#1a1a1e', '#3a3a41', '#5e5e67', '#90909a', '#c8c8cf', '#ffffff'],
-        chart:      '#e8e8ea',
-        selBg:      '#292930',
+        shell:      '#0e0e0f',
+        panel:      '#141415',
+        card:       '#1a1a1c',
+        panelAlt:   '#222225',
+        raised:     '#29292d',
+        line:       '#262629',
+        lineSoft:   '#1f1f22',
+        lineStrong: '#36363b',
+        text:       '#f5f5f6',
+        dim:        '#a1a1a8',
+        faint:      '#8b8b92',
+        ghost:      '#6a6a72',
+        up:         '#3ecf75',
+        down:       '#f26d6d',
+        accent:     '#2f8cff',
+        accentBtn:  'linear-gradient(180deg, #3a8ff7 0%, #1764d6 100%)',
+        accentSoft: 'rgba(47,140,255,.12)',
+        onAccent:   '#ffffff',
+        scale:      ['#222225', '#1b3150', '#1d4c8c', '#2468c8', '#2f8cff', '#8cc4ff'],
+        chart:      '#2f8cff',
+        selBg:      '#2f8cff',
         selText:    '#ffffff',
-        shadow:     '0 24px 70px -24px rgba(0,0,0,0.9)',
-        mapNull:    '#17171b',
+        highlight:  'inset 0 1px 0 rgba(255,255,255,.06)',
+        shadow:     '0 24px 60px -20px rgba(0,0,0,.85)',
+        mapNull:    '#26262a',
         isDark:     true,
     } : {
-        shell:      '#d3d9db',
-        panel:      '#ffffff',
-        panelAlt:   '#f7f9f9',
-        raised:     '#eef1f2',
-        line:       '#e3e6e7',
-        lineSoft:   '#eef0f1',
-        lineStrong: '#c2c9cc',
-        text:       '#0e1011',
-        dim:        '#585f62',
-        faint:      '#6c7376',
-        ghost:      '#858c8f',
+        shell:      '#eceef1',
+        panel:      '#f6f7f9',
+        card:       '#ffffff',
+        panelAlt:   '#f0f2f5',
+        raised:     '#e7eaee',
+        line:       '#e3e6ea',
+        lineSoft:   '#eceef1',
+        lineStrong: '#cdd2d8',
+        text:       '#0f1115',
+        dim:        '#565c66',
+        faint:      '#666c76',
+        ghost:      '#8a909a',
         up:         '#15803d',
-        down:       '#b91c1c',
-        scale:      ['#e8ebec', '#c3cacc', '#98a2a5', '#697376', '#3b4245', '#0e1011'],
-        chart:      '#1b1e1f',
-        selBg:      '#0e1011',
+        down:       '#c62828',
+        accent:     '#1f7af0',
+        accentBtn:  'linear-gradient(180deg, #2f86f6 0%, #1662d0 100%)',
+        accentSoft: 'rgba(31,122,240,.08)',
+        onAccent:   '#ffffff',
+        scale:      ['#e7eaee', '#d6e6fc', '#a3c8f8', '#5e9ff2', '#1f7af0', '#0d4fa8'],
+        chart:      '#1f7af0',
+        selBg:      '#1f7af0',
         selText:    '#ffffff',
-        shadow:     '0 24px 60px -28px rgba(20,28,32,0.45)',
-        mapNull:    '#e8ebec',
+        highlight:  'inset 0 1px 0 rgba(255,255,255,.9)',
+        shadow:     '0 24px 60px -28px rgba(20,28,40,.35)',
+        mapNull:    '#e7eaee',
         isDark:     false,
     };
 }

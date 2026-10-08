@@ -1,7 +1,7 @@
-import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useId, useLayoutEffect, useRef, useState } from 'react';
 import { MONO, useT } from '../ui/edgeUtils';
 import { fmtAxis } from './overviewModel';
-import { TipCtx, useTip, useViz, useWidth, niceMax } from './vizHooks';
+import { TipCtx, useTip, useViz, useWidth, niceMax, smoothPath, mix } from './vizHooks';
 
 /* ══════════════════════════════════════════════════════════════════════════
    The Overview's chart kit. Hand-drawn SVG in real pixels, on the Edge tokens.
@@ -10,12 +10,26 @@ import { TipCtx, useTip, useViz, useWidth, niceMax } from './vizHooks';
    numbers, and a click (or Enter) opens the drill-down behind it. Hit targets
    are the whole slot or row, never just the painted pixels.
 
-   Colour follows the rules the rest of Edge keeps: greys carry structure, a
-   single-series chart is drawn in ink, and hue appears only where it names an
-   entity (a series, a document type) or a state (paid, overdue). The
-   categorical and ordinal steps below were run through the palette validator
-   against these exact panel colours, light and dark.
+   The look follows the hub: marks fade from full colour into the card, lines
+   are smooth with a soft glow, grids are dotted hairlines, and the one blue
+   leads. Other hue appears only where it names an entity (a series, a
+   document type) or a state (paid, overdue).
    ══════════════════════════════════════════════════════════════════════════ */
+
+/** A DOM-safe unique id for SVG gradients and filters. */
+const useSvgId = (p) => p + useId().replace(/[^a-zA-Z0-9_-]/g, '');
+
+/** The soft glow under a line. */
+function Glow({ id, color, blur = 4, opacity = 0.45 }) {
+    return (
+        <filter id={id} x="-10%" y="-40%" width="120%" height="180%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation={blur} result="b" />
+            <feFlood floodColor={color} floodOpacity={opacity} />
+            <feComposite in2="b" operator="in" result="g" />
+            <feMerge><feMergeNode in="g" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+    );
+}
 
 /* ── tooltip ─────────────────────────────────────────────────────────────── */
 
@@ -47,36 +61,36 @@ function TipBox({ x, y, content }) {
         if (!el) return;
         const w = el.offsetWidth;
         const h = el.offsetHeight;
-        const left = x + 14 + w > window.innerWidth - 8 ? x - w - 14 : x + 14;
-        const top = y + 14 + h > window.innerHeight - 8 ? y - h - 14 : y + 14;
+        const left = x + 16 + w > window.innerWidth - 8 ? x - w - 16 : x + 16;
+        const top = y + 16 + h > window.innerHeight - 8 ? y - h - 16 : y + 16;
         el.style.left = Math.max(8, left) + 'px';
         el.style.top = Math.max(8, top) + 'px';
     }, [x, y, content]);
     return (
         <div ref={ref} role="tooltip" style={{
-            position: 'fixed', left: x + 14, top: y + 14, zIndex: 400, pointerEvents: 'none',
-            minWidth: 150, maxWidth: 280, padding: '8px 10px',
-            background: t.panel, border: '1px solid ' + t.lineStrong, borderRadius: 8,
-            boxShadow: t.shadow, fontFamily: MONO, color: t.text,
+            position: 'fixed', left: x + 16, top: y + 16, zIndex: 400, pointerEvents: 'none',
+            minWidth: 160, maxWidth: 290, padding: '10px 12px',
+            background: t.card, border: '1px solid ' + t.lineStrong, borderRadius: 12,
+            boxShadow: t.highlight + ', ' + t.shadow, fontFamily: MONO, color: t.text,
         }}>{content}</div>
     );
 }
 
-/** Tooltip body: a title, then value-first rows keyed by a short stroke. */
+/** Tooltip body: a title, then value-first rows keyed by a colour dot. */
 export function TipBody({ title, rows = [], hint }) {
     const t = useT();
     return (
         <div>
-            {title && <div style={{ fontSize: 11.5, color: t.faint, marginBottom: rows.length ? 6 : 0 }}>{title}</div>}
+            {title && <div style={{ fontSize: 12, fontWeight: 500, color: t.dim, marginBottom: rows.length ? 7 : 0 }}>{title}</div>}
             {rows.map((r) => (
-                <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, lineHeight: 1.7 }}>
-                    {r.color && <span style={{ width: 10, height: 2, borderRadius: 2, background: r.color, flexShrink: 0 }} />}
+                <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, lineHeight: 1.75 }}>
+                    {r.color && <span style={{ width: 8, height: 8, borderRadius: 99, background: r.color, boxShadow: `0 0 0 2px ${t.card}, 0 0 8px ${r.color}`, flexShrink: 0 }} />}
                     <span style={{ fontWeight: 600, color: t.text, fontVariantNumeric: 'tabular-nums' }}>{r.value}</span>
-                    <span style={{ color: t.dim, marginLeft: 'auto', paddingLeft: 10 }}>{r.label}</span>
+                    <span style={{ color: t.faint, marginLeft: 'auto', paddingLeft: 12 }}>{r.label}</span>
                 </div>
             ))}
             {hint !== false && (
-                <div style={{ fontSize: 10.5, color: t.ghost, marginTop: 6, letterSpacing: '0.06em' }}>{hint || 'CLICK FOR DETAIL'}</div>
+                <div style={{ fontSize: 11.5, color: t.accent, marginTop: 7, paddingTop: 7, borderTop: '1px solid ' + t.line }}>{hint || 'Click for detail'}</div>
             )}
         </div>
     );
@@ -87,6 +101,18 @@ const clickable = (onClick) => (onClick ? {
     onClick,
     onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(e); } },
 } : {});
+
+/** Dotted horizontal gridlines with axis labels. The zero line is solid. */
+function Grid({ ticks, y, x0, x1, format, t }) {
+    return ticks.map((v) => (
+        <g key={v}>
+            <line x1={x0} x2={x1} y1={Math.round(y(v)) + 0.5} y2={Math.round(y(v)) + 0.5}
+                stroke={v === 0 ? t.lineStrong : t.line} strokeDasharray={v === 0 ? undefined : '2 5'} strokeLinecap="round" />
+            <text x={x0 - 10} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill={t.faint}
+                fontFamily={MONO} style={{ fontVariantNumeric: 'tabular-nums' }}>{format(v)}</text>
+        </g>
+    ));
+}
 
 /* ── column chart: grouped or stacked, one shared axis ───────────────────── */
 
@@ -104,9 +130,10 @@ export function Columns({
     const tip = useTip();
     const [ref, w] = useWidth();
     const [hover, setHover] = useState(null);
+    const gid = useSvgId('col');
 
-    const axisW = 46;
-    const bandH = 22;
+    const axisW = 50;
+    const bandH = 24;
     const plotH = height - bandH;
     const vals = data.flatMap((d) => (stacked
         ? [series.reduce((s, x) => s + Math.max(0, d[x.key] || 0), 0)]
@@ -116,12 +143,12 @@ export function Columns({
     const top = niceMax(rawMax || 1);
     const bottom = rawMin < 0 ? -niceMax(-rawMin) : 0;
     const span = top - bottom || 1;
-    const y = (v) => 6 + (plotH - 6) * (1 - (v - bottom) / span);
+    const y = (v) => 8 + (plotH - 8) * (1 - (v - bottom) / span);
     const plotW = Math.max(0, w - axisW);
     const n = data.length || 1;
     const slot = plotW / n;
-    const groupW = Math.min(slot * 0.72, stacked ? 28 : 14 * series.length + 2 * (series.length - 1));
-    const barW = stacked ? groupW : Math.max(2, (groupW - 2 * (series.length - 1)) / series.length);
+    const groupW = Math.min(slot * 0.66, stacked ? 30 : 15 * series.length + 3 * (series.length - 1));
+    const barW = stacked ? groupW : Math.max(2, (groupW - 3 * (series.length - 1)) / series.length);
     const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => bottom + span * f);
     const labelEvery = Math.ceil(n / Math.max(1, Math.floor(plotW / 54)));
     const allZero = rawMax === 0 && rawMin === 0;
@@ -137,44 +164,51 @@ export function Columns({
         <div ref={ref} style={{ width: '100%', height, position: 'relative' }}>
             {w > 0 && (
                 <svg width={w} height={height} style={{ display: 'block', overflow: 'visible' }}>
-                    {ticks.map((v) => (
-                        <g key={v}>
-                            <line x1={axisW} x2={w} y1={Math.round(y(v)) + 0.5} y2={Math.round(y(v)) + 0.5}
-                                stroke={v === 0 ? t.lineStrong : t.lineSoft} />
-                            <text x={axisW - 8} y={y(v) + 3} textAnchor="end" fontSize="11" fill={t.faint}
-                                fontFamily={MONO} style={{ fontVariantNumeric: 'tabular-nums' }}>{format(v)}</text>
-                        </g>
-                    ))}
+                    <defs>
+                        {series.map((s, si) => (
+                            <linearGradient key={s.key} id={`${gid}-${si}`} x1="0" x2="0" y1="0" y2="1">
+                                <stop offset="0%" stopColor={s.color} stopOpacity="1" />
+                                <stop offset="100%" stopColor={s.color} stopOpacity={stacked ? 0.78 : 0.42} />
+                            </linearGradient>
+                        ))}
+                        {line && <Glow id={`${gid}-glow`} color={line.color} />}
+                    </defs>
+                    <Grid ticks={ticks} y={y} x0={axisW} x1={w} format={format} t={t} />
                     {data.map((d, i) => {
                         const cx = axisW + slot * i + slot / 2;
                         const on = hover === i || selected === i;
                         const dim = (hover !== null || selected != null) && !on;
                         let stackBase = 0;
+                        const segs = series.filter((s) => d[s.key]);
                         return (
-                            <g key={i} opacity={dim ? 0.38 : 1} style={{ transition: 'opacity .15s' }}>
-                                {on && <rect x={axisW + slot * i} y={0} width={slot} height={plotH} fill={t.text} opacity={selected === i ? 0.07 : 0.04} />}
-                                {series.map((s, si) => {
-                                    const v = d[s.key] || 0;
-                                    if (!v) return null;
-                                    let x0; let y0; let h;
-                                    if (stacked) {
-                                        const lo = stackBase;
-                                        stackBase += Math.max(0, v);
-                                        x0 = cx - barW / 2;
-                                        y0 = y(stackBase);
-                                        // 2px surface gap between stacked segments.
-                                        h = Math.max(1, y(lo) - y(stackBase) - (lo > 0 ? 2 : 0));
-                                    } else {
-                                        x0 = cx - groupW / 2 + si * (barW + 2);
-                                        y0 = v >= 0 ? y(v) : y(0);
-                                        h = Math.max(1, Math.abs(y(v) - y(0)));
-                                    }
-                                    const r = Math.min(3, barW / 2, h / 2);
-                                    return <path key={s.key} d={roundTop(x0, y0, barW, h, v >= 0 ? r : 0, v < 0 ? r : 0)} fill={s.color} />;
-                                })}
+                            <g key={i} opacity={dim ? 0.4 : 1} style={{ transition: 'opacity .15s' }}>
+                                {on && <rect x={axisW + slot * i + 2} y={2} width={Math.max(0, slot - 4)} height={plotH - 2} rx={8}
+                                    fill={t.accent} opacity={selected === i ? 0.1 : 0.06} />}
+                                <g className="ov-grow" style={{ animationDelay: `${Math.min(i * 22, 400)}ms` }}>
+                                    {series.map((s, si) => {
+                                        const v = d[s.key] || 0;
+                                        if (!v) return null;
+                                        let x0; let y0; let h;
+                                        if (stacked) {
+                                            const lo = stackBase;
+                                            stackBase += Math.max(0, v);
+                                            x0 = cx - barW / 2;
+                                            y0 = y(stackBase);
+                                            // 2px surface gap between stacked segments.
+                                            h = Math.max(1, y(lo) - y(stackBase) - (lo > 0 ? 2 : 0));
+                                        } else {
+                                            x0 = cx - groupW / 2 + si * (barW + 3);
+                                            y0 = v >= 0 ? y(v) : y(0);
+                                            h = Math.max(1, Math.abs(y(v) - y(0)));
+                                        }
+                                        const isTop = !stacked || s.key === segs[segs.length - 1]?.key;
+                                        const r = isTop ? Math.min(5, barW / 2, h) : Math.min(2, h / 2);
+                                        return <path key={s.key} d={roundTop(x0, y0, barW, h, v >= 0 ? r : 0, v < 0 ? r : 0)} fill={`url(#${gid}-${si})`} />;
+                                    })}
+                                </g>
                                 {i % labelEvery === 0 && (
                                     <text x={cx} y={height - 6} textAnchor="middle" fontSize="11" fontFamily={MONO}
-                                        fill={on ? t.text : t.faint}>{d.label}</text>
+                                        fill={on ? t.text : t.faint} fontWeight={on ? 600 : 400}>{d.label}</text>
                                 )}
                             </g>
                         );
@@ -183,10 +217,10 @@ export function Columns({
                         const pts = data.map((d, i) => [axisW + slot * i + slot / 2, y(d[line.key] || 0)]);
                         return (
                             <g pointerEvents="none">
-                                <path d={pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ')}
-                                    fill="none" stroke={line.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+                                <path d={smoothPath(pts)} pathLength={1} className="ov-draw" filter={`url(#${gid}-glow)`}
+                                    fill="none" stroke={line.color} strokeWidth="2.25" strokeLinejoin="round" strokeLinecap="round" />
                                 {pts.map((p, i) => (hover === i || selected === i || n <= 14) && (
-                                    <circle key={i} cx={p[0]} cy={p[1]} r={hover === i ? 4 : 2.6} fill={line.color} stroke={t.panel} strokeWidth="2" />
+                                    <circle key={i} cx={p[0]} cy={p[1]} r={hover === i ? 5 : 3} fill={t.card} stroke={line.color} strokeWidth="2" />
                                 ))}
                             </g>
                         );
@@ -206,7 +240,7 @@ export function Columns({
             )}
             {allZero && w > 0 && (
                 <div style={{ position: 'absolute', inset: `0 0 ${bandH}px ${axisW}px`, display: 'grid', placeItems: 'center', pointerEvents: 'none' }}>
-                    <span style={{ fontSize: 12, color: t.faint, background: t.panel, padding: '2px 8px' }}>{empty}</span>
+                    <span style={{ fontSize: 12, color: t.faint, background: t.card, border: '1px solid ' + t.line, borderRadius: 99, padding: '4px 12px' }}>{empty}</span>
                 </div>
             )}
         </div>
@@ -225,29 +259,29 @@ export function Area({ data, height = 160, color, format = fmtAxis, tipTitle = (
     const tip = useTip();
     const [ref, w] = useWidth();
     const [hover, setHover] = useState(null);
+    const gid = useSvgId('ar');
     const stroke = color || t.chart;
-    const axisW = 46;
-    const bandH = 22;
+    const axisW = 50;
+    const bandH = 24;
     const plotH = height - bandH;
     const vals = data.map((d) => d.value || 0);
     const top = niceMax(Math.max(0, ...vals) || 1);
     const bottom = Math.min(0, ...vals) < 0 ? -niceMax(-Math.min(...vals)) : 0;
     const span = top - bottom || 1;
-    const plotW = Math.max(0, w - axisW - 6);
+    const plotW = Math.max(0, w - axisW - 8);
     const n = data.length;
     const x = (i) => axisW + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW);
-    const y = (v) => 6 + (plotH - 6) * (1 - (v - bottom) / span);
+    const y = (v) => 8 + (plotH - 8) * (1 - (v - bottom) / span);
     const pts = data.map((d, i) => [x(i), y(d.value || 0)]);
-    const path = pts.map((p, i) => {
-        if (!i) return `M${p[0]} ${p[1]}`;
-        return step ? `H${p[0]} V${p[1]}` : `L${p[0]} ${p[1]}`;
-    }).join(' ');
+    const path = step
+        ? pts.map((p, i) => (i ? `H${p[0]} V${p[1]}` : `M${p[0]} ${p[1]}`)).join(' ')
+        : smoothPath(pts);
     const labelEvery = Math.ceil(n / Math.max(1, Math.floor(plotW / 54)));
-    const gid = useRef('ar' + Math.random().toString(36).slice(2, 8)).current;
+    const base = y(Math.max(0, bottom));
 
     const pick = (e) => {
         const r = e.currentTarget.getBoundingClientRect();
-        const px = e.clientX - r.left - axisW;
+        const px = e.clientX - r.left - 10;
         return Math.max(0, Math.min(n - 1, Math.round((px / (plotW || 1)) * (n - 1))));
     };
 
@@ -257,28 +291,31 @@ export function Area({ data, height = 160, color, format = fmtAxis, tipTitle = (
                 <svg width={w} height={height} style={{ display: 'block', overflow: 'visible' }}>
                     <defs>
                         <linearGradient id={gid} x1="0" x2="0" y1="0" y2="1">
-                            <stop offset="0%" stopColor={stroke} stopOpacity="0.22" />
+                            <stop offset="0%" stopColor={stroke} stopOpacity="0.34" />
+                            <stop offset="65%" stopColor={stroke} stopOpacity="0.06" />
                             <stop offset="100%" stopColor={stroke} stopOpacity="0" />
                         </linearGradient>
+                        <Glow id={gid + 'g'} color={stroke} />
                     </defs>
-                    {[0, 0.5, 1].map((f) => {
-                        const v = bottom + span * f;
-                        return (
-                            <g key={f}>
-                                <line x1={axisW} x2={w} y1={Math.round(y(v)) + 0.5} y2={Math.round(y(v)) + 0.5} stroke={v === 0 ? t.lineStrong : t.lineSoft} />
-                                <text x={axisW - 8} y={y(v) + 3} textAnchor="end" fontSize="11" fill={t.faint} fontFamily={MONO}>{format(v)}</text>
-                            </g>
-                        );
-                    })}
-                    <path d={`${path} L${pts[n - 1][0]} ${y(Math.max(0, bottom))} L${pts[0][0]} ${y(Math.max(0, bottom))} Z`} fill={`url(#${gid})`} />
-                    <path d={path} fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+                    <Grid ticks={[0, 0.5, 1].map((f) => bottom + span * f)} y={y} x0={axisW} x1={w} format={format} t={t} />
+                    <path className="ov-fadein" d={`${path} L${pts[n - 1][0]} ${base} L${pts[0][0]} ${base} Z`} fill={`url(#${gid})`} />
+                    <path d={path} pathLength={1} className="ov-draw" fill="none" stroke={stroke} strokeWidth="2.25"
+                        strokeLinejoin="round" strokeLinecap="round" filter={`url(#${gid}g)`} />
                     {data.map((d, i) => i % labelEvery === 0 && (
-                        <text key={i} x={x(i)} y={height - 6} textAnchor="middle" fontSize="11" fontFamily={MONO} fill={hover === i ? t.text : t.faint}>{d.label}</text>
+                        <text key={i} x={x(i)} y={height - 6} textAnchor="middle" fontSize="11" fontFamily={MONO}
+                            fill={hover === i ? t.text : t.faint} fontWeight={hover === i ? 600 : 400}>{d.label}</text>
                     ))}
+                    {hover === null && (
+                        <g pointerEvents="none">
+                            <circle className="ov-pulse" cx={pts[n - 1][0]} cy={pts[n - 1][1]} r="3.5" fill={stroke} />
+                            <circle cx={pts[n - 1][0]} cy={pts[n - 1][1]} r="3.5" fill={stroke} stroke={t.card} strokeWidth="2" />
+                        </g>
+                    )}
                     {hover !== null && (
                         <g pointerEvents="none">
-                            <line x1={x(hover)} x2={x(hover)} y1={4} y2={plotH} stroke={t.lineStrong} />
-                            <circle cx={pts[hover][0]} cy={pts[hover][1]} r="4.5" fill={stroke} stroke={t.panel} strokeWidth="2" />
+                            <line x1={x(hover)} x2={x(hover)} y1={4} y2={plotH} stroke={stroke} strokeOpacity=".5" strokeDasharray="3 4" />
+                            <circle cx={pts[hover][0]} cy={pts[hover][1]} r="9" fill={stroke} opacity=".16" />
+                            <circle cx={pts[hover][0]} cy={pts[hover][1]} r="4.5" fill={t.card} stroke={stroke} strokeWidth="2.5" />
                         </g>
                     )}
                     <rect x={axisW - 10} y={0} width={plotW + 20} height={height} fill="transparent"
@@ -313,6 +350,7 @@ export function RankBars({ rows, format, total, max = 6, color, onSelect, sub, e
             {top.map((r, i) => {
                 const on = hover === i;
                 const share = sum > 0 ? (r.value / sum) * 100 : null;
+                const c = r.color || color || t.chart;
                 return (
                     <div key={r.key || r.name}
                         {...clickable(onSelect && (() => { tip.hide(); onSelect(r); }))}
@@ -321,76 +359,148 @@ export function RankBars({ rows, format, total, max = 6, color, onSelect, sub, e
                         onPointerMove={(e) => { if (r.tip) tip.show(e, r.tip); }}
                         onPointerLeave={() => { setHover(null); tip.hide(); }}
                         style={{
-                            padding: '7px 8px', margin: '0 -8px', borderRadius: 7,
+                            padding: '8px 10px', margin: '0 -10px', borderRadius: 10,
                             cursor: onSelect ? 'pointer' : 'default', outline: 'none',
                             background: on ? t.panelAlt : 'transparent', transition: 'background .12s',
                         }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 5 }}>
-                            <span style={{ fontSize: 11, color: t.ghost, width: 14, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{String(i + 1).padStart(2, '0')}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 7 }}>
+                            <span style={{
+                                width: 20, height: 20, borderRadius: 6, flexShrink: 0, display: 'grid', placeItems: 'center',
+                                fontSize: 10.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums',
+                                background: i === 0 ? c : t.panelAlt, color: i === 0 ? '#fff' : t.faint,
+                                border: i === 0 ? 'none' : '1px solid ' + t.line,
+                            }}>{i + 1}</span>
                             <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
-                            {sub && <span style={{ fontSize: 11, color: t.faint, whiteSpace: 'nowrap' }}>{sub(r)}</span>}
+                            {sub && <span style={{ fontSize: 11.5, color: t.faint, whiteSpace: 'nowrap' }}>{sub(r)}</span>}
                             <span style={{ fontSize: 13, color: t.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{format(r.value)}</span>
-                            {share !== null && <span style={{ fontSize: 11, color: t.faint, width: 30, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{share.toFixed(0)}%</span>}
+                            {share !== null && <span style={{ fontSize: 11.5, color: t.faint, width: 32, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{share.toFixed(0)}%</span>}
                         </div>
-                        <div style={{ marginLeft: 22, height: 6, background: t.lineSoft, borderRadius: 99, overflow: 'hidden' }}>
+                        <div style={{ marginLeft: 29, height: 7, background: t.panelAlt, boxShadow: 'inset 0 0 0 1px ' + t.line, borderRadius: 99, overflow: 'hidden' }}>
                             <div style={{
                                 height: '100%', width: `${(Math.abs(r.value) / peak) * 100}%`, borderRadius: 99,
-                                background: r.color || color || t.chart, opacity: hover === null || on ? 1 : 0.55,
-                                transition: 'width .45s cubic-bezier(.16,1,.3,1), opacity .15s',
+                                background: `linear-gradient(90deg, ${mix(c, 40)}, ${c})`,
+                                boxShadow: on ? `0 0 12px -1px ${c}` : 'none',
+                                opacity: hover === null || on ? 1 : 0.5,
+                                transition: 'width .6s cubic-bezier(.16,1,.3,1), opacity .15s, box-shadow .15s',
                             }} />
                         </div>
                     </div>
                 );
             })}
             {rows.length > max && (
-                <div style={{ fontSize: 11.5, color: t.faint, paddingTop: 6 }}>+{rows.length - max} more · open for the full list</div>
+                <div style={{ fontSize: 12, color: t.faint, paddingTop: 8 }}>+{rows.length - max} more · open for the full list</div>
             )}
         </div>
     );
 }
 
-/* ── one stacked bar with a legend that doubles as the control ───────────── */
+/* ── one split, as a bar or a donut, with a legend that doubles as the control ── */
 
-export function SplitBar({ parts, format, height = 16, onSelect, selected, unit }) {
+export function SplitBar({ parts, format, height = 12, onSelect, selected, unit, donut = false, center }) {
     const { t } = useViz();
     const tip = useTip();
     const [hover, setHover] = useState(null);
     const total = parts.reduce((s, p) => s + p.value, 0);
     const active = hover ?? selected;
+    const tipOf = (p) => <TipBody title={p.label} rows={[{ label: unit || 'Value', value: format(p.value), color: p.color }, ...(p.extra || []), { label: 'Share', value: total > 0 ? `${((p.value / total) * 100).toFixed(1)}%` : '-' }]} hint={onSelect ? undefined : false} />;
+    const legend = (
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 2, marginTop: donut ? 0 : 12, flex: donut ? '1 1 230px' : undefined, minWidth: 0 }}>
+            {parts.map((p) => (
+                <div key={p.id} className="ov-row"
+                    {...clickable(onSelect && (() => onSelect(p)))}
+                    onPointerEnter={() => setHover(p.id)} onPointerLeave={() => setHover(null)}
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: 9, padding: '6px 10px', margin: '0 -10px', borderRadius: 9,
+                        cursor: onSelect ? 'pointer' : 'default', outline: 'none',
+                        background: active === p.id ? t.panelAlt : 'transparent', transition: 'background .12s',
+                    }}>
+                    <span style={{ width: 9, height: 9, borderRadius: 99, background: p.color, flexShrink: 0, boxShadow: active === p.id ? `0 0 8px ${p.color}` : 'none' }} />
+                    <span style={{ flex: 1, fontSize: 12.5, color: t.dim, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
+                    {p.note && <span style={{ fontSize: 11.5, color: t.faint, padding: '0 6px', borderRadius: 99, background: t.panelAlt, border: '1px solid ' + t.line }}>{p.note}</span>}
+                    <span style={{ fontSize: 12.5, color: t.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{format(p.value)}</span>
+                    <span style={{ fontSize: 11.5, color: t.faint, width: 32, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {total > 0 ? `${Math.round((p.value / total) * 100)}%` : '-'}
+                    </span>
+                </div>
+            ))}
+        </div>
+    );
+
+    if (donut) {
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+                <Donut parts={parts} total={total} active={active} setHover={setHover} onSelect={onSelect} tipOf={tipOf} center={center} format={format} />
+                {legend}
+            </div>
+        );
+    }
+
     return (
         <div>
-            <div style={{ display: 'flex', gap: 2, height, borderRadius: 5, overflow: 'hidden', background: t.lineSoft }}>
+            <div style={{ display: 'flex', gap: 3, height, borderRadius: 99, overflow: 'hidden', background: t.panelAlt, boxShadow: 'inset 0 0 0 1px ' + t.line }}>
                 {total > 0 && parts.map((p) => p.value > 0 && (
                     <div key={p.id}
                         {...clickable(onSelect && (() => { tip.hide(); onSelect(p); }))}
                         aria-label={`${p.label}: ${format(p.value)}`}
-                        onPointerMove={(e) => { setHover(p.id); tip.show(e, <TipBody title={p.label} rows={[{ label: unit || 'Value', value: format(p.value), color: p.color }, ...(p.extra || []), { label: 'Share', value: `${((p.value / total) * 100).toFixed(1)}%` }]} hint={onSelect ? undefined : false} />); }}
+                        onPointerMove={(e) => { setHover(p.id); tip.show(e, tipOf(p)); }}
                         onPointerLeave={() => { setHover(null); tip.hide(); }}
                         style={{
-                            flex: `${p.value} 1 0`, minWidth: 3, background: p.color, cursor: onSelect ? 'pointer' : 'default',
-                            opacity: active == null || active === p.id ? 1 : 0.35, transition: 'opacity .15s', outline: 'none',
+                            flex: `${p.value} 1 0`, minWidth: 4, borderRadius: 99, cursor: onSelect ? 'pointer' : 'default',
+                            background: `linear-gradient(180deg, ${p.color}, ${mix(p.color, 72)})`,
+                            boxShadow: active === p.id ? `0 0 10px ${p.color}` : 'none',
+                            opacity: active == null || active === p.id ? 1 : 0.35, transition: 'opacity .15s, box-shadow .15s', outline: 'none',
                         }} />
                 ))}
             </div>
-            <div style={{ display: 'grid', gap: 1, marginTop: 10 }}>
-                {parts.map((p) => (
-                    <div key={p.id} className="ov-row"
-                        {...clickable(onSelect && (() => onSelect(p)))}
-                        onPointerEnter={() => setHover(p.id)} onPointerLeave={() => setHover(null)}
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', margin: '0 -8px', borderRadius: 6,
-                            cursor: onSelect ? 'pointer' : 'default', outline: 'none',
-                            background: active === p.id ? t.panelAlt : 'transparent',
-                        }}>
-                        <span style={{ width: 8, height: 8, borderRadius: 2, background: p.color, flexShrink: 0 }} />
-                        <span style={{ flex: 1, fontSize: 12.5, color: t.dim, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
-                        {p.note && <span style={{ fontSize: 11, color: t.faint }}>{p.note}</span>}
-                        <span style={{ fontSize: 12.5, color: t.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{format(p.value)}</span>
-                        <span style={{ fontSize: 11, color: t.faint, width: 32, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                            {total > 0 ? `${Math.round((p.value / total) * 100)}%` : '-'}
-                        </span>
+            {legend}
+        </div>
+    );
+}
+
+/** A ring of parts with the total (or `center`) in the middle. */
+export function Donut({ parts, total, active, setHover, onSelect, tipOf, center, format, size = 148, thick = 16 }) {
+    const { t } = useViz();
+    const tip = useTip();
+    const gid = useSvgId('dn');
+    const r = size / 2 - thick / 2 - 4;
+    const c = 2 * Math.PI * r;
+    const gap = parts.filter((p) => p.value > 0).length > 1 ? 4 : 0;
+    let acc = 0;
+    const act = parts.find((p) => p.id === active);
+    return (
+        <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+            <svg width={size} height={size} style={{ display: 'block', transform: 'rotate(-90deg)' }}>
+                <defs><Glow id={gid} color={t.accent} blur={3} opacity={0.3} /></defs>
+                <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={t.panelAlt} strokeWidth={thick} />
+                {total > 0 && parts.map((p) => {
+                    if (!(p.value > 0)) return null;
+                    const len = (p.value / total) * c;
+                    const seg = Math.max(0.5, len - gap);
+                    const off = -acc;
+                    acc += len;
+                    const on = active === p.id;
+                    return (
+                        <circle key={p.id} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={p.color}
+                            strokeWidth={on ? thick + 4 : thick} strokeDasharray={`${seg} ${c - seg}`} strokeDashoffset={off}
+                            strokeLinecap={seg > 8 ? 'round' : 'butt'} filter={on ? `url(#${gid})` : undefined}
+                            opacity={active == null || on ? 1 : 0.35}
+                            style={{ cursor: onSelect ? 'pointer' : 'default', transition: 'opacity .15s, stroke-width .15s', outline: 'none' }}
+                            aria-label={`${p.label}: ${format(p.value)}`}
+                            onPointerMove={(e) => { setHover(p.id); tip.show(e, tipOf(p)); }}
+                            onPointerLeave={() => { setHover(null); tip.hide(); }}
+                            {...clickable(onSelect && (() => { tip.hide(); onSelect(p); }))} />
+                    );
+                })}
+            </svg>
+            <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center', pointerEvents: 'none' }}>
+                <div>
+                    <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.04em', color: t.text, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
+                        {act ? (total > 0 ? `${Math.round((act.value / total) * 100)}%` : '-') : (center?.value ?? format(total))}
                     </div>
-                ))}
+                    <div style={{ fontSize: 11.5, color: t.faint, marginTop: 3, maxWidth: size - thick * 2 - 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {act ? act.label : (center?.label ?? 'Total')}
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -404,30 +514,33 @@ export function Funnel({ stages, format, onSelect }) {
     const [hover, setHover] = useState(null);
     const peak = Math.max(1, ...stages.map((s) => s.count));
     return (
-        <div style={{ display: 'grid', gap: 6 }}>
+        <div style={{ display: 'grid', gap: 8 }}>
             {stages.map((s, i) => {
                 const pct = (s.count / peak) * 100;
                 const prev = stages[i - 1];
                 const conv = s.conversion ?? (prev && prev.count ? (s.count / prev.count) * 100 : null);
+                const on = hover === s.id;
                 return (
                     <div key={s.id} {...clickable(onSelect && (() => { tip.hide(); onSelect(s); }))}
                         onPointerEnter={() => setHover(s.id)} onPointerLeave={() => { setHover(null); tip.hide(); }}
                         onPointerMove={(e) => tip.show(e, <TipBody title={s.label} rows={[{ label: 'Count', value: String(s.count), color: s.color }, { label: 'Value', value: format(s.value) }]} />)}
-                        style={{ display: 'grid', gridTemplateColumns: '78px 1fr 70px', alignItems: 'center', gap: 10, cursor: onSelect ? 'pointer' : 'default', outline: 'none' }}>
-                        <span style={{ fontSize: 12, color: hover === s.id ? t.text : t.dim }}>{s.label}</span>
-                        <div style={{ height: 24, display: 'flex', justifyContent: 'center', background: t.lineSoft, borderRadius: 5 }}>
+                        style={{ display: 'grid', gridTemplateColumns: '84px 1fr 76px', alignItems: 'center', gap: 10, cursor: onSelect ? 'pointer' : 'default', outline: 'none' }}>
+                        <span style={{ fontSize: 12.5, color: on ? t.text : t.dim }}>{s.label}</span>
+                        <div style={{ height: 30, display: 'flex', justifyContent: 'center', background: t.panelAlt, boxShadow: 'inset 0 0 0 1px ' + t.line, borderRadius: 9 }}>
                             <div style={{
-                                width: `${Math.max(pct, s.count ? 4 : 0)}%`, background: s.color, borderRadius: 5,
-                                display: 'grid', placeItems: 'center', transition: 'width .45s cubic-bezier(.16,1,.3,1)',
-                                opacity: hover === null || hover === s.id ? 1 : 0.45,
+                                width: `${Math.max(pct, s.count ? 5 : 0)}%`, borderRadius: 9,
+                                background: `linear-gradient(180deg, ${s.color}, ${mix(s.color, 75)})`,
+                                boxShadow: on ? `0 0 16px -2px ${s.color}` : 'inset 0 1px 0 rgba(255,255,255,.2)',
+                                display: 'grid', placeItems: 'center', transition: 'width .6s cubic-bezier(.16,1,.3,1), box-shadow .15s',
+                                opacity: hover === null || on ? 1 : 0.45,
                             }}>
-                                {pct > 22 && <span style={{ fontSize: 12, fontWeight: 600, color: s.ink || '#fff' }}>{s.count}</span>}
+                                {pct > 22 && <span style={{ fontSize: 12.5, fontWeight: 600, color: s.ink || '#fff' }}>{s.count}</span>}
                             </div>
                         </div>
-                        <span style={{ fontSize: 12, color: t.text, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        <span style={{ fontSize: 12.5, color: t.text, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                             {pct <= 22 && <span style={{ color: t.dim, marginRight: 6 }}>{s.count}</span>}
                             {format(s.value)}
-                            {conv !== null && conv !== undefined && <span style={{ display: 'block', fontSize: 10.5, color: t.faint }}>{s.convLabel || `${conv.toFixed(0)}% of prev`}</span>}
+                            {conv !== null && conv !== undefined && <span style={{ display: 'block', fontSize: 11, color: t.faint }}>{s.convLabel || `${conv.toFixed(0)}% of prev`}</span>}
                         </span>
                     </div>
                 );
@@ -477,7 +590,7 @@ export function CalendarHeat({ days, onSelect }) {
                         const wd = i % 7;
                         const title = new Date(`${d.date}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
                         return (
-                            <rect key={d.date} x={labelW + wk * pitch} y={16 + wd * (cell + gap)} width={cellW} height={cell} rx={2.5}
+                            <rect key={d.date} x={labelW + wk * pitch} y={16 + wd * (cell + gap)} width={cellW} height={cell} rx={Math.min(4, cell / 3)}
                                 fill={heat[level(d.count)]}
                                 stroke={d.count === 0 ? t.line : 'none'}
                                 aria-label={`${title}: ${d.count} documents`}
@@ -490,9 +603,9 @@ export function CalendarHeat({ days, onSelect }) {
                     })}
                 </svg>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end', marginTop: 8, fontSize: 11, color: t.faint }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end', marginTop: 10, fontSize: 11.5, color: t.faint }}>
                 Less
-                {heat.map((c, i) => <span key={i} style={{ width: 10, height: 10, borderRadius: 2, background: c, border: i === 0 ? '1px solid ' + t.line : 'none' }} />)}
+                {heat.map((c, i) => <span key={i} style={{ width: 11, height: 11, borderRadius: 3, background: c, border: i === 0 ? '1px solid ' + t.line : 'none' }} />)}
                 More
             </div>
         </div>
@@ -504,6 +617,7 @@ export function CalendarHeat({ days, onSelect }) {
 export function Spark({ values, color, height = 34, bars = false }) {
     const { t } = useViz();
     const [ref, w] = useWidth();
+    const gid = useSvgId('sp');
     const n = values.length;
     const max = Math.max(0, ...values);
     const min = Math.min(0, ...values);
@@ -513,18 +627,26 @@ export function Spark({ values, color, height = 34, bars = false }) {
         <div ref={ref} style={{ width: '100%', height }}>
             {w > 0 && n > 0 && (
                 <svg width={w} height={height} style={{ display: 'block', overflow: 'visible' }}>
+                    <defs>
+                        <linearGradient id={gid} x1="0" x2="0" y1="0" y2="1">
+                            <stop offset="0%" stopColor={stroke} stopOpacity={bars ? 1 : 0.3} />
+                            <stop offset="100%" stopColor={stroke} stopOpacity={bars ? 0.35 : 0} />
+                        </linearGradient>
+                    </defs>
                     {bars ? values.map((v, i) => {
-                        const bw = Math.max(2, w / n - 2);
-                        const h = Math.max(1, ((v - min) / span) * (height - 2));
-                        return <rect key={i} x={i * (w / n)} y={height - h} width={bw} height={h} rx={1.5} fill={stroke} opacity={0.35 + 0.65 * (i / Math.max(1, n - 1))} />;
+                        const bw = Math.max(2, w / n - 3);
+                        const h = Math.max(2, ((v - min) / span) * (height - 2));
+                        return <rect key={i} className="ov-grow" style={{ animationDelay: `${i * 25}ms` }} x={i * (w / n)} y={height - h} width={bw} height={h}
+                            rx={Math.min(3, bw / 2)} fill={`url(#${gid})`} opacity={0.45 + 0.55 * (i / Math.max(1, n - 1))} />;
                     }) : (() => {
-                        const pts = values.map((v, i) => [n === 1 ? w / 2 : (i / (n - 1)) * w, 2 + (height - 4) * (1 - (v - min) / span)]);
-                        const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+                        const pts = values.map((v, i) => [n === 1 ? w / 2 : (i / (n - 1)) * w, 3 + (height - 6) * (1 - (v - min) / span)]);
+                        const d = smoothPath(pts);
                         return (
                             <>
-                                <path d={`${d} L${w} ${height} L0 ${height} Z`} fill={stroke} opacity="0.08" />
-                                <path d={d} fill="none" stroke={stroke} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
-                                <circle cx={pts[n - 1][0]} cy={pts[n - 1][1]} r="2.6" fill={stroke} />
+                                <path className="ov-fadein" d={`${d} L${pts[n - 1][0]} ${height} L${pts[0][0]} ${height} Z`} fill={`url(#${gid})`} />
+                                <path d={d} pathLength={1} className="ov-draw" fill="none" stroke={stroke} strokeWidth="1.9" strokeLinejoin="round" strokeLinecap="round" />
+                                <circle className="ov-pulse" cx={pts[n - 1][0]} cy={pts[n - 1][1]} r="2.8" fill={stroke} />
+                                <circle cx={pts[n - 1][0]} cy={pts[n - 1][1]} r="3" fill={stroke} stroke={t.card} strokeWidth="1.5" />
                             </>
                         );
                     })()}
@@ -537,8 +659,11 @@ export function Spark({ values, color, height = 34, bars = false }) {
 /** A ratio against 100%: semicircle gauge with the number in the middle. */
 export function Gauge({ value, label, size = 150, color }) {
     const { t } = useViz();
+    const gid = useSvgId('gg');
     const v = value === null || value === undefined ? null : Math.max(0, Math.min(100, value));
-    const r = size / 2 - 10;
+    const stroke = color || t.chart;
+    const thick = 12;
+    const r = size / 2 - thick;
     const cx = size / 2;
     const cy = size / 2 + 4;
     const arc = (pct) => {
@@ -548,19 +673,24 @@ export function Gauge({ value, label, size = 150, color }) {
     const [ex, ey] = arc(v || 0);
     return (
         <div style={{ width: size, position: 'relative' }}>
-            <svg width={size} height={size / 2 + 14} style={{ display: 'block' }}>
-                <path d={`M${cx - r} ${cy} A${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke={t.lineSoft} strokeWidth="10" strokeLinecap="round" />
-                {v > 0 && <path d={`M${cx - r} ${cy} A${r} ${r} 0 0 1 ${ex} ${ey}`} fill="none" stroke={color || t.chart} strokeWidth="10" strokeLinecap="round" />}
-                {[0, 25, 50, 75, 100].map((p) => {
-                    const a = Math.PI * (1 - p / 100);
-                    return <line key={p} x1={cx + (r - 9) * Math.cos(a)} y1={cy - (r - 9) * Math.sin(a)} x2={cx + (r - 14) * Math.cos(a)} y2={cy - (r - 14) * Math.sin(a)} stroke={t.ghost} />;
-                })}
+            <svg width={size} height={size / 2 + 16} style={{ display: 'block', overflow: 'visible' }}>
+                <defs>
+                    <linearGradient id={gid} x1="0" x2="1" y1="0" y2="0">
+                        <stop offset="0%" stopColor={stroke} stopOpacity="0.45" />
+                        <stop offset="100%" stopColor={stroke} stopOpacity="1" />
+                    </linearGradient>
+                    <Glow id={gid + 'g'} color={stroke} blur={4} opacity={0.4} />
+                </defs>
+                <path d={`M${cx - r} ${cy} A${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke={t.panelAlt} strokeWidth={thick} strokeLinecap="round" />
+                {v > 0 && <path d={`M${cx - r} ${cy} A${r} ${r} 0 0 1 ${ex} ${ey}`} pathLength={1} className="ov-draw" fill="none" stroke={`url(#${gid})`}
+                    strokeWidth={thick} strokeLinecap="round" filter={`url(#${gid}g)`} />}
+                {v > 0 && <circle cx={ex} cy={ey} r={thick / 2 - 2.5} fill={t.card} />}
             </svg>
             <div style={{ position: 'absolute', left: 0, right: 0, top: size / 2 - 22, textAlign: 'center' }}>
-                <div style={{ fontSize: 24, fontWeight: 600, color: t.text, letterSpacing: '-0.04em', lineHeight: 1 }}>
-                    {v === null ? '-' : v.toFixed(0)}{v !== null && <span style={{ fontSize: 13.5, color: t.dim }}>%</span>}
+                <div style={{ fontSize: 26, fontWeight: 600, color: t.text, letterSpacing: '-0.045em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                    {v === null ? '-' : v.toFixed(0)}{v !== null && <span style={{ fontSize: 14, color: t.dim }}>%</span>}
                 </div>
-                <div style={{ fontSize: 10.5, letterSpacing: '0.08em', color: t.faint, marginTop: 4 }}>{label}</div>
+                <div style={{ fontSize: 12, color: t.faint, marginTop: 5 }}>{label}</div>
             </div>
         </div>
     );
@@ -569,10 +699,10 @@ export function Gauge({ value, label, size = 150, color }) {
 export function Legend({ items }) {
     const { t } = useViz();
     return (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px' }}>
             {items.map((it) => (
-                <span key={it.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: t.dim }}>
-                    <span style={{ width: it.line ? 12 : 8, height: it.line ? 2 : 8, borderRadius: 2, background: it.color }} />
+                <span key={it.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12, color: t.dim }}>
+                    <span style={{ width: it.line ? 14 : 9, height: it.line ? 3 : 9, borderRadius: 99, background: it.color }} />
                     {it.label}
                 </span>
             ))}
@@ -582,7 +712,11 @@ export function Legend({ items }) {
 
 export function EmptyNote({ children }) {
     const { t } = useViz();
-    return <div style={{ padding: '26px 8px', textAlign: 'center', fontSize: 12.5, color: t.faint }}>{children}</div>;
+    return (
+        <div style={{ padding: '26px 8px', display: 'grid', placeItems: 'center' }}>
+            <span style={{ fontSize: 12.5, color: t.faint, padding: '6px 14px', borderRadius: 99, background: t.panelAlt, border: '1px dashed ' + t.lineStrong }}>{children}</span>
+        </div>
+    );
 }
 
 export function Delta({ value, suffix = '%', invert = false, abs = false }) {
@@ -593,7 +727,7 @@ export function Delta({ value, suffix = '%', invert = false, abs = false }) {
     const good = invert ? !up : up;
     const color = Math.abs(value) < 0.05 ? t.dim : good ? t.up : t.down;
     return (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, fontWeight: 600, color, whiteSpace: 'nowrap' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, fontWeight: 600, color, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
             <span aria-hidden>{Math.abs(value) < 0.05 ? '→' : up ? '↑' : '↓'}</span>
             {abs ? `${up ? '+' : '−'}${Math.abs(value)}` : `${Math.abs(value).toFixed(1)}${suffix}`}
         </span>

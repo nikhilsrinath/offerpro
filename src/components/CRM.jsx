@@ -13,6 +13,7 @@ import { confirmDialog } from '../services/confirm';
 import ClientProjectSelect, { ProjectScopeFilter } from './shared/ClientProjectSelect';
 import { useClientProjects } from './shared/useClientProjects';
 import { OTHERS, initialProject, assignProject, filterByProject } from '../services/clientProjects';
+import { initialQuery } from '../services/urlQuery';
 
 const COLUMNS = [
   { id: 'lead',      label: 'Lead',      color: '#6366f1' },
@@ -63,7 +64,7 @@ export default function CRM({ project = null }) {
   const [editingLead, setEditingLead] = useState(null);
   const [formData, setFormData] = useState(EMPTY_LEAD);
   const [saving, setSaving] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialQuery);
   const [dragOverCol, setDragOverCol] = useState(null);
   const [mobileTab, setMobileTab] = useState('lead');
   const [moveMenuId, setMoveMenuId] = useState(null);

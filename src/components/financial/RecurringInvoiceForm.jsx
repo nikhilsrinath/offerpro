@@ -982,30 +982,19 @@ function RecurringInvoiceList({ projectId = null }) {
 
       {/* Table */}
       {items.length > 0 && (
-        <div style={{
-          background: 'var(--bg-elevated)', borderRadius: '12px',
-          border: '1px solid var(--border-subtle)', overflow: 'hidden',
-        }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div className="fin-list-table-wrap">
+          <table className="fin-list-table">
             <thead>
               <tr>
-                {['Client', 'Amount', 'Frequency', 'Next Date', 'Cycles', 'Status', 'Actions'].map(col => (
-                  <th key={col} style={{
-                    padding: '0.75rem 1rem', textAlign: 'left',
-                    fontSize: '0.75rem', fontWeight: 600,
-                    color: 'var(--text-muted)',
-                    borderBottom: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-sunken)',
-                  }}>
-                    {col}
-                  </th>
+                {['Client', 'Amount', 'Frequency', 'Next date', 'Cycles', 'Status', 'Actions'].map(col => (
+                  <th key={col}>{col}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {items.map((item) => (
-                <tr key={item.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                  <td style={{ padding: '0.875rem 1rem' }}>
+                <tr key={item.id}>
+                  <td>
                     <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
                       {item.clientName || '-'}
                     </div>
@@ -1015,10 +1004,10 @@ function RecurringInvoiceList({ projectId = null }) {
                       </div>
                     )}
                   </td>
-                  <td style={{ padding: '0.875rem 1rem', fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                  <td style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
                     {formatCurrency(item.grandTotal || 0)}
                   </td>
-                  <td style={{ padding: '0.875rem 1rem' }}>
+                  <td>
                     <span style={{
                       display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
                       fontSize: '0.8125rem', color: 'var(--text-secondary)',
@@ -1027,20 +1016,20 @@ function RecurringInvoiceList({ projectId = null }) {
                       {getFrequencyLabel(item.frequency)}
                     </span>
                   </td>
-                  <td style={{ padding: '0.875rem 1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                  <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
                     {item.status === 'active' && item.nextInvoiceDate
                       ? formatDate(item.nextInvoiceDate)
                       : '-'}
                   </td>
-                  <td style={{ padding: '0.875rem 1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                  <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
                     {item.totalCycles !== null && item.totalCycles !== undefined
                       ? `${item.totalCycles}`
                       : 'Unlimited'}
                   </td>
-                  <td style={{ padding: '0.875rem 1rem' }}>
+                  <td>
                     <DocumentStatusBadge status={item.status || 'active'} size="small" />
                   </td>
-                  <td style={{ padding: '0.875rem 1rem' }}>
+                  <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                       {item.status === 'active' && (
                         <button type="button" onClick={() => handlePause(item)}

@@ -23,6 +23,7 @@ import EmployeeWorkInsights from './people/EmployeeWorkInsights';
 import RelatedProjects from './projects/RelatedProjects';
 import { PhotoPortrait } from './portal/me/portalKit';
 import { tenureLabel, daysUntilBirthday, useWindowWidth } from './portal/me/portalUtils';
+import { initialQuery } from '../services/urlQuery';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Employee registry.
@@ -479,7 +480,7 @@ export default function Employees() {
 
     const [employees, setEmployees] = useState([]);
     const [departments, setDepartments] = useState([]);
-    const [query, setQuery] = useState('');
+    const [query, setQuery] = useState(initialQuery);
     const [sortBy, setSortBy] = useState('name_asc');
     const [view, setView] = useState('table');
     const [type, setType] = useState('all');

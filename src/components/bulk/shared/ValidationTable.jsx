@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Btn, Seg, Status, Empty } from '../../ui/edge';
-import { MONO, useT } from '../../ui/edgeUtils';
+import { MONO, useT, tableFrame, thStyle, tdStyle } from '../../ui/edgeUtils';
 import { fmtDmy } from '../../../services/importDates';
 
 const ROWS_PER_PAGE = 50;
@@ -77,11 +77,8 @@ export default function ValidationTable({
         if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setEditingCell(null); }
     };
 
-    const th = {
-        textAlign: 'left', padding: '9px 12px', fontSize: 11, letterSpacing: '0.09em', fontWeight: 400,
-        color: t.faint, borderBottom: '1px solid ' + t.line, whiteSpace: 'nowrap',
-        position: 'sticky', top: 0, background: t.panel, zIndex: 1,
-    };
+    const th = { ...thStyle(t), position: 'sticky', top: 0, zIndex: 1 };
+    const td = { ...tdStyle(t), padding: '9px 14px', verticalAlign: 'top' };
 
     return (
         <div>
@@ -97,16 +94,16 @@ export default function ValidationTable({
                 </span>
             </div>
 
-            <div className="edge-scroll" style={{ overflow: 'auto', maxHeight: 520, border: '1px solid ' + t.line, borderRadius: 10 }}>
+            <div className="edge-scroll" style={{ ...tableFrame(t), overflow: 'auto', maxHeight: 520 }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO }}>
                     <caption style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
                         Uploaded rows. Select a cell to edit it.
                     </caption>
                     <thead>
                         <tr>
-                            <th scope="col" style={th}>STATUS</th>
+                            <th scope="col" style={th}>Status</th>
                             {columns.map((col) => (
-                                <th key={col} scope="col" style={th}>{label(col).toUpperCase()}</th>
+                                <th key={col} scope="col" style={th}>{label(col)}</th>
                             ))}
                             {onDeleteRow && <th scope="col" style={th}><span className="eo-sr">Remove row</span></th>}
                         </tr>
@@ -114,7 +111,7 @@ export default function ValidationTable({
                     <tbody>
                         {paginatedData.map(({ row, idx, errors, warning, note, isValid }) => (
                             <tr key={idx} style={{ background: isValid ? undefined : t.panelAlt }}>
-                                <td style={{ padding: '8px 12px', borderBottom: '1px solid ' + t.lineSoft, whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                                <td style={{ ...td, whiteSpace: 'nowrap' }}>
                                     {isValid
                                         ? (
                                             <span>
@@ -144,7 +141,7 @@ export default function ValidationTable({
                                     const value = row[col];
                                     return (
                                         <td key={col} style={{
-                                            padding: 3, borderBottom: '1px solid ' + t.lineSoft,
+                                            padding: 3, borderBottom: '1px solid ' + t.line,
                                             boxShadow: hasError ? 'inset 2px 0 0 ' + t.down : 'none',
                                         }}>
                                             {isEditing ? (
@@ -186,7 +183,7 @@ export default function ValidationTable({
                                     );
                                 })}
                                 {onDeleteRow && (
-                                    <td style={{ padding: '3px 9px', borderBottom: '1px solid ' + t.lineSoft, verticalAlign: 'middle' }}>
+                                    <td style={{ padding: '3px 9px', borderBottom: '1px solid ' + t.line, verticalAlign: 'middle' }}>
                                         <Btn size="sm" aria-label={`Delete row ${idx + 1}`} onClick={() => onDeleteRow(idx)}>Delete</Btn>
                                     </td>
                                 )}

@@ -311,7 +311,7 @@ function Matrix({ rows, cols, cells, folded, onFold, canEdit, canCreate, canDele
     const firstW = 260;
     const head = {
         position: 'sticky', top: 0, zIndex: 2, background: t.panelAlt, textTransform: 'none', letterSpacing: 'normal',
-        borderBottom: '1px solid ' + t.line, padding: '8px 6px', fontWeight: 400,
+        borderBottom: '1px solid ' + t.line, padding: '10px 6px', fontWeight: 500, fontSize: 12, color: t.faint,
     };
     return (
         <div className="edge-scroll" tabIndex={0} aria-label="RACI matrix, scrollable" style={{
@@ -321,9 +321,8 @@ function Matrix({ rows, cols, cells, folded, onFold, canEdit, canCreate, canDele
                 <thead>
                     <tr>
                         <th scope="col" style={{
-                            ...head, left: 0, zIndex: 3, textAlign: 'left', padding: '8px 13px',
+                            ...head, left: 0, zIndex: 3, textAlign: 'left', padding: '10px 14px',
                             minWidth: firstW, maxWidth: firstW, borderRight: '1px solid ' + t.line,
-                            fontSize: 11.5, color: t.faint,
                         }}>Work</th>
                         {cols.map((p) => (
                             <th key={p.id} scope="col" style={{ ...head, minWidth: 92, maxWidth: 120, textAlign: 'center' }}>
@@ -353,7 +352,7 @@ function Matrix({ rows, cols, cells, folded, onFold, canEdit, canCreate, canDele
                             <tr key={r.key}>
                                 <th scope="row" style={{
                                     position: 'sticky', left: 0, zIndex: 1, textAlign: 'left', fontWeight: 400,
-                                    textTransform: 'none', letterSpacing: 'normal', background: r.deliverable ? t.panelAlt : t.panel,
+                                    textTransform: 'none', letterSpacing: 'normal', background: r.deliverable ? t.panelAlt : t.card,
                                     minWidth: firstW, maxWidth: firstW, padding: `8px 10px 8px ${13 + r.depth * 16}px`,
                                     borderRight: '1px solid ' + t.line, borderBottom: '1px solid ' + t.lineSoft,
                                 }}>

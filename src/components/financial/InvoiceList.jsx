@@ -24,6 +24,7 @@ import { lifecycleOf, revertedStatusOf, isCarriedAdvance } from '../../services/
 import { orgStore } from '../../services/orgStore';
 import { confirmDialog } from '../../services/confirm';
 import { useProjectScope, projectBillingPath, projectBillingForm } from '../projects/projectScope';
+import { initialQuery } from '../../services/urlQuery';
 
 // With `projectId` (a project's Billing page) it lists only that project's
 // documents, and a new or revised one opens its form on the project.
@@ -32,7 +33,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
   const toast = useToast();
   const { activeOrg } = useOrg();
   const [documents, setDocuments] = useState([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialQuery);
   const [sortBy, setSortBy] = useState('date_desc');
   // Payment position cards on Finance Status link here with ?filter=, so the
   // initial filter comes from the URL when there is one.

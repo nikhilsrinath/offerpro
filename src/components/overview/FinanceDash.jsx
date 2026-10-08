@@ -4,7 +4,7 @@ import { useSection } from '../financial/financeHooks';
 import { balanceOf, cashPosition, taxSummary } from '../../services/financeAnalytics';
 import { fmtShort, fmtInr, customerKey } from './overviewModel';
 import { Columns, RankBars, SplitBar, Gauge, Legend, Delta, TipBody } from './vizKit';
-import { Dashboard, Card, Tile, Figure, BigCount, More, MiniSeg, TileRow, CardGrid } from './dashKit';
+import { Dashboard, Card, Tile, Figure, FigureRow, SubLabel, More, MiniSeg, TileRow, CardGrid } from './dashKit';
 import { plainBtn } from './vizHooks';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -95,7 +95,7 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
     const opRatio = model.pl.income > 0 ? (model.pl.expenses / model.pl.income) * 100 : null;
 
     return (<>
-        <TileRow cols={tileCols(6)}>
+        <TileRow bento cols={tileCols(6)}>
             <Tile icon={IndianRupee} label="Revenue" value={fmtShort(k.revenue.value)} exact={fmtInr(k.revenue.value)}
                 delta={deltaOf(k.revenue.delta)}
                 foot={k.revenue.direct > 0 ? `${fmtShort(k.revenue.direct)} without an invoice` : `${k.invoiced.count} invoices`}
@@ -137,7 +137,7 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
         </TileRow>
 
         <CardGrid cols={cols}>
-            <Card style={grid(2)} title={cashMode === 'cash' ? 'Cash flow' : 'Profit & loss'}
+            <Card accent style={grid(2)} title={cashMode === 'cash' ? 'Cash flow' : 'Profit & loss'}
                 note={cashMode === 'cash' ? 'invoiced · collected on invoices · spent, gross' : 'income (invoiced + cash book) vs expenses, net of GST · line = net'}
                 right={<MiniSeg label="Chart basis" value={cashMode} onChange={setCashMode} options={[{ id: 'cash', label: 'Cash' }, { id: 'pl', label: 'P&L' }]} />}>
                 <Columns data={model.series} series={cashSeries} height={260} tipFormat={fmtInr}
@@ -155,12 +155,14 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
             <Card title="Collection health" note="receivables as of today">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
                     <button type="button" className="ov-plain" aria-label="Collected share: open detail" onClick={() => open({ kind: 'metric', id: 'collected' })} style={plainBtn}>
-                        <Gauge value={model.collectionRate} label="COLLECTED" size={140} color={cat[2]} />
+                        <Gauge value={model.collectionRate} label="Collected" size={150} color={cat[2]} />
                     </button>
-                    <div style={{ flex: 1, minWidth: 130, display: 'grid', gap: 10 }}>
-                        <Figure big label="outstanding" value={fmtShort(k.outstanding.value)} />
-                        <Figure big label="overdue" value={fmtShort(k.outstanding.overdue)} tone={k.outstanding.overdue > 0 ? 'down' : null} />
-                        <div style={{ fontSize: 11.5, color: t.faint, lineHeight: 1.5 }}>Gauge: share of this period’s invoicing already paid.</div>
+                    <div style={{ flex: 1, minWidth: 130, display: 'grid', gap: 8 }}>
+                        <FigureRow style={{ gridTemplateColumns: '1fr', marginBottom: 0 }}>
+                            <Figure big label="outstanding" value={fmtShort(k.outstanding.value)} />
+                            <Figure big label="overdue" value={fmtShort(k.outstanding.overdue)} tone={k.outstanding.overdue > 0 ? 'down' : null} />
+                        </FigureRow>
+                        <div style={{ fontSize: 12, color: t.faint, lineHeight: 1.5 }}>Gauge: share of this period’s invoicing already paid.</div>
                     </div>
                 </div>
                 <SplitBar format={fmtShort} unit="Balance" parts={model.aging.map((a, i) => ({ id: a.id, label: a.label, value: a.amount, color: ramp[i], note: `${a.count}` }))}
@@ -195,30 +197,29 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
             </Card>
 
             <Card title="Invoice health" note="this period’s invoices, by payment state">
-                <BigCount value={model.states.reduce((s, x) => s + x.count, 0)} label="invoices issued" />
-                <SplitBar format={fmtShort} unit="Invoiced" parts={model.states.map((s) => ({ id: s.id, label: s.label, value: s.amount, color: stateColor[s.id], note: `${s.count}` }))}
+                <SplitBar donut center={{ value: model.states.reduce((s, x) => s + x.count, 0), label: 'Invoices issued' }} format={fmtShort} unit="Invoiced" parts={model.states.map((s) => ({ id: s.id, label: s.label, value: s.amount, color: stateColor[s.id], note: `${s.count}` }))}
                     onSelect={(p) => open({ kind: 'state', id: p.id })} />
             </Card>
 
             <Card title="Cash position" note="every rupee in and out, all time" right={<More label="Cash book" to="/general-ledger" />}>
-                <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 12 }}>
+                <FigureRow>
                     <Figure big label="received" value={fmtShort(cash.received)} />
                     <Figure big label="paid out" value={fmtShort(cash.paidOut)} />
                     <Figure big label="net" value={fmtShort(cash.net)} tone={cash.net < 0 ? 'down' : 'up'} />
-                </div>
-                <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, marginBottom: 4 }}>MONEY IN</div>
+                </FigureRow>
+                <SubLabel>Money in</SubLabel>
                 <RankBars rows={inRows} format={fmtShort} color={cat[2]} max={4} empty="Nothing received yet" />
-                <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, margin: '10px 0 4px' }}>MONEY OUT</div>
+                <SubLabel style={{ marginTop: 12 }}>Money out</SubLabel>
                 <RankBars rows={outRows} format={fmtShort} color={cat[1]} max={2} empty="Nothing paid out yet" />
             </Card>
 
             <Card title="GST" note="output vs input tax in this period · a preparation aid" right={<More label="Tax summary" to="/tax-summary" />}>
-                <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 12 }}>
+                <FigureRow>
                     <Figure big label="collected" value={fmtShort(gst.output.gst)} />
                     <Figure big label="paid" value={fmtShort(gst.input.gst)} />
                     <Figure big label={gst.netPayable >= 0 ? 'net payable' : 'credit'} value={fmtShort(Math.abs(gst.netPayable))} tone={gst.netPayable > 0 ? 'down' : 'up'} />
-                </div>
-                <SplitBar format={fmtShort} unit="GST" parts={[
+                </FigureRow>
+                <SplitBar donut center={{ value: fmtShort(gst.output.gst + gst.input.gst), label: 'GST moved' }} format={fmtShort} unit="GST" parts={[
                     { id: 'out', label: 'Output GST', value: gst.output.gst, color: cat[0], note: `${gst.output.count}` },
                     { id: 'in', label: 'Input GST', value: gst.input.gst, color: cat[1] },
                 ]} onSelect={() => navigate('/tax-summary')} />

@@ -95,7 +95,7 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
     }).filter((r) => r.value > 0).sort((a, b) => b.value - a.value);
 
     return (<>
-        <TileRow cols={tileCols(6)}>
+        <TileRow bento cols={tileCols(6)}>
             <Tile icon={FolderKanban} label="Open projects" value={String(openP.length)} exact={`${openP.length} open`}
                 tone={Number.isFinite(limit) && openP.length >= limit ? 'down' : null}
                 onClick={() => navigate('/projects')} />
@@ -145,7 +145,7 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
 
             <Card title="By status" note="every project not archived" right={<More label="Projects" to="/projects" />}>
                 {live.length === 0 ? <EmptyNote>No projects yet</EmptyNote> : (
-                    <SplitBar format={(v) => String(v)} unit="Projects" parts={PROJECT_STATUSES.map((s) => ({
+                    <SplitBar donut center={{ value: live.length, label: 'Projects' }} format={(v) => String(v)} unit="Projects" parts={PROJECT_STATUSES.map((s) => ({
                         id: s.id, label: s.label, value: live.filter((p) => p.status === s.id).length, color: statusColor[s.id],
                     }))} onSelect={() => navigate('/projects')} />
                 )}

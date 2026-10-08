@@ -111,12 +111,12 @@ export function SwitchRow({ checked, onChange, title, note }) {
             </span>
             <span aria-hidden="true" style={{
                 width: 32, height: 18, borderRadius: 99, flexShrink: 0, position: 'relative',
-                background: checked ? t.text : t.raised, border: '1px solid ' + (checked ? t.text : t.lineStrong),
+                background: checked ? t.accent : t.raised, border: '1px solid ' + (checked ? t.accent : t.lineStrong),
                 transition: 'background .15s',
             }}>
                 <span style={{
                     position: 'absolute', top: 2, left: checked ? 16 : 2, width: 12, height: 12, borderRadius: '50%',
-                    background: checked ? t.panel : t.dim, transition: 'left .15s',
+                    background: checked ? t.onAccent : t.dim, transition: 'left .15s',
                 }} />
             </span>
         </button>

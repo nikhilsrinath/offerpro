@@ -127,7 +127,8 @@ export function ClockCard({ today, clocking, onClock, compact }) {
           type="button" className="edge-btn edge-btn-primary"
           onClick={() => onClock(inAt ? 'out' : 'in')} disabled={clocking}
           style={{
-            height: 40, borderRadius: 9, border: '1px solid ' + t.text, background: t.text, color: t.panel,
+            height: 40, borderRadius: 11, border: '1px solid transparent', background: t.accentBtn, color: t.onAccent, fontWeight: 500,
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,.25), 0 6px 16px -8px ' + t.accent,
             fontFamily: MONO, fontSize: 14, cursor: clocking ? 'wait' : 'pointer', opacity: clocking ? 0.6 : 1,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}

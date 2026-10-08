@@ -1,16 +1,18 @@
 import React, { useRef, useId, useState, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, MoreHorizontal, Pencil } from 'lucide-react';
-import { MONO, useT, useDialog } from './edgeUtils';
+import { Check, ChevronDown, MoreHorizontal, Pencil, Search as SearchIcon } from 'lucide-react';
+import { MONO, useT, useDialog, tableFrame, thStyle, tdStyle } from './edgeUtils';
 import { confirmDialog } from '../../services/confirm';
 
 /* ══════════════════════════════════════════════════════════════════════════
    The kit every converted page is built from.
 
    Rules the kit encodes so pages do not have to re-decide them:
-   · One typeface, three sizes. Structure comes from hairlines and spacing.
-   · Colour is signal. Greys carry the layout; a hue means something specific
-     (a status, a department, up vs down) and nothing decorative uses one.
+   · One typeface (Inter), three sizes, sentence case. Structure comes from
+     layered surfaces (page, card, control) and hairlines.
+   · Colour is signal. Greys carry the layout; the one blue marks the primary
+     action, the current choice and the focused data. Any other hue means
+     something specific (a status, a department, up vs down).
    · Actions live in a page toolbar or at the end of the row they act on,
      never floating over content, never as a bare icon without a label.
    · Quantities get a bar, not just a number, wherever a reader would compare.
@@ -42,11 +44,11 @@ export function Page({ children, pad = true, fill = false }) {
 export function Toolbar({ children, right }) {
     const t = useT();
     return (
-        <div style={{
+        <div className="edge-toolbar" style={{
             display: 'flex', alignItems: 'flex-start', gap: 10,
-            padding: '10px 0 12px', marginBottom: 14,
-            borderBottom: '1px solid ' + t.line,
-            position: 'sticky', top: 0, background: t.panel, zIndex: 20,
+            padding: 10, marginBottom: 12,
+            background: t.card, border: '1px solid ' + t.line, borderRadius: 16, boxShadow: t.highlight,
+            position: 'sticky', top: 0, zIndex: 20,
         }}>
             {/* The filters wrap among themselves; the right-hand action stays
                 pinned to the top line instead of dropping under them. */}
@@ -71,15 +73,15 @@ export function Panel({ children, title, note, actions, pad = 0, style }) {
     const t = useT();
     return (
         <section style={{
-            border: '1px solid ' + t.line, borderRadius: 10,
-            background: t.panel, overflow: 'hidden', minWidth: 0, ...style,
+            border: '1px solid ' + t.line, borderRadius: 16, boxShadow: t.highlight,
+            background: t.card, overflow: 'hidden', minWidth: 0, ...style,
         }}>
             {(title || actions) && (
                 <header style={{
                     display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft,
+                    padding: '12px 16px', borderBottom: '1px solid ' + t.line,
                 }}>
-                    <span style={{ fontSize: 13.5, color: t.text, fontWeight: 500 }}>{title}</span>
+                    <span style={{ fontSize: 14.5, color: t.text, fontWeight: 500, letterSpacing: '-0.01em' }}>{title}</span>
                     {note && <span style={{ fontSize: 11.5, color: t.faint }}>{note}</span>}
                     <div style={{ flex: 1 }} />
                     {actions}
@@ -103,7 +105,7 @@ export function Grid({ children, min = 240, gap = 12, cols }) {
 
 export function Label({ children }) {
     const t = useT();
-    return <span style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint }}>{children}</span>;
+    return <span style={{ fontSize: 12, fontWeight: 500, color: t.faint }}>{children}</span>;
 }
 
 export function Muted({ children, size = 12 }) {
@@ -115,7 +117,7 @@ export function Muted({ children, size = 12 }) {
 
 export function Btn({ children, onClick, primary, danger, disabled, title, size = 'md', type = 'button', full, style, ...rest }) {
     const t = useT();
-    const h = size === 'sm' ? 25 : 29;
+    const h = size === 'sm' ? 30 : 36;
     return (
         <button
             {...rest}
@@ -123,14 +125,15 @@ export function Btn({ children, onClick, primary, danger, disabled, title, size 
             className={'edge-btn' + (primary ? ' edge-btn-primary' : '')}
             style={{
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                height: h, padding: size === 'sm' ? '0 9px' : '0 12px', borderRadius: 7,
-                fontFamily: MONO, fontSize: size === 'sm' ? 12 : 13, whiteSpace: 'nowrap',
+                height: h, padding: size === 'sm' ? '0 11px' : '0 14px', borderRadius: size === 'sm' ? 9 : 10,
+                fontFamily: MONO, fontSize: size === 'sm' ? 12.5 : 13.5, fontWeight: 500, whiteSpace: 'nowrap',
                 cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
                 width: full ? '100%' : undefined,
-                border: '1px solid ' + (primary ? t.text : t.line),
-                background: primary ? t.text : t.panel,
-                color: primary ? t.panel : (danger ? t.down : t.text),
-                transition: 'border-color .15s, background .15s, color .15s, opacity .15s',
+                border: '1px solid ' + (primary ? 'transparent' : t.lineStrong),
+                background: primary ? t.accentBtn : t.panelAlt,
+                boxShadow: primary ? 'inset 0 1px 0 rgba(255,255,255,.25), 0 6px 16px -8px ' + t.accent : t.highlight,
+                color: primary ? t.onAccent : (danger ? t.down : t.text),
+                transition: 'border-color .15s, background .15s, color .15s, opacity .15s, filter .15s',
                 ...style,
             }}
         >{children}</button>
@@ -141,7 +144,7 @@ export function Btn({ children, onClick, primary, danger, disabled, title, size 
     every option is visible, so nobody has to open a menu to learn what exists. */
 export function Seg({ value, onChange, options, size = 'md', label: groupLabel }) {
     const t = useT();
-    const h = size === 'sm' ? 25 : 29;
+    const h = size === 'sm' ? 30 : 36;
     const ids = options.map((o) => (typeof o === 'string' ? o : o.id));
     // One tab stop for the whole control; arrows move between options, the way
     // a native radio group behaves.
@@ -160,8 +163,8 @@ export function Seg({ value, onChange, options, size = 'md', label: groupLabel }
     };
     return (
         <div role="radiogroup" aria-label={groupLabel} onKeyDown={onKeyDown} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 2, height: h + 2,
-            padding: 1, border: '1px solid ' + t.line, borderRadius: 8, background: t.panelAlt,
+            display: 'inline-flex', alignItems: 'center', gap: 2, height: h,
+            padding: 2, boxSizing: 'border-box', border: '1px solid ' + t.line, borderRadius: 10, background: t.panelAlt,
         }}>
             {options.map((o) => {
                 const id = typeof o === 'string' ? o : o.id;
@@ -175,11 +178,11 @@ export function Seg({ value, onChange, options, size = 'md', label: groupLabel }
                         onClick={() => onChange(id)} className="edge-seg"
                         style={{
                             display: 'inline-flex', alignItems: 'center', gap: 6,
-                            height: h - 4, padding: '0 10px', borderRadius: 6,
-                            fontFamily: MONO, fontSize: size === 'sm' ? 12 : 12.5,
+                            height: '100%', padding: '0 11px', borderRadius: 8,
+                            fontFamily: MONO, fontSize: size === 'sm' ? 12.5 : 13, fontWeight: 500,
                             border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                            background: active ? t.panel : 'transparent',
-                            boxShadow: active ? '0 0 0 1px ' + t.line : 'none',
+                            background: active ? t.raised : 'transparent',
+                            boxShadow: active ? t.highlight + ', inset 0 0 0 1px ' + t.lineStrong : 'none',
                             color: active ? t.text : t.faint,
                             transition: 'color .14s, background .14s',
                         }}
@@ -192,20 +195,23 @@ export function Seg({ value, onChange, options, size = 'md', label: groupLabel }
     );
 }
 
-export function Search({ value, onChange, placeholder = 'Search…', width = 240, height = 29 }) {
+export function Search({ value, onChange, placeholder = 'Search…', width = 240, height = 36 }) {
     const t = useT();
     return (
-        <input
-            type="search"
-            value={value} onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder} aria-label={placeholder}
-            className="edge-input"
-            style={{
-                height, width, maxWidth: '100%', padding: '0 10px', boxSizing: 'border-box',
-                background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 7,
-                color: t.text, fontFamily: MONO, fontSize: 12.5, outline: 'none',
-            }}
-        />
+        <span style={{ position: 'relative', display: 'inline-flex', width, maxWidth: '100%' }}>
+            <SearchIcon size={15} aria-hidden="true" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: t.faint, pointerEvents: 'none' }} />
+            <input
+                type="search"
+                value={value} onChange={(e) => onChange(e.target.value)}
+                placeholder={placeholder} aria-label={placeholder}
+                className="edge-input"
+                style={{
+                    height: Math.max(height, 36), width: '100%', padding: '0 12px 0 33px', boxSizing: 'border-box',
+                    background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 10,
+                    color: t.text, fontFamily: MONO, fontSize: 13, outline: 'none',
+                }}
+            />
+        </span>
     );
 }
 
@@ -229,11 +235,11 @@ export function Field({ label, children, hint, wide, required }) {
     return (
         <label style={{ display: 'block', minWidth: 0, gridColumn: wide ? '1 / -1' : undefined }}>
             <span style={{
-                display: 'block', fontSize: 10.5, letterSpacing: '0.09em',
-                color: t.faint, marginBottom: 5,
-            }}>{String(label).toUpperCase()}{req && <ReqStar />}</span>
+                display: 'block', fontSize: 12.5, fontWeight: 500,
+                color: t.dim, marginBottom: 6,
+            }}>{label}{req && <ReqStar />}</span>
             {children}
-            {hint && <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 4 }}>{hint}</span>}
+            {hint && <span style={{ display: 'block', fontSize: 11.5, color: t.faint, marginTop: 5 }}>{hint}</span>}
         </label>
     );
 }
@@ -244,9 +250,9 @@ export function Input(props) {
         <input
             {...props} className="edge-input"
             style={{
-                verticalAlign: 'top', width: '100%', boxSizing: 'border-box', height: 31, padding: '0 10px',
-                background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 7,
-                color: t.text, fontFamily: MONO, fontSize: 13, outline: 'none', ...props.style,
+                verticalAlign: 'top', width: '100%', boxSizing: 'border-box', height: 36, padding: '0 12px',
+                background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 10,
+                color: t.text, fontFamily: MONO, fontSize: 13.5, outline: 'none', ...props.style,
             }}
         />
     );
@@ -258,10 +264,10 @@ export function Select({ children, ...props }) {
         <select
             {...props} className="edge-input"
             style={{
-                verticalAlign: 'top', width: '100%', boxSizing: 'border-box', height: 31,
-                padding: '0 26px 0 10px', cursor: 'pointer',
-                background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 7,
-                color: t.text, fontFamily: MONO, fontSize: 13, outline: 'none',
+                verticalAlign: 'top', width: '100%', boxSizing: 'border-box', height: 36,
+                padding: '0 28px 0 12px', cursor: 'pointer',
+                background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 10,
+                color: t.text, fontFamily: MONO, fontSize: 13.5, outline: 'none',
                 // The native control paints its own light chrome, which reads as a
                 // hole in a dark panel. Draw the caret ourselves instead.
                 appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
@@ -281,9 +287,9 @@ export function Textarea(props) {
         <textarea
             {...props} className="edge-input"
             style={{
-                width: '100%', boxSizing: 'border-box', padding: '8px 10px', minHeight: 74,
-                background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 7,
-                color: t.text, fontFamily: MONO, fontSize: 13, outline: 'none',
+                width: '100%', boxSizing: 'border-box', padding: '9px 12px', minHeight: 74,
+                background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 10,
+                color: t.text, fontFamily: MONO, fontSize: 13.5, outline: 'none',
                 resize: 'vertical', lineHeight: 1.6, ...props.style,
             }}
         />
@@ -296,10 +302,16 @@ export function Textarea(props) {
     word carries the meaning, so it still reads without colour vision. */
 export function Status({ tone = 'neutral', children }) {
     const t = useT();
-    const color = tone === 'up' ? t.up : tone === 'down' ? t.down : tone === 'mute' ? t.ghost : t.dim;
+    const color = tone === 'up' ? t.up : tone === 'down' ? t.down : tone === 'accent' ? t.accent : tone === 'warn' ? (t.isDark ? '#e0a020' : '#c27c00') : tone === 'mute' ? t.ghost : t.dim;
     return (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.dim, whiteSpace: 'nowrap' }}>
-            <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: '50%', background: color, flexShrink: 0 }} />
+        <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6, height: 24, padding: '0 9px', borderRadius: 99,
+            fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap',
+            color: tone === 'neutral' || tone === 'mute' ? t.dim : color,
+            background: `color-mix(in srgb, ${color} ${t.isDark ? 16 : 11}%, transparent)`,
+            boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${color} 22%, transparent)`,
+        }}>
+            <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
             {children}
         </span>
     );
@@ -310,10 +322,10 @@ export function Avatar({ name = '', size = 26, photo }) {
     const ini = name.trim().split(/\s+/).map((w) => w[0] || '').join('').slice(0, 2).toUpperCase() || '?';
     return (
         <span style={{
-            width: size, height: size, borderRadius: Math.round(size / 4.2), flexShrink: 0,
-            background: t.panelAlt, border: '1px solid ' + t.line, position: 'relative', overflow: 'hidden',
-            display: 'grid', placeItems: 'center',
-            fontSize: Math.round(size * 0.36), fontWeight: 600, color: t.dim,
+            width: size, height: size, borderRadius: '50%', flexShrink: 0,
+            background: t.accentSoft, boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${t.accent} 25%, transparent)`,
+            position: 'relative', overflow: 'hidden', display: 'grid', placeItems: 'center',
+            fontSize: Math.max(9, Math.round(size * 0.38)), fontWeight: 600, color: t.accent,
         }}>
             {ini}
             {photo}
@@ -326,11 +338,16 @@ export function Avatar({ name = '', size = 26, photo }) {
 export function Bar({ value, max = 1, height = 3, tone }) {
     const t = useT();
     const pct = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
+    const c = tone || t.accent;
     return (
-        <span aria-hidden="true" style={{ display: 'block', height, background: t.lineSoft, borderRadius: 99, overflow: 'hidden' }}>
+        <span aria-hidden="true" style={{
+            display: 'block', height: Math.max(5, height), background: t.panelAlt, borderRadius: 99, overflow: 'hidden',
+            boxShadow: 'inset 0 0 0 1px ' + t.line,
+        }}>
             <span style={{
-                display: 'block', height: '100%', width: (pct * 100).toFixed(1) + '%',
-                background: tone || t.text, transition: 'width .3s cubic-bezier(.16,1,.3,1)',
+                display: 'block', height: '100%', width: (pct * 100).toFixed(1) + '%', borderRadius: 99,
+                background: `linear-gradient(90deg, color-mix(in srgb, ${c} 55%, transparent), ${c})`,
+                transition: 'width .5s cubic-bezier(.16,1,.3,1)',
             }} />
         </span>
     );
@@ -371,13 +388,12 @@ export function Stat({ label, value, note, tone }) {
     return (
         <div style={{ minWidth: 0 }}>
             <div style={{
-                fontSize: 20, fontWeight: 500, lineHeight: 1.1, letterSpacing: '-0.03em',
+                fontSize: 26, fontWeight: 600, lineHeight: 1.1, letterSpacing: '-0.04em',
+                fontVariantNumeric: 'tabular-nums',
                 color: tone === 'up' ? t.up : tone === 'down' ? t.down : t.text,
             }}>{value}</div>
-            <div style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, marginTop: 5 }}>
-                {String(label).toUpperCase()}
-            </div>
-            {note && <div style={{ fontSize: 11, color: t.ghost, marginTop: 3 }}>{note}</div>}
+            <div style={{ fontSize: 12.5, fontWeight: 500, color: t.dim, marginTop: 6 }}>{label}</div>
+            {note && <div style={{ fontSize: 11.5, color: t.faint, marginTop: 3 }}>{note}</div>}
         </div>
     );
 }
@@ -387,15 +403,17 @@ export function Stat({ label, value, note, tone }) {
 export function StatBand({ items }) {
     const t = useT();
     return (
-        <div style={{
-            display: 'flex', flexWrap: 'wrap', gap: 0,
-            border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden', marginBottom: 14,
-        }}>
+        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', marginBottom: 12 }}>
             {items.map((s, i) => (
                 <div key={s.label} style={{
-                    flex: '1 1 150px', padding: '13px 16px', minWidth: 0,
-                    borderLeft: i === 0 ? 'none' : '1px solid ' + t.lineSoft,
+                    position: 'relative', padding: '16px 18px', minWidth: 0, overflow: 'hidden',
+                    background: t.card, border: '1px solid ' + t.line, borderRadius: 16, boxShadow: t.highlight,
+                    ...(i === 0 ? { backgroundImage: `radial-gradient(120% 100% at 100% 0%, ${t.accentSoft}, transparent 60%)` } : null),
                 }}>
+                    <span aria-hidden="true" style={{
+                        position: 'absolute', left: 0, top: 16, bottom: 16, width: 3, borderRadius: '0 3px 3px 0',
+                        background: i === 0 ? t.accent : t.lineStrong,
+                    }} />
                     <Stat {...s} />
                 </div>
             ))}
@@ -435,10 +453,10 @@ function ColumnPicker({ cols, isOn, onToggle, onReset, onAll, changed }) {
                 aria-haspopup="dialog" onClick={() => setOpen(true)}
                 style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
-                    height: 27, padding: '0 10px', borderRadius: 7, cursor: 'pointer',
-                    fontFamily: MONO, fontSize: 12,
-                    border: '1px solid ' + (changed ? t.lineStrong : t.line),
-                    background: t.panel, color: t.text,
+                    height: 30, padding: '0 11px', borderRadius: 9, cursor: 'pointer',
+                    fontFamily: MONO, fontSize: 12.5, fontWeight: 500,
+                    border: '1px solid ' + (changed ? t.accent : t.lineStrong),
+                    background: t.panelAlt, boxShadow: t.highlight, color: t.text,
                 }}
             ><Pencil size={13} aria-hidden="true" />Columns</button>
             <Modal
@@ -467,18 +485,18 @@ function ColumnPicker({ cols, isOn, onToggle, onReset, onAll, changed }) {
                                 className="edge-tr"
                                 style={{
                                     display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left',
-                                    padding: '9px 11px', borderRadius: 8, fontFamily: MONO, fontSize: 13,
+                                    padding: '10px 12px', borderRadius: 10, fontFamily: MONO, fontSize: 13,
                                     cursor: c.always ? 'default' : 'pointer', color: t.text,
                                     border: '1px solid ' + (on ? t.lineStrong : t.line),
-                                    background: on ? t.panelAlt : t.panel,
+                                    background: on ? t.panelAlt : t.card,
                                     opacity: c.always ? 0.7 : 1,
                                 }}
                             >
                                 <span aria-hidden="true" style={{
                                     width: 17, height: 17, flexShrink: 0, borderRadius: 5,
                                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                    border: '1px solid ' + (on ? t.text : t.lineStrong),
-                                    background: on ? t.text : 'transparent', color: t.panel,
+                                    border: '1px solid ' + (on ? t.accent : t.lineStrong),
+                                    background: on ? t.accent : 'transparent', color: t.onAccent,
                                 }}>{on && <Check size={12} strokeWidth={3} />}</span>
                                 <span style={{ flex: 1, minWidth: 0 }}>{c.pickLabel || c.label}</span>
                                 {c.always && <span style={{ fontSize: 10.5, color: t.faint }}>always</span>}
@@ -527,18 +545,13 @@ export function Table({ id, cols: allCols, children, empty }) {
                         changed={Object.keys(prefs).length > 0} />
                 </div>
             )}
-        <div style={{ border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden' }}>
+        <div style={tableFrame(t)}>
             <div className="edge-scroll" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO }}>
                     <thead>
                         <tr>
                             {cols.map((c) => (
-                                <th key={c.key} scope="col" style={{
-                                    textAlign: c.align || 'left', padding: '9px 13px',
-                                    fontSize: 10.5, letterSpacing: '0.09em', fontWeight: 400, color: t.faint,
-                                    borderBottom: '1px solid ' + t.line, whiteSpace: 'nowrap',
-                                    width: c.width,
-                                }}>{c.label.toUpperCase()}</th>
+                                <th key={c.key} scope="col" style={{ ...thStyle(t, c.align), width: c.width }}>{c.label}</th>
                             ))}
                         </tr>
                     </thead>
@@ -555,9 +568,8 @@ export function Td({ children, align, nowrap, muted, width }) {
     const t = useT();
     return (
         <td style={{
-            padding: '10px 13px', textAlign: align || 'left', width,
-            fontSize: 13, color: muted ? t.dim : t.text,
-            borderBottom: '1px solid ' + t.lineSoft,
+            ...tdStyle(t, align), width,
+            color: muted ? t.dim : t.text,
             whiteSpace: nowrap ? 'nowrap' : undefined,
         }}>{children}</td>
     );
@@ -577,7 +589,7 @@ export function Tr({ children, onClick, selected, label }) {
             tabIndex={onClick ? 0 : undefined} aria-label={label}
             style={{
                 cursor: onClick ? 'pointer' : undefined,
-                background: selected ? t.panelAlt : undefined,
+                background: selected ? t.accentSoft : undefined,
             }}
         >{children}</tr>
     );
@@ -625,31 +637,31 @@ export function Modal({ open, onClose, title, note, children, footer, width = 52
             <div ref={sheetRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} style={{
                 outline: 'none',
                 width: '100%', maxWidth: width, maxHeight: '88vh', display: 'flex', flexDirection: 'column',
-                background: t.panel, border: '1px solid ' + t.lineStrong,
-                borderRadius: 12, boxShadow: t.shadow, overflow: 'hidden',
+                background: t.card, border: '1px solid ' + t.lineStrong,
+                borderRadius: 16, boxShadow: t.highlight + ', ' + t.shadow, overflow: 'hidden',
                 animation: 'edgePop .16s cubic-bezier(.16,1,.3,1)',
             }}>
                 <header style={{
                     display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '13px 15px', borderBottom: '1px solid ' + t.lineSoft, flexShrink: 0,
+                    padding: '14px 18px', borderBottom: '1px solid ' + t.line, flexShrink: 0,
                 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <h2 id={titleId} style={{ margin: 0, fontSize: 14, fontWeight: 400, color: t.text }}>{title}</h2>
-                        {note && <div style={{ fontSize: 11.5, color: t.faint, marginTop: 2 }}>{note}</div>}
+                        <h2 id={titleId} style={{ margin: 0, fontSize: 15.5, fontWeight: 600, letterSpacing: '-0.015em', color: t.text }}>{title}</h2>
+                        {note && <div style={{ fontSize: 12, color: t.faint, marginTop: 3 }}>{note}</div>}
                     </div>
                     <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" className="edge-btn" style={{
-                        width: 28, height: 28, borderRadius: 6, cursor: 'pointer',
+                        width: 30, height: 30, borderRadius: 9, cursor: 'pointer',
                         background: 'transparent', border: '1px solid transparent',
                         color: t.faint, fontFamily: MONO, fontSize: 15.5, lineHeight: 1,
                     }}>×</button>
                 </header>
-                <div className="edge-scroll" style={{ padding: 15, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+                <div className="edge-scroll" style={{ padding: 18, overflowY: 'auto', flex: 1, minHeight: 0 }}>
                     {children}
                 </div>
                 {footer && (
                     <footer style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8,
-                        padding: '11px 15px', borderTop: '1px solid ' + t.lineSoft, flexShrink: 0,
+                        padding: '12px 18px', borderTop: '1px solid ' + t.line, flexShrink: 0,
                     }}>{footer}</footer>
                 )}
             </div>
@@ -677,20 +689,24 @@ function PageStyle({ t }) {
     return (
         <style>{`
             .edge-page .edge-btn:not(.edge-btn-primary):hover:not(:disabled) {
-                border-color: ${t.lineStrong} !important; background: ${t.panelAlt} !important;
+                border-color: ${t.lineStrong} !important; background: ${t.raised} !important;
             }
-            .edge-page .edge-btn-primary:hover:not(:disabled) { opacity: .86; }
+            .edge-page .edge-btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
             .edge-page .edge-seg:hover { color: ${t.text} !important; }
-            .edge-page .edge-input:focus { border-color: ${t.lineStrong} !important; }
-            .edge-page .edge-input::placeholder { color: ${t.ghost}; }
-            .edge-page select.edge-input option { background: ${t.panel}; color: ${t.text}; }
+            .edge-page .edge-input:focus { border-color: ${t.accent} !important; box-shadow: 0 0 0 3px ${t.accentSoft}; }
+            .edge-page .edge-input::placeholder { color: ${t.faint}; }
+            .edge-page select.edge-input option { background: ${t.card}; color: ${t.text}; }
+            .edge-page .edge-toolbar :is(.edge-input, .edge-btn, .edge-dropdown) { height: 36px !important; }
+            .edge-page .edge-btn[aria-pressed="true"]:not(.edge-btn-primary) {
+                background: ${t.accentSoft} !important; border-color: color-mix(in srgb, ${t.accent} 45%, transparent) !important; color: ${t.accent} !important;
+            }
             .edge-page .edge-tr:hover { background: ${t.panelAlt}; }
             .edge-page .edge-tr:focus-visible { outline-offset: -2px; background: ${t.panelAlt}; }
             .edge-page tbody tr:last-child td { border-bottom: none; }
             .edge-page .edge-scroll::-webkit-scrollbar-thumb {
                 background: ${t.lineStrong}; background-clip: content-box;
             }
-            .edge-page :focus-visible { outline: 2px solid ${t.text}; outline-offset: 2px; }
+            .edge-page :focus-visible { outline: 2px solid ${t.accent}; outline-offset: 2px; }
             .edge-page .edge-input:focus-visible { outline-offset: 0; }
             @media (prefers-reduced-motion: reduce) {
                 .edge-page *, .edge-page *::before, .edge-page *::after {
@@ -823,7 +839,7 @@ export function RowMenu({ items, label = 'Actions', size = 'sm' }) {
         );
     };
 
-    const h = size === 'sm' ? 26 : 29;
+    const h = size === 'sm' ? 30 : 36;
     return (
         <>
             <button
@@ -835,9 +851,9 @@ export function RowMenu({ items, label = 'Actions', size = 'sm' }) {
                 onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
                 style={{
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    width: h, height: h, padding: 0, borderRadius: 7, cursor: 'pointer',
+                    width: h, height: h, padding: 0, borderRadius: 9, cursor: 'pointer',
                     border: '1px solid ' + (open || hover ? t.lineStrong : t.line),
-                    background: open || hover ? t.panelAlt : t.panel, color: t.text,
+                    background: open || hover ? t.raised : t.panelAlt, boxShadow: t.highlight, color: t.text,
                     transition: 'border-color .15s, background .15s',
                 }}
             >
@@ -851,7 +867,7 @@ export function RowMenu({ items, label = 'Actions', size = 'sm' }) {
                         position: 'fixed', zIndex: 2000, minWidth: 170, padding: 4,
                         visibility: pos ? 'visible' : 'hidden',
                         top: pos?.top, bottom: pos?.bottom, right: pos?.right ?? 0,
-                        background: t.panel, border: '1px solid ' + t.line, borderRadius: 9,
+                        background: t.card, border: '1px solid ' + t.lineStrong, borderRadius: 12,
                         boxShadow: t.shadow,
                     }}
                 >
@@ -956,7 +972,7 @@ export function Dropdown({ label, value, onChange, options, height = 36 }) {
     return (
         <>
             <style>{`
-                .edge-dropdown:focus-visible { outline: 2px solid ${t.text}; outline-offset: 2px; }
+                .edge-dropdown:focus-visible { outline: 2px solid ${t.accent}; outline-offset: 2px; }
                 .edge-dropdown-opt:hover, .edge-dropdown-opt:focus-visible { background: ${t.panelAlt} !important; outline: none; }
             `}</style>
             <button
@@ -970,9 +986,9 @@ export function Dropdown({ label, value, onChange, options, height = 36 }) {
                 onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
                 style={{
                     display: 'inline-flex', alignItems: 'center', gap: 8, height,
-                    padding: '0 10px 0 12px', borderRadius: 9, cursor: 'pointer',
+                    padding: '0 10px 0 12px', borderRadius: 10, cursor: 'pointer',
                     border: '1px solid ' + (active ? t.lineStrong : t.line),
-                    background: active ? t.panelAlt : t.panel, color: t.text,
+                    background: active ? t.raised : t.panelAlt, boxShadow: t.highlight, color: t.text,
                     fontFamily: MONO, fontSize: 12.5, whiteSpace: 'nowrap', maxWidth: 260,
                     transition: 'border-color .15s, background .15s',
                 }}
@@ -993,7 +1009,7 @@ export function Dropdown({ label, value, onChange, options, height = 36 }) {
                         visibility: pos ? 'visible' : 'hidden',
                         top: pos?.top, bottom: pos?.bottom, left: pos?.left ?? 0, minWidth: pos?.minWidth,
                         maxHeight: 320, overflowY: 'auto',
-                        background: t.panel, border: '1px solid ' + t.line, borderRadius: 11,
+                        background: t.card, border: '1px solid ' + t.lineStrong, borderRadius: 12,
                         boxShadow: t.shadow,
                     }}
                 >
@@ -1005,7 +1021,7 @@ export function Dropdown({ label, value, onChange, options, height = 36 }) {
                                 className="edge-dropdown-opt" onClick={() => pick(o)}
                                 style={{
                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
-                                    width: '100%', padding: '8px 10px', border: 'none', borderRadius: 7,
+                                    width: '100%', padding: '8px 10px', border: 'none', borderRadius: 8,
                                     background: selected ? t.panelAlt : 'transparent', color: t.text,
                                     fontFamily: MONO, fontSize: 12.5, fontWeight: selected ? 600 : 400,
                                     textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap',
@@ -1013,7 +1029,7 @@ export function Dropdown({ label, value, onChange, options, height = 36 }) {
                             >
                                 <span>{o.label}</span>
                                 {selected
-                                    ? <Check size={14} aria-hidden="true" style={{ flexShrink: 0 }} />
+                                    ? <Check size={14} aria-hidden="true" style={{ flexShrink: 0, color: t.accent }} />
                                     : <span aria-hidden="true" style={{ width: 14, flexShrink: 0 }} />}
                             </button>
                         );

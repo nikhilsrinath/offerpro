@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, X, ArrowUpRight } from 'lucide-react';
-import { MONO } from '../ui/edgeUtils';
+import { MONO, tableFrame, thStyle, tdStyle } from '../ui/edgeUtils';
 import { balanceOf, daysOverdue, isOverdue } from '../../services/financeAnalytics';
 import { categoryLabel } from '../../services/financeCategories';
 import {
@@ -139,12 +139,12 @@ function List({ cols, rows, empty = 'Nothing here', max = 60 }) {
     const navigate = useNavigate();
     if (!rows.length) return <EmptyNote>{empty}</EmptyNote>;
     return (
-        <div style={{ border: '1px solid ' + t.line, borderRadius: 9, overflow: 'hidden' }}>
+        <div style={tableFrame(t)}>
             <div className="edge-scroll" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO }}>
                     <thead>
                         <tr>{cols.map((c) => (
-                            <th key={c.label} style={{ textAlign: c.align || 'left', padding: '8px 10px', fontSize: 10.5, letterSpacing: '0.08em', color: t.faint, fontWeight: 400, borderBottom: '1px solid ' + t.line, whiteSpace: 'nowrap' }}>{c.label.toUpperCase()}</th>
+                            <th key={c.label} style={thStyle(t, c.align)}>{c.label}</th>
                         ))}</tr>
                     </thead>
                     <tbody>
@@ -157,9 +157,9 @@ function List({ cols, rows, empty = 'Nothing here', max = 60 }) {
                                     style={{ cursor: go ? 'pointer' : 'default' }}>
                                     {cols.map((c, ci) => (
                                         <td key={c.label} style={{
-                                            padding: '8px 10px', fontSize: 12.5, textAlign: c.align || 'left',
-                                            color: ci === 0 ? t.text : t.dim, borderBottom: '1px solid ' + t.lineSoft,
-                                            whiteSpace: c.wrap ? 'normal' : 'nowrap', fontVariantNumeric: 'tabular-nums',
+                                            ...tdStyle(t, c.align),
+                                            color: ci === 0 ? t.text : t.dim,
+                                            whiteSpace: c.wrap ? 'normal' : 'nowrap',
                                             maxWidth: c.wrap ? 220 : undefined,
                                         }}>{c.render(r.data)}</td>
                                     ))}
@@ -169,7 +169,7 @@ function List({ cols, rows, empty = 'Nothing here', max = 60 }) {
                     </tbody>
                 </table>
             </div>
-            {rows.length > max && <div style={{ padding: '7px 10px', fontSize: 11.5, color: t.faint, borderTop: '1px solid ' + t.lineSoft }}>Showing {max} of {rows.length}</div>}
+            {rows.length > max && <div style={{ padding: '9px 14px', fontSize: 12, color: t.faint }}>Showing {max} of {rows.length}</div>}
         </div>
     );
 }

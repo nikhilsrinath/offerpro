@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   EdgeOS surface tokens — the hub and the EdgeAI copilot.
+   EdgeOS surface tokens: the hub and the EdgeAI copilot.
 
    Set by `data-theme` on the element carrying `.eo-surface`, so a surface
    themes itself without depending on the document root. Greys are chosen to
@@ -8,88 +8,93 @@
    ══════════════════════════════════════════════════════════════════════════ */
 
 /* Values are theme/edge.js makeTokens(), one-for-one, so the hub and the
-   copilot read as the same terminal theme as every module:
-     --bg panel · --card panel · --card-2 panelAlt · --card-3 raised
+   copilot read as the same theme as every module:
+     --bg panel · --card card · --card-2 panelAlt · --card-3 raised
      --line line · --line-2 lineStrong · --text text · --muted dim
      --dim faint · --ghost ghost · --pos up · --neg down · --chart-a chart */
 .eo-surface[data-theme="dark"] {
-  --shell: #050506;
-  --bg: #0d0d0f;
-  --panel: #0d0d0f;
-  --card: #0d0d0f;
-  --card-2: #121215;
-  --card-3: #17171b;
-  --line: #1d1d21;
-  --line-soft: #161619;
-  --line-2: #2f2f36;
-  --line-3: #3f3f47;
-  --text: #f2f2f3;
-  --text-2: #f2f2f3;
-  --muted: #9a9aa3;
-  --dim: #7d7d86;
-  --ghost: #65656e;
-  --pos: #4ade80;
-  --neg: #f87171;
-  --accent: #2f6df6;
-  --sel-bg: #292930;
+  --shell: #0e0e0f;
+  --bg: #141415;
+  --panel: #1a1a1c;
+  --card: #1a1a1c;
+  --card-2: #222225;
+  --card-3: #29292d;
+  --line: #262629;
+  --line-soft: #1f1f22;
+  --line-2: #36363b;
+  --line-3: #46464c;
+  --text: #f5f5f6;
+  --text-2: #f5f5f6;
+  --muted: #a1a1a8;
+  --dim: #8b8b92;
+  --ghost: #6a6a72;
+  --pos: #3ecf75;
+  --neg: #f26d6d;
+  --accent: #2f8cff;
+  --accent-btn: linear-gradient(180deg, #3a8ff7 0%, #1764d6 100%);
+  --sel-bg: #2f8cff;
   --sel-text: #ffffff;
-  --on-text: #0d0d0f;
-  --chart-a: #e8e8ea;
-  --chart-b: #5e5e67;
-  --map-null: #17171b;
-  --scale-1: #3a3a41;
-  --scale-2: #5e5e67;
-  --scale-3: #90909a;
-  --scale-4: #c8c8cf;
-  --scale-5: #ffffff;
-  --shadow: 0 24px 70px -24px rgba(0, 0, 0, .9);
+  --on-text: #ffffff;
+  --chart-a: #2f8cff;
+  --chart-b: #3a3a40;
+  --map-null: #26262a;
+  --scale-1: #1b3150;
+  --scale-2: #1d4c8c;
+  --scale-3: #2468c8;
+  --scale-4: #2f8cff;
+  --scale-5: #8cc4ff;
+  --hi: inset 0 1px 0 rgba(255, 255, 255, .06);
+  --shadow: 0 24px 60px -20px rgba(0, 0, 0, .85);
+  --orb: radial-gradient(circle at 35% 30%, #cfe5ff 0%, #2f8cff 45%, #0c2a55 92%);
+  --orb-glow: rgba(47, 140, 255, .22);
+  --orb-glow-2: rgba(47, 140, 255, .36);
   --scrim: rgba(0, 0, 0, .5);
-  --orb: radial-gradient(circle at 35% 30%, #fff 0%, #a1a1aa 45%, #27272a 90%);
-  --orb-glow: rgba(255, 255, 255, .12);
-  --orb-glow-2: rgba(255, 255, 255, .22);
   color-scheme: dark;
 }
 
 .eo-surface[data-theme="light"] {
-  --shell: #d3d9db;
-  --bg: #ffffff;
+  --shell: #eceef1;
+  --bg: #f6f7f9;
   --panel: #ffffff;
   --card: #ffffff;
-  --card-2: #f7f9f9;
-  --card-3: #eef1f2;
-  --line: #e3e6e7;
-  --line-soft: #eef0f1;
-  --line-2: #c2c9cc;
-  --line-3: #a9b2b5;
-  --text: #0e1011;
-  --text-2: #0e1011;
-  --muted: #585f62;
-  --dim: #6c7376;
-  --ghost: #858c8f;
+  --card-2: #f0f2f5;
+  --card-3: #e7eaee;
+  --line: #e3e6ea;
+  --line-soft: #eceef1;
+  --line-2: #cdd2d8;
+  --line-3: #b4bac2;
+  --text: #0f1115;
+  --text-2: #0f1115;
+  --muted: #565c66;
+  --dim: #666c76;
+  --ghost: #8a909a;
   --pos: #15803d;
-  --neg: #b91c1c;
-  --accent: #2f6df6;
-  --sel-bg: #0e1011;
+  --neg: #c62828;
+  --accent: #1f7af0;
+  --accent-btn: linear-gradient(180deg, #2f86f6 0%, #1662d0 100%);
+  --sel-bg: #1f7af0;
   --sel-text: #ffffff;
   --on-text: #ffffff;
-  --chart-a: #1b1e1f;
-  --chart-b: #98a2a5;
-  --map-null: #e8ebec;
-  --scale-1: #c3cacc;
-  --scale-2: #98a2a5;
-  --scale-3: #697376;
-  --scale-4: #3b4245;
-  --scale-5: #0e1011;
-  --shadow: 0 24px 60px -28px rgba(20, 28, 32, .45);
+  --chart-a: #1f7af0;
+  --chart-b: #d3d8df;
+  --map-null: #e7eaee;
+  --scale-1: #d6e6fc;
+  --scale-2: #a3c8f8;
+  --scale-3: #5e9ff2;
+  --scale-4: #1f7af0;
+  --scale-5: #0d4fa8;
+  --hi: inset 0 1px 0 rgba(255, 255, 255, .9);
+  --shadow: 0 24px 60px -28px rgba(20, 28, 40, .35);
+  --orb: radial-gradient(circle at 35% 30%, #ffffff 0%, #6aa9f7 42%, #0d4fa8 92%);
+  --orb-glow: rgba(31, 122, 240, .14);
+  --orb-glow-2: rgba(31, 122, 240, .26);
   --scrim: rgba(20, 28, 32, .25);
-  --orb: radial-gradient(circle at 35% 30%, #ffffff 0%, #9aa3a6 40%, #1b1e1f 92%);
-  --orb-glow: rgba(14, 16, 17, .10);
-  --orb-glow-2: rgba(14, 16, 17, .18);
   color-scheme: light;
 }
 
 .eo-surface {
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-feature-settings: 'cv11', 'ss01';
   color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
@@ -106,13 +111,13 @@
 }
 
 .eo-surface :focus-visible {
-  outline: 2px solid var(--muted);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 .eo-surface ::selection {
-  background: var(--text);
-  color: var(--bg);
+  background: var(--accent);
+  color: #fff;
 }
 
 /* Size and shape come from the global scrollbar in index.css. The standard

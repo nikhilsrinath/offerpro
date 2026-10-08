@@ -12,6 +12,7 @@ import {
     Avatar, Status, Bar, Breakdown, Empty, Muted,
 } from '../ui/edge';
 import { useT, MONO } from '../ui/edgeUtils';
+import { initialQuery } from '../../services/urlQuery';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Task board.
@@ -83,7 +84,7 @@ export default function TasksPage({ projectId = null, embedded = false }) {
     const [project, setProject] = useState(projectId || params.get('project') || 'all');
     const [milestone, setMilestone] = useState('all');
     const [mine, setMine] = useState(false);
-    const [query, setQuery] = useState('');
+    const [query, setQuery] = useState(initialQuery);
     const [sortBy, setSortBy] = useState('deadline');
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState(null);

@@ -15,6 +15,7 @@ import {
   GENERAL, splitChoice, vendorChoice, vendorProjectIds, inScope, choiceLabel, saveWithBelongsTo,
   projectChoices, syncVendorProjects,
 } from '../../services/belongsTo';
+import { initialQuery } from '../../services/urlQuery';
 
 const BLANK = {
   company_name: '', contact_name: '', email: '', phone: '', address: '', state: '',
@@ -36,7 +37,7 @@ export default function Vendors() {
   const links = useSection('project_vendors');
   const projects = useSection('projects');
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialQuery);
   const [scope, setScope] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState(null);

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Row, Btn, Muted, Status } from '../ui/edge';
-import { useT, MONO } from '../ui/edgeUtils';
+import { useT, MONO, tableFrame, thStyle, tdStyle } from '../ui/edgeUtils';
 import { saveTimeCell, submitWeek } from '../../services/projectService';
 import { useToast } from '../shared/Toast';
 
@@ -48,8 +48,8 @@ export default function WeekGrid({ employeeId, projects, entries, readOnly = fal
         finally { setBusy(false); }
     };
 
-    const th = { padding: '7px 8px', fontSize: 11, letterSpacing: '0.06em', color: t.faint, fontWeight: 400, textAlign: 'center', borderBottom: '1px solid ' + t.line };
-    const td = { padding: 4, borderBottom: '1px solid ' + t.lineSoft, textAlign: 'center' };
+    const th = { ...thStyle(t, 'center'), padding: '10px 8px' };
+    const td = { ...tdStyle(t, 'center'), padding: 5 };
     const dayTotal = (dk) => mine.filter((e) => e.work_date === dk).reduce((s, e) => s + e.minutes, 0);
 
     return (
@@ -70,17 +70,17 @@ export default function WeekGrid({ employeeId, projects, entries, readOnly = fal
                 )}
             </Row>
             {rows.length === 0 ? <Muted>Not on any project this week.</Muted> : (
-                <div className="edge-scroll" style={{ overflowX: 'auto', border: '1px solid ' + t.line, borderRadius: 10 }}>
+                <div className="edge-scroll" style={{ ...tableFrame(t), overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO }}>
                         <thead>
                             <tr>
-                                <th scope="col" style={{ ...th, textAlign: 'left' }}>PROJECT</th>
+                                <th scope="col" style={{ ...th, textAlign: 'left', padding: '10px 14px' }}>Project</th>
                                 {days.map((d) => (
                                     <th key={key(d)} scope="col" style={th}>
-                                        {d.toLocaleDateString('en-IN', { weekday: 'short' }).toUpperCase()} {d.getDate()}
+                                        {d.toLocaleDateString('en-IN', { weekday: 'short' })} {d.getDate()}
                                     </th>
                                 ))}
-                                <th scope="col" style={th}>TOTAL</th>
+                                <th scope="col" style={th}>Total</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -88,7 +88,7 @@ export default function WeekGrid({ employeeId, projects, entries, readOnly = fal
                                 const total = mine.filter((e) => e.project_id === p.id).reduce((s, e) => s + e.minutes, 0);
                                 return (
                                     <tr key={p.id}>
-                                        <th scope="row" style={{ ...td, textAlign: 'left', fontSize: 12.5, fontWeight: 400, color: t.text }}>
+                                        <th scope="row" style={{ ...td, textAlign: 'left', padding: '5px 14px', fontWeight: 400 }}>
                                             <span style={{ color: t.faint, fontSize: 11 }}>{p.code}</span> {p.name}
                                         </th>
                                         {dayKeys.map((dk) => {
@@ -109,9 +109,9 @@ export default function WeekGrid({ employeeId, projects, entries, readOnly = fal
                                                         className="edge-input"
                                                         style={{
                                                             width: 56, height: 28, textAlign: 'center', fontFamily: MONO, fontSize: 12.5,
-                                                            background: status === 'approved' ? t.panelAlt : t.panel, color: t.text,
-                                                            border: '1px solid ' + (status === 'rejected' ? t.down : status === 'submitted' ? t.lineStrong : t.line),
-                                                            borderRadius: 6,
+                                                            background: status === 'approved' ? t.raised : t.panelAlt, color: t.text,
+                                                            border: '1px solid ' + (status === 'rejected' ? t.down : status === 'submitted' ? t.accent : t.line),
+                                                            borderRadius: 8,
                                                         }} />
                                                 </td>
                                             );
@@ -121,7 +121,7 @@ export default function WeekGrid({ employeeId, projects, entries, readOnly = fal
                                 );
                             })}
                             <tr>
-                                <th scope="row" style={{ ...td, textAlign: 'left', fontSize: 11, color: t.faint, fontWeight: 400 }}>DAY TOTAL</th>
+                                <th scope="row" style={{ ...td, textAlign: 'left', fontSize: 12, color: t.faint, fontWeight: 500, padding: '9px 14px' }}>Day total</th>
                                 {dayKeys.map((dk) => <td key={dk} style={{ ...td, fontSize: 12.5, color: t.dim }}>{fmtH(dayTotal(dk)) || '-'}</td>)}
                                 <td style={td} />
                             </tr>

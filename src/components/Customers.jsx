@@ -16,6 +16,7 @@ import { useToast } from './shared/Toast';
 import ClientProjectSelect, { ProjectScopeFilter } from './shared/ClientProjectSelect';
 import { useClientProjects } from './shared/useClientProjects';
 import { OTHERS, initialProject, assignProject, filterByProject } from '../services/clientProjects';
+import { initialQuery } from '../services/urlQuery';
 
 const EMPTY_CUSTOMER = {
   // clientName is the billing name. The company, or the person when the
@@ -279,7 +280,7 @@ export default function Customers() {
   const toast = useToast();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialQuery);
   // Since 0016 merged customers and crm_leads into one `clients` table, this page
   // and the CRM board read the same rows. 'billable' is the default because this
   // screen is about parties you invoice. The pipeline has its own board, and

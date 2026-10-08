@@ -95,15 +95,15 @@ export default function ProfitLoss() {
         <div style={{ width: '100%', height: 280 }}>
           <ResponsiveContainer>
             <BarChart data={series.points} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-default)" />
+              <CartesianGrid strokeDasharray="2 5" vertical={false} stroke="var(--border-default)" />
               <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={13.5} />
               <YAxis tickLine={false} axisLine={false} fontSize={12.5} width={70}
                 tickFormatter={(v) => (Math.abs(v) >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${(v / 1000).toFixed(0)}k`)} />
               <Tooltip formatter={(v, name) => [money(v), name]} cursor={{ fill: 'var(--surface-hover)' }} />
               <Legend formatter={(value) => <span style={{ color: 'var(--text-secondary)' }}>{value}</span>} />
-              <Bar dataKey="income" name="Income" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={28} />
-              <Bar dataKey="expenses" name="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={28} opacity={0.75} />
-              <Bar dataKey="net" name="Net" fill="var(--text-primary)" radius={[4, 4, 0, 0]} maxBarSize={28} />
+              <Bar dataKey="income" name="Income" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={28} />
+              <Bar dataKey="expenses" name="Expenses" fill="#ef4444" radius={[6, 6, 0, 0]} maxBarSize={28} opacity={0.75} />
+              <Bar dataKey="net" name="Net" fill="var(--edge-accent, #1f7af0)" radius={[6, 6, 0, 0]} maxBarSize={28} />
             </BarChart>
           </ResponsiveContainer>
         </div>

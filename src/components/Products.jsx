@@ -13,6 +13,7 @@ import BelongsToSelect, { BelongsToFilter } from './shared/BelongsToSelect';
 import {
   GENERAL, splitChoice, productChoice, inScope, choiceLabel, saveWithOptional,
 } from '../services/belongsTo';
+import { initialQuery } from '../services/urlQuery';
 
 const money = (n, digits = 0) => (Number(n) || 0).toLocaleString('en-IN', {
   style: 'currency', currency: 'INR', maximumFractionDigits: digits,
@@ -73,7 +74,7 @@ export default function Products({ projectId = null }) {
   // in state keeps the list honest after a write; `version` is what a mutation
   // bumps to force the re-read.
   const [version, setVersion] = useState(0);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialQuery);
   const [category, setCategory] = useState('all');
   const [scope, setScope] = useState('');
   const [kind, setKind] = useState('');

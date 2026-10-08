@@ -4,7 +4,7 @@ import { attendanceService, ATTENDANCE_STATUSES } from '../../services/attendanc
 import { leaveService } from '../../services/leaveService';
 import { fmtDay, employedOn } from './overviewModel';
 import { Columns, RankBars, SplitBar, EmptyNote, Delta } from './vizKit';
-import { Dashboard, Card, Tile, BigCount, More, TileRow, CardGrid, ListRow } from './dashKit';
+import { Dashboard, Card, Tile, SubLabel, More, TileRow, CardGrid, ListRow } from './dashKit';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Dashboard · Team: who is here, who is coming and going, who is out today,
@@ -71,7 +71,7 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
     const attColor = { present: status.good, remote: cat[0], half_day: status.warning, leave: cat[4], absent: status.critical, holiday: t.ghost };
 
     return (<>
-        <TileRow cols={tileCols(6)}>
+        <TileRow bento cols={tileCols(6)}>
             <Tile icon={Users} label="Headcount" value={String(k.headcount.value)} exact={`${k.headcount.value} people`}
                 delta={<Delta abs value={k.headcount.deltaAbs} />}
                 foot={k.headcount.upcoming ? `${k.headcount.upcoming} starting soon` : 'on the books today'}
@@ -97,7 +97,7 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
         </TileRow>
 
         <CardGrid cols={cols}>
-            <Card style={grid(2)} title="Headcount" note="people on the books at the end of each bucket" right={<More onClick={() => open({ kind: 'metric', id: 'headcount' })} />}>
+            <Card accent style={grid(2)} title="Headcount" note="people on the books at the end of each bucket" right={<More onClick={() => open({ kind: 'metric', id: 'headcount' })} />}>
                 <Columns data={model.series} series={[{ key: 'headcount', label: 'People', color: t.chart }]} height={220}
                     format={(v) => String(Math.round(v))} tipFormat={(v) => String(v)} onSelect={() => open({ kind: 'metric', id: 'headcount' })} />
             </Card>
@@ -107,7 +107,7 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
                     onSelect={(r) => open({ kind: 'department', name: r.name })} empty="No employees yet" />
                 {model.employmentTypes.length > 0 && (
                     <div style={{ marginTop: 14 }}>
-                        <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, marginBottom: 6 }}>EMPLOYMENT TYPE</div>
+                        <SubLabel>Employment type</SubLabel>
                         <SplitBar format={(v) => String(v)} unit="People" parts={model.employmentTypes.map((e, i) => ({ id: e.name, label: e.name, value: e.value, color: cat[i] }))} />
                     </div>
                 )}
@@ -115,8 +115,7 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
 
             <Card title="Attendance today" note={fmtDay(today)} right={<More label="Sheet" to="/attendance" />}>
                 {att === undefined ? <EmptyNote>Loading…</EmptyNote> : !attendance ? <EmptyNote>Attendance is not available to your role</EmptyNote> : (<>
-                    <BigCount value={staff.length ? `${Math.round((attendance.present / staff.length) * 100)}%` : '-'} label="of the team in today" />
-                    <SplitBar format={(v) => String(v)} unit="People" parts={[
+                    <SplitBar donut center={{ value: staff.length ? `${Math.round((attendance.present / staff.length) * 100)}%` : '-', label: 'In today' }} format={(v) => String(v)} unit="People" parts={[
                         ...ATTENDANCE_STATUSES.map((s) => ({ id: s.key, label: s.label, value: attendance.byStatus[s.key], color: attColor[s.key] })),
                         { id: 'unmarked', label: 'Not marked', value: attendance.unmarked, color: t.lineStrong },
                     ].filter((p) => p.value > 0)} onSelect={() => navigate('/attendance')} />

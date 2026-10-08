@@ -30,7 +30,7 @@ export function HoursPerDayChart({ series, height = 210, empty = 'No completed d
       {series.some((d) => d.hours > 0) ? (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={series} barCategoryGap={2} margin={{ left: 0, right: 8 }}>
-            <CartesianGrid vertical={false} stroke={t.lineSoft} />
+            <CartesianGrid vertical={false} stroke={t.line} strokeDasharray="2 5" />
             <XAxis dataKey="day" tick={axis} tickLine={false} axisLine={{ stroke: t.line }} interval="preserveStartEnd" minTickGap={10} />
             <YAxis tick={axis} tickLine={false} axisLine={false} width={32} tickFormatter={(v) => `${v}h`} allowDecimals={false} />
             <ReferenceLine y={8} stroke={t.ghost} strokeDasharray="4 4" />
@@ -43,8 +43,8 @@ export function HoursPerDayChart({ series, height = 210, empty = 'No completed d
                 ['Worked', formatDuration(workedMinutes(d.row))],
               ]} />}
             />
-            <Bar dataKey="hours" radius={[4, 4, 0, 0]} maxBarSize={18}>
-              {series.map((d) => <Cell key={d.key} fill={d.key === today ? t.text : t.scale[3]} />)}
+            <Bar dataKey="hours" radius={[6, 6, 0, 0]} maxBarSize={18}>
+              {series.map((d) => <Cell key={d.key} fill={t.accent} fillOpacity={d.key === today ? 1 : 0.45} />)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -62,7 +62,7 @@ export function MonthsWorkedChart({ months, currentKey, height = 210, empty = 'N
       {months.some((m) => m.days > 0) ? (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={months} margin={{ left: 0, right: 8 }}>
-            <CartesianGrid vertical={false} stroke={t.lineSoft} />
+            <CartesianGrid vertical={false} stroke={t.line} strokeDasharray="2 5" />
             <XAxis dataKey="label" tick={axis} tickLine={false} axisLine={{ stroke: t.line }} />
             <YAxis tick={axis} tickLine={false} axisLine={false} width={26} allowDecimals={false} />
             <Tooltip
@@ -74,8 +74,8 @@ export function MonthsWorkedChart({ months, currentKey, height = 210, empty = 'N
                 ['Attendance', m.rate == null ? '-' : `${Math.round(m.rate * 100)}%`],
               ]} />}
             />
-            <Bar dataKey="days" radius={[4, 4, 0, 0]} maxBarSize={26}>
-              {months.map((m) => <Cell key={m.key} fill={m.key === currentKey ? t.text : t.scale[3]} />)}
+            <Bar dataKey="days" radius={[6, 6, 0, 0]} maxBarSize={26}>
+              {months.map((m) => <Cell key={m.key} fill={t.accent} fillOpacity={m.key === currentKey ? 1 : 0.45} />)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -93,7 +93,7 @@ export function CheckInChart({ points, height = 180, empty = 'Needs a couple of 
       {points.length > 1 ? (
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={points} margin={{ left: 0, right: 10, top: 4 }}>
-            <CartesianGrid vertical={false} stroke={t.lineSoft} />
+            <CartesianGrid vertical={false} stroke={t.line} strokeDasharray="2 5" />
             <XAxis dataKey="day" tick={axis} tickLine={false} axisLine={{ stroke: t.line }} />
             <YAxis
               tick={axis} tickLine={false} axisLine={false} width={40} reversed
@@ -105,7 +105,7 @@ export function CheckInChart({ points, height = 180, empty = 'Needs a couple of 
               content={<ChartTip render={(d) => [[fmtWeekday(d.key), null], ['Checked in', minutesToClock(d.checkIn)]]} />}
             />
             <Line
-              type="monotone" dataKey="checkIn" stroke={t.chart} strokeWidth={2}
+              type="monotone" dataKey="checkIn" stroke={t.chart} strokeWidth={2.25}
               dot={{ r: 3, fill: t.panel, stroke: t.chart, strokeWidth: 2 }} activeDot={{ r: 5 }}
             />
           </LineChart>

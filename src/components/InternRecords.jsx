@@ -6,6 +6,7 @@ import { pdfService } from '../services/pdfService';
 import { emailService } from '../services/emailService';
 import { useOrg } from '../context/OrgContext';
 import { confirmDialog } from '../services/confirm';
+import { initialQuery } from '../services/urlQuery';
 
 const TYPE_CONFIG = {
   offer: { icon: Briefcase, color: '#3b82f6', bg: '#3b82f612', bgSolid: 'rgba(59,130,246,0.08)', label: 'Offer Letter' },
@@ -29,7 +30,7 @@ const TABS = [
 export default function InternRecords() {
   const { activeOrg } = useOrg();
   const [records, setRecords] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialQuery);
   const [sortBy, setSortBy] = useState('date_desc');
   const [activeTab, setActiveTab] = useState('all');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'

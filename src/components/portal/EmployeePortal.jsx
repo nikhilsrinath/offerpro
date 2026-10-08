@@ -23,6 +23,9 @@ import { useToast } from '../shared/Toast';
 import { useTheme } from '../../hooks/useTheme';
 import { EdgeThemeContext } from '../../theme/EdgeTheme';
 import { makeTokens, MONO } from '../../theme/edge';
+import {
+  RailIsland, RailHead, RailHeading, RailList, RailItem, IslandBtn, RailFoot, RailSpacer,
+} from '../shell/railIsland';
 import { Page, Btn, Loading, Empty } from '../ui/edge';
 import { meService } from '../../services/meService';
 import { announcementService } from '../../services/announcementService';
@@ -56,6 +59,7 @@ export default function EmployeePortal() {
   // The portal's back leads to the hub, like every page's.
   const navigate = useNavigate();
   const t = makeTokens(theme === 'dark');
+  // The sidenav is the navigation island, painted like the hub.
   const orgId = activeOrg?.id;
   const width = useWindowWidth();
   const mobile = width < 760;
@@ -212,79 +216,48 @@ export default function EmployeePortal() {
       <div style={{ height: '100vh', display: 'flex', overflow: 'hidden', background: t.shell }}>
         {/* ── rail ───────────────────────────────────────────────────────── */}
         {!mobile && (
-          <aside style={{
-            width: narrow ? 64 : 224, flexShrink: 0, background: t.panel, borderRight: '1px solid ' + t.line,
-            display: 'flex', flexDirection: 'column',
-          }}>
-            <div style={{
-              height: 57, display: 'flex', alignItems: 'center', gap: 10, padding: narrow ? '0 16px' : '0 16px',
-              borderBottom: '1px solid ' + t.line, flexShrink: 0,
-            }}>
-              {activeOrg?.logo_url ? (
-                <img src={activeOrg.logo_url} alt="" style={{ width: 30, height: 30, borderRadius: 7, objectFit: 'cover' }} />
-              ) : (
-                <span style={{
-                  width: 30, height: 30, borderRadius: 7, background: t.selBg, color: t.selText, flexShrink: 0,
-                  display: 'grid', placeItems: 'center', fontSize: 12.5, fontWeight: 600,
-                }}>{orgName.slice(0, 2).toUpperCase()}</span>
-              )}
-              {!narrow && (
-                <span style={{ minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}</span>
-                  <span style={{ display: 'block', fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, marginTop: 2 }}>EMPLOYEE PORTAL</span>
-                </span>
-              )}
-            </div>
+          <RailIsland t={t} open={!narrow} label="Portal navigation" widths={{ open: 244, shut: 80 }}>
+            <RailHead>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0, flex: 1 }}>
+                {activeOrg?.logo_url ? (
+                  <img src={activeOrg.logo_url} alt="" style={{ width: 34, height: 34, borderRadius: 11, objectFit: 'cover', flexShrink: 0 }} />
+                ) : (
+                  <span aria-hidden="true" style={{
+                    width: 34, height: 34, borderRadius: 11, background: t.accentBtn, color: '#fff', flexShrink: 0,
+                    display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 600,
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.3), 0 6px 18px -6px ' + t.accent,
+                  }}>{orgName.slice(0, 2).toUpperCase()}</span>
+                )}
+                {!narrow && (
+                  <span style={{ minWidth: 0, lineHeight: 1.25 }}>
+                    <span style={{ display: 'block', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}</span>
+                    <span style={{ display: 'block', fontSize: 11.5, color: t.faint }}>Employee portal</span>
+                  </span>
+                )}
+              </span>
+            </RailHead>
 
-            <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '12px 9px' }}>
-              {TABS.map((x) => {
-                const active = x.id === tab;
-                const badge = x.id === 'announcements' ? unread : 0;
-                return (
-                  <button
-                    key={x.id} type="button" onClick={() => go(x.id)} title={x.label}
-                    aria-current={active ? 'page' : undefined}
-                    className="edge-seg"
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12, height: 38, padding: narrow ? 0 : '0 10px',
-                      justifyContent: narrow ? 'center' : 'flex-start', position: 'relative',
-                      border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: MONO, fontSize: 13.5,
-                      background: active ? t.panelAlt : 'transparent', color: active ? t.text : t.dim,
-                      boxShadow: active ? 'inset 2px 0 0 ' + t.text : 'none',
-                    }}
-                  >
-                    <x.icon size={16} strokeWidth={1.8} style={{ flexShrink: 0 }} />
-                    {!narrow && <span style={{ flex: 1, textAlign: 'left' }}>{x.label}</span>}
-                    {badge > 0 && (
-                      <span style={narrow ? {
-                        position: 'absolute', top: 7, right: 12, width: 7, height: 7, borderRadius: '50%', background: t.down,
-                      } : {
-                        fontSize: 11, minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9, boxSizing: 'border-box',
-                        display: 'grid', placeItems: 'center', background: t.selBg, color: t.selText,
-                      }}>{narrow ? '' : badge}</span>
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
+            <RailList label="Portal sections">
+              <RailHeading t={t} open={!narrow}>My work</RailHeading>
+              {TABS.map((x) => (
+                <RailItem
+                  key={x.id} t={t} open={!narrow} icon={x.icon} label={x.label}
+                  active={x.id === tab} onClick={() => go(x.id)}
+                  badge={x.id === 'announcements' ? unread : 0}
+                />
+              ))}
+            </RailList>
 
-            <div style={{ flex: 1 }} />
+            <RailSpacer />
 
-            <div style={{ padding: 9, borderTop: '1px solid ' + t.line, display: 'grid', gap: 2 }}>
+            <RailFoot t={t} open={!narrow}>
               {role && role !== 'employee' && (
-                <button type="button" onClick={() => navigate('/hub')} title="Back to hub" className="edge-seg" style={railLink(t, narrow)}>
-                  <ArrowLeft size={15} strokeWidth={1.8} />{!narrow && 'Back to hub'}
-                </button>
+                <IslandBtn t={t} icon={ArrowLeft} label="Back to hub" onClick={() => navigate('/hub')} />
               )}
-              <button type="button" onClick={toggleTheme} title={theme === 'dark' ? 'Light mode' : 'Dark mode'} className="edge-seg" style={railLink(t, narrow)}>
-                {theme === 'dark' ? <Sun size={15} strokeWidth={1.8} /> : <Moon size={15} strokeWidth={1.8} />}
-                {!narrow && (theme === 'dark' ? 'Light mode' : 'Dark mode')}
-              </button>
-              <button type="button" onClick={logout} title="Sign out" className="edge-seg" style={{ ...railLink(t, narrow), color: t.down }}>
-                <LogOut size={15} strokeWidth={1.8} />{!narrow && 'Sign out'}
-              </button>
-            </div>
-          </aside>
+              <IslandBtn t={t} icon={theme === 'dark' ? Sun : Moon} label={theme === 'dark' ? 'Light mode' : 'Dark mode'} onClick={toggleTheme} />
+              <IslandBtn t={t} icon={LogOut} label="Sign out" danger onClick={logout} />
+            </RailFoot>
+          </RailIsland>
         )}
 
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
@@ -401,14 +374,6 @@ export default function EmployeePortal() {
         )}
       </div>,
   );
-}
-
-function railLink(t, narrow) {
-  return {
-    display: 'flex', alignItems: 'center', gap: 12, height: 34, padding: narrow ? 0 : '0 10px',
-    justifyContent: narrow ? 'center' : 'flex-start', borderRadius: 8, border: 'none', background: 'transparent',
-    cursor: 'pointer', fontFamily: MONO, fontSize: 13, color: t.dim, textDecoration: 'none',
-  };
 }
 
 function iconBtn(t) {

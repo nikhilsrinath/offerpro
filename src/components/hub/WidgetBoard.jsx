@@ -128,7 +128,7 @@ export default function WidgetBoard({
         <>
             {/*: widgets bar, */}
             <div className="hx-bar">
-                <h2>WIDGETS{layout.length > 0 && <span>{layout.length} / {widgets.length}</span>}</h2>
+                <h2>Widgets{layout.length > 0 && <span>{layout.length} / {widgets.length}</span>}</h2>
                 <div className="hx-actions">
                     {layout.length > 0 && (
                         <>
@@ -207,6 +207,7 @@ export default function WidgetBoard({
                                 onDragEnd={() => setDrag({ id: null, over: null })}
                             >
                                 <div className="w-head">
+                                    {w.icon && <span className="w-ic" aria-hidden="true"><w.icon size={15} strokeWidth={1.8} /></span>}
                                     {open ? (
                                         <button type="button" className="w-title w-title-btn" id={`wt-${item.id}`}
                                             aria-label={`${w.title}, open page`} onClick={open}>{w.title}</button>

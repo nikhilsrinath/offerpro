@@ -377,10 +377,10 @@ function MonthView({ people, orgId, month, setMonth, stamp, requests, typeById, 
 
     const today = isoDay();
     const th = {
-        position: 'sticky', top: 0, zIndex: 2, background: t.panel, fontWeight: 400,
-        borderBottom: '1px solid ' + t.line, padding: '6px 0', fontSize: 10.5, color: t.faint, textAlign: 'center',
+        position: 'sticky', top: 0, zIndex: 2, background: t.panelAlt, fontWeight: 500,
+        borderBottom: '1px solid ' + t.line, padding: '8px 0', fontSize: 11.5, color: t.faint, textAlign: 'center',
     };
-    const total = { ...th, padding: '6px 8px', minWidth: 44, fontSize: 10.5, letterSpacing: '0.06em' };
+    const total = { ...th, padding: '8px 10px', minWidth: 52, fontSize: 12 };
 
     return (
         <Panel>
@@ -401,24 +401,24 @@ function MonthView({ people, orgId, month, setMonth, stamp, requests, typeById, 
                             <table style={{ borderCollapse: 'separate', borderSpacing: 0, fontFamily: MONO, minWidth: '100%' }}>
                                 <thead>
                                     <tr>
-                                        <th scope="col" style={{ ...th, left: 0, zIndex: 3, textAlign: 'left', padding: '6px 13px', minWidth: 160, letterSpacing: '0.09em' }}>MEMBER</th>
+                                        <th scope="col" style={{ ...th, left: 0, zIndex: 3, textAlign: 'left', padding: '8px 14px', minWidth: 160, fontSize: 12 }}>Member</th>
                                         {days.map((d) => {
                                             const date = new Date(`${d}T00:00:00Z`);
                                             const we = [0, 6].includes(date.getUTCDay());
                                             return (
                                                 <th key={d} scope="col" aria-label={dayLabel(d)} style={{
-                                                    ...th, minWidth: 26, background: we ? t.panelAlt : t.panel,
-                                                    color: d === today ? t.text : t.faint, fontWeight: d === today ? 700 : 400,
+                                                    ...th, minWidth: 26, background: we ? t.raised : t.panelAlt,
+                                                    color: d === today ? t.accent : t.faint, fontWeight: d === today ? 700 : 500,
                                                 }}>
                                                     <span style={{ display: 'block', fontSize: 9 }}>{date.toLocaleDateString('en-IN', { weekday: 'narrow', timeZone: 'UTC' })}</span>
                                                     {date.getUTCDate()}
                                                 </th>
                                             );
                                         })}
-                                        <th scope="col" title="Days present" style={{ ...total, borderLeft: '1px solid ' + t.line }}>PRES.</th>
-                                        <th scope="col" title="Days absent" style={total}>ABS.</th>
-                                        <th scope="col" title="Leave taken" style={total}>LEAVE</th>
-                                        <th scope="col" title="Leave balance this year" style={{ ...total, paddingRight: 13 }}>LEFT</th>
+                                        <th scope="col" title="Days present" style={{ ...total, borderLeft: '1px solid ' + t.line }}>Present</th>
+                                        <th scope="col" title="Days absent" style={total}>Absent</th>
+                                        <th scope="col" title="Leave taken" style={total}>Leave</th>
+                                        <th scope="col" title="Leave balance this year" style={{ ...total, paddingRight: 13 }}>Left</th>
                                     </tr>
                                 </thead>
                                 <tbody>

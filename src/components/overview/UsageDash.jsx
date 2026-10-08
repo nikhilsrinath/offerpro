@@ -7,7 +7,8 @@ import { getPlanConfig, DEFAULT_PLAN } from '../../services/planConfig';
 import { activeProjectCount } from '../../services/projectService';
 import { aiUsageService, summariseUsage, runway, AI_SURFACES, surfaceLabel } from '../../services/aiUsageService';
 import { Columns, RankBars, Legend, EmptyNote, Delta } from './vizKit';
-import { Dashboard, Card, Tile, Figure, More, TileRow, CardGrid, ListRow, Meter } from './dashKit';
+import { Dashboard, Card, Tile, Figure, FigureRow, More, TileRow, CardGrid, ListRow, Meter } from './dashKit';
+import { mix } from './vizHooks';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Dashboard · Usage: how much of the plan the organisation has used.
@@ -72,7 +73,7 @@ function UsageBody({ t, cat, status, cols, grid, tileCols, orgId, navigate, toda
     const noHistory = history && !history.available;
 
     return (<>
-        <TileRow cols={tileCols(5)}>
+        <TileRow bento cols={tileCols(5)}>
             <Tile icon={Sparkles} label="AI messages used" value={used.toLocaleString('en-IN')}
                 exact={unlimited ? `${used} used · unlimited` : `${used} of ${limit}`}
                 tone={!unlimited && used >= limit ? 'down' : null}
@@ -96,11 +97,11 @@ function UsageBody({ t, cat, status, cols, grid, tileCols, orgId, navigate, toda
 
         <CardGrid cols={cols}>
             {/* ── the allowance ─────────────────────────────────────────── */}
-            <Card style={grid(2)} title="AI allowance" note="Copilot, EdgeBrain and document reading share one allowance"
+            <Card accent style={grid(2)} title="AI allowance" note="Copilot, EdgeBrain and document reading share one allowance"
                 right={<div style={{ display: 'flex', gap: 6 }}>
                     <button type="button" onClick={load} disabled={busy} className="ov-chip" aria-label="Refresh usage" style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 5, minHeight: 24, padding: '0 8px', borderRadius: 6, border: '1px solid ' + t.line,
-                        background: t.panel, color: t.dim, fontFamily: MONO, fontSize: 11.5, cursor: busy ? 'wait' : 'pointer',
+                        display: 'inline-flex', alignItems: 'center', gap: 5, minHeight: 28, padding: '0 10px', borderRadius: 9, border: '1px solid ' + t.lineStrong,
+                        background: t.panelAlt, boxShadow: t.highlight, color: t.dim, fontFamily: MONO, fontSize: 12, fontWeight: 500, cursor: busy ? 'wait' : 'pointer',
                     }}><RefreshCw aria-hidden="true" size={11} style={{ animation: busy ? 'usageSpin 1s linear infinite' : 'none' }} /> Refresh</button>
                     <More label={unlimited ? 'Plans' : 'Upgrade'} to="/pricing" />
                 </div>}>
@@ -108,25 +109,29 @@ function UsageBody({ t, cat, status, cols, grid, tileCols, orgId, navigate, toda
                     <span style={{ fontSize: 40, fontWeight: 600, letterSpacing: '-0.05em', lineHeight: 1 }}>{used.toLocaleString('en-IN')}</span>
                     <span style={{ fontSize: 14.5, color: t.dim, paddingBottom: 4 }}>{unlimited ? 'messages · unlimited' : `/ ${limit} messages`}</span>
                     <span style={{ flex: 1 }} />
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '4px 9px', borderRadius: 99, border: '1px solid ' + t.line, color: t.text }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 500, padding: '4px 10px', borderRadius: 99, background: t.accentSoft, color: t.accent }}>
                         <Crown aria-hidden="true" size={12} /> {plan.displayName}
                     </span>
                 </div>
                 <div role="meter" aria-label="AI messages used" aria-valuemin={0} aria-valuemax={unlimited ? undefined : limit} aria-valuenow={used}
                     aria-valuetext={unlimited ? `${used} used, unlimited` : `${used} of ${limit} used`}
-                    style={{ position: 'relative', height: 12, borderRadius: 6, background: t.raised, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: unlimited ? '100%' : `${pct}%`, background: meterColor, opacity: unlimited ? 0.25 : 1, borderRadius: 6, transition: 'width .5s cubic-bezier(.16,1,.3,1)' }} />
+                    style={{ position: 'relative', height: 14, borderRadius: 99, background: t.panelAlt, boxShadow: 'inset 0 0 0 1px ' + t.line, overflow: 'hidden' }}>
+                    <div style={{
+                        height: '100%', width: unlimited ? '100%' : `${pct}%`, borderRadius: 99, opacity: unlimited ? 0.25 : 1,
+                        background: `linear-gradient(90deg, ${mix(meterColor, 45)}, ${meterColor})`, boxShadow: `0 0 14px -2px ${meterColor}`,
+                        transition: 'width .6s cubic-bezier(.16,1,.3,1)',
+                    }} />
                     {!unlimited && [50, 80].map((m) => (
                         <span key={m} aria-hidden="true" style={{ position: 'absolute', top: 0, bottom: 0, left: `${m}%`, width: 1, background: t.panel, opacity: 0.8 }} />
                     ))}
                 </div>
-                <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginTop: 12 }}>
+                <FigureRow style={{ marginTop: 14, marginBottom: 0, gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))' }}>
                     <Figure label="used" value={pct === null ? '-' : `${pct.toFixed(0)}%`} tone={pct >= 100 ? 'down' : null} />
                     <Figure label="left" value={unlimited ? '∞' : String(left)} />
                     <Figure label="answered · 90d" value={history?.available ? String(s.answered) : '-'} />
                     <Figure label="refused at limit" value={history?.available ? String(s.blocked) : '-'} tone={s.blocked ? 'down' : null} />
                     <Figure label="provider errors" value={history?.available ? String(s.failed) : '-'} />
-                </div>
+                </FigureRow>
                 <div style={{ fontSize: 11.5, color: t.faint, marginTop: 12, lineHeight: 1.6 }}>
                     This is a running total for the organisation and does not reset each month. A request is counted when it is sent (before the answer),
                     so a refused request still moves the counter.

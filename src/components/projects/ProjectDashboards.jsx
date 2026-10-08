@@ -16,7 +16,7 @@ import { projectDashboards } from './projectDashboardNav';
 import { fmtShort, fmtInr, fmtDay, invoiceStateOf, INVOICE_STATES } from '../overview/overviewModel';
 import { TipProvider, RankBars, SplitBar, EmptyNote } from '../overview/vizKit';
 import { useViz, useWinW } from '../overview/vizHooks';
-import { Card, Tile, Figure, More, TileRow, CardGrid, ListRow, DashStyle } from '../overview/dashKit';
+import { Card, Tile, Figure, FigureRow, SubLabel, More, TileRow, CardGrid, ListRow, DashStyle } from '../overview/dashKit';
 import { useProjectBoardData } from './projectBoard';
 import { describeActivity } from './activityText';
 import ProjectActions from './ProjectActions';
@@ -89,10 +89,10 @@ function DashboardPage({ project, page, navigate }) {
                         <div style={{ padding: '2px 2px 18px', display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{
-                                fontSize: 13.5, fontWeight: 600, letterSpacing: '0.08em', marginBottom: 6,
+                                fontSize: 13.5, fontWeight: 500, color: t.dim, marginBottom: 6,
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                             }}>
-                                <Link to={`/projects/${project.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>{name.toUpperCase()}</Link>
+                                <Link to={`/projects/${project.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>{name}</Link>
                             </div>
                             <h1 style={{
                                 margin: 0, fontSize: winW < 760 ? 24 : 32, fontWeight: 700, letterSpacing: '-0.045em', lineHeight: 1.05,
@@ -149,7 +149,7 @@ function OverviewView({ board, open, navigate, t, status, cols, tileCols }) {
     const daysLeft = end ? Math.round((new Date(`${end}T00:00:00`) - new Date(`${today}T00:00:00`)) / 86400000) : null;
 
     return (<>
-        <TileRow cols={tileCols(fin ? 6 : 4)}>
+        <TileRow bento cols={tileCols(fin ? 6 : 4)}>
             <Tile icon={CircleDashed} label="Progress" value={pct == null ? '-' : `${pct}%`}
                 foot={pct == null ? 'no plan yet' : `${board.milestones.length} milestones · ${tk.all.length} tasks`} />
             <Tile icon={HeartPulse} label="Health" value={h && HEALTH[h.health] ? HEALTH[h.health] : '-'}
@@ -169,7 +169,7 @@ function OverviewView({ board, open, navigate, t, status, cols, tileCols }) {
         </TileRow>
 
         <CardGrid cols={cols}>
-            <Card style={{ gridColumn: `span ${cols}` }} title="Needs attention"
+            <Card accent style={{ gridColumn: `span ${cols}` }} title="Needs attention"
                 note="tasks marked important, until they are done · late first"
                 right={<More label="Tasks" onClick={() => open('wbs')} />}>
                 {attention.length === 0 ? (
@@ -192,12 +192,12 @@ function OverviewView({ board, open, navigate, t, status, cols, tileCols }) {
             </Card>
 
             <Card title="Schedule" note={end ? `due ${fmtDay(end)}` : 'no end date set'}>
-                <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginBottom: 14 }}>
+                <FigureRow>
                     <Figure big label={daysLeft != null && daysLeft < 0 ? 'days over' : 'days left'}
                         value={daysLeft == null ? '-' : String(Math.abs(daysLeft))} tone={daysLeft != null && daysLeft < 0 ? 'down' : null} />
                     <Figure big label="time gone" value={timePct == null ? '-' : `${Math.round(timePct)}%`} />
                     <Figure big label="done" value={pct == null ? '-' : `${pct}%`} />
-                </div>
+                </FigureRow>
                 {timePct != null && pct != null && (
                     <div style={{ fontSize: 12, color: pct + 10 < timePct ? status.critical : t.faint }}>
                         {pct + 10 < timePct ? 'The work is behind the calendar.' : 'The work is keeping up with the calendar.'}
@@ -250,7 +250,7 @@ function FinanceView({ board, open, t, cat, status, cols, tileCols }) {
     const burnAhead = timePct != null && burnPct != null && burnPct - timePct > 10;
 
     return (<>
-        <TileRow cols={tileCols(5)}>
+        <TileRow bento cols={tileCols(5)}>
             <Tile icon={IndianRupee} label="Contract" value={fmtShort(contract)} exact={fmtInr(contract)}
                 foot={f.billed_pct == null ? 'nothing billed yet' : `${f.billed_pct}% billed`} />
             <Tile icon={Receipt} label="Invoiced" value={fmtShort(invoiced)} exact={fmtInr(invoiced)} foot="before GST" />
@@ -265,7 +265,7 @@ function FinanceView({ board, open, t, cat, status, cols, tileCols }) {
         <CardGrid cols={cols}>
             <Card title="Contract" note="how much of it is billed and paid" right={<More label="Finance" onClick={() => open('finance')} />}>
                 {contract > 0 ? (
-                    <SplitBar format={fmtShort} unit="Amount" parts={[
+                    <SplitBar donut center={{ value: fmtShort(contract), label: 'Contract' }} format={fmtShort} unit="Amount" parts={[
                         { id: 'collected', label: 'Collected', value: collected, color: cat[2] },
                         { id: 'awaiting', label: 'Invoiced, not paid', value: Math.max(0, invoiced - collected), color: cat[3] },
                         { id: 'unbilled', label: 'Not billed yet', value: unbilled, color: t.faint },
@@ -283,14 +283,14 @@ function FinanceView({ board, open, t, cat, status, cols, tileCols }) {
             </Card>
 
             <Card title="Budget" note={f.budget_total ? `${fmtShort(f.budget_total)} budget` : 'no budget set'}>
-                <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginBottom: 14 }}>
+                <FigureRow>
                     <Figure big label="budget used" value={burnPct == null ? '-' : `${Math.round(burnPct)}%`} tone={burnAhead ? 'down' : null} />
                     <Figure big label="time gone" value={timePct == null ? '-' : `${Math.round(timePct)}%`} />
-                </div>
+                </FigureRow>
                 <div style={{ fontSize: 12, color: burnAhead ? status.critical : t.faint, marginBottom: 12 }}>
                     {burnAhead ? 'Spending is running ahead of the schedule.' : burnPct == null ? 'Set a budget to track spending.' : 'Spending is in step with the schedule.'}
                 </div>
-                <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, marginBottom: 4 }}>COSTS BY CATEGORY</div>
+                <SubLabel>Costs by category</SubLabel>
                 <RankBars rows={cats} format={fmtShort} color={cat[1]} max={4} empty="No costs yet" />
             </Card>
         </CardGrid>
@@ -330,7 +330,7 @@ function SalesView({ board, open, navigate, t, status, cols, tileCols }) {
     const quoteValue = quotes.reduce((s, d) => s + n(d.grand_total), 0);
 
     return (<>
-        <TileRow cols={tileCols(4)}>
+        <TileRow bento cols={tileCols(4)}>
             <Tile icon={Briefcase} label="Deal value" value={fmtShort(project.contract_value)} exact={fmtInr(project.contract_value)}
                 foot={project.billing_type ? project.billing_type.replace(/_/g, ' ') : 'contract'} />
             <Tile icon={FileSignature} label="Quotations" value={String(quotes.length)} foot={quotes.length ? `${fmtShort(quoteValue)} quoted` : 'none linked'} />
@@ -369,10 +369,10 @@ function SalesView({ board, open, navigate, t, status, cols, tileCols }) {
             <Card title="Client" note={client ? 'everything you do with them' : 'internal project'}>
                 {client ? (<>
                     <div style={{ fontSize: 18, fontWeight: 600, letterSpacing: '-0.03em', marginBottom: 12 }}>{client.name || client.clientName}</div>
-                    <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginBottom: 12 }}>
+                    <FigureRow>
                         <Figure big label="invoiced, all work" value={fmtShort(clientTotal)} />
                         <Figure big label="other projects" value={String(sibling.length)} />
-                    </div>
+                    </FigureRow>
                     {sibling.slice(0, 4).map((p) => (
                         <ListRow key={p.id} label={p.name || p.code} sub={p.code} onClick={() => navigate(`/projects/${p.id}`)} />
                     ))}
@@ -414,7 +414,7 @@ function TeamView({ board, open, cat, cols, tileCols }) {
     const total = team.reduce((s, m) => s + m.value, 0);
 
     return (<>
-        <TileRow cols={tileCols(4)}>
+        <TileRow bento cols={tileCols(4)}>
             <Tile icon={Users} label="People" value={String(team.length)} foot={team.length ? `${team.filter((m) => m.role === 'manager').length} managing` : 'nobody yet'} />
             <Tile icon={Gauge} label="Allocated" value={`${Math.round(total)}%`} foot="sum of everyone's share" />
             <Tile icon={ListChecks} label="Open tasks" value={String(tk.open.length)} foot={`${tk.all.length - tk.open.length} done`} />
@@ -474,7 +474,7 @@ function DocumentsView({ board, open, navigate, cat, cols, tileCols }) {
     }, [items]);
 
     return (<>
-        <TileRow cols={tileCols(4)}>
+        <TileRow bento cols={tileCols(4)}>
             <Tile icon={FileText} label="All documents" value={String(items.length)} foot="linked to this project" />
             <Tile icon={FileSignature} label="Agreements" value={String(count('agreements'))} foot="NDAs, MoUs, offers" />
             <Tile icon={Briefcase} label="Quotations" value={String(count('sales'))} foot="quotations and proformas" />

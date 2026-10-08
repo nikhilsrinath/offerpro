@@ -6,7 +6,7 @@ import {
   toFlags, sameFlags, nextFlags,
 } from '../../services/permissionService';
 import { Panel, Btn, Seg, Select, Status, Loading } from '../ui/edge';
-import { useT } from '../ui/edgeUtils';
+import { useT, tableFrame, thStyle } from '../ui/edgeUtils';
 
 /**
  * Employee profile → "Role & permissions": everything about what one person
@@ -178,7 +178,7 @@ export default function MemberAccess({ email, name }) {
     <Panel title="Role & permissions" note={`${roleLabel}${customCount ? ` · ${customCount} custom` : ''}`} pad={13}>
       {/* ── role ─────────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gap: 6, marginBottom: 14 }}>
-        <label htmlFor={roleSelectId} style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint }}>ROLE</label>
+        <label htmlFor={roleSelectId} style={{ fontSize: 12, fontWeight: 500, color: t.faint }}>Role</label>
         <Select id={roleSelectId} value={pendingRole || member.role} disabled={!canManage || busy !== ''}
           onChange={(e) => onRoleSelect(e.target.value)}>
           {data.roles.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
@@ -206,7 +206,7 @@ export default function MemberAccess({ email, name }) {
 
       {/* ── permissions ──────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-        <span style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint }}>PERMISSIONS</span>
+        <span style={{ fontSize: 12, fontWeight: 500, color: t.faint }}>Permissions</span>
         <div style={{ flex: 1 }} />
         <Seg size="sm" value={scope} onChange={setScope} label="Apply permission changes to"
           options={[
@@ -246,20 +246,20 @@ export default function MemberAccess({ email, name }) {
         )}
       </div>
 
-      <div style={{ border: '1px solid ' + t.line, borderRadius: 8, overflowX: 'auto' }}>
+      <div style={{ ...tableFrame(t), overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 420 }}>
           <caption style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
             {scope === 'person' ? `Permissions for ${name || first}` : `Permissions for the ${roleLabel} role`}
           </caption>
           <thead>
-            <tr style={{ background: t.panelAlt }}>
-              <th scope="col" style={{ textAlign: 'left', padding: '7px 10px', fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, fontWeight: 400 }}>RESOURCE</th>
+            <tr>
+              <th scope="col" style={thStyle(t)}>Resource</th>
               {ACTIONS.map((a) => (
-                <th key={a} scope="col" style={{ width: 52, padding: '7px 4px', fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, fontWeight: 400 }}>
-                  {a.toUpperCase()}
+                <th key={a} scope="col" style={{ ...thStyle(t, 'center'), width: 52, padding: '10px 4px' }}>
+                  {a[0].toUpperCase() + a.slice(1)}
                 </th>
               ))}
-              <th scope="col" style={{ width: 118 }}><span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>Status</span></th>
+              <th scope="col" style={{ ...thStyle(t), width: 118 }}><span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>Status</span></th>
             </tr>
           </thead>
           <tbody>

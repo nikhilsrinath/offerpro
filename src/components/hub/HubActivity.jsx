@@ -17,7 +17,7 @@ export default function HubActivity({ onDrill }) {
     return (
         <section className="hx-activity" aria-labelledby="hx-activity-title">
             <div className="hx-bar">
-                <h2 id="hx-activity-title">ACTIVITY</h2>
+                <h2 id="hx-activity-title">Activity</h2>
                 <span className="hx-activity-note">Documents per day · last 26 weeks</span>
             </div>
             <div className="hx-activity-card">

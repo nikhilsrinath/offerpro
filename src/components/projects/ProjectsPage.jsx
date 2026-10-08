@@ -28,7 +28,7 @@ import { Pin, PinOff, ChevronUp, ChevronDown } from 'lucide-react';
    list and move the pinned ones up and down (projectPins).
    ══════════════════════════════════════════════════════════════════════════ */
 
-const STATUS_TONE = { active: 'up', on_hold: 'neutral', planned: 'mute', completed: 'mute', cancelled: 'mute' };
+const STATUS_TONE = { active: 'accent', on_hold: 'warn', planned: 'neutral', completed: 'up', cancelled: 'mute' };
 
 export default function ProjectsPage() {
     const t = useT();
@@ -117,9 +117,9 @@ export default function ProjectsPage() {
     const newProject = !canCreateProjects() ? null : atLimit ? (
         <Row gap={8}>
             <Muted>{getPlanConfig(plan).name} plan: {getPlanConfig(plan).limits.activeProjects} active projects reached</Muted>
-            <Btn primary onClick={() => navigate('/pricing')} style={{ height: 31 }}>Upgrade</Btn>
+            <Btn primary onClick={() => navigate('/pricing')}>Upgrade</Btn>
         </Row>
-    ) : <Btn primary onClick={() => navigate('/projects/new')} style={{ height: 31 }}>New project</Btn>;
+    ) : <Btn primary onClick={() => navigate('/projects/new')}>New project</Btn>;
 
     const open = (p) => navigate(`/projects/${p.id}`);
     const nameOf = (e) => e?.name || e?.full_name || e?.studentName || '';
@@ -156,7 +156,7 @@ export default function ProjectsPage() {
                         { id: 'all', label: 'All' },
                     ]} />
                 )}
-                <Select aria-label="Client" value={client} onChange={(e) => setClient(e.target.value)} style={{ width: 160, height: 31 }}>
+                <Select aria-label="Client" value={client} onChange={(e) => setClient(e.target.value)} style={{ width: 160 }}>
                     <option value="all">Every client</option>
                     <option value="internal">Internal only</option>
                     {clients.filter((c) => projects.some((p) => p.client_id === c.id)).map((c) => (
@@ -164,23 +164,23 @@ export default function ProjectsPage() {
                     ))}
                 </Select>
                 {managers.length > 0 && (
-                    <Select aria-label="Manager" value={manager} onChange={(e) => setManager(e.target.value)} style={{ width: 150, height: 31 }}>
+                    <Select aria-label="Manager" value={manager} onChange={(e) => setManager(e.target.value)} style={{ width: 150 }}>
                         <option value="all">Any manager</option>
                         {managers.map((e) => <option key={e.id} value={e.id}>{nameOf(e)}</option>)}
                     </Select>
                 )}
                 {myEmployeeId && (
-                    <Btn aria-pressed={mine} style={{ height: 31 }} onClick={() => setMine((v) => !v)}>
+                    <Btn aria-pressed={mine} onClick={() => setMine((v) => !v)}>
                         {mine ? '✓ ' : ''}My projects
                     </Btn>
                 )}
-                <Select aria-label="Health" value={healthFilter} onChange={(e) => setHealthFilter(e.target.value)} style={{ width: 130, height: 31 }}>
+                <Select aria-label="Health" value={healthFilter} onChange={(e) => setHealthFilter(e.target.value)} style={{ width: 130 }}>
                     <option value="all">Any health</option>
                     <option value="on_track">On track</option>
                     <option value="at_risk">At risk</option>
                     <option value="off_track">Off track</option>
                 </Select>
-                <Btn aria-pressed={showArchived} style={{ height: 31 }} onClick={() => setShowArchived((v) => !v)}>
+                <Btn aria-pressed={showArchived} onClick={() => setShowArchived((v) => !v)}>
                     {showArchived ? 'Hide archived' : 'Show archived'}
                 </Btn>
             </Toolbar>
@@ -249,8 +249,8 @@ export default function ProjectsPage() {
                                 )}
                                 {show('c') && <Td muted nowrap>{p.code}</Td>}
                                 {show('n') && (
-                                    <Td>
-                                        <span style={{ display: 'block' }}>{p.name}</span>
+                                    <Td nowrap>
+                                        <span style={{ display: 'block', fontWeight: 500 }}>{p.name}</span>
                                         <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 2 }}>
                                             {p.client_id ? clientName[p.client_id] || 'Client' : 'Internal'}
                                             {p.archived_at ? ' · archived' : ''}
@@ -261,7 +261,7 @@ export default function ProjectsPage() {
                                 {show('m') && (
                                     <Td nowrap>
                                         {mgr ? (
-                                            <Row gap={7}><Avatar name={nameOf(mgr)} size={20} /><Muted>{nameOf(mgr)}</Muted></Row>
+                                            <Row gap={8}><Avatar name={nameOf(mgr)} size={24} /><span style={{ fontSize: 13, color: t.text }}>{nameOf(mgr)}</span></Row>
                                         ) : dash}
                                     </Td>
                                 )}
@@ -328,9 +328,9 @@ function PinControls({ name, pinned, first, last, onToggle, onMove }) {
         <button type="button" aria-label={label} title={label} disabled={disabled} aria-pressed={pressed}
             onClick={stop(onClick)} className="edge-btn"
             style={{
-                width: 24, height: 24, padding: 0, display: 'inline-grid', placeItems: 'center', borderRadius: 6,
-                border: '1px solid ' + (pressed ? t.text : t.line), background: pressed ? t.panelAlt : 'transparent',
-                color: disabled ? t.ghost : t.text, cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1,
+                width: 28, height: 28, padding: 0, display: 'inline-grid', placeItems: 'center', borderRadius: 8,
+                border: '1px solid ' + (pressed ? 'transparent' : t.line), background: pressed ? t.accentSoft : t.panelAlt,
+                color: disabled ? t.ghost : pressed ? t.accent : t.faint, cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1,
             }}>{children}</button>
     );
     return (
@@ -349,10 +349,12 @@ function Board({ projects, clientName, empById, progressOf, onOpen }) {
     return (
         <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', alignItems: 'start' }}>
             {PROJECT_STATUSES.map((s) => (
-                <section key={s.id} aria-label={s.label} style={{ border: '1px solid ' + t.line, borderRadius: 10, minWidth: 0 }}>
-                    <header style={{ display: 'flex', gap: 8, padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft }}>
-                        <span style={{ flex: 1, fontSize: 13 }}>{s.label}</span>
-                        <span style={{ fontSize: 11.5, color: t.ghost }}>{groups[s.id].length}</span>
+                <section key={s.id} aria-label={s.label} style={{
+                    border: '1px solid ' + t.line, borderRadius: 16, minWidth: 0, background: t.card, boxShadow: t.highlight, overflow: 'hidden',
+                }}>
+                    <header style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderBottom: '1px solid ' + t.line, background: t.panelAlt }}>
+                        <span style={{ flex: 1 }}><Status tone={STATUS_TONE[s.id]}>{s.label}</Status></span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: t.dim, minWidth: 22, height: 22, display: 'grid', placeItems: 'center', borderRadius: 99, background: t.card, border: '1px solid ' + t.line }}>{groups[s.id].length}</span>
                     </header>
                     <div style={{ display: 'grid', gap: 8, padding: 10 }}>
                         {groups[s.id].length === 0
@@ -362,16 +364,16 @@ function Board({ projects, clientName, empById, progressOf, onOpen }) {
                                 const mgr = empById[p.manager_employee_id];
                                 return (
                                     <button key={p.id} type="button" onClick={() => onOpen(p)} className="edge-tr" style={{
-                                        textAlign: 'left', border: '1px solid ' + t.line, borderRadius: 9, padding: 11,
-                                        background: t.panel, cursor: 'pointer', color: t.text, fontFamily: 'inherit',
+                                        textAlign: 'left', border: '1px solid ' + t.line, borderRadius: 12, padding: 12,
+                                        background: t.panelAlt, cursor: 'pointer', color: t.text, fontFamily: 'inherit',
                                     }}>
                                         <span style={{ display: 'block', fontSize: 11, color: t.faint }}>{p.code}</span>
-                                        <span style={{ display: 'block', fontSize: 13, margin: '3px 0 6px' }}>{p.name}</span>
+                                        <span style={{ display: 'block', fontSize: 13.5, fontWeight: 600, margin: '3px 0 6px' }}>{p.name}</span>
                                         <span style={{ display: 'block', fontSize: 11.5, color: t.faint, marginBottom: 8 }}>
                                             {p.client_id ? clientName[p.client_id] || 'Client' : 'Internal'}
                                             {mgr ? ` · ${mgr.name || mgr.full_name || ''}` : ''}
                                         </span>
-                                        {prog != null && <Bar value={prog} max={1} height={3} />}
+                                        {prog != null && <Row gap={8}><span style={{ flex: 1 }}><Bar value={prog} max={1} height={5} /></span><Muted>{Math.round(prog * 100)}%</Muted></Row>}
                                     </button>
                                 );
                             })}

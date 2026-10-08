@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  ArrowDownLeft, ArrowUpRight, Banknote, ChevronLeft, ChevronRight, Download, Paperclip, Pencil,
-  Plus, Search, Trash2, Wallet, X,
+  ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Download, Paperclip, Pencil,
+  Trash2, Wallet,
 } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
 import { receiptService } from '../../services/receiptService';
@@ -11,8 +11,10 @@ import {
   TREATMENTS, categoryLabel, groupOf, loadFinanceCategories, methodLabel, rowTreatment,
 } from '../../services/financeCategories';
 import { useToast } from '../shared/Toast';
-import { Dropdown, RowMenu } from '../ui/edge';
-import { Stat } from './financeUi';
+import {
+  Page, Toolbar, Row, Panel, Btn, Seg, Search, Input, Dropdown, RowMenu, Table, Tr, Td, Status, Bar, Empty, Muted,
+} from '../ui/edge';
+import { useT } from '../ui/edgeUtils';
 import { pickerFor, canSeeFinancials } from '../../services/projectService';
 import { projectLabel } from '../../services/projectAnalytics';
 import { GENERAL, rowsFor, splitTotals, withParts } from '../../services/ledgerSplit';
@@ -23,7 +25,7 @@ import CashEntryModal from './CashEntryModal';
 import { SECTION, billBalance, billPaymentEntry, blank } from './cashEntry';
 
 const PRESETS = [
-  { id: 'all',     label: 'All Time' },
+  { id: 'all',     label: 'All time' },
   { id: 'month',   label: 'This month' },
   { id: 'quarter', label: 'This quarter' },
   { id: 'fy',      label: 'This FY' },
@@ -52,6 +54,7 @@ const VIEWS = [
  * labelled so the difference is visible rather than inferred.
  */
 export default function CashBook({ projectId = null }) {
+  const t = useT();
   const toast = useToast();
   const [params, setParams] = useSearchParams();
 
@@ -245,79 +248,104 @@ export default function CashBook({ projectId = null }) {
     }
   };
 
+  const recent = rows.slice(0, 3);
+  const inShare = flow.cashIn + flow.cashOut > 0 ? flow.cashIn / (flow.cashIn + flow.cashOut) : 0;
+  const periodText = range.from ? `${fmtDate(range.from)} – ${fmtDate(range.to)}` : preset === 'custom' ? 'Custom range' : 'All time';
+  const record = (direction) => setEditing(fresh(direction));
+
   return (
-    <div style={{ maxWidth: '100%' }}>
-      <div className="prod-stats">
-        <Stat icon={<ArrowDownLeft size={15} />} label={`Money in · ${flow.inCount} entries`}
-          value={money(flow.cashIn)} accent="var(--success)" onClick={() => setView('in')} />
-        <Stat icon={<ArrowUpRight size={15} />} label={`Money out · ${flow.outCount} entries`}
-          value={money(flow.cashOut)} accent="var(--error)"
-          sub={flow.pending > 0 ? `${money(flow.pending)} not paid yet` : undefined}
-          onClick={() => setView('out')} />
-        <Stat icon={<Wallet size={15} />} label={flow.net >= 0 ? 'Net cash in' : 'Net cash out'}
-          value={money(Math.abs(flow.net))} accent={flow.net >= 0 ? 'var(--success)' : 'var(--error)'}
-          sub={splitting && where !== 'all' ? whereLabel : undefined} />
+    <Page>
+      <div className="gl-bento">
+        {/* ── the one job of this page: put money on the record ── */}
+        <section aria-labelledby="gl-record" className="gl-record" style={{
+          gridArea: 'rec', position: 'relative', overflow: 'hidden', padding: 20, borderRadius: 20,
+          background: t.card, border: '1px solid ' + t.line, boxShadow: t.highlight,
+          backgroundImage: `radial-gradient(120% 90% at 100% 0%, ${t.accentSoft}, transparent 62%)`,
+          display: 'flex', flexDirection: 'column', gap: 14,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <h2 id="gl-record" style={{ margin: 0, fontSize: 18, fontWeight: 600, letterSpacing: '-0.02em', color: t.text }}>Record money</h2>
+              <div style={{ fontSize: 12.5, color: t.faint, marginTop: 2 }}>
+                {scope ? 'Lands on this project straight away.' : 'Cash in without an invoice, and anything you spent.'}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
+            <RecordBtn t={t} tone={t.up} icon={ArrowDownLeft} label="Money in" note="Sales, retainers, funding, interest" onClick={() => record('in')} />
+            <RecordBtn t={t} tone={t.down} icon={ArrowUpRight} label="Money out" note="Salaries, rent, purchases, tax" onClick={() => record('out')} />
+          </div>
+          <div style={{ marginTop: 'auto', minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: t.faint, marginBottom: 4 }}>Recently recorded</div>
+            {recent.length ? recent.map((r) => {
+              const isIn = r.direction === 'in';
+              return (
+                <button key={`${r.direction}-${r.id}`} type="button" className="edge-tr"
+                  onClick={() => setEditing({ ...r, ...(r._full || {}), _share: undefined, _full: undefined, date: r.day })}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '7px 8px', margin: '0 -8px',
+                    boxSizing: 'content-box', border: 'none', borderRadius: 9, background: 'transparent', cursor: 'pointer',
+                    fontFamily: 'inherit', color: t.text, textAlign: 'left',
+                  }}>
+                  <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: 99, flexShrink: 0, background: isIn ? t.up : t.down }} />
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.description}</span>
+                  <span style={{ fontSize: 12, color: t.faint, whiteSpace: 'nowrap' }}>{fmtDate(r.day)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', color: isIn ? t.up : t.down }}>
+                    {isIn ? '+' : '−'}{money(r.amount, 2)}
+                  </span>
+                </button>
+              );
+            }) : (
+              <div style={{ fontSize: 12.5, color: t.faint }}>Nothing yet. Both sides land in Profit &amp; Loss and the Tax Summary straight away.</div>
+            )}
+          </div>
+        </section>
+
+        <FlowTile t={t} area="in" icon={ArrowDownLeft} tone={t.up} label="Money in" value={money(flow.cashIn)}
+          note={`${flow.inCount} ${flow.inCount === 1 ? 'entry' : 'entries'} · ${periodText}`}
+          active={view === 'in'} onClick={() => setView(view === 'in' ? 'all' : 'in')} />
+        <FlowTile t={t} area="out" icon={ArrowUpRight} tone={t.down} label="Money out" value={money(flow.cashOut)}
+          note={flow.pending > 0 ? `${money(flow.pending)} not paid yet` : `${flow.outCount} ${flow.outCount === 1 ? 'entry' : 'entries'} · ${periodText}`}
+          active={view === 'out'} onClick={() => setView(view === 'out' ? 'all' : 'out')} />
+        <div style={{
+          gridArea: 'net', padding: '16px 18px', borderRadius: 18, background: t.card, border: '1px solid ' + t.line, boxShadow: t.highlight,
+          display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <span aria-hidden="true" style={{ width: 28, height: 28, borderRadius: 9, display: 'grid', placeItems: 'center', background: t.accentSoft, color: t.accent }}><Wallet size={14} /></span>
+            <span style={{ fontSize: 12.5, fontWeight: 500, color: t.dim, flex: 1 }}>{flow.net >= 0 ? 'Net cash in' : 'Net cash out'}</span>
+            {splitting && where !== 'all' && <Status tone="accent">{whereLabel}</Status>}
+          </div>
+          <div style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1, fontVariantNumeric: 'tabular-nums', color: flow.net >= 0 ? t.up : t.down }}>
+            {flow.net < 0 ? '−' : ''}{money(Math.abs(flow.net))}
+          </div>
+          <div aria-hidden="true" style={{ display: 'flex', gap: 3, height: 8, borderRadius: 99, overflow: 'hidden', background: t.panelAlt }}>
+            <span style={{ flex: `${inShare} 1 0`, background: t.up, borderRadius: 99, minWidth: inShare > 0 ? 4 : 0 }} />
+            <span style={{ flex: `${1 - inShare} 1 0`, background: t.down, borderRadius: 99, minWidth: inShare < 1 && flow.cashOut > 0 ? 4 : 0 }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: t.faint }}>
+            <span>{Math.round(inShare * 100)}% in</span>
+            <span>{Math.round((1 - inShare) * 100)}% out</span>
+          </div>
+        </div>
       </div>
 
-      {splitting && (
-        <div className="prod-perf-table-wrap" style={{ marginBottom: '1rem' }}>
-          <table className="prod-perf-table">
-            <caption style={{ textAlign: 'left', fontWeight: 600, padding: '0.6rem 0.75rem' }}>
-              {range.from ? `${fmtDate(range.from)} to ${fmtDate(range.to)}` : preset === 'custom' ? 'Custom' : 'All Time'}
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Where the money went</th>
-                <th scope="col" className="num">Money in</th>
-                <th scope="col" className="num">Money out</th>
-                <th scope="col" className="num">Net</th>
-                <th scope="col" className="num">Entries</th>
-              </tr>
-            </thead>
-            <tbody>
-              {byWhere.map((b) => {
-                const general = b.key === GENERAL;
-                const active = where === b.key;
-                return (
-                  <tr key={b.key} style={active ? { background: 'var(--surface-hover, rgba(0,0,0,0.04))' } : undefined}>
-                    <td>
-                      <button type="button" className="prod-btn-ghost" aria-pressed={active}
-                        style={{ padding: 0, border: 0, background: 'none', textAlign: 'left', fontWeight: active ? 700 : 500 }}
-                        onClick={() => setWhere(active ? 'all' : b.key)}>
-                        {general ? 'Others' : projectName(b.key)}
-                      </button>
-                    </td>
-                    <td className="num" style={{ color: 'var(--success)' }}>{money(b.moneyIn, 2)}</td>
-                    <td className="num" style={{ color: 'var(--error)' }}>{money(b.moneyOut, 2)}</td>
-                    <td className="num strong">{money(b.net, 2)}</td>
-                    <td className="num">{b.entries}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Line one narrows the list: period chips, then reason and project. */}
-      <div className="prod-toolbar" style={{ marginBottom: '0.6rem' }}>
-        {PRESETS.map((p) => (
-          <button key={p.id} type="button" aria-pressed={preset === p.id}
-            className={`pro-chip ${preset === p.id ? 'active' : ''}`} onClick={() => setPreset(p.id)}>
-            {p.label}
-          </button>
-        ))}
+      {/* ── narrow the list ── */}
+      <Toolbar right={<Btn onClick={exportCsv} disabled={filtered.length === 0}><Download size={15} aria-hidden="true" /> Export CSV</Btn>}>
+        <Search value={search} onChange={setSearch} placeholder="Search description, party, reference…" width={280} />
+        <Seg value={view} onChange={setView} label="Direction" options={VIEWS} />
+        <Seg value={preset} onChange={setPreset} label="Period" options={PRESETS} />
         {preset === 'custom' && (
-          <div className="prod-range">
-            <input type="date" aria-label="From date" value={from} onChange={(e) => setFrom(e.target.value)} />
-            <span>to</span>
-            <input type="date" aria-label="To date" value={to} onChange={(e) => setTo(e.target.value)} />
-          </div>
+          <Row gap={6}>
+            <Input type="date" aria-label="From date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
+            <Muted>to</Muted>
+            <Input type="date" aria-label="To date" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
+          </Row>
         )}
-        <Dropdown label="Reason" height={32} value={groupFilter} onChange={setGroupFilter}
+        <Dropdown label="Reason" value={groupFilter} onChange={setGroupFilter}
           options={[{ id: 'all', label: 'All' }, ...groups.map((g) => ({ id: g, label: g }))]} />
         {splitting && (
-          <Dropdown label="Project" height={32} value={where} onChange={setWhere}
+          <Dropdown label="Project" value={where} onChange={setWhere}
             options={[
               { id: 'all', label: 'All' },
               { id: GENERAL, label: 'Others' },
@@ -325,126 +353,211 @@ export default function CashBook({ projectId = null }) {
                 .map((p) => ({ id: p.id, label: projectName(p.id) })),
             ]} />
         )}
-      </div>
+      </Toolbar>
 
-      {/* Line two: find, and act. */}
-      <div className="prod-toolbar">
-        <div className="prod-search">
-          <Search size={14} aria-hidden="true" />
-          <input aria-label="Search the general ledger" value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search description, party, reference..." />
-          {search && (
-            <button type="button" onClick={() => setSearch('')} className="prod-search-clear"
-              aria-label="Clear search" title="Clear search"><X size={13} aria-hidden="true" /></button>
-          )}
-        </div>
-        <Dropdown label="Show" value={view} onChange={setView} options={VIEWS} />
-        <button type="button" className="prod-btn-ghost" onClick={exportCsv} disabled={filtered.length === 0}>
-          <Download size={15} aria-hidden="true" /> Export CSV
-        </button>
-        {/* One button; the form's Money in / Money out toggle picks the side. */}
-        <button type="button" className="prod-add-btn"
-          onClick={() => { setEditing(fresh('in')); }}>
-          <Plus size={15} aria-hidden="true" /> Record money
-        </button>
-      </div>
-
+      {/* ── the entries ── */}
       {filtered.length === 0 ? (
-        <div className="prod-empty">
-          <Banknote size={40} strokeWidth={1} aria-hidden="true" />
-          <p>{rows.length === 0 ? (scope ? 'Nothing recorded against this project yet' : 'Nothing in the general ledger yet') : 'Nothing in this period or filter'}</p>
-          <span>
-            Record cash that came in without an invoice and anything you spent (on product, on
-            labour, on the office, on tax). Both sides land in Profit &amp; Loss and in the Tax
-            Summary straight away.
-          </span>
-        </div>
+        <Panel>
+          <Empty action={<Row gap={8} style={{ justifyContent: 'center' }}>
+            <Btn primary onClick={() => record('in')}><ArrowDownLeft size={15} aria-hidden="true" /> Money in</Btn>
+            <Btn onClick={() => record('out')}><ArrowUpRight size={15} aria-hidden="true" /> Money out</Btn>
+          </Row>}>
+            {rows.length === 0 ? (scope ? 'Nothing recorded against this project yet.' : 'Nothing in the general ledger yet.') : 'Nothing in this period or filter.'}
+          </Empty>
+        </Panel>
       ) : (
-        <div className="prod-perf-table-wrap">
-          <table className="prod-perf-table">
-            <caption className="sr-only">
-              General ledger entries{range.from ? ` from ${fmtDate(range.from)} to ${fmtDate(range.to)}` : ', all time'}
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Date</th>
-                <th scope="col">Entry</th>
-                <th scope="col">Party</th>
-                {splitting && <th scope="col">Project</th>}
-                <th scope="col">Country</th>
-                <th scope="col">Method</th>
-                <th scope="col" className="num">In</th>
-                <th scope="col" className="num">Out</th>
-                <th scope="col">Counts as</th>
-                <th scope="col"><span className="sr-only">Actions</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageRows.map((r) => {
-                const t = TREATMENTS[r.treatment];
-                const linked = r.direction === 'in' && r.document_id;
-                const billPaid = r.direction === 'out' && r.purchase_invoice_id;
-                return (
-                  <tr key={`${r.direction}-${r.id}`} style={r.status === 'pending' ? { opacity: 0.65 } : undefined}>
-                    <td className="prod-perf-date">{fmtDate(r.day)}</td>
-                    <td>
-                      <div className="prod-perf-name">{r.description}</div>
-                      <div className="prod-perf-meta">
-                        {ready ? categoryLabel(r.category) : r.category}
-                        {Number(r.tax_amount) > 0
-                          ? ` · ${r.is_inter_state ? 'IGST' : 'GST'} ${money(r.tax_amount)}${Number(r.tax_rate) > 0 ? ` @ ${Number(r.tax_rate)}%` : ''}`
-                          : ''}
-                        {r.currency && r.currency !== 'INR'
-                          ? ` · ${r.currency} ${Number(r.original_amount).toLocaleString('en-IN')} @ ${Number(r.fx_rate)}`
-                          : ''}
-                        {r.quantity ? ` · ${Number(r.quantity).toLocaleString('en-IN')} ${r.unit || ''}`.trimEnd() : ''}
-                        {r.direction === 'out' && r.department_id ? ` · ${nameOf(departments, r.department_id)}` : ''}
-                        {r.direction === 'out' && r.billable ? ' · re-billable' : ''}
-                        {r.direction === 'in' && r.catalog_item_id ? ` · ${nameOf(catalog, r.catalog_item_id)}` : ''}
-                        {r.place_of_supply ? ` · ${r.place_of_supply}` : ''}
-                        {r.reference ? ` · ${r.reference}` : ''}
-                        {r.status === 'pending' ? ' · not paid yet' : ''}
-                        {r._share < 1 ? ` · ${where === GENERAL ? 'the general' : 'this project’s'} share of ${money(r._full.amount, 2)}` : ''}
-                      </div>
-                    </td>
-                    <td>{r.party || '-'}</td>
-                    {splitting && <td style={{ fontSize: '0.75rem' }}>{partsLabel(r)}</td>}
-                    <td style={{ fontSize: '0.75rem' }}>{r.country_code || '-'}</td>
-                    <td style={{ fontSize: '0.75rem' }}>{methodLabel(r.payment_method)}</td>
-                    <td className="num strong" style={{ color: r.direction === 'in' ? 'var(--success)' : undefined }}>
-                      {r.direction === 'in' ? money(r.amount, 2) : ''}
-                    </td>
-                    <td className="num strong" style={{ color: r.direction === 'out' ? 'var(--error)' : undefined }}>
-                      {r.direction === 'out' ? money(r.amount, 2) : ''}
-                    </td>
-                    <td style={{ fontSize: '0.75rem' }}
-                      title={linked ? 'Recorded against an invoice, which already counts it'
-                        : billPaid ? 'Pays a purchase bill, which already counts the cost and its GST' : t?.note}>
-                      {linked ? 'Invoice receipt' : billPaid ? 'Bill payment' : (t?.label || r.treatment)}
-                    </td>
-                    <td style={{ whiteSpace: 'nowrap' }}>
+        <Table id="general-ledger" cols={[
+          { key: 'd', label: 'Date', width: 110 },
+          { key: 'e', label: 'Entry', always: true },
+          { key: 'p', label: 'Party' },
+          ...(splitting ? [{ key: 'pr', label: 'Project' }] : []),
+          { key: 'co', label: 'Country', def: false },
+          { key: 'm', label: 'Method' },
+          { key: 'ca', label: 'Counts as' },
+          { key: 'a', label: 'Amount', align: 'right', always: true },
+          { key: 'x', label: '', width: 52, always: true },
+        ]}>
+          {(show) => pageRows.map((r) => {
+            const tr = TREATMENTS[r.treatment];
+            const linked = r.direction === 'in' && r.document_id;
+            const billPaid = r.direction === 'out' && r.purchase_invoice_id;
+            const isIn = r.direction === 'in';
+            const meta = [
+              ready ? categoryLabel(r.category) : r.category,
+              Number(r.tax_amount) > 0 ? `${r.is_inter_state ? 'IGST' : 'GST'} ${money(r.tax_amount)}${Number(r.tax_rate) > 0 ? ` @ ${Number(r.tax_rate)}%` : ''}` : '',
+              r.currency && r.currency !== 'INR' ? `${r.currency} ${Number(r.original_amount).toLocaleString('en-IN')} @ ${Number(r.fx_rate)}` : '',
+              r.quantity ? `${Number(r.quantity).toLocaleString('en-IN')} ${r.unit || ''}`.trimEnd() : '',
+              !isIn && r.department_id ? nameOf(departments, r.department_id) : '',
+              !isIn && r.billable ? 're-billable' : '',
+              isIn && r.catalog_item_id ? nameOf(catalog, r.catalog_item_id) : '',
+              r.place_of_supply || '',
+              r.reference || '',
+              r._share < 1 ? `${where === GENERAL ? 'the general' : 'this project’s'} share of ${money(r._full.amount, 2)}` : '',
+            ].filter(Boolean).join(' · ');
+            const edit = () => setEditing({ ...r, ...(r._full || {}), _share: undefined, _full: undefined, date: r.day });
+            return (
+              <Tr key={`${r.direction}-${r.id}`} onClick={edit} label={`Edit ${r.description}`}>
+                {show('d') && <Td muted nowrap>{fmtDate(r.day)}</Td>}
+                {show('e') && (
+                  <Td>
+                    <Row gap={10} align="flex-start">
+                      <span aria-hidden="true" style={{
+                        width: 30, height: 30, borderRadius: 99, flexShrink: 0, display: 'grid', placeItems: 'center',
+                        color: isIn ? t.up : t.down,
+                        background: `color-mix(in srgb, ${isIn ? t.up : t.down} 12%, transparent)`,
+                      }}>{isIn ? <ArrowDownLeft size={15} /> : <ArrowUpRight size={15} />}</span>
+                      <span style={{ minWidth: 0 }}>
+                        <span style={{ display: 'block', fontWeight: 500 }}>{r.description}</span>
+                        <span style={{ display: 'block', fontSize: 11.5, color: t.faint, marginTop: 2 }}>{meta}</span>
+                      </span>
+                    </Row>
+                  </Td>
+                )}
+                {show('p') && <Td nowrap>{r.party || <span style={{ color: t.ghost }}>-</span>}</Td>}
+                {show('pr') && <Td nowrap muted>{partsLabel(r)}</Td>}
+                {show('co') && <Td nowrap muted>{r.country_code || '-'}</Td>}
+                {show('m') && <Td nowrap muted>{methodLabel(r.payment_method)}</Td>}
+                {show('ca') && (
+                  <Td nowrap>
+                    <span title={linked ? 'Recorded against an invoice, which already counts it'
+                      : billPaid ? 'Pays a purchase bill, which already counts the cost and its GST' : tr?.note}>
+                      <Status tone={r.status === 'pending' ? 'warn' : linked || billPaid ? 'accent' : isIn ? 'up' : 'neutral'}>
+                        {r.status === 'pending' ? 'Not paid yet' : linked ? 'Invoice receipt' : billPaid ? 'Bill payment' : (tr?.label || r.treatment)}
+                      </Status>
+                    </span>
+                  </Td>
+                )}
+                {show('a') && (
+                  <Td align="right" nowrap>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: isIn ? t.up : t.down, opacity: r.status === 'pending' ? 0.6 : 1 }}>
+                      {isIn ? '+' : '−'}{money(r.amount, 2)}
+                    </span>
+                  </Td>
+                )}
+                {show('x') && (
+                  <Td nowrap>
+                    <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                       <RowMenu label={`Actions for ${r.description}`} items={[
                         r.receipt_path && { label: 'View receipt', icon: Paperclip, onClick: () => receiptService.open(r.receipt_path) },
-                        { label: 'Edit', icon: Pencil, onClick: () => { setEditing({ ...r, ...(r._full || {}), _share: undefined, _full: undefined, date: r.day }); } },
+                        { label: 'Edit', icon: Pencil, onClick: edit },
                         { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => handleDelete(r) },
                       ]} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </span>
+                  </Td>
+                )}
+              </Tr>
+            );
+          })}
+        </Table>
       )}
 
       {filtered.length > PAGE_SIZE && (
-        <Pager page={page} pageCount={pageCount} total={filtered.length} onPage={setPage} />
+        <Pager t={t} page={page} pageCount={pageCount} total={filtered.length} onPage={setPage} />
+      )}
+
+      {/* ── where it went, by project: also a filter ── */}
+      {splitting && byWhere.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <Panel title="Where the money went" note={periodText}>
+            <div style={{ display: 'grid' }}>
+              {byWhere.map((b) => {
+                const general = b.key === GENERAL;
+                const active = where === b.key;
+                const peak = Math.max(1, ...byWhere.map((x) => Math.max(x.moneyIn, x.moneyOut)));
+                return (
+                  <button key={b.key} type="button" aria-pressed={active} className="edge-tr"
+                    onClick={() => setWhere(active ? 'all' : b.key)}
+                    style={{
+                      display: 'grid', gridTemplateColumns: 'minmax(140px, 1.4fr) minmax(120px, 2fr) repeat(3, minmax(90px, auto))',
+                      alignItems: 'center', gap: 16, width: '100%', textAlign: 'left', padding: '12px 16px',
+                      border: 'none', borderBottom: '1px solid ' + t.line, cursor: 'pointer', fontFamily: 'inherit', color: t.text,
+                      background: active ? t.accentSoft : 'transparent',
+                    }}>
+                    <span style={{ fontWeight: 500, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {general ? 'Others' : projectName(b.key)}
+                      <span style={{ display: 'block', fontSize: 11.5, color: t.faint, fontWeight: 400 }}>{b.entries} {b.entries === 1 ? 'entry' : 'entries'}</span>
+                    </span>
+                    <span style={{ display: 'grid', gap: 4 }}>
+                      <Bar value={b.moneyIn} max={peak} height={6} tone={t.up} />
+                      <Bar value={b.moneyOut} max={peak} height={6} tone={t.down} />
+                    </span>
+                    <span style={{ textAlign: 'right', fontSize: 13, color: t.up, fontVariantNumeric: 'tabular-nums' }}>+{money(b.moneyIn, 2)}</span>
+                    <span style={{ textAlign: 'right', fontSize: 13, color: t.down, fontVariantNumeric: 'tabular-nums' }}>−{money(b.moneyOut, 2)}</span>
+                    <span style={{ textAlign: 'right', fontSize: 13.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: b.net < 0 ? t.down : t.text }}>{money(b.net, 2)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Panel>
+        </div>
       )}
 
       {editing && (
         <CashEntryModal key={editing.id || 'new'} entry={editing} fresh={fresh} onClose={() => setEditing(null)} />
       )}
-    </div>
+
+      <style>{`
+        .gl-bento { display: grid; gap: 12px; margin-bottom: 12px;
+          grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+          grid-template-areas: "rec in out" "rec net net"; }
+        @media (max-width: 980px) {
+          .gl-bento { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "rec rec" "in out" "net net"; }
+        }
+        @media (max-width: 560px) {
+          .gl-bento { grid-template-columns: minmax(0, 1fr); grid-template-areas: "rec" "in" "out" "net"; }
+        }
+        .gl-rec-btn { transition: transform .18s cubic-bezier(.16,1,.3,1), box-shadow .18s, border-color .18s; }
+        .gl-rec-btn:hover { transform: translateY(-2px); }
+        .gl-flow { transition: border-color .15s, transform .18s cubic-bezier(.16,1,.3,1); }
+        .gl-flow:hover { transform: translateY(-2px); border-color: ${t.lineStrong} !important; }
+        @media (prefers-reduced-motion: reduce) { .gl-rec-btn:hover, .gl-flow:hover { transform: none; } }
+      `}</style>
+    </Page>
+  );
+}
+
+/** One side of "Record money": a large target in the side's colour. */
+function RecordBtn({ t, tone, icon: Icon, label, note, onClick }) {
+  return (
+    <button type="button" onClick={onClick} className="gl-rec-btn" style={{
+      display: 'flex', alignItems: 'center', gap: 12, padding: '14px 14px', borderRadius: 14, cursor: 'pointer',
+      textAlign: 'left', fontFamily: 'inherit', color: t.text,
+      background: `color-mix(in srgb, ${tone} ${t.isDark ? 12 : 7}%, ${t.card})`,
+      border: `1px solid color-mix(in srgb, ${tone} 30%, transparent)`,
+      boxShadow: `${t.highlight}, 0 10px 24px -18px ${tone}`,
+    }}>
+      <span aria-hidden="true" style={{
+        width: 38, height: 38, borderRadius: 11, flexShrink: 0, display: 'grid', placeItems: 'center',
+        background: tone, color: '#fff', boxShadow: `inset 0 1px 0 rgba(255,255,255,.25), 0 6px 14px -6px ${tone}`,
+      }}><Icon size={18} /></span>
+      <span style={{ minWidth: 0 }}>
+        <span style={{ display: 'block', fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em' }}>{label}</span>
+        <span style={{ display: 'block', fontSize: 12, color: t.faint, marginTop: 2 }}>{note}</span>
+      </span>
+    </button>
+  );
+}
+
+/** A total that doubles as the In / Out filter. */
+function FlowTile({ t, area, icon: Icon, tone, label, value, note, active, onClick }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={active} className="gl-flow" style={{
+      gridArea: area, textAlign: 'left', fontFamily: 'inherit', color: t.text, cursor: 'pointer', minWidth: 0,
+      padding: '16px 18px', borderRadius: 18, background: active ? `color-mix(in srgb, ${tone} 7%, ${t.card})` : t.card,
+      border: '1px solid ' + (active ? `color-mix(in srgb, ${tone} 45%, transparent)` : t.line), boxShadow: t.highlight,
+      display: 'flex', flexDirection: 'column', gap: 10,
+    }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+        <span aria-hidden="true" style={{
+          width: 28, height: 28, borderRadius: 9, display: 'grid', placeItems: 'center', color: tone,
+          background: `color-mix(in srgb, ${tone} 12%, transparent)`,
+        }}><Icon size={14} /></span>
+        <span style={{ fontSize: 12.5, fontWeight: 500, color: t.dim, flex: 1 }}>{label}</span>
+        {active && <span style={{ fontSize: 11.5, color: tone, fontWeight: 500 }}>Filtering</span>}
+      </span>
+      <span style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1, color: tone, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+      <span style={{ fontSize: 12, color: t.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{note}</span>
+    </button>
   );
 }
 
@@ -459,32 +572,27 @@ function pageList(page, count) {
   return out;
 }
 
-function Pager({ page, pageCount, total, onPage }) {
+function Pager({ t, page, pageCount, total, onPage }) {
   const first = (page - 1) * PAGE_SIZE + 1;
   const last = Math.min(page * PAGE_SIZE, total);
   return (
     <nav aria-label="General ledger pages"
-      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-      <span style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }} aria-live="polite">
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
+      <span style={{ fontSize: 12.5, color: t.faint }} aria-live="polite">
         Showing {first}–{last} of {total} entries
       </span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-        <button type="button" className="prod-btn-ghost" onClick={() => onPage(page - 1)} disabled={page === 1}>
+      <Row gap={4}>
+        <Btn size="sm" onClick={() => onPage(page - 1)} disabled={page === 1}>
           <ChevronLeft size={15} aria-hidden="true" /> Previous
-        </button>
+        </Btn>
         {pageList(page, pageCount).map((n) => (typeof n === 'string'
-          ? <span key={n} aria-hidden="true" style={{ padding: '0 0.25rem', color: 'var(--text-tertiary)' }}>…</span>
-          : (
-            <button key={n} type="button" aria-label={`Page ${n}`} aria-current={n === page ? 'page' : undefined}
-              className={`pro-chip ${n === page ? 'active' : ''}`} onClick={() => onPage(n)}
-              style={{ minWidth: 36, justifyContent: 'center' }}>
-              {n}
-            </button>
-          )))}
-        <button type="button" className="prod-btn-ghost" onClick={() => onPage(page + 1)} disabled={page === pageCount}>
+          ? <span key={n} aria-hidden="true" style={{ padding: '0 4px', color: t.faint }}>…</span>
+          : <Btn key={n} size="sm" primary={n === page} aria-label={`Page ${n}`} aria-current={n === page ? 'page' : undefined}
+              onClick={() => onPage(n)} style={{ minWidth: 30, padding: 0 }}>{n}</Btn>))}
+        <Btn size="sm" onClick={() => onPage(page + 1)} disabled={page === pageCount}>
           Next <ChevronRight size={15} aria-hidden="true" />
-        </button>
-      </div>
+        </Btn>
+      </Row>
     </nav>
   );
 }

@@ -63,3 +63,24 @@ export const fmtDate = (d) => (d
 export const fmtDay = (d) => (d
     ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
     : '-');
+
+/* ── tables ──────────────────────────────────────────────────────────────────
+   The one table look, for the kit's <Table> and for any table a page has to
+   draw itself: a card on a hairline, a tinted header row in sentence case,
+   hairline rows. edgeBridge.css gives the legacy table classes the same. */
+export const tableFrame = (t) => ({
+    border: '1px solid ' + t.line, borderRadius: 16, overflow: 'hidden',
+    background: t.card, boxShadow: t.highlight,
+});
+
+export const thStyle = (t, align) => ({
+    textAlign: align || 'left', padding: '10px 14px',
+    fontSize: 12, fontWeight: 500, letterSpacing: 0, textTransform: 'none', color: t.faint,
+    background: t.panelAlt, borderBottom: '1px solid ' + t.line, whiteSpace: 'nowrap',
+});
+
+export const tdStyle = (t, align) => ({
+    padding: '11px 14px', textAlign: align || 'left',
+    fontSize: 13, color: t.text, borderBottom: '1px solid ' + t.line,
+    fontVariantNumeric: 'tabular-nums',
+});
