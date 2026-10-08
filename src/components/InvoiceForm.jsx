@@ -70,7 +70,7 @@ export default function InvoiceForm() {
     // the organisation: so this only has to be touched for a buyer the
     // customer record does not already place correctly.
     buyerCountry: '',
-    gstRate: 18,
+    gstRate: 0,
     items: Array.isArray(location.state?.lines) && location.state.lines.length
       ? location.state.lines.map((l, i) => ({
         id: i + 1, description: l.description || '', hsnCode: '', quantity: Number(l.quantity) || 1,
@@ -137,17 +137,16 @@ export default function InvoiceForm() {
       }
       if (cancelled) return;
 
-      const today = new Date();
-      const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+      // INV-001, INV-002, ... one past the highest number already used.
       const taken = new Set(
         documentStore.getByType('invoice').map((d) => d.doc_number || d.invoiceNumber)
       );
-
-      let seq = documentStore.getByType('invoice').length + 1;
-      let candidate = `INV-${dateStr}-${String(seq).padStart(3, '0')}`;
+      const used = [...taken].map((n) => /^INV-(\d+)$/.exec(n || '')).filter(Boolean).map((m) => Number(m[1]));
+      let seq = (used.length ? Math.max(...used) : 0) + 1;
+      let candidate = `INV-${String(seq).padStart(3, '0')}`;
       while (taken.has(candidate)) {
         seq += 1;
-        candidate = `INV-${dateStr}-${String(seq).padStart(3, '0')}`;
+        candidate = `INV-${String(seq).padStart(3, '0')}`;
       }
       setFormData(prev => (prev.invoiceNumber ? prev : { ...prev, invoiceNumber: candidate }));
     })();

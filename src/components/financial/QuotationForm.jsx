@@ -110,10 +110,8 @@ export default function QuotationForm({ editDocId }) {
     revision: 'v1',
     discountType: 'percent',
     discountValue: 0,
-    enableGst: false,
-    gstRate: 18,
     items: [
-      { id: Date.now(), description: '', quantity: 1, unit: 'Nos', rate: 0, hsnSac: '' },
+      { id: Date.now(), description: '', quantity: 1, unit: 'Nos', rate: 0, hsnSac: '', gstRate: 0 },
     ],
     paymentInstructions: '',
     terms: '',
@@ -168,8 +166,6 @@ export default function QuotationForm({ editDocId }) {
         // document with. The camelCase names only exist on the form's side.
         discountType: doc.discount_type || doc.discount?.type || 'percent',
         discountValue: Number(doc.discount_value ?? doc.discount?.value) || 0,
-        enableGst: !!(doc.gst_enabled ?? doc.enableGst),
-        gstRate: Number(doc.gst_rate ?? doc.gstRate) || 18,
         items: (doc.items || []).map((item, i) => ({
           id: Date.now() + i,
           description: item.description || '',
@@ -181,6 +177,10 @@ export default function QuotationForm({ editDocId }) {
           // Without this, re-saving a quotation would drop its catalogue
           // attribution and the product would lose the sale on conversion.
           catalog_item_id: item.catalog_item_id || null,
+          // Per line, as on a proforma. A quotation saved before that carried
+          // one document-wide rate, which every line then takes.
+          gstRate: Number(item.gstRate ?? item.gst_rate
+            ?? ((doc.gst_enabled ?? doc.enableGst) ? (doc.gst_rate ?? doc.gstRate) : 0)) || 0,
         })),
         paymentInstructions: doc.payment_instructions || '',
         terms: doc.terms || '',
@@ -229,12 +229,18 @@ export default function QuotationForm({ editDocId }) {
     discountAmount = Math.min(discountAmount, subtotal);
 
     const taxableAmount = subtotal - discountAmount;
-    const gstAmount = formData.enableGst ? taxableAmount * ((Number(formData.gstRate) || 0) / 100) : 0;
+    // Each line's GST is on its own taxable value, after its share of the discount.
+    const keep = subtotal > 0 ? taxableAmount / subtotal : 0;
+    const gstAmount = formData.items.reduce(
+      (sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0) * keep
+        * ((Number(item.gstRate) || 0) / 100),
+      0
+    );
     const grandTotal = taxableAmount + gstAmount;
     const amountInWords = numberToWords(grandTotal);
 
     setTotals({ subtotal, discountAmount, taxableAmount, gstAmount, grandTotal, amountInWords });
-  }, [formData.items, formData.discountType, formData.discountValue, formData.enableGst, formData.gstRate]);
+  }, [formData.items, formData.discountType, formData.discountValue]);
 
   // Close client dropdown on outside click
   useEffect(() => {
@@ -294,7 +300,7 @@ export default function QuotationForm({ editDocId }) {
           ...prev,
           items: lines.map((l, i) => ({
             id: Date.now() + i, description: l.description, quantity: l.quantity,
-            unit: l.unit || 'Nos', rate: l.rate, hsnSac: l.hsn || '', catalog_item_id: l.catalog_item_id || null,
+            unit: l.unit || 'Nos', rate: l.rate, hsnSac: l.hsn || '', gstRate: 0, catalog_item_id: l.catalog_item_id || null,
           })),
         }));
       }
@@ -313,7 +319,7 @@ export default function QuotationForm({ editDocId }) {
       ...prev,
       items: [
         ...prev.items,
-        { id: Date.now(), description: '', quantity: 1, unit: 'Nos', rate: 0, hsnSac: '' },
+        { id: Date.now(), description: '', quantity: 1, unit: 'Nos', rate: 0, hsnSac: '', gstRate: 0 },
       ],
     }));
   };
@@ -328,7 +334,7 @@ export default function QuotationForm({ editDocId }) {
 
   const handleItemChange = (id, field, value) => {
     let processedValue = value;
-    if (field === 'quantity' || field === 'rate') {
+    if (field === 'quantity' || field === 'rate' || field === 'gstRate') {
       processedValue = value === '' ? '' : Number(value);
     }
     setFormData((prev) => ({
@@ -348,7 +354,7 @@ export default function QuotationForm({ editDocId }) {
       ...prev,
       items: prev.items.map((item) =>
         item.id === id
-          ? { ...item, ...productToLineItem(product, { hsn: 'hsnSac', rate: 'rate' }) }
+          ? { ...item, ...productToLineItem(product, { hsn: 'hsnSac', rate: 'rate', tax: 'gstRate' }) }
           : item
       ),
     }));
@@ -408,6 +414,7 @@ export default function QuotationForm({ editDocId }) {
         unit: item.unit,
         rate: Number(item.rate) || 0,
         hsnSac: item.hsnSac,
+        gstRate: Number(item.gstRate) || 0,
         // Carried to document_line_items.catalog_item_id. A quotation is not a
         // sale, so this contributes nothing to Product Performance until the
         // line reaches an issued invoice. But it has to survive the round trip
@@ -420,8 +427,11 @@ export default function QuotationForm({ editDocId }) {
         value: Number(formData.discountValue) || 0,
         amount: totals.discountAmount,
       },
-      enableGst: formData.enableGst,
-      gstRate: formData.enableGst ? formData.gstRate : 0,
+      // The database prices GST from one document-wide rate, so that is the
+      // blended rate of the lines (exact when they all share one).
+      enableGst: totals.gstAmount > 0,
+      gstRate: totals.taxableAmount > 0
+        ? Math.round((totals.gstAmount / totals.taxableAmount) * 10000) / 100 : 0,
       gst: totals.gstAmount,
       grand_total: totals.grandTotal,
       amount_in_words: totals.amountInWords,
@@ -841,13 +851,35 @@ export default function QuotationForm({ editDocId }) {
                       />
                     </div>
                     <div>
-                      <label className="easy-lbl-sm">Amount</label>
-                      <div className="easy-line-amount">
-                        {((Number(item.quantity) || 0) * (Number(item.rate) || 0)).toLocaleString('en-IN', {
-                          style: 'currency',
-                          currency: 'INR',
-                          maximumFractionDigits: 0,
-                        })}
+                      <label className="easy-lbl-sm">GST Rate</label>
+                      <select aria-label="GST Rate"
+                        value={item.gstRate}
+                        onChange={(e) => handleItemChange(item.id, 'gstRate', e.target.value)}
+                        className="easy-inp"
+                      >
+                        {GST_RATES.map((r) => (
+                          <option key={r} value={r}>
+                            {r}%
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.625rem', marginTop: '0.5rem' }}>
+                    <div>
+                      <label className="easy-lbl-sm">Taxable</label>
+                      <div className="easy-line-amount">{formatCurrency((Number(item.quantity) || 0) * (Number(item.rate) || 0))}</div>
+                    </div>
+                    <div>
+                      <label className="easy-lbl-sm" style={{ color: 'var(--text-secondary)' }}>CGST</label>
+                      <div className="easy-line-amount" style={{ color: 'var(--text-primary)' }}>
+                        {formatCurrency((Number(item.quantity) || 0) * (Number(item.rate) || 0) * (Number(item.gstRate) || 0) / 200)}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="easy-lbl-sm" style={{ color: 'var(--text-secondary)' }}>SGST</label>
+                      <div className="easy-line-amount" style={{ color: 'var(--text-primary)' }}>
+                        {formatCurrency((Number(item.quantity) || 0) * (Number(item.rate) || 0) * (Number(item.gstRate) || 0) / 200)}
                       </div>
                     </div>
                   </div>
@@ -866,35 +898,6 @@ export default function QuotationForm({ editDocId }) {
             <button type="button" onClick={handleAddItem} className="easy-add-btn">
               <Plus size={16} /> Add item
             </button>
-
-            {/* GST Toggle */}
-            <div style={{ marginTop: '1rem' }}>
-              <button
-                type="button" role="switch" aria-checked={!!formData.enableGst}
-                className={`easy-switch-row ${formData.enableGst ? 'active' : ''}`}
-                onClick={() => setFormData({ ...formData, enableGst: !formData.enableGst })}
-              >
-                <span className="easy-switch-label">Include GST</span>
-                <span className="easy-switch-dot" aria-hidden="true" />
-              </button>
-              {formData.enableGst && (
-                <div className="easy-field" style={{ marginTop: '0.75rem' }}>
-                  <label className="easy-lbl">GST rate</label>
-                  <div className="easy-chips">
-                    {GST_RATES.map((rate) => (
-                      <button
-                        key={rate}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, gstRate: rate })}
-                        aria-pressed={formData.gstRate === rate} className={`easy-chip ${formData.gstRate === rate ? 'active' : ''}`}
-                      >
-                        {rate}%
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* 4. Totals */}
@@ -927,11 +930,11 @@ export default function QuotationForm({ editDocId }) {
                 <strong>{formatCurrency(totals.taxableAmount)}</strong>
               </div>
 
-              {formData.enableGst && totals.gstAmount > 0 && (
+              {totals.gstAmount > 0 && (
                 <>
                   <div className="easy-total-divider" />
                   <div className="easy-total-row" style={{ color: 'var(--text-secondary)' }}>
-                    <span>GST @ {formData.gstRate}%</span>
+                    <span>GST</span>
                     <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
                       {formatCurrency(totals.gstAmount)}
                     </span>
@@ -1346,7 +1349,7 @@ export default function QuotationForm({ editDocId }) {
                   </div>
                 )}
 
-                {formData.enableGst && totals.gstAmount > 0 && (
+                {totals.gstAmount > 0 && (
                   <div
                     style={{
                       display: 'flex',
@@ -1356,7 +1359,7 @@ export default function QuotationForm({ editDocId }) {
                       color: '#3b82f6',
                     }}
                   >
-                    <span>GST @ {formData.gstRate}%</span>
+                    <span>GST</span>
                     <span>{'\u20B9'}{totals.gstAmount.toLocaleString('en-IN')}</span>
                   </div>
                 )}

@@ -71,7 +71,7 @@ export default function ProformaInvoiceForm() {
     customAdvancePercent: '',
     isCustomAdvance: false,
     items: [
-      { id: Date.now(), description: '', hsnSac: '', quantity: 1, unit: 'Nos', rate: 0, gstRate: 18 },
+      { id: Date.now(), description: '', hsnSac: '', quantity: 1, unit: 'Nos', rate: 0, gstRate: 0 },
     ],
     notes: 'This is a proforma invoice and is not valid for GST input tax credit. GST amounts shown are indicative and subject to actuals at the time of invoicing.',
   }));
@@ -142,7 +142,7 @@ export default function ProformaInvoiceForm() {
           ...prev,
           items: lines.map((l, i) => ({
             id: Date.now() + i, description: l.description, hsnSac: l.hsn || '', quantity: l.quantity,
-            unit: l.unit || 'Nos', rate: l.rate, gstRate: 18, catalog_item_id: l.catalog_item_id || null,
+            unit: l.unit || 'Nos', rate: l.rate, gstRate: 0, catalog_item_id: l.catalog_item_id || null,
           })),
         }));
       }
@@ -188,7 +188,7 @@ export default function ProformaInvoiceForm() {
       ...prev,
       items: [
         ...prev.items,
-        { id: Date.now(), description: '', hsnSac: '', quantity: 1, unit: 'Nos', rate: 0, gstRate: 18 },
+        { id: Date.now(), description: '', hsnSac: '', quantity: 1, unit: 'Nos', rate: 0, gstRate: 0 },
       ],
     }));
   };

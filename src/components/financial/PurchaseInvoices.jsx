@@ -23,7 +23,7 @@ const FILTERS = ['all', 'paid', 'unpaid', 'partially_paid', 'overdue', 'void'];
 
 const blank = (vendorId = '') => ({
   vendor_id: vendorId, bill_number: '', bill_date: '', due_date: '',
-  category: 'Operations', description: '', subtotal: '', tax_rate: 0,
+  category: 'Operations', description: '', subtotal: '', tax_rate: 0, other_amount: '', other_tax_rate: 0,
   amount_paid: 0, receipt_path: null, notes: '',
 });
 
@@ -111,10 +111,16 @@ export default function PurchaseInvoices({ projectId = null }) {
   // Both dates are left for the user to pick; nothing is filled in for them.
   const set = (k, v) => setEditing((e) => ({ ...e, [k]: v }));
 
-  const previewTax = editing ? Math.round((Number(editing.subtotal) || 0) * (Number(editing.tax_rate) || 0)) / 100 : 0;
+  // "Amount before tax" and "Other amount" are taxed at their own rates; the
+  // saved subtotal is the two together (0086).
+  const otherAmt = Number(editing?.other_amount) || 0;
+  const mainTax = editing ? Math.round((Number(editing.subtotal) || 0) * (Number(editing.tax_rate) || 0)) / 100 : 0;
+  const otherTax = editing ? Math.round(otherAmt * (Number(editing.other_tax_rate) || 0)) / 100 : 0;
+  const previewTax = Math.round((mainTax + otherTax) * 100) / 100;
+  const beforeTax = editing ? Math.round(((Number(editing.subtotal) || 0) + otherAmt) * 100) / 100 : 0;
   // Round off: the user types the bill's final total and the difference from
   // subtotal + GST is the round off (positive or negative).
-  const exactTotal = editing ? Math.round(((Number(editing.subtotal) || 0) + previewTax) * 100) / 100 : 0;
+  const exactTotal = editing ? Math.round((beforeTax + previewTax) * 100) / 100 : 0;
   const roundOff = editing?._roundOpen && editing._finalTotal !== ''
     ? Math.round(((Number(editing._finalTotal) || 0) - exactTotal) * 100) / 100
     : 0;
@@ -130,10 +136,20 @@ export default function PurchaseInvoices({ projectId = null }) {
     setFormError('');
     try {
       const {
-        _picker: picker, _share: _s, _shareNet: _n, _roundOpen: _o, _finalTotal: _f, round_off: prevRound, ...data
+        _picker: picker, _share: _s, _shareNet: _n, _roundOpen: _o, _finalTotal: _f, _hadOther, round_off: prevRound, ...data
       } = editing;
       // Only sent when there is one to set or clear (see orgStore, 0079).
       if (roundOff || prevRound) data.round_off = roundOff;
+      data.subtotal = beforeTax;
+      // Only sent when there is one to set or clear, so a bill still saves on a
+      // database without 0086.
+      if (otherAmt || editing._hadOther) {
+        data.other_amount = otherAmt;
+        data.other_tax_rate = otherAmt ? Number(editing.other_tax_rate) || 0 : 0;
+      } else {
+        delete data.other_amount;
+        delete data.other_tax_rate;
+      }
       let id = editing.id;
       if (id) await orgStore.updateItem('purchase_invoices', id, data);
       else id = (await orgStore.addItem('purchase_invoices', data)).id;
@@ -316,6 +332,9 @@ export default function PurchaseInvoices({ projectId = null }) {
                         b.status !== 'paid' && b.status !== 'void' && { label: 'Record payment', icon: CheckCircle, tone: 'success', onClick: () => handlePay(b) },
                         { label: 'Edit', icon: Pencil, onClick: () => { setEditing({
                           ...b, _share: undefined, _shareNet: undefined,
+                          // The form's "Amount before tax" is the bill without the other amount.
+                          subtotal: Math.round((b.subtotal - (b.other_amount || 0)) * 100) / 100,
+                          other_amount: b.other_amount || '', _hadOther: !!b.other_amount,
                           _roundOpen: !!b.round_off, _finalTotal: b.round_off ? String(b.total) : '',
                         }); setFormError(''); } },
                         b.status !== 'void'
@@ -374,6 +393,18 @@ export default function PurchaseInvoices({ projectId = null }) {
                   ))}
                 </div>
               </div>
+              <div className="prod-field">
+                <label>Other amount (₹)</label>
+                <input aria-label="Other amount (₹)" type="number" min="0" step="0.01" value={editing.other_amount} onChange={(e) => set('other_amount', e.target.value)} placeholder="Freight, packing, etc." />
+              </div>
+              <div className="prod-field">
+                <label>GST rate on other amount</label>
+                <div className="prod-rate-chips">
+                  {TAX_RATES.map((r) => (
+                    <button key={r} type="button" aria-pressed={!!(Number(editing.other_tax_rate) === r)} className={`easy-chip ${Number(editing.other_tax_rate) === r ? 'active' : ''}`} onClick={() => set('other_tax_rate', r)}>{r}%</button>
+                  ))}
+                </div>
+              </div>
               <div className="prod-field full">
                 <p className="prod-field-note">
                   Input GST {money(previewTax, 2)} · Total {money(exactTotal, 2)}
@@ -405,7 +436,7 @@ export default function PurchaseInvoices({ projectId = null }) {
               <ProjectPicker
                 value={editing._picker || pickerFromAllocations('purchase_invoice', editing.id)}
                 onChange={(p) => set('_picker', p)}
-                net={Number(editing.subtotal) || 0}
+                net={beforeTax}
               />
               <div className="prod-field full">
                 <label>Receipt / bill copy</label>
