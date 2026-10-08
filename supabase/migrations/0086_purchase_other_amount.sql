@@ -6,6 +6,7 @@
 -- "Other amount" with its own rate.
 --
 --   · purchase_invoices.other_amount    part of subtotal, default 0
+--   · purchase_invoices.other_label     what it is for (free text, optional)
 --   · purchase_invoices.other_tax_rate  GST rate on that part, default 0
 --   · app.purchase_invoice_guard()      tax_amount := GST on (subtotal -
 --                                       other_amount) at tax_rate + GST on
@@ -18,6 +19,7 @@
 
 alter table public.purchase_invoices
   add column if not exists other_amount   numeric(14,2) not null default 0 check (other_amount >= 0),
+  add column if not exists other_label    text,
   add column if not exists other_tax_rate numeric(5,2)  not null default 0 check (other_tax_rate between 0 and 100);
 
 create or replace function app.purchase_invoice_guard()

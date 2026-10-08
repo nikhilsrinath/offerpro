@@ -852,7 +852,7 @@ const SECTIONS = {
       subtotal: Number(r.subtotal) || 0, tax_rate: Number(r.tax_rate) || 0,
       tax_amount: Number(r.tax_amount) || 0, total: Number(r.total) || 0,
       round_off: Number(r.round_off) || 0,
-      other_amount: Number(r.other_amount) || 0, other_tax_rate: Number(r.other_tax_rate) || 0,
+      other_amount: Number(r.other_amount) || 0, other_label: r.other_label || '', other_tax_rate: Number(r.other_tax_rate) || 0,
       amount_paid: Number(r.amount_paid) || 0, status: r.status,
       paid_on: r.paid_on, receipt_path: r.receipt_path, notes: r.notes,
       created_at: r.created_at,
@@ -872,6 +872,7 @@ const SECTIONS = {
       ...optional(i, {
         round_off: (v) => num(v, 0),
         other_amount: (v) => num(v, 0), other_tax_rate: (v) => num(v, 0),
+        other_label: (v) => nn(v),
       }),
     }),
   },

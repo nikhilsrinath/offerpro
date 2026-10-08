@@ -23,7 +23,7 @@ const FILTERS = ['all', 'paid', 'unpaid', 'partially_paid', 'overdue', 'void'];
 
 const blank = (vendorId = '') => ({
   vendor_id: vendorId, bill_number: '', bill_date: '', due_date: '',
-  category: 'Operations', description: '', subtotal: '', tax_rate: 0, other_amount: '', other_tax_rate: 0,
+  category: 'Operations', description: '', subtotal: '', tax_rate: 0, other_amount: '', other_label: '', other_tax_rate: 0,
   amount_paid: 0, receipt_path: null, notes: '',
 });
 
@@ -145,9 +145,11 @@ export default function PurchaseInvoices({ projectId = null }) {
       // database without 0086.
       if (otherAmt || editing._hadOther) {
         data.other_amount = otherAmt;
+        data.other_label = otherAmt ? (editing.other_label || '').trim() : '';
         data.other_tax_rate = otherAmt ? Number(editing.other_tax_rate) || 0 : 0;
       } else {
         delete data.other_amount;
+        delete data.other_label;
         delete data.other_tax_rate;
       }
       let id = editing.id;
@@ -334,7 +336,7 @@ export default function PurchaseInvoices({ projectId = null }) {
                           ...b, _share: undefined, _shareNet: undefined,
                           // The form's "Amount before tax" is the bill without the other amount.
                           subtotal: Math.round((b.subtotal - (b.other_amount || 0)) * 100) / 100,
-                          other_amount: b.other_amount || '', _hadOther: !!b.other_amount,
+                          other_amount: b.other_amount || '', other_label: b.other_label || '', _hadOther: !!b.other_amount,
                           _roundOpen: !!b.round_off, _finalTotal: b.round_off ? String(b.total) : '',
                         }); setFormError(''); } },
                         b.status !== 'void'
@@ -383,7 +385,7 @@ export default function PurchaseInvoices({ projectId = null }) {
               </div>
               <div className="prod-field">
                 <label className="req">Amount before tax (₹)</label>
-                <input aria-label="Amount before tax (₹)" type="number" min="0" step="0.01" value={editing.subtotal} onChange={(e) => set('subtotal', e.target.value)} required />
+                <input aria-label="Amount before tax (₹)" className="pi-no-spin" type="number" min="0" step="0.01" value={editing.subtotal} onChange={(e) => set('subtotal', e.target.value)} required />
               </div>
               <div className="prod-field">
                 <label>GST rate</label>
@@ -393,9 +395,12 @@ export default function PurchaseInvoices({ projectId = null }) {
                   ))}
                 </div>
               </div>
-              <div className="prod-field">
-                <label>Other amount (₹)</label>
-                <input aria-label="Other amount (₹)" type="number" min="0" step="0.01" value={editing.other_amount} onChange={(e) => set('other_amount', e.target.value)} placeholder="Freight, packing, etc." />
+              <div className="prod-field full">
+                <label>Other amount</label>
+                <div className="pi-other-row">
+                  <input aria-label="What the other amount is for" value={editing.other_label || ''} onChange={(e) => set('other_label', e.target.value)} placeholder="What it is, e.g. Freight" />
+                  <input aria-label="Other amount (₹)" className="pi-no-spin" type="number" min="0" step="0.01" value={editing.other_amount} onChange={(e) => set('other_amount', e.target.value)} placeholder="Amount (₹)" />
+                </div>
               </div>
               <div className="prod-field">
                 <label>GST rate on other amount</label>
@@ -415,7 +420,7 @@ export default function PurchaseInvoices({ projectId = null }) {
                 {editing._roundOpen ? (
                   <div className="pi-round-row">
                     <input
-                      aria-label="Rounded total (₹)" type="number" min="0" step="0.01" autoFocus
+                      aria-label="Rounded total (₹)" className="pi-no-spin" type="number" min="0" step="0.01" autoFocus
                       placeholder={`Rounded total, e.g. ${Math.round(exactTotal)}`}
                       value={editing._finalTotal} onChange={(e) => set('_finalTotal', e.target.value)}
                     />
