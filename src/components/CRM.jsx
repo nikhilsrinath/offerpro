@@ -477,7 +477,7 @@ export default function CRM({ project = null }) {
               {editingLead && canCreateProjects() && (
                 <button type="button" onClick={() => { setModalOpen(false); startProject(editingLead); }}
                   className="easy-submit-outline">
-                  Start project
+                  Start Project
                 </button>
               )}
               <button type="submit" disabled={saving} className="easy-submit">

@@ -137,7 +137,7 @@ export default function TaxSummary({ projectId = null }) {
                 <th scope="col">Rate-wise</th>
                 <th scope="col" className="num">Rate</th>
                 <th scope="col" className="num">Entries</th>
-                <th scope="col" className="num">Taxable value</th>
+                <th scope="col" className="num">Taxable Value</th>
                 <th scope="col" className="num">GST</th>
               </tr>
             </thead>
@@ -165,7 +165,7 @@ export default function TaxSummary({ projectId = null }) {
         <div className="prod-perf-table-wrap">
           <table className="prod-perf-table">
             <thead>
-              <tr><th scope="col">Date</th><th scope="col">Type</th><th scope="col">Reference</th><th scope="col">Party</th><th scope="col" className="num">Rate</th><th scope="col">Kind</th><th scope="col" className="num">Taxable value</th><th scope="col" className="num">GST</th></tr>
+              <tr><th scope="col">Date</th><th scope="col">Type</th><th scope="col">Reference</th><th scope="col">Party</th><th scope="col" className="num">Rate</th><th scope="col">Kind</th><th scope="col" className="num">Taxable Value</th><th scope="col" className="num">GST</th></tr>
             </thead>
             <tbody>
               {summary.rows.map((r, i) => (

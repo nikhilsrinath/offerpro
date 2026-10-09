@@ -695,7 +695,7 @@ export default function ProformaInvoiceForm() {
             })}
 
             <button type="button" onClick={handleAddItem} className="easy-add-btn">
-              <Plus size={16} /> Add item
+              <Plus size={16} /> Add Item
             </button>
           </div>
 
@@ -777,7 +777,7 @@ export default function ProformaInvoiceForm() {
               onClick={handleSendToClient}
               className="easy-submit"
             >
-              <Send size={16} /> Send to client
+              <Send size={16} /> Send to Client
             </button>
           </div>
 

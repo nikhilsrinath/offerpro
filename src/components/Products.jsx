@@ -450,7 +450,7 @@ function EmptyState({ archived, filtered, onAdd }) {
             proforma and invoice, with its HSN code, rate and tax rate filled in.
           </span>
           <button className="prod-add-btn" onClick={onAdd}>
-            <Plus size={15} /> Add your first product
+            <Plus size={15} /> Add Your First Product
           </button>
         </>
       )}
@@ -704,7 +704,7 @@ function PerformanceView({
                 <th className="num">Billed</th>
                 <th className="num">Collected</th>
                 <th className="num">Invoices</th>
-                <th>Last sold</th>
+                <th>Last Sold</th>
               </tr>
             </thead>
             <tbody>

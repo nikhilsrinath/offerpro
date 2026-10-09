@@ -267,7 +267,7 @@ export default function PurchaseInvoices({ projectId = null }) {
             setFormError('');
           }}
         >
-          <Plus size={15} /> Record bill
+          <Plus size={15} /> Record Bill
         </button>
       </div>
 
@@ -426,12 +426,12 @@ export default function PurchaseInvoices({ projectId = null }) {
                       value={editing._finalTotal} onChange={(e) => set('_finalTotal', e.target.value)}
                     />
                     <button type="button" className="prod-btn-ghost" onClick={() => setEditing((x) => ({ ...x, _roundOpen: false, _finalTotal: '' }))}>
-                      Remove round off
+                      Remove Round Off
                     </button>
                   </div>
                 ) : (
                   <button type="button" className="prod-btn-ghost pi-round-btn" onClick={() => setEditing((x) => ({ ...x, _roundOpen: true, _finalTotal: String(Math.round(exactTotal)) }))}>
-                    Round off
+                    Round Off
                   </button>
                 )}
               </div>

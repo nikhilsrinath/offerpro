@@ -23,6 +23,7 @@ import './edgeBridge.css';
 import '../../theme/surface.css';
 import '../assistant/copilot.css';
 import { confirmDialog } from '../../services/confirm';
+import { titleCaseNode } from '../../utils/titleCase';
 
 // Shared with the hub, so hiding the dock in one place hides it in both.
 const AI_KEY = 'edgeos.hub.ai.hidden';
@@ -215,7 +216,7 @@ export default function ModuleShell({
                         height: 26, padding: '0 8px', borderRadius: 6, cursor: 'pointer',
                         border: '1px solid transparent', background: 'transparent',
                         color: t.dim, fontFamily: MONO, fontSize: 12,
-                    }}>Clear all</button>
+                    }}>Clear All</button>
                 )}
             </div>
             {notifs.length === 0 ? (
@@ -372,7 +373,7 @@ export default function ModuleShell({
                                                             fontSize: 13, color: isActive ? t.accent : t.dim, fontWeight: isActive ? 500 : 400,
                                                             background: isActive ? t.accentSoft : 'transparent',
                                                         }; }}>
-                                                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{c.label}</span>
+                                                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{titleCaseNode(c.label)}</span>
                                                         {c.note && <span style={{ fontSize: 11, color: t.faint, whiteSpace: 'nowrap' }}>{c.note}</span>}
                                                     </NavLink>
                                                 </li>
@@ -454,7 +455,7 @@ export default function ModuleShell({
                             margin: 0, fontSize: isMobile ? 15.5 : 18, fontWeight: 600,
                             letterSpacing: '-0.025em', color: t.text, lineHeight: 1.2,
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                        }}>{title}</h1>
+                        }}>{titleCaseNode(title)}</h1>
                         {subtitle && !isMobile && (
                             <div style={{ fontSize: 12, color: t.faint, marginTop: 2, whiteSpace: 'nowrap' }}>{subtitle}</div>
                         )}
@@ -555,7 +556,7 @@ export default function ModuleShell({
                                         background: isActive ? t.raised : 'transparent',
                                         boxShadow: isActive ? t.highlight + ', inset 0 0 0 1px ' + t.lineStrong : 'none',
                                         transition: 'color .14s, background .14s',
-                                    }; }}>{it.label}</NavLink>
+                                    }; }}>{titleCaseNode(it.label)}</NavLink>
                             ))}
                         </nav>
                     </div>
@@ -575,7 +576,7 @@ export default function ModuleShell({
                                 color: isActive ? t.text : t.dim,
                                 background: isActive ? t.raised : 'transparent',
                                 boxShadow: isActive ? 'inset 0 0 0 1px ' + t.lineStrong : 'none',
-                            }; }}>{it.label}</NavLink>
+                            }; }}>{titleCaseNode(it.label)}</NavLink>
                         ))}
                     </nav>
                 )}

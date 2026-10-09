@@ -122,7 +122,7 @@ export default function PortalJoinCode({ orgId }) {
           {row.portal_join_enabled ? 'Turn off' : 'Turn on'}
         </button>
         <button type="button" className="prod-btn-ghost" onClick={() => rotate(false)} disabled={busy}>
-          <RefreshCw size={13} /> New code
+          <RefreshCw size={13} /> New Code
         </button>
       </div>
 

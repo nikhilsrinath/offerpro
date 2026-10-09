@@ -626,7 +626,7 @@ export default function Customers() {
                 style={{ width: '100%', marginTop: '0.75rem', paddingTop: '0.625rem', minHeight: 28, border: 'none', borderTop: '1px solid var(--border-subtle)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.73rem', fontWeight: 500, color: 'var(--text-secondary)', textAlign: 'left' }}
               >
                 <FileText aria-hidden="true" size={11} />
-                View invoice history
+                View Invoice History
               </button>
             </div>
           ))}

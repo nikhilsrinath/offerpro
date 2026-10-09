@@ -86,7 +86,7 @@ export default function AdminShell({
           }}
         >
           <ArrowUpRight size={13} aria-hidden="true" style={{ color: t.faint, flexShrink: 0 }} />
-          Back to workspace
+          Back to Workspace
         </button>
       </nav>
 
@@ -159,7 +159,7 @@ export default function AdminShell({
                       color: t.down, fontFamily: MONO, fontSize: 13,
                     }}
                   >
-                    <LogOut size={13} aria-hidden="true" /> Sign out
+                    <LogOut size={13} aria-hidden="true" /> Sign Out
                   </button>
                 </div>
               </>

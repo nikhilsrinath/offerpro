@@ -530,7 +530,7 @@ function DocumentSheet({ id, orgId, canEdit, canDelete, onClose, onChanged, onRe
 
                     <section aria-labelledby="lib-ai-h" style={{ border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden' }}>
                         <Row style={{ padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft }} wrap>
-                            <h3 id="lib-ai-h" style={{ margin: 0, fontSize: 13.5, fontWeight: 500, color: t.text }}>What EdgeBrain read</h3>
+                            <h3 id="lib-ai-h" style={{ margin: 0, fontSize: 13.5, fontWeight: 500, color: t.text }}>What EdgeBrain Read</h3>
                             <Status tone={st.tone}>{st.label}</Status>
                             {doc.extraction_method && <Muted>via {METHOD[doc.extraction_method] || doc.extraction_method}</Muted>}
                             {doc.chunk_count > 0 && <Muted>{doc.chunk_count} passage{doc.chunk_count === 1 ? '' : 's'} · {(doc.char_count || 0).toLocaleString('en-IN')} characters</Muted>}

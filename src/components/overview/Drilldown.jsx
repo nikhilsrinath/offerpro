@@ -11,6 +11,7 @@ import {
 } from './overviewModel';
 import { useViz } from './vizHooks';
 import { Columns, Area, RankBars, SplitBar, Legend, EmptyNote, Delta } from './vizKit';
+import { titleCaseNode } from '../../utils/titleCase';
 
 /* ══════════════════════════════════════════════════════════════════════════
    The drill-down sheet. Every chart on the Overview opens one of these views;
@@ -144,7 +145,7 @@ function List({ cols, rows, empty = 'Nothing here', max = 60 }) {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO }}>
                     <thead>
                         <tr>{cols.map((c) => (
-                            <th key={c.label} style={thStyle(t, c.align)}>{c.label}</th>
+                            <th key={c.label} style={thStyle(t, c.align)}>{titleCaseNode(c.label)}</th>
                         ))}</tr>
                     </thead>
                     <tbody>

@@ -1390,7 +1390,7 @@ export default function RecipientPortal({ documentId }) {
         {showDeclineModal && (
           <ModalOverlay onClose={() => setShowDeclineModal(false)}>
             <div className="rp-modal-icon rp-modal-icon-danger"><AlertCircle size={22} /></div>
-            <h3>Decline this document?</h3>
+            <h3>Decline This Document?</h3>
             <p>This action cannot be undone. The issuer will be notified.</p>
             <textarea
               className="rp-modal-textarea"
@@ -1714,7 +1714,7 @@ function ProformaActions({
         <div className="rp-step">
           <div className="rp-step-num">1</div>
           <div className="rp-step-body">
-            <h4 className="rp-step-title">Confirm the order</h4>
+            <h4 className="rp-step-title">Confirm the Order</h4>
             <label className="rp-agree">
               <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
               <span>I confirm the items, quantities and prices in this proforma invoice.</span>
@@ -1761,7 +1761,7 @@ function ProformaActions({
                 )}
                 {!showPaymentForm ? (
                   <button className="rp-btn rp-btn-primary" disabled={readOnly} onClick={() => setShowPaymentForm(true)}>
-                    <Check size={16} /> I have paid the advance
+                    <Check size={16} /> I Have Paid the Advance
                   </button>
                 ) : (
                   <PaymentConfirmationForm amount={a.advanceDue} invoiceId={number} onSubmit={onPay} />

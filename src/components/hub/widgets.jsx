@@ -6,6 +6,7 @@ import { kindLabel } from '../../services/brainService';
 import { categoryLabel } from '../../services/financeCategories';
 import { inr, inrShort, headline } from './format';
 import { PERIOD_IDS, periodOf, windowOf, daysIn, sumDays, bucketsOf, change } from './periods';
+import { titleCaseNode } from '../../utils/titleCase';
 
 /* ══════════════════════════════════════════════════════════════════════════
    The hub's widget catalog.
@@ -123,7 +124,7 @@ function Empty({ children, action }) {
 function LinkBtn({ onClick, children }) {
     return (
         <button type="button" className="w-link" onClick={onClick}>
-            {children}<ArrowRight size={12} strokeWidth={2} aria-hidden="true" />
+            {titleCaseNode(children)}<ArrowRight size={12} strokeWidth={2} aria-hidden="true" />
         </button>
     );
 }

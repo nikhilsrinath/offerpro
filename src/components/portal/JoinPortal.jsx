@@ -142,7 +142,7 @@ export default function JoinPortal() {
           Ask whoever set up your portal for a fresh link or the current join code.
         </p>
         <button type="button" className="join-ghost" onClick={() => navigate('/login')}>
-          Go to sign in
+          Go to Sign In
         </button>
       </Shell>
     );
@@ -232,7 +232,7 @@ export default function JoinPortal() {
               className="join-switch"
               onClick={() => { redeemed.current = false; setError(''); setFailed(false); }}
             >
-              Try again
+              Try Again
             </button>
           )}
         </>

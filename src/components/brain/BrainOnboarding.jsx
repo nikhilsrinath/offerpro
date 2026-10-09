@@ -56,7 +56,7 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                     <h2 style={{
                         margin: 0, fontSize: 26, fontWeight: 500, letterSpacing: '-0.03em',
                         color: t.text, lineHeight: 1.2,
-                    }}>Build your Company Brain</h2>
+                    }}>Build Your Company Brain</h2>
 
                     <p style={{
                         margin: '12px 0 0', fontSize: 14, lineHeight: 1.75,

@@ -896,7 +896,7 @@ export default function QuotationForm({ editDocId }) {
             ))}
 
             <button type="button" onClick={handleAddItem} className="easy-add-btn">
-              <Plus size={16} /> Add item
+              <Plus size={16} /> Add Item
             </button>
           </div>
 

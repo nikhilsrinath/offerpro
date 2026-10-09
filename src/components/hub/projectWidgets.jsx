@@ -175,7 +175,7 @@ export function ProjectsList({ nav, size }) {
     if (!can('projects', 'view')) return <Locked />;
     if (!rows) return <Empty>Loading…</Empty>;
     const live = rows.filter(open);
-    const newBtn = can('projects', 'create') ? <LinkBtn onClick={() => nav('/projects/new')}>New project</LinkBtn> : null;
+    const newBtn = can('projects', 'create') ? <LinkBtn onClick={() => nav('/projects/new')}>New Project</LinkBtn> : null;
     if (!live.length) return <Empty action={newBtn}>No open projects yet.</Empty>;
     const by = (id) => live.filter((r) => r.status === id).length;
     const stat = (
@@ -204,7 +204,7 @@ export function ProjectsList({ nav, size }) {
         </div>
     );
     if (size === 'md') return <Duo stat={stat}>{list}</Duo>;
-    return <>{stat}{split}{list}<div className="w-foot">{newBtn}<LinkBtn onClick={() => nav('/projects')}>All projects</LinkBtn></div></>;
+    return <>{stat}{split}{list}<div className="w-foot">{newBtn}<LinkBtn onClick={() => nav('/projects')}>All Projects</LinkBtn></div></>;
 }
 
 /** Budget spent so far, worst first. */
@@ -387,10 +387,10 @@ export function ProjectWorkload({ nav, size }) {
 export function ProjectShortcuts({ nav }) {
     const { can } = useAccess();
     const links = [
-        ['New project', '/projects/new', can('projects', 'create')],
-        ['All projects', '/projects', can('projects', 'view')],
+        ['New Project', '/projects/new', can('projects', 'create')],
+        ['All Projects', '/projects', can('projects', 'view')],
         ['Portfolio', '/portfolio', can('projects', 'view')],
-        ['Kanban chart', '/kanban-chart', can('projects', 'view')],
+        ['Kanban Chart', '/kanban-chart', can('projects', 'view')],
     ].filter((l) => l[2]);
     return (
         <div className="w-list">

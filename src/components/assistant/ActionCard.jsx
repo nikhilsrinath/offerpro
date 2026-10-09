@@ -174,7 +174,7 @@ export default function ActionCard({ card, onConfirm, onCancel, onUndo, onOpen }
 
                 {hasItems && (
                     <fieldset className="cp-card-items">
-                        <legend className="cp-sr">Choose which to include</legend>
+                        <legend className="cp-sr">Choose Which to Include</legend>
                         {card.items.map((it) => (
                             <label key={it.id} className={`cp-card-item${it.disabled ? ' is-off' : ''}`}>
                                 <input
@@ -266,7 +266,7 @@ function DocTable({ doc, full }) {
             <table className="cp-doc-table">
                 <caption className="cp-sr">{doc.title} {doc.number} line items and totals</caption>
                 <thead>
-                    <tr><th scope="col">Item</th><th scope="col" className="is-num">Qty × rate</th><th scope="col" className="is-num">Amount</th></tr>
+                    <tr><th scope="col">Item</th><th scope="col" className="is-num">Qty × Rate</th><th scope="col" className="is-num">Amount</th></tr>
                 </thead>
                 <tbody>
                     {(doc.items || []).map((it, i) => (

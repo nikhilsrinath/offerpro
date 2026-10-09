@@ -527,7 +527,7 @@ export default function FinanceStatus() {
             {clientGroups.length === 0 ? (
               <div className="fin-status-empty">
                 <FileText size={40} strokeWidth={1} />
-                <h3>No financial documents yet</h3>
+                <h3>No Financial Documents Yet</h3>
                 <p>Create a quotation, proforma invoice, or invoice to see them tracked here.</p>
               </div>
             ) : (

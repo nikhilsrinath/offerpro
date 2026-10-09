@@ -338,7 +338,7 @@ export default function BillingRevenue() {
                 fontFamily: 'inherit',
               }}
             >
-              Full breakdown
+              Full Breakdown
             </button>
           </div>
           <div className="br-top-products">
@@ -480,10 +480,10 @@ export default function BillingRevenue() {
         <div className="pro-card-header">
           <div className="pro-card-title-group">
             <Banknote size={18} style={{ color: 'var(--success)' }} />
-            <h3>Money In (no invoice)</h3>
+            <h3>Money In (No Invoice)</h3>
           </div>
           <button className="billing-add-btn" onClick={() => navigate('/general-ledger?new=in')}>
-            <Plus size={16} aria-hidden="true" /> Add revenue
+            <Plus size={16} aria-hidden="true" /> Add Revenue
           </button>
         </div>
         <div className="billing-expense-list">
@@ -525,7 +525,7 @@ export default function BillingRevenue() {
             <h3>Expenses</h3>
           </div>
           <button className="billing-add-btn" onClick={() => navigate('/general-ledger?new=out')}>
-            <Plus size={16} aria-hidden="true" /> Add expense
+            <Plus size={16} aria-hidden="true" /> Add Expense
           </button>
         </div>
 

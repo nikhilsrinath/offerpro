@@ -527,7 +527,7 @@ function RecurringInvoiceForm({ editItem }) {
             ))}
 
             <button type="button" onClick={handleAddItem} className="easy-add-btn">
-              <Plus size={16} /> Add item
+              <Plus size={16} /> Add Item
             </button>
           </div>
 
@@ -962,7 +962,7 @@ function RecurringInvoiceList({ projectId = null }) {
         }}>
           <RotateCcw size={40} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
           <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>
-            No recurring invoices yet
+            No Recurring Invoices Yet
           </h3>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', margin: '0 0 1.5rem', maxWidth: '400px', marginLeft: 'auto', marginRight: 'auto' }}>
             Set up automated invoice generation for your regular clients. Invoices will be created on schedule.
@@ -975,7 +975,7 @@ function RecurringInvoiceList({ projectId = null }) {
               fontSize: '0.875rem', fontWeight: 700, fontFamily: 'var(--font-main)',
               cursor: 'pointer',
             }}>
-            <Plus size={16} /> Create your first recurring invoice
+            <Plus size={16} /> Create Your First Recurring Invoice
           </button>
         </div>
       )}

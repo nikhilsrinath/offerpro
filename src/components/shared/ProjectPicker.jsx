@@ -78,7 +78,7 @@ export default function ProjectPicker({ value, onChange, net = 0, clientId = nul
                     <div>
                         <button type="button" className="prod-btn-ghost"
                             onClick={() => set({ rows: [...value.rows, { project_id: '', amount: '' }] })}>
-                            Add a project
+                            Add a Project
                         </button>
                     </div>
                     <p className="prod-field-note" role="status" aria-live="polite"

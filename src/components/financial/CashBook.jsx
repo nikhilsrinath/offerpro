@@ -265,7 +265,7 @@ export default function CashBook({ projectId = null }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ minWidth: 0 }}>
-              <h2 id="gl-record" style={{ margin: 0, fontSize: 18, fontWeight: 600, letterSpacing: '-0.02em', color: t.text }}>Record money</h2>
+              <h2 id="gl-record" style={{ margin: 0, fontSize: 18, fontWeight: 600, letterSpacing: '-0.02em', color: t.text }}>Record Money</h2>
               <div style={{ fontSize: 12.5, color: t.faint, marginTop: 2 }}>
                 {scope ? 'Lands on this project straight away.' : 'Cash in without an invoice, and anything you spent.'}
               </div>

@@ -714,7 +714,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                       {!projectId && type === 'quotation' && doc.status === 'accepted' && canCreateProjects() && projectsOf(doc.id).length === 0 && (
                         <button className="fin-list-action-btn primary" title="Start a project from this quotation"
                           onClick={() => navigate(`/projects/new?fromQuotation=${doc.id}`)}>
-                          Start project
+                          Start Project
                         </button>
                       )}
                       {type === 'proforma' && conversionTargets(doc).includes('invoice') && (

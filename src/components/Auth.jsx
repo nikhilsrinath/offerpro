@@ -109,11 +109,11 @@ const Auth = () => {
       <div className="auth-form-side">
         <div className="auth-form-container">
           <button className="auth-back-btn" onClick={() => navigate('/')}>
-            <ArrowLeft size={14} /> Back to home
+            <ArrowLeft size={14} /> Back to Home
           </button>
 
           <div className="auth-form-header">
-            <h2 className="auth-form-title">Welcome back</h2>
+            <h2 className="auth-form-title">Welcome Back</h2>
             <p className="auth-form-subtitle">Sign in to your EdgeOS workspace.</p>
           </div>
 

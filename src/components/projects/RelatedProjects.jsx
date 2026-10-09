@@ -31,7 +31,7 @@ export default function RelatedProjects({ clientId = null, employeeId = null }) 
                 <span style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>PROJECTS ({rows.length})</span>
                 {clientId && canCreateProjects() && (
                     <button type="button" className="easy-submit-outline" style={{ padding: '4px 10px', fontSize: 13.5 }}
-                        onClick={() => navigate(`/projects/new?client=${clientId}`)}>Start project</button>
+                        onClick={() => navigate(`/projects/new?client=${clientId}`)}>Start Project</button>
                 )}
             </div>
             {rows.length === 0 ? (

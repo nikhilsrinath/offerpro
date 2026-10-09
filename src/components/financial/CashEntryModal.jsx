@@ -201,12 +201,12 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
             <button type="button" aria-pressed={editing.direction === 'in'}
               className={editing.direction === 'in' ? 'active' : ''}
               onClick={() => switchDirection('in')}>
-              <ArrowDownLeft size={16} aria-hidden="true" /> Money in
+              <ArrowDownLeft size={16} aria-hidden="true" /> Money In
             </button>
             <button type="button" aria-pressed={editing.direction === 'out'}
               className={editing.direction === 'out' ? 'active' : ''}
               onClick={() => switchDirection('out')}>
-              <ArrowUpRight size={16} aria-hidden="true" /> Money out
+              <ArrowUpRight size={16} aria-hidden="true" /> Money Out
             </button>
           </div>
         )}

@@ -712,7 +712,7 @@ export default function InvoiceForm() {
             ))}
 
             <button type="button" onClick={handleAddItem} className="easy-add-btn">
-              <Plus size={16} /> Add item
+              <Plus size={16} /> Add Item
             </button>
 
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>

@@ -366,7 +366,7 @@ function Welcome({ a, compact }) {
                     <>
                         <div className="cp-recent-label">
                             <span>Continue a recent chat</span>
-                            {compact && <button type="button" onClick={() => a.setView('history')}>View all</button>}
+                            {compact && <button type="button" onClick={() => a.setView('history')}>View All</button>}
                         </div>
                         <div className="cp-recent">
                             {recent.map((c) => (
@@ -740,7 +740,7 @@ function History({ a, phone, onPicked }) {
 
             <div className="cp-hist-foot">
                 <span>Saved in this browser</span>
-                {unpinned > 0 && <button type="button" onClick={() => askClear(unpinned)}>Clear history</button>}
+                {unpinned > 0 && <button type="button" onClick={() => askClear(unpinned)}>Clear History</button>}
             </div>
 
             {menuChat && (

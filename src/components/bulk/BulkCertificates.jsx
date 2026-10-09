@@ -185,7 +185,7 @@ export default function BulkCertificates() {
                 {step === 4 && addRegistry && (
                     <section aria-labelledby="cert-registry">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-                            <h2 id="cert-registry" style={{ margin: 0, fontSize: 14, fontWeight: 500, color: t.text }}>Certificate registry</h2>
+                            <h2 id="cert-registry" style={{ margin: 0, fontSize: 14, fontWeight: 500, color: t.text }}>Certificate Registry</h2>
                             <div style={{ flex: 1 }} />
                             <Search value={searchQuery} onChange={setSearchQuery} placeholder="Search by ID or name" />
                         </div>

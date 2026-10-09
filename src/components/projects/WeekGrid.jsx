@@ -121,7 +121,7 @@ export default function WeekGrid({ employeeId, projects, entries, readOnly = fal
                                 );
                             })}
                             <tr>
-                                <th scope="row" style={{ ...td, textAlign: 'left', fontSize: 12, color: t.faint, fontWeight: 500, padding: '9px 14px' }}>Day total</th>
+                                <th scope="row" style={{ ...td, textAlign: 'left', fontSize: 12, color: t.faint, fontWeight: 500, padding: '9px 14px' }}>Day Total</th>
                                 {dayKeys.map((dk) => <td key={dk} style={{ ...td, fontSize: 12.5, color: t.dim }}>{fmtH(dayTotal(dk)) || '-'}</td>)}
                                 <td style={td} />
                             </tr>

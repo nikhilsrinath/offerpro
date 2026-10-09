@@ -238,7 +238,7 @@ export default function AgreementForm({ kind }) {
                 </div>
               ))}
               <button type="button" onClick={addClause} className="easy-add-btn">
-                <Plus size={16} /> Add section
+                <Plus size={16} /> Add Section
               </button>
             </Section>
           ) : (

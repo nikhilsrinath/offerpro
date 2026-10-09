@@ -63,7 +63,7 @@ function ConvertSheet({ source, docs, busy, onClose, onConvert }) {
       )}
     >
       <fieldset style={{ border: 0, margin: 0, padding: 0, display: 'grid', gap: 8 }}>
-        <legend style={{ fontSize: 12.5, color: t.dim, marginBottom: 8, padding: 0 }}>Bill this quotation as</legend>
+        <legend style={{ fontSize: 12.5, color: t.dim, marginBottom: 8, padding: 0 }}>Bill This Quotation As</legend>
         {['proforma', 'invoice'].map((key) => {
           const selected = target === key;
           return (

@@ -6,6 +6,7 @@ import { SIZE_LABEL } from './widgetCatalog';
 import { PreviewCtx } from './previewData';
 import { PERIODS, DEFAULT_PERIOD, periodOf } from './periods';
 import './hub.css';
+import { titleCase } from '../../utils/titleCase';
 
 /* ══════════════════════════════════════════════════════════════════════════
    A board of widgets the person chooses. The hub's, and each project's.
@@ -142,7 +143,7 @@ export default function WidgetBoard({
                         </>
                     )}
                     <button type="button" className="hx-btn is-primary" onClick={() => setPicker(true)}>
-                        <Plus size={13} strokeWidth={2.2} aria-hidden="true" />Add widget
+                        <Plus size={13} strokeWidth={2.2} aria-hidden="true" />Add Widget
                     </button>
                 </div>
             </div>
@@ -154,14 +155,14 @@ export default function WidgetBoard({
             {layout.length === 0 ? (
                 <section className="hx-emptydash">
                     <div className="hx-ghost" aria-hidden="true"><span /><span /><span /><span /><span className="plus">+</span></div>
-                    <h3>No widgets yet</h3>
+                    <h3>No Widgets Yet</h3>
                     <p>{emptyText}</p>
                     <div className="row">
                         <button type="button" className="hx-btn is-primary" onClick={() => setPicker(true)}>
-                            <Plus size={13} strokeWidth={2.2} aria-hidden="true" />Add widget
+                            <Plus size={13} strokeWidth={2.2} aria-hidden="true" />Add Widget
                         </button>
                         <button type="button" className="hx-btn" onClick={() => { lay.reset(); say('Default layout restored.'); }}>
-                            Use default layout
+                            Use Default Layout
                         </button>
                         {lastLayout?.length > 0 && (
                             <button type="button" className="hx-btn is-quiet" onClick={() => {
@@ -169,7 +170,7 @@ export default function WidgetBoard({
                                 setLastLayout(null);
                                 say('Previous layout restored.');
                             }}>
-                                <RotateCcw size={13} strokeWidth={1.9} aria-hidden="true" />Undo clear
+                                <RotateCcw size={13} strokeWidth={1.9} aria-hidden="true" />Undo Clear
                             </button>
                         )}
                     </div>
@@ -210,9 +211,9 @@ export default function WidgetBoard({
                                     {w.icon && <span className="w-ic" aria-hidden="true"><w.icon size={15} strokeWidth={1.8} /></span>}
                                     {open ? (
                                         <button type="button" className="w-title w-title-btn" id={`wt-${item.id}`}
-                                            aria-label={`${w.title}, open page`} onClick={open}>{w.title}</button>
+                                            aria-label={`${w.title}, open page`} onClick={open}>{titleCase(w.title)}</button>
                                     ) : (
-                                        <span className="w-title" id={`wt-${item.id}`}>{w.title}</span>
+                                        <span className="w-title" id={`wt-${item.id}`}>{titleCase(w.title)}</span>
                                     )}
                                     {meta && <span className="w-meta">{meta}</span>}
                                     <button
@@ -330,14 +331,14 @@ function WidgetMenu({ widget, size, period, first, last, onAction, onClose }) {
                 </div>
             )}
             <button type="button" role="menuitem" disabled={first} onClick={() => onAction('up')}>
-                <ArrowUp size={13} aria-hidden="true" />Move earlier
+                <ArrowUp size={13} aria-hidden="true" />Move Earlier
             </button>
             <button type="button" role="menuitem" disabled={last} onClick={() => onAction('down')}>
-                <ArrowDown size={13} aria-hidden="true" />Move later
+                <ArrowDown size={13} aria-hidden="true" />Move Later
             </button>
             <hr />
             <button type="button" role="menuitem" className="is-danger" onClick={() => onAction('remove')}>
-                <EyeOff size={13} aria-hidden="true" />Remove widget
+                <EyeOff size={13} aria-hidden="true" />Remove Widget
             </button>
         </div>
     );
@@ -402,7 +403,7 @@ function WidgetPicker({ layout, lay, widgets, defaultCount, groups, previewProps
             <div ref={ref} className="hx-dialog hx-gallery" role="dialog" aria-modal="true" aria-labelledby="hx-pick-title">
                 <div className="hx-dialog-head">
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <h2 id="hx-pick-title">Add widgets</h2>
+                        <h2 id="hx-pick-title">Add Widgets</h2>
                         <p>{note} · {placed.size} on your board{previewProps ? ' · previews use sample data' : ''}</p>
                     </div>
                     <button type="button" className="hx-x" onClick={onClose} aria-label="Close"><X size={15} aria-hidden="true" /></button>
@@ -438,7 +439,7 @@ function WidgetPicker({ layout, lay, widgets, defaultCount, groups, previewProps
                                 <div key={w.id} className={`hx-gcard is-${size}${on ? ' is-on' : ''}`} style={{ '--i': i }}>
                                     <div className="hx-gprev">
                                         <div className={`w is-${size}`} inert aria-hidden="true">
-                                            <div className="w-head"><span className="w-title">{w.title}</span></div>
+                                            <div className="w-head"><span className="w-title">{titleCase(w.title)}</span></div>
                                             <div className="w-body"><Body {...props} size={size} period={w.periods ? (w.period || DEFAULT_PERIOD) : undefined} setPeriod={() => {}} /></div>
                                         </div>
                                         <button type="button" className="hx-gtoggle" aria-pressed={on}

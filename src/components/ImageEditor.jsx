@@ -370,7 +370,7 @@ export default function ImageEditor({ imageSrc, onSave, onCancel }) {
       <div className="img-editor-modal" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="img-editor-header">
-          <h3>Edit image</h3>
+          <h3>Edit Image</h3>
           <button type="button" onClick={onCancel} aria-label="Close" title="Close" style={{
             background: 'none', border: 'none', color: 'var(--text-tertiary)',
             cursor: 'pointer', padding: '0.25rem', display: 'flex'

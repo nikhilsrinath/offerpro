@@ -236,7 +236,7 @@ export default function BulkOfferLetters() {
                         <Outcome ok={`${processed} offer letter${processed === 1 ? '' : 's'} created and added to the tracker`} failed={failed}>
                             {failed} row{failed === 1 ? '' : 's'} failed.
                         </Outcome>
-                        <h2 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 500, color: t.text }}>Generated documents</h2>
+                        <h2 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 500, color: t.text }}>Generated Documents</h2>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
                             {results.map((res, i) => (
                                 <DocumentCard

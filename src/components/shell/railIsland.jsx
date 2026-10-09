@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { ArrowLeft, Crown } from 'lucide-react';
 import { MONO } from '../../theme/edge';
+import { titleCaseNode } from '../../utils/titleCase';
 
 /* ══════════════════════════════════════════════════════════════════════════
    The navigation island: every sidenav in the app (hub, module shell,
@@ -98,7 +99,7 @@ export function RailBack({ t, open, to, label, onClick }) {
             <span aria-hidden="true" style={{
                 fontSize: 14, whiteSpace: 'nowrap', color: t.dim,
                 opacity: open ? 1 : 0, transition: 'opacity .16s',
-            }}>{label}</span>
+            }}>{titleCaseNode(label)}</span>
         </>
     );
     return onClick ? (
@@ -115,7 +116,7 @@ export function RailHeading({ t, open, children }) {
             display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
             padding: '12px 6px 6px', fontSize: 11.5, fontWeight: 500, color: t.faint, whiteSpace: 'nowrap',
         }}>
-            <span style={{ opacity: open ? 1 : 0, transition: 'opacity .16s', overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>
+            <span style={{ opacity: open ? 1 : 0, transition: 'opacity .16s', overflow: 'hidden', textOverflow: 'ellipsis' }}>{titleCaseNode(children)}</span>
             <span style={{ flex: 1, minWidth: 8, height: 1, background: t.line }} />
         </div>
     );
@@ -157,7 +158,7 @@ function ItemInner({ t, open, on, icon: Icon, label, dot, badge }) {
             <span style={{
                 fontSize: 14, whiteSpace: 'nowrap', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
                 opacity: open ? 1 : 0, transition: 'opacity .16s',
-            }}>{label}</span>
+            }}>{titleCaseNode(label)}</span>
             {badge > 0 && open && (
                 <span aria-hidden="true" style={{
                     minWidth: 20, height: 20, padding: '0 6px', borderRadius: 999, boxSizing: 'border-box',

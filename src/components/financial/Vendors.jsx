@@ -166,7 +166,7 @@ export default function Vendors() {
         </button>
         <BelongsToFilter value={scope} onChange={setScope} className="prod-select" />
         <button className="prod-add-btn" onClick={() => { setEditing({ ...BLANK, belongs: scope || GENERAL }); setFormError(''); }}>
-          <Plus size={15} /> New vendor
+          <Plus size={15} /> New Vendor
         </button>
       </div>
 
@@ -182,13 +182,13 @@ export default function Vendors() {
             <thead>
               <tr>
                 <th>Vendor</th>
-                <th>Belongs to</th>
+                <th>Belongs To</th>
                 <th>Contact</th>
                 <th>GSTIN</th>
                 <th>Terms</th>
                 <th className="num">Billed</th>
                 <th className="num">Outstanding</th>
-                <th>Last activity</th>
+                <th>Last Activity</th>
                 <th />
               </tr>
             </thead>
@@ -332,7 +332,7 @@ export default function Vendors() {
               <Stat icon={<IndianRupee size={15} />} label="Paid" value={money(ledger[viewing.id]?.paid)} accent="var(--success)" />
               <Stat icon={<AlertTriangle size={15} />} label="Outstanding" value={money(ledger[viewing.id]?.outstanding)} accent="var(--text-primary)" />
             </div>
-            <h4 style={{ margin: '1rem 0 0.5rem', fontSize: '0.85rem' }}>Transaction history</h4>
+            <h4 style={{ margin: '1rem 0 0.5rem', fontSize: '0.85rem' }}>Transaction History</h4>
             {history.length === 0 ? (
               <div className="prod-perf-note">No bills or expenses recorded against this vendor yet.</div>
             ) : (
@@ -357,7 +357,7 @@ export default function Vendors() {
             <div className="prod-modal-foot">
               <button type="button" className="prod-btn-ghost" onClick={() => setViewing(null)}>Close</button>
               <button type="button" className="prod-btn-primary" onClick={() => navigate(`/purchase-bills?vendor=${viewing.id}&new=1`)}>
-                <Plus size={13} /> Record a bill
+                <Plus size={13} /> Record a Bill
               </button>
             </div>
           </div>

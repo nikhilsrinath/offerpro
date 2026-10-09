@@ -15,6 +15,7 @@ import {
 } from '../../../services/projectWorkspace';
 import { todayIso } from './partyData';
 import { Badge, Legend, AttachedFiles, Bar } from './partyUi';
+import { titleCaseNode } from '../../../utils/titleCase';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Client Management › Payment Status & Pendings, what the client owes on
@@ -143,7 +144,7 @@ export default function PaymentStatus({ project }) {
                                     <thead>
                                         <tr>
                                             {['Invoice', 'Milestone / description', 'Invoice date', 'Due', 'Amount', 'Paid', 'Balance', 'Status', 'Mode', 'Reference', 'Remarks', ''].map((h, i) => (
-                                                <th key={h || i} scope="col" style={thStyle(t, i >= 4 && i <= 6 ? 'right' : 'left')}>{h}</th>
+                                                <th key={h || i} scope="col" style={thStyle(t, i >= 4 && i <= 6 ? 'right' : 'left')}>{titleCaseNode(h)}</th>
                                             ))}
                                         </tr>
                                     </thead>

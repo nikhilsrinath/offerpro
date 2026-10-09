@@ -3,7 +3,7 @@ import GlobalSearch from './shell/GlobalSearch';
 import { Link, useNavigate } from 'react-router-dom';
 import {
     Bell, Sun, Moon, LogOut, User as UserIcon, Building2, Check, ChevronDown,
-    ChevronsUpDown, LayoutGrid, Search, CalendarDays,
+    ChevronsUpDown, Search, CalendarDays,
 } from 'lucide-react';
 import { useOrg } from '../context/OrgContext';
 import { documentStore } from '../services/documentStore';
@@ -82,9 +82,9 @@ function useNow(every) {
 
 /* ── bar and rail primitives ───────────────────────────────────────────── */
 
-// The rail's sections. 'hub' is this page; the rest are MODULES ids.
+// The rail's sections, as MODULES ids. The hub itself is reached from the brand mark.
 const RAIL_GROUPS = [
-    { label: 'Main menu', ids: ['hub', 'overall', 'projects', 'finance', 'team'] },
+    { label: 'Main menu', ids: ['overall', 'projects', 'finance', 'team'] },
     { label: 'Features', ids: ['business', 'documents', 'brain'] },
 ];
 const MODULE_BY_ID = Object.fromEntries(MODULES.map((m) => [m.id, m]));
@@ -242,7 +242,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
     }, [assistant, showDock]);
 
     const hour = now.getHours();
-    const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
     const rawName = user?.email?.split('@')[0] || 'operator';
     const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
     const orgName = activeOrg?.company_name || activeOrg?.name || 'Workspace';
@@ -299,7 +299,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                     <button type="button" onClick={clearNotifs} style={{
                         background: 'none', border: 'none', cursor: 'pointer',
                         fontFamily: MONO, fontSize: 12, color: t.dim, padding: 0,
-                    }}>Clear all</button>
+                    }}>Clear All</button>
                 )}
             </div>
             {notifs.length === 0 ? (
@@ -400,7 +400,6 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                             <React.Fragment key={g.label}>
                                 <RailHeading t={t} open={rail}>{g.label}</RailHeading>
                                 {g.ids.map((id) => {
-                                    if (id === 'hub') return <RailItem key={id} t={t} open={rail} icon={LayoutGrid} label="Hub" to="/hub" end />;
                                     const m = MODULE_BY_ID[id];
                                     return m && <RailItem key={id} t={t} open={rail} icon={m.icon} label={m.label} to={'/' + m.defaultPage} active={false} />;
                                 })}
@@ -609,14 +608,14 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                         {/* greeting */}
                         <div style={{ padding: '4px 2px 2px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{
+                                    margin: 0, fontSize: isMobile ? 13 : 14, fontWeight: 500, color: t.dim,
+                                }}>{greeting}</p>
                                 <h1 style={{
-                                    margin: 0, fontSize: isMobile ? 23 : 30, fontWeight: 600,
+                                    margin: '2px 0 0', fontSize: isMobile ? 22 : 28, fontWeight: 700,
                                     letterSpacing: '-0.03em', color: t.text, lineHeight: 1.15,
                                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                }}>{greeting}, {displayName} <span aria-hidden="true">👋</span></h1>
-                                <p style={{ margin: '6px 0 0', fontSize: 13.5, color: t.dim }}>
-                                    Here is what is happening at {orgName} today.
-                                </p>
+                                }}>{orgName}</h1>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                                 {!isMobile && (

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Check, ChevronDown, MoreHorizontal, Pencil, Search as SearchIcon } from 'lucide-react';
 import { MONO, useT, useDialog, tableFrame, thStyle, tdStyle } from './edgeUtils';
 import { confirmDialog } from '../../services/confirm';
+import { titleCase, titleCaseNode } from '../../utils/titleCase';
 
 /* ══════════════════════════════════════════════════════════════════════════
    The kit every converted page is built from.
@@ -81,7 +82,7 @@ export function Panel({ children, title, note, actions, pad = 0, style }) {
                     display: 'flex', alignItems: 'center', gap: 10,
                     padding: '12px 16px', borderBottom: '1px solid ' + t.line,
                 }}>
-                    <span style={{ fontSize: 14.5, color: t.text, fontWeight: 500, letterSpacing: '-0.01em' }}>{title}</span>
+                    <span style={{ fontSize: 14.5, color: t.text, fontWeight: 500, letterSpacing: '-0.01em' }}>{titleCaseNode(title)}</span>
                     {note && <span style={{ fontSize: 11.5, color: t.faint }}>{note}</span>}
                     <div style={{ flex: 1 }} />
                     {actions}
@@ -105,7 +106,7 @@ export function Grid({ children, min = 240, gap = 12, cols }) {
 
 export function Label({ children }) {
     const t = useT();
-    return <span style={{ fontSize: 12, fontWeight: 500, color: t.faint }}>{children}</span>;
+    return <span style={{ fontSize: 12, fontWeight: 500, color: t.faint }}>{titleCaseNode(children)}</span>;
 }
 
 export function Muted({ children, size = 12 }) {
@@ -136,7 +137,7 @@ export function Btn({ children, onClick, primary, danger, disabled, title, size 
                 transition: 'border-color .15s, background .15s, color .15s, opacity .15s, filter .15s',
                 ...style,
             }}
-        >{children}</button>
+        >{titleCaseNode(children)}</button>
     );
 }
 
@@ -187,7 +188,7 @@ export function Seg({ value, onChange, options, size = 'md', label: groupLabel }
                             transition: 'color .14s, background .14s',
                         }}
                     >
-                        {label}
+                        {titleCaseNode(label)}
                     </button>
                 );
             })}
@@ -237,7 +238,7 @@ export function Field({ label, children, hint, wide, required }) {
             <span style={{
                 display: 'block', fontSize: 12.5, fontWeight: 500,
                 color: t.dim, marginBottom: 6,
-            }}>{label}{req && <ReqStar />}</span>
+            }}>{titleCaseNode(label)}{req && <ReqStar />}</span>
             {children}
             {hint && <span style={{ display: 'block', fontSize: 11.5, color: t.faint, marginTop: 5 }}>{hint}</span>}
         </label>
@@ -392,7 +393,7 @@ export function Stat({ label, value, note, tone }) {
                 fontVariantNumeric: 'tabular-nums',
                 color: tone === 'up' ? t.up : tone === 'down' ? t.down : t.text,
             }}>{value}</div>
-            <div style={{ fontSize: 12.5, fontWeight: 500, color: t.dim, marginTop: 6 }}>{label}</div>
+            <div style={{ fontSize: 12.5, fontWeight: 500, color: t.dim, marginTop: 6 }}>{titleCaseNode(label)}</div>
             {note && <div style={{ fontSize: 11.5, color: t.faint, marginTop: 3 }}>{note}</div>}
         </div>
     );
@@ -498,7 +499,7 @@ function ColumnPicker({ cols, isOn, onToggle, onReset, onAll, changed }) {
                                     border: '1px solid ' + (on ? t.accent : t.lineStrong),
                                     background: on ? t.accent : 'transparent', color: t.onAccent,
                                 }}>{on && <Check size={12} strokeWidth={3} />}</span>
-                                <span style={{ flex: 1, minWidth: 0 }}>{c.pickLabel || c.label}</span>
+                                <span style={{ flex: 1, minWidth: 0 }}>{titleCaseNode(c.pickLabel || c.label)}</span>
                                 {c.always && <span style={{ fontSize: 10.5, color: t.faint }}>always</span>}
                             </button>
                         );
@@ -551,7 +552,7 @@ export function Table({ id, cols: allCols, children, empty }) {
                     <thead>
                         <tr>
                             {cols.map((c) => (
-                                <th key={c.key} scope="col" style={{ ...thStyle(t, c.align), width: c.width }}>{c.label}</th>
+                                <th key={c.key} scope="col" style={{ ...thStyle(t, c.align), width: c.width }}>{titleCaseNode(c.label)}</th>
                             ))}
                         </tr>
                     </thead>
@@ -646,7 +647,7 @@ export function Modal({ open, onClose, title, note, children, footer, width = 52
                     padding: '14px 18px', borderBottom: '1px solid ' + t.line, flexShrink: 0,
                 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <h2 id={titleId} style={{ margin: 0, fontSize: 15.5, fontWeight: 600, letterSpacing: '-0.015em', color: t.text }}>{title}</h2>
+                        <h2 id={titleId} style={{ margin: 0, fontSize: 15.5, fontWeight: 600, letterSpacing: '-0.015em', color: t.text }}>{titleCaseNode(title)}</h2>
                         {note && <div style={{ fontSize: 12, color: t.faint, marginTop: 3 }}>{note}</div>}
                     </div>
                     <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" className="edge-btn" style={{
@@ -830,7 +831,7 @@ export function RowMenu({ items, label = 'Actions', size = 'sm' }) {
             >
                 {Icon && <Icon size={14} aria-hidden="true" style={{ flexShrink: 0 }} />}
                 <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <span>{it.busy ? (it.busyLabel || `${it.label}…`) : it.label}</span>
+                    <span>{it.busy ? (it.busyLabel || `${titleCase(it.label)}…`) : titleCaseNode(it.label)}</span>
                     {it.hint && it.showHint && (
                         <span style={{ fontSize: 11, color: t.faint, whiteSpace: 'normal', maxWidth: 220 }}>{it.hint}</span>
                     )}
@@ -993,7 +994,7 @@ export function Dropdown({ label, value, onChange, options, height = 36 }) {
                     transition: 'border-color .15s, background .15s',
                 }}
             >
-                <span style={{ color: t.faint, fontSize: 11.5 }}>{label}</span>
+                <span style={{ color: t.faint, fontSize: 11.5 }}>{titleCaseNode(label)}</span>
                 <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{current?.label}</span>
                 <ChevronDown size={14} aria-hidden="true" style={{
                     flexShrink: 0, color: t.faint, transition: 'transform .15s',
@@ -1027,7 +1028,7 @@ export function Dropdown({ label, value, onChange, options, height = 36 }) {
                                     textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap',
                                 }}
                             >
-                                <span>{o.label}</span>
+                                <span>{titleCaseNode(o.label)}</span>
                                 {selected
                                     ? <Check size={14} aria-hidden="true" style={{ flexShrink: 0, color: t.accent }} />
                                     : <span aria-hidden="true" style={{ width: 14, flexShrink: 0 }} />}
