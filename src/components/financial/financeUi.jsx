@@ -28,14 +28,33 @@ export function Stat({ icon, label, value, accent, sub, onClick }) {
   );
 }
 
-export function Modal({ title, onClose, children, width }) {
+/* With `dirty`, leaving by a click outside, Escape or the × asks first, so a
+   half-entered form is not lost to a stray click. `minHeight` makes a sheet
+   that shows a list tall from the start. */
+export function Modal({ title, onClose, children, width, minHeight, dirty = false }) {
   const titleId = useId();
+  const asking = useRef(false);
+  const close = async () => {
+    if (asking.current) return;
+    if (dirty) {
+      asking.current = true;
+      const ok = await confirmDialog({
+        title: 'Close without saving?', message: 'What you have entered will be lost.',
+        confirmLabel: 'Discard', cancelLabel: 'Keep editing',
+      });
+      asking.current = false;
+      if (!ok) return;
+    }
+    onClose();
+  };
   return (
-    <div className="prod-modal-backdrop" onClick={onClose}>
-      <DialogSheet className="prod-modal" labelledBy={titleId} onClose={onClose} style={width ? { maxWidth: width } : undefined}>
+    // mousedown on the backdrop itself: a drag that starts in a field and ends outside is not a close
+    <div className="prod-modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
+      <DialogSheet className="prod-modal" labelledBy={titleId} onClose={close}
+        style={width || minHeight ? { maxWidth: width, minHeight } : undefined}>
         <div className="prod-modal-head">
           <h3 id={titleId}>{title}</h3>
-          <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)"><X aria-hidden="true" size={16} /></button>
+          <button type="button" onClick={close} aria-label="Close" title="Close (Esc)"><X aria-hidden="true" size={16} /></button>
         </div>
         {children}
       </DialogSheet>

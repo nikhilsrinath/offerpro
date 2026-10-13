@@ -1,5 +1,10 @@
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { adjustBox } from '../utils/imageAdjust';
+import { resolveFormImages } from '../utils/imageUtils';
+import CertificatePreview from '../components/CertificatePreview';
 import { buildAgreement } from './agreementModel';
 
 /**
@@ -20,6 +25,39 @@ async function captureAtFullSize(element, options) {
   } finally {
     if (stage) stage.style.transform = previous;
   }
+}
+
+/**
+ * Draw a certificate off screen, ready to capture, for a download from
+ * somewhere its editor is not open. Resolves once its fonts and images are in;
+ * `unmount` takes it away again.
+ */
+async function mountCertificate(data) {
+  const formData = await resolveFormImages(data || {}, ['logo', 'signature', 'secondSignature', 'art', 'stampUrl']);
+  const host = document.createElement('div');
+  host.setAttribute('aria-hidden', 'true');
+  host.style.cssText = 'position:fixed;left:-20000px;top:0;pointer-events:none;';
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  root.render(createElement(CertificatePreview, { formData, captureId: 'certificate-capture-offscreen' }));
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  await wait(60);
+  try {
+    await Promise.all([
+      document.fonts?.load("700 40px 'Roboto'"), document.fonts?.load("400 13px 'Roboto'"),
+      document.fonts?.load("500 30px 'Roboto Mono'"), document.fonts?.load("700 27px 'Roboto Mono'"),
+    ]);
+    await document.fonts?.ready;
+  } catch { /* the fallback faces are drawn instead */ }
+  // A signature is swapped for its trimmed copy a moment after it loads.
+  await wait(250);
+  await Promise.all([...host.querySelectorAll('img')].map((img) => (
+    img.complete ? null : new Promise((resolve) => { img.onload = resolve; img.onerror = resolve; })
+  )));
+  return {
+    element: host.querySelector('#certificate-capture-offscreen'),
+    unmount: () => { root.unmount(); host.remove(); },
+  };
 }
 
 /**
@@ -51,7 +89,9 @@ export function renderDocumentHeader(doc, data, options = {}) {
       const maxH = 18;
       const displayH = Math.min(maxH, props.height * (42 / props.width));
       const displayW = (props.width * displayH) / props.height;
-      doc.addImage(logo, 'PNG', margin, y, displayW, displayH);
+      // Readjusted on the form (logoAdjust): drawn there, the header keeps its height.
+      const box = adjustBox(data.logoAdjust, { x: margin, y, w: displayW, h: displayH });
+      doc.addImage(logo, 'PNG', box.x, box.y, box.w, box.h);
       leftBottomY = y + displayH;
 
       // Tagline below logo
@@ -162,6 +202,11 @@ async function renderStamp(doc, data, x, y, size = 35) {
   if (!data.showStamp) return;
   const stampImg = data.stampUrl && data.stampType === 'uploaded' ? data.stampUrl : data.stampPng;
   if (!stampImg) return;
+
+  // Readjusted on the form (stampAdjust), about the stamp's centre.
+  const box = adjustBox(data.stampAdjust, { x, y, w: size, h: size }, 0.5, 0.5);
+  ({ x, y } = box);
+  size = box.w;
 
   try {
     const rotated = await preRotateStamp(stampImg, -8);
@@ -468,7 +513,9 @@ export const pdfService = {
         const props = doc.getImageProperties(data.signature);
         const sigW = 40;
         const sigH = (props.height * sigW) / props.width;
-        doc.addImage(data.signature, 'PNG', margin, y, sigW, sigH);
+        // Readjusted on the form (signatureAdjust), growing up from the name under it.
+        const box = adjustBox(data.signatureAdjust, { x: margin, y, w: sigW, h: sigH }, 0, 1);
+        doc.addImage(data.signature, 'PNG', box.x, box.y, box.w, box.h);
         y += sigH + 2;
       } catch (e) {
         console.error('Sign error:', e);
@@ -501,35 +548,42 @@ export const pdfService = {
   },
 
   generateCertificate: async (data, isPreview = false) => {
-    const element = document.getElementById('certificate-capture-area');
-    if (!element) {
-      console.error('Certificate capture area not found');
-      return;
-    }
+    const portrait = data?.orientation === 'portrait';
+    const [w, h] = portrait ? [794, 1123] : [1123, 794];
+    // The editor has the certificate on screen; anywhere else (Records) it is
+    // drawn off screen for the length of the capture.
+    let element = document.getElementById('certificate-capture-area');
+    let unmount = null;
+    if (!element) ({ element, unmount } = await mountCertificate(data));
 
-    // Capture the exact DOM state as a high-resolution canvas
-    const canvas = await captureAtFullSize(element, {
-      scale: 3,
-      useCORS: true,
-      logging: false,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      scrollX: 0,
-      scrollY: 0,
-      windowWidth: 1123,
-      windowHeight: 794
-    });
+    let canvas;
+    try {
+      // Capture the exact DOM state as a high-resolution canvas
+      canvas = await captureAtFullSize(element, {
+        scale: 3,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        backgroundColor: '#fbfcf1',
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: w,
+        windowHeight: h
+      });
+    } finally {
+      unmount?.();
+    }
 
     const imgData = canvas.toDataURL('image/png', 1.0);
     const doc = new jsPDF({
-      orientation: 'landscape',
+      orientation: portrait ? 'portrait' : 'landscape',
       unit: 'mm',
       format: 'a4',
       compress: true
     });
 
-    // Add the image to the PDF spanning the entire A4 Landscape page (297x210)
-    doc.addImage(imgData, 'PNG', 0, 0, 297, 210, undefined, 'FAST');
+    // The image spans the whole A4 page, whichever way it is turned
+    doc.addImage(imgData, 'PNG', 0, 0, portrait ? 210 : 297, portrait ? 297 : 210, undefined, 'FAST');
 
     if (isPreview) {
       window.open(doc.output('bloburl'), '_blank');

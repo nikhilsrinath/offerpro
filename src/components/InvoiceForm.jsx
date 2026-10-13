@@ -10,7 +10,8 @@ import InvoicePreview from './InvoicePreview';
 import ProductPicker from './shared/ProductPicker';
 import CountrySelect from './shared/CountrySelect';
 import { INDIAN_STATES } from '../data/indianStates';
-import { productToLineItem } from '../services/catalogService';
+import { productToLineItem, catalogService } from '../services/catalogService';
+import { confirmDialog } from '../services/confirm';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 import A4Stage from './shared/A4Stage';
 import ProjectPicker from './shared/ProjectPicker';
@@ -294,8 +295,43 @@ export default function InvoiceForm() {
     await pdfService.generateInvoice({ ...resolved, totals, isInterState, orgName: resolved.orgName || activeOrg?.company_name || activeOrg?.name }, true);
   };
 
+  // Only what is in the Catalogue can be sold: every line is picked from it,
+  // and a product whose stock is tracked needs the units in hand. Returns what
+  // is wrong, or null. The Catalogue opens in its own tab so the invoice being
+  // written is still here once the item or its stock has been added.
+  const catalogueProblem = () => {
+    const byId = Object.fromEntries(catalogService.getActive().map((p) => [p.id, p]));
+    const lines = formData.items.filter((i) => (i.description || '').trim() || Number(i.price) > 0);
+    const loose = lines.find((i) => !byId[i.catalog_item_id]);
+    if (loose) {
+      return {
+        title: 'Not in the Catalogue',
+        message: `"${(loose.description || 'This line').trim()}" is not picked from the Catalogue. Add it there as a product or service, then choose it on the line with Select product.`,
+      };
+    }
+    const wanted = {};
+    lines.forEach((i) => { wanted[i.catalog_item_id] = (wanted[i.catalog_item_id] || 0) + (Number(i.quantity) || 0); });
+    const short = Object.keys(wanted).map((id) => byId[id])
+      .find((p) => p.track_inventory && (Number(p.stock_qty) || 0) < wanted[p.id]);
+    if (short) {
+      const have = Number(short.stock_qty) || 0;
+      return {
+        title: have > 0 ? 'Not Enough Stock' : 'Out of Stock',
+        message: `${short.name}: ${have} ${short.unit || 'units'} in stock, ${wanted[short.id]} on this invoice. Increase its stock in hand in the Catalogue first.`,
+      };
+    }
+    return null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const problem = catalogueProblem();
+    if (problem) {
+      if (await confirmDialog({ ...problem, confirmLabel: 'Open Catalogue', cancelLabel: 'Close', tone: 'default' })) {
+        window.open('/products-directory', '_blank', 'noopener');
+      }
+      return;
+    }
     if (!canCreate('invoices')) {
       alert(`You've reached your ${planConfig.name} plan limit of ${planConfig.limits.invoices} invoices. Please upgrade to continue.`);
       return;

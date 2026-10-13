@@ -11,6 +11,7 @@ import { portfolio, employeeAllocation, canSeeFinancials } from '../../services/
 import { hasFeature } from '../../services/planConfig';
 import { orgStore } from '../../services/orgStore';
 import HealthChip from './HealthChip';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Portfolio: every project on one page. Pro and Max. Money columns need
@@ -47,6 +48,27 @@ const COLS = [
 ];
 
 const HEALTH_RANK = { off_track: 0, at_risk: 1, on_track: 2 };
+
+/** A column heading with its two sort arrows: up is ascending, down descending. */
+function SortHead({ label, align, dir, onSort }) {
+    const t = useT();
+    const arrow = (d, Icon, word) => (
+        <button type="button" aria-label={`Sort by ${label}, ${word}`} title={`${label}: ${word}`} aria-pressed={dir === d}
+            onClick={() => onSort(d)} className="edge-sort" style={{
+                display: 'grid', placeItems: 'center', width: 16, height: 11, padding: 0, border: 'none', borderRadius: 3,
+                background: 'transparent', cursor: 'pointer', color: dir === d ? t.accent : t.ghost,
+            }}><Icon aria-hidden="true" size={13} strokeWidth={dir === d ? 2.8 : 2} /></button>
+    );
+    return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: align === 'right' ? 'row-reverse' : 'row', color: dir ? t.text : undefined }}>
+            {label}
+            <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 1 }}>
+                {arrow(1, ChevronUp, 'ascending')}
+                {arrow(-1, ChevronDown, 'descending')}
+            </span>
+        </span>
+    );
+}
 
 export default function Portfolio() {
     const t = useT();
@@ -134,6 +156,7 @@ export default function Portfolio() {
     return (
         <TipProvider>
             <Page>
+                <style>{`.edge-sort:hover { color: ${t.text} !important; }`}</style>
                 <Toolbar right={<Btn onClick={exportCsv}>Export CSV</Btn>}>
                     <Select aria-label="Period" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ width: 190, height: 29 }}>
                         {PERIODS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
@@ -190,18 +213,11 @@ export default function Portfolio() {
                     <Table id="portfolio" cols={cols.map((c) => ({
                         ...c,
                         pickLabel: c.label,
-                        label: c.label + (sort.key === c.key ? (sort.dir > 0 ? ' ↑' : ' ↓') : ''),
+                        label: <SortHead label={c.label} align={c.align} dir={sort.key === c.key ? sort.dir : 0}
+                            onSort={(dir) => setSort({ key: c.key, dir })} />,
                     }))}>
                         {(show, vis) => (
                             <>
-                                <tr>
-                                    {vis.map((c) => (
-                                        <td key={c.key} style={{ padding: '4px 13px', textAlign: c.align || 'left' }}>
-                                            <Btn size="sm" aria-label={`Sort by ${c.pickLabel}`}
-                                                onClick={() => setSort((s) => ({ key: c.key, dir: s.key === c.key ? -s.dir : 1 }))}>Sort</Btn>
-                                        </td>
-                                    ))}
-                                </tr>
                                 {sorted.map((r) => (
                                     <Tr key={r.project_id} onClick={() => navigate(`/projects/${r.project_id}`)} label={`Open ${r.name}`}>
                                         {vis.map((c) => <Td key={c.key} align={c.align} nowrap={c.key !== 'name'}>{cell(r, c.key)}</Td>)}

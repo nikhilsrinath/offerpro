@@ -59,9 +59,11 @@ export default function ProfitLoss() {
   return (
     <div style={{ maxWidth: '100%' }}>
       <div className="prod-toolbar">
-        {PRESETS.map((p) => (
-          <button key={p.id} aria-pressed={preset === p.id} className={`pro-chip ${preset === p.id ? 'active' : ''}`} onClick={() => setPreset(p.id)}>{p.label}</button>
-        ))}
+        <div className="prod-seg" role="group" aria-label="Period">
+          {PRESETS.map((p) => (
+            <button key={p.id} aria-pressed={preset === p.id} className={`pro-chip ${preset === p.id ? 'active' : ''}`} onClick={() => setPreset(p.id)}>{p.label}</button>
+          ))}
+        </div>
         {preset === 'custom' && (
           <div className="prod-range">
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />

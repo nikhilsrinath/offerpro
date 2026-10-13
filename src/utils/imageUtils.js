@@ -32,6 +32,56 @@ export async function resolveImageToBase64(src) {
 }
 
 /**
+ * Cut the empty margins off an image: everything outside the ink, where empty
+ * is transparent or near-white. A signature drawn small in a large pad comes
+ * back as just the signature. Returns a PNG data URL, or the source untouched
+ * when there is nothing to cut or the pixels cannot be read.
+ */
+export async function trimImage(src, pad = 6) {
+  const data = await resolveImageToBase64(src);
+  if (!data || !data.startsWith('data:')) return data || src;
+  const img = await new Promise((resolve) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = () => resolve(null);
+    el.src = data;
+  });
+  const w = img?.naturalWidth || 0;
+  const h = img?.naturalHeight || 0;
+  if (!w || !h) return data;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  let px;
+  try { px = ctx.getImageData(0, 0, w, h).data; } catch { return data; }
+  let x0 = w; let y0 = h; let x1 = -1; let y1 = -1;
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const i = (y * w + x) * 4;
+      if (px[i + 3] < 24) continue;
+      if (px[i] > 238 && px[i + 1] > 238 && px[i + 2] > 238) continue;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+  }
+  if (x1 < 0) return data; // nothing but background
+  x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad);
+  x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(h - 1, y1 + pad);
+  const cw = x1 - x0 + 1;
+  const ch = y1 - y0 + 1;
+  if (cw >= w * 0.95 && ch >= h * 0.95) return data; // already tight
+  const out = document.createElement('canvas');
+  out.width = cw;
+  out.height = ch;
+  out.getContext('2d').drawImage(canvas, x0, y0, cw, ch, 0, 0, cw, ch);
+  return out.toDataURL('image/png');
+}
+
+/**
  * Resolve all image fields in a form data object to base64.
  */
 export async function resolveFormImages(formData, imageFields) {

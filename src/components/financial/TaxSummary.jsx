@@ -86,13 +86,12 @@ export default function TaxSummary({ projectId = null }) {
       </div>
 
       <div className="prod-toolbar">
-        {KINDS.map((k) => (
-          <button key={k.id} aria-pressed={kind === k.id} className={`pro-chip ${kind === k.id ? 'active' : ''}`}
-            onClick={() => { setKind(k.id); setPeriodId(null); }}>{k.label}</button>
-        ))}
-        <button className="prod-add-btn" onClick={exportCsv}>
-          <Download size={15} /> Export CSV
-        </button>
+        <div className="prod-seg" role="group" aria-label="Period">
+          {KINDS.map((k) => (
+            <button key={k.id} aria-pressed={kind === k.id} className={`pro-chip ${kind === k.id ? 'active' : ''}`}
+              onClick={() => { setKind(k.id); setPeriodId(null); }}>{k.label}</button>
+          ))}
+        </div>
         {options.length > 0 && (
           <select aria-label="Tax period" className="prod-select" value={period.id} onChange={(e) => setPeriodId(e.target.value)}>
             {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
@@ -105,6 +104,9 @@ export default function TaxSummary({ projectId = null }) {
             <input type="date" aria-label="To" value={to} onChange={(e) => setTo(e.target.value)} />
           </div>
         )}
+        <button className="prod-add-btn" onClick={exportCsv}>
+          <Download size={15} /> Export CSV
+        </button>
       </div>
 
       <div className="prod-stats">

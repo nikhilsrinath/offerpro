@@ -47,14 +47,14 @@ export const WIDGETS = [
     { id: 'project_margin_pct', to: '/portfolio', group: 'projects', title: 'Project margin %', desc: 'Net margin as a share of what each project invoiced', icon: Percent, size: 'md', sizes: ALL, render: ProjectMarginPct },
     { id: 'project_shortcuts', to: '/projects', group: 'projects', title: 'Project shortcuts', desc: 'New project, kanban chart, portfolio', icon: Rocket, size: 'sm', sizes: ['sm'], render: ProjectShortcuts },
     // Business: available from the picker.
-    { id: 'revenue', to: '/billing/invoices', group: 'finance', title: 'Revenue', desc: 'Money in over 1, 3, 6 or 12 months, against the stretch before', icon: IndianRupee, size: 'sm', sizes: SM_MD, periods: true, render: Revenue },
-    { id: 'expenses', to: '/general-ledger', group: 'finance', title: 'Expenses', desc: 'Money out over 1, 3, 6 or 12 months, against the stretch before', icon: TrendingDown, size: 'sm', sizes: SM_MD, periods: true, render: Expenses },
+    { id: 'revenue', to: '/billing/invoices', group: 'finance', title: 'Revenue', desc: 'Credit over 1, 3, 6 or 12 months, against the stretch before', icon: IndianRupee, size: 'sm', sizes: SM_MD, periods: true, render: Revenue },
+    { id: 'expenses', to: '/general-ledger', group: 'finance', title: 'Expenses', desc: 'Debit over 1, 3, 6 or 12 months, against the stretch before', icon: TrendingDown, size: 'sm', sizes: SM_MD, periods: true, render: Expenses },
     { id: 'revenue_per_head', to: '/dashboard/finance', group: 'finance', title: 'Revenue per head', desc: 'Average revenue per person on the team', icon: UserRound, size: 'sm', sizes: ALL, periods: true, period: '1Y', render: RevenuePerHead },
     { id: 'expenses_per_head', to: '/dashboard/finance', group: 'finance', title: 'Expenses per head', desc: 'Average expenses per person on the team', icon: UserRound, size: 'sm', sizes: ALL, periods: true, period: '1Y', render: ExpensesPerHead },
     { id: 'gross_profit', to: '/profit-loss', group: 'finance', title: 'Gross profit & operating ratio', desc: 'Gross profit as a share of income, and running costs against it', icon: Percent, size: 'md', sizes: ALL, periods: true, period: '3M', render: GrossProfit },
     { id: 'netcash', to: '/general-ledger', group: 'finance', title: 'Net cash', desc: 'Everything received less everything paid', icon: Wallet, size: 'sm', sizes: SM_MD, meta: () => 'All time', render: NetCash },
     { id: 'settlement', to: '/billing/invoices', group: 'finance', title: 'Settlement', desc: 'Share of invoices paid in full', icon: CircleCheck, size: 'sm', sizes: SM_MD, render: Settlement },
-    { id: 'cashflow', to: '/general-ledger', group: 'finance', title: 'Cash flow', desc: 'Money in and out over time, and the net cash burn', icon: BarChart3, size: 'md', sizes: MD_LG, render: CashFlow },
+    { id: 'cashflow', to: '/general-ledger', group: 'finance', title: 'Cash flow', desc: 'Credit and debit over time, and the net cash burn', icon: BarChart3, size: 'md', sizes: MD_LG, render: CashFlow },
     {
         id: 'receivables', to: '/billing/invoices', group: 'finance', title: 'Awaiting payment', desc: 'Open invoices, soonest due first', icon: Clock, size: 'md', sizes: ALL,
         meta: (d) => (d.money.open.length ? `${d.money.open.length} open` : ''), render: Receivables,

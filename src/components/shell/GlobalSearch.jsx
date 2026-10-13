@@ -122,7 +122,7 @@ function search(index, query) {
     }).filter((g) => g.items.length);
 }
 
-export default function GlobalSearch({ t, width = 360 }) {
+export default function GlobalSearch({ t, width = 460 }) {
     const navigate = useNavigate();
     const index = useIndex();
     const [q, setQ] = useState('');
@@ -181,7 +181,7 @@ export default function GlobalSearch({ t, width = 360 }) {
     let n = -1;
 
     return (
-        <div ref={boxRef} style={{ position: 'relative', width, maxWidth: '40vw' }}>
+        <div ref={boxRef} style={{ position: 'relative', width, maxWidth: '46vw', minWidth: 0 }}>
             <div role="search" className="nm-ask" style={{
                 display: 'flex', alignItems: 'center', gap: 9, height: 40, padding: '0 6px 0 12px',
                 borderRadius: 11, border: '1px solid ' + (open ? t.accent : t.line), background: t.card,
@@ -199,7 +199,7 @@ export default function GlobalSearch({ t, width = 360 }) {
                     placeholder="Search projects, clients, people, documents…"
                     style={{
                         flex: 1, minWidth: 0, height: '100%', border: 0, outline: 'none',
-                        background: 'transparent', color: t.text, font: 'inherit', fontSize: 13.5,
+                        background: 'transparent', color: t.text, font: 'inherit', fontSize: 13.5, textOverflow: 'ellipsis',
                     }}
                 />
                 <kbd aria-hidden="true" style={{

@@ -44,34 +44,52 @@ export default function TemplatesGallery() {
 
   return (
     <Page>
-      <Grid min={250} gap={12}>
+      {/* Cards in the dashboards' own style: the blue wash, a tinted icon, and a lift on hover. */}
+      <style>{`
+        .tpl-card { transition: border-color .18s, box-shadow .18s, transform .22s cubic-bezier(.16,1,.3,1); }
+        .tpl-card:hover { border-color: ${t.lineStrong} !important; transform: translateY(-3px); box-shadow: ${t.highlight}, 0 16px 32px -18px ${t.isDark ? 'rgba(0,0,0,.95)' : 'rgba(15,17,21,.38)'} !important; }
+        .tpl-card:hover .tpl-start { filter: brightness(1.08); }
+        .tpl-card:hover .tpl-start svg { transform: translateX(2px); }
+        .tpl-start svg { transition: transform .15s; }
+        @media (prefers-reduced-motion: reduce) { .tpl-card, .tpl-card:hover { transform: none; transition: none; } }
+      `}</style>
+      <Grid min={270} gap={14}>
         {TEMPLATES.map(({ to, icon: Icon, title, tag, desc, count }) => {
           const issued = records ? records.filter(count).length : null;
           return (
-            <Link key={to} to={to} className="edge-tr" aria-label={`${title}: start a new document`} style={{
-              display: 'flex', flexDirection: 'column', gap: 12, padding: 16,
-              border: '1px solid ' + t.line, borderRadius: 10, background: t.panel,
-              color: t.text, textDecoration: 'none', minHeight: 170,
+            <Link key={to} to={to} className="tpl-card" aria-label={`${title}: start a new document`} style={{
+              display: 'flex', flexDirection: 'column', gap: 14, padding: '18px 18px 14px',
+              border: '1px solid ' + t.line, borderRadius: 18, background: t.card, boxShadow: t.highlight,
+              backgroundImage: `radial-gradient(120% 90% at 100% 0%, ${t.accentSoft}, transparent 60%)`,
+              color: t.text, textDecoration: 'none', minHeight: 200,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span aria-hidden="true" style={{
-                  display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: 8,
-                  border: '1px solid ' + t.line, background: t.panelAlt, color: t.dim, flexShrink: 0,
+                  display: 'grid', placeItems: 'center', width: 40, height: 40, borderRadius: 12,
+                  background: t.accentSoft, color: t.accent, flexShrink: 0,
                 }}>
-                  <Icon size={17} strokeWidth={1.7} />
+                  <Icon size={19} strokeWidth={1.9} />
                 </span>
-                <span style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint }}>{tag.toUpperCase()}</span>
+                <span style={{ flex: 1 }} />
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', height: 24, padding: '0 10px', borderRadius: 99,
+                  fontSize: 12, fontWeight: 500, color: t.dim, background: t.panelAlt, border: '1px solid ' + t.line,
+                }}>{tag}</span>
               </div>
               <div>
-                <div style={{ fontSize: 13.5, fontWeight: 500, color: t.text }}>{title}</div>
-                <div style={{ fontSize: 12, color: t.dim, marginTop: 5, lineHeight: 1.5 }}>{desc}</div>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, letterSpacing: '-0.015em', color: t.text, lineHeight: 1.3 }}>{title}</h2>
+                <p style={{ margin: '6px 0 0', fontSize: 13, color: t.dim, lineHeight: 1.55 }}>{desc}</p>
               </div>
               <div style={{ flex: 1 }} />
-              <div style={{ display: 'flex', alignItems: 'center', fontSize: 11.5, color: t.faint }}>
-                <span>{issued === null ? ' ' : `${issued} issued`}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 12, borderTop: '1px solid ' + t.line }}>
+                <span style={{ fontSize: 12.5, color: t.faint }}>{issued === null ? ' ' : `${issued} issued`}</span>
                 <span style={{ flex: 1 }} />
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: t.text }}>
-                  Start <ArrowRight aria-hidden="true" size={13} strokeWidth={1.8} />
+                <span className="tpl-start" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 13px', borderRadius: 9,
+                  fontSize: 13, fontWeight: 500, background: t.accentBtn, color: t.onAccent,
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,.25), 0 6px 16px -8px ' + t.accent,
+                }}>
+                  Start <ArrowRight aria-hidden="true" size={14} strokeWidth={2} />
                 </span>
               </div>
             </Link>

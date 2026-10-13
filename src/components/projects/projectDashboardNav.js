@@ -26,7 +26,7 @@ export function projectDashboards() {
 export function projectDashboardGroup(projectId, pathname) {
     const [, , , part] = pathname.split('/');
     return {
-        id: 'project-group-dashboard', label: 'Overview', icon: LayoutDashboard,
+        id: 'project-group-dashboard', label: 'Dashboard', icon: LayoutDashboard,
         to: `/projects/${projectId}/dashboard/overview`, active: part === 'dashboard',
     };
 }

@@ -587,7 +587,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
     <div className="fin-list animate-in">
       {/* Header */}
       <div className="fin-list-header">
-        {/* Search, project and sort sit on one line; the status chips and New follow. */}
+        {/* Search, project, sort and status sit on one line; New follows. */}
         <div className="fin-list-controls">
         <div className="fin-list-search-wrap">
           <Search size={16} />
@@ -628,17 +628,25 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
           <option value="amount_asc">Amount ↑</option>
           <option value="client">Client A–Z</option>
         </select>
-        </div>
-        <div className="fin-list-filters">
+        <select
+          aria-label="Status"
+          value={statuses.includes(statusFilter) ? statusFilter : 'all'}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          style={{
+            height: '36px', padding: '0 0.625rem',
+            borderRadius: '0.5rem',
+            border: '1px solid var(--border-default)',
+            background: 'var(--background)',
+            color: 'var(--text-secondary)',
+            fontSize: '0.8rem', cursor: 'pointer', outline: 'none', flexShrink: 0,
+          }}
+        >
           {statuses.map((s) => (
-            <button
-              key={s}
-              className={`fin-list-filter-btn ${statusFilter === s ? 'active' : ''}`}
-              onClick={() => setStatusFilter(s)}
-            >
-              {s === 'all' ? 'All' : s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
-            </button>
+            <option key={s} value={s}>
+              {s === 'all' ? 'All statuses' : s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+            </option>
           ))}
+        </select>
         </div>
         <button className="fin-list-new-btn" onClick={() => navigate(formPath(type))}>
           <Plus size={16} /> New {typeLabel}

@@ -16,7 +16,7 @@ import { projectDashboards } from './projectDashboardNav';
 import { fmtShort, fmtInr, fmtDay, invoiceStateOf, INVOICE_STATES } from '../overview/overviewModel';
 import { TipProvider, RankBars, SplitBar, EmptyNote } from '../overview/vizKit';
 import { useViz, useWinW } from '../overview/vizHooks';
-import { Card, Tile, Figure, FigureRow, SubLabel, More, TileRow, CardGrid, ListRow, DashStyle } from '../overview/dashKit';
+import { Card, Tile, Figure, FigureRow, SubLabel, More, TileRow, CardGrid, ListRow, DashStyle, Arrangeable, ArrangeBar } from '../overview/dashKit';
 import { useProjectBoardData } from './projectBoard';
 import { describeActivity } from './activityText';
 import ProjectActions from './ProjectActions';
@@ -100,13 +100,21 @@ function DashboardPage({ project, page, navigate }) {
                           </div>
                           {view === 'overview' && <ProjectActions project={project} />}
                         </div>
-                        <PageTabs label="Dashboard pages" current={view} pages={projectDashboards()}
-                            onOpen={(id) => navigate(`/projects/${project.id}/dashboard/${id}`)} />
-                        {view === 'overview' && <OverviewView {...ctx} />}
-                        {view === 'finance' && <FinanceView {...ctx} />}
-                        {view === 'sales' && <SalesView {...ctx} />}
-                        {view === 'team' && <TeamView {...ctx} />}
-                        {view === 'documents' && <DocumentsView {...ctx} />}
+                        {/* One arrangement per view, shared by every project. */}
+                        <Arrangeable key={view} pageId={`project/${view}`}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <PageTabs label="Dashboard pages" current={view} pages={projectDashboards()}
+                                        onOpen={(id) => navigate(`/projects/${project.id}/dashboard/${id}`)} />
+                                </div>
+                                <div style={{ margin: '-1px 0 14px' }}><ArrangeBar /></div>
+                            </div>
+                            {view === 'overview' && <OverviewView {...ctx} />}
+                            {view === 'finance' && <FinanceView {...ctx} />}
+                            {view === 'sales' && <SalesView {...ctx} />}
+                            {view === 'team' && <TeamView {...ctx} />}
+                            {view === 'documents' && <DocumentsView {...ctx} />}
+                        </Arrangeable>
                         <DashStyle t={t} />
                     </div>
                 </TipProvider>

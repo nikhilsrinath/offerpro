@@ -1,3 +1,5 @@
+import { adjustCss } from '../utils/imageAdjust';
+
 export default function DocumentHeader({ formData }) {
   const name = formData.companyName || formData.disclosingPartyName || formData.firstPartyName || '';
   const tagline = formData.companyTagline || '';
@@ -11,7 +13,7 @@ export default function DocumentHeader({ formData }) {
   return (
     <div className="doc-header">
       <div className="doc-header-left">
-        {logo && <img src={logo} alt="Logo" className="doc-header-logo" />}
+        {logo && <img src={logo} alt="Logo" className="doc-header-logo" style={adjustCss(formData.logoAdjust, 'left top')} />}
         {tagline && <div className="doc-header-tagline">{tagline}</div>}
       </div>
       <div className="doc-header-right">

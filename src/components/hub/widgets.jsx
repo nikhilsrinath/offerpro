@@ -367,7 +367,7 @@ function CashFlow({ d, size }) {
     // Net cash burn: how much more went out than came in, as a monthly rate.
     const burn = net < 0 ? (-net / CF_DAYS[r]) * 30.44 : 0;
     const burnText = burn > 0 ? `${inrShort(burn)}/mo` : 'none';
-    const label = `Money in and out, ${CF_SPAN[r].toLowerCase()}: ${inrShort(totIn)} in, ${inrShort(totOut)} out, net cash burn ${burn > 0 ? `${inr(burn)} a month` : 'none'}`;
+    const label = `Credit and debit, ${CF_SPAN[r].toLowerCase()}: ${inrShort(totIn)} in, ${inrShort(totOut)} out, net cash burn ${burn > 0 ? `${inr(burn)} a month` : 'none'}`;
     const legend = (
         <div className="w-legend">
             <span><i style={{ background: 'var(--chart-a)' }} />In <b>{inrShort(totIn)}</b></span>

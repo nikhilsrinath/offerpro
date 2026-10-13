@@ -2,12 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
     Panel, Grid, Row, Btn, Select, Search, Table, Tr, Td, Empty, Muted, Status, StatBand, Modal, Field, Input,
-    ConfirmBtn, Loading,
+    ConfirmBtn, Loading, RowMenu,
 } from '../ui/edge';
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { useT } from '../ui/edgeUtils';
 import { useSection, money, fmtDate } from '../financial/financeHooks';
 import {
-    periodOptions, periodBounds, netOfTax, balanceOf, isOverdue, daysOverdue,
+    periodOptions, periodBounds, netOfTax, balanceOf, isOverdue, daysOverdue, downloadCsv, todayIso,
 } from '../../services/financeAnalytics';
 import { categoryLabel } from '../../services/financeCategories';
 import { isClosed } from '../../services/projectAnalytics';
@@ -19,8 +20,9 @@ import { useProjectScope } from './projectScope';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Two of a project's finance pages: Financial Status and Profit & Loss,
-   both from public.project_financials, never recomputed here. The other four
-   (Cash Book, Billing, Purchase Bills, Tax Summary) are the company pages
+   both from public.project_financials, never recomputed here, and the
+   project ledger shown on its General Ledger page. The other four
+   (General Ledger, Billing, Purchase Bills, Tax Summary) are the company pages
    scoped to the project (projectScope.js).
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -49,27 +51,38 @@ function useSources() {
     const expenses = useSection('expenses');
     const bills = useSection('purchase_invoices');
     const vendors = useSection('vendors');
+    const clients = useSection('customers');
     return useMemo(() => {
         const vendorName = Object.fromEntries(vendors.map((v) => [v.id, v.company_name]));
+        const clientName = Object.fromEntries(clients.map((c) => [c.id, c.name]));
+        // `settles` names the invoice or bill an entry pays, which already counts it.
         return [
             ...docs.filter((d) => d.type === 'invoice' && !DEAD.has(d.status)).map((d) => ({
-                type: 'invoice', id: d.id, date: d.issue_date, net: Number(d.taxable_amount) || 0,
-                label: `${d.doc_number || d.invoiceNumber} · ${d.clientName || ''}`, client_id: d.customer_id,
+                type: 'invoice', id: d.id, date: d.issue_date, net: Number(d.taxable_amount) || 0, gross: Number(d.grand_total) || 0,
+                party: d.clientName || clientName[d.customer_id] || '', kind: 'Sales',
+                number: d.doc_number || d.invoiceNumber || '', client_id: d.customer_id,
             })),
             ...income.map((e) => ({
-                type: 'income_entry', id: e.id, date: e.received_on, net: netOfTax(e),
-                label: e.description, client_id: e.client_id,
+                type: 'income_entry', id: e.id, date: e.received_on, net: netOfTax(e), gross: Number(e.amount) || 0,
+                party: clientName[e.client_id] || e.description || '', kind: categoryLabel(e.category),
+                number: e.reference || '', client_id: e.client_id,
+                settles: e.document_id ? `invoice:${e.document_id}` : null,
             })),
             ...expenses.map((e) => ({
-                type: 'expense', id: e.id, date: e.incurred_on, net: netOfTax(e),
-                label: `${e.description} · ${categoryLabel(e.category)}`, client_id: e.client_id,
+                type: 'expense', id: e.id, date: e.incurred_on, net: netOfTax(e), gross: Number(e.amount) || 0,
+                party: vendorName[e.vendor_id] || e.description || '', kind: categoryLabel(e.category),
+                number: e.reference || '', client_id: e.client_id,
+                settles: e.purchase_invoice_id ? `purchase_invoice:${e.purchase_invoice_id}` : null,
             })),
-            ...bills.filter((b) => b.status !== 'void').map((b) => ({
+            // A voided bill is kept so its row can still be restored; it counts for nothing.
+            ...bills.map((b) => ({
                 type: 'purchase_invoice', id: b.id, date: b.bill_date, net: Number(b.subtotal) || 0,
-                label: `${b.bill_number} · ${vendorName[b.vendor_id] || ''}`, client_id: null,
+                gross: Number(b.total) || 0, void: b.status === 'void',
+                party: vendorName[b.vendor_id] || b.description || '', kind: b.category || 'Purchase',
+                number: b.bill_number || '', client_id: null,
             })),
         ];
-    }, [docs, income, expenses, bills, vendors]);
+    }, [docs, income, expenses, bills, vendors, clients]);
 }
 
 /** project_financials for one period, reloaded whenever the project's links change. */
@@ -114,8 +127,7 @@ function PeriodPicker({ value, onChange, choices, note }) {
 /**
  * Financial Status: where the project's money stands: what was invoiced,
  * collected and is still owed, how much of the contract and the budget is
- * used, which invoices are open. And the money links themselves, the one
- * place to add or remove a link after the fact.
+ * used, which invoices are open.
  */
 export default function ProjectFinanceStatus({ project, onOpen }) {
     const t = useT();
@@ -123,11 +135,8 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
     const navigate = useNavigate();
     const { choices, periodId, setPeriodId, period } = usePeriod();
     const { loading, f, error } = useProjectFinancials(project, period);
-    const allocations = useSection('project_allocations');
-    const sources = useSources();
     const scope = useProjectScope(project.id);
     const locked = isClosed(project);
-    const editable = canAllocate() && !locked;
 
     // Time & materials: approved, billable, unbilled hours → an invoice. The
     // entry ids ride in the payload; the database marks them billed (0060).
@@ -150,19 +159,11 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
         } catch (e) { toast(e.message, 'error'); }
     };
 
-    const mine = useMemo(() => allocations.filter((a) => a.project_id === project.id), [allocations, project.id]);
-    const sourceById = useMemo(() => Object.fromEntries(sources.map((s) => [`${s.type}:${s.id}`, s])), [sources]);
-
     // Receivables: this project's issued invoices with money still owed, at
     // the project's share of each.
     const owed = useMemo(() => (scope?.data.docs || [])
         .filter((d) => !DEAD.has(d.status) && d.status !== 'paid' && balanceOf(d) > 0.009)
         .sort((a, b) => String(a.due_date || '').localeCompare(String(b.due_date || ''))), [scope]);
-
-    const remove = async (a) => {
-        try { await unallocate(a.id); toast('Link removed', 'success'); }
-        catch (e) { toast(e.message, 'error'); }
-    };
 
     const contract = Number(project.contract_value) || 0;
     const costs = f ? (Number(f.vendor_costs) || 0) + (Number(f.expense_costs) || 0) + (Number(f.labour_cost) || 0) : 0;
@@ -213,7 +214,10 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
             )}
 
             <Panel title="Open invoices" note={owed.length ? `${owed.length} awaiting payment` : undefined}
-                actions={onOpen && <Btn size="sm" onClick={() => onOpen('billing')}>Go to billing</Btn>}>
+                actions={<Row gap={6}>
+                    {project.billing_type === 'time_materials' && !locked && <Btn size="sm" onClick={invoiceHours}>Invoice unbilled hours</Btn>}
+                    {onOpen && <Btn size="sm" onClick={() => onOpen('billing')}>Go to billing</Btn>}
+                </Row>}>
                 {owed.length === 0 ? <Empty>Nothing is owed on this project right now.</Empty> : (
                     <Table cols={[
                         { key: 'n', label: 'Invoice' }, { key: 'd', label: 'Due' },
@@ -238,56 +242,252 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
                 )}
             </Panel>
 
-            <Panel title="Money linked to this project" note={`${mine.length} link${mine.length === 1 ? '' : 's'}`}
-                actions={<Row gap={6}>
-                    {project.billing_type === 'time_materials' && !locked && <Btn size="sm" onClick={invoiceHours}>Invoice unbilled hours</Btn>}
-                </Row>}>
-                {mine.length === 0 ? (
-                    <Empty>
-                        Nothing linked yet. Anything raised from this project’s Billing, Cash Book or Purchase Bills
-                        pages is linked to it on its own.
-                    </Empty>
-                ) : (
-                    <Table cols={[
-                        { key: 't', label: 'Type' }, { key: 'n', label: 'Entry' }, { key: 'd', label: 'Date' },
-                        { key: 'v', label: 'Net value', align: 'right' }, { key: 'a', label: 'Allocated', align: 'right' },
-                        { key: 'x', label: '', align: 'right' },
-                    ]}>
-                        {mine.map((a) => {
-                            const s = sourceById[`${a.source_type}:${a.source_id}`];
-                            const splitCount = allocations.filter((x) => x.source_type === a.source_type && x.source_id === a.source_id).length;
-                            return (
-                                <Tr key={a.id}>
-                                    <Td muted nowrap>{SOURCE_LABEL[a.source_type]}</Td>
-                                    <Td>
-                                        {onOpen ? (
-                                            <button type="button" onClick={() => onOpen(SOURCE_TAB[a.source_type])} style={{
-                                                background: 'none', border: 0, padding: 0, color: t.text, textDecoration: 'underline',
-                                                textUnderlineOffset: 3, font: 'inherit', cursor: 'pointer', textAlign: 'left',
-                                            }}>{s?.label || 'Entry'}</button>
-                                        ) : <Link to={SOURCE_PATH[a.source_type]()} style={{ color: t.text }}>{s?.label || 'Entry'}</Link>}
-                                        {splitCount > 1 && <Muted> · split {splitCount} ways</Muted>}
-                                    </Td>
-                                    <Td muted nowrap>{s ? fmtDate(s.date) : '-'}</Td>
-                                    <Td align="right" nowrap>{s ? money(s.net) : '-'}</Td>
-                                    <Td align="right" nowrap>
-                                        {a.mode === 'full' ? <Status tone="neutral">All · {s ? money(s.net) : ''}</Status> : money(a.amount)}
-                                    </Td>
-                                    <Td align="right">
-                                        {editable && <ConfirmBtn label="Remove" title="Remove from project" message="Unlink this entry from the project? The entry itself is kept." onConfirm={() => remove(a)} />}
-                                    </Td>
-                                </Tr>
-                            );
-                        })}
-                    </Table>
-                )}
-            </Panel>
-
         </div>
     );
 }
 
-const BILLING_LABEL = { fixed_price: 'Fixed price', time_materials: 'Time & materials', retainer: 'Retainer' };
+/**
+ * The project's ledger, on its General Ledger page: every invoice, bill and
+ * entry linked to the project, newest first, with a running balance and a
+ * closing balance under it. Credit is money towards the project, debit is
+ * what was paid out; each at the project's share, GST included. A receipt
+ * against a linked invoice is listed but does not move the balance: the
+ * invoice already has. A purchase bill is not here at all: it is only payable
+ * until the vendor is paid, and that payment is the debit. Also the one place
+ * to remove a link after the fact.
+ *
+ * With `only="purchases"` (the project's Company Ledger page) it is the
+ * vendors' side: a bill is a credit, a payment to the vendor a debit, and the
+ * balance is what is still payable. It is that page's list of bills. `here` is the tab it is shown
+ * on, so a row that lives on this very page is not a link to it.
+ */
+export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, billMenu, paymentMenu, emptyText }) {
+    const t = useT();
+    const toast = useToast();
+    const allocations = useSection('project_allocations');
+    const sources = useSources();
+    const editable = canAllocate() && !isClosed(project);
+    const [page, setPage] = useState(1);
+    // On Purchase Bills the ledger is the page's list: `bills` are the ones its
+    // search and filters kept, and `billMenu` gives a bill row its actions.
+    const billById = useMemo(() => (bills ? Object.fromEntries(bills.map((b) => [b.id, b])) : null), [bills]);
+
+    const rows = useMemo(() => {
+        const sourceById = Object.fromEntries(sources.map((s) => [`${s.type}:${s.id}`, s]));
+        const mine = allocations.filter((a) => a.project_id === project.id);
+        const linked = new Set(mine.map((a) => `${a.source_type}:${a.source_id}`));
+        return mine
+            .map((a) => ({ a, s: sourceById[`${a.source_type}:${a.source_id}`] }))
+            .filter(({ a, s }) => {
+                // The General Ledger is money that moved: a bill is only payable until it is paid.
+                if (only !== 'purchases') return a.source_type !== 'purchase_invoice';
+                // The bill a row is, or pays; with `bills`, only those the page's filters kept.
+                const billId = a.source_type === 'purchase_invoice' ? a.source_id
+                    : a.source_type === 'expense' && String(s?.settles || '').startsWith('purchase_invoice:') ? s.settles.split(':')[1] : null;
+                return !!billId && (!billById || !!billById[billId]);
+            })
+            // Oldest first to carry the balance; on one day, a bill before what pays it.
+            .sort((x, y) => String(x.s?.date || '9999').localeCompare(String(y.s?.date || '9999'))
+                || (y.a.source_type === 'purchase_invoice') - (x.a.source_type === 'purchase_invoice'))
+            .reduce((out, { a, s }) => {
+                // GST included, as on the bill or invoice itself; a part-share is
+                // allocated before GST, so it is scaled up by the same proportion.
+                const value = !s || s.void ? 0
+                    : a.mode === 'full' ? s.gross
+                        : (Number(a.amount) || 0) * (s.net > 0 ? s.gross / s.net : 1);
+                // On the Company Ledger a purchase is the credit (it adds to what is
+                // payable) and paying the vendor is the debit that brings it down.
+                const credit = only === 'purchases' ? a.source_type === 'purchase_invoice' : CREDIT.has(a.source_type);
+                const pays = String(s?.settles || '').startsWith('purchase_invoice:') ? sourceById[s.settles] : null;
+                const settles = String(s?.settles || '').startsWith('invoice:') && linked.has(s.settles);
+                const before = out.length ? out[out.length - 1].balance : 0;
+                out.push({
+                    a, s, value, credit, settles, pays,
+                    balance: settles ? before : before + (credit ? value : -value),
+                    splitCount: allocations.filter((x) => x.source_type === a.source_type && x.source_id === a.source_id).length,
+                });
+                return out;
+            }, [])
+            .reverse();
+    }, [allocations, sources, project.id, only, billById]);
+
+    // The closing balance, the way a ledger is ruled off: each side's total,
+    // the balancing figure under the lighter side, and the two sides equal.
+    const closing = useMemo(() => {
+        const counted = rows.filter((r) => !r.settles);
+        const debit = counted.filter((r) => !r.credit).reduce((n, r) => n + r.value, 0);
+        const credit = counted.filter((r) => r.credit).reduce((n, r) => n + r.value, 0);
+        return { debit, credit, balance: credit - debit, total: Math.max(debit, credit) };
+    }, [rows]);
+
+    const remove = async (a) => {
+        try { await unallocate(a.id); toast('Link removed', 'success'); }
+        catch (e) { toast(e.message, 'error'); }
+    };
+
+    const side = (n) => `${money(Math.abs(n), 2)} ${n < 0 ? 'Dr' : 'Cr'}`;
+    const nameOf = (r) => r.s?.party || SOURCE_LABEL[r.a.source_type];
+    const kindOf = (r) => (r.pays ? 'Payment' : r.s?.kind || SOURCE_LABEL[r.a.source_type]);
+
+    const exportCsv = () => downloadCsv(
+        `${only === 'purchases' ? 'company-ledger' : 'project-ledger'}-${project.code || project.name || 'project'}.csv`,
+        ['Date', 'Particular / Company Name', 'Type', 'Invoice No', 'Debit', 'Credit', 'Balance', 'Note'],
+        [
+            ...rows.map((r) => [
+                r.s?.date || '', nameOf(r), kindOf(r), r.s?.number || '',
+                r.credit ? '' : r.value.toFixed(2), r.credit ? r.value.toFixed(2) : '',
+                `${Math.abs(r.balance).toFixed(2)} ${r.balance < 0 ? 'Dr' : 'Cr'}`,
+                r.settles ? 'Receipt against a linked invoice, not counted' : r.pays ? `Paid against bill ${r.pays.number}` : '',
+            ]),
+            ['', 'Closing Balance', '', '', closing.debit.toFixed(2), closing.credit.toFixed(2),
+                `${Math.abs(closing.balance).toFixed(2)} ${closing.balance < 0 ? 'Dr' : 'Cr'}`, ''],
+        ],
+    );
+
+    const amount = (r, show) => (show
+        ? <span style={{ color: r.settles ? t.faint : t.text }}>{money(r.value, 2)}</span>
+        : null);
+
+    if (rows.length === 0) {
+        return (
+            <Panel>
+                <Empty>
+                    {only === 'purchases'
+                        ? (emptyText || 'No purchase bills on this project yet.')
+                        : 'Nothing linked yet. Anything raised from this project’s Billing, General Ledger or Company Ledger pages is linked to it on its own.'}
+                </Empty>
+            </Panel>
+        );
+    }
+
+    const pageCount = Math.ceil(rows.length / LEDGER_PAGE);
+    const at = Math.min(page, pageCount);
+    const pageRows = rows.slice((at - 1) * LEDGER_PAGE, at * LEDGER_PAGE);
+    const strong = { fontWeight: 600, fontVariantNumeric: 'tabular-nums' };
+    const stack = { display: 'grid', gap: 4, justifyItems: 'end', fontVariantNumeric: 'tabular-nums' };
+    const ruled = { ...strong, borderTop: '1px solid ' + t.lineStrong, borderBottom: '3px double ' + t.lineStrong, padding: '3px 0 2px' };
+
+    return (
+        <div>
+            <Table actions={<Btn size="sm" onClick={exportCsv}><Download size={14} aria-hidden="true" /> Export CSV</Btn>} id={only === 'purchases' ? 'project-purchase-ledger' : 'project-ledger'} cols={[
+                { key: 'd', label: 'Date', width: 110 }, { key: 'p', label: 'Particular / Company Name', always: true },
+                { key: 't', label: 'Type' }, { key: 'n', label: 'Invoice No' },
+                { key: 'dr', label: 'Debit', align: 'right' }, { key: 'cr', label: 'Credit', align: 'right' },
+                { key: 'b', label: 'Balance', align: 'right' }, { key: 'x', label: '', align: 'right', always: true },
+            ]}>
+                {(show) => (
+                    <>
+                        {pageRows.map((r) => {
+                            const { a, s } = r;
+                            const name = nameOf(r);
+                            // A cash entry opens for editing right here; an invoice or bill opens its page.
+                            const direction = ENTRY_DIRECTION[a.source_type];
+                            const tab = SOURCE_TAB[a.source_type];
+                            const open = direction && onEdit ? () => onEdit(direction, a.source_id)
+                                : onOpen && tab !== here ? () => onOpen(tab) : null;
+                            // A bill row on Purchase Bills says where the bill stands and carries its actions.
+                            const bill = a.source_type === 'purchase_invoice' ? billById?.[a.source_id] : null;
+                            const owed = bill ? Math.max(0, bill.total - bill.amount_paid) : 0;
+                            const late = bill && bill.status !== 'void' && bill.status !== 'paid' && bill.due_date
+                                && bill.due_date < todayIso() && owed > 0.009;
+                            return (
+                                <Tr key={a.id}>
+                                    {show('d') && <Td muted nowrap>{s ? fmtDate(s.date) : '-'}</Td>}
+                                    <Td>
+                                        {open ? (
+                                            <button type="button" onClick={open} style={{
+                                                background: 'none', border: 0, padding: 0, color: t.text, textDecoration: 'underline',
+                                                textUnderlineOffset: 3, font: 'inherit', cursor: 'pointer', textAlign: 'left',
+                                            }}>{name}</button>
+                                        ) : onOpen ? name : <Link to={SOURCE_PATH[a.source_type]()} style={{ color: t.text }}>{name}</Link>}
+                                        {r.splitCount > 1 && <Muted> · split {r.splitCount} ways</Muted>}
+                                        {r.settles && <Muted> · receipt against a linked invoice</Muted>}
+                                        {r.pays && <Muted> · paid against bill {r.pays.number}</Muted>}
+                                        {bill && (
+                                            <span style={{ display: 'block', fontSize: 11.5, marginTop: 2, color: late ? t.down : t.faint }}>
+                                                {[
+                                                    bill.status === 'void' ? 'Void, not counted' : bill.status === 'paid' ? 'Paid'
+                                                        : `${bill.status === 'partially_paid' ? 'Partially paid' : 'Unpaid'}, ${money(owed, 2)} to pay`,
+                                                    bill.status !== 'void' && bill.status !== 'paid' && bill.due_date ? `due ${fmtDate(bill.due_date)}${late ? ', overdue' : ''}` : '',
+                                                    Number(bill.tax_amount) > 0 && bill.status !== 'void' ? `GST ${money(bill.tax_amount, 2)}` : '',
+                                                ].filter(Boolean).join(' · ')}
+                                            </span>
+                                        )}
+                                    </Td>
+                                    {show('t') && <Td muted>{kindOf(r)}</Td>}
+                                    {show('n') && <Td muted nowrap>{s?.number || '-'}</Td>}
+                                    {show('dr') && <Td align="right" nowrap>{amount(r, !r.credit)}</Td>}
+                                    {show('cr') && <Td align="right" nowrap>{amount(r, r.credit)}</Td>}
+                                    {show('b') && (
+                                        <Td align="right" nowrap>
+                                            <span style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{side(r.balance)}</span>
+                                        </Td>
+                                    )}
+                                    <Td align="right">
+                                        {bill && billMenu
+                                            ? <RowMenu label={`Actions for bill ${bill.bill_number}`} items={billMenu(bill)} />
+                                            : r.pays && paymentMenu ? <RowMenu label="Actions for this payment" items={paymentMenu(a.source_id)} />
+                                            : editable && <ConfirmBtn label="Remove" title="Remove from project" message="Unlink this entry from the project? The entry itself is kept." onConfirm={() => remove(a)} />}
+                                    </Td>
+                                </Tr>
+                            );
+                        })}
+                        <Tr>
+                            {show('d') && <Td />}
+                            <Td><strong style={{ fontWeight: 600 }}>Closing Balance</strong></Td>
+                            {show('t') && <Td />}
+                            {show('n') && <Td />}
+                            {show('dr') && (
+                                <Td align="right" nowrap>
+                                    <span style={stack}>
+                                        <span>{money(closing.debit, 2)}</span>
+                                        {closing.balance > 0 && <span>{money(closing.balance, 2)}</span>}
+                                        <span style={ruled}>{money(closing.total, 2)}</span>
+                                    </span>
+                                </Td>
+                            )}
+                            {show('cr') && (
+                                <Td align="right" nowrap>
+                                    <span style={stack}>
+                                        <span>{money(closing.credit, 2)}</span>
+                                        {closing.balance < 0 && <span>{money(-closing.balance, 2)}</span>}
+                                        <span style={ruled}>{money(closing.total, 2)}</span>
+                                    </span>
+                                </Td>
+                            )}
+                            {show('b') && <Td align="right" nowrap><span style={strong}>{side(closing.balance)}</span></Td>}
+                            <Td />
+                        </Tr>
+                    </>
+                )}
+            </Table>
+            {pageCount > 1 && (
+                <nav aria-label="Ledger pages"
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
+                    <span style={{ fontSize: 12.5, color: t.faint }} aria-live="polite">
+                        Showing {(at - 1) * LEDGER_PAGE + 1}–{Math.min(at * LEDGER_PAGE, rows.length)} of {rows.length} entries
+                    </span>
+                    <Row gap={4}>
+                        <Btn size="sm" onClick={() => setPage(at - 1)} disabled={at === 1}>
+                            <ChevronLeft size={15} aria-hidden="true" /> Previous
+                        </Btn>
+                        <span style={{ fontSize: 12.5, color: t.dim, padding: '0 6px' }}>Page {at} of {pageCount}</span>
+                        <Btn size="sm" onClick={() => setPage(at + 1)} disabled={at === pageCount}>
+                            Next <ChevronRight size={15} aria-hidden="true" />
+                        </Btn>
+                    </Row>
+                </nav>
+            )}
+        </div>
+    );
+}
+
+const LEDGER_PAGE = 10;
+
+const CREDIT = new Set(['invoice', 'income_entry']);
+const ENTRY_DIRECTION = { income_entry: 'in', expense: 'out' };
+
+const BILLING_LABEL = { fixed_price: 'Fixed price', time_materials: 'Time & materials', retainer: 'Retainer', other: 'Others' };
 
 /** Used against a total, as a bar and a percentage. */
 function Meter({ label, used, total, pct, empty }) {
@@ -344,9 +544,9 @@ export function ProjectProfitLoss({ project }) {
                         <Panel title="Statement" pad={0}>
                             <Table cols={[{ key: 'l', label: 'Line' }, { key: 'v', label: 'Amount', align: 'right' }]}>
                                 <PlRow label="Invoiced revenue" value={f.revenue_invoiced} />
-                                <PlRow label="Other income" value={f.other_income} note="Cash book" />
+                                <PlRow label="Other income" value={f.other_income} note="General ledger" />
                                 <PlRow label="Vendor bills" value={-f.vendor_costs} />
-                                <PlRow label="Expenses" value={-f.expense_costs} note="Cash book" />
+                                <PlRow label="Expenses" value={-f.expense_costs} note="General ledger" />
                                 <PlRow label="Gross margin" value={f.gross_margin} strong note={f.gross_margin_pct == null ? '' : `${f.gross_margin_pct}%`} />
                                 <PlRow label="Labour" value={-f.labour_cost} note="Pay × time on the project" />
                                 <PlRow label="Net margin" value={f.net_margin} strong note={f.net_margin_pct == null ? '' : `${f.net_margin_pct}%`} />

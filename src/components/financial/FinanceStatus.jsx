@@ -14,6 +14,7 @@ import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
 import { ShareLinkModal } from '../shared/PortalLinkGenerator';
 import PaymentPositionCards from './PaymentPositionCards';
+import { Dropdown } from '../ui/edge';
 import {
   issuedInvoices, balanceOf, isOverdue, daysOverdue, todayIso,
 } from '../../services/financeAnalytics';
@@ -40,6 +41,22 @@ const AGEING_BUCKETS = [
   { label: '61–90 days', color: '#ef4444' },
   { label: '90+ days', color: '#b91c1c' },
 ];
+
+// The look-back the Document Pipeline and Invoiced vs Collected cards offer.
+const RANGES = [
+  { id: '1', label: '1 month' },
+  { id: '3', label: '3 months' },
+  { id: '6', label: '6 months' },
+  { id: '12', label: '1 year' },
+];
+const docDate = (d) => new Date(d.issue_date || d.created_at || 0);
+/** The first moment of the day `months` calendar months ago. */
+const monthsAgo = (months) => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setMonth(d.getMonth() - months);
+  return d;
+};
 
 const STATUS_LABEL = (s) => s.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
@@ -109,6 +126,8 @@ export default function FinanceStatus() {
   const [expandedClient, setExpandedClient] = useState(null);
   const [showPortalLink, setShowPortalLink] = useState(null);
   const [viewMode, setViewMode] = useState('pipeline'); // 'pipeline' | 'list'
+  const [pipelineRange, setPipelineRange] = useState('12');
+  const [trendRange, setTrendRange] = useState('6');
 
   const loadDocuments = async () => {
     if (activeOrg?.id) {
@@ -160,10 +179,12 @@ export default function FinanceStatus() {
   // change what the business is owed. Money figures come from the same helpers
   // the Invoices page and the P&L use, so the four pages cannot disagree.
 
-  /** Quotation → Proforma → Invoice → Paid, by count and by value. */
+  /** Quotation → Proforma → Invoice → Paid, by count and by value, for the documents dated in the chosen look-back. */
   const funnel = useMemo(() => {
-    const live = issuedInvoices(documents);
-    const stage = (type) => documents.filter((d) => d.type === type);
+    const since = monthsAgo(Number(pipelineRange));
+    const recent = documents.filter((d) => docDate(d) >= since);
+    const live = issuedInvoices(recent);
+    const stage = (type) => recent.filter((d) => d.type === type);
     const sum = (list) => list.reduce((t, d) => t + (d.grand_total || d.amount || d.subtotal || 0), 0);
     const quotes = stage('quotation');
     const proformas = stage('proforma');
@@ -174,10 +195,10 @@ export default function FinanceStatus() {
       { key: 'invoice', label: 'Invoices', color: '#10b981', count: live.length, value: sum(live) },
       { key: 'paid', label: 'Paid', color: '#059669', count: paid.length, value: live.reduce((t, d) => t + (Number(d.amount_paid) || 0), 0) },
     ];
-  }, [documents]);
+  }, [documents, pipelineRange]);
 
   const funnelMax = Math.max(...funnel.map((f) => f.value), 1);
-  const winRate = funnel[0].count > 0 ? Math.round((funnel[2].count / funnel[0].count) * 100) : null;
+  const funnelCount = funnel[0].count + funnel[1].count + funnel[2].count;
 
   /** How the documents are spread across their lifecycle statuses. */
   const statusMix = useMemo(() => {
@@ -188,25 +209,40 @@ export default function FinanceStatus() {
       .sort((a, b) => b.value - a.value);
   }, [documents]);
 
-  /** Six calendar months of invoices issued against what came back on them. */
+  /** Invoices issued against what came back on them: a bar pair per calendar
+      month of the look-back, or per week when it is one month. */
   const monthly = useMemo(() => {
     const live = issuedInvoices(documents);
+    const months = Number(trendRange);
     const now = new Date();
+    const bar = (label, list) => ({
+      month: label,
+      issued: Math.round(list.reduce((t, doc) => t + (Number(doc.grand_total) || 0), 0)),
+      collected: Math.round(list.reduce((t, doc) => t + (Number(doc.amount_paid) || 0), 0)),
+    });
     const out = [];
-    for (let i = 5; i >= 0; i -= 1) {
+    if (months === 1) {
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const start = monthsAgo(1);
+      const weeks = Math.max(1, Math.ceil((end - start) / (7 * 86400000)));
+      for (let i = weeks - 1; i >= 0; i -= 1) {
+        const to = new Date(end.getFullYear(), end.getMonth(), end.getDate() - i * 7);
+        const from = new Date(Math.max(start, new Date(to.getFullYear(), to.getMonth(), to.getDate() - 7)));
+        out.push(bar(from.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+          live.filter((doc) => docDate(doc) >= from && docDate(doc) < to)));
+      }
+      return out;
+    }
+    for (let i = months - 1; i >= 0; i -= 1) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const inMonth = live.filter((doc) => {
-        const dt = new Date(doc.issue_date || doc.created_at || 0);
-        return dt.getMonth() === d.getMonth() && dt.getFullYear() === d.getFullYear();
-      });
-      out.push({
-        month: d.toLocaleDateString('en-IN', { month: 'short' }),
-        issued: Math.round(inMonth.reduce((t, doc) => t + (Number(doc.grand_total) || 0), 0)),
-        collected: Math.round(inMonth.reduce((t, doc) => t + (Number(doc.amount_paid) || 0), 0)),
-      });
+      out.push(bar(d.toLocaleDateString('en-IN', months > 6 ? { month: 'short', year: '2-digit' } : { month: 'short' }),
+        live.filter((doc) => {
+          const dt = docDate(doc);
+          return dt.getMonth() === d.getMonth() && dt.getFullYear() === d.getFullYear();
+        })));
     }
     return out;
-  }, [documents]);
+  }, [documents, trendRange]);
 
   /** Outstanding balance bucketed by how long it has been late. */
   const ageing = useMemo(() => {
@@ -260,15 +296,15 @@ export default function FinanceStatus() {
               <Filter size={18} style={{ color: 'var(--blue)' }} />
               <h3>Document Pipeline</h3>
             </div>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-              {winRate === null ? 'No quotations yet' : `${winRate}% reach an invoice`}
-            </span>
+            <Dropdown label="Period" value={pipelineRange} onChange={setPipelineRange} options={RANGES} height={32} />
           </div>
-          {documents.length === 0 ? (
+          {funnelCount === 0 ? (
             <div className="pro-empty" style={{ padding: '3rem' }}>
               <FileText size={36} strokeWidth={1} />
               <p>Nothing in the pipeline</p>
-              <span>Quotations, proforma invoices and invoices appear here as you issue them.</span>
+              <span>{documents.length === 0
+                ? 'Quotations, proforma invoices and invoices appear here as you issue them.'
+                : 'No quotation, proforma or invoice is dated in this period. Try a longer one.'}</span>
             </div>
           ) : (
             <div className="billing-breakdown">
@@ -347,7 +383,7 @@ export default function FinanceStatus() {
             <TrendingUp size={18} style={{ color: 'var(--success)' }} />
             <h3>Invoiced vs Collected</h3>
           </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Last 6 months</span>
+          <Dropdown label="Period" value={trendRange} onChange={setTrendRange} options={RANGES} height={32} />
         </div>
         <div style={{ width: '100%', height: 260, marginTop: '0.5rem' }}>
           <ResponsiveContainer>

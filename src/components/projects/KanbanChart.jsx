@@ -52,6 +52,9 @@ export function timing(p, today) {
     return { text: p.status === 'on_hold' ? 'Paused' : 'No due date', tone: 'mute' };
 }
 
+// The Projects board's tones, so a status wears the same colour on both pages.
+const STATUS_TONE = { active: 'accent', on_hold: 'warn', planned: 'neutral', completed: 'up', cancelled: 'mute' };
+
 const isLate = (p, today) => !isClosed(p) && !!p.target_end_date && daysBetween(today, p.target_end_date) < 0;
 
 export default function KanbanChart() {
@@ -180,7 +183,7 @@ export default function KanbanChart() {
                 <div style={{
                     // Every status column is on screen: five across when there is room, wrapping
                     // (never scrolling sideways) when there is not.
-                    display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12,
+                    display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12,
                     alignItems: 'start', paddingBottom: 6,
                 }}>
                     {PROJECT_STATUSES.map((s) => {
@@ -188,11 +191,11 @@ export default function KanbanChart() {
                         const total = fin ? list.reduce((a, p) => a + (Number(p.contract_value) || 0), 0) : 0;
                         return (
                             <section key={s.id} aria-label={`${s.label}, ${plural(list.length, 'project')}`}
-                                style={{ border: '1px solid ' + t.line, borderRadius: 10, minWidth: 0 }}>
-                                <header style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft }}>
-                                    <span style={{ flex: 1, fontSize: 13 }}>{s.label}</span>
-                                    {fin && total > 0 && <span style={{ fontSize: 11, color: t.faint }}>{money(total)}</span>}
-                                    <span style={{ fontSize: 11.5, color: t.ghost }}>{list.length}</span>
+                                style={{ border: '1px solid ' + t.line, borderRadius: 16, minWidth: 0, background: t.card, boxShadow: t.highlight, overflow: 'hidden' }}>
+                                <header style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderBottom: '1px solid ' + t.line, background: t.panelAlt }}>
+                                    <span style={{ flex: 1, minWidth: 0 }}><Status tone={STATUS_TONE[s.id]}>{s.label}</Status></span>
+                                    {fin && total > 0 && <span style={{ fontSize: 11.5, color: t.faint, whiteSpace: 'nowrap' }}>{money(total)}</span>}
+                                    <span style={{ fontSize: 12, fontWeight: 600, color: t.dim, minWidth: 22, height: 22, padding: '0 6px', boxSizing: 'border-box', display: 'grid', placeItems: 'center', borderRadius: 99, background: t.card, border: '1px solid ' + t.line }}>{list.length}</span>
                                 </header>
                                 <div style={{ display: 'grid', gap: 8, padding: 10 }}>
                                     {list.length === 0
@@ -225,14 +228,14 @@ function Card({ p, today, fin, client, mgr, nameOf, stats, health, onOpen }) {
     );
     return (
         <button type="button" onClick={() => onOpen(p)} className="edge-tr" aria-label={`Open ${p.name}`} style={{
-            textAlign: 'left', border: '1px solid ' + t.line, borderRadius: 9, padding: 11,
-            background: t.panel, cursor: 'pointer', color: t.text, fontFamily: 'inherit', display: 'grid', gap: 6,
+            textAlign: 'left', border: '1px solid ' + t.line, borderRadius: 12, padding: 12,
+            background: t.panelAlt, cursor: 'pointer', color: t.text, fontFamily: 'inherit', display: 'grid', gap: 6,
         }}>
             <span style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 11, color: t.faint }}>{p.code}{p.archived_at ? ' · archived' : ''}</span>
                 {!ended && <HealthChip health={health?.health} reasons={health?.health_reasons || []} />}
             </span>
-            <span style={{ fontSize: 13 }}>{p.name}</span>
+            <span style={{ fontSize: 13.5, fontWeight: 600 }}>{p.name}</span>
             <span style={{ fontSize: 11.5, color: t.faint }}>{client}</span>
 
             <span style={{ display: 'grid', gap: 3, padding: '6px 0', borderTop: '1px solid ' + t.lineSoft, borderBottom: '1px solid ' + t.lineSoft }}>

@@ -3,7 +3,7 @@ import GlobalSearch from './shell/GlobalSearch';
 import { Link, useNavigate } from 'react-router-dom';
 import {
     Bell, Sun, Moon, LogOut, User as UserIcon, Building2, Check, ChevronDown,
-    ChevronsUpDown, Search, CalendarDays,
+    CalendarDays,
 } from 'lucide-react';
 import { useOrg } from '../context/OrgContext';
 import { documentStore } from '../services/documentStore';
@@ -84,8 +84,8 @@ function useNow(every) {
 
 // The rail's sections, as MODULES ids. The hub itself is reached from the brand mark.
 const RAIL_GROUPS = [
-    { label: 'Main menu', ids: ['overall', 'projects', 'finance', 'team'] },
-    { label: 'Features', ids: ['business', 'documents', 'brain'] },
+    { label: 'Main menu', ids: ['overall', 'projects', 'finance', 'business'] },
+    { label: 'Features', ids: ['team', 'documents', 'brain'] },
 ];
 const MODULE_BY_ID = Object.fromEntries(MODULES.map((m) => [m.id, m]));
 
@@ -336,32 +336,21 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                 <div style={{ fontSize: 11, color: t.faint, marginTop: 2, wordBreak: 'break-all' }}>
                     {user?.email || ''}
                 </div>
-                <div style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 8,
-                    height: 20, padding: '0 8px', borderRadius: 999,
-                    border: '1px solid ' + t.line, background: t.panelAlt,
-                    fontSize: 11, color: t.dim,
-                }}>
-                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: plan.color }} />
-                    {plan.displayName}
-                </div>
             </div>
             <div style={{ padding: 4 }}>
                 <PopRow
                     t={t} dot={profile.incomplete}
                     icon={<Building2 size={13} strokeWidth={1.8} />}
                     label={profile.incomplete ? 'Finish your profile' : 'Company profile'}
-                    note={profile.incomplete ? profile.summary : 'Logo, signature, details'}
+                    note={profile.incomplete ? profile.summary : undefined}
                     onClick={() => {
                         setMenu(null);
                         navigate(profile.next ? `/profile#${profile.next.section}` : '/profile');
                     }} />
-                <PopRow t={t} icon={<UserIcon size={13} strokeWidth={1.8} />} label="My portal" note="Attendance · leave"
+                <PopRow t={t} icon={<UserIcon size={13} strokeWidth={1.8} />} label="My portal"
                     onClick={() => { setMenu(null); navigate('/me'); }} />
                 <PopRow t={t} icon={<Check size={13} strokeWidth={1.8} />} label="Plans & billing" note={plan.displayName}
                     onClick={() => { setMenu(null); navigate('/pricing'); }} />
-                <PopRow t={t} icon={isDark ? <Sun size={13} strokeWidth={1.8} /> : <Moon size={13} strokeWidth={1.8} />}
-                    label={isDark ? 'Light mode' : 'Dark mode'} onClick={() => { setMenu(null); onToggleTheme?.(); }} />
             </div>
             <div style={{ padding: 4, borderTop: '1px solid ' + t.lineSoft }}>
                 <PopRow t={t} danger icon={<LogOut size={13} strokeWidth={1.8} />} label="Log out"
@@ -464,28 +453,32 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                                 onClick={() => setMenu((m) => (m === 'account' ? null : 'account'))}
                                 style={{
                                     position: 'relative', display: 'flex', alignItems: 'center', gap: 8,
-                                    height: 40, padding: '0 8px 0 3px', borderRadius: 999,
-                                    border: '1px solid ' + (menu === 'account' ? t.lineStrong : 'transparent'),
-                                    color: t.dim,
+                                    height: 40, padding: '0 10px 0 4px', borderRadius: 999, cursor: 'pointer',
+                                    border: '1px solid ' + (menu === 'account' ? t.lineStrong : t.line),
+                                    background: t.card, boxShadow: t.highlight, fontFamily: MONO, transition: 'border-color .15s',
                                 }}
                             >
                                 {activeOrg?.logo_url ? (
-                                    <img src={activeOrg.logo_url} alt="" style={{ width: 34, height: 34, borderRadius: 999, objectFit: 'cover', display: 'block' }} />
+                                    <img src={activeOrg.logo_url} alt="" style={{ width: 30, height: 30, borderRadius: 999, objectFit: 'cover', display: 'block' }} />
                                 ) : (
                                     <span style={{
-                                        width: 34, height: 34, borderRadius: 999, background: t.accentBtn, color: t.onAccent,
-                                        display: 'grid', placeItems: 'center', fontSize: 12.5, fontWeight: 600,
+                                        width: 30, height: 30, borderRadius: 999, background: t.selBg, color: t.selText,
+                                        display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 600,
                                     }}>{displayName.slice(0, 2).toUpperCase()}</span>
                                 )}
-                                <ChevronsUpDown size={15} strokeWidth={1.8} aria-hidden="true" />
+                                <span title={orgName} style={{ fontSize: 12.5, color: t.text, fontWeight: 500, textAlign: 'left', maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}</span>
+                                <ChevronDown aria-hidden="true" size={12} strokeWidth={2} style={{
+                                    color: t.faint, flexShrink: 0,
+                                    transform: menu === 'account' ? 'rotate(180deg)' : 'none', transition: 'transform .18s',
+                                }} />
                                 {profile.incomplete && (
                                     <span aria-hidden="true" style={{
-                                        position: 'absolute', top: 1, left: 28, width: 9, height: 9, borderRadius: 999,
-                                        background: t.down, border: '2px solid ' + t.shell,
+                                        position: 'absolute', top: 1, left: 26, width: 9, height: 9, borderRadius: 999,
+                                        background: t.down, border: '2px solid ' + t.card,
                                     }} />
                                 )}
                             </button>
-                            {menu === 'account' && <Pop t={t} width={260} label="Account">{accountBody}</Pop>}
+                            {menu === 'account' && <Pop t={t} width={252} label="Account">{accountBody}</Pop>}
                         </div>
                     </header>
                 )}

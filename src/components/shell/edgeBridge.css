@@ -271,6 +271,13 @@
   outline: none !important;
 }
 
+/* The vendor dropdown's inputs (shared/VendorSelect) take no focus ring. */
+.edge-shell main .vsel input:focus,
+.edge-shell main .vsel input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 .edge-shell main .prod-search:has(input:focus-visible) {
   outline: 2px solid var(--edge-accent);
   outline-offset: 2px;
@@ -1005,41 +1012,148 @@
   }
 }
 
-/* Toolbars: compact controls that always sit on one line. */
+/* Toolbars: the kit's <Toolbar> (ui/edge.jsx) as classes, so the directory
+   and finance pages carry the same strip the Projects page does: a card of
+   36px controls, selects with the kit's caret, a choice of several as one
+   segmented control (.prod-seg), and the primary action at the end. */
 .edge-shell main .prod-toolbar {
-  flex-wrap: nowrap;
-  gap: 0.4rem;
-  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px;
+  margin-bottom: 12px;
+  background: var(--edge-card);
+  border: 1px solid var(--edge-line);
+  border-radius: 16px;
+  box-shadow: var(--edge-hi);
 }
 
 .edge-shell main .prod-toolbar > * {
   flex: 0 0 auto;
   width: auto;
-  height: 30px;
+  height: 36px;
   min-height: 0;
   margin: 0;
-  font-size: 0.75rem;
   white-space: nowrap;
 }
 
 .edge-shell main .prod-toolbar > .prod-search {
-  flex: 1 1 140px;
-  min-width: 110px;
-  padding: 0 0.55rem;
+  flex: 0 1 260px;
+  min-width: 150px;
+  padding: 0 12px;
+  gap: 8px;
 }
 
-.edge-shell main .prod-toolbar > .prod-search input { font-size: 0.75rem; }
+.edge-shell main .prod-toolbar > .prod-search input { font-size: 13px; }
 
-.edge-shell main .prod-toolbar > select { max-width: 150px; padding: 0 0.4rem; }
+.edge-shell main .prod-toolbar select {
+  max-width: 220px;
+  padding: 0 28px 0 12px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: var(--edge-panel-alt);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--edge-faint) 50%),
+    linear-gradient(135deg, var(--edge-faint) 50%, transparent 50%);
+  background-position: calc(100% - 14px) center, calc(100% - 9px) center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
 
-.edge-shell main .prod-toolbar > :where(button, .pro-chip, .prod-add-btn) {
-  padding: 0 0.6rem;
-  gap: 0.3rem;
+/* A toggle on its own (Archived) is the kit's Btn with aria-pressed. */
+.edge-shell main .prod-toolbar > .pro-chip {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--edge-line-strong);
+  background: var(--edge-panel-alt);
+  box-shadow: var(--edge-hi);
+  color: var(--edge-text);
+  font-size: 13.5px;
+  font-weight: 500;
 }
 
-.edge-shell main .prod-toolbar { overflow-x: auto; scrollbar-width: none; }
+.edge-shell main .prod-toolbar > .pro-chip:hover { background: var(--edge-raised); }
+
+.edge-shell main .prod-toolbar > .pro-chip.active {
+  background: var(--edge-accent-soft);
+  border-color: color-mix(in srgb, var(--edge-accent) 45%, transparent);
+  color: var(--edge-accent);
+}
+
+/* Several choices of one thing: the kit's Seg. */
+.edge-shell main .prod-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 36px;
+  padding: 2px;
+  box-sizing: border-box;
+  border: 1px solid var(--edge-line);
+  border-radius: 10px;
+  background: var(--edge-panel-alt);
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.edge-shell main .prod-seg::-webkit-scrollbar { display: none; }
+
+.edge-shell main .prod-seg > .pro-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  min-height: 0;
+  padding: 0 11px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--edge-faint);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color .14s, background .14s;
+}
+
+.edge-shell main .prod-seg > .pro-chip:hover { color: var(--edge-text); }
+
+.edge-shell main .prod-seg > .pro-chip.active {
+  background: var(--edge-raised);
+  box-shadow: var(--edge-hi), inset 0 0 0 1px var(--edge-line-strong);
+  color: var(--edge-text);
+}
+
+.edge-shell main .prod-toolbar > .prod-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  margin-left: auto;
+  font-size: 13.5px;
+}
+
+.edge-shell main .prod-toolbar > .prod-range { gap: 8px; font-size: 12.5px; color: var(--edge-faint); }
+
+.edge-shell main .prod-toolbar > .prod-range input {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid var(--edge-line);
+  background: var(--edge-panel-alt);
+  color: var(--edge-text);
+  font-size: 13px;
+}
+
+/* A kit <Table> on a page that is not a kit <Page> still tints its rows. */
+.edge-shell main .edge-tr:hover { background: var(--edge-panel-alt); }
 
 /* ── tables ───────────────────────────────────────────────────────────────────
    Every legacy table reads as the kit's <Table> (ui/edgeUtils tableFrame,

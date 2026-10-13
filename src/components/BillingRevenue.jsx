@@ -480,7 +480,7 @@ export default function BillingRevenue() {
         <div className="pro-card-header">
           <div className="pro-card-title-group">
             <Banknote size={18} style={{ color: 'var(--success)' }} />
-            <h3>Money In (No Invoice)</h3>
+            <h3>Credit (No Invoice)</h3>
           </div>
           <button className="billing-add-btn" onClick={() => navigate('/general-ledger?new=in')}>
             <Plus size={16} aria-hidden="true" /> Add Revenue

@@ -716,7 +716,7 @@ export function nextQuestion(draft) {
     return {
       slot: 'direction',
       text: 'Did this money come in, or go out?',
-      options: [{ value: 'in', label: 'Money in' }, { value: 'out', label: 'Money out' }],
+      options: [{ value: 'in', label: 'Credit' }, { value: 'out', label: 'Debit' }],
     };
   }
 

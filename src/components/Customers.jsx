@@ -526,22 +526,19 @@ export default function Customers() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
       {/* Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
-          <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+      <div className="prod-toolbar" style={{ marginBottom: 0 }}>
+        <div className="prod-search">
+          <Search size={14} />
           <input aria-label="Search customers"
             type="text"
             placeholder="Search by name, email, or GSTIN..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="easy-inp"
-            style={{ paddingLeft: '2rem', height: '40px', fontSize: '0.8125rem' }}
           />
         </div>
-        <ProjectScopeFilter cp={cp} value={projectScope} onChange={setProjectScope}
-          style={{ height: '40px', padding: '0 0.625rem', borderRadius: '0.5rem', border: '1px solid var(--border-default)', background: 'var(--background)', color: 'var(--text-secondary)', fontSize: '0.8rem', cursor: 'pointer', outline: 'none', flexShrink: 0, maxWidth: '14rem' }} />
-        <button onClick={openAdd} className="easy-submit" style={{ width: 'auto', margin: 0, height: '40px', padding: '0 1.25rem', fontSize: '0.8125rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
-          <Plus size={16} /> Add Client
+        <ProjectScopeFilter cp={cp} value={projectScope} onChange={setProjectScope} className="prod-select" />
+        <button onClick={openAdd} className="prod-add-btn">
+          <Plus size={15} /> Add Client
         </button>
       </div>
 

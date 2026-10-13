@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Check, ChevronLeft, ChevronRight, Move, RotateCcw } from 'lucide-react';
 import { MONO, useT } from '../ui/edgeUtils';
 import { useOrg } from '../../context/OrgContext';
 import { documentStore } from '../../services/documentStore';
@@ -24,8 +24,141 @@ import { useViz, useWinW, mix } from './vizHooks';
 
 const PERIOD_KEY = 'edge.overview.period';
 
+/* ── arranging ───────────────────────────────────────────────────────────────
+   Every dashboard page lets the person put its tiles and cards in the order
+   they read them. The order is theirs: kept in this browser per page, never
+   sent anywhere. <Arrangeable> holds it, <ArrangeBar> is the Arrange / Done
+   switch, and TileRow and CardGrid lay their children out by it. While
+   arranging, a tile or card is dragged onto another to take its place, or
+   moved one step with the arrows on it. */
+
+const ArrangeCtx = createContext(null);
+const orderKey = (page) => 'edgeos.dash.order.' + page;
+const readOrder = (page) => {
+    try { return JSON.parse(localStorage.getItem(orderKey(page)) || '{}') || {}; } catch { return {}; }
+};
+
+/** Give it a `key` equal to `pageId` where one component serves several pages. */
+export function Arrangeable({ pageId, children }) {
+    const [orders, setOrders] = useState(() => readOrder(pageId));
+    const [editing, setEditing] = useState(false);
+    const [drag, setDrag] = useState(null); // { group, id, over }
+    const save = useCallback((next) => {
+        setOrders(next);
+        try {
+            if (Object.keys(next).length) localStorage.setItem(orderKey(pageId), JSON.stringify(next));
+            else localStorage.removeItem(orderKey(pageId));
+        } catch { /* storage blocked: the order just lasts until reload */ }
+    }, [pageId]);
+    const value = useMemo(() => ({
+        orders, editing, setEditing, drag, setDrag,
+        changed: Object.keys(orders).length > 0,
+        setOrder: (group, ids) => save({ ...orders, [group]: ids }),
+        reset: () => save({}),
+    }), [orders, editing, drag, save]);
+    return <ArrangeCtx.Provider value={value}>{children}</ArrangeCtx.Provider>;
+}
+
+/** The Arrange / Done switch, with Reset beside it once something has moved. */
+export function ArrangeBar() {
+    const t = useT();
+    const a = useContext(ArrangeCtx);
+    if (!a) return null;
+    const btn = {
+        display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 30, padding: '0 11px', borderRadius: 9,
+        border: '1px solid ' + t.lineStrong, background: t.panelAlt, boxShadow: t.highlight, color: t.text,
+        fontFamily: MONO, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
+    };
+    return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {a.editing && a.changed && (
+                <button type="button" className="ov-chip" onClick={a.reset} style={{ ...btn, color: t.dim }}>
+                    <RotateCcw aria-hidden="true" size={13} />Reset
+                </button>
+            )}
+            <button type="button" className="ov-chip" aria-pressed={a.editing} onClick={() => a.setEditing(!a.editing)}
+                style={a.editing ? { ...btn, background: t.accentSoft, borderColor: t.accent, color: t.accent } : btn}>
+                {a.editing ? <><Check aria-hidden="true" size={13} strokeWidth={2.2} />Done</> : <><Move aria-hidden="true" size={13} />Arrange</>}
+            </button>
+        </span>
+    );
+}
+
+const widOf = (c, i) => String(c.props?.wid ?? (typeof c.props?.label === 'string' ? c.props.label : null)
+    ?? (typeof c.props?.title === 'string' ? c.props.title : null) ?? c.key ?? i);
+
+/** A grid's children in the person's order, each handed what it needs to be moved. */
+function useArranged(group, children) {
+    const a = useContext(ArrangeCtx);
+    const items = React.Children.toArray(children).filter(Boolean);
+    if (!a) return items;
+    const saved = a.orders[group];
+    let list = items.map((c, i) => ({ c, id: widOf(c, i), i }));
+    if (saved?.length) {
+        const rank = new Map(saved.map((id, i) => [id, i]));
+        const at = (x) => (rank.has(x.id) ? rank.get(x.id) : 1e6 + x.i);
+        list = list.slice().sort((x, y) => at(x) - at(y));
+    }
+    if (!a.editing) return list.map((x) => x.c);
+    const ids = list.map((x) => x.id);
+    const put = (id, to) => {
+        const from = ids.indexOf(id);
+        if (from < 0 || to < 0 || to >= ids.length || from === to) return;
+        const next = ids.slice();
+        next.splice(to, 0, next.splice(from, 1)[0]);
+        a.setOrder(group, next);
+    };
+    return list.map((x, n) => React.cloneElement(x.c, {
+        arrange: {
+            first: n === 0, last: n === list.length - 1,
+            dragging: a.drag?.group === group && a.drag.id === x.id,
+            over: a.drag?.group === group && a.drag.over === x.id && a.drag.id !== x.id,
+            move: (by) => put(x.id, n + by),
+            dnd: {
+                draggable: true,
+                onDragStart: (e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', x.id); a.setDrag({ group, id: x.id, over: null }); },
+                onDragOver: (e) => {
+                    if (a.drag?.group !== group) return;
+                    e.preventDefault();
+                    if (a.drag.over !== x.id) a.setDrag({ ...a.drag, over: x.id });
+                },
+                onDrop: (e) => { e.preventDefault(); if (a.drag?.group === group) put(a.drag.id, n); a.setDrag(null); },
+                onDragEnd: () => a.setDrag(null),
+            },
+        },
+    }));
+}
+
+/** The two arrows on a tile or card while arranging. */
+function ArrangeHandle({ arrange, name }) {
+    const t = useT();
+    const btn = (label, by, off, Icon) => (
+        <button type="button" aria-label={label} title={label} disabled={off} onClick={(e) => { e.stopPropagation(); arrange.move(by); }}
+            className="ov-chip" style={{
+                width: 24, height: 24, padding: 0, display: 'grid', placeItems: 'center', borderRadius: 7, border: 'none',
+                background: 'transparent', color: off ? t.ghost : t.text, cursor: off ? 'default' : 'pointer',
+            }}><Icon aria-hidden="true" size={14} /></button>
+    );
+    return (
+        <span style={{
+            position: 'absolute', top: 8, right: 8, zIndex: 3, display: 'inline-flex', gap: 1, padding: 2,
+            borderRadius: 9, background: t.card, border: '1px solid ' + t.lineStrong, boxShadow: t.highlight,
+        }}>
+            {btn(`Move ${name} earlier`, -1, arrange.first, ChevronLeft)}
+            {btn(`Move ${name} later`, 1, arrange.last, ChevronRight)}
+        </span>
+    );
+}
+
+const arrangeStyle = (t, arrange) => (arrange ? {
+    cursor: 'grab', opacity: arrange.dragging ? 0.4 : 1,
+    outline: arrange.over ? '2px solid ' + t.accent : '1.5px dashed ' + t.lineStrong, outlineOffset: arrange.over ? 1 : -1,
+} : null);
+
 export function Dashboard({ children, periodic = true, snapshotNote }) {
     const { activeOrg } = useOrg();
+    // The page's own arrangement is kept under its path (dashboard/finance…).
+    const pageId = useLocation().pathname.split('/').filter(Boolean).join('/');
     // Stamped with the org it loaded, so switching org shows the loader again
     // instead of one frame of the previous org's figures.
     const [readyOrg, setReadyOrg] = useState(null);
@@ -50,7 +183,9 @@ export function Dashboard({ children, periodic = true, snapshotNote }) {
     if (!ready) return <div role="status" style={{ padding: 60, textAlign: 'center', fontFamily: MONO, fontSize: 12.5, color: t.faint }}>Loading dashboard…</div>;
     return (
         <TipProvider>
-            <DashboardBody key={activeOrg.id} orgId={activeOrg.id} periodic={periodic} snapshotNote={snapshotNote}>{children}</DashboardBody>
+            <Arrangeable key={pageId} pageId={pageId}>
+                <DashboardBody key={activeOrg.id} orgId={activeOrg.id} periodic={periodic} snapshotNote={snapshotNote}>{children}</DashboardBody>
+            </Arrangeable>
         </TipProvider>
     );
 }
@@ -116,6 +251,7 @@ function DashboardBody({ children, orgId, periodic, snapshotNote }) {
                     <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: 99, background: t.accent, boxShadow: '0 0 0 3px ' + t.accentSoft }} />
                     Click any chart for detail
                 </span>
+                <ArrangeBar />
             </div>
 
             {typeof children === 'function' ? children(ctx) : children}
@@ -133,8 +269,8 @@ function DashboardBody({ children, orgId, periodic, snapshotNote }) {
  * hero: two rows tall on a wider column, the rest packed beside it in two rows
  * (with an odd count, the second tile stands tall too).
  */
-export function TileRow({ cols, children, style, bento = false }) {
-    const items = React.Children.toArray(children).filter(Boolean);
+export function TileRow({ cols, children, style, bento = false, id = 'tiles' }) {
+    const items = useArranged(id, children);
     const others = items.length - 1;
     if (bento && cols >= 3 && others >= 2) {
         const k = Math.ceil(others / 2);
@@ -159,19 +295,23 @@ export function TileRow({ cols, children, style, bento = false }) {
     );
 }
 
-export function CardGrid({ cols, children }) {
-    return <div style={{ display: 'grid', gap: 12, gridAutoFlow: 'dense', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>{children}</div>;
+export function CardGrid({ cols, children, id = 'cards' }) {
+    const items = useArranged(id, children);
+    return <div style={{ display: 'grid', gap: 12, gridAutoFlow: 'dense', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>{items}</div>;
 }
 
-export function Card({ title, note, right, children, style, icon: Icon, accent }) {
+/* Every card and tile carries the blue wash, so `accent` no longer changes
+   anything; `wid` names a card whose title changes, for the saved order. */
+export function Card({ title, note, right, children, style, icon: Icon, id, arrange }) {
     const t = useT();
     return (
-        <section aria-label={title} className="ov-card" style={{
+        <section id={id} aria-label={title} className="ov-card" {...arrange?.dnd} style={{
             position: 'relative', border: '1px solid ' + t.line, borderRadius: 18, background: t.card, boxShadow: t.highlight,
             padding: '16px 18px 18px', minWidth: 0, display: 'flex', flexDirection: 'column',
-            ...(accent ? { backgroundImage: `radial-gradient(120% 90% at 100% 0%, ${t.accentSoft}, transparent 60%)` } : null),
-            ...style,
+            backgroundImage: `radial-gradient(120% 90% at 100% 0%, ${t.accentSoft}, transparent 60%)`,
+            ...style, ...arrangeStyle(t, arrange),
         }}>
+            {arrange && <ArrangeHandle arrange={arrange} name={title} />}
             <header style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, minHeight: 28 }}>
                 {Icon && (
                     <span aria-hidden="true" style={{ width: 28, height: 28, borderRadius: 9, background: t.accentSoft, color: t.accent, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
@@ -182,19 +322,21 @@ export function Card({ title, note, right, children, style, icon: Icon, accent }
                     <h2 style={{ margin: 0, fontSize: 14.5, fontWeight: 600, letterSpacing: '-0.01em', color: t.text }}>{title}</h2>
                     {note && <div style={{ fontSize: 12, color: t.faint, marginTop: 2 }}>{note}</div>}
                 </div>
-                {right}
+                {!arrange && right}
             </header>
             {children}
         </section>
     );
 }
 
-export function Tile({ icon: Icon, label, value, exact, delta, foot, spark, sparkBars, color, tone, onClick, hero = false, tall = false, style }) {
+export function Tile({ icon: Icon, label, value, exact, delta, foot, spark, sparkBars, color, tone, onClick: click, hero = false, tall = false, style, arrange }) {
     const t = useT();
+    // While arranging, a tile is something to move, not something to open.
+    const onClick = arrange ? undefined : click;
     const Tag = onClick ? 'button' : 'div';
     const big = hero || tall;
     return (
-        <Tag type={onClick ? 'button' : undefined} onClick={onClick} className={'ov-tile' + (onClick ? ' ov-tile-on' : '')}
+        <Tag type={onClick ? 'button' : undefined} onClick={onClick} className={'ov-tile' + (onClick ? ' ov-tile-on' : '')} {...arrange?.dnd}
             title={onClick ? `${label}: ${exact ?? value} · click for detail` : undefined}
             aria-label={onClick ? `${label}: ${exact ?? value}. ${typeof foot === 'string' ? foot + '. ' : ''}Open detail` : undefined}
             style={{
@@ -203,9 +345,10 @@ export function Tile({ icon: Icon, label, value, exact, delta, foot, spark, spar
                 border: '1px solid ' + t.line, borderRadius: 18, background: t.card, boxShadow: t.highlight,
                 padding: hero ? '18px 20px 14px' : '14px 16px 12px',
                 display: 'flex', flexDirection: 'column', gap: hero ? 12 : 9, minWidth: 0,
-                ...(hero ? { backgroundImage: `radial-gradient(110% 80% at 100% 0%, ${t.accentSoft}, transparent 62%)` } : null),
-                ...style,
+                backgroundImage: `radial-gradient(110% 80% at 100% 0%, ${t.accentSoft}, transparent 62%)`,
+                ...style, ...arrangeStyle(t, arrange),
             }}>
+            {arrange && <ArrangeHandle arrange={arrange} name={label} />}
             <span style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%' }}>
                 <span aria-hidden="true" style={{
                     width: hero ? 32 : 28, height: hero ? 32 : 28, borderRadius: hero ? 10 : 9, flexShrink: 0, display: 'grid', placeItems: 'center',
@@ -215,7 +358,7 @@ export function Tile({ icon: Icon, label, value, exact, delta, foot, spark, spar
                     <Icon size={hero ? 15 : 13.5} strokeWidth={2.1} />
                 </span>
                 <span style={{ fontSize: hero ? 13.5 : 12.5, fontWeight: 500, color: t.dim, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
-                {delta && <span className="ov-pill" style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 99, background: t.panelAlt, border: '1px solid ' + t.line, flexShrink: 0 }}>{delta}</span>}
+                {delta && !arrange && <span className="ov-pill" style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 99, background: t.panelAlt, border: '1px solid ' + t.line, flexShrink: 0 }}>{delta}</span>}
             </span>
             <span style={{
                 fontSize: hero ? 40 : big ? 32 : 27, fontWeight: 600, letterSpacing: '-0.045em', lineHeight: 1,
@@ -361,8 +504,7 @@ export function DashStyle({ t }) {
     return (
         <style>{`
             .ov-tile, .ov-card { transition: border-color .18s, box-shadow .18s, transform .22s cubic-bezier(.16,1,.3,1); }
-            .ov-tile-on:hover { border-color: ${t.lineStrong} !important; transform: translateY(-2px); box-shadow: ${t.highlight}, 0 14px 30px -18px ${t.isDark ? 'rgba(0,0,0,.9)' : 'rgba(15,17,21,.35)'} !important; }
-            .ov-card:hover { border-color: ${t.lineStrong} !important; }
+            .ov-tile:hover, .ov-card:hover { border-color: ${t.lineStrong} !important; transform: translateY(-3px); box-shadow: ${t.highlight}, 0 16px 32px -18px ${t.isDark ? 'rgba(0,0,0,.95)' : 'rgba(15,17,21,.38)'} !important; }
             .ov-tile .ov-tile-arrow { transition: transform .15s, color .15s; }
             .ov-tile-on:hover .ov-tile-arrow { transform: translateX(3px); color: ${t.accent}; }
             .ov-pill:empty { display: none !important; }
@@ -382,7 +524,7 @@ export function DashStyle({ t }) {
             @keyframes ovSlide { from { transform: translateX(28px); opacity: 0; } to { transform: none; opacity: 1; } }
             @keyframes ovFade { from { opacity: 0; } to { opacity: 1; } }
             @media (prefers-reduced-motion: reduce) {
-                .ov-tile, .ov-tile:hover, .ov-card { transform: none !important; transition: none; }
+                .ov-tile, .ov-tile:hover, .ov-card, .ov-card:hover { transform: none !important; transition: none; }
                 svg .ov-draw, svg .ov-grow, svg .ov-fadein, .ov-pulse { animation: none; }
             }
         `}</style>

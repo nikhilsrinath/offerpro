@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { DialogSheet, RowMenu } from './ui/edge';
+import { DialogSheet, RowMenu, Seg } from './ui/edge';
 import {
   Plus, Search, Package, Pencil, Archive, ArchiveRestore, Trash2,
   TrendingUp, X, AlertTriangle, IndianRupee, Boxes, Tag,
@@ -37,6 +37,15 @@ const KINDS = [
   { id: 'service', label: 'Service' },
 ];
 const isService = (p) => p?.item_kind === 'service';
+const kindOf = (p) => (isService(p) ? 'service' : 'product');
+
+// The page's four views: everything, only products, only services, and what each has sold.
+const TABS = [
+  { id: 'catalog', label: 'Catalogue' },
+  { id: 'product', label: 'Product' },
+  { id: 'service', label: 'Service' },
+  { id: 'performance', label: 'Performance' },
+];
 
 const BLANK = {
   item_kind: 'product',
@@ -77,7 +86,10 @@ export default function Products({ projectId = null }) {
   const [search, setSearch] = useState(initialQuery);
   const [category, setCategory] = useState('all');
   const [scope, setScope] = useState('');
-  const [kind, setKind] = useState('');
+  // The Product and Service tabs are the catalogue narrowed to that kind.
+  const kind = tab === 'product' || tab === 'service' ? tab : '';
+  // Performance: all, or only products, or only services.
+  const [perfKind, setPerfKind] = useState('all');
   const projects = useSection('projects');
   const toast = useToast();
   const [showArchived, setShowArchived] = useState(false);
@@ -110,7 +122,7 @@ export default function Products({ projectId = null }) {
   // shipping the whole ledger over to do it.
   const allTimePerf = useMemo(
     () => items.filter((p) => !p.archived_at).map((p) => ({
-      id: p.id, name: p.name, sku: p.sku, category: p.category,
+      id: p.id, name: p.name, sku: p.sku, category: p.category, kind: kindOf(p),
       units_sold: p.units_sold, revenue: p.revenue,
       revenue_paid: p.revenue_paid, invoice_count: p.invoice_count,
       last_sold_at: p.last_sold_at,
@@ -133,7 +145,14 @@ export default function Products({ projectId = null }) {
     return () => { cancelled = true; };
   }, [tab, range, customFrom, customTo, activeOrg, version]);
 
-  const perf = range === 'all' ? allTimePerf : rangedPerf;
+  // A narrower window comes back from the database for the whole catalogue and
+  // without the kind: keep this page's items, and say which kind each is.
+  const perf = useMemo(() => {
+    if (range === 'all') return allTimePerf;
+    const byId = Object.fromEntries(items.map((p) => [p.id, p]));
+    return rangedPerf.filter((r) => byId[r.id]).map((r) => ({ ...r, kind: kindOf(byId[r.id]) }));
+  }, [range, allTimePerf, rangedPerf, items]);
+  const perfShown = useMemo(() => (perfKind === 'all' ? perf : perf.filter((r) => r.kind === perfKind)), [perf, perfKind]);
 
   const categories = useMemo(
     () => [...new Set(items.map((p) => (p.category || '').trim()).filter(Boolean))]
@@ -146,7 +165,7 @@ export default function Products({ projectId = null }) {
     return items.filter((p) => {
       if (showArchived ? !p.archived_at : !!p.archived_at) return false;
       if (category !== 'all' && (p.category || '') !== category) return false;
-      if (kind && (isService(p) ? 'service' : 'product') !== kind) return false;
+      if (kind && kindOf(p) !== kind) return false;
       if (!inScope(scope, p.project_id ? [p.project_id] : [], p.belongs_to)) return false;
       if (!q) return true;
       return [p.name, p.sku, p.category, p.description, p.hsn_sac]
@@ -254,17 +273,12 @@ export default function Products({ projectId = null }) {
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="prod-tabs">
-        <button aria-pressed={tab === 'catalog'} className={`pro-chip ${tab === 'catalog' ? 'active' : ''}`} onClick={() => setTab('catalog')}>
-          Catalogue
-        </button>
-        <button aria-pressed={tab === 'performance'} className={`pro-chip ${tab === 'performance' ? 'active' : ''}`} onClick={() => setTab('performance')}>
-          Product Performance
-        </button>
+      {/* Catalogue | Product | Service | Performance */}
+      <div style={{ marginBottom: 12, maxWidth: '100%', overflowX: 'auto' }}>
+        <Seg value={tab} onChange={setTab} label="View" options={TABS} />
       </div>
 
-      {tab === 'catalog' ? (
+      {tab !== 'performance' ? (
         <>
           <div className="prod-toolbar">
             <div className="prod-search">
@@ -291,12 +305,6 @@ export default function Products({ projectId = null }) {
               {categories.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
 
-            <select aria-label="Products or services" value={kind} onChange={(e) => setKind(e.target.value)} className="prod-select">
-              <option value="">Products & services</option>
-              <option value="product">Products only</option>
-              <option value="service">Services only</option>
-            </select>
-
             {!projectId && <BelongsToFilter value={scope} onChange={setScope} className="prod-select" />}
 
             <button
@@ -306,16 +314,17 @@ export default function Products({ projectId = null }) {
               <Archive size={12} /> Archived
             </button>
 
-            <button className="prod-add-btn" onClick={() => { setEditing({ ...BLANK, belongs: projectId || scope || GENERAL }); setFormError(''); }}>
-              <Plus size={15} /> {projectId ? 'New SKU' : 'New product / service'}
+            <button className="prod-add-btn" onClick={() => { setEditing({ ...BLANK, item_kind: kind || 'product', belongs: projectId || scope || GENERAL }); setFormError(''); }}>
+              <Plus size={15} /> {projectId ? 'New SKU' : kind === 'service' ? 'New service' : kind === 'product' ? 'New product' : 'New product / service'}
             </button>
           </div>
 
           {filtered.length === 0 ? (
             <EmptyState
               archived={showArchived}
-              filtered={!!search || category !== 'all' || !!scope || !!kind}
-              onAdd={() => { setEditing({ ...BLANK, belongs: projectId || scope || GENERAL }); setFormError(''); }}
+              filtered={!!search || category !== 'all' || !!scope}
+              kind={kind} hasAny={items.some((x) => !x.archived_at)}
+              onAdd={() => { setEditing({ ...BLANK, item_kind: kind || 'product', belongs: projectId || scope || GENERAL }); setFormError(''); }}
             />
           ) : (
             <div className="prod-grid">
@@ -334,7 +343,9 @@ export default function Products({ projectId = null }) {
         </>
       ) : (
         <PerformanceView
-          rows={perf}
+          rows={perfShown}
+          kind={perfKind}
+          setKind={setPerfKind}
           loading={perfLoading}
           range={range}
           setRange={setRange}
@@ -434,14 +445,22 @@ function ProductCard({ product: p, belongsLabel, onEdit, onArchive, onDelete }) 
   );
 }
 
-function EmptyState({ archived, filtered, onAdd }) {
+function EmptyState({ archived, filtered, kind, hasAny, onAdd }) {
+  const noun = kind === 'service' ? 'services' : kind === 'product' ? 'products' : 'products or services';
   return (
     <div className="prod-empty">
       <Package size={30} />
       {archived ? (
-        <p>No archived products.</p>
+        <p>No archived {noun}.</p>
       ) : filtered ? (
-        <p>No products match that search.</p>
+        <p>No {noun} match that search.</p>
+      ) : kind && hasAny ? (
+        <>
+          <p>No {noun} in the catalogue yet.</p>
+          <button className="prod-add-btn" onClick={onAdd}>
+            <Plus size={15} /> {kind === 'service' ? 'Add a Service' : 'Add a Product'}
+          </button>
+        </>
       ) : (
         <>
           <p>Your product catalogue is empty.</p>
@@ -639,7 +658,7 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
 }
 
 function PerformanceView({
-  rows, loading, range, setRange, customFrom, setCustomFrom, customTo, setCustomTo,
+  rows, kind, setKind, loading, range, setRange, customFrom, setCustomFrom, customTo, setCustomTo,
 }) {
   const ranked = useMemo(
     () => [...rows].sort((a, b) => b.revenue - a.revenue || b.units_sold - a.units_sold),
@@ -652,32 +671,24 @@ function PerformanceView({
   return (
     <>
       <div className="prod-toolbar">
-        {RANGES.map((r) => (
-          <button
-            key={r.id}
-            aria-pressed={range === r.id} className={`pro-chip ${range === r.id ? 'active' : ''}`}
-            onClick={() => setRange(r.id)}
-          >
-            {r.label}
-          </button>
-        ))}
-        <button
-          aria-pressed={range === 'custom'} className={`pro-chip ${range === 'custom' ? 'active' : ''}`}
-          onClick={() => setRange('custom')}
-        >
-          Custom
-        </button>
+        <Seg value={range} onChange={setRange} label="Period"
+          options={[...RANGES.map((r) => ({ id: r.id, label: r.label })), { id: 'custom', label: 'Custom' }]} />
         {range === 'custom' && (
           <div className="prod-range">
-            <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+            <input type="date" aria-label="From" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
             <span>to</span>
-            <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+            <input type="date" aria-label="To" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
           </div>
         )}
+        <select aria-label="Products or services" className="prod-select" value={kind} onChange={(e) => setKind(e.target.value)}>
+          <option value="all">All</option>
+          <option value="product">Product</option>
+          <option value="service">Service</option>
+        </select>
       </div>
 
       <p className="prod-perf-note">
-        Counts a product once the invoice carrying it has been issued, sent,
+        Counts a product or service once the invoice carrying it has been issued, sent,
         viewed, overdue, part-paid or paid. Drafts, quotations and proformas are
         excluded, and <strong>Collected</strong> narrows to invoices marked paid.
       </p>
@@ -687,9 +698,9 @@ function PerformanceView({
       ) : ranked.length === 0 ? (
         <div className="prod-empty">
           <TrendingUp size={30} />
-          <p>Nothing sold in this period.</p>
+          <p>{kind === 'service' ? 'No service sold in this period.' : kind === 'product' ? 'No product sold in this period.' : 'Nothing sold in this period.'}</p>
           <span>
-            Sales appear here once a product is picked on an invoice line and that
+            Sales appear here once a product or service is picked on an invoice line and that
             invoice is issued.
           </span>
         </div>
@@ -699,7 +710,8 @@ function PerformanceView({
             <thead>
               <tr>
                 <th>#</th>
-                <th>Product</th>
+                <th>Name</th>
+                <th>Product / Service</th>
                 <th className="num">Units</th>
                 <th className="num">Billed</th>
                 <th className="num">Collected</th>
@@ -722,6 +734,7 @@ function PerformanceView({
                       <div style={{ width: max ? `${Math.max((r.revenue / max) * 100, 1)}%` : '0%' }} />
                     </div>
                   </td>
+                  <td>{r.kind === 'service' ? 'Service' : 'Product'}</td>
                   <td className="num">{qty(r.units_sold)}</td>
                   <td className="num strong">{money(r.revenue)}</td>
                   <td className="num" style={{ color: 'var(--success)' }}>{money(r.revenue_paid)}</td>
@@ -732,7 +745,7 @@ function PerformanceView({
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={2}>Total</td>
+                <td colSpan={3}>Total</td>
                 <td className="num">{qty(totalUnits)}</td>
                 <td className="num strong">{money(totalRevenue)}</td>
                 <td colSpan={3} />

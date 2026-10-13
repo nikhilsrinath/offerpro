@@ -5,7 +5,8 @@ import {
 } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
 import { useToast } from '../shared/Toast';
-import { RowMenu } from '../ui/edge';
+import { RowMenu, Table, Tr, Td } from '../ui/edge';
+import { useT } from '../ui/edgeUtils';
 import { Stat, Modal } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
 import { todayIso } from '../../services/financeAnalytics';
@@ -26,9 +27,29 @@ const BLANK = {
   more: [],
 };
 const TERMS = [0, 7, 15, 30, 45, 60, 90];
+
+// Every column the list can show; the Columns button picks among them, and
+// the choice is remembered on this device (ui/edge Table).
+const COLS = [
+  { key: 'vendor', label: 'Vendor', always: true },
+  { key: 'belongs', label: 'Belongs to' },
+  { key: 'contact', label: 'Contact' },
+  { key: 'category', label: 'Category', def: false },
+  { key: 'state', label: 'State', def: false },
+  { key: 'gstin', label: 'GSTIN' },
+  { key: 'terms', label: 'Terms' },
+  { key: 'billed', label: 'Billed', align: 'right' },
+  { key: 'paid', label: 'Paid', align: 'right' },
+  { key: 'outstanding', label: 'Outstanding', align: 'right' },
+  { key: 'overdue', label: 'Overdue', align: 'right', def: false },
+  { key: 'count', label: 'Bills & expenses', align: 'right', def: false },
+  { key: 'last', label: 'Last activity' },
+  { key: 'actions', label: '', always: true, width: 56 },
+];
 const GSTIN_RE = /^[0-9A-Z]{15}$/;
 
 export default function Vendors() {
+  const t = useT();
   const toast = useToast();
   const navigate = useNavigate();
   const vendors = useSection('vendors');
@@ -177,57 +198,58 @@ export default function Vendors() {
           <span>Add the suppliers you buy from to record their bills and see what you owe them.</span>
         </div>
       ) : (
-        <div className="prod-perf-table-wrap">
-          <table className="prod-perf-table">
-            <thead>
-              <tr>
-                <th>Vendor</th>
-                <th>Belongs To</th>
-                <th>Contact</th>
-                <th>GSTIN</th>
-                <th>Terms</th>
-                <th className="num">Billed</th>
-                <th className="num">Outstanding</th>
-                <th>Last Activity</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((v) => {
-                const l = ledger[v.id] || {};
-                const onProjects = vendorProjectIds(v.id, links);
-                return (
-                  <tr key={v.id} onClick={() => setViewing(v)} style={{ cursor: 'pointer' }}>
-                    <td>
-                      <div className="prod-perf-name">{v.company_name}</div>
-                      <div className="prod-perf-meta">{v.category || 'Uncategorised'}{v.state ? ` · ${v.state}` : ''}</div>
-                    </td>
-                    <td>
-                      <div>{choiceLabel(vendorChoice(v, links), projects)}</div>
-                      {onProjects.length > 1 && <div className="prod-perf-meta">+{onProjects.length - 1} more project{onProjects.length > 2 ? 's' : ''}</div>}
-                    </td>
-                    <td>
-                      <div>{v.contact_name || '-'}</div>
-                      <div className="prod-perf-meta">{v.email || v.phone || ''}</div>
-                    </td>
-                    <td className="prod-perf-date">{v.gstin || '-'}</td>
-                    <td className="prod-perf-date">{v.payment_terms_days ? `Net ${v.payment_terms_days}` : 'On receipt'}</td>
-                    <td className="num">{money(l.billed)}</td>
-                    <td className="num strong" style={l.overdue > 0 ? { color: 'var(--error)' } : undefined}>{money(l.outstanding)}</td>
-                    <td className="prod-perf-date">{fmtDate(l.last)}</td>
-                    <td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
+        <Table id="vendors" cols={COLS}>
+          {(show) => filtered.map((v) => {
+            const l = ledger[v.id] || {};
+            const onProjects = vendorProjectIds(v.id, links);
+            const sub = { display: 'block', fontSize: 11.5, color: t.faint, marginTop: 2 };
+            return (
+              <Tr key={v.id} onClick={() => setViewing(v)} label={`Open ${v.company_name}`}>
+                {show('vendor') && (
+                  <Td nowrap>
+                    <span style={{ display: 'block', fontWeight: 600 }}>{v.company_name}</span>
+                    <span style={sub}>{v.category || 'Uncategorised'}{v.state ? ` · ${v.state}` : ''}</span>
+                  </Td>
+                )}
+                {show('belongs') && (
+                  <Td>
+                    {choiceLabel(vendorChoice(v, links), projects)}
+                    {onProjects.length > 1 && <span style={sub}>+{onProjects.length - 1} more project{onProjects.length > 2 ? 's' : ''}</span>}
+                  </Td>
+                )}
+                {show('contact') && (
+                  <Td nowrap>
+                    {v.contact_name || '-'}
+                    {(v.email || v.phone) && <span style={sub}>{v.email || v.phone}</span>}
+                  </Td>
+                )}
+                {show('category') && <Td nowrap muted>{v.category || '-'}</Td>}
+                {show('state') && <Td nowrap muted>{v.state || '-'}</Td>}
+                {show('gstin') && <Td nowrap muted>{v.gstin || '-'}</Td>}
+                {show('terms') && <Td nowrap muted>{v.payment_terms_days ? `Net ${v.payment_terms_days}` : 'On receipt'}</Td>}
+                {show('billed') && <Td align="right" nowrap>{money(l.billed)}</Td>}
+                {show('paid') && <Td align="right" nowrap><span style={{ color: l.paid > 0 ? t.up : undefined }}>{money(l.paid)}</span></Td>}
+                {show('outstanding') && (
+                  <Td align="right" nowrap><span style={{ fontWeight: 600, color: l.overdue > 0 ? t.down : undefined }}>{money(l.outstanding)}</span></Td>
+                )}
+                {show('overdue') && <Td align="right" nowrap><span style={{ color: l.overdue > 0 ? t.down : undefined }}>{money(l.overdue)}</span></Td>}
+                {show('count') && <Td align="right" nowrap muted>{l.count || 0}</Td>}
+                {show('last') && <Td nowrap muted>{fmtDate(l.last)}</Td>}
+                {show('actions') && (
+                  <Td align="right" nowrap>
+                    <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} style={{ display: 'inline-flex' }}>
                       <RowMenu label={`Actions for ${v.company_name}`} items={[
                         { label: 'Edit', icon: Pencil, onClick: () => { setEditing({ ...v, belongs: vendorChoice(v, links), more: vendorProjectIds(v.id, links).slice(1) }); setFormError(''); } },
                         { label: v.archived_at ? 'Restore' : 'Archive', icon: v.archived_at ? ArchiveRestore : Archive, onClick: () => handleArchive(v) },
                         !l.count && { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => handleDelete(v) },
                       ]} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </span>
+                  </Td>
+                )}
+              </Tr>
+            );
+          })}
+        </Table>
       )}
 
       {editing && (
@@ -295,9 +317,9 @@ export default function Vendors() {
               <div className="prod-field full">
                 <label>Payment terms</label>
                 <div className="prod-rate-chips">
-                  {TERMS.map((t) => (
-                    <button key={t} type="button" aria-pressed={!!(Number(editing.payment_terms_days) === t)} className={`easy-chip ${Number(editing.payment_terms_days) === t ? 'active' : ''}`} onClick={() => set('payment_terms_days', t)}>
-                      {t === 0 ? 'On receipt' : `Net ${t}`}
+                  {TERMS.map((d) => (
+                    <button key={d} type="button" aria-pressed={!!(Number(editing.payment_terms_days) === d)} className={`easy-chip ${Number(editing.payment_terms_days) === d ? 'active' : ''}`} onClick={() => set('payment_terms_days', d)}>
+                      {d === 0 ? 'On receipt' : `Net ${d}`}
                     </button>
                   ))}
                 </div>
@@ -318,8 +340,8 @@ export default function Vendors() {
       )}
 
       {viewing && (
-        <Modal title={viewing.company_name} onClose={() => setViewing(null)} width="720px">
-          <div className="prod-modal-body">
+        <Modal title={viewing.company_name} onClose={() => setViewing(null)} width="1120px" minHeight="min(820px, 90vh)">
+          <div className="prod-modal-body" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
               {viewing.contact_name && <span>{viewing.contact_name}</span>}
               {viewing.email && <span><Mail size={12} /> {viewing.email}</span>}
@@ -354,6 +376,8 @@ export default function Vendors() {
                 </table>
               </div>
             )}
+            {/* keeps the actions at the foot of the tall sheet */}
+            <div style={{ flex: 1 }} />
             <div className="prod-modal-foot">
               <button type="button" className="prod-btn-ghost" onClick={() => setViewing(null)}>Close</button>
               <button type="button" className="prod-btn-primary" onClick={() => navigate(`/purchase-bills?vendor=${viewing.id}&new=1`)}>

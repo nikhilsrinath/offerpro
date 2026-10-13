@@ -121,7 +121,7 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
                 onClick={() => navigate('/general-ledger')} />
         </TileRow>
 
-        <TileRow cols={tileCols(3)}>
+        <TileRow id="ratios" cols={tileCols(3)}>
             <Tile icon={Users} label="Avg revenue / head" value={perHead === null ? '-' : fmtShort(model.pl.income / heads)}
                 exact={perHead === null ? 'no headcount' : fmtInr(model.pl.income / heads)}
                 foot={perHead === null ? 'no employees on the team' : `${fmtShort(model.pl.income)} income · ${heads} people`}
@@ -137,7 +137,7 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
         </TileRow>
 
         <CardGrid cols={cols}>
-            <Card accent style={grid(2)} title={cashMode === 'cash' ? 'Cash flow' : 'Profit & loss'}
+            <Card wid="cashflow" style={grid(2)} title={cashMode === 'cash' ? 'Cash flow' : 'Profit & loss'}
                 note={cashMode === 'cash' ? 'invoiced · collected on invoices · spent, gross' : 'income (invoiced + cash book) vs expenses, net of GST · line = net'}
                 right={<MiniSeg label="Chart basis" value={cashMode} onChange={setCashMode} options={[{ id: 'cash', label: 'Cash' }, { id: 'pl', label: 'P&L' }]} />}>
                 <Columns data={model.series} series={cashSeries} height={260} tipFormat={fmtInr}
@@ -207,9 +207,9 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
                     <Figure big label="paid out" value={fmtShort(cash.paidOut)} />
                     <Figure big label="net" value={fmtShort(cash.net)} tone={cash.net < 0 ? 'down' : 'up'} />
                 </FigureRow>
-                <SubLabel>Money in</SubLabel>
+                <SubLabel>Credit</SubLabel>
                 <RankBars rows={inRows} format={fmtShort} color={cat[2]} max={4} empty="Nothing received yet" />
-                <SubLabel style={{ marginTop: 12 }}>Money out</SubLabel>
+                <SubLabel style={{ marginTop: 12 }}>Debit</SubLabel>
                 <RankBars rows={outRows} format={fmtShort} color={cat[1]} max={2} empty="Nothing paid out yet" />
             </Card>
 

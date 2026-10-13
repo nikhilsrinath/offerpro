@@ -14,7 +14,7 @@ import HealthChip from './HealthChip';
 import ProjectMilestones from './ProjectMilestones';
 import ProjectActions from './ProjectActions';
 import PageTabs from './PageTabs';
-import ProjectFinanceStatus, { ProjectProfitLoss } from './ProjectFinance';
+import ProjectFinanceStatus, { ProjectProfitLoss, ProjectLedger } from './ProjectFinance';
 import ProjectBilling from './ProjectBilling';
 import CashBook from '../financial/CashBook';
 import PurchaseInvoices from '../financial/PurchaseInvoices';
@@ -62,14 +62,14 @@ import {
 const TABS = [
     // Not a tab: its own pages (/dashboard/:view), folded under this item
     // in the rail like Finance (projectDashboardGroup).
-    { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, away: true },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, away: true },
     // Finance is six pages, folded under one Finance item in the rail
     // (projectRail). Financial Status keeps the id 'finance', so older
     // ?tab=finance links still land on it.
     { id: 'finance', parent: 'finance', label: 'Status', icon: Gauge, fin: true },
-    { id: 'cashbook', parent: 'finance', label: 'Cash Book', icon: BookOpen, fin: true },
+    { id: 'cashbook', parent: 'finance', label: 'General Ledger', icon: BookOpen, fin: true },
     { id: 'billing', parent: 'finance', label: 'Billing', icon: Receipt, fin: true },
-    { id: 'bills', parent: 'finance', label: 'Purchase Bills', icon: ShoppingCart, fin: true },
+    { id: 'bills', parent: 'finance', label: 'Company Ledger', icon: ShoppingCart, fin: true },
     { id: 'tax', parent: 'finance', label: 'Tax Summary', icon: Scale, fin: true },
     { id: 'pl', parent: 'finance', label: 'Profit & Loss', icon: TrendingUp, fin: true },
     // Project Management is four pages over the project's tasks, folded the
@@ -152,6 +152,18 @@ export function projectRail(projectId, sections, current) {
 }
 
 const STATUS_TONE = { active: 'up', on_hold: 'neutral', planned: 'mute', completed: 'mute', cancelled: 'mute' };
+
+/** A fact about the project in the same pill the status wears; `lead` makes room for an avatar. */
+function Chip({ t, lead, children }) {
+    return (
+        <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6, height: 24, padding: lead ? '0 9px 0 3px' : '0 9px', borderRadius: 99,
+            fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', color: t.dim,
+            background: `color-mix(in srgb, ${t.dim} ${t.isDark ? 16 : 11}%, transparent)`,
+            boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${t.dim} 22%, transparent)`,
+        }}>{children}</span>
+    );
+}
 
 function useWindowWidth() {
     const [w, setW] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1440));
@@ -294,14 +306,14 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                         <Status tone={STATUS_TONE[project.status]}>{statusLabel(project.status)}</Status>
                         {!closed && health && <HealthChip health={health.health} reasons={health.reasons} />}
                         {project.archived_at && <Muted>Archived</Muted>}
-                        <Muted>
+                        <Chip t={t}>
                             {client
-                                ? <>Client: <Link to={`/client-directory?client=${client.id}`} style={{ color: t.dim }}>{clientName}</Link></>
-                                : 'Internal project'}
-                        </Muted>
-                        {project.delivery_method && <Muted>{deliveryLabel(project.delivery_method)} method</Muted>}
+                                ? <>Client: <Link to={`/client-directory?client=${client.id}`} style={{ color: 'inherit' }}>{clientName}</Link></>
+                                : 'Internal Project'}
+                        </Chip>
+                        {project.delivery_method && <Chip t={t}>{deliveryLabel(project.delivery_method)} Method</Chip>}
                         {manager && (
-                            <Row gap={6}><Avatar name={manager.name || ''} size={18} /><Muted>{manager.name}</Muted></Row>
+                            <Chip t={t} lead><Avatar name={manager.name || ''} size={18} />{manager.name}</Chip>
                         )}
                     </Row>
 
@@ -333,9 +345,17 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                                     pages={sections.filter((x) => x.parent === section.parent)} />
                             )}
                             {tab === 'finance' && fin && <ProjectFinanceStatus project={project} onOpen={openTab} />}
-                            {tab === 'cashbook' && fin && <CashBook projectId={project.id} />}
+                            {tab === 'cashbook' && fin && (
+                                <CashBook projectId={project.id}>
+                                    {({ onEdit }) => <ProjectLedger project={project} onOpen={openTab} onEdit={onEdit} here="cashbook" />}
+                                </CashBook>
+                            )}
                             {tab === 'billing' && fin && <ProjectBilling project={project} kind={billingKindOf(view)} onKind={openView} view={view} />}
-                            {tab === 'bills' && fin && <PurchaseInvoices projectId={project.id} />}
+                            {tab === 'bills' && fin && (
+                                <PurchaseInvoices projectId={project.id}>
+                                    {(list) => <ProjectLedger project={project} onOpen={openTab} only="purchases" here="bills" {...list} />}
+                                </PurchaseInvoices>
+                            )}
                             {tab === 'tax' && fin && <TaxSummary projectId={project.id} />}
                             {tab === 'pl' && fin && <ProjectProfitLoss project={project} />}
                             {tab === 'products' && <Products projectId={project.id} />}

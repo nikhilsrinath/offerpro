@@ -107,7 +107,6 @@ export default function ProjectForm({ project = null, onDone }) {
         e?.preventDefault();
         if (!form.name.trim()) { setError('Give the project a name.'); return; }
         if (form.kind === 'client' && !form.client_id) { setError('Choose the client, or make it an internal project.'); return; }
-        if (!isEdit && !form.delivery_method) { setError('Choose the type of project: Waterfall, Agile or Hybrid. Not sure? Go with Hybrid.'); return; }
         if (form.target_end_date && form.start_date && form.target_end_date < form.start_date) {
             setError('The target end date is before the start.'); return;
         }
@@ -175,7 +174,7 @@ export default function ProjectForm({ project = null, onDone }) {
                     <Input value={form.name} onChange={set('name')} placeholder="What is being delivered" autoFocus={!isEdit} />
                 </Field>
                 <div style={{ height: 13 }} />
-                <MethodPicker value={form.delivery_method} onChange={set('delivery_method')} required={!isEdit} />
+                <MethodPicker value={form.delivery_method} onChange={set('delivery_method')} />
                 <div style={{ height: 13 }} />
                 <Field label="Description" >
                     <Textarea rows={3} value={form.description} onChange={set('description')} />
@@ -295,13 +294,14 @@ export default function ProjectForm({ project = null, onDone }) {
     return isEdit ? body : <Page>{body}</Page>;
 }
 
-/** Type of project: Waterfall, Agile or Hybrid, each with what it suits. Native radios, drawn as cards. */
-function MethodPicker({ value, onChange, required }) {
+/** Type of project: Waterfall, Agile or Hybrid, each with what it suits. Optional. Native radios, drawn as cards. */
+function MethodPicker({ value, onChange }) {
     const t = useT();
     return (
         <fieldset style={{ border: 'none', margin: 0, padding: 0, minWidth: 0 }}>
-            <legend style={{ padding: 0, fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, marginBottom: 5 }}>
-                TYPE OF PROJECT{required && <span aria-hidden="true" style={{ color: t.down, marginLeft: 3 }}>*</span>}
+            {/* the same caption every other field on the form wears (Field) */}
+            <legend style={{ padding: 0, fontSize: 12.5, fontWeight: 500, color: t.dim, marginBottom: 6 }}>
+                Type of Project
             </legend>
             <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
                 {DELIVERY_METHODS.map((m) => {
@@ -314,7 +314,7 @@ function MethodPicker({ value, onChange, required }) {
                             border: '1px solid ' + (on ? t.text : t.line), borderRadius: 8,
                             background: on ? t.panelAlt : t.panel,
                         }}>
-                            <input type="radio" name="delivery_method" value={m.id} checked={on} required={required}
+                            <input type="radio" name="delivery_method" value={m.id} checked={on}
                                 onChange={() => onChange(m.id)} style={{ marginTop: 2, accentColor: t.text, width: 15, height: 15 }} />
                             <span style={{ minWidth: 0 }}>
                                 <span style={{ display: 'block', fontSize: 13.5, fontWeight: 600, color: t.text }}>{m.label} Method</span>

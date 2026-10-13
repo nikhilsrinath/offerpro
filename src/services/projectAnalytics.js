@@ -28,6 +28,7 @@ export const BILLING_TYPES = [
     { id: 'fixed_price', label: 'Fixed price' },
     { id: 'time_materials', label: 'Time & materials' },
     { id: 'retainer', label: 'Retainer' },
+    { id: 'other', label: 'Others' }, // 0087
 ];
 
 /** How a project is run (0083's projects.delivery_method), as the New project form offers it. */

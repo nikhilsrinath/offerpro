@@ -13,7 +13,7 @@ import { pickerFromAllocations, saveSplitFromPicker, friendlyError } from '../..
 import { projectLabel } from '../../services/projectAnalytics';
 import { money, useSection } from './financeHooks';
 import {
-  CURRENCIES, GST_RATES, SECTION, billAllocationsOf, billBalance, blank, sym,
+  CURRENCIES, GST_RATES, SECTION, billAllocationsOf, billBalance, billPickerOf, blank, sym,
 } from './cashEntry';
 
 /**
@@ -50,22 +50,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
    * A bill payment's project split, from the bill's own: the same projects, in
    * the same proportions of what is being paid now.
    */
-  const billPicker = (bill, amount) => {
-    const allocs = billAllocations(bill.id);
-    if (allocs.length === 0) return null;
-    const base = Number(bill.subtotal) || 0;
-    if ((allocs.length === 1 && allocs[0].mode === 'full') || !(base > 0)) {
-      return { mode: 'single', rows: [{ project_id: allocs[0].project_id, amount: '' }], touched: true };
-    }
-    return {
-      mode: 'split',
-      touched: true,
-      rows: allocs.map((a) => ({
-        project_id: a.project_id,
-        amount: String(Math.floor(((Number(a.amount) || 0) * amount / base) * 100) / 100),
-      })),
-    };
-  };
+  const billPicker = (bill, amount) => billPickerOf(allocations, bill, amount);
 
   const nameOf = (list, id, key = 'name') => list.find((x) => x.id === id)?.[key] || '';
   const projectName = (id) => projectLabel(projects.find((p) => p.id === id)) || 'Project';
@@ -173,11 +158,21 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
     ? TREATMENTS[picked?.treatment || (editing.direction === 'in' ? 'revenue' : 'operating')]
     : null;
 
+  // "Type" is the category's group and "Sub-Type" the category inside it;
+  // only the category is stored. Picking a Type moves to its first category.
+  const typeGroups = editing ? groupedCategories(editing.direction) : [];
+  const typeLabel = picked?.group_label || typeGroups[0]?.label || '';
+  const typeGroup = typeGroups.find((g) => g.label === typeLabel) || null;
+  const setType = (label) => {
+    const first = typeGroups.find((g) => g.label === label)?.items[0];
+    if (first) set('category', first.key);
+  };
+
   return (
     <Modal
       width={880}
       title={editing.id
-        ? `Edit ${editing.direction === 'in' ? 'money in' : editing.purchase_invoice_id ? 'bill payment' : 'money out'}`
+        ? `Edit ${editing.direction === 'in' ? 'credit' : editing.purchase_invoice_id ? 'bill payment' : 'debit'}`
         : editing.purchase_invoice_id ? 'Record a bill payment' : 'Record money'}
       onClose={onClose}
     >
@@ -201,12 +196,12 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
             <button type="button" aria-pressed={editing.direction === 'in'}
               className={editing.direction === 'in' ? 'active' : ''}
               onClick={() => switchDirection('in')}>
-              <ArrowDownLeft size={16} aria-hidden="true" /> Money In
+              <ArrowDownLeft size={16} aria-hidden="true" /> Credit
             </button>
             <button type="button" aria-pressed={editing.direction === 'out'}
               className={editing.direction === 'out' ? 'active' : ''}
               onClick={() => switchDirection('out')}>
-              <ArrowUpRight size={16} aria-hidden="true" /> Money Out
+              <ArrowUpRight size={16} aria-hidden="true" /> Debit
             </button>
           </div>
         )}
@@ -243,39 +238,10 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
               onChange={(e) => set('description', e.target.value)} />
           </div>
 
-          {payingBill ? (
-          // The bill's own category, read-only: the entry is still stored as a
-          // bill payment, so the cost and GST the bill counts are not counted again.
-          <div className="prod-field">
-            <label htmlFor="cb-cat">Type</label>
-            <input id="cb-cat" readOnly
-              value={`${[payingBill.category, payingBill.description].filter(Boolean).join(' · ') || 'Purchase'} (bill payment)`} />
-            <p className="prod-field-note">From the bill. It already counts the cost and its GST, so this is cash only.</p>
-          </div>
-          ) : (
-          <div className="prod-field">
-            <label className="req" htmlFor="cb-cat">Type</label>
-            <select id="cb-cat" value={editing.category} required
-              onChange={(e) => set('category', e.target.value)}>
-              {groupedCategories(editing.direction).map((g) => (
-                <optgroup key={g.label} label={g.label}>
-                  {g.items.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-                </optgroup>
-              ))}
-              {/* The row's own category, when it is one no longer offered. */}
-              {editing.category && !categoryOf(editing.category)?.active && (
-                <option value={editing.category}>{categoryLabel(editing.category)}</option>
-              )}
-            </select>
-            {/* aria-live because the text changes under a control the user is operating. */}
-            <p className="prod-field-note" aria-live="polite" title={pickedTreatment?.note}>
-              {picked?.hint || pickedTreatment?.label}
-            </p>
-          </div>
-          )}
-
+          {/* Who, then what kind: the party first, and the kind in two steps,
+              the group (Type) and the category inside it (Sub-Type). */}
           {editing.direction === 'in' ? (
-            <div className="prod-field">
+            <div className="prod-field full">
               <label htmlFor="cb-client">Who paid you</label>
               <select id="cb-client" value={editing.client_id || ''}
                 onChange={(e) => set('client_id', e.target.value)}>
@@ -284,7 +250,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
               </select>
             </div>
           ) : (
-            <div className="prod-field">
+            <div className="prod-field full">
               <label htmlFor="cb-vendor">Paid to</label>
               <select id="cb-vendor" value={editing.vendor_id || ''} disabled={!!payingBill}
                 onChange={(e) => set('vendor_id', e.target.value)}>
@@ -293,6 +259,43 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
                   .map((v) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
               </select>
             </div>
+          )}
+
+          {payingBill ? (
+          // The bill's own category, read-only: the entry is still stored as a
+          // bill payment, so the cost and GST the bill counts are not counted again.
+          <div className="prod-field full">
+            <label htmlFor="cb-cat">Type</label>
+            <input id="cb-cat" readOnly
+              value={`${[payingBill.category, payingBill.description].filter(Boolean).join(' · ') || 'Purchase'} (bill payment)`} />
+            <p className="prod-field-note">From the bill. It already counts the cost and its GST, so this is cash only.</p>
+          </div>
+          ) : (
+          <>
+            <div className="prod-field">
+              <label htmlFor="cb-type">Type</label>
+              <select id="cb-type" value={typeLabel} onChange={(e) => setType(e.target.value)}>
+                {typeGroups.map((g) => <option key={g.label} value={g.label}>{g.label}</option>)}
+                {/* The row's own group, when none of its categories is offered any more. */}
+                {typeLabel && !typeGroup && <option value={typeLabel}>{typeLabel}</option>}
+              </select>
+            </div>
+            <div className="prod-field">
+              <label htmlFor="cb-cat">Sub-Type</label>
+              <select id="cb-cat" value={editing.category}
+                onChange={(e) => set('category', e.target.value)}>
+                {(typeGroup?.items || []).map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                {/* The row's own category, when it is one no longer offered. */}
+                {editing.category && !picked?.active && (
+                  <option value={editing.category}>{categoryLabel(editing.category)}</option>
+                )}
+              </select>
+              {/* aria-live because the text changes under a control the user is operating. */}
+              <p className="prod-field-note" aria-live="polite" title={pickedTreatment?.note}>
+                {picked?.hint || pickedTreatment?.label}
+              </p>
+            </div>
+          </>
           )}
 
           {/* Project-specific or General: asked up front, because it is how

@@ -1,5 +1,6 @@
 import DocumentHeader from './DocumentHeader';
 import StampPreview from './StampPreview';
+import { adjustCss } from '../utils/imageAdjust';
 
 export default function OfferPreview({ formData }) {
   const formatDate = (dateStr) => {
@@ -113,7 +114,7 @@ export default function OfferPreview({ formData }) {
         <div className="offer-sig-left">
           <p className="offer-text">Sincerely,</p>
           {formData.signature ? (
-            <img src={formData.signature} alt="Signature" className="offer-sig-img" />
+            <img src={formData.signature} alt="Signature" className="offer-sig-img" style={adjustCss(formData.signatureAdjust, 'left bottom')} />
           ) : (
             <div style={{ height: '40px' }} />
           )}
@@ -123,13 +124,14 @@ export default function OfferPreview({ formData }) {
         </div>
         <div className="offer-stamp-right">
           {formData.showStamp && (
-            <>
+            // the adjustment sits on a wrapper: the stamp itself is already tilted
+            <div style={{ display: 'inline-block', ...adjustCss(formData.stampAdjust, 'center') }}>
               {formData.stampType === 'uploaded' && formData.stampUrl ? (
                 <img src={formData.stampUrl} alt="Company Stamp" className="doc-stamp-img" />
               ) : formData.stampType === 'generated' && formData.companyName ? (
                 <StampPreview companyName={formData.companyName} city={formData.stampCity} size={70} />
               ) : null}
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -151,7 +153,7 @@ export default function OfferPreview({ formData }) {
             <p className="offer-text" style={{ fontSize: '9pt' }}>{formData.companyName || '___________________'}</p>
             <p className="offer-text" style={{ fontSize: '9pt' }}>Date: {formatDate(today)}</p>
             {formData.signature ? (
-              <img src={formData.signature} alt="Signature" className="offer-sig-img" style={{ maxHeight: '35px', marginTop: '0.5em' }} />
+              <img src={formData.signature} alt="Signature" className="offer-sig-img" style={{ maxHeight: '35px', marginTop: '0.5em', ...adjustCss(formData.signatureAdjust, 'left bottom') }} />
             ) : (
               <div style={{ borderBottom: '1px solid #333', width: '180px', marginTop: '1em', paddingTop: '1.5em' }} />
             )}

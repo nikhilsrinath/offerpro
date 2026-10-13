@@ -11,6 +11,7 @@ import { usePlanStatus } from '../hooks/usePlanStatus';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 import { createPortalLink } from '../services/portalService';
 import OfferPreview from './OfferPreview';
+import ImageAdjust from './shared/ImageAdjust';
 import A4Stage from './shared/A4Stage';
 
 function getDisplayName(emp) {
@@ -337,6 +338,9 @@ export default function OfferForm() {
                     {formData.companyLogo ? <><CheckCircle size={16} /> Logo uploaded</> : <><Upload size={16} /> Choose file</>}
                   </div>
                 </div>
+                {formData.companyLogo && (
+                  <ImageAdjust label="Logo" value={formData.logoAdjust} onChange={(v) => setFormData((prev) => ({ ...prev, logoAdjust: v }))} />
+                )}
               </div>
               <div className="easy-field">
                 <label className="easy-lbl">Digital signature</label>
@@ -347,6 +351,9 @@ export default function OfferForm() {
                   </div>
                 </div>
                 {formData.signature && <img src={formData.signature} alt="Signature" style={{ height: '28px', marginTop: '0.25rem' }} />}
+                {formData.signature && (
+                  <ImageAdjust label="Signature" value={formData.signatureAdjust} onChange={(v) => setFormData((prev) => ({ ...prev, signatureAdjust: v }))} />
+                )}
               </div>
               <div className="easy-field full">
                 <button
@@ -358,6 +365,9 @@ export default function OfferForm() {
                   <span className="easy-switch-label">Include company stamp</span>
                   <span className="easy-switch-dot" aria-hidden="true" />
                 </button>
+                {formData.showStamp && (
+                  <ImageAdjust label="Round Seal" value={formData.stampAdjust} onChange={(v) => setFormData((prev) => ({ ...prev, stampAdjust: v }))} />
+                )}
               </div>
             </div>
           </div>

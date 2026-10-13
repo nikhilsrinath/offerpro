@@ -22,9 +22,9 @@ export default function ClientProjectSelect({ value, onChange, cp, id }) {
 }
 
 /** The list filter: everyone, one project, or the unallocated. */
-export function ProjectScopeFilter({ value, onChange, cp, style }) {
+export function ProjectScopeFilter({ value, onChange, cp, style, className }) {
     return (
-        <select aria-label="Filter by project" value={value} onChange={(e) => onChange(e.target.value)} style={style}>
+        <select aria-label="Filter by project" className={className} value={value} onChange={(e) => onChange(e.target.value)} style={style}>
             <option value="">All projects</option>
             <option value={OTHERS}>Others</option>
             {cp.projects.filter((p) => !p.archived_at).map((p) => <option key={p.id} value={p.id}>{projectLabel(p)}</option>)}

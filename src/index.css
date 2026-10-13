@@ -5762,6 +5762,64 @@ label {
   background: rgba(16, 185, 129, 0.04);
 }
 
+/* Readjust a logo, signature or seal (shared/ImageAdjust) */
+.img-adjust { margin-top: 0.5rem; }
+.img-adjust-toggle {
+  display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border-default); border-radius: 8px; background: var(--bg-elevated);
+  color: var(--text-secondary); font: inherit; font-size: 0.75rem; font-weight: 500; cursor: pointer;
+}
+.img-adjust-toggle:hover { color: var(--text-primary); border-color: var(--border-strong); }
+.img-adjust-body {
+  display: grid; gap: 0.5rem; margin-top: 0.5rem; padding: 0.75rem;
+  border: 1px solid var(--border-default); border-radius: 10px; background: var(--bg-elevated);
+}
+.img-adjust-row { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) 3.75rem; align-items: center; gap: 0.6rem; margin: 0; font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); text-transform: none; letter-spacing: normal; }
+.img-adjust-row input[type="range"] { width: 100%; min-width: 0; padding: 0; accent-color: var(--blue); }
+.img-adjust-row output { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.img-adjust-reset {
+  justify-self: start; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.55rem;
+  border: 1px solid var(--border-default); border-radius: 7px; background: transparent;
+  color: var(--text-secondary); font: inherit; font-size: 0.72rem; cursor: pointer;
+}
+.img-adjust-reset:disabled { opacity: 0.45; cursor: default; }
+
+/* Certificate editor: orientation, accent, artwork and removable uploads */
+.cert-btn {
+  position: relative; display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border-default); border-radius: 8px; background: var(--bg-elevated);
+  color: var(--text-secondary); font: inherit; font-size: 0.75rem; font-weight: 500; cursor: pointer; white-space: nowrap;
+}
+.cert-btn:hover { color: var(--text-primary); border-color: var(--border-strong); }
+.cert-btn.danger:hover { color: #dc2626; border-color: rgba(220, 38, 38, 0.45); }
+.cert-btn input[type="file"] { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.cert-btn:focus-within { outline: 2px solid var(--blue); outline-offset: 2px; }
+.cert-img-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.5rem; margin-top: 0.5rem; }
+.cert-img-actions .img-adjust { margin-top: 0; flex: 1 1 14rem; min-width: 0; }
+.cert-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; border: 1px solid var(--border-default); border-radius: 10px; background: var(--bg-elevated); }
+.cert-seg button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; padding: 0.45rem 0.5rem;
+  border: 1px solid transparent; border-radius: 7px; background: transparent;
+  color: var(--text-secondary); font: inherit; font-size: 0.78rem; font-weight: 500; cursor: pointer;
+}
+.cert-seg button:hover { color: var(--text-primary); }
+.cert-seg button.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+.cert-swatches { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; min-height: 2.4rem; }
+.cert-swatch { width: 24px; height: 24px; padding: 0; border-radius: 999px; border: 1px solid rgba(0, 0, 0, 0.18); cursor: pointer; }
+.cert-swatch.active { box-shadow: 0 0 0 2px var(--bg-base, #fff), 0 0 0 4px var(--blue); }
+.cert-swatch-custom { width: 28px; height: 28px; padding: 0; border: 1px solid var(--border-default); border-radius: 8px; background: transparent; cursor: pointer; }
+.cert-art { display: flex; align-items: center; gap: 0.875rem; padding: 0.75rem; border: 1px solid var(--border-default); border-radius: 10px; background: var(--bg-elevated); }
+.cert-art-thumb {
+  flex-shrink: 0; width: 44px; height: 68px; display: grid; place-items: center; border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.25); color: #1c1c1a; background-size: cover; background-position: center;
+}
+.cert-art-thumb.wide { width: 68px; height: 44px; }
+.cert-art-thumb.none { border-style: dashed; border-color: var(--border-strong); background: transparent; }
+.cert-art-side { min-width: 0; display: grid; gap: 0.5rem; }
+.cert-art-note { font-size: 0.78rem; color: var(--text-secondary); }
+.cert-art-btns { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.cert-hint { font-size: 0.72rem; color: var(--text-tertiary); }
+
 /* Paid toggle / switch row */
 .easy-switch-row {
   display: flex;
@@ -10187,7 +10245,8 @@ label {
   flex-wrap: nowrap;
   align-items: center;
   gap: 0.75rem;
-  flex: 1 1 100%;
+  /* Shares its line with the New button, which sits at the right. */
+  flex: 1 1 320px;
   min-width: 0;
 }
 
@@ -13693,9 +13752,9 @@ label {
 .pi-round-btn { align-self: flex-start; margin-top: 0.375rem; }
 .pi-round-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.375rem; }
 .pi-round-row input { flex: 1; min-width: 0; }
-.prod-field .pi-other-row { display: flex; flex-direction: row; align-items: stretch; gap: 0.75rem; }
-.prod-field .pi-other-row input { width: auto; min-width: 0; flex: 1 1 0; }
-.prod-field .pi-other-row input:first-child { flex: 1.5 1 0; }
+/* Other amount, its amount and its GST rate on one line. */
+.pi-other-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) auto; gap: 0.875rem; align-items: start; }
+@media (max-width: 640px) { .pi-other-grid { grid-template-columns: minmax(0, 1fr); } }
 /* Money fields in the bill form: typed, not stepped. */
 .prod-field input.pi-no-spin[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .prod-field input.pi-no-spin[type="number"]::-webkit-outer-spin-button,
@@ -14068,6 +14127,76 @@ label {
   font-size: 0.65rem;
   color: var(--text-muted);
 }
+
+/* Vendor dropdown with Add Vendor at its foot (shared/VendorSelect) */
+
+.vsel { position: relative; }
+
+.vsel-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  background: var(--bg-base);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.vsel-btn:focus-visible,
+.vsel-btn[aria-expanded="true"] { border-color: var(--border-strong); outline: none; }
+.vsel-btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vsel-btn svg { flex-shrink: 0; color: var(--text-muted); }
+.vsel-placeholder { color: var(--text-muted); }
+
+.vsel-panel { width: 100%; max-width: none; }
+
+.prod-field .vsel .prodpick-search-inp { padding: 0; border: 0; border-radius: 0; background: transparent; }
+
+/* No focus ring on the dropdown's inputs: the caret shows where typing goes. */
+.vsel input:focus,
+.vsel input:focus-visible { outline: none !important; box-shadow: none !important; }
+
+.vsel-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+}
+
+.vsel-item:focus-visible { background: var(--surface-hover); outline: none; }
+
+.vsel-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 650;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.vsel-add-btn:hover,
+.vsel-add-btn:focus-visible { background: var(--surface-hover); outline: none; }
+
+.vsel-add { display: grid; gap: 0.5rem; padding: 0.75rem; font-size: 0.8rem; }
+.vsel-add-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.vsel-add-row input { min-width: 0; }
+.vsel-add-foot { display: flex; justify-content: flex-end; gap: 0.5rem; }
+.vsel-note { font-size: 0.68rem; color: var(--text-muted); }
 
 /* Top Products panel on Billing & Revenue */
 

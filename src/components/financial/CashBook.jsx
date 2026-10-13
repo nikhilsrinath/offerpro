@@ -36,8 +36,8 @@ const PAGE_SIZE = 6;
 
 const VIEWS = [
   { id: 'all', label: 'Everything' },
-  { id: 'in',  label: 'Money in' },
-  { id: 'out', label: 'Money out' },
+  { id: 'in',  label: 'Credit' },
+  { id: 'out', label: 'Debit' },
 ];
 
 /**
@@ -53,7 +53,7 @@ const VIEWS = [
  * says out loud what the chosen one will do, and the two totals at the top are
  * labelled so the difference is visible rather than inferred.
  */
-export default function CashBook({ projectId = null }) {
+export default function CashBook({ projectId = null, children }) {
   const t = useT();
   const toast = useToast();
   const [params, setParams] = useSearchParams();
@@ -252,6 +252,16 @@ export default function CashBook({ projectId = null }) {
   const inShare = flow.cashIn + flow.cashOut > 0 ? flow.cashIn / (flow.cashIn + flow.cashOut) : 0;
   const periodText = range.from ? `${fmtDate(range.from)} – ${fmtDate(range.to)}` : preset === 'custom' ? 'Custom range' : 'All time';
   const record = (direction) => setEditing(fresh(direction));
+  // A project's page lists its money in its own ledger (`children`) instead
+  // of the entries table, and opens an entry from there.
+  const ledger = typeof children === 'function'
+    ? children({
+      onEdit: (direction, id) => {
+        const r = allRows.find((x) => x.direction === direction && x.id === id);
+        if (r) setEditing({ ...r, ...(r._full || {}), _share: undefined, _full: undefined, date: r.day });
+      },
+    })
+    : children;
 
   return (
     <Page>
@@ -272,8 +282,8 @@ export default function CashBook({ projectId = null }) {
             </div>
           </div>
           <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
-            <RecordBtn t={t} tone={t.up} icon={ArrowDownLeft} label="Money in" note="Sales, retainers, funding, interest" onClick={() => record('in')} />
-            <RecordBtn t={t} tone={t.down} icon={ArrowUpRight} label="Money out" note="Salaries, rent, purchases, tax" onClick={() => record('out')} />
+            <RecordBtn t={t} tone={t.up} icon={ArrowDownLeft} label="Credit" note="Sales & Services, Other Income, Funding, Retainers, Recoveries" onClick={() => record('in')} />
+            <RecordBtn t={t} tone={t.down} icon={ArrowUpRight} label="Debit" note="Deliveries, People & Labour, Operations, Assets & Capital, Financing & Tax" onClick={() => record('out')} />
           </div>
           <div style={{ marginTop: 'auto', minWidth: 0 }}>
             <div style={{ fontSize: 12, fontWeight: 500, color: t.faint, marginBottom: 4 }}>Recently recorded</div>
@@ -301,12 +311,12 @@ export default function CashBook({ projectId = null }) {
           </div>
         </section>
 
-        <FlowTile t={t} area="in" icon={ArrowDownLeft} tone={t.up} label="Money in" value={money(flow.cashIn)}
+        <FlowTile t={t} area="in" icon={ArrowDownLeft} tone={t.up} label="Credit" value={money(flow.cashIn)}
           note={`${flow.inCount} ${flow.inCount === 1 ? 'entry' : 'entries'} · ${periodText}`}
-          active={view === 'in'} onClick={() => setView(view === 'in' ? 'all' : 'in')} />
-        <FlowTile t={t} area="out" icon={ArrowUpRight} tone={t.down} label="Money out" value={money(flow.cashOut)}
+          active={!ledger && view === 'in'} onClick={ledger ? undefined : () => setView(view === 'in' ? 'all' : 'in')} />
+        <FlowTile t={t} area="out" icon={ArrowUpRight} tone={t.down} label="Debit" value={money(flow.cashOut)}
           note={flow.pending > 0 ? `${money(flow.pending)} not paid yet` : `${flow.outCount} ${flow.outCount === 1 ? 'entry' : 'entries'} · ${periodText}`}
-          active={view === 'out'} onClick={() => setView(view === 'out' ? 'all' : 'out')} />
+          active={!ledger && view === 'out'} onClick={ledger ? undefined : () => setView(view === 'out' ? 'all' : 'out')} />
         <div style={{
           gridArea: 'net', padding: '16px 18px', borderRadius: 18, background: t.card, border: '1px solid ' + t.line, boxShadow: t.highlight,
           display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0,
@@ -330,6 +340,7 @@ export default function CashBook({ projectId = null }) {
         </div>
       </div>
 
+      {ledger || (<>
       {/* ── narrow the list ── */}
       <Toolbar right={<Btn onClick={exportCsv} disabled={filtered.length === 0}><Download size={15} aria-hidden="true" /> Export CSV</Btn>}>
         <Search value={search} onChange={setSearch} placeholder="Search description, party, reference…" width={280} />
@@ -358,10 +369,7 @@ export default function CashBook({ projectId = null }) {
       {/* ── the entries ── */}
       {filtered.length === 0 ? (
         <Panel>
-          <Empty action={<Row gap={8} style={{ justifyContent: 'center' }}>
-            <Btn primary onClick={() => record('in')}><ArrowDownLeft size={15} aria-hidden="true" /> Money in</Btn>
-            <Btn onClick={() => record('out')}><ArrowUpRight size={15} aria-hidden="true" /> Money out</Btn>
-          </Row>}>
+          <Empty>
             {rows.length === 0 ? (scope ? 'Nothing recorded against this project yet.' : 'Nothing in the general ledger yet.') : 'Nothing in this period or filter.'}
           </Empty>
         </Panel>
@@ -454,6 +462,7 @@ export default function CashBook({ projectId = null }) {
       {filtered.length > PAGE_SIZE && (
         <Pager t={t} page={page} pageCount={pageCount} total={filtered.length} onPage={setPage} />
       )}
+      </>)}
 
       {/* ── where it went, by project: also a filter ── */}
       {splitting && byWhere.length > 0 && (
@@ -498,7 +507,7 @@ export default function CashBook({ projectId = null }) {
 
       <style>{`
         .gl-bento { display: grid; gap: 12px; margin-bottom: 12px;
-          grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+          grid-template-columns: minmax(0, 2.6fr) minmax(0, 1fr) minmax(0, 1fr);
           grid-template-areas: "rec in out" "rec net net"; }
         @media (max-width: 980px) {
           .gl-bento { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "rec rec" "in out" "net net"; }

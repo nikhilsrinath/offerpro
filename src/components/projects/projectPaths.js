@@ -14,9 +14,9 @@
 
 export const SECTION_PATHS = {
     finance: 'finance/status',
-    cashbook: 'finance/cash-book',
+    cashbook: 'finance/general-ledger',
     billing: 'finance/billing',
-    bills: 'finance/purchase-bills',
+    bills: 'finance/company-ledger',
     tax: 'finance/tax-summary',
     pl: 'finance/profit-loss',
     pm: 'project-management/portfolio-overview',
@@ -87,6 +87,10 @@ export function projectSectionPath(projectId, section, view, query) {
 export function parseProjectPath(pathname) {
     const rest = pathname.split('/').slice(3).filter(Boolean).join('/');
     if (!rest) return { section: 'home', view: null };
+    // The General Ledger was the Cash Book; a link saved back then still opens it.
+    if (rest === 'finance/cash-book') return { section: 'cashbook', view: null };
+    // And the Company Ledger was Purchase Bills.
+    if (rest === 'finance/purchase-bills') return { section: 'bills', view: null };
     for (const [section, path] of Object.entries(SECTION_PATHS)) {
         if (rest === path) return { section, view: null };
         if (rest.startsWith(path + '/')) return { section, view: rest.slice(path.length + 1) };

@@ -65,7 +65,7 @@ export default function InternRecords() {
 
   const handleDownloadPDF = async (record) => {
     if (record.type === 'offer') await pdfService.generateOfferLetter(record.data);
-    else if (record.type === 'certificate') pdfService.generateCertificate(record.data);
+    else if (record.type === 'certificate') await pdfService.generateCertificate(record.data);
     else if (record.type === 'nda') await pdfService.generateNda(record.data);
     else if (record.type === 'mou') await pdfService.generateMoU(record.data);
     else if (record.type === 'agreement') await pdfService.generateAgreement(record.data);

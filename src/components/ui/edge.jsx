@@ -519,7 +519,7 @@ function ColumnPicker({ cols, isOn, onToggle, onReset, onAll, changed }) {
     `show(key)` says whether to draw a column. A second argument is the list of
     visible columns, for rows that loop over them. Without an `id`, or with
     plain children, nothing changes and every column in `cols` is shown. */
-export function Table({ id, cols: allCols, children, empty }) {
+export function Table({ id, cols: allCols, children, empty, actions }) {
     const t = useT();
     const [prefs, setPrefs] = useState(() => (id ? readColPrefs(id) : {}));
     const pickable = !!id && typeof children === 'function' && allCols.length > 1;
@@ -540,10 +540,11 @@ export function Table({ id, cols: allCols, children, empty }) {
     const body = typeof children === 'function' ? children((k) => shown.has(k), cols) : children;
     return (
         <div>
-            {pickable && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
-                    <ColumnPicker cols={allCols} isOn={isOn} onToggle={toggle} onReset={reset} onAll={showAll}
-                        changed={Object.keys(prefs).length > 0} />
+            {(pickable || actions) && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                    {actions}
+                    {pickable && <ColumnPicker cols={allCols} isOn={isOn} onToggle={toggle} onReset={reset} onAll={showAll}
+                        changed={Object.keys(prefs).length > 0} />}
                 </div>
             )}
         <div style={tableFrame(t)}>
@@ -696,6 +697,7 @@ function PageStyle({ t }) {
             .edge-page .edge-seg:hover { color: ${t.text} !important; }
             .edge-page .edge-input:focus { border-color: ${t.accent} !important; box-shadow: 0 0 0 3px ${t.accentSoft}; }
             .edge-page .edge-input::placeholder { color: ${t.faint}; }
+            .edge-page input[list]::-webkit-calendar-picker-indicator { display: none !important; opacity: 0; }
             .edge-page select.edge-input option { background: ${t.card}; color: ${t.text}; }
             .edge-page .edge-toolbar :is(.edge-input, .edge-btn, .edge-dropdown) { height: 36px !important; }
             .edge-page .edge-btn[aria-pressed="true"]:not(.edge-btn-primary) {

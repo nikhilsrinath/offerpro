@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
-  Plus, Search, X, FileInput, Pencil, Trash2, CheckCircle, Paperclip, IndianRupee, AlertTriangle, Ban, RotateCcw,
+  Plus, Minus, Search, X, FileInput, Pencil, Trash2, CheckCircle, Paperclip, IndianRupee, Ban, RotateCcw,
 } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
 import { receiptService } from '../../services/receiptService';
@@ -16,6 +16,8 @@ import { useProjectScope } from '../projects/projectScope';
 import { confirmDialog } from '../../services/confirm';
 import CashEntryModal from './CashEntryModal';
 import { billPaymentEntry } from './cashEntry';
+import VendorPaymentModal from './VendorPaymentModal';
+import VendorSelect from '../shared/VendorSelect';
 import { RowMenu } from '../ui/edge';
 import { initialQuery } from '../../services/urlQuery';
 
@@ -28,9 +30,8 @@ const blank = (vendorId = '') => ({
   amount_paid: 0, receipt_path: null, notes: '',
 });
 
-export default function PurchaseInvoices({ projectId = null }) {
+export default function PurchaseInvoices({ projectId = null, children }) {
   const toast = useToast();
-  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const vendors = useSection('vendors');
   const allBills = useSection('purchase_invoices');
@@ -55,6 +56,8 @@ export default function PurchaseInvoices({ projectId = null }) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [paying, setPaying] = useState(null);
+  // A project's Company Ledger pays the vendor, not the bill: its Debit form.
+  const [payingVendor, setPayingVendor] = useState(null);
 
   // Vendors page links here with ?vendor=<id>&new=1 to open a bill for them.
   useEffect(() => {
@@ -103,14 +106,15 @@ export default function PurchaseInvoices({ projectId = null }) {
     return {
       billed: live.reduce((s, b) => s + b.total, 0),
       payable: live.reduce((s, b) => s + balance(b), 0),
-      overdue: live.filter(overdue).reduce((s, b) => s + balance(b), 0),
+      paid: live.reduce((s, b) => s + Math.min(b.amount_paid, b.total), 0),
       inputGst: live.reduce((s, b) => s + b.tax_amount, 0),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bills]);
 
   // Both dates are left for the user to pick; nothing is filled in for them.
-  const set = (k, v) => setEditing((e) => ({ ...e, [k]: v }));
+  // `_dirty` marks a form someone has typed in, so closing it asks first.
+  const set = (k, v) => setEditing((e) => ({ ...e, [k]: v, _dirty: true }));
 
   // "Amount before tax" and "Other amount" are taxed at their own rates; the
   // saved subtotal is the two together (0086).
@@ -129,7 +133,6 @@ export default function PurchaseInvoices({ projectId = null }) {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!editing.vendor_id) { setFormError('Choose a vendor.'); return; }
-    if (!editing.bill_number.trim()) { setFormError('Bill number is required.'); return; }
     if (!editing.bill_date) { setFormError('Choose the bill date.'); return; }
     if (editing.due_date && editing.due_date < editing.bill_date) { setFormError('The due date is before the bill date.'); return; }
     if (exactTotal + roundOff < 0) { setFormError('The rounded total cannot be below zero.'); return; }
@@ -137,8 +140,14 @@ export default function PurchaseInvoices({ projectId = null }) {
     setFormError('');
     try {
       const {
-        _picker: picker, _share: _s, _shareNet: _n, _roundOpen: _o, _finalTotal: _f, _hadOther, round_off: prevRound, ...data
+        _picker: picker, _share: _s, _shareNet: _n, _roundOpen: _o, _finalTotal: _f, _hadOther, _dirty: _d, round_off: prevRound, ...data
       } = editing;
+      // The bill number is optional on the form but the database wants one,
+      // unique per vendor: a bill entered without it is numbered BILL-001, 002…
+      if (!(data.bill_number || '').trim()) {
+        const used = allBills.map((x) => /^BILL-(\d+)$/.exec(x.bill_number || '')).filter(Boolean).map((m) => Number(m[1]));
+        data.bill_number = `BILL-${String((used.length ? Math.max(...used) : 0) + 1).padStart(3, '0')}`;
+      }
       // Only sent when there is one to set or clear (see orgStore, 0079).
       if (roundOff || prevRound) data.round_off = roundOff;
       data.subtotal = beforeTax;
@@ -235,13 +244,52 @@ export default function PurchaseInvoices({ projectId = null }) {
 
   const activeVendors = vendors.filter((v) => !v.archived_at);
 
+  /** What can be done to one bill, from its row. */
+  const billMenu = (b) => [
+    b.receipt_path && { label: 'View receipt', icon: Paperclip, onClick: () => receiptService.open(b.receipt_path) },
+    !projectId && b.status !== 'paid' && b.status !== 'void' && { label: 'Record payment', icon: CheckCircle, tone: 'success', onClick: () => handlePay(b) },
+    { label: 'Edit', icon: Pencil, onClick: () => { setEditing({
+      ...b, _share: undefined, _shareNet: undefined,
+      // The form's "Amount before tax" is the bill without the other amount.
+      subtotal: Math.round((b.subtotal - (b.other_amount || 0)) * 100) / 100,
+      other_amount: b.other_amount || '', other_label: b.other_label || '', _hadOther: !!b.other_amount,
+      _roundOpen: !!b.round_off, _finalTotal: b.round_off ? String(b.total) : '',
+    }); setFormError(''); } },
+    b.status !== 'void'
+      ? { label: 'Void', icon: Ban, onClick: () => handleVoid(b) }
+      : { label: 'Unvoid', icon: RotateCcw, onClick: () => handleUnvoid(b) },
+    { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => handleDelete(b) },
+  ];
+
+  // A payment row in the ledger: taking it back reopens what it paid.
+  const handleDeletePayment = async (e) => {
+    if (!(await confirmDialog({
+      title: 'Delete payment',
+      message: `Delete the payment of ${money(e.amount, 2)} on ${fmtDate(e.date || e.incurred_on)}? That amount becomes payable to the vendor again.`,
+      confirmLabel: 'Delete payment',
+    }))) return;
+    try {
+      await orgStore.removeItem('expenses', e.id);
+      if (e.receipt_path) receiptService.remove(e.receipt_path);
+      orgStore.refreshSection('purchase_invoices');
+      toast('Payment deleted', 'success');
+    } catch (err) {
+      orgStore.refreshSection('expenses');
+      toast(`Could not delete the payment: ${err.message}`, 'error');
+    }
+  };
+  const paymentMenu = (expenseId) => {
+    const e = expenses.find((x) => x.id === expenseId);
+    return e ? [{ label: 'Delete Payment', icon: Trash2, tone: 'danger', onClick: () => handleDeletePayment(e) }] : [];
+  };
+
   return (
     <div style={{ maxWidth: '100%' }}>
       <div className="prod-stats">
         <Stat icon={<FileInput size={15} />} label="Total billed" value={money(totals.billed)} onClick={() => setFilter('all')} />
+        <Stat icon={<CheckCircle size={15} />} label="Paid" value={money(totals.paid)} accent="var(--text-primary)" onClick={() => setFilter('paid')} />
         <Stat icon={<IndianRupee size={15} />} label="Payable" value={money(totals.payable)} accent="var(--text-primary)" onClick={() => setFilter('unpaid')} />
-        <Stat icon={<AlertTriangle size={15} />} label="Overdue" value={money(totals.overdue)} accent="var(--error)" onClick={() => setFilter('overdue')} />
-        <Stat icon={<FileInput size={15} />} label="Input GST" value={money(totals.inputGst)} />
+        <Stat icon={<FileInput size={15} />} label="GST" value={money(totals.inputGst)} />
       </div>
 
       <div className="prod-toolbar">
@@ -254,24 +302,39 @@ export default function PurchaseInvoices({ projectId = null }) {
           <option value="all">All vendors</option>
           {vendors.map((v) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
         </select>
-        {FILTERS.map((f) => (
-          <button key={f} aria-pressed={filter === f} className={`pro-chip ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
-            {f === 'all' ? 'All' : f.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
-          </button>
-        ))}
+        <div className="prod-seg" role="group" aria-label="Bill status">
+          {FILTERS.map((f) => (
+            <button key={f} aria-pressed={filter === f} className={`pro-chip ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
+              {f === 'all' ? 'All' : f.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+            </button>
+          ))}
+        </div>
         <button
           className="prod-add-btn"
           onClick={() => {
-            if (activeVendors.length === 0) { toast('Add a vendor first', 'info'); navigate('/vendor-directory'); return; }
             setEditing(fresh(vendorFilter === 'all' ? '' : vendorFilter));
             setFormError('');
           }}
         >
-          <Plus size={15} /> Record Bill
+          <Plus size={15} /> {projectId ? 'Credit' : 'Record Bill'}
         </button>
+        {projectId && (
+          <button
+            className="prod-add-btn"
+            title="Record money paid to a vendor"
+            onClick={() => setPayingVendor({ vendorId: vendorFilter === 'all' ? '' : vendorFilter })}
+          >
+            <Minus size={15} /> Debit
+          </button>
+        )}
       </div>
 
-      {filtered.length === 0 ? (
+      {/* A project's page lists its bills as a ledger (`children`) instead of
+          the table: the same search and filters, the same actions on a bill. */}
+      {children ? children({
+        bills: filtered, billMenu, paymentMenu,
+        emptyText: bills.length === 0 ? 'No bills on this project yet.' : 'Nothing matches these filters.',
+      }) : filtered.length === 0 ? (
         <div className="prod-empty">
           <FileInput size={40} strokeWidth={1} />
           <p>{bills.length === 0 ? (projectId ? 'No bills on this project yet' : 'No purchase invoices yet') : 'Nothing matches these filters'}</p>
@@ -330,21 +393,7 @@ export default function PurchaseInvoices({ projectId = null }) {
                     <td className="num strong">{money(balance(b), 2)}</td>
                     <td style={{ textTransform: 'capitalize', fontSize: '0.75rem' }}>{b.status.replace('_', ' ')}</td>
                     <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
-                      <RowMenu label={`Actions for bill ${b.bill_number}`} items={[
-                        b.receipt_path && { label: 'View receipt', icon: Paperclip, onClick: () => receiptService.open(b.receipt_path) },
-                        b.status !== 'paid' && b.status !== 'void' && { label: 'Record payment', icon: CheckCircle, tone: 'success', onClick: () => handlePay(b) },
-                        { label: 'Edit', icon: Pencil, onClick: () => { setEditing({
-                          ...b, _share: undefined, _shareNet: undefined,
-                          // The form's "Amount before tax" is the bill without the other amount.
-                          subtotal: Math.round((b.subtotal - (b.other_amount || 0)) * 100) / 100,
-                          other_amount: b.other_amount || '', other_label: b.other_label || '', _hadOther: !!b.other_amount,
-                          _roundOpen: !!b.round_off, _finalTotal: b.round_off ? String(b.total) : '',
-                        }); setFormError(''); } },
-                        b.status !== 'void'
-                          ? { label: 'Void', icon: Ban, onClick: () => handleVoid(b) }
-                          : { label: 'Unvoid', icon: RotateCcw, onClick: () => handleUnvoid(b) },
-                        { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => handleDelete(b) },
-                      ]} />
+                      <RowMenu label={`Actions for bill ${b.bill_number}`} items={billMenu(b)} />
                     </td>
                   </tr>
                 );
@@ -355,20 +404,18 @@ export default function PurchaseInvoices({ projectId = null }) {
       )}
 
       {editing && (
-        <Modal title={editing.id ? 'Edit bill' : 'Record a purchase invoice'} onClose={() => setEditing(null)} width={720}>
+        <Modal title={editing.id ? 'Edit bill' : projectId ? 'Record a Credit (Purchase Bill)' : 'Record a purchase invoice'} onClose={() => setEditing(null)} width={720} dirty={!!editing._dirty}>
           <form onSubmit={handleSave} className="prod-modal-body">
             {formError && <div className="prod-form-error">{formError}</div>}
             <div className="prod-form-grid">
               <div className="prod-field full">
-                <label className="req">Vendor</label>
-                <select aria-label="Vendor" value={editing.vendor_id} onChange={(e) => set('vendor_id', e.target.value)} required>
-                  <option value="">Select a vendor…</option>
-                  {(editing.id ? vendors : activeVendors).map((v) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
-                </select>
+                <label className="req" htmlFor="pi-vendor">Vendor</label>
+                <VendorSelect id="pi-vendor" vendors={editing.id ? vendors : activeVendors} value={editing.vendor_id}
+                  onChange={(v) => set('vendor_id', v)} projectId={projectId} />
               </div>
               <div className="prod-field">
-                <label className="req">Bill number</label>
-                <input aria-label="Bill number" value={editing.bill_number} onChange={(e) => set('bill_number', e.target.value)} required placeholder="As printed on the bill" />
+                <label>Bill number</label>
+                <input aria-label="Bill number" value={editing.bill_number} onChange={(e) => set('bill_number', e.target.value)} placeholder="As printed on the bill" />
               </div>
               <div className="prod-field">
                 <label>Category</label>
@@ -396,19 +443,25 @@ export default function PurchaseInvoices({ projectId = null }) {
                   ))}
                 </div>
               </div>
+              {/* Other amount, its amount and its GST rate, on one line. */}
               <div className="prod-field full">
-                <label>Other amount</label>
-                <div className="pi-other-row">
-                  <input aria-label="What the other amount is for" value={editing.other_label || ''} onChange={(e) => set('other_label', e.target.value)} placeholder="What it is, e.g. Freight" />
-                  <input aria-label="Other amount (₹)" className="pi-no-spin" type="number" min="0" step="0.01" value={editing.other_amount} onChange={(e) => set('other_amount', e.target.value)} placeholder="Amount (₹)" />
-                </div>
-              </div>
-              <div className="prod-field">
-                <label>GST rate on other amount</label>
-                <div className="prod-rate-chips">
-                  {TAX_RATES.map((r) => (
-                    <button key={r} type="button" aria-pressed={!!(Number(editing.other_tax_rate) === r)} className={`easy-chip ${Number(editing.other_tax_rate) === r ? 'active' : ''}`} onClick={() => set('other_tax_rate', r)}>{r}%</button>
-                  ))}
+                <div className="pi-other-grid">
+                  <div className="prod-field">
+                    <label>Other amount</label>
+                    <input aria-label="What the other amount is for" value={editing.other_label || ''} onChange={(e) => set('other_label', e.target.value)} placeholder="What it is, e.g. Freight" />
+                  </div>
+                  <div className="prod-field">
+                    <label>Amount (₹)</label>
+                    <input aria-label="Other amount (₹)" className="pi-no-spin" type="number" min="0" step="0.01" value={editing.other_amount} onChange={(e) => set('other_amount', e.target.value)} />
+                  </div>
+                  <div className="prod-field">
+                    <label>GST rate on other amount</label>
+                    <div className="prod-rate-chips" style={{ flexWrap: 'nowrap' }}>
+                      {TAX_RATES.map((r) => (
+                        <button key={r} type="button" aria-pressed={!!(Number(editing.other_tax_rate) === r)} className={`easy-chip ${Number(editing.other_tax_rate) === r ? 'active' : ''}`} onClick={() => set('other_tax_rate', r)}>{r}%</button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="prod-field full">
@@ -425,12 +478,12 @@ export default function PurchaseInvoices({ projectId = null }) {
                       placeholder={`Rounded total, e.g. ${Math.round(exactTotal)}`}
                       value={editing._finalTotal} onChange={(e) => set('_finalTotal', e.target.value)}
                     />
-                    <button type="button" className="prod-btn-ghost" onClick={() => setEditing((x) => ({ ...x, _roundOpen: false, _finalTotal: '' }))}>
+                    <button type="button" className="prod-btn-ghost" onClick={() => setEditing((x) => ({ ...x, _roundOpen: false, _finalTotal: '', _dirty: true }))}>
                       Remove Round Off
                     </button>
                   </div>
                 ) : (
-                  <button type="button" className="prod-btn-ghost pi-round-btn" onClick={() => setEditing((x) => ({ ...x, _roundOpen: true, _finalTotal: String(Math.round(exactTotal)) }))}>
+                  <button type="button" className="prod-btn-ghost pi-round-btn" onClick={() => setEditing((x) => ({ ...x, _roundOpen: true, _finalTotal: String(Math.round(exactTotal)), _dirty: true }))}>
                     Round Off
                   </button>
                 )}
@@ -464,6 +517,7 @@ export default function PurchaseInvoices({ projectId = null }) {
       )}
 
       {paying && <CashEntryModal entry={paying} onClose={() => setPaying(null)} />}
+      {payingVendor && <VendorPaymentModal bills={bills} vendorId={payingVendor.vendorId} onClose={() => setPayingVendor(null)} />}
     </div>
   );
 }

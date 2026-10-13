@@ -31,6 +31,7 @@ export const EXPENSE_TREATMENTS = new Set(['operating', 'non_operating']);
 
 export const PAYMENT_METHODS = [
   { key: 'bank_transfer', label: 'Bank transfer' },
+  { key: 'rtgs',          label: 'RTGS' },
   { key: 'upi',           label: 'UPI' },
   { key: 'cash',          label: 'Cash' },
   { key: 'card',          label: 'Card' },

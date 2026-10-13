@@ -42,6 +42,46 @@ export const billAllocationsOf = (allocations, billId) => allocations
   .filter((a) => a.source_type === 'purchase_invoice' && a.source_id === billId);
 
 /**
+ * A bill payment's project split, from the bill's own: the same projects, in
+ * the same proportions of what is being paid now.
+ */
+export function billPickerOf(allocations, bill, amount) {
+  const allocs = billAllocationsOf(allocations, bill.id);
+  if (allocs.length === 0) return null;
+  const base = Number(bill.subtotal) || 0;
+  if ((allocs.length === 1 && allocs[0].mode === 'full') || !(base > 0)) {
+    return { mode: 'single', rows: [{ project_id: allocs[0].project_id, amount: '' }], touched: true };
+  }
+  return {
+    mode: 'split',
+    touched: true,
+    rows: allocs.map((a) => ({
+      project_id: a.project_id,
+      amount: String(Math.floor(((Number(a.amount) || 0) * amount / base) * 100) / 100),
+    })),
+  };
+}
+
+/**
+ * A payment to a vendor, laid against their open bills oldest first: what
+ * each bill takes of `amount`, until it runs out. Payment is by vendor, not by
+ * bill, so which bill it lands on is worked out, never chosen.
+ */
+export function spreadVendorPayment(bills, amount) {
+  let left = Math.round((Number(amount) || 0) * 100) / 100;
+  return bills
+    .filter((b) => b.status !== 'void' && billBalance(b) > 0.009)
+    .sort((a, b) => String(a.bill_date || '').localeCompare(String(b.bill_date || ''))
+      || String(a.bill_number || '').localeCompare(String(b.bill_number || '')))
+    .map((bill) => {
+      const pay = Math.min(left, billBalance(bill));
+      left = Math.round((left - pay) * 100) / 100;
+      return { bill, pay };
+    })
+    .filter((x) => x.pay > 0.009);
+}
+
+/**
  * A new payment against a purchase bill: a money-out entry linked to the bill
  * (0080). Vendor, type, GST and project all come from the bill and cannot be
  * changed: the bill already counts the cost and its GST, so the entry is cash

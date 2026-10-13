@@ -116,32 +116,30 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
         </TileRow>
 
         <CardGrid cols={cols}>
-            <div id="needs-attention" style={{ ...grid(cols), scrollMarginTop: 12, minWidth: 0, display: 'flex' }}>
-                <Card style={{ flex: 1 }} title="Needs attention"
-                    note="tasks marked important, until they are done · late first">
-                    {attention.length === 0 ? (
-                        <EmptyNote>{isOwnerOrAdmin()
-                            ? 'Nothing marked important. Star a task on a project’s Tasks (WBS) or in its task sheet to list it here.'
-                            : 'Nothing marked important. An owner or admin chooses what goes here.'}</EmptyNote>
-                    ) : attention.slice(0, 12).map(({ task, late, due }) => (
-                        <ListRow key={task.id}
-                            label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
-                                <Star size={12} fill="currentColor" aria-hidden="true" style={{ color: t.down, flexShrink: 0 }} />
-                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</span>
-                            </span>}
-                            sub={[nameOf[task.projectId], personOf[task.assignedTo] || 'Unassigned', task.status === 'in-progress' ? 'in progress' : null].filter(Boolean).join(' · ')}
-                            value={due ? `${late ? 'late · ' : ''}${fmtDay(due).slice(0, 6)}` : 'no date'} tone={late ? 'down' : null}
-                            onClick={() => navigate(projectSectionPath(task.projectId, 'wbs', null, { task: task.id }))} />
-                    ))}
-                    {attention.length > 12 && (
-                        <div style={{ fontSize: 11.5, color: t.faint, marginTop: 8 }}>and {attention.length - 12} more</div>
-                    )}
-                    {risky > 0 && (
-                        <ListRow label={`${risky} project${risky === 1 ? '' : 's'} at risk or off track`} sub="project health"
-                            tone="down" value="Portfolio" onClick={() => navigate('/portfolio')} />
-                    )}
-                </Card>
-            </div>
+            <Card id="needs-attention" style={{ ...grid(cols), scrollMarginTop: 12 }} title="Needs attention"
+                note="tasks marked important, until they are done · late first">
+                {attention.length === 0 ? (
+                    <EmptyNote>{isOwnerOrAdmin()
+                        ? 'Nothing marked important. Star a task on a project’s Tasks (WBS) or in its task sheet to list it here.'
+                        : 'Nothing marked important. An owner or admin chooses what goes here.'}</EmptyNote>
+                ) : attention.slice(0, 12).map(({ task, late, due }) => (
+                    <ListRow key={task.id}
+                        label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
+                            <Star size={12} fill="currentColor" aria-hidden="true" style={{ color: t.down, flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</span>
+                        </span>}
+                        sub={[nameOf[task.projectId], personOf[task.assignedTo] || 'Unassigned', task.status === 'in-progress' ? 'in progress' : null].filter(Boolean).join(' · ')}
+                        value={due ? `${late ? 'late · ' : ''}${fmtDay(due).slice(0, 6)}` : 'no date'} tone={late ? 'down' : null}
+                        onClick={() => navigate(projectSectionPath(task.projectId, 'wbs', null, { task: task.id }))} />
+                ))}
+                {attention.length > 12 && (
+                    <div style={{ fontSize: 11.5, color: t.faint, marginTop: 8 }}>and {attention.length - 12} more</div>
+                )}
+                {risky > 0 && (
+                    <ListRow label={`${risky} project${risky === 1 ? '' : 's'} at risk or off track`} sub="project health"
+                        tone="down" value="Portfolio" onClick={() => navigate('/portfolio')} />
+                )}
+            </Card>
 
             <Card title="By status" note="every project not archived" right={<More label="Projects" to="/projects" />}>
                 {live.length === 0 ? <EmptyNote>No projects yet</EmptyNote> : (

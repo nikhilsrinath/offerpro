@@ -75,6 +75,7 @@ import Announcements from './components/people/Announcements';
 import { meService } from './services/meService';
 import { ToastProvider } from './components/shared/Toast';
 import ConfirmHost from './components/shared/ConfirmHost';
+import { confirmDialog } from './services/confirm';
 import AdminApp from './components/admin/AdminApp';
 
 // Financial Documents
@@ -211,7 +212,7 @@ const NAV_ITEMS = [
   { section: 'BUSINESS' },
   { id: 'client-directory', label: 'Client Directory', icon: Users },
   { id: 'vendor-directory', label: 'Vendor Directory', icon: Truck },
-  { id: 'products-directory', label: 'Product & Service Directory', icon: Package },
+  { id: 'products-directory', label: 'Business Directory', icon: Package },
   { section: 'PROJECTS' },
   { id: 'projects', label: 'Projects', icon: FolderKanban },
   { id: 'kanban-chart', label: 'Kanban Chart', icon: SquareKanban },
@@ -221,7 +222,7 @@ const NAV_ITEMS = [
 const PAGE_META = {
   edgebrain: { title: 'EdgeBrain', subtitle: 'Your company, organised as one connected context your AI can reason over' },
   dashboard: { title: 'Dashboard', subtitle: 'The whole organisation for one period. Click anything for the analysis behind it' },
-  'dashboard/finance': { title: 'Finance Dashboard', subtitle: 'Money in, money out, and who owes whom' },
+  'dashboard/finance': { title: 'Finance Dashboard', subtitle: 'Credit, debit, and who owes whom' },
   'dashboard/sales': { title: 'Sales & Marketing Dashboard', subtitle: 'Pipeline, recurring revenue, quotations, customers, markets and acquisition spend' },
   'dashboard/team': { title: 'Team Dashboard', subtitle: 'Headcount, attendance, leave and who is carrying the work' },
   'dashboard/projects': { title: 'Projects Dashboard', subtitle: 'What is being delivered, what is late, and whether it pays' },
@@ -236,7 +237,7 @@ const PAGE_META = {
   'templates/partnership': { title: 'Partnership Agreement', subtitle: 'Contributions, profit sharing and terms between partners' },
   'templates/custom': { title: 'Custom Template', subtitle: 'Your own title and clauses on the company letterhead' },
   'finance-status': { title: 'Finance Status', subtitle: 'Track all financial documents through their lifecycle' },
-  'general-ledger': { title: 'General Ledger', subtitle: 'Money in and money out by project, and everything general that no invoice or vendor bill already covers' },
+  'general-ledger': { title: 'General Ledger', subtitle: 'Credit and debit by project, and everything general that no invoice or vendor bill already covers' },
   invoices: { title: 'Billing', subtitle: 'Quotations, proformas and invoices' },
   quotations: { title: 'Billing', subtitle: 'Quotations, proformas and invoices' },
   proforma: { title: 'Billing', subtitle: 'Quotations, proformas and invoices' },
@@ -250,7 +251,7 @@ const PAGE_META = {
   'new-proforma': { title: 'New Proforma Invoice', subtitle: 'Create proforma invoices with advance payment tracking' },
   crm: { title: 'CRM', subtitle: 'Manage your sales pipeline' },
   'client-directory': { title: 'Client Directory', subtitle: 'Manage your client database' },
-  'products-directory': { title: 'Product & Service Directory', subtitle: 'Product and service catalogue, and what each one has sold' },
+  'products-directory': { title: 'Business Directory', subtitle: 'Product and service catalogue, and what each one has sold' },
   revenue: { title: 'Billing & Revenue', subtitle: 'Track revenue, expenses, and profitability' },
   records: { title: 'Records', subtitle: 'Manage and download issued documents' },
   'document-library': { title: 'Document Library', subtitle: 'General documents, process assets and lessons learned. EdgeBrain reads them so the AI can answer from them' },
@@ -265,7 +266,7 @@ const PAGE_META = {
   tasks: { title: 'Tasks', subtitle: 'Assign and track work by project, or General' },
   projects: { title: 'Projects', subtitle: 'What the company is delivering, for whom, and whether it pays' },
   'new-project': { title: 'New project', subtitle: 'Client or internal work, its team, budget and plan' },
-  'project-detail': { title: 'Project', subtitle: 'Money in, money out, people, plan and work' },
+  'project-detail': { title: 'Project', subtitle: 'Credit, debit, people, plan and work' },
   'kanban-chart': { title: 'Kanban Chart', subtitle: 'Every project by status: what has started, what is due and what has ended' },
   portfolio: { title: 'Portfolio', subtitle: 'Every project: health, margin and team load' },
   timesheets: { title: 'Timesheets', subtitle: 'Hours by person and project: submitted, approved, billed' },
@@ -340,6 +341,14 @@ function AppContent() {
   }
 
   const { user, loading, logout, needsOnboarding } = useAuth();
+  // Logging out asks first, wherever it is clicked from.
+  const askLogout = async () => {
+    if (!(await confirmDialog({
+      title: 'Log out', message: 'Are you sure you want to log out of EdgeOS?',
+      confirmLabel: 'Log out',
+    }))) return;
+    logout();
+  };
   const { activeOrg } = useOrg();
   const { theme, toggleTheme } = useTheme();
 
@@ -520,11 +529,11 @@ function AppContent() {
             workspace={!!openProject}
             topNav={activeModule === 'overall'}
             back={back}
-            onToggleTheme={toggleTheme} onLogout={logout}
+            onToggleTheme={toggleTheme} onLogout={askLogout}
           >
           <Routes>
             <Route index element={<Navigate to="/hub" replace />} />
-            <Route path="hub" element={<Hub user={user} activeOrg={activeOrg} theme={theme} onToggleTheme={toggleTheme} onLogout={logout} />} />
+            <Route path="hub" element={<Hub user={user} activeOrg={activeOrg} theme={theme} onToggleTheme={toggleTheme} onLogout={askLogout} />} />
             <Route path="dashboard" element={<Navigate to="/dashboard/projects" replace />} />
             <Route path="dashboard/finance" element={<FinanceDash />} />
             <Route path="dashboard/sales" element={<SalesDash />} />

@@ -711,7 +711,7 @@ export default function CountryDialog({
                                             is the answer to "is this revenue?", so it leads. */}
                                         {cash.inByTreatment.length > 0 && (
                                             <div>
-                                                <Label t={t} right={inr(cash.cashIn)}>MONEY IN</Label>
+                                                <Label t={t} right={inr(cash.cashIn)}>Credit</Label>
                                                 <div style={{ borderBottom: '1px solid ' + t.lineSoft }}>
                                                     {cash.inByTreatment.map((b) => (
                                                         <Row key={b.key} t={t} label={b.label}
@@ -742,7 +742,7 @@ export default function CountryDialog({
                                             with the categories underneath it. */}
                                         {cash.outByGroup.length > 0 && (
                                             <div>
-                                                <Label t={t} right={inr(cash.cashOut)}>MONEY OUT</Label>
+                                                <Label t={t} right={inr(cash.cashOut)}>Debit</Label>
                                                 {cash.outByGroup.map((g) => (
                                                     <div key={g.key} style={{ borderTop: '1px solid ' + t.lineSoft, padding: '10px 0' }}>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
