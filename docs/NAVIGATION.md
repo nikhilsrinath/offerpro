@@ -82,7 +82,7 @@ Has its own operator sign-in, separate from the workspace login.
 
 ## 4. Dashboard module (DSH)
 
-On this module the pages appear as a navigation bar along the top instead of a sidebar (`topNav`). `/dashboard` redirects to `/dashboard/projects`.
+Every hub module (Dashboard, Projects, Finance, Business, Company, Documents, EdgeBrain) keeps the hub's own sidebar, with the current module highlighted, and shows its pages as tabs at the top of the page (`topNav`). In this document "Sidebar item" for a module page means that tab. Inside an open project the sidebar is the project's sections instead. `/dashboard` redirects to `/dashboard/projects`.
 
 | URL | Sidebar item | What you can do |
 |---|---|---|

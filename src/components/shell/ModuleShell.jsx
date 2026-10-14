@@ -16,7 +16,7 @@ import {
     RailIsland, RailHead, RailBrand, RailBack, RailHeading, RailList, RailItem, IslandBtn, RailFoot, RailPlanCard, RailSpacer,
 } from './railIsland';
 import MobileNav from './MobileNav';
-import { MODULES } from './modules';
+import { MODULES, RAIL_GROUPS } from './modules';
 import Copilot from '../assistant/Copilot';
 import { useAssistant } from '../assistant/assistantStore';
 import './edgeBridge.css';
@@ -126,12 +126,9 @@ export default function ModuleShell({
     const bare = workspace && !isMobile;
     // Pages as tabs under the bar instead of a rail (desktop; phones already
     // get their strip below).
-    const tabs = topNav && !isMobile;
     // With the pages in tabs, the rail is the hub's: every module, this one
     // lit. Those links push, so Back returns here from the module opened.
-    const railItems = tabs
-        ? MODULES.map((m) => ({ id: m.id, label: m.label, icon: m.icon, to: '/' + m.defaultPage, active: m.id === mod?.id, push: true }))
-        : items;
+    const tabs = topNav && !isMobile;
 
     useEffect(() => {
         const read = () => setNotifs(documentStore.getNotifications() || []);
@@ -315,13 +312,29 @@ export default function ModuleShell({
                         <div ref={setSlotEl} className="edge-scroll" style={{
                             flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '4px 9px 12px',
                         }} />
+                    ) : tabs ? (
+                        /* The hub's rail, grouped as on the hub, this module lit. */
+                        <RailList label="Modules">
+                            {RAIL_GROUPS.map((g) => (
+                                <React.Fragment key={g.label}>
+                                    <RailHeading t={t} open={rail}>{g.label}</RailHeading>
+                                    {g.ids.map((id) => {
+                                        const m = MODULES.find((x) => x.id === id);
+                                        return m && (
+                                            <RailItem key={id} t={t} open={rail} icon={m.icon} label={m.label}
+                                                to={'/' + m.defaultPage} active={m.id === mod?.id} />
+                                        );
+                                    })}
+                                </React.Fragment>
+                            ))}
+                        </RailList>
                     ) : (<>
-                    <RailList label={tabs ? 'Modules' : (mod?.label || 'Module') + ' pages'}>
+                    <RailList label={(mod?.label || 'Module') + ' pages'}>
                         {/* A workspace's page already carries its name in the heading. */}
                         {workspace
                             ? <div aria-hidden="true" style={{ height: 4, flexShrink: 0 }} />
-                            : <RailHeading t={t} open={rail}>{tabs ? 'Workspace' : (mod?.label || 'Module')}</RailHeading>}
-                        {(railItems || []).map((it) => {
+                            : <RailHeading t={t} open={rail}>{mod?.label || 'Module'}</RailHeading>}
+                        {(items || []).map((it) => {
                             const link = (
                                 <RailItem
                                     key={it.id} t={t} open={rail} icon={it.icon} label={it.label}
@@ -548,7 +561,7 @@ export default function ModuleShell({
                         }}>
                             {items.map((it) => (
                                 <NavLink key={it.id} to={it.to || '/' + it.id} end={!!it.end} replace className="edge-tab"
-                                    aria-current={it.active === false ? false : 'page'}
+                                    aria-current={it.active === false ? false : undefined}
                                     style={({ isActive: routeActive }) => { const isActive = it.active ?? routeActive; return {
                                         display: 'inline-flex', alignItems: 'center', minHeight: 30, padding: '0 12px',
                                         borderRadius: 8, whiteSpace: 'nowrap', textDecoration: 'none', fontSize: 13, fontWeight: 500,
@@ -569,7 +582,7 @@ export default function ModuleShell({
                     }}>
                         {items.map((it) => (
                             <NavLink key={it.id} to={it.to || '/' + it.id} end={!!it.end} replace className="edge-navitem"
-                                aria-current={it.active === false ? false : 'page'}
+                                aria-current={it.active === false ? false : undefined}
                                 style={({ isActive: routeActive }) => { const isActive = it.active ?? routeActive; return {
                                 display: 'inline-flex', alignItems: 'center', height: 32, padding: '0 11px',
                                 borderRadius: 9, whiteSpace: 'nowrap', textDecoration: 'none', fontSize: 13, fontWeight: 500,

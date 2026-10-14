@@ -11,3 +11,10 @@ export const MODULES = [
     { id: 'documents', code: 'DOC', label: 'Documents', desc: 'Library · letters · NDAs', icon: FileText,  defaultPage: 'document-library' },
     { id: 'brain',     code: 'BRN', label: 'EdgeBrain', desc: 'Company intelligence', icon: BrainCircuit, defaultPage: 'edgebrain' },
 ];
+
+// The hub rail's sections, as MODULES ids. A module's pages wear the same rail
+// (ModuleShell `topNav`), so the two read as one menu.
+export const RAIL_GROUPS = [
+    { label: 'Main menu', ids: ['overall', 'projects', 'finance', 'business'] },
+    { label: 'Features', ids: ['team', 'documents', 'brain'] },
+];

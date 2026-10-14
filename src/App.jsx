@@ -527,7 +527,10 @@ function AppContent() {
             flush={flush}
             noRail={onProfile}
             workspace={!!openProject}
-            topNav={activeModule === 'overall'}
+            // Every hub module keeps the hub's rail (this module lit) and puts
+            // its own pages in tabs at the top of the page. A project is its
+            // own workspace with its sections in the rail.
+            topNav={!!activeModule && !openProject && !onProfile}
             back={back}
             onToggleTheme={toggleTheme} onLogout={askLogout}
           >

@@ -10,7 +10,7 @@ import { documentStore } from '../services/documentStore';
 import { getPlanConfig, DEFAULT_PLAN } from '../services/planConfig';
 import { makeTokens, MONO } from '../theme/edge';
 import { useProfileCompletion } from '../hooks/useProfileCompletion';
-import { MODULES } from './shell/modules';
+import { MODULES, RAIL_GROUPS } from './shell/modules';
 import { useRailPin, RailPinButton } from './shell/railPin';
 import {
     RailIsland, RailHead, RailBrand, RailHeading, RailList, RailItem, IslandBtn, RailFoot, RailPlanCard, RailSpacer,
@@ -82,11 +82,7 @@ function useNow(every) {
 
 /* ── bar and rail primitives ───────────────────────────────────────────── */
 
-// The rail's sections, as MODULES ids. The hub itself is reached from the brand mark.
-const RAIL_GROUPS = [
-    { label: 'Main menu', ids: ['overall', 'projects', 'finance', 'business'] },
-    { label: 'Features', ids: ['team', 'documents', 'brain'] },
-];
+// The rail's sections are RAIL_GROUPS. The hub itself is reached from the brand mark.
 const MODULE_BY_ID = Object.fromEntries(MODULES.map((m) => [m.id, m]));
 
 function SquareBtn({ t, children, title, onClick, active, expanded }) {
