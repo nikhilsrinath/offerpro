@@ -15,10 +15,13 @@ import { pickerFromAllocations, pickerFor, saveSplitFromPicker, friendlyError } 
 import { useProjectScope } from '../projects/projectScope';
 import { confirmDialog } from '../../services/confirm';
 import CashEntryModal from './CashEntryModal';
-import { billPaymentEntry } from './cashEntry';
+import { billPaymentEntry, blank as blankEntry } from './cashEntry';
 import VendorPaymentModal from './VendorPaymentModal';
+import LedgerTypePicker from './LedgerTypePicker';
+import { RecordMoneyCard } from './CashBook';
 import VendorSelect from '../shared/VendorSelect';
 import { RowMenu } from '../ui/edge';
+import { useT } from '../ui/edgeUtils';
 import { initialQuery } from '../../services/urlQuery';
 
 const CATEGORIES = ['Operations', 'Inventory', 'Software', 'Hardware', 'Marketing', 'Travel', 'Utilities', 'Professional fees', 'Rent', 'Other'];
@@ -58,6 +61,41 @@ export default function PurchaseInvoices({ projectId = null, children }) {
   const [paying, setPaying] = useState(null);
   // A project's Company Ledger pays the vendor, not the bill: its Debit form.
   const [payingVendor, setPayingVendor] = useState(null);
+
+  // A project's Record Money: Credit or Debit asks the kind first. Sales &
+  // Services is a purchase bill, Vendor Payment pays a vendor, and any other
+  // kind is a General Ledger entry on the project, already of that kind.
+  const t = useT();
+  const income = useSection('income_entries');
+  const [choosing, setChoosing] = useState(null); // 'in' | 'out' while the kind is picked
+  const [entry, setEntry] = useState(null);
+  // The entry's Type and Sub-Type were picked a step before, so its form leaves them out.
+  const [entryTyped, setEntryTyped] = useState(false);
+  const projectClient = scope?.project?.client_id || '';
+  const freshEntry = useCallback((direction) => ({
+    ...blankEntry(direction), _picker: pickerFor(projectId), ...(direction === 'in' ? { client_id: projectClient } : {}),
+  }), [projectId, projectClient]);
+  const recent = useMemo(() => (scope ? [
+    ...scope.data.income.map((e) => ({ ...e, direction: 'in', day: e.date || e.received_on })),
+    ...scope.data.expenses.map((e) => ({ ...e, direction: 'out', day: e.date || e.incurred_on })),
+  ].sort((a, b) => String(b.day).localeCompare(String(a.day))).slice(0, 3) : []), [scope]);
+  const openEntry = (r, direction) => {
+    const full = r._full || r;
+    setEntry({ ...full, direction, date: full.date || full.received_on || full.incurred_on });
+    setEntryTyped(false);
+  };
+  const pickKind = (pick) => {
+    const direction = choosing;
+    setChoosing(null);
+    if (pick.kind === 'bill') { setEditing(fresh('')); setFormError(''); }
+    else if (pick.kind === 'vendor') setPayingVendor({ vendorId: '' });
+    else { setEntry({ ...freshEntry(direction), category: pick.category }); setEntryTyped(true); }
+  };
+  // A row of the ledger that is a General Ledger entry opens its form here.
+  const editEntry = (direction, id) => {
+    const r = (direction === 'in' ? income : expenses).find((x) => x.id === id);
+    if (r) openEntry(r, direction);
+  };
 
   // Vendors page links here with ?vendor=<id>&new=1 to open a bill for them.
   useEffect(() => {
@@ -285,6 +323,10 @@ export default function PurchaseInvoices({ projectId = null, children }) {
 
   return (
     <div style={{ maxWidth: '100%' }}>
+      {projectId && (
+        <RecordMoneyCard t={t} scoped recent={recent} onRecord={setChoosing} style={{ marginBottom: 12 }}
+          onOpen={(r) => openEntry(r, r.direction)} />
+      )}
       <div className="prod-stats">
         <Stat icon={<FileInput size={15} />} label="Total billed" value={money(totals.billed)} onClick={() => setFilter('all')} />
         <Stat icon={<CheckCircle size={15} />} label="Paid" value={money(totals.paid)} accent="var(--text-primary)" onClick={() => setFilter('paid')} />
@@ -332,8 +374,9 @@ export default function PurchaseInvoices({ projectId = null, children }) {
       {/* A project's page lists its bills as a ledger (`children`) instead of
           the table: the same search and filters, the same actions on a bill. */}
       {children ? children({
-        bills: filtered, billMenu, paymentMenu,
-        emptyText: bills.length === 0 ? 'No bills on this project yet.' : 'Nothing matches these filters.',
+        bills: filtered, billMenu, paymentMenu, onEdit: editEntry,
+        filtered: !!search.trim() || filter !== 'all' || vendorFilter !== 'all',
+        emptyText: search.trim() || filter !== 'all' || vendorFilter !== 'all' ? 'Nothing matches these filters.' : undefined,
       }) : filtered.length === 0 ? (
         <div className="prod-empty">
           <FileInput size={40} strokeWidth={1} />
@@ -517,6 +560,8 @@ export default function PurchaseInvoices({ projectId = null, children }) {
       )}
 
       {paying && <CashEntryModal entry={paying} onClose={() => setPaying(null)} />}
+      {choosing && <LedgerTypePicker direction={choosing} onPick={pickKind} onClose={() => setChoosing(null)} />}
+      {entry && <CashEntryModal key={entry.id || 'new'} entry={entry} fresh={freshEntry} typeChosen={entryTyped} onClose={() => setEntry(null)} />}
       {payingVendor && <VendorPaymentModal bills={bills} vendorId={payingVendor.vendorId} onClose={() => setPayingVendor(null)} />}
     </div>
   );

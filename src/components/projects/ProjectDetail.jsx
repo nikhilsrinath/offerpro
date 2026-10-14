@@ -347,7 +347,8 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                             {tab === 'finance' && fin && <ProjectFinanceStatus project={project} onOpen={openTab} />}
                             {tab === 'cashbook' && fin && (
                                 <CashBook projectId={project.id}>
-                                    {({ onEdit }) => <ProjectLedger project={project} onOpen={openTab} onEdit={onEdit} here="cashbook" />}
+                                    {/* The Company Ledger's table, without its row actions. */}
+                                    {({ onEdit }) => <ProjectLedger project={project} onOpen={openTab} onEdit={onEdit} only="purchases" here="cashbook" readOnly />}
                                 </CashBook>
                             )}
                             {tab === 'billing' && fin && <ProjectBilling project={project} kind={billingKindOf(view)} onKind={openView} view={view} />}

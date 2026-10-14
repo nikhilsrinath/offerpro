@@ -265,51 +265,12 @@ export default function CashBook({ projectId = null, children }) {
 
   return (
     <Page>
-      <div className="gl-bento">
-        {/* ── the one job of this page: put money on the record ── */}
-        <section aria-labelledby="gl-record" className="gl-record" style={{
-          gridArea: 'rec', position: 'relative', overflow: 'hidden', padding: 20, borderRadius: 20,
-          background: t.card, border: '1px solid ' + t.line, boxShadow: t.highlight,
-          backgroundImage: `radial-gradient(120% 90% at 100% 0%, ${t.accentSoft}, transparent 62%)`,
-          display: 'flex', flexDirection: 'column', gap: 14,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ minWidth: 0 }}>
-              <h2 id="gl-record" style={{ margin: 0, fontSize: 18, fontWeight: 600, letterSpacing: '-0.02em', color: t.text }}>Record Money</h2>
-              <div style={{ fontSize: 12.5, color: t.faint, marginTop: 2 }}>
-                {scope ? 'Lands on this project straight away.' : 'Cash in without an invoice, and anything you spent.'}
-              </div>
-            </div>
-          </div>
-          <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
-            <RecordBtn t={t} tone={t.up} icon={ArrowDownLeft} label="Credit" note="Sales & Services, Other Income, Funding, Retainers, Recoveries" onClick={() => record('in')} />
-            <RecordBtn t={t} tone={t.down} icon={ArrowUpRight} label="Debit" note="Deliveries, People & Labour, Operations, Assets & Capital, Financing & Tax" onClick={() => record('out')} />
-          </div>
-          <div style={{ marginTop: 'auto', minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: t.faint, marginBottom: 4 }}>Recently recorded</div>
-            {recent.length ? recent.map((r) => {
-              const isIn = r.direction === 'in';
-              return (
-                <button key={`${r.direction}-${r.id}`} type="button" className="edge-tr"
-                  onClick={() => setEditing({ ...r, ...(r._full || {}), _share: undefined, _full: undefined, date: r.day })}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '7px 8px', margin: '0 -8px',
-                    boxSizing: 'content-box', border: 'none', borderRadius: 9, background: 'transparent', cursor: 'pointer',
-                    fontFamily: 'inherit', color: t.text, textAlign: 'left',
-                  }}>
-                  <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: 99, flexShrink: 0, background: isIn ? t.up : t.down }} />
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.description}</span>
-                  <span style={{ fontSize: 12, color: t.faint, whiteSpace: 'nowrap' }}>{fmtDate(r.day)}</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', color: isIn ? t.up : t.down }}>
-                    {isIn ? '+' : '−'}{money(r.amount, 2)}
-                  </span>
-                </button>
-              );
-            }) : (
-              <div style={{ fontSize: 12.5, color: t.faint }}>Nothing yet. Both sides land in Profit &amp; Loss and the Tax Summary straight away.</div>
-            )}
-          </div>
-        </section>
+      {/* A project's Record Money is on its Company Ledger page, not here. */}
+      <div className={scope ? 'gl-bento gl-bento-flat' : 'gl-bento'}>
+        {!scope && (
+          <RecordMoneyCard t={t} recent={recent} onRecord={record} style={{ gridArea: 'rec' }}
+            onOpen={(r) => setEditing({ ...r, ...(r._full || {}), _share: undefined, _full: undefined, date: r.day })} />
+        )}
 
         <FlowTile t={t} area="in" icon={ArrowDownLeft} tone={t.up} label="Credit" value={money(flow.cashIn)}
           note={`${flow.inCount} ${flow.inCount === 1 ? 'entry' : 'entries'} · ${periodText}`}
@@ -509,19 +470,77 @@ export default function CashBook({ projectId = null, children }) {
         .gl-bento { display: grid; gap: 12px; margin-bottom: 12px;
           grid-template-columns: minmax(0, 2.6fr) minmax(0, 1fr) minmax(0, 1fr);
           grid-template-areas: "rec in out" "rec net net"; }
+        .gl-bento-flat { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: "in out net"; }
         @media (max-width: 980px) {
           .gl-bento { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "rec rec" "in out" "net net"; }
+          .gl-bento-flat { grid-template-areas: "in out" "net net"; }
         }
         @media (max-width: 560px) {
           .gl-bento { grid-template-columns: minmax(0, 1fr); grid-template-areas: "rec" "in" "out" "net"; }
+          .gl-bento-flat { grid-template-areas: "in" "out" "net"; }
         }
-        .gl-rec-btn { transition: transform .18s cubic-bezier(.16,1,.3,1), box-shadow .18s, border-color .18s; }
-        .gl-rec-btn:hover { transform: translateY(-2px); }
         .gl-flow { transition: border-color .15s, transform .18s cubic-bezier(.16,1,.3,1); }
         .gl-flow:hover { transform: translateY(-2px); border-color: ${t.lineStrong} !important; }
-        @media (prefers-reduced-motion: reduce) { .gl-rec-btn:hover, .gl-flow:hover { transform: none; } }
+        @media (prefers-reduced-motion: reduce) { .gl-flow:hover { transform: none; } }
       `}</style>
     </Page>
+  );
+}
+
+/**
+ * "Record money": Credit and Debit, and what was recorded last. Also on a
+ * project's Company Ledger page (`scoped`), where it has no heading.
+ */
+export function RecordMoneyCard({ t, scoped, recent, onRecord, onOpen, style }) {
+  return (
+    <section {...(scoped ? { 'aria-label': 'Record Money' } : { 'aria-labelledby': 'gl-record' })} className="gl-record" style={{
+      position: 'relative', overflow: 'hidden', padding: 20, borderRadius: 20,
+      background: t.card, border: '1px solid ' + t.line, boxShadow: t.highlight,
+      backgroundImage: `radial-gradient(120% 90% at 100% 0%, ${t.accentSoft}, transparent 62%)`,
+      display: 'flex', flexDirection: 'column', gap: 14, ...style,
+    }}>
+      {/* On a project's Company Ledger the card goes without its heading. */}
+      {!scoped && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ minWidth: 0 }}>
+            <h2 id="gl-record" style={{ margin: 0, fontSize: 18, fontWeight: 600, letterSpacing: '-0.02em', color: t.text }}>Record Money</h2>
+            <div style={{ fontSize: 12.5, color: t.faint, marginTop: 2 }}>Cash in without an invoice, and anything you spent.</div>
+          </div>
+        </div>
+      )}
+      <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
+        <RecordBtn t={t} tone={t.up} icon={ArrowDownLeft} label="Credit" note="Sales & Services, Other Income, Funding, Retainers, Recoveries" onClick={() => onRecord('in')} />
+        <RecordBtn t={t} tone={t.down} icon={ArrowUpRight} label="Debit" note="Deliveries, People & Labour, Operations, Assets & Capital, Financing & Tax" onClick={() => onRecord('out')} />
+      </div>
+      <div style={{ marginTop: 'auto', minWidth: 0 }}>
+        <div style={{ fontSize: 12, fontWeight: 500, color: t.faint, marginBottom: 4 }}>Recently recorded</div>
+        {recent.length ? recent.map((r) => {
+          const isIn = r.direction === 'in';
+          return (
+            <button key={`${r.direction}-${r.id}`} type="button" className="edge-tr" onClick={() => onOpen(r)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '7px 8px', margin: '0 -8px',
+                boxSizing: 'content-box', border: 'none', borderRadius: 9, background: 'transparent', cursor: 'pointer',
+                fontFamily: 'inherit', color: t.text, textAlign: 'left',
+              }}>
+              <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: 99, flexShrink: 0, background: isIn ? t.up : t.down }} />
+              <span style={{ flex: 1, minWidth: 0, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.description}</span>
+              <span style={{ fontSize: 12, color: t.faint, whiteSpace: 'nowrap' }}>{fmtDate(r.day)}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', color: isIn ? t.up : t.down }}>
+                {isIn ? '+' : '−'}{money(r.amount, 2)}
+              </span>
+            </button>
+          );
+        }) : (
+          <div style={{ fontSize: 12.5, color: t.faint }}>Nothing yet. Both sides land in Profit &amp; Loss and the Tax Summary straight away.</div>
+        )}
+      </div>
+      <style>{`
+        .gl-rec-btn { transition: transform .18s cubic-bezier(.16,1,.3,1), box-shadow .18s, border-color .18s; }
+        .gl-rec-btn:hover { transform: translateY(-2px); }
+        @media (prefers-reduced-motion: reduce) { .gl-rec-btn:hover { transform: none; } }
+      `}</style>
+    </section>
   );
 }
 

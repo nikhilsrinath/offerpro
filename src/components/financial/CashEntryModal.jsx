@@ -12,6 +12,7 @@ import ProjectPicker from '../shared/ProjectPicker';
 import { pickerFromAllocations, saveSplitFromPicker, friendlyError } from '../../services/projectService';
 import { projectLabel } from '../../services/projectAnalytics';
 import { money, useSection } from './financeHooks';
+import { titleCase } from '../../utils/titleCase';
 import {
   CURRENCIES, GST_RATES, SECTION, billAllocationsOf, billBalance, billPickerOf, blank, sym,
 } from './cashEntry';
@@ -22,7 +23,7 @@ import {
  * the blank entry when the direction is switched, on a project's page it is
  * already the project's.
  */
-export default function CashEntryModal({ entry, fresh = blank, onClose }) {
+export default function CashEntryModal({ entry, fresh = blank, onClose, typeChosen = false }) {
   const toast = useToast();
   const clients = useSection('customers');
   const vendors = useSection('vendors');
@@ -173,7 +174,8 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
       width={880}
       title={editing.id
         ? `Edit ${editing.direction === 'in' ? 'credit' : editing.purchase_invoice_id ? 'bill payment' : 'debit'}`
-        : editing.purchase_invoice_id ? 'Record a bill payment' : 'Record money'}
+        : editing.purchase_invoice_id ? 'Record a bill payment'
+          : typeChosen ? `Record a ${editing.direction === 'in' ? 'Credit' : 'Debit'}` : 'Record money'}
       onClose={onClose}
     >
       <form onSubmit={handleSave} className="prod-modal-body cb-form">
@@ -191,7 +193,16 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
           </p>
         )}
 
-        {!editing.id && !payingBill && (
+        {/* With `typeChosen` the Type and Sub-Type were picked a step before,
+            so the side and the kind are settled and only named here. */}
+        {typeChosen && !payingBill && (
+          <p className="prod-perf-note">
+            {editing.direction === 'in' ? 'Credit' : 'Debit'} · {titleCase(typeLabel)} · <strong>{titleCase(categoryLabel(editing.category))}</strong>
+            {(picked?.hint || pickedTreatment?.label) ? ` · ${picked?.hint || pickedTreatment?.label}` : ''}
+          </p>
+        )}
+
+        {!editing.id && !payingBill && !typeChosen && (
           <div className="cb-direction" role="group" aria-label="Direction">
             <button type="button" aria-pressed={editing.direction === 'in'}
               className={editing.direction === 'in' ? 'active' : ''}
@@ -270,7 +281,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose }) {
               value={`${[payingBill.category, payingBill.description].filter(Boolean).join(' · ') || 'Purchase'} (bill payment)`} />
             <p className="prod-field-note">From the bill. It already counts the cost and its GST, so this is cash only.</p>
           </div>
-          ) : (
+          ) : typeChosen ? null : (
           <>
             <div className="prod-field">
               <label htmlFor="cb-type">Type</label>

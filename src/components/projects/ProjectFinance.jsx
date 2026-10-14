@@ -256,21 +256,27 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
  * until the vendor is paid, and that payment is the debit. Also the one place
  * to remove a link after the fact.
  *
- * With `only="purchases"` (the project's Company Ledger page) it is the
- * vendors' side: a bill is a credit, a payment to the vendor a debit, and the
- * balance is what is still payable. It is that page's list of bills. `here` is the tab it is shown
+ * With `only="purchases"` (the project's Company Ledger page, and the copy on
+ * its General Ledger) it is the project's credit and debit: a bill and money
+ * coming in are credits; a payment to the vendor, salaries and other costs
+ * are debits. `filtered` (the page is narrowed to some bills) leaves out what
+ * is not a bill or its payment. `here` is the tab it is shown
  * on, so a row that lives on this very page is not a link to it.
  */
-export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, billMenu, paymentMenu, emptyText }) {
+export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, billMenu, paymentMenu, emptyText, readOnly, filtered }) {
     const t = useT();
     const toast = useToast();
     const allocations = useSection('project_allocations');
+    const allBills = useSection('purchase_invoices');
     const sources = useSources();
-    const editable = canAllocate() && !isClosed(project);
+    // `readOnly` (the General Ledger's copy of the Company Ledger) has no actions column.
+    const editable = !readOnly && canAllocate() && !isClosed(project);
     const [page, setPage] = useState(1);
     // On Purchase Bills the ledger is the page's list: `bills` are the ones its
     // search and filters kept, and `billMenu` gives a bill row its actions.
     const billById = useMemo(() => (bills ? Object.fromEntries(bills.map((b) => [b.id, b])) : null), [bills]);
+    // Where each bill stands, for its row; without `bills`, every bill.
+    const billInfo = useMemo(() => billById || Object.fromEntries(allBills.map((b) => [b.id, b])), [billById, allBills]);
 
     const rows = useMemo(() => {
         const sourceById = Object.fromEntries(sources.map((s) => [`${s.type}:${s.id}`, s]));
@@ -284,7 +290,10 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
                 // The bill a row is, or pays; with `bills`, only those the page's filters kept.
                 const billId = a.source_type === 'purchase_invoice' ? a.source_id
                     : a.source_type === 'expense' && String(s?.settles || '').startsWith('purchase_invoice:') ? s.settles.split(':')[1] : null;
-                return !!billId && (!billById || !!billById[billId]);
+                if (billId) return !billById || !!billById[billId];
+                // Every other credit and debit recorded on the project (funding,
+                // salaries, labour…), unless the page is narrowed to some bills.
+                return a.source_type !== 'invoice' && !filtered;
             })
             // Oldest first to carry the balance; on one day, a bill before what pays it.
             .sort((x, y) => String(x.s?.date || '9999').localeCompare(String(y.s?.date || '9999'))
@@ -296,10 +305,14 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
                     : a.mode === 'full' ? s.gross
                         : (Number(a.amount) || 0) * (s.net > 0 ? s.gross / s.net : 1);
                 // On the Company Ledger a purchase is the credit (it adds to what is
-                // payable) and paying the vendor is the debit that brings it down.
-                const credit = only === 'purchases' ? a.source_type === 'purchase_invoice' : CREDIT.has(a.source_type);
+                // payable) as is money coming in; paying the vendor, salaries and
+                // every other cost are the debit.
+                const credit = only === 'purchases'
+                    ? a.source_type === 'purchase_invoice' || a.source_type === 'income_entry'
+                    : CREDIT.has(a.source_type);
                 const pays = String(s?.settles || '').startsWith('purchase_invoice:') ? sourceById[s.settles] : null;
-                const settles = String(s?.settles || '').startsWith('invoice:') && linked.has(s.settles);
+                // The invoice is not on the Company Ledger, so a receipt against it counts there.
+                const settles = only !== 'purchases' && String(s?.settles || '').startsWith('invoice:') && linked.has(s.settles);
                 const before = out.length ? out[out.length - 1].balance : 0;
                 out.push({
                     a, s, value, credit, settles, pays,
@@ -309,7 +322,7 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
                 return out;
             }, [])
             .reverse();
-    }, [allocations, sources, project.id, only, billById]);
+    }, [allocations, sources, project.id, only, billById, filtered]);
 
     // The closing balance, the way a ledger is ruled off: each side's total,
     // the balancing figure under the lighter side, and the two sides equal.
@@ -353,7 +366,7 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
             <Panel>
                 <Empty>
                     {only === 'purchases'
-                        ? (emptyText || 'No purchase bills on this project yet.')
+                        ? (emptyText || 'No credit or debit on this project yet.')
                         : 'Nothing linked yet. Anything raised from this project’s Billing, General Ledger or Company Ledger pages is linked to it on its own.'}
                 </Empty>
             </Panel>
@@ -373,7 +386,8 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
                 { key: 'd', label: 'Date', width: 110 }, { key: 'p', label: 'Particular / Company Name', always: true },
                 { key: 't', label: 'Type' }, { key: 'n', label: 'Invoice No' },
                 { key: 'dr', label: 'Debit', align: 'right' }, { key: 'cr', label: 'Credit', align: 'right' },
-                { key: 'b', label: 'Balance', align: 'right' }, { key: 'x', label: '', align: 'right', always: true },
+                { key: 'b', label: 'Balance', align: 'right' },
+                ...(readOnly ? [] : [{ key: 'x', label: '', align: 'right', always: true }]),
             ]}>
                 {(show) => (
                     <>
@@ -386,7 +400,7 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
                             const open = direction && onEdit ? () => onEdit(direction, a.source_id)
                                 : onOpen && tab !== here ? () => onOpen(tab) : null;
                             // A bill row on Purchase Bills says where the bill stands and carries its actions.
-                            const bill = a.source_type === 'purchase_invoice' ? billById?.[a.source_id] : null;
+                            const bill = a.source_type === 'purchase_invoice' ? billInfo[a.source_id] : null;
                             const owed = bill ? Math.max(0, bill.total - bill.amount_paid) : 0;
                             const late = bill && bill.status !== 'void' && bill.status !== 'paid' && bill.due_date
                                 && bill.due_date < todayIso() && owed > 0.009;
@@ -423,12 +437,12 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
                                             <span style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{side(r.balance)}</span>
                                         </Td>
                                     )}
-                                    <Td align="right">
+                                    {!readOnly && <Td align="right">
                                         {bill && billMenu
                                             ? <RowMenu label={`Actions for bill ${bill.bill_number}`} items={billMenu(bill)} />
                                             : r.pays && paymentMenu ? <RowMenu label="Actions for this payment" items={paymentMenu(a.source_id)} />
                                             : editable && <ConfirmBtn label="Remove" title="Remove from project" message="Unlink this entry from the project? The entry itself is kept." onConfirm={() => remove(a)} />}
-                                    </Td>
+                                    </Td>}
                                 </Tr>
                             );
                         })}
@@ -456,7 +470,7 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
                                 </Td>
                             )}
                             {show('b') && <Td align="right" nowrap><span style={strong}>{side(closing.balance)}</span></Td>}
-                            <Td />
+                            {!readOnly && <Td />}
                         </Tr>
                     </>
                 )}
