@@ -114,7 +114,7 @@ function pageOf(location) {
     const project = location.pathname.match(/^\/projects\/([0-9a-f-]{36})/i);
     if (project) return { route, recordType: 'project', recordId: project[1] };
     const task = new URLSearchParams(location.search).get('task');
-    if (location.pathname === '/tasks' && task) return { route, recordType: 'task', recordId: task };
+    if (location.pathname === '/projects/tasks' && task) return { route, recordType: 'task', recordId: task };
     return { route };
 }
 

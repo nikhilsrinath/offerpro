@@ -3,7 +3,7 @@
    the group, then the page inside it, then, for a page with its own
    switcher: the view chosen there.
 
-     /projects/:id                                         the project's hub
+     /projects/:id                                         opens /projects/:id/dashboard/overview
      /projects/:id/finance/billing/proforma                Finance › Billing › Proforma
      /projects/:id/team-management/attendance              Team Management › Attendance
      /projects/:id/documents-management/project-documents/general-documents
@@ -71,8 +71,8 @@ export const documentsViewOf = (view) => kindOfView(DOCUMENT_VIEWS, view) || 'bu
  */
 export function projectSectionPath(projectId, section, view, query) {
     const base = `/projects/${projectId}`;
-    if (!section || section === 'home') return base;
-    if (section === 'dashboard') return `${base}/dashboard/overview`;
+    // A project opens on its Overview dashboard (the widget board).
+    if (!section || section === 'home' || section === 'dashboard') return `${base}/dashboard/overview`;
     let path = `${base}/${SECTION_PATHS[section] || section}`;
     if (section === 'billing') path += '/' + (BILLING_VIEWS[view] || BILLING_VIEWS.quotation);
     else if (section === 'documents' && view) path += '/' + (DOCUMENT_VIEWS[view] || DOCUMENT_VIEWS.business);
@@ -82,7 +82,8 @@ export function projectSectionPath(projectId, section, view, query) {
 
 /**
  * The section and view a project path is on: { section, view } · 'home' for
- * the bare /projects/:id, null for a path that is no project page.
+ * the bare /projects/:id (which redirects to Overview), null for a path that
+ * is no project page.
  */
 export function parseProjectPath(pathname) {
     const rest = pathname.split('/').slice(3).filter(Boolean).join('/');

@@ -120,7 +120,7 @@ export function ProjectMargin({ nav, size }) {
         </div>
     );
     if (size === 'md') return <Duo stat={stat}>{bars}</Duo>;
-    return <>{stat}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/portfolio')}>Portfolio</LinkBtn></div></>;
+    return <>{stat}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/projects/portfolio')}>Portfolio</LinkBtn></div></>;
 }
 
 export function TeamUtilisation({ nav, size }) {
@@ -156,7 +156,7 @@ export function TeamUtilisation({ nav, size }) {
         </div>
     );
     if (size === 'md') return <Duo stat={stat}>{bars}</Duo>;
-    return <>{stat}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/portfolio')}>Portfolio</LinkBtn></div></>;
+    return <>{stat}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/projects/portfolio')}>Portfolio</LinkBtn></div></>;
 }
 
 /* ── more project widgets ─────────────────────────────────────────────── */
@@ -240,7 +240,7 @@ export function ProjectBudget({ nav, size }) {
         </div>
     );
     if (size === 'md') return <Duo stat={stat}>{bars}</Duo>;
-    return <>{stat}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/portfolio')}>Portfolio</LinkBtn></div></>;
+    return <>{stat}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/projects/portfolio')}>Portfolio</LinkBtn></div></>;
 }
 
 /** Work done but not yet invoiced, and invoiced but not yet paid. */
@@ -274,7 +274,7 @@ export function ProjectBilling({ nav, size }) {
         </div>
     ) : <Empty>Everything billed and paid.</Empty>;
     if (size === 'md') return <Duo stat={stat}>{bars}</Duo>;
-    return <>{stat}{bars}<div className="w-foot"><span className="w-note">{inrShort(owed)} owed in all</span><LinkBtn onClick={() => nav('/portfolio')}>Portfolio</LinkBtn></div></>;
+    return <>{stat}{bars}<div className="w-foot"><span className="w-note">{inrShort(owed)} owed in all</span><LinkBtn onClick={() => nav('/projects/portfolio')}>Portfolio</LinkBtn></div></>;
 }
 
 /** What open projects have spent against what they were budgeted, in rupees. */
@@ -316,7 +316,7 @@ export function ProjectSpendBudget({ nav, size }) {
         </div>
     );
     if (size === 'md') return <Duo stat={stat}>{bars}</Duo>;
-    return <>{stat}{split}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/portfolio')}>Portfolio</LinkBtn></div></>;
+    return <>{stat}{split}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/projects/portfolio')}>Portfolio</LinkBtn></div></>;
 }
 
 /** Net margin as a percentage of what each project has invoiced. */
@@ -355,7 +355,7 @@ export function ProjectMarginPct({ nav, size }) {
         </div>
     );
     if (size === 'md') return <Duo stat={stat}>{bars}</Duo>;
-    return <>{stat}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/portfolio')}>Portfolio</LinkBtn></div></>;
+    return <>{stat}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/projects/portfolio')}>Portfolio</LinkBtn></div></>;
 }
 
 /** Open tasks across projects, busiest first. */
@@ -380,7 +380,7 @@ export function ProjectWorkload({ nav, size }) {
         </div>
     ) : <Empty>No open tasks.</Empty>;
     if (size === 'md') return <Duo stat={stat}>{bars}</Duo>;
-    return <>{stat}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/tasks')}>Task board</LinkBtn></div></>;
+    return <>{stat}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/projects/tasks')}>Task board</LinkBtn></div></>;
 }
 
 /** Jumps into the project module. */
@@ -389,8 +389,8 @@ export function ProjectShortcuts({ nav }) {
     const links = [
         ['New Project', '/projects/new', can('projects', 'create')],
         ['All Projects', '/projects', can('projects', 'view')],
-        ['Portfolio', '/portfolio', can('projects', 'view')],
-        ['Kanban Chart', '/kanban-chart', can('projects', 'view')],
+        ['Portfolio', '/projects/portfolio', can('projects', 'view')],
+        ['Kanban Chart', '/projects/kanban-chart', can('projects', 'view')],
     ].filter((l) => l[2]);
     return (
         <div className="w-list">

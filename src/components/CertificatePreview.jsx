@@ -1,20 +1,20 @@
-import { adjustCss } from '../utils/imageAdjust';
+import { Editable, EditText } from './shared/Editable';
 import { useTrimmedImage } from '../hooks/useTrimmedImage';
 import StampPreview from './StampPreview';
-import { CERTIFICATE_DEFAULTS, certificateYear, certificateDate, certificateFooter } from '../services/certificateTemplates';
+import { CERTIFICATE_DEFAULTS, certificateYear, certificateDate, certificateFooter, certificateInk } from '../services/certificateTemplates';
 
 /* The certificate, drawn at A4 size (96 DPI) so the PDF is a capture of exactly
    what is on screen. One template in two orientations: a band of artwork down
    the left of a landscape sheet, or across the top of a portrait one. The
    artwork is the sample drawing below, an image of the person's own, or
-   nothing at all, in which case the text takes the whole sheet.
+   nothing at all, in which case the text takes the whole sheet, centred.
+
+   The sheet is the paper colour picked on the form; on a dark one the ink
+   turns light (certificateInk).
 
    Everything html2canvas has to draw is kept plain: text is HTML (so the web
    fonts apply), the drawing is flat SVG shapes, the image a CSS background. */
 
-const PAPER = '#fbfcf1';
-const INK = '#1c1c1a';
-const GREY = '#85857c';
 const MONO = "'Roboto Mono', 'SFMono-Regular', Consolas, monospace";
 const SANS = "'Roboto', 'Inter', 'Helvetica Neue', Arial, sans-serif";
 
@@ -59,7 +59,10 @@ const starPath = (cx, cy, r) => (
   `M${cx} ${cy - r}Q${cx} ${cy} ${cx + r} ${cy}Q${cx} ${cy} ${cx} ${cy + r}Q${cx} ${cy} ${cx - r} ${cy}Q${cx} ${cy} ${cx} ${cy - r}Z`
 );
 
-function SampleArt({ wide }) {
+// The sample drawing's own ink: it sits on the accent colour, not the sheet.
+const INK = '#1c1c1a';
+
+function SampleArt({ wide, paper }) {
   const turn = (s) => (wide ? { ...s, cx: s.cy, cy: s.cx, rot: 90 - (s.rot || 0) } : s);
   return (
     <svg
@@ -68,13 +71,13 @@ function SampleArt({ wide }) {
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }}
     >
       {BLOBS.map(turn).map((s, i) => (
-        <ellipse key={'b' + i} cx={s.cx} cy={s.cy} rx={s.rx} ry={s.ry} fill={PAPER} transform={`rotate(${s.rot} ${s.cx} ${s.cy})`} />
+        <ellipse key={'b' + i} cx={s.cx} cy={s.cy} rx={s.rx} ry={s.ry} fill={paper} transform={`rotate(${s.rot} ${s.cx} ${s.cy})`} />
       ))}
       {RINGS.map(turn).map((s, i) => (
         <ellipse key={'r' + i} cx={s.cx} cy={s.cy} rx={s.rx} ry={s.ry} fill="none" stroke={INK} strokeWidth="0.9" transform={`rotate(${s.rot} ${s.cx} ${s.cy})`} />
       ))}
       {STARS.map(turn).map((s, i) => (
-        <path key={'s' + i} d={starPath(s.cx, s.cy, s.r)} fill={s.solid ? INK : PAPER} stroke={INK} strokeWidth="0.9" strokeLinejoin="round" />
+        <path key={'s' + i} d={starPath(s.cx, s.cy, s.r)} fill={s.solid ? INK : paper} stroke={INK} strokeWidth="0.9" strokeLinejoin="round" />
       ))}
     </svg>
   );
@@ -82,13 +85,13 @@ function SampleArt({ wide }) {
 
 /* The company stamp (Company Profile): the one drawn from the company's name
    and city, or the image uploaded in its place. Tilted, as on every other
-   document; the adjustment sits on the wrapper so the tilt is left alone. */
+   document; it is placed by its Editable wrapper, so the tilt is left alone. */
 const STAMP = 96;
 
-function Stamp({ d, style }) {
+function Stamp({ d }) {
   const uploaded = d.stampType === 'uploaded' && d.stampUrl;
   return (
-    <div style={{ width: STAMP, height: STAMP, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', ...style }}>
+    <div style={{ width: STAMP, height: STAMP, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ transform: 'rotate(-8deg)', lineHeight: 0 }}>
         {uploaded ? (
           <img src={d.stampUrl} alt="" style={{ maxWidth: STAMP, maxHeight: STAMP, objectFit: 'contain', display: 'block' }} />
@@ -113,25 +116,45 @@ function stampSpot(position, S, portrait, showArt, hasSecond) {
       : { left: edge + (S.band - STAMP) / 2, top: S.h - edge - 28 - STAMP };
   }
   // The bottom right belongs to a second signatory: the stamp moves between the two.
-  if (position === 'bottom-center' || hasSecond) return { left: (left + right - STAMP) / 2, top: bottom - STAMP };
+  // Without artwork a lone signatory signs in the centre, so the stamp keeps the right.
+  if (hasSecond || (position === 'bottom-center' && showArt)) return { left: (left + right - STAMP) / 2, top: bottom - STAMP };
   return { left: right - STAMP, top: bottom - STAMP };
 }
 
-function Signatory({ name, designation, signature, adjust, align }) {
-  if (!name && !designation && !signature) return null;
-  const first = (name || '').trim().split(/\s+/)[0] || '';
+/* One signatory: the signature (or the first name standing in for one), the
+   rule, the designation and the name. The signature and the block under it
+   are each placed on their own. `which` is '' or 'second', for the fields. */
+function Signatory({ d, which, name, designation, signature, align, ink, grey }) {
+  const nameField = which ? 'secondSignatory' : 'authorizedSignatory';
+  const roleField = which ? 'secondDesignation' : 'signatoryDesignation';
+  // Only a typed name stands in for a missing signature, never the placeholder.
+  const first = (d[nameField] || '').trim().split(/\s+/)[0] || '';
+  const centre = align === 'center';
+  const key = which ? 'secondSignature' : 'signature';
+  const who = which ? 'Second Signatory' : 'Signatory';
   return (
-    <div style={{ minWidth: 150, maxWidth: 300, textAlign: 'left', marginLeft: align === 'right' ? 'auto' : 0 }}>
-      <div style={{ height: 50, display: 'flex', alignItems: 'flex-end' }}>
-        {signature ? (
-          <img src={signature} alt="" style={{ height: 48, maxWidth: 220, objectFit: 'contain', display: 'block', marginBottom: 2, ...adjustCss(adjust, 'left bottom') }} />
-        ) : (
-          <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: 21, color: INK, lineHeight: 1, paddingBottom: 8 }}>{first}</div>
-        )}
+    <div style={{
+      minWidth: 150, maxWidth: 300, textAlign: centre ? 'center' : 'left',
+      marginLeft: align === 'right' || centre ? 'auto' : 0, marginRight: centre ? 'auto' : 0,
+    }}>
+      <div style={{ height: 50, display: 'flex', alignItems: 'flex-end', justifyContent: centre ? 'center' : 'flex-start' }}>
+        <Editable field={key + 'Adjust'} label={which ? 'Second Signature' : 'Signature'} value={d[key + 'Adjust']}
+          origin={centre ? 'center bottom' : 'left bottom'} style={{ marginBottom: signature ? 2 : 0 }}>
+          {signature ? (
+            <img src={signature} alt="" style={{ height: 48, maxWidth: 220, objectFit: 'contain', display: 'block' }} />
+          ) : (
+            <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: 21, color: ink, lineHeight: 1, paddingBottom: 8 }}>{first}</div>
+          )}
+        </Editable>
       </div>
-      <div style={{ height: 1, background: INK, width: 118 }} />
-      <div style={{ fontFamily: SANS, fontSize: 11.5, color: GREY, marginTop: 9, lineHeight: 1.3 }}>{designation}</div>
-      <div style={{ fontFamily: SANS, fontSize: 13, fontWeight: 700, color: INK, marginTop: 3, lineHeight: 1.3 }}>{name}</div>
+      <Editable field={(which ? 'secondSignatory' : 'signatory') + 'Adjust'} label={`${who} Name`} text={nameField}
+        value={d[(which ? 'secondSignatory' : 'signatory') + 'Adjust']} origin={centre ? 'center top' : 'left top'}>
+        <div style={{ height: 1, background: ink, width: 118, margin: centre ? '0 auto' : 0 }} />
+        <EditText field={roleField} value={d[roleField]} placeholder="Designation" label={`${who} Designation`}
+          style={{ fontFamily: SANS, fontSize: 11.5, color: grey, paddingTop: 9, lineHeight: 1.3 }}>{designation}</EditText>
+        <EditText field={nameField} value={d[nameField]} placeholder={which ? 'Second Signatory' : 'Authorised Signatory'} label={`${who} Name`}
+          style={{ fontFamily: SANS, fontSize: 13, fontWeight: 700, color: ink, marginTop: 3, lineHeight: 1.3 }}>{name}</EditText>
+      </Editable>
     </div>
   );
 }
@@ -141,12 +164,18 @@ export default function CertificatePreview({ formData, captureId = 'certificate-
   const portrait = d.orientation === 'portrait';
   const S = portrait ? SIZES.portrait : SIZES.landscape;
   const accent = d.accentColor || CERTIFICATE_DEFAULTS.accentColor;
+  const paper = d.paperColor || CERTIFICATE_DEFAULTS.paperColor;
+  const { ink, grey, dark } = certificateInk(paper);
+  // What sits light on the artwork: the sheet, unless the sheet is dark.
+  const artPaper = dark ? CERTIFICATE_DEFAULTS.paperColor : paper;
   // A signature signed small in a large pad would be drawn as a speck: its
   // empty margins are cut away so the ink fills the space above the line.
   const signature = useTrimmedImage(d.signature);
   const secondSignature = useTrimmedImage(d.secondSignature);
 
   const showArt = !d.artHidden;
+  // With the artwork off, the writing is set down the middle of the sheet.
+  const centred = !showArt;
   const year = certificateYear(d);
   const date = certificateDate(d.issueDate);
   // The company name sits under the logo, or at the top where there is none.
@@ -158,17 +187,38 @@ export default function CertificatePreview({ formData, captureId = 'certificate-
   const title = (d.certificateTitle || CERTIFICATE_DEFAULTS.certificateTitle).trim();
   const cut = title.toLowerCase().indexOf(' of ');
   const titleLines = cut > 0 ? [title.slice(0, cut), title.slice(cut + 1)] : [title];
-  const hasSecond = !!(d.secondSignatory || d.secondDesignation || d.secondSignature);
+  const hasSecond = !!(d.secondShown || d.secondSignatory || d.secondDesignation || d.secondSignature);
   const stampBesideTitle = !!d.showStamp && d.stampPosition === 'title';
   const stampOnSheet = !!d.showStamp && !stampBesideTitle;
+  const top = centred ? 'center top' : 'left top';
+
+  const logo = d.logo && (
+    <Editable field="logoAdjust" label="Logo" value={d.logoAdjust} origin={top} style={{ flexShrink: 0, maxWidth: '100%' }}>
+      <img src={d.logo} alt="" style={{
+        height: 30, maxWidth: 120, objectFit: 'contain', objectPosition: centred ? 'center' : 'left center', display: 'block',
+      }} />
+    </Editable>
+  );
+  const orgName = org && (
+    <Editable field="orgAdjust" label="Company Name" value={d.orgAdjust} origin={top} text="issuingOrganization" style={{ maxWidth: '100%', minWidth: 0 }}>
+      <EditText field="issuingOrganization" value={d.issuingOrganization} placeholder="Your Company Name" label="Company Name"
+        style={{ fontFamily: MONO, fontSize: 13, lineHeight: '18px', color: ink, letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{org}</EditText>
+    </Editable>
+  );
+  const stamp = (style) => (
+    <Editable field="stampAdjust" label="Round Seal" value={d.stampAdjust} origin="center" style={{ flexShrink: 0, ...style }}>
+      <Stamp d={d} />
+    </Editable>
+  );
 
   return (
     <div
       id={captureId}
+      data-edit-root
       className="certificate-preview-root"
       style={{
-        width: S.w, height: S.h, background: PAPER, position: 'relative', overflow: 'hidden',
-        padding: FRAME, boxSizing: 'border-box', fontFamily: SANS, color: INK,
+        width: S.w, height: S.h, background: paper, position: 'relative', overflow: 'hidden',
+        padding: FRAME, boxSizing: 'border-box', fontFamily: SANS, color: ink,
       }}
     >
       <style>{`
@@ -176,7 +226,7 @@ export default function CertificatePreview({ formData, captureId = 'certificate-
       `}</style>
 
       <div style={{
-        width: '100%', height: '100%', boxSizing: 'border-box', border: '1px solid ' + INK,
+        width: '100%', height: '100%', boxSizing: 'border-box', border: '1px solid ' + ink,
         display: 'flex', flexDirection: portrait ? 'column' : 'row',
       }}>
         {/* ARTWORK BAND */}
@@ -184,25 +234,29 @@ export default function CertificatePreview({ formData, captureId = 'certificate-
           <div style={{
             position: 'relative', overflow: 'hidden', flexShrink: 0, background: accent,
             ...(portrait
-              ? { height: S.band, borderBottom: '1px solid ' + INK }
-              : { width: S.band, borderRight: '1px solid ' + INK }),
+              ? { height: S.band, borderBottom: '1px solid ' + ink }
+              : { width: S.band, borderRight: '1px solid ' + ink }),
           }}>
-            {d.art ? (
-              <div style={{
-                position: 'absolute', inset: 0,
-                backgroundImage: `url("${d.art}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
-                ...adjustCss(d.artAdjust, 'center'),
-              }} />
-            ) : <SampleArt wide={portrait} />}
+            <Editable field="artAdjust" label="Artwork" value={d.artAdjust} origin="center" style={{ position: 'absolute', inset: 0 }}>
+              {d.art ? (
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  backgroundImage: `url("${d.art}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
+                }} />
+              ) : <SampleArt wide={portrait} paper={artPaper} />}
+            </Editable>
             {year && (
-              <div style={{
-                position: 'absolute', top: 14, left: 14, fontFamily: MONO, fontWeight: 700, fontSize: 27,
-                lineHeight: 1.08, letterSpacing: '0.12em', color: INK,
-                ...(d.art ? { background: PAPER, padding: '6px 6px 6px 10px' } : { padding: '2px 0 0 4px' }),
-              }}>
-                <div>{year.slice(0, 2)}</div>
-                <div>{year.slice(2)}</div>
-              </div>
+              <Editable field="yearAdjust" label="Year" value={d.yearAdjust} origin="left top" text="yearLabel"
+                style={{ position: 'absolute', top: 14, left: 14 }}>
+                <EditText field="yearLabel" value={d.yearLabel || year} label="Year" style={{
+                  fontFamily: MONO, fontWeight: 700, fontSize: 27, lineHeight: 1.08, letterSpacing: '0.12em', color: INK,
+                  ...(d.art ? { background: artPaper, padding: '6px 6px 6px 10px' } : { padding: '2px 0 0 4px' }),
+                  maxWidth: '2.6em', overflowWrap: 'anywhere',
+                }}>
+                  <div>{year.slice(0, 2)}</div>
+                  <div>{year.slice(2)}</div>
+                </EditText>
+              </Editable>
             )}
           </div>
         )}
@@ -210,78 +264,101 @@ export default function CertificatePreview({ formData, captureId = 'certificate-
         {/* TEXT */}
         <div style={{
           flex: 1, minWidth: 0, minHeight: 0, boxSizing: 'border-box', display: 'flex', flexDirection: 'column',
-          padding: `${S.padY[0]}px ${S.padX[1]}px ${S.padY[1]}px ${S.padX[0]}px`,
+          padding: `${S.padY[0]}px ${S.padX[1]}px ${S.padY[1]}px ${S.padX[0]}px`, textAlign: centred ? 'center' : 'left',
         }}>
           {/* who issues it, and where and when */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, minWidth: 0, minHeight: 30 }}>
-              {d.logo && (
-                <img src={d.logo} alt="" style={{ height: 30, maxWidth: 120, objectFit: 'contain', objectPosition: 'left center', display: 'block', flexShrink: 0, ...adjustCss(d.logoAdjust, 'left bottom') }} />
-              )}
-              {org && (
-                <span style={{ fontFamily: MONO, fontSize: 13, lineHeight: '18px', color: INK, letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{org}</span>
+          {centred ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minHeight: 30 }}>
+              {logo}
+              {orgName}
+              {(d.location || date) && (
+                <Editable field="placeAdjust" label="Place And Date" value={d.placeAdjust} origin="center top" text="location">
+                  <div style={{ fontFamily: MONO, fontSize: 12, lineHeight: 1.55, color: ink, whiteSpace: 'nowrap', display: 'flex', justifyContent: 'center' }}>
+                    <EditText field="location" value={d.location} placeholder="Location" label="Location" optional>
+                      {d.location}{date ? ',' : ''}
+                    </EditText>
+                    {date && <div>&nbsp;{date}</div>}
+                  </div>
+                </Editable>
               )}
             </div>
-            {(d.location || date) && (
-              <div style={{ flexShrink: 0, fontFamily: MONO, fontSize: 12, lineHeight: 1.55, color: INK, whiteSpace: 'nowrap' }}>
-                {d.location && <div>{d.location}{date ? ',' : ''}</div>}
-                {date && <div>{date}</div>}
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, minWidth: 0, minHeight: 30 }}>
+                {logo}
+                {orgName}
               </div>
-            )}
-          </div>
+              {(d.location || date) && (
+                <Editable field="placeAdjust" label="Place And Date" value={d.placeAdjust} origin="right top" text="location" style={{ flexShrink: 0 }}>
+                  <div style={{ fontFamily: MONO, fontSize: 12, lineHeight: 1.55, color: ink, whiteSpace: 'nowrap' }}>
+                    <EditText field="location" value={d.location} placeholder="Location" label="Location" optional>
+                      {d.location}{date ? ',' : ''}
+                    </EditText>
+                    {date && <div>{date}</div>}
+                  </div>
+                </Editable>
+              )}
+            </div>
+          )}
 
           {/* title */}
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24, marginTop: portrait ? 64 : 40 }}>
-            <div style={{ fontFamily: MONO, fontWeight: 500, fontSize: 34, lineHeight: 1.3, letterSpacing: '0.04em', textTransform: 'uppercase', color: INK, minWidth: 0 }}>
-              {titleLines.map((line, i) => <div key={i}>{line}</div>)}
-            </div>
-            {stampBesideTitle && (
-              <Stamp d={d} style={{ marginRight: 20, ...adjustCss(d.stampAdjust, 'center') }} />
-            )}
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: centred ? 'center' : 'space-between', gap: 24, marginTop: portrait ? 64 : 40 }}>
+            <Editable field="titleAdjust" label="Title" value={d.titleAdjust} origin={top} text="certificateTitle" style={{ minWidth: 0 }}>
+              <EditText field="certificateTitle" value={d.certificateTitle} placeholder={CERTIFICATE_DEFAULTS.certificateTitle} label="Title"
+                style={{ fontFamily: MONO, fontWeight: 500, fontSize: 34, lineHeight: 1.3, letterSpacing: '0.04em', textTransform: 'uppercase', color: ink }}>
+                {titleLines.map((line, i) => <div key={i}>{line}</div>)}
+              </EditText>
+            </Editable>
+            {stampBesideTitle && stamp({ marginRight: centred ? 0 : 20 })}
           </div>
 
           <div style={{ flex: 1, minHeight: 20 }} />
 
           {/* who it is given to */}
-          <div style={{ fontFamily: SANS, fontSize: 13, color: GREY }}>{d.introLine || CERTIFICATE_DEFAULTS.introLine}</div>
-          <div style={{ height: 1, background: INK, marginTop: 14 }} />
-          <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: nameSize, letterSpacing: '-0.01em', lineHeight: 1.15, color: INK, padding: '14px 0 16px', overflowWrap: 'anywhere' }}>
-            {name}
-          </div>
-          <div style={{ height: 1, background: INK }} />
+          <Editable field="introAdjust" label="Line Above The Name" value={d.introAdjust} origin={top} text="introLine">
+            <EditText field="introLine" value={d.introLine} placeholder={CERTIFICATE_DEFAULTS.introLine} label="Line Above The Name"
+              style={{ fontFamily: SANS, fontSize: 13, color: grey }} />
+          </Editable>
+          <div style={{ height: 1, background: ink, marginTop: 14 }} />
+          <Editable field="nameAdjust" label="Recipient Name" value={d.nameAdjust} origin={top} text="recipientName">
+            <EditText field="recipientName" value={d.recipientName} placeholder="Recipient Name" label="Recipient Name"
+              style={{ fontFamily: SANS, fontWeight: 700, fontSize: nameSize, letterSpacing: '-0.01em', lineHeight: 1.15, color: ink, padding: '14px 0 16px', overflowWrap: 'anywhere' }} />
+          </Editable>
+          <div style={{ height: 1, background: ink }} />
 
-          <div style={{ fontFamily: SANS, fontSize: 13, lineHeight: 1.6, color: GREY, marginTop: 18, whiteSpace: 'pre-line' }}>
-            {d.description || 'In recognition of dedication, effort and the standard of work shown throughout the programme.'}
-          </div>
+          <Editable field="descriptionAdjust" label="Description" value={d.descriptionAdjust} origin={top} text="description" style={{ marginTop: 18 }}>
+            <EditText field="description" value={d.description} multiline label="Description"
+              placeholder="In recognition of dedication, effort and the standard of work shown throughout the programme."
+              style={{ fontFamily: SANS, fontSize: 13, lineHeight: 1.6, color: grey, whiteSpace: 'pre-line' }} />
+          </Editable>
 
-          <div style={{
-            fontFamily: MONO, fontWeight: 500, fontSize: 12, lineHeight: 1.5, letterSpacing: '0.05em', textTransform: 'uppercase', color: INK,
-            marginTop: 18, paddingBottom: 9, borderBottom: '1px solid ' + INK,
-          }}>
-            {certificateFooter(d)}
-          </div>
+          <Editable field="footerAdjust" label="Line Under The Description" value={d.footerAdjust} origin={top} text="footerLine" style={{ marginTop: 18 }}>
+            <EditText field="footerLine" value={certificateFooter(d)} label="Line Under The Description" style={{
+              fontFamily: MONO, fontWeight: 500, fontSize: 12, lineHeight: 1.5, letterSpacing: '0.05em', textTransform: 'uppercase', color: ink,
+              paddingBottom: 9, borderBottom: '1px solid ' + ink,
+            }} />
+          </Editable>
 
           <div style={{ flex: 1.15, minHeight: 20 }} />
 
           {/* who signs it */}
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 40 }}>
             <Signatory
+              d={d} which="" ink={ink} grey={grey} signature={signature}
               name={d.authorizedSignatory || 'Authorised Signatory'} designation={d.signatoryDesignation || 'Designation'}
-              signature={signature} adjust={d.signatureAdjust}
+              align={centred && !hasSecond ? 'center' : 'left'}
             />
             {hasSecond && (
               <Signatory
-                name={d.secondSignatory} designation={d.secondDesignation}
-                signature={secondSignature} adjust={d.secondSignatureAdjust} align="right"
+                d={d} which="second" ink={ink} grey={grey} signature={secondSignature}
+                name={d.secondSignatory || 'Second Signatory'} designation={d.secondDesignation || 'Designation'} align="right"
               />
             )}
           </div>
         </div>
       </div>
 
-      {stampOnSheet && (
-        <Stamp d={d} style={{ position: 'absolute', ...stampSpot(d.stampPosition, S, portrait, showArt, hasSecond), ...adjustCss(d.stampAdjust, 'center') }} />
-      )}
+      {stampOnSheet && stamp({ position: 'absolute', ...stampSpot(d.stampPosition, S, portrait, showArt, hasSecond) })}
     </div>
   );
 }

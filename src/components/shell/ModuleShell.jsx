@@ -637,18 +637,18 @@ function notifTarget(n) {
         case 'offer_signed':
         case 'role_change_acknowledged':
         case 'termination_acknowledged':
-            return '/recruitment-tracker';
+            return '/company/recruitment-tracker';
         case 'document_declined':
-            return n.document_id?.startsWith('OL') ? '/recruitment-tracker' : null;
+            return n.document_id?.startsWith('OL') ? '/company/recruitment-tracker' : null;
         case 'quotation_accepted':
         case 'quotation_sent':
         case 'revision_requested':
-            return '/billing/quotations';
+            return '/finance/billing/quotations';
         case 'payment_submitted':
-            return '/billing/invoices';
+            return '/finance/billing/invoices';
         case 'order_confirmed':
         case 'advance_submitted':
-            return '/billing/proforma';
+            return '/finance/billing/proforma';
         default:
             return null;
     }

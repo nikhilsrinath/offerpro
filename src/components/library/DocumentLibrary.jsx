@@ -61,9 +61,9 @@ function typeOf(doc) {
 
 // Where each register lives: General Documents is the page itself.
 const REGISTER_PATHS = { general: '', opa: 'process-assets', lessons: 'lessons-learned' };
-const registerPath = (id) => '/document-library' + (REGISTER_PATHS[id] ? '/' + REGISTER_PATHS[id] : '');
+const registerPath = (id) => '/documents/document-library' + (REGISTER_PATHS[id] ? '/' + REGISTER_PATHS[id] : '');
 const registerOfPath = (pathname) => {
-    const sub = pathname.split('/')[2] || '';
+    const sub = pathname.split('/')[3] || '';
     return Object.keys(REGISTER_PATHS).find((id) => REGISTER_PATHS[id] === sub) || 'general';
 };
 
@@ -78,7 +78,7 @@ export default function DocumentLibrary() {
     const [query, setQuery] = useState('');
     const [category, setCategory] = useState('all');
 
-    // The register is the last part of the path (/document-library/process-assets),
+    // The register is the last part of the path (/documents/document-library/process-assets),
     // so a link or a refresh lands on it; General Documents is the bare page.
     const location = useLocation();
     const navigate = useNavigate();

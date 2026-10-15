@@ -177,7 +177,7 @@ export const CODE = /^[a-z]{2,6}[-/ ]?\d[\w/-]*$/i;
  */
 export const KINDS = {
   task: {
-    table: 'tasks', resource: 'tasks', noun: 'task', href: (r) => `/tasks?task=${r.id}`,
+    table: 'tasks', resource: 'tasks', noun: 'task', href: (r) => `/projects/tasks?task=${r.id}`,
     select: 'id, title, description, status, priority, deadline, assignee_id, assignee_label, project_id, updated_at',
     label: (r) => r.title,
     aliases: (r) => [r.title],
@@ -185,14 +185,14 @@ export const KINDS = {
     mine: (r, ctx) => !!ctx.employeeId && r.assignee_id === ctx.employeeId,
   },
   client: {
-    table: 'clients', resource: 'clients', noun: 'client', href: () => '/client-directory',
+    table: 'clients', resource: 'clients', noun: 'client', href: () => '/business/client-directory',
     select: 'id, name, person_name, email, phone, status, value, notes, source, archived_at, updated_at',
     label: (r) => r.name,
     aliases: (r) => [r.name, r.person_name, r.email].filter(Boolean),
     inactive: (r) => !!r.archived_at || r.status === 'archived',
   },
   employee: {
-    table: 'employees', resource: 'employees', noun: 'person', href: () => '/employees',
+    table: 'employees', resource: 'employees', noun: 'person', href: () => '/company/employees',
     select: 'id, full_name, email, role, user_id, department_id, exited_at, updated_at',
     label: (r) => r.full_name,
     aliases: (r) => [r.full_name, r.email, (r.full_name || '').split(' ')[0]].filter(Boolean),
@@ -216,7 +216,7 @@ export const KINDS = {
     inactive: (r) => ['cancelled', 'expired', 'converted'].includes(r.status),
   },
   vendor: {
-    table: 'vendors', resource: 'vendors', noun: 'vendor', href: () => '/vendor-directory',
+    table: 'vendors', resource: 'vendors', noun: 'vendor', href: () => '/business/vendor-directory',
     select: 'id, company_name, contact_name, email, archived_at, updated_at',
     label: (r) => r.company_name,
     aliases: (r) => [r.company_name, r.contact_name].filter(Boolean),

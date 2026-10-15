@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLeaveGuard } from '../hooks/useLeaveGuard';
 import { Upload, CheckCircle, ChevronRight, Eye, Send, Loader, ExternalLink, Copy, X } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
@@ -23,6 +24,8 @@ function getDisplayName(emp) {
 
 export default function OfferForm() {
   const navigate = useNavigate();
+  // Leaving with the document half filled in asks first; saving it does not.
+  const leave = useLeaveGuard();
   const { user } = useAuth();
   const { activeOrg } = useOrg();
   const [employees, setEmployees] = useState([]);
@@ -129,9 +132,10 @@ export default function OfferForm() {
       await storageService.save(formData, 'offer', activeOrg?.id, user?.id);
       await pdfService.generateOfferLetter(resolved);
       await refreshUsage();
+      leave.release();
       setTimeout(() => {
         setIsSubmitting(false);
-        navigate('/records');
+        navigate('/documents/records');
       }, 800);
     } catch (err) {
       console.error(err);
@@ -245,7 +249,7 @@ export default function OfferForm() {
 
       {/* LEFT: Form */}
       <div className="mou-form-pane">
-        <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
+        <form {...leave.formProps} onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
 
           {/* Type Toggle */}
           <div className="easy-toggle-bar">

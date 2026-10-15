@@ -3,16 +3,10 @@ import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } 
 import { Page, Panel, Row, Btn, Status, Avatar, Empty, Muted } from '../ui/edge';
 import { useT, MONO } from '../ui/edgeUtils';
 import { useSection } from '../financial/financeHooks';
-import { useOrg } from '../../context/OrgContext';
 import { statusLabel, isClosed, deliveryLabel } from '../../services/projectAnalytics';
 import { canSeeFinancials, health as fetchHealth } from '../../services/projectService';
-import { useAssistant } from '../assistant/assistantStore';
-import { useWidgetLayout } from '../hub/useWidgetLayout';
-import WidgetBoard from '../hub/WidgetBoard';
-import { PROJECT_WIDGETS, PROJECT_CATALOG, useProjectBoardData } from './projectBoard';
 import HealthChip from './HealthChip';
 import ProjectMilestones from './ProjectMilestones';
-import ProjectActions from './ProjectActions';
 import PageTabs from './PageTabs';
 import ProjectFinanceStatus, { ProjectProfitLoss, ProjectLedger } from './ProjectFinance';
 import ProjectBilling from './ProjectBilling';
@@ -39,7 +33,6 @@ import ProjectFiles from './docs/ProjectFiles';
 import ProjectTemplates from './docs/ProjectTemplates';
 import { orgStore } from '../../services/orgStore';
 import { projectSectionPath, parseProjectPath, legacyProjectPath, billingKindOf, documentsViewOf } from './projectPaths';
-import '../../theme/surface.css';
 import {
     LayoutDashboard, Wallet, Users, Flag, FileText, History,
     Gauge, BookOpen, Receipt, ShoppingCart, Scale, TrendingUp,
@@ -52,8 +45,8 @@ import {
    One project, as its own workspace. It is laid out the way the hub is: the
    project's sections are the rail (App.jsx), EdgeAI is docked on the right
    (ModuleShell `workspace`), and the page carries a large heading and a
-   footer. /projects/:id itself is the project's hub: a widget board
-   arranged per person. Dashboard's pages are their own routes
+   footer. The bare /projects/:id opens the project's Overview dashboard,
+   its widget board. Dashboard's pages are their own routes
    (/projects/:id/dashboard/:view, ProjectDashboards) in the same rail;
    every other item is that section's full page, under the same heading, at
    a path named after the rail (projectPaths: /projects/:id/finance/billing).
@@ -110,7 +103,7 @@ export function projectSections() {
     const fin = canSeeFinancials();
     return TABS.filter((x) => (!x.fin || fin) && (!x.pay || orgStore.can('payments', 'view')));
 }
-/** The page the path names; 'home' is the project's hub, the bare /projects/:id. */
+/** The page the path names; 'home' is the bare /projects/:id, which opens the Overview dashboard. */
 export function activeSection(pathname, sections = projectSections()) {
     const { section } = parseProjectPath(pathname);
     return sections.some((x) => x.id === section && !x.away) ? section : 'home';
@@ -187,6 +180,11 @@ export default function ProjectDetail() {
     // Older links named the page in ?tab= (and Billing's kind in ?doc=).
     const legacy = legacyProjectPath(projectId, location.search);
     if (legacy) return <Navigate to={legacy} replace state={location.state} />;
+    // A project opens on its Overview dashboard; the bare path, and any
+    // path that names no page, lead there.
+    if (activeSection(location.pathname) === 'home') {
+        return <Navigate to={projectSectionPath(projectId) + location.search} replace state={location.state} />;
+    }
 
     if (!project) {
         return (
@@ -212,13 +210,10 @@ export default function ProjectDetail() {
 function ProjectWorkspace({ project, t, navigate, location, params }) {
     const clients = useSection('customers');
     const employees = useSection('employees');
-    const { activeOrg } = useOrg();
-    const assistant = useAssistant();
     const winW = useWindowWidth();
     const isMobile = winW < 760;
 
     const [health, setHealth] = useState(null);
-    const [announce, setAnnounce] = useState('');
 
     useEffect(() => {
         let cancelled = false;
@@ -242,25 +237,11 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
         navigate(projectSectionPath(project.id, tab, v), { replace: true });
     }, [navigate, project.id, tab]);
 
-    const board = useProjectBoardData(project, health);
-    const [layout, lay] = useWidgetLayout(activeOrg?.id, PROJECT_CATALOG);
-
-    /** A question from a widget: into the dock if it is showing, else full screen. */
-    const ask = useCallback((text) => {
-        const ok = assistant.askNew(text);
-        if (ok && !assistant.docked) assistant.setOpen(true);
-        return ok;
-    }, [assistant]);
-
     const client = clients.find((c) => c.id === project.client_id);
     const manager = employees.find((e) => e.id === project.manager_employee_id);
     const closed = isClosed(project);
-    const theme = t.isDark ? 'dark' : 'light';
 
     const problems = location.state?.problems;
-    const now = new Date();
-    const hour = now.getHours();
-    const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
     const name = project.name || project.code || 'Project';
     const clientName = client ? (client.name || client.clientName) : null;
     const pad = isMobile ? 12 : 24;
@@ -271,33 +252,27 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                 flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable',
                 display: 'flex', flexDirection: 'column',
             }}>
-                <div className="eo-sr" role="status" aria-live="polite">{announce}</div>
-
                 <div style={{
                     padding: pad, display: 'grid', gap: isMobile ? 12 : 16, flex: 1, alignContent: 'start',
-                    // One column that may shrink below its content, so the
-                    // widget grid always sees the real width and re-flows.
+                    // One column that may shrink below its content, so a wide
+                    // page always sees the real width and re-flows.
                     gridTemplateColumns: 'minmax(0, 1fr)',
                 }}>
-                    {/*: heading: the greeting over the project on Overview,
-                        the project over the section everywhere else, */}
+                    {/*: heading: the project over the section, */}
                     <div style={{ padding: '2px 2px 0', display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{
-                                fontSize: 13.5, fontWeight: 600, color: t.text, letterSpacing: '0.08em', marginBottom: 6,
+                                fontSize: 13.5, fontWeight: 500, color: t.dim, marginBottom: 6,
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                             }}>
-                                {tab === 'home'
-                                    ? greeting.toUpperCase()
-                                    : <Link to={`/projects/${project.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>{name.toUpperCase()}</Link>}
+                                <Link to={projectSectionPath(project.id)} style={{ color: 'inherit', textDecoration: 'none' }}>{name}</Link>
                             </div>
                             <h1 style={{
                                 margin: 0, fontSize: isMobile ? 24 : 32, fontWeight: 700, fontFamily: MONO,
                                 letterSpacing: '-0.045em', color: t.text, lineHeight: 1.05,
                                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            }}>{tab === 'home' ? name : section.label}</h1>
+                            }}>{section.label}</h1>
                         </div>
-                        {tab === 'home' && <ProjectActions project={project} />}
                     </div>
 
                     {/*: who and where: code, state, client, manager, */}
@@ -308,7 +283,7 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                         {project.archived_at && <Muted>Archived</Muted>}
                         <Chip t={t}>
                             {client
-                                ? <>Client: <Link to={`/client-directory?client=${client.id}`} style={{ color: 'inherit' }}>{clientName}</Link></>
+                                ? <>Client: <Link to={`/business/client-directory?client=${client.id}`} style={{ color: 'inherit' }}>{clientName}</Link></>
                                 : 'Internal Project'}
                         </Chip>
                         {project.delivery_method && <Chip t={t}>{deliveryLabel(project.delivery_method)} Method</Chip>}
@@ -323,62 +298,45 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                         </div>
                     )}
 
-                    {tab === 'home' ? (
-                        /* The board reads its palette from .eo-surface, kept to
-                           the board so the section pages keep the kit's own. */
-                        <div className="eo-surface" data-theme={theme} style={{
-                            display: 'grid', gap: isMobile ? 12 : 16, gridTemplateColumns: 'minmax(0, 1fr)', fontFamily: MONO,
-                        }}>
-                            <WidgetBoard
-                                layout={layout} lay={lay} widgets={PROJECT_WIDGETS} byId={PROJECT_CATALOG.byId}
-                                defaultCount={PROJECT_CATALOG.defaults.length}
-                                widgetProps={{ d: board, nav: navigate, ask, open: openTab }}
-                                isMobile={isMobile} say={setAnnounce}
-                                emptyText="Add widgets to keep this project's money, plan, people and work in one view."
-                                pickerNote="Choose what every project's overview shows"
-                            />
-                        </div>
-                    ) : (
-                        <div style={{ minWidth: 0 }}>
-                            {section.parent && (
-                                <PageTabs label={`${GROUPS[section.parent].label} pages`} current={tab} onOpen={openTab}
-                                    pages={sections.filter((x) => x.parent === section.parent)} />
-                            )}
-                            {tab === 'finance' && fin && <ProjectFinanceStatus project={project} onOpen={openTab} />}
-                            {tab === 'cashbook' && fin && (
-                                <CashBook projectId={project.id}>
-                                    {/* The Company Ledger's table, without its row actions. */}
-                                    {({ onEdit }) => <ProjectLedger project={project} onOpen={openTab} onEdit={onEdit} only="purchases" here="cashbook" readOnly />}
-                                </CashBook>
-                            )}
-                            {tab === 'billing' && fin && <ProjectBilling project={project} kind={billingKindOf(view)} onKind={openView} view={view} />}
-                            {tab === 'bills' && fin && (
-                                <PurchaseInvoices projectId={project.id}>
-                                    {(list) => <ProjectLedger project={project} onOpen={openTab} only="purchases" here="bills" {...list} />}
-                                </PurchaseInvoices>
-                            )}
-                            {tab === 'tax' && fin && <TaxSummary projectId={project.id} />}
-                            {tab === 'pl' && fin && <ProjectProfitLoss project={project} />}
-                            {tab === 'products' && <Products projectId={project.id} />}
-                            {tab === 'team' && <ProjectTeam project={project} />}
-                            {tab === 'raci' && <RaciPage project={project} onOpen={openTab} />}
-                            {tab === 'attendance' && <ProjectAttendance project={project} onOpen={openTab} />}
-                            {tab === 'announcements' && <ProjectAnnouncements project={project} />}
-                            {tab === 'milestones' && <ProjectMilestones project={project} />}
-                            {tab === 'pm' && <PmOverview project={project} onOpen={openTab} />}
-                            {tab === 'wbs' && <WbsPage project={project} />}
-                            {tab === 'tasks' && <TasksPage projectId={project.id} embedded />}
-                            {tab === 'gantt' && <GanttPage project={project} />}
-                            {tab === 'clients' && <ClientDirectory project={project} onOpen={openTab} />}
-                            {tab === 'crm' && <CRM project={project} />}
-                            {tab === 'comms' && <ClientCommunication key={params.get('client') || 'all'} project={project} />}
-                            {tab === 'payments' && fin && <PaymentStatus project={project} />}
-                            {tab === 'vendors' && <VendorDirectory project={project} />}
-                            {tab === 'documents' && <ProjectFiles project={project} view={documentsViewOf(view)} onView={openView} />}
-                            {tab === 'templates' && <ProjectTemplates project={project} onOpen={openTab} />}
-                            {tab === 'activity' && <ProjectActivity project={project} />}
-                        </div>
-                    )}
+                    <div style={{ minWidth: 0 }}>
+                        {section.parent && (
+                            <PageTabs label={`${GROUPS[section.parent].label} pages`} current={tab} onOpen={openTab}
+                                pages={sections.filter((x) => x.parent === section.parent)} />
+                        )}
+                        {tab === 'finance' && fin && <ProjectFinanceStatus project={project} onOpen={openTab} />}
+                        {tab === 'cashbook' && fin && (
+                            <CashBook projectId={project.id}>
+                                {/* The Company Ledger's table, without its row actions. */}
+                                {({ onEdit, narrow }) => <ProjectLedger project={project} onOpen={openTab} onEdit={onEdit} narrow={narrow} only="purchases" here="cashbook" readOnly />}
+                            </CashBook>
+                        )}
+                        {tab === 'billing' && fin && <ProjectBilling project={project} kind={billingKindOf(view)} onKind={openView} view={view} />}
+                        {tab === 'bills' && fin && (
+                            <PurchaseInvoices projectId={project.id}>
+                                {(list) => <ProjectLedger project={project} onOpen={openTab} only="purchases" here="bills" {...list} />}
+                            </PurchaseInvoices>
+                        )}
+                        {tab === 'tax' && fin && <TaxSummary projectId={project.id} />}
+                        {tab === 'pl' && fin && <ProjectProfitLoss project={project} />}
+                        {tab === 'products' && <Products projectId={project.id} />}
+                        {tab === 'team' && <ProjectTeam project={project} />}
+                        {tab === 'raci' && <RaciPage project={project} onOpen={openTab} />}
+                        {tab === 'attendance' && <ProjectAttendance project={project} onOpen={openTab} />}
+                        {tab === 'announcements' && <ProjectAnnouncements project={project} />}
+                        {tab === 'milestones' && <ProjectMilestones project={project} />}
+                        {tab === 'pm' && <PmOverview project={project} onOpen={openTab} />}
+                        {tab === 'wbs' && <WbsPage project={project} />}
+                        {tab === 'tasks' && <TasksPage projectId={project.id} embedded />}
+                        {tab === 'gantt' && <GanttPage project={project} />}
+                        {tab === 'clients' && <ClientDirectory project={project} onOpen={openTab} />}
+                        {tab === 'crm' && <CRM project={project} />}
+                        {tab === 'comms' && <ClientCommunication key={params.get('client') || 'all'} project={project} />}
+                        {tab === 'payments' && fin && <PaymentStatus project={project} />}
+                        {tab === 'vendors' && <VendorDirectory project={project} />}
+                        {tab === 'documents' && <ProjectFiles project={project} view={documentsViewOf(view)} onView={openView} />}
+                        {tab === 'templates' && <ProjectTemplates project={project} onOpen={openTab} />}
+                        {tab === 'activity' && <ProjectActivity project={project} />}
+                    </div>
                 </div>
             </div>
         </Page>

@@ -3,7 +3,9 @@ import { projectSectionPath, parseProjectPath, legacyProjectPath, billingKindOf,
 
 describe('project paths', () => {
     it('names a page after its place in the rail', () => {
-        expect(projectSectionPath('p1')).toBe('/projects/p1');
+        // A project opens on its Overview dashboard; there is no separate hub.
+        expect(projectSectionPath('p1')).toBe('/projects/p1/dashboard/overview');
+        expect(projectSectionPath('p1', 'home')).toBe('/projects/p1/dashboard/overview');
         expect(projectSectionPath('p1', 'billing', 'proforma')).toBe('/projects/p1/finance/billing/proforma');
         expect(projectSectionPath('p1', 'billing')).toBe('/projects/p1/finance/billing/quotations');
         expect(projectSectionPath('p1', 'raci')).toBe('/projects/p1/team-management/team-hierarchy');

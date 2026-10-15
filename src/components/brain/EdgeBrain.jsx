@@ -254,20 +254,20 @@ export default function EdgeBrain() {
     /* ── the lifecycle gates ──────────────────────────────────────────────── */
 
     if (!orgId) {
-        return <Page><Empty>Select an organisation to open its Company Brain.</Empty></Page>;
+        return <Gate><Empty>Select an organisation to open its Company Brain.</Empty></Gate>;
     }
 
     if (loading) {
-        return <Page><Loading>Checking your Company Brain…</Loading></Page>;
+        return <Gate><Loading>Checking your Company Brain…</Loading></Gate>;
     }
 
     if (error) {
         return (
-            <Page>
+            <Gate>
                 <Empty action={<Btn onClick={() => { setLoading(true); loadStatus(); }}>Try again</Btn>}>
                     {error}
                 </Empty>
-            </Page>
+            </Gate>
         );
     }
 
@@ -277,12 +277,12 @@ export default function EdgeBrain() {
 
     if (absent) {
         return (
-            <Page>
+            <Gate>
                 <BrainOnboarding
                     onBuild={build} building={busy}
                     error={actionError} canBuild={!!status?.can?.build}
                 />
-            </Page>
+            </Gate>
         );
     }
 
@@ -430,6 +430,22 @@ export default function EdgeBrain() {
                     }
                 }
             `}</style>
+        </Page>
+    );
+}
+
+/* The screens before the graph: no organisation, loading, an error, and the
+   first build. The shell leaves this page's scrolling to the page (it is a
+   flush page, for the canvas), so these scroll themselves: otherwise the
+   onboarding's Build button sits below the fold on a short window and cannot
+   be reached. */
+function Gate({ children }) {
+    return (
+        <Page fill>
+            <div className="edge-scroll brain-gate" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 22px' }}>
+                {children}
+            </div>
+            <style>{`@media (max-width: 640px) { .brain-gate { padding: 0 12px !important; } }`}</style>
         </Page>
     );
 }

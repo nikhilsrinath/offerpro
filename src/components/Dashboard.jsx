@@ -344,7 +344,7 @@ export default function Dashboard() {
               <Clock size={18} style={{ color: '#8b5cf6' }} />
               <h3>Recent Activity</h3>
             </div>
-            <button className="pro-link-btn" onClick={() => navigate('/records')}>
+            <button className="pro-link-btn" onClick={() => navigate('/documents/records')}>
               All Records <ArrowRight size={14} />
             </button>
           </div>

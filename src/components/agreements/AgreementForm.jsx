@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLeaveGuard } from '../../hooks/useLeaveGuard';
 import { Upload, CheckCircle, Eye, ChevronRight, Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { pdfService } from '../../services/pdfService';
 import { storageService } from '../../services/storageService';
@@ -8,6 +9,7 @@ import { useOrg } from '../../context/OrgContext';
 import { initialAgreement, partiesShown, TEMPLATE_KINDS } from '../../services/agreementModel';
 import { resolveFormImages, generateStampPng } from '../../utils/imageUtils';
 import A4Stage from '../shared/A4Stage';
+import { EditProvider, EditBar } from '../shared/Editable';
 import AgreementPreview from './AgreementPreview';
 import { useFormProject, useClientAsParty, linkRecordToProject, projectFormNote } from '../projects/projectScope';
 
@@ -43,13 +45,15 @@ function Switch({ label, on, onToggle }) {
  */
 export default function AgreementForm({ kind }) {
   const navigate = useNavigate();
+  // Leaving with the document half filled in asks first; saving it does not.
+  const leave = useLeaveGuard();
   const { user } = useAuth();
   const { activeOrg } = useOrg();
   const [formData, setFormData] = useState(() => initialAgreement(kind, activeOrg || {}));
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Opened from a project's Documents: the client is the second party, and
   // the saved agreement is put on the project.
-  const fromProject = useFormProject('record', '/records');
+  const fromProject = useFormProject('record', '/documents/records');
   useClientAsParty(fromProject.client, setFormData, { name: 'secondPartyName', address: 'secondPartyAddress' });
 
   // The org can finish loading after the form mounts. When it arrives, fill
@@ -68,6 +72,10 @@ export default function AgreementForm({ kind }) {
   }
 
   const custom = kind === 'custom';
+
+  // What is picked on the preview to move or resize ({ field, label, zoom }).
+  const [selected, setSelected] = useState(null);
+  const place = (field, value) => { setFormData((prev) => ({ ...prev, [field]: value })); leave.markDirty(); };
   const shown = partiesShown(formData);
 
   const set = (name, value) => setFormData((prev) => ({ ...prev, [name]: value }));
@@ -109,6 +117,7 @@ export default function AgreementForm({ kind }) {
       const linkError = await linkRecordToProject(fromProject.projectId, saved?.id);
       if (linkError) alert(`Saved, but ${linkError}. Link it from the project's Documents.`);
       await pdfService.generateAgreement(r);
+      leave.release();
       setTimeout(() => {
         setIsSubmitting(false);
         navigate(fromProject.returnTo);
@@ -126,10 +135,11 @@ export default function AgreementForm({ kind }) {
   const next = () => ++n;
 
   return (
+    <EditProvider selected={selected} onSelect={setSelected} onChange={place}>
     <div className="mou-split-layout">
 
       <div className="mou-form-pane">
-        <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
+        <form {...leave.formProps} onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
 
           {fromProject.project && (
             <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{projectFormNote(fromProject.project)}</p>
@@ -154,6 +164,23 @@ export default function AgreementForm({ kind }) {
               <div className="easy-field">
                 <label className="easy-lbl" htmlFor="agr-state">State</label>
                 <input id="agr-state" name="executionState" value={formData.executionState} onChange={handleChange} placeholder="e.g. Tamil Nadu" className="easy-inp" required={!custom} />
+              </div>
+              <div className="easy-field full">
+                <span className="easy-lbl">Logo</span>
+                <div className="easy-upload-wrap">
+                  <input aria-label="Logo" type="file" onChange={(e) => { if (e.target.files[0]) set('logoAdjust', null); handleFileUpload(e, 'companyLogo'); }} accept="image/*" />
+                  <div className={`easy-upload ${formData.companyLogo ? 'done' : ''}`}>
+                    {formData.companyLogo ? <><CheckCircle size={16} /> Logo added · choose another</> : <><Upload size={16} /> Upload logo</>}
+                  </div>
+                </div>
+                {formData.companyLogo && (
+                  <div className="cert-img-actions">
+                    <button type="button" className="cert-btn danger" onClick={() => { setFormData((prev) => ({ ...prev, companyLogo: null, logoAdjust: null })); setSelected(null); }} aria-label="Remove logo">
+                      <Trash2 size={13} aria-hidden="true" /> Remove
+                    </button>
+                    <span className="cert-hint">Tap it on the preview to move or resize it.</span>
+                  </div>
+                )}
               </div>
             </div>
           </Section>
@@ -375,11 +402,22 @@ export default function AgreementForm({ kind }) {
             <Eye size={14} /> Open PDF
           </button>
         </div>
-        <A4Stage>
-          <AgreementPreview formData={formData} />
-        </A4Stage>
+        <div className="edit-bar-row">
+          <EditBar
+            selected={selected} value={selected && formData[selected.field]}
+            onChange={(v) => place(selected.field, v)} onDone={() => setSelected(null)}
+            hint="Tap the logo, a signature or the stamp on the page to move or resize it"
+          />
+        </div>
+        {/* A tap anywhere on the paper but an item lets go of the selection. */}
+        <div className="edit-stage" onPointerDown={() => setSelected(null)}>
+          <A4Stage>
+            <AgreementPreview formData={formData} />
+          </A4Stage>
+        </div>
       </div>
 
     </div>
+    </EditProvider>
   );
 }

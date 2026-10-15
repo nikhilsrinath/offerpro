@@ -11,9 +11,9 @@ import InvoiceList from './InvoiceList';
    ══════════════════════════════════════════════════════════════════════════ */
 
 const KINDS = [
-    { id: 'quotation', label: 'Quotations', to: '/billing/quotations' },
-    { id: 'proforma', label: 'Proforma', to: '/billing/proforma' },
-    { id: 'invoice', label: 'Invoices', to: '/billing/invoices' },
+    { id: 'quotation', label: 'Quotations', to: '/finance/billing/quotations' },
+    { id: 'proforma', label: 'Proforma', to: '/finance/billing/proforma' },
+    { id: 'invoice', label: 'Invoices', to: '/finance/billing/invoices' },
 ];
 
 export default function CompanyBilling({ kind }) {

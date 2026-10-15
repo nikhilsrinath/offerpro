@@ -256,9 +256,9 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
     const openNotif = (n) => {
         documentStore.deleteNotification(n.id);
         setMenu(null);
-        if (n.type === 'quotation_accepted' || n.type === 'quotation_sent' || n.type === 'revision_requested') navigate('/billing/quotations');
-        else if (n.type === 'payment_submitted') navigate('/billing/invoices');
-        else navigate('/recruitment-tracker');
+        if (n.type === 'quotation_accepted' || n.type === 'quotation_sent' || n.type === 'revision_requested') navigate('/finance/billing/quotations');
+        else if (n.type === 'payment_submitted') navigate('/finance/billing/invoices');
+        else navigate('/company/recruitment-tracker');
     };
 
     const widgetProps = {

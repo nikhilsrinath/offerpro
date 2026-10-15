@@ -26,13 +26,13 @@ const STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2];
 const MIN = STEPS[0];
 const MAX = STEPS[STEPS.length - 1];
 
-export default function A4Stage({ children, className = '' }) {
+export default function A4Stage({ children, className = '', fit: startFit = 'width' }) {
   const scrollRef = useRef(null);
   const sheetRef = useRef(null);
   const [paper, setPaper] = useState({ w: 0, h: 0 });
   const [avail, setAvail] = useState({ w: 0, h: 0 });
   const [zoom, setZoom] = useState(null);      /* a number pins the scale */
-  const [mode, setMode] = useState('width');   /* which fit to follow otherwise */
+  const [mode, setMode] = useState(startFit);  /* which fit to follow otherwise */
 
   /* Measure the pane and the rendered document, and keep measuring. */
   useLayoutEffect(() => {
@@ -40,9 +40,13 @@ export default function A4Stage({ children, className = '' }) {
     const sheetEl = sheetRef.current;
     if (!scrollEl || !sheetEl) return undefined;
 
+    // The padding is read from the page, since an editor can give its stage more room.
     const readPane = () => setAvail((prev) => {
-      const w = Math.max(0, scrollEl.clientWidth - PAD_X * 2);
-      const h = Math.max(0, scrollEl.clientHeight - PAD_Y * 2);
+      const cs = getComputedStyle(scrollEl);
+      const padX = (parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)) || PAD_X * 2;
+      const padY = (parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)) || PAD_Y * 2;
+      const w = Math.max(0, scrollEl.clientWidth - padX);
+      const h = Math.max(0, scrollEl.clientHeight - padY);
       return prev.w === w && prev.h === h ? prev : { w, h };
     });
     const readPaper = () => setPaper((prev) => {

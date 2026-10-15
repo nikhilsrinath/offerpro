@@ -137,7 +137,7 @@ function RecurringInvoiceForm({ editItem }) {
   const openProjects = allProjects.filter((p) => isOpen(p) || p.id === editItem?.project_id);
   // Opened from a project's Billing page: the template starts on that project
   // and its client, and saving returns there.
-  const fromProject = useFormProject('recurring', '/billing/recurring');
+  const fromProject = useFormProject('recurring', '/finance/billing/recurring');
 
   const [formData, setFormData] = useState(() => {
     if (editItem) {
@@ -890,7 +890,7 @@ function RecurringInvoiceList({ projectId = null }) {
   const all = useSection('fin_recurring');
   const items = projectId ? all.filter((r) => r.project_id === projectId) : all;
   const formPath = (id) => (projectId ? projectBillingForm(projectId, 'recurring', id)
-    : id ? `/billing/recurring/${id}/edit` : '/billing/recurring/new');
+    : id ? `/finance/billing/recurring/${id}/edit` : '/finance/billing/recurring/new');
 
   // Saved and awaited: a refused write is said, not shown as done. The table
   // keeps only active or not, so a template is paused, resumed or deleted.

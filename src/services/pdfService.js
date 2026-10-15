@@ -564,7 +564,7 @@ export const pdfService = {
         useCORS: true,
         logging: false,
         allowTaint: true,
-        backgroundColor: '#fbfcf1',
+        backgroundColor: data?.paperColor || '#fbfcf1',
         scrollX: 0,
         scrollY: 0,
         windowWidth: w,
@@ -1229,7 +1229,11 @@ export const pdfService = {
         y += 4;
         let signed = false;
         if (s.signature) {
-          try { doc.addImage(s.signature, 'PNG', x, y, 38, 14); y += 17; signed = true; } catch { /* drawn as a line below */ }
+          try {
+            // Readjusted on the form (signatureAdjust), growing up from the name under it.
+            const box = adjustBox(s.signatureAdjust, { x, y, w: 38, h: 14 }, 0, 1);
+            doc.addImage(s.signature, 'PNG', box.x, box.y, box.w, box.h); y += 17; signed = true;
+          } catch { /* drawn as a line below */ }
         }
         if (!signed) { setN(10); doc.text('Signature: ___________________________', x, y); y += 7; }
         setN(10);

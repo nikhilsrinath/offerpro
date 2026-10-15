@@ -159,7 +159,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
             setTimeout(() => {
                 setSaving(false);
                 if (onSuccess) onSuccess();
-                else navigate('/employees');
+                else navigate('/company/employees');
             }, 900);
         } catch (err) {
             console.error(err);
@@ -169,7 +169,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
     };
 
     // Cancel returns to the page the form was opened from.
-    const leave = () => { if (onBack) onBack(); else goBack('/employees'); };
+    const leave = () => { if (onBack) onBack(); else goBack('/company/employees'); };
 
     if (done) {
         return (

@@ -2,23 +2,22 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
     IndianRupee, Wallet, Hourglass, TrendingUp, Receipt, FileSignature, FileText, Users, Gauge,
-    ListChecks, AlertTriangle, Briefcase, HeartPulse, CircleDashed, Star,
+    ListChecks, AlertTriangle, Briefcase,
 } from 'lucide-react';
 import { Page, Panel, Empty, Btn } from '../ui/edge';
 import { MONO } from '../ui/edgeUtils';
 import { useSection } from '../financial/financeHooks';
 import { balanceOf } from '../../services/financeAnalytics';
 import { categoryLabel } from '../../services/financeCategories';
-import { memberActive, formatHealthReasons } from '../../services/projectAnalytics';
-import { health as fetchHealth, isOwnerOrAdmin } from '../../services/projectService';
-import { needsAttention } from '../../services/importantTasks';
+import { memberActive } from '../../services/projectAnalytics';
+import { health as fetchHealth } from '../../services/projectService';
 import { projectDashboards } from './projectDashboardNav';
 import { fmtShort, fmtInr, fmtDay, invoiceStateOf, INVOICE_STATES } from '../overview/overviewModel';
 import { TipProvider, RankBars, SplitBar, EmptyNote } from '../overview/vizKit';
 import { useViz, useWinW } from '../overview/vizHooks';
 import { Card, Tile, Figure, FigureRow, SubLabel, More, TileRow, CardGrid, ListRow, DashStyle, Arrangeable, ArrangeBar } from '../overview/dashKit';
 import { useProjectBoardData } from './projectBoard';
-import { describeActivity } from './activityText';
+import ProjectOverviewWidgets from './projectOverviewWidgets';
 import ProjectActions from './ProjectActions';
 import PageTabs from './PageTabs';
 import { projectSectionPath } from './projectPaths';
@@ -26,8 +25,11 @@ import { projectSectionPath } from './projectPaths';
 /* ══════════════════════════════════════════════════════════════════════════
    One project's Dashboard: the company Dashboard's flow, for one project.
    It is its own set of pages, /projects/:id/dashboard/:view, switched between
-   by the tabs at the top (PageTabs). Each page is a row of figures and a few cards, built from the
-   same kit as the company dashboards, so they read the same way.
+   by the tabs at the top (PageTabs). Overview is where a project opens (the
+   bare /projects/:id lands here), and the one whose tiles and cards each
+   person chooses for themselves (projectOverviewWidgets). Every page is a
+   row of figures and a few cards, built from the same kit as the company
+   dashboards, so they read the same way.
    ══════════════════════════════════════════════════════════════════════════ */
 
 const RECORD_LABEL = { nda: 'NDA', mou: 'MoU', agreement: 'Agreement', offer: 'Offer letter', certificate: 'Certificate', role_change: 'Role change', termination: 'Termination' };
@@ -74,12 +76,16 @@ function DashboardPage({ project, page, navigate }) {
 
     const cols = winW < 900 ? 1 : winW < 1320 ? 2 : 3;
     const tileCols = (max) => Math.min(max, winW < 620 ? 1 : winW < 1100 ? 2 : max);
-    // A card's link opens that section of the project.
-    const open = (tab) => navigate(projectSectionPath(project.id, tab));
+    // A card's link opens that section of the project, with any filter it names.
+    const open = (tab, extra) => navigate(projectSectionPath(project.id, tab, null, extra));
     const ctx = { ...viz, board, open, navigate, cols, tileCols };
     const view = page.id;
     const pad = winW < 760 ? 12 : 24;
     const name = project.name || project.code || 'Project';
+    const tabs = (
+        <PageTabs label="Dashboard pages" current={view} pages={projectDashboards()}
+            onOpen={(id) => navigate(`/projects/${project.id}/dashboard/${id}`)} />
+    );
 
     return (
         <Page fill>
@@ -92,7 +98,7 @@ function DashboardPage({ project, page, navigate }) {
                                 fontSize: 13.5, fontWeight: 500, color: t.dim, marginBottom: 6,
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                             }}>
-                                <Link to={`/projects/${project.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>{name}</Link>
+                                <Link to={projectSectionPath(project.id)} style={{ color: 'inherit', textDecoration: 'none' }}>{name}</Link>
                             </div>
                             <h1 style={{
                                 margin: 0, fontSize: winW < 760 ? 24 : 32, fontWeight: 700, letterSpacing: '-0.045em', lineHeight: 1.05,
@@ -102,14 +108,13 @@ function DashboardPage({ project, page, navigate }) {
                         </div>
                         {/* One arrangement per view, shared by every project. */}
                         <Arrangeable key={view} pageId={`project/${view}`}>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <PageTabs label="Dashboard pages" current={view} pages={projectDashboards()}
-                                        onOpen={(id) => navigate(`/projects/${project.id}/dashboard/${id}`)} />
+                            {/* Overview lays out this row itself, with Add Widget beside Arrange. */}
+                            {view === 'overview' ? <ProjectOverviewWidgets tabs={tabs} ctx={ctx} /> : (
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                                    <div style={{ flex: 1, minWidth: 0 }}>{tabs}</div>
+                                    <div style={{ margin: '-1px 0 14px' }}><ArrangeBar /></div>
                                 </div>
-                                <div style={{ margin: '-1px 0 14px' }}><ArrangeBar /></div>
-                            </div>
-                            {view === 'overview' && <OverviewView {...ctx} />}
+                            )}
                             {view === 'finance' && <FinanceView {...ctx} />}
                             {view === 'sales' && <SalesView {...ctx} />}
                             {view === 'team' && <TeamView {...ctx} />}
@@ -138,106 +143,6 @@ function useProjectInvoices(project, today) {
 }
 
 const Loading = () => <EmptyNote>Loading…</EmptyNote>;
-
-/* ── overview ────────────────────────────────────────────────────────────── */
-
-function OverviewView({ board, open, navigate, t, status, cols, tileCols }) {
-    const { project, today, fin, f, tasks: tk } = board;
-    const employees = useSection('employees');
-    const personOf = useMemo(() => Object.fromEntries(employees.map((e) => [e.id, e.name])), [employees]);
-    // Tasks an owner or admin marked important (0077), until done, late first.
-    const attention = useMemo(() => needsAttention(tk.all, today), [tk.all, today]);
-    const pct = board.progress == null ? null : Math.round(board.progress * 100);
-    const h = board.health;
-    const reasons = h ? formatHealthReasons(h.reasons || []) : [];
-    const late = (m) => m.due_date && m.due_date < today;
-    const to = (view) => () => navigate(`/projects/${project.id}/dashboard/${view}`);
-    const { timePct } = board.burn;
-    const end = project.target_end_date;
-    const daysLeft = end ? Math.round((new Date(`${end}T00:00:00`) - new Date(`${today}T00:00:00`)) / 86400000) : null;
-
-    return (<>
-        <TileRow bento cols={tileCols(fin ? 6 : 4)}>
-            <Tile icon={CircleDashed} label="Progress" value={pct == null ? '-' : `${pct}%`}
-                foot={pct == null ? 'no plan yet' : `${board.milestones.length} milestones · ${tk.all.length} tasks`} />
-            <Tile icon={HeartPulse} label="Health" value={h && HEALTH[h.health] ? HEALTH[h.health] : '-'}
-                tone={h?.health === 'off_track' ? 'down' : null}
-                foot={reasons[0] || (h ? 'nothing flagged' : 'not checked yet')} />
-            {fin && (
-                <Tile icon={IndianRupee} label="Contract" value={f === undefined ? '…' : fmtShort(f?.contract_value ?? project.contract_value)}
-                    foot={f?.billed_pct == null ? 'nothing billed yet' : `${f.billed_pct}% billed`} onClick={to('finance')} />
-            )}
-            {fin && (
-                <Tile icon={TrendingUp} label="Net margin" value={f ? fmtShort(f.net_margin) : '-'} tone={n(f?.net_margin) < 0 ? 'down' : null}
-                    foot={f?.net_margin_pct == null ? 'nothing invoiced yet' : `${f.net_margin_pct}% of revenue`} onClick={to('finance')} />
-            )}
-            <Tile icon={Users} label="People" value={String(board.team.length)} foot="on the project today" onClick={to('team')} />
-            <Tile icon={ListChecks} label="Open tasks" value={String(tk.open.length)} tone={tk.overdue.length ? 'down' : null}
-                foot={tk.overdue.length ? `${tk.overdue.length} overdue` : 'none overdue'} onClick={to('team')} />
-        </TileRow>
-
-        <CardGrid cols={cols}>
-            <Card accent style={{ gridColumn: `span ${cols}` }} title="Needs attention"
-                note="tasks marked important, until they are done · late first"
-                right={<More label="Tasks" onClick={() => open('wbs')} />}>
-                {attention.length === 0 ? (
-                    <EmptyNote>{isOwnerOrAdmin()
-                        ? 'Nothing marked important. Star a task on Tasks (WBS) to list it here.'
-                        : 'Nothing marked important. An owner or admin chooses what goes here.'}</EmptyNote>
-                ) : attention.slice(0, 10).map(({ task, late: isLate, due }) => (
-                    <ListRow key={task.id}
-                        label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
-                            <Star size={12} fill="currentColor" aria-hidden="true" style={{ color: t.down, flexShrink: 0 }} />
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</span>
-                        </span>}
-                        sub={[personOf[task.assignedTo] || 'Unassigned', task.status === 'in-progress' ? 'in progress' : null].filter(Boolean).join(' · ')}
-                        value={due ? `${isLate ? 'late · ' : ''}${fmtDay(due).slice(0, 6)}` : 'no date'} tone={isLate ? 'down' : null}
-                        onClick={() => navigate(projectSectionPath(project.id, 'wbs', null, { task: task.id }))} />
-                ))}
-                {attention.length > 10 && (
-                    <div style={{ fontSize: 11.5, color: t.faint, marginTop: 8 }}>and {attention.length - 10} more</div>
-                )}
-            </Card>
-
-            <Card title="Schedule" note={end ? `due ${fmtDay(end)}` : 'no end date set'}>
-                <FigureRow>
-                    <Figure big label={daysLeft != null && daysLeft < 0 ? 'days over' : 'days left'}
-                        value={daysLeft == null ? '-' : String(Math.abs(daysLeft))} tone={daysLeft != null && daysLeft < 0 ? 'down' : null} />
-                    <Figure big label="time gone" value={timePct == null ? '-' : `${Math.round(timePct)}%`} />
-                    <Figure big label="done" value={pct == null ? '-' : `${pct}%`} />
-                </FigureRow>
-                {timePct != null && pct != null && (
-                    <div style={{ fontSize: 12, color: pct + 10 < timePct ? status.critical : t.faint }}>
-                        {pct + 10 < timePct ? 'The work is behind the calendar.' : 'The work is keeping up with the calendar.'}
-                    </div>
-                )}
-            </Card>
-
-            <Card title="Milestones" note="what is due next" right={<More label="Milestones" onClick={() => open('milestones')} />}>
-                {board.upcoming.length ? board.upcoming.slice(0, 5).map((m) => (
-                    <ListRow key={m.id} label={m.title} value={m.due_date ? (late(m) ? 'Late' : fmtDay(m.due_date)) : 'No date'}
-                        tone={late(m) ? 'down' : null} onClick={() => open('milestones')} />
-                )) : <EmptyNote>Nothing due.</EmptyNote>}
-            </Card>
-
-            <Card title="Recent activity" note="the latest changes" right={<More label="Activity" onClick={() => open('activity')} />}>
-                {board.recent === null ? <Loading /> : board.recent.length ? board.recent.slice(0, 6).map((a) => (
-                    <ListRow key={a.id} label={describeActivity(a)} value={fmtDay(a.created_at)} onClick={() => open('activity')} />
-                )) : <EmptyNote>Nothing yet.</EmptyNote>}
-            </Card>
-
-            {h && reasons.length > 0 && (
-                <Card title="Why it is flagged" note={HEALTH[h.health]}>
-                    {reasons.map((r) => <ListRow key={r} label={r} />)}
-                </Card>
-            )}
-
-            <Card title="Documents" note="linked to this project" right={<More label="Documents" onClick={to('documents')} />}>
-                <Figure big label="linked documents" value={String(board.docs)} />
-            </Card>
-        </CardGrid>
-    </>);
-}
 
 /* ── finance ─────────────────────────────────────────────────────────────── */
 
@@ -353,7 +258,7 @@ function SalesView({ board, open, navigate, t, status, cols, tileCols }) {
                     <ListRow key={d.id} label={`${d.doc_number || d.invoiceNumber || 'Invoice'}`}
                         sub={`${fmtDay(d.issue_date)} · ${stateLabel[d.state]}`}
                         value={fmtShort(d.grand_total)} tone={d.state === 'overdue' ? 'down' : null}
-                        onClick={() => navigate('/billing/invoices')} />
+                        onClick={() => navigate('/finance/billing/invoices')} />
                 )) : <EmptyNote>No invoices linked yet.</EmptyNote>}
                 {invoices.length > 0 && (
                     <div style={{ marginTop: 12 }}>
@@ -370,7 +275,7 @@ function SalesView({ board, open, navigate, t, status, cols, tileCols }) {
                     <ListRow key={d.id} label={`${FIN_LABEL[d.type]} · ${d.doc_number || d.invoiceNumber || ''}`}
                         sub={`${fmtDay(d.issue_date)} · ${(d.status || '').replace(/_/g, ' ')}`}
                         value={fmtShort(d.grand_total)}
-                        onClick={() => navigate(d.type === 'quotation' ? `/billing/quotations/${d.id}/edit` : '/billing/proforma')} />
+                        onClick={() => navigate(d.type === 'quotation' ? `/finance/billing/quotations/${d.id}/edit` : '/finance/billing/proforma')} />
                 )) : <EmptyNote>No quotation linked. Link the one this project came from on Documents.</EmptyNote>}
             </Card>
 
@@ -384,7 +289,7 @@ function SalesView({ board, open, navigate, t, status, cols, tileCols }) {
                     {sibling.slice(0, 4).map((p) => (
                         <ListRow key={p.id} label={p.name || p.code} sub={p.code} onClick={() => navigate(`/projects/${p.id}`)} />
                     ))}
-                    <div style={{ marginTop: 10 }}><More label="Client" to={`/client-directory?client=${client.id}`} /></div>
+                    <div style={{ marginTop: 10 }}><More label="Client" to={`/business/client-directory?client=${client.id}`} /></div>
                 </>) : <EmptyNote>This project has no client, so there is nothing to sell.</EmptyNote>}
             </Card>
         </CardGrid>
@@ -466,11 +371,11 @@ function DocumentsView({ board, open, navigate, cat, cols, tileCols }) {
         const linked = links.filter((l) => l.project_id === project.id).map((l) => {
             const r = l.record_id ? rec[l.record_id] : null;
             const d = l.financial_document_id ? fd[l.financial_document_id] : null;
-            if (r) return { id: l.id, group: 'agreements', type: RECORD_LABEL[r.type] || r.type, title: r.title || r.doc_number, date: r.issue_date, to: '/records' };
-            if (d) return { id: l.id, group: 'sales', type: FIN_LABEL[d.type] || 'Document', title: d.doc_number || d.invoiceNumber, date: d.issue_date, to: d.type === 'quotation' ? `/billing/quotations/${d.id}/edit` : '/billing/proforma' };
+            if (r) return { id: l.id, group: 'agreements', type: RECORD_LABEL[r.type] || r.type, title: r.title || r.doc_number, date: r.issue_date, to: '/documents/records' };
+            if (d) return { id: l.id, group: 'sales', type: FIN_LABEL[d.type] || 'Document', title: d.doc_number || d.invoiceNumber, date: d.issue_date, to: d.type === 'quotation' ? `/finance/billing/quotations/${d.id}/edit` : '/finance/billing/proforma' };
             return null;
         }).filter(Boolean);
-        const inv = fin ? invoices.map((d) => ({ id: `inv:${d.id}`, group: 'invoices', type: 'Invoice', title: d.doc_number || d.invoiceNumber, date: d.issue_date, to: '/billing/invoices' })) : [];
+        const inv = fin ? invoices.map((d) => ({ id: `inv:${d.id}`, group: 'invoices', type: 'Invoice', title: d.doc_number || d.invoiceNumber, date: d.issue_date, to: '/finance/billing/invoices' })) : [];
         return [...linked, ...inv].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
     }, [links, records, docs, invoices, project.id, fin]);
 

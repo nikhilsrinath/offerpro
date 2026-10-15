@@ -239,7 +239,7 @@ export function buildAgreement(data) {
       party: data.firstPartyName || BLANK,
       name: data.firstPartySignatoryName, designation: data.firstPartySignatoryDesignation,
       date: fmtDate(data.firstPartySignatoryDate || data.effectiveDate),
-      signature: data.firstPartySignature, stamp: true,
+      side: 'firstParty', signature: data.firstPartySignature, signatureAdjust: data.firstPartySignatureAdjust, stamp: true,
     });
   }
   if (shown.second) {
@@ -247,7 +247,7 @@ export function buildAgreement(data) {
       party: data.secondPartyName || BLANK,
       name: data.secondPartySignatoryName, designation: data.secondPartySignatoryDesignation,
       date: fmtDate(data.secondPartySignatoryDate || data.effectiveDate),
-      signature: data.secondPartySignature, stamp: false,
+      side: 'secondParty', signature: data.secondPartySignature, signatureAdjust: data.secondPartySignatureAdjust, stamp: false,
     });
   }
 

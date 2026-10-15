@@ -5,8 +5,9 @@ import { adjustOf, isAdjusted } from '../../utils/imageAdjust';
 /* Readjust a logo, signature or seal on a document: its size and where it
    sits. Folded away under the upload it belongs to; the live preview moves
    as the sliders do. `value` is { scale, x, y } (utils/imageAdjust), or
-   nothing for the template's own placement. */
-export default function ImageAdjust({ label, value, onChange }) {
+   nothing for the template's own placement. `maxScale` is how far Size goes:
+   a logo can be blown up well past the template's box. */
+export default function ImageAdjust({ label, value, onChange, maxScale = 250 }) {
   const [open, setOpen] = useState(false);
   const id = useId();
   const a = adjustOf(value);
@@ -29,7 +30,7 @@ export default function ImageAdjust({ label, value, onChange }) {
       </button>
       {open && (
         <div id={id} className="img-adjust-body">
-          {slider('Size', 'scale', 40, 250, 5, '%')}
+          {slider('Size', 'scale', 40, maxScale, maxScale > 250 ? 10 : 5, '%')}
           {slider('Left / Right', 'x', -60, 60, 1, ' mm')}
           {slider('Up / Down', 'y', -30, 30, 1, ' mm')}
           <button type="button" className="img-adjust-reset" disabled={!changed} onClick={() => onChange(null)}>

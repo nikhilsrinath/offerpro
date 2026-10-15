@@ -655,7 +655,7 @@ export default function Employees() {
             <Toolbar right={
                 <Row gap={8}>
                     <Btn onClick={() => setShowDepts((v) => !v)}>{showDepts ? 'Hide departments' : 'Departments'}</Btn>
-                    <Btn primary onClick={() => navigate('/employees/new')}>Add employee</Btn>
+                    <Btn primary onClick={() => navigate('/company/employees/new')}>Add employee</Btn>
                 </Row>
             }>
                 <Seg value={type} onChange={setType} options={[
@@ -710,7 +710,7 @@ export default function Employees() {
 
                     {list.length === 0 ? (
                         <Panel>
-                            <Empty action={employees.length === 0 ? <Btn primary onClick={() => navigate('/employees/new')}>Add the first employee</Btn> : undefined}>
+                            <Empty action={employees.length === 0 ? <Btn primary onClick={() => navigate('/company/employees/new')}>Add the first employee</Btn> : undefined}>
                                 {employees.length === 0
                                     ? 'Nobody is on the team yet. Employees added here appear on the org chart, in attendance and in leave.'
                                     : 'No one matches those filters.'}

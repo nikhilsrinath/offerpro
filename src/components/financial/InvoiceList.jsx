@@ -60,7 +60,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
   const scope = useProjectScope(projectId);
   // A form opened from a project's Billing stays inside the project.
   const formPath = (kind, docId) => (projectId ? projectBillingForm(projectId, kind, docId)
-    : docId ? `/billing/${kind}s/${docId}/edit` : `/new-${kind}`);
+    : docId ? `/finance/billing/${kind}s/${docId}/edit` : `/finance/billing/${kind === 'proforma' ? kind : kind + 's'}/new`);
   const [showPortalLink, setShowPortalLink] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(null);
@@ -484,7 +484,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
       'success');
       setConvertSource(null);
       loadDocuments();
-      navigate(projectId ? projectBillingPath(projectId, built.type) : built.type === 'proforma' ? '/billing/proforma' : '/billing/invoices');
+      navigate(projectId ? projectBillingPath(projectId, built.type) : built.type === 'proforma' ? '/finance/billing/proforma' : '/finance/billing/invoices');
     } catch (err) {
       const msg = /SOURCE_NOT_LOCKED/.test(err.message || '')
         ? 'The client has not accepted this version yet, so it cannot be converted.'

@@ -135,12 +135,28 @@ const BILLING_GROUP = {
   inside: ['quotations', 'proforma', 'invoices', 'recurring', 'new-invoice', 'new-quotation', 'new-proforma'],
 };
 
+// Like the dashboards (/dashboard/finance), every module page's path starts
+// with its module: /finance/general-ledger, /company/employees. The page ids
+// below stay unprefixed; pageOf() strips the module back off.
+const MODULE_PREFIX = { team: 'company', documents: 'documents', finance: 'finance', business: 'business', projects: 'projects' };
+const PREFIXES = new Set(['company', 'documents', 'finance', 'business']);
+// Projects' own pages; anything else under /projects/ is a project.
+const PROJECTS_PAGES = new Set(['kanban-chart', 'portfolio', 'tasks', 'timesheets']);
+
+// The path of a rail page: '/finance/general-ledger'. The projects list is
+// the module's root, /projects.
+function pagePath(mod, id) {
+  const prefix = MODULE_PREFIX[mod];
+  if (!prefix || id === prefix) return '/' + id;
+  return '/' + prefix + '/' + id;
+}
+
 function foldBilling(items, activePage) {
   const at = items.findIndex((i) => BILLING_GROUP.pages.includes(i.id));
   if (at < 0) return items;
   const item = {
     id: BILLING_GROUP.id, label: BILLING_GROUP.label, icon: BILLING_GROUP.icon,
-    to: '/billing/' + BILLING_GROUP.pages[0], active: BILLING_GROUP.inside.includes(activePage),
+    to: '/finance/billing/' + BILLING_GROUP.pages[0], active: BILLING_GROUP.inside.includes(activePage),
   };
   const rest = items.filter((i) => !BILLING_GROUP.pages.includes(i.id));
   rest.splice(at, 0, item);
@@ -163,10 +179,10 @@ const FLUSH_PAGES = new Set([
 ]);
 
 // Pages split into tabs by SectionTabs, which owns their scrolling: the page
-// and its tabs' paths (/employees/ex-employees). /employees/new is an
-// ordinary padded page.
-const TABBED_BASES = ['/offer-letters', '/certificates', '/employees', '/attendance'];
-const isTabbed = (path) => path !== '/employees/new'
+// and its tabs' paths (/company/employees/ex-employees). /company/employees/new
+// is an ordinary padded page.
+const TABBED_BASES = ['/documents/offer-letters', '/documents/certificates', '/company/employees', '/company/attendance'];
+const isTabbed = (path) => path !== '/company/employees/new'
   && TABBED_BASES.some((b) => path === b || path.startsWith(b + '/'));
 
 const MODULE_META = {
@@ -275,21 +291,21 @@ const PAGE_META = {
 /* One page, several ways of working: the single-document editor, its batch
    tool. */
 const OffersSection = () => (
-  <SectionTabs label="Offer letters" base="/offer-letters" tabs={[
+  <SectionTabs label="Offer letters" base="/documents/offer-letters" tabs={[
     { id: 'single', label: 'Single offer', flush: true, render: () => <OfferForm /> },
     { id: 'bulk', label: 'Bulk offers', note: 'Generate and send a batch from a CSV', render: () => <BulkOfferLetters /> },
   ]} />
 );
 
 const CertificatesSection = () => (
-  <SectionTabs label="Certificates" base="/certificates" tabs={[
-    { id: 'single', label: 'Single certificate', flush: true, render: () => <CertificateForm /> },
+  <SectionTabs label="Certificates" base="/documents/certificates" tabs={[
+    { id: 'single', label: 'Single certificate', flush: true, ownsBar: true, render: ({ switcher }) => <CertificateForm switcher={switcher} /> },
     { id: 'bulk', label: 'Bulk certificates', note: 'Issue a batch from a CSV', render: () => <BulkCertificates /> },
   ]} />
 );
 
 const EmployeesSection = () => (
-  <SectionTabs label="Employees" base="/employees" tabs={[
+  <SectionTabs label="Employees" base="/company/employees" tabs={[
     { id: 'registry', label: 'Registry', render: () => <Employees /> },
     { id: 'former', path: 'ex-employees', label: 'Ex-Employees', note: 'Everyone who has left the organisation', render: () => <ExEmployees /> },
     { id: 'bulk', path: 'bulk-import', label: 'Bulk import', note: 'Add team members from a CSV', render: () => <BulkTeamMembers /> },
@@ -297,20 +313,25 @@ const EmployeesSection = () => (
 );
 
 const AttendanceSection = () => (
-  <SectionTabs label="Attendance" base="/attendance" tabs={[
+  <SectionTabs label="Attendance" base="/company/attendance" tabs={[
     { id: 'sheet', label: 'Attendance', render: () => <AttendanceSheet /> },
     { id: 'leave', label: 'Leave', render: () => <LeaveRequests /> },
   ]} />
 );
 
-// The editor each Billing list opens: /billing/<kind>/new, /billing/quotations/:id/edit.
+// The editor each Billing list opens: /finance/billing/<kind>/new, /finance/billing/quotations/:id/edit.
 const BILLING_FORM = { invoices: 'new-invoice', quotations: 'new-quotation', proforma: 'new-proforma', recurring: 'recurring' };
 
 // The PAGE_META / MODULE_FILTER key a path belongs to.
 function pageOf(pathname) {
-  const page = pathname.substring(1).replace(/\/+$/, '');
+  let page = pathname.substring(1).replace(/\/+$/, '');
   if (page === '') return 'hub';
-  const parts = page.split('/');
+  let parts = page.split('/');
+  if (PREFIXES.has(parts[0]) && parts.length > 1) {
+    parts = parts.slice(1);
+    page = parts.join('/');
+  }
+  if (parts[0] === 'projects' && PROJECTS_PAGES.has(parts[1])) return parts[1];
   if (parts[0] === 'billing') {
     if (parts.length > 2) return BILLING_FORM[parts[1]] || 'quotations';
     return parts[1] || 'quotations';
@@ -328,9 +349,9 @@ function AppContent() {
   useTaskDeadlineMonitor();
 
   const activePage = pageOf(location.pathname);
-  // /billing/quotations/:docId/edit
+  // /finance/billing/quotations/:docId/edit
   const editingDocId = activePage === 'new-quotation' && location.pathname.endsWith('/edit')
-    ? location.pathname.split('/')[3] || null : null;
+    ? location.pathname.split('/')[4] || null : null;
 
   let activeModule = null;
   for (const [mod, pages] of Object.entries(MODULE_FILTER)) {
@@ -480,6 +501,7 @@ function AppContent() {
   const openProject = openProjectId && allProjects.find((p) => p.id === openProjectId);
   let moduleItems = activeModule
     ? NAV_ITEMS.filter((i) => i.id && MODULE_FILTER[activeModule]?.includes(i.id))
+      .map((i) => ({ ...i, to: pagePath(activeModule, i.id) }))
     : [];
   if (activeModule === 'finance') moduleItems = foldBilling(moduleItems, activePage);
   let moduleMeta = onProfile ? { label: 'Settings' } : MODULE_META[activeModule];
@@ -495,12 +517,12 @@ function AppContent() {
   // scrolls itself and carries the heading and footer (ProjectDetail).
   // A document form opened from a project's Billing page (?project=) is
   // still inside the project, so its arrow leads to the projects too.
-  const onBillingForm = /^\/billing\/[^/]+\/(new|[^/]+\/edit)$/.test(location.pathname);
+  const onBillingForm = /^\/finance\/billing\/[^/]+\/(new|[^/]+\/edit)$/.test(location.pathname);
   const formProjectId = onBillingForm ? new URLSearchParams(location.search).get('project') : null;
   const formProject = formProjectId && allProjects.find((p) => p.id === formProjectId);
   const back = openProject || formProject || activePage === 'new-project' ? PROJECTS_BACK : HUB_BACK;
   const flush = FLUSH_PAGES.has(activePage) || isTabbed(location.pathname)
-    || /^\/billing\/recurring\/(new|[^/]+\/edit)$/.test(location.pathname) || !!openProject;
+    || /^\/finance\/billing\/recurring\/(new|[^/]+\/edit)$/.test(location.pathname) || !!openProject;
 
   // Until the first build completes, or when there is no active org. Shaped
   // identically so the assistant never reads undefined.
@@ -547,58 +569,69 @@ function AppContent() {
             <Route path="edgebrain" element={<EdgeBrain />} />
             <Route path="profile" element={<CompanyProfile />} />
             {/* Every path is named after its place in the sidebar: the page,
-                then the tab inside it (/billing/proforma, /employees/ex-employees). */}
-            <Route path="offer-letters" element={<OffersSection />} />
-            <Route path="offer-letters/:tab" element={<OffersSection />} />
-            <Route path="certificates" element={<CertificatesSection />} />
-            <Route path="certificates/:tab" element={<CertificatesSection />} />
-            <Route path="templates" element={<TemplatesGallery />} />
-            <Route path="templates/nda" element={<NdaForm />} />
-            <Route path="templates/mou" element={<MoUForm />} />
-            <Route path="templates/partnership" element={<AgreementForm key="partnership" kind="partnership" />} />
-            <Route path="templates/custom" element={<AgreementForm key="custom" kind="custom" />} />
-            <Route path="finance-status" element={<FinanceStatus />} />
-            <Route path="general-ledger" element={<CashBook />} />
-            <Route path="billing" element={<Navigate to="/billing/quotations" replace />} />
-            <Route path="billing/quotations" element={<CompanyBilling kind="quotation" />} />
-            <Route path="billing/proforma" element={<CompanyBilling kind="proforma" />} />
-            <Route path="billing/invoices" element={<CompanyBilling kind="invoice" />} />
-            <Route path="billing/recurring" element={<RecurringInvoiceList />} />
-            <Route path="billing/quotations/new" element={<QuotationForm editDocId={null} />} />
-            <Route path="billing/quotations/:docId/edit" element={<QuotationFormWrapper />} />
-            <Route path="billing/proforma/new" element={<ProformaInvoiceForm />} />
-            <Route path="billing/invoices/new" element={<InvoiceForm />} />
-            <Route path="billing/recurring/new" element={<RecurringInvoiceForm />} />
-            <Route path="billing/recurring/:id/edit" element={<RecurringInvoiceFormWrapper />} />
-            <Route path="purchase-bills" element={<PurchaseInvoices />} />
-            <Route path="tax-summary" element={<TaxSummary />} />
-            <Route path="profit-loss" element={<ProfitLoss />} />
-            <Route path="crm" element={<CRM />} />
-            <Route path="client-directory" element={<Customers />} />
-            <Route path="vendor-directory" element={<Vendors />} />
-            <Route path="products-directory" element={<Products />} />
+                then the tab inside it, under its module (/finance/billing/proforma,
+                /company/employees/ex-employees), as the dashboards are. */}
+            {/* Documents */}
+            <Route path="documents/offer-letters" element={<OffersSection />} />
+            <Route path="documents/offer-letters/:tab" element={<OffersSection />} />
+            <Route path="documents/certificates" element={<CertificatesSection />} />
+            <Route path="documents/certificates/:tab" element={<CertificatesSection />} />
+            <Route path="documents/templates" element={<TemplatesGallery />} />
+            <Route path="documents/templates/nda" element={<NdaForm />} />
+            <Route path="documents/templates/mou" element={<MoUForm />} />
+            <Route path="documents/templates/partnership" element={<AgreementForm key="partnership" kind="partnership" />} />
+            <Route path="documents/templates/custom" element={<AgreementForm key="custom" kind="custom" />} />
+            <Route path="documents/records" element={<InternRecords />} />
+            <Route path="documents/document-library" element={<DocumentLibrary />} />
+            <Route path="documents/document-library/:register" element={<DocumentLibrary />} />
+            {/* Finance */}
+            <Route path="finance/finance-status" element={<FinanceStatus />} />
+            <Route path="finance/general-ledger" element={<CashBook />} />
+            <Route path="finance/billing" element={<Navigate to="/finance/billing/quotations" replace />} />
+            <Route path="finance/billing/quotations" element={<CompanyBilling kind="quotation" />} />
+            <Route path="finance/billing/proforma" element={<CompanyBilling kind="proforma" />} />
+            <Route path="finance/billing/invoices" element={<CompanyBilling kind="invoice" />} />
+            <Route path="finance/billing/recurring" element={<RecurringInvoiceList />} />
+            <Route path="finance/billing/quotations/new" element={<QuotationForm editDocId={null} />} />
+            <Route path="finance/billing/quotations/:docId/edit" element={<QuotationFormWrapper />} />
+            <Route path="finance/billing/proforma/new" element={<ProformaInvoiceForm />} />
+            <Route path="finance/billing/invoices/new" element={<InvoiceForm />} />
+            <Route path="finance/billing/recurring/new" element={<RecurringInvoiceForm />} />
+            <Route path="finance/billing/recurring/:id/edit" element={<RecurringInvoiceFormWrapper />} />
+            <Route path="finance/purchase-bills" element={<PurchaseInvoices />} />
+            <Route path="finance/tax-summary" element={<TaxSummary />} />
+            <Route path="finance/profit-loss" element={<ProfitLoss />} />
+            {/* Business */}
+            <Route path="business/crm" element={<CRM />} />
+            <Route path="business/client-directory" element={<Customers />} />
+            <Route path="business/vendor-directory" element={<Vendors />} />
+            <Route path="business/products-directory" element={<Products />} />
             <Route path="revenue" element={<BillingRevenue />} />
-            <Route path="records" element={<InternRecords />} />
-            <Route path="document-library" element={<DocumentLibrary />} />
-            <Route path="document-library/:register" element={<DocumentLibrary />} />
-            <Route path="employees" element={<EmployeesSection />} />
-            <Route path="employees/new" element={<EmployeeForm />} />
-            <Route path="employees/:tab" element={<EmployeesSection />} />
+            {/* Company */}
+            <Route path="company/employees" element={<EmployeesSection />} />
+            <Route path="company/employees/new" element={<EmployeeForm />} />
+            <Route path="company/employees/:tab" element={<EmployeesSection />} />
             <Route path="me" element={<EmployeePortal />} />
-            <Route path="attendance" element={<AttendanceSection />} />
-            <Route path="attendance/:tab" element={<AttendanceSection />} />
-            <Route path="announcements" element={<Announcements />} />
-            <Route path="company-hierarchy" element={<TeamHierarchy />} />
-            <Route path="recruitment-tracker" element={<OfferTracker onNavigate={routerNavigate} />} />
-            <Route path="tasks" element={<TasksPage />} />
+            <Route path="company/attendance" element={<AttendanceSection />} />
+            <Route path="company/attendance/:tab" element={<AttendanceSection />} />
+            <Route path="company/announcements" element={<Announcements />} />
+            <Route path="company/company-hierarchy" element={<TeamHierarchy />} />
+            <Route path="company/recruitment-tracker" element={<OfferTracker onNavigate={routerNavigate} />} />
+            {/* Projects */}
             <Route path="projects" element={<ProjectsPage />} />
             <Route path="projects/new" element={<ProjectForm />} />
+            <Route path="projects/tasks" element={<TasksPage />} />
+            <Route path="projects/kanban-chart" element={<KanbanChart />} />
+            <Route path="projects/portfolio" element={<Portfolio />} />
+            <Route path="projects/timesheets" element={<Timesheets />} />
             <Route path="projects/:projectId/dashboard" element={<ProjectDashboardPage />} />
             <Route path="projects/:projectId/dashboard/:view" element={<ProjectDashboardPage />} />
             <Route path="projects/:projectId/*" element={<ProjectDetail />} />
-            <Route path="kanban-chart" element={<KanbanChart />} />
-            <Route path="portfolio" element={<Portfolio />} />
-            <Route path="timesheets" element={<Timesheets />} />
+            {/* A module's own path lands on its first page. */}
+            <Route path="documents" element={<Navigate to="/documents/document-library" replace />} />
+            <Route path="finance" element={<Navigate to="/finance/finance-status" replace />} />
+            <Route path="business" element={<Navigate to="/business/client-directory" replace />} />
+            <Route path="company" element={<Navigate to="/company/company-hierarchy" replace />} />
             {/* Where pages used to live; bookmarks, notifications and older
                 links land on the page's current path. */}
             {Object.entries(MOVED).map(([from, to]) => (
@@ -623,35 +656,78 @@ function AppContent() {
 
 // Old path → current path (a function of the route's params where it has them).
 const MOVED = {
-  'cashbook': '/general-ledger',
-  'invoices': '/billing/invoices',
-  'quotations': '/billing/quotations',
-  'proforma': '/billing/proforma',
-  'recurring': '/billing/recurring',
-  'recurring/new': '/billing/recurring/new',
-  'recurring/edit/:id': ({ id }) => `/billing/recurring/${id}/edit`,
-  'new-invoice': '/billing/invoices/new',
-  'new-quotation': '/billing/quotations/new',
-  'new-quotation/:docId': ({ docId }) => `/billing/quotations/${docId}/edit`,
-  'new-proforma': '/billing/proforma/new',
-  'purchases': '/purchase-bills',
-  'vendors': '/vendor-directory',
-  'customers': '/client-directory',
-  'products': '/products-directory',
-  'team-hierarchy': '/company-hierarchy',
-  'offer-tracker': '/recruitment-tracker',
-  'library': '/document-library',
-  'offers': '/offer-letters',
-  'new-certificates': '/certificates',
-  'kanban': '/kanban-chart',
-  'ndas': '/templates/nda',
-  'mous': '/templates/mou',
-  'ex-employees': '/employees/ex-employees',
-  'leave': '/attendance/leave',
-  'bulk-offers': '/offer-letters/bulk',
-  'bulk-certificates': '/certificates/bulk',
-  'bulk-team': '/employees/bulk-import',
-  'bulk-history': '/records',
+  // Before every page sat under its module (/general-ledger → /finance/general-ledger).
+  'finance-status': '/finance/finance-status',
+  'general-ledger': '/finance/general-ledger',
+  'billing': '/finance/billing/quotations',
+  'billing/quotations': '/finance/billing/quotations',
+  'billing/proforma': '/finance/billing/proforma',
+  'billing/invoices': '/finance/billing/invoices',
+  'billing/recurring': '/finance/billing/recurring',
+  'billing/quotations/new': '/finance/billing/quotations/new',
+  'billing/quotations/:docId/edit': ({ docId }) => `/finance/billing/quotations/${docId}/edit`,
+  'billing/proforma/new': '/finance/billing/proforma/new',
+  'billing/invoices/new': '/finance/billing/invoices/new',
+  'billing/recurring/new': '/finance/billing/recurring/new',
+  'billing/recurring/:id/edit': ({ id }) => `/finance/billing/recurring/${id}/edit`,
+  'purchase-bills': '/finance/purchase-bills',
+  'tax-summary': '/finance/tax-summary',
+  'profit-loss': '/finance/profit-loss',
+  'crm': '/business/crm',
+  'client-directory': '/business/client-directory',
+  'vendor-directory': '/business/vendor-directory',
+  'products-directory': '/business/products-directory',
+  'company-hierarchy': '/company/company-hierarchy',
+  'employees': '/company/employees',
+  'employees/new': '/company/employees/new',
+  'employees/:tab': ({ tab }) => `/company/employees/${tab}`,
+  'attendance': '/company/attendance',
+  'attendance/:tab': ({ tab }) => `/company/attendance/${tab}`,
+  'announcements': '/company/announcements',
+  'recruitment-tracker': '/company/recruitment-tracker',
+  'document-library': '/documents/document-library',
+  'document-library/:register': ({ register }) => `/documents/document-library/${register}`,
+  'offer-letters': '/documents/offer-letters',
+  'offer-letters/:tab': ({ tab }) => `/documents/offer-letters/${tab}`,
+  'certificates': '/documents/certificates',
+  'certificates/:tab': ({ tab }) => `/documents/certificates/${tab}`,
+  'templates': '/documents/templates',
+  'templates/:kind': ({ kind }) => `/documents/templates/${kind}`,
+  'records': '/documents/records',
+  'kanban-chart': '/projects/kanban-chart',
+  'portfolio': '/projects/portfolio',
+  'tasks': '/projects/tasks',
+  'timesheets': '/projects/timesheets',
+  // Older names still.
+  'cashbook': '/finance/general-ledger',
+  'invoices': '/finance/billing/invoices',
+  'quotations': '/finance/billing/quotations',
+  'proforma': '/finance/billing/proforma',
+  'recurring': '/finance/billing/recurring',
+  'recurring/new': '/finance/billing/recurring/new',
+  'recurring/edit/:id': ({ id }) => `/finance/billing/recurring/${id}/edit`,
+  'new-invoice': '/finance/billing/invoices/new',
+  'new-quotation': '/finance/billing/quotations/new',
+  'new-quotation/:docId': ({ docId }) => `/finance/billing/quotations/${docId}/edit`,
+  'new-proforma': '/finance/billing/proforma/new',
+  'purchases': '/finance/purchase-bills',
+  'vendors': '/business/vendor-directory',
+  'customers': '/business/client-directory',
+  'products': '/business/products-directory',
+  'team-hierarchy': '/company/company-hierarchy',
+  'offer-tracker': '/company/recruitment-tracker',
+  'library': '/documents/document-library',
+  'offers': '/documents/offer-letters',
+  'new-certificates': '/documents/certificates',
+  'kanban': '/projects/kanban-chart',
+  'ndas': '/documents/templates/nda',
+  'mous': '/documents/templates/mou',
+  'ex-employees': '/company/employees/ex-employees',
+  'leave': '/company/attendance/leave',
+  'bulk-offers': '/documents/offer-letters/bulk',
+  'bulk-certificates': '/documents/certificates/bulk',
+  'bulk-team': '/company/employees/bulk-import',
+  'bulk-history': '/documents/records',
 };
 
 // A page that moved: on to where it is now, keeping the query (an older

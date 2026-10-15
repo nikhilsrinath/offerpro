@@ -25,7 +25,7 @@ const DOC_LABEL = {
     invoice: 'Invoice', quotation: 'Quotation', proforma: 'Proforma', offer: 'Offer letter', certificate: 'Certificate',
     nda: 'NDA', mou: 'MoU', agreement: 'Agreement', role_change: 'Role change', termination: 'Termination notice',
 };
-const DOC_PAGE = { invoice: '/billing/invoices', quotation: '/billing/quotations', proforma: '/billing/proforma' };
+const DOC_PAGE = { invoice: '/finance/billing/invoices', quotation: '/finance/billing/quotations', proforma: '/finance/billing/proforma' };
 
 const withQ = (path, q) => `${path}?q=${encodeURIComponent(q || '')}`;
 const low = (v) => String(v ?? '').toLowerCase();
@@ -58,37 +58,37 @@ function useIndex() {
             [p.code, clientName[p.client_id], ...(p.tags || [])], `/projects/${p.id}`));
         customers.forEach((c) => add('Clients', c.name || c.clientName,
             [c.contact_name || c.contactPerson, c.email].filter(Boolean).join(' · '),
-            [c.email, c.phone, c.gstin, c.contact_name, c.contactPerson, c.city], withQ('/client-directory', c.name || c.clientName)));
+            [c.email, c.phone, c.gstin, c.contact_name, c.contactPerson, c.city], withQ('/business/client-directory', c.name || c.clientName)));
         leads.forEach((l) => add('Leads', l.company_name || l.person_name,
             [l.person_name, l.stage].filter(Boolean).join(' · '),
-            [l.person_name, l.email, l.phone, l.notes], withQ('/crm', l.company_name || l.person_name)));
+            [l.person_name, l.email, l.phone, l.notes], withQ('/business/crm', l.company_name || l.person_name)));
         employees.forEach((e) => add('Employees', e.name || e.full_name,
             [e.role, e.department, e.employee_code].filter(Boolean).join(' · '),
-            [e.email, e.role, e.department, e.employee_code, e.phone], withQ('/employees', e.name || e.full_name)));
+            [e.email, e.role, e.department, e.employee_code, e.phone], withQ('/company/employees', e.name || e.full_name)));
         finDocs.forEach((d) => {
             const no = docNumber(d);
             const who = d.clientName || d.issued_to || d.client_name || '';
             add('Documents', `${DOC_LABEL[d.type] || 'Document'} ${no}`, [who, d.status].filter(Boolean).join(' · '),
-                [no, who, d.type, d.status, projectName[d.project_id]], withQ(DOC_PAGE[d.type] || '/billing/invoices', no));
+                [no, who, d.type, d.status, projectName[d.project_id]], withQ(DOC_PAGE[d.type] || '/finance/billing/invoices', no));
         });
         records.forEach((r) => {
             const no = r.doc_number || '';
             add('Documents', r.title || `${DOC_LABEL[r.type] || 'Document'} ${no}`,
                 [DOC_LABEL[r.type], no, r.issued_to].filter(Boolean).join(' · '),
-                [no, r.issued_to, r.recipient_email, DOC_LABEL[r.type], r.status], withQ('/records', r.issued_to || no));
+                [no, r.issued_to, r.recipient_email, DOC_LABEL[r.type], r.status], withQ('/documents/records', r.issued_to || no));
         });
         vendors.forEach((v) => add('Vendors', v.company_name,
             [v.contact_name, v.category].filter(Boolean).join(' · '),
-            [v.contact_name, v.email, v.gstin, v.category, v.phone], withQ('/vendor-directory', v.company_name)));
+            [v.contact_name, v.email, v.gstin, v.category, v.phone], withQ('/business/vendor-directory', v.company_name)));
         products.forEach((p) => add('Products', p.name,
             [p.sku, p.category].filter(Boolean).join(' · '),
-            [p.sku, p.category, p.hsn_sac], withQ('/products-directory', p.name)));
+            [p.sku, p.category, p.hsn_sac], withQ('/business/products-directory', p.name)));
         bills.forEach((b) => add('Purchase bills', `Bill ${b.bill_number || ''}`.trim(),
             [vendorName[b.vendor_id], b.status].filter(Boolean).join(' · '),
-            [b.bill_number, vendorName[b.vendor_id], b.description, b.category], withQ('/purchase-bills', b.bill_number)));
+            [b.bill_number, vendorName[b.vendor_id], b.description, b.category], withQ('/finance/purchase-bills', b.bill_number)));
         tasks.forEach((x) => add('Tasks', x.title,
             [projectName[x.projectId], x.status === 'in-progress' ? 'in progress' : x.status].filter(Boolean).join(' · '),
-            [projectName[x.projectId], x.description], `/tasks?task=${x.id}`));
+            [projectName[x.projectId], x.description], `/projects/tasks?task=${x.id}`));
         return out;
     }, [projects, customers, leads, employees, finDocs, records, vendors, products, bills, tasks]);
 }

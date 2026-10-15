@@ -9,22 +9,22 @@ import { storageService } from '../../services/storageService';
 // `count` picks this template's records out of the org's issued documents.
 const TEMPLATES = [
   {
-    to: '/templates/nda', icon: ShieldCheck, title: 'Non-Disclosure Agreement', tag: 'NDA',
+    to: '/documents/templates/nda', icon: ShieldCheck, title: 'Non-Disclosure Agreement', tag: 'NDA',
     desc: 'Confidentiality terms between a disclosing and a receiving party.',
     count: (r) => r.type === 'nda',
   },
   {
-    to: '/templates/mou', icon: Scale, title: 'Memorandum of Understanding', tag: 'MoU',
+    to: '/documents/templates/mou', icon: Scale, title: 'Memorandum of Understanding', tag: 'MoU',
     desc: 'A framework for collaboration: purpose, scope and each side’s role.',
     count: (r) => r.type === 'mou',
   },
   {
-    to: '/templates/partnership', icon: Handshake, title: 'Partnership Agreement', tag: 'Partnership',
+    to: '/documents/templates/partnership', icon: Handshake, title: 'Partnership Agreement', tag: 'Partnership',
     desc: 'Contributions, profit sharing, management and term between two partners.',
     count: (r) => r.type === 'agreement' && r.data?.templateKind === 'partnership',
   },
   {
-    to: '/templates/custom', icon: FilePen, title: 'Custom Template', tag: 'Custom',
+    to: '/documents/templates/custom', icon: FilePen, title: 'Custom Template', tag: 'Custom',
     desc: 'Your own title and clauses on the letterhead. Choose which parties and witnesses appear.',
     count: (r) => r.type === 'agreement' && r.data?.templateKind === 'custom',
   },

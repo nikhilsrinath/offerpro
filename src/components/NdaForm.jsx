@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLeaveGuard } from '../hooks/useLeaveGuard';
 import { Upload, CheckCircle, Eye, ChevronRight } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
@@ -13,6 +14,8 @@ import { useFormProject, useClientAsParty, linkRecordToProject, projectFormNote 
 
 export default function NdaForm() {
   const navigate = useNavigate();
+  // Leaving with the document half filled in asks first; saving it does not.
+  const leave = useLeaveGuard();
   const { user } = useAuth();
   const { activeOrg } = useOrg();
   const { currentPlan, planConfig, usage, canCreate, getRemainingCount, getUsagePercent, isAtLimit, refreshUsage } = usePlanStatus();
@@ -57,7 +60,7 @@ export default function NdaForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Opened from a project's Documents: the client is the receiving party,
   // and the saved NDA is put on the project.
-  const fromProject = useFormProject('record', '/records');
+  const fromProject = useFormProject('record', '/documents/records');
   useClientAsParty(fromProject.client, setFormData, { name: 'receivingPartyName', address: 'receivingPartyAddress' });
 
   const handleChange = (e) => {
@@ -91,6 +94,7 @@ export default function NdaForm() {
       if (linkError) alert(`NDA saved, but ${linkError}. Link it from the project's Documents.`);
       await pdfService.generateNda(resolved);
       await refreshUsage();
+      leave.release();
       setTimeout(() => {
         setIsSubmitting(false);
         navigate(fromProject.returnTo);
@@ -115,7 +119,7 @@ export default function NdaForm() {
 
       {/* LEFT: Form */}
       <div className="mou-form-pane">
-        <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
+        <form {...leave.formProps} onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
 
           {fromProject.project && (
             <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{projectFormNote(fromProject.project)}</p>

@@ -689,7 +689,7 @@ export default function CompanyProfile() {
             <PanelGrid min={320}>
               <Panel t={t} title="Team access">
                 <ActionRow t={t} title="Roles & permissions"
-                  action={<Btn onClick={() => navigate('/employees')}>Open Employees <ArrowRight size={13} /></Btn>} />
+                  action={<Btn onClick={() => navigate('/company/employees')}>Open Employees <ArrowRight size={13} /></Btn>} />
                 <div style={{ height: 1, background: t.lineSoft, margin: '16px 0' }} />
                 <SubHead t={t} icon={<KeyRound size={13} />}>Employee portal join code</SubHead>
                 <div className="cp-legacy"><PortalJoinCode orgId={activeOrg.id} /></div>

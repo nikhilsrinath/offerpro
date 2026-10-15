@@ -165,7 +165,7 @@ function UsageBody({ t, cat, status, cols, grid, tileCols, orgId, navigate, toda
                 {history === undefined ? <EmptyNote>Loading…</EmptyNote> : noHistory ? <EmptyNote>No call history yet</EmptyNote> : (
                     <RankBars rows={s.bySurface.map((x) => ({ key: x.id, name: x.label, value: x.value, color: surfaceColor[x.id] }))}
                         format={(v) => String(v)} empty="No AI use recorded yet"
-                        onSelect={(r) => navigate(r.key === 'brain' ? '/edgebrain' : r.key === 'library' ? '/document-library' : '/hub')} />
+                        onSelect={(r) => navigate(r.key === 'brain' ? '/edgebrain' : r.key === 'library' ? '/documents/document-library' : '/hub')} />
                 )}
             </Card>
 

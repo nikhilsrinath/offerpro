@@ -7,6 +7,7 @@ export const CERTIFICATE_TEMPLATES = [
 export const CERTIFICATE_DEFAULTS = {
   orientation: 'landscape',
   accentColor: '#cfe04a',
+  paperColor: '#fbfcf1',
   certificateTitle: 'Certificate of Participation',
   introLine: 'This award is proudly given to:',
 };
@@ -19,6 +20,26 @@ export const CERTIFICATE_ACCENTS = [
   { id: '#b9a8f5', label: 'Lilac' },
   { id: '#a6e3c0', label: 'Mint' },
 ];
+
+/* The sheet's background. A dark one turns the writing light (certificateInk). */
+export const CERTIFICATE_PAPERS = [
+  { id: '#fbfcf1', label: 'Cream' },
+  { id: '#ffffff', label: 'White' },
+  { id: '#f7efdf', label: 'Ivory' },
+  { id: '#fbeceb', label: 'Blush' },
+  { id: '#eaf1f8', label: 'Mist' },
+  { id: '#e9f2e6', label: 'Sage' },
+  { id: '#23262d', label: 'Charcoal' },
+];
+
+/** The writing on a sheet of this colour: dark ink on a light sheet, light on a dark one. */
+export function certificateInk(paper) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(paper || '').trim());
+  const n = m ? parseInt(m[1], 16) : 0xfbfcf1;
+  const lin = (c) => { const v = c / 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  const lum = 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return lum < 0.3 ? { ink: '#f4f4ee', grey: '#b9b9b0', dark: true } : { ink: '#1c1c1a', grey: '#85857c', dark: false };
+}
 
 export const CERTIFICATE_TITLES = [
   'Certificate of Participation',

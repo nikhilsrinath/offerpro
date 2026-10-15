@@ -55,20 +55,20 @@ function newDocumentOptions(projectId, { fin, can }) {
             id: 'sales', label: 'Sales & billing', note: 'Quote → proforma → invoice. Each starts with the client and the contract.',
             show: fin && can('financial_documents', 'create'),
             items: [
-                { id: 'quotation', tag: 'QUO', label: 'Quotation', desc: 'Price the work for the client. Starts from the contract value.', to: form('/billing/quotations/new') },
-                { id: 'proforma', tag: 'PRO', label: 'Proforma invoice', desc: 'Ask for an advance before billing. Repeats the latest quotation.', to: form('/billing/proforma/new') },
-                { id: 'invoice', tag: 'INV', label: 'Tax invoice', desc: 'Bill the client. Starts with what of the contract is not billed yet.', to: form('/billing/invoices/new') },
-                { id: 'recurring', tag: 'REC', label: 'Recurring invoice', desc: 'Retainers and maintenance, billed on a schedule.', to: form('/billing/recurring/new') },
+                { id: 'quotation', tag: 'QUO', label: 'Quotation', desc: 'Price the work for the client. Starts from the contract value.', to: form('/finance/billing/quotations/new') },
+                { id: 'proforma', tag: 'PRO', label: 'Proforma invoice', desc: 'Ask for an advance before billing. Repeats the latest quotation.', to: form('/finance/billing/proforma/new') },
+                { id: 'invoice', tag: 'INV', label: 'Tax invoice', desc: 'Bill the client. Starts with what of the contract is not billed yet.', to: form('/finance/billing/invoices/new') },
+                { id: 'recurring', tag: 'REC', label: 'Recurring invoice', desc: 'Retainers and maintenance, billed on a schedule.', to: form('/finance/billing/recurring/new') },
             ],
         },
         {
             id: 'agreements', label: 'Agreements', note: 'The client is filled in as the other party.',
             show: can('records', 'create'),
             items: [
-                { id: 'nda', tag: 'NDA', label: 'Non-disclosure agreement', desc: 'Confidentiality before details are shared.', to: form('/templates/nda') },
-                { id: 'mou', tag: 'MOU', label: 'Memorandum of understanding', desc: 'Purpose, scope and each side’s role.', to: form('/templates/mou') },
-                { id: 'partnership', tag: 'PTR', label: 'Partnership agreement', desc: 'Contributions, profit share and term.', to: form('/templates/partnership') },
-                { id: 'custom', tag: 'AGR', label: 'Custom agreement', desc: 'Your own title and clauses on the letterhead.', to: form('/templates/custom') },
+                { id: 'nda', tag: 'NDA', label: 'Non-disclosure agreement', desc: 'Confidentiality before details are shared.', to: form('/documents/templates/nda') },
+                { id: 'mou', tag: 'MOU', label: 'Memorandum of understanding', desc: 'Purpose, scope and each side’s role.', to: form('/documents/templates/mou') },
+                { id: 'partnership', tag: 'PTR', label: 'Partnership agreement', desc: 'Contributions, profit share and term.', to: form('/documents/templates/partnership') },
+                { id: 'custom', tag: 'AGR', label: 'Custom agreement', desc: 'Your own title and clauses on the letterhead.', to: form('/documents/templates/custom') },
             ],
         },
         {
@@ -131,7 +131,7 @@ function useBusinessDocuments(project, fin) {
                 rows.push(r ? {
                     key: r.id, kind: 'agreement', type: RECORD_LABEL[r.type] || words(r.type),
                     name: r.title || r.doc_number, party: r.data?.receivingPartyName || r.data?.secondPartyName || '',
-                    date: r.issue_date || r.created_at, amount: null, status: r.status, to: '/records', link: l,
+                    date: r.issue_date || r.created_at, amount: null, status: r.status, to: '/documents/records', link: l,
                 } : { key: l.id, kind: 'agreement', type: 'Record', hidden: true, link: l });
             } else if (l.financial_document_id && !docSeen.has(l.financial_document_id)) {
                 // A linked quotation or proforma this viewer's role cannot read.

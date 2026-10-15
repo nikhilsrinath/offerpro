@@ -8,7 +8,7 @@ import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { useT } from '../ui/edgeUtils';
 import { useSection, money, fmtDate } from '../financial/financeHooks';
 import {
-    periodOptions, periodBounds, netOfTax, balanceOf, isOverdue, daysOverdue, downloadCsv, todayIso,
+    periodOptions, periodBounds, netOfTax, balanceOf, isOverdue, daysOverdue, downloadCsv, todayIso, inRange,
 } from '../../services/financeAnalytics';
 import { categoryLabel } from '../../services/financeCategories';
 import { isClosed } from '../../services/projectAnalytics';
@@ -31,7 +31,7 @@ const SOURCE_LABEL = { invoice: 'Invoice', income_entry: 'Income', expense: 'Exp
 // Inside the project, a link opens the project's own page for that kind.
 const SOURCE_TAB = { invoice: 'billing', income_entry: 'cashbook', expense: 'cashbook', purchase_invoice: 'bills' };
 const SOURCE_PATH = {
-    invoice: () => '/billing/invoices', income_entry: () => '/general-ledger', expense: () => '/general-ledger', purchase_invoice: () => '/purchase-bills',
+    invoice: () => '/finance/billing/invoices', income_entry: () => '/finance/general-ledger', expense: () => '/finance/general-ledger', purchase_invoice: () => '/finance/purchase-bills',
 };
 
 function periodChoices() {
@@ -65,13 +65,13 @@ function useSources() {
             ...income.map((e) => ({
                 type: 'income_entry', id: e.id, date: e.received_on, net: netOfTax(e), gross: Number(e.amount) || 0,
                 party: clientName[e.client_id] || e.description || '', kind: categoryLabel(e.category),
-                number: e.reference || '', client_id: e.client_id,
+                number: e.reference || '', client_id: e.client_id, description: e.description || '',
                 settles: e.document_id ? `invoice:${e.document_id}` : null,
             })),
             ...expenses.map((e) => ({
                 type: 'expense', id: e.id, date: e.incurred_on, net: netOfTax(e), gross: Number(e.amount) || 0,
                 party: vendorName[e.vendor_id] || e.description || '', kind: categoryLabel(e.category),
-                number: e.reference || '', client_id: e.client_id,
+                number: e.reference || '', client_id: e.client_id, description: e.description || '',
                 settles: e.purchase_invoice_id ? `purchase_invoice:${e.purchase_invoice_id}` : null,
             })),
             // A voided bill is kept so its row can still be restored; it counts for nothing.
@@ -79,7 +79,7 @@ function useSources() {
                 type: 'purchase_invoice', id: b.id, date: b.bill_date, net: Number(b.subtotal) || 0,
                 gross: Number(b.total) || 0, void: b.status === 'void',
                 party: vendorName[b.vendor_id] || b.description || '', kind: b.category || 'Purchase',
-                number: b.bill_number || '', client_id: null,
+                number: b.bill_number || '', client_id: null, description: b.description || '',
             })),
         ];
     }, [docs, income, expenses, bills, vendors, clients]);
@@ -146,7 +146,7 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
             if (rows.length === 0) { toast('No approved, unbilled hours on this project.', 'info'); return; }
             const missing = rows.filter((r) => !(Number(r.bill_rate) > 0)).map((r) => r.full_name);
             if (missing.length) toast(`No bill rate for ${missing.join(', ')}. Set it on the Team tab; their lines start at ₹0.`, 'error', 6000);
-            navigate('/billing/invoices/new', {
+            navigate('/finance/billing/invoices/new', {
                 state: {
                     projectId: project.id, clientId: project.client_id,
                     lines: rows.map((r) => ({
@@ -262,8 +262,12 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
  * are debits. `filtered` (the page is narrowed to some bills) leaves out what
  * is not a bill or its payment. `here` is the tab it is shown
  * on, so a row that lives on this very page is not a link to it.
+ *
+ * `narrow` ({ view, search, from, to }, the General Ledger's filter bar) keeps
+ * only the credits ('in') or debits ('out') in the period that match the
+ * search; the running and closing balances are then those of what is shown.
  */
-export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, billMenu, paymentMenu, emptyText, readOnly, filtered }) {
+export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, billMenu, paymentMenu, emptyText, readOnly, filtered, narrow }) {
     const t = useT();
     const toast = useToast();
     const allocations = useSection('project_allocations');
@@ -271,7 +275,11 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
     const sources = useSources();
     // `readOnly` (the General Ledger's copy of the Company Ledger) has no actions column.
     const editable = !readOnly && canAllocate() && !isClosed(project);
-    const [page, setPage] = useState(1);
+    // The page belongs to the filters it was picked under: narrowing starts again at page one.
+    const narrowKey = narrow ? [narrow.view, narrow.search, narrow.from, narrow.to].join('|') : '';
+    const [pager, setPager] = useState({ key: narrowKey, page: 1 });
+    const page = pager.key === narrowKey ? pager.page : 1;
+    const setPage = (n) => setPager({ key: narrowKey, page: n });
     // On Purchase Bills the ledger is the page's list: `bills` are the ones its
     // search and filters kept, and `billMenu` gives a bill row its actions.
     const billById = useMemo(() => (bills ? Object.fromEntries(bills.map((b) => [b.id, b])) : null), [bills]);
@@ -324,14 +332,34 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
             .reverse();
     }, [allocations, sources, project.id, only, billById, filtered]);
 
+    // What the filter bar keeps, with the balance carried again over just those rows.
+    const nView = narrow?.view || 'all';
+    const nSearch = (narrow?.search || '').trim().toLowerCase();
+    const nFrom = narrow?.from || null;
+    const nTo = narrow?.to || null;
+    const shown = useMemo(() => {
+        if (nView === 'all' && !nSearch && !nFrom && !nTo) return rows;
+        let balance = 0;
+        return rows.slice().reverse()
+            .filter((r) => (!nFrom && !nTo) || inRange(r.s?.date, nFrom, nTo))
+            .filter((r) => nView === 'all' || r.credit === (nView === 'in'))
+            .filter((r) => !nSearch || [r.s?.party, r.s?.description, r.s?.number, r.s?.kind, r.pays?.number, SOURCE_LABEL[r.a.source_type]]
+                .some((v) => String(v || '').toLowerCase().includes(nSearch)))
+            .map((r) => {
+                if (!r.settles) balance += r.credit ? r.value : -r.value;
+                return { ...r, balance };
+            })
+            .reverse();
+    }, [rows, nView, nSearch, nFrom, nTo]);
+
     // The closing balance, the way a ledger is ruled off: each side's total,
     // the balancing figure under the lighter side, and the two sides equal.
     const closing = useMemo(() => {
-        const counted = rows.filter((r) => !r.settles);
+        const counted = shown.filter((r) => !r.settles);
         const debit = counted.filter((r) => !r.credit).reduce((n, r) => n + r.value, 0);
         const credit = counted.filter((r) => r.credit).reduce((n, r) => n + r.value, 0);
         return { debit, credit, balance: credit - debit, total: Math.max(debit, credit) };
-    }, [rows]);
+    }, [shown]);
 
     const remove = async (a) => {
         try { await unallocate(a.id); toast('Link removed', 'success'); }
@@ -344,15 +372,15 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
 
     const exportCsv = () => downloadCsv(
         `${only === 'purchases' ? 'company-ledger' : 'project-ledger'}-${project.code || project.name || 'project'}.csv`,
-        ['Date', 'Particular / Company Name', 'Type', 'Invoice No', 'Debit', 'Credit', 'Balance', 'Note'],
+        ['Date', 'Particular / Company Name', 'Type', 'Invoice No', 'Credit', 'Debit', 'Balance', 'Note'],
         [
-            ...rows.map((r) => [
+            ...shown.map((r) => [
                 r.s?.date || '', nameOf(r), kindOf(r), r.s?.number || '',
-                r.credit ? '' : r.value.toFixed(2), r.credit ? r.value.toFixed(2) : '',
+                r.credit ? r.value.toFixed(2) : '', r.credit ? '' : r.value.toFixed(2),
                 `${Math.abs(r.balance).toFixed(2)} ${r.balance < 0 ? 'Dr' : 'Cr'}`,
                 r.settles ? 'Receipt against a linked invoice, not counted' : r.pays ? `Paid against bill ${r.pays.number}` : '',
             ]),
-            ['', 'Closing Balance', '', '', closing.debit.toFixed(2), closing.credit.toFixed(2),
+            ['', 'Closing Balance', '', '', closing.credit.toFixed(2), closing.debit.toFixed(2),
                 `${Math.abs(closing.balance).toFixed(2)} ${closing.balance < 0 ? 'Dr' : 'Cr'}`, ''],
         ],
     );
@@ -373,9 +401,13 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
         );
     }
 
-    const pageCount = Math.ceil(rows.length / LEDGER_PAGE);
+    if (shown.length === 0) {
+        return <Panel><Empty>Nothing in this period or filter.</Empty></Panel>;
+    }
+
+    const pageCount = Math.ceil(shown.length / LEDGER_PAGE);
     const at = Math.min(page, pageCount);
-    const pageRows = rows.slice((at - 1) * LEDGER_PAGE, at * LEDGER_PAGE);
+    const pageRows = shown.slice((at - 1) * LEDGER_PAGE, at * LEDGER_PAGE);
     const strong = { fontWeight: 600, fontVariantNumeric: 'tabular-nums' };
     const stack = { display: 'grid', gap: 4, justifyItems: 'end', fontVariantNumeric: 'tabular-nums' };
     const ruled = { ...strong, borderTop: '1px solid ' + t.lineStrong, borderBottom: '3px double ' + t.lineStrong, padding: '3px 0 2px' };
@@ -385,7 +417,7 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
             <Table actions={<Btn size="sm" onClick={exportCsv}><Download size={14} aria-hidden="true" /> Export CSV</Btn>} id={only === 'purchases' ? 'project-purchase-ledger' : 'project-ledger'} cols={[
                 { key: 'd', label: 'Date', width: 110 }, { key: 'p', label: 'Particular / Company Name', always: true },
                 { key: 't', label: 'Type' }, { key: 'n', label: 'Invoice No' },
-                { key: 'dr', label: 'Debit', align: 'right' }, { key: 'cr', label: 'Credit', align: 'right' },
+                { key: 'cr', label: 'Credit', align: 'right' }, { key: 'dr', label: 'Debit', align: 'right' },
                 { key: 'b', label: 'Balance', align: 'right' },
                 ...(readOnly ? [] : [{ key: 'x', label: '', align: 'right', always: true }]),
             ]}>
@@ -430,8 +462,8 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
                                     </Td>
                                     {show('t') && <Td muted>{kindOf(r)}</Td>}
                                     {show('n') && <Td muted nowrap>{s?.number || '-'}</Td>}
-                                    {show('dr') && <Td align="right" nowrap>{amount(r, !r.credit)}</Td>}
                                     {show('cr') && <Td align="right" nowrap>{amount(r, r.credit)}</Td>}
+                                    {show('dr') && <Td align="right" nowrap>{amount(r, !r.credit)}</Td>}
                                     {show('b') && (
                                         <Td align="right" nowrap>
                                             <span style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{side(r.balance)}</span>
@@ -451,20 +483,20 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
                             <Td><strong style={{ fontWeight: 600 }}>Closing Balance</strong></Td>
                             {show('t') && <Td />}
                             {show('n') && <Td />}
-                            {show('dr') && (
-                                <Td align="right" nowrap>
-                                    <span style={stack}>
-                                        <span>{money(closing.debit, 2)}</span>
-                                        {closing.balance > 0 && <span>{money(closing.balance, 2)}</span>}
-                                        <span style={ruled}>{money(closing.total, 2)}</span>
-                                    </span>
-                                </Td>
-                            )}
                             {show('cr') && (
                                 <Td align="right" nowrap>
                                     <span style={stack}>
                                         <span>{money(closing.credit, 2)}</span>
                                         {closing.balance < 0 && <span>{money(-closing.balance, 2)}</span>}
+                                        <span style={ruled}>{money(closing.total, 2)}</span>
+                                    </span>
+                                </Td>
+                            )}
+                            {show('dr') && (
+                                <Td align="right" nowrap>
+                                    <span style={stack}>
+                                        <span>{money(closing.debit, 2)}</span>
+                                        {closing.balance > 0 && <span>{money(closing.balance, 2)}</span>}
                                         <span style={ruled}>{money(closing.total, 2)}</span>
                                     </span>
                                 </Td>
@@ -479,7 +511,7 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
                 <nav aria-label="Ledger pages"
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
                     <span style={{ fontSize: 12.5, color: t.faint }} aria-live="polite">
-                        Showing {(at - 1) * LEDGER_PAGE + 1}–{Math.min(at * LEDGER_PAGE, rows.length)} of {rows.length} entries
+                        Showing {(at - 1) * LEDGER_PAGE + 1}–{Math.min(at * LEDGER_PAGE, shown.length)} of {shown.length} entries
                     </span>
                     <Row gap={4}>
                         <Btn size="sm" onClick={() => setPage(at - 1)} disabled={at === 1}>

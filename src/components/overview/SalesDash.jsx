@@ -87,7 +87,7 @@ function SalesBody({ model, open, navigate, t, cat, ramp, status, cols, tileCols
                 onClick={() => open({ kind: 'metric', id: 'pipeline' })} />
             <Tile icon={Repeat} label="Annual recurring revenue" value={fmtShort(recur.value)} exact={fmtInr(recur.value)}
                 foot={recur.count ? `${recur.count} active recurring invoice${recur.count === 1 ? '' : 's'} · ${recur.clients} client${recur.clients === 1 ? '' : 's'} · today` : 'no active recurring invoices'}
-                color={cat[1]} onClick={() => navigate('/billing/recurring')} />
+                color={cat[1]} onClick={() => navigate('/finance/billing/recurring')} />
             <Tile icon={Users} label="Billed clients" value={String(activeClients)} exact={`${activeClients} clients`}
                 foot={model.customers[0] ? `top: ${model.customers[0].name}` : 'no invoices in period'}
                 onClick={() => open({ kind: 'metric', id: 'invoiced' })} />
@@ -113,7 +113,7 @@ function SalesBody({ model, open, navigate, t, cat, ramp, status, cols, tileCols
                 </div>
             </Card>
 
-            <Card title="Biggest open leads" note="not yet won or lost · today" right={<More label="CRM" to="/crm" />}>
+            <Card title="Biggest open leads" note="not yet won or lost · today" right={<More label="CRM" to="/business/crm" />}>
                 {openLeads.length === 0 ? <EmptyNote>No open leads</EmptyNote> : openLeads.slice(0, 7).map((l) => (
                     <ListRow key={l.id} label={l.company_name || l.name || 'Unnamed lead'}
                         sub={[l.person_name, l.stage === 'contacted' ? 'contacted' : 'not contacted yet'].filter(Boolean).join(' · ')}

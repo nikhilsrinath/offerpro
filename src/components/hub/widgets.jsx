@@ -404,7 +404,7 @@ function dueText(r) {
 function Receivables({ d, nav, size }) {
     const m = d.money;
     if (!m.open.length) {
-        return <Empty action={<LinkBtn onClick={() => nav('/billing/invoices')}>Invoices</LinkBtn>}>All settled.</Empty>;
+        return <Empty action={<LinkBtn onClick={() => nav('/finance/billing/invoices')}>Invoices</LinkBtn>}>All settled.</Empty>;
     }
     const overdue = m.overdue.length > 0 && <b className="down">{inrShort(m.overdueValue)} late</b>;
     const stat = (
@@ -449,7 +449,7 @@ function Receivables({ d, nav, size }) {
             {list}
             <div className="w-foot">
                 <span className="w-note">{m.open.length > rows.length ? `${m.open.length - rows.length} more` : `${m.open.length} open`}</span>
-                <LinkBtn onClick={() => nav('/billing/invoices')}>Invoices</LinkBtn>
+                <LinkBtn onClick={() => nav('/finance/billing/invoices')}>Invoices</LinkBtn>
             </div>
         </>
     );
@@ -725,7 +725,7 @@ const countShare = (n, of) => `${n} · ${of ? Math.round((n / of) * 100) : 0}%`;
 function Team({ d, nav, size }) {
     const tm = d.team;
     if (!tm.headcount) {
-        return <Empty action={<LinkBtn onClick={() => nav('/employees')}>Add people</LinkBtn>}>No one yet.</Empty>;
+        return <Empty action={<LinkBtn onClick={() => nav('/company/employees')}>Add people</LinkBtn>}>No one yet.</Empty>;
     }
     const depts = `${tm.departments} dept${tm.departments === 1 ? '' : 's'}`;
     const joined = tm.joined > 0 && <><b className="up">+{tm.joined}</b> joined this month</>;
@@ -759,11 +759,11 @@ function Team({ d, nav, size }) {
 function PeopleByLocation({ d, nav, size }) {
     const tm = d.team;
     if (!tm.headcount) {
-        return <Empty action={<LinkBtn onClick={() => nav('/employees')}>Add people</LinkBtn>}>No one yet.</Empty>;
+        return <Empty action={<LinkBtn onClick={() => nav('/company/employees')}>Add people</LinkBtn>}>No one yet.</Empty>;
     }
     const places = tm.byLocation.filter(([k]) => k !== 'Not set');
     if (!places.length) {
-        return <Empty action={<LinkBtn onClick={() => nav('/employees')}>Employees</LinkBtn>}>No work locations set yet.</Empty>;
+        return <Empty action={<LinkBtn onClick={() => nav('/company/employees')}>Employees</LinkBtn>}>No work locations set yet.</Empty>;
     }
     const unset = tm.headcount - places.reduce((a, [, n]) => a + n, 0);
     const stat = (
@@ -783,13 +783,13 @@ function PeopleByLocation({ d, nav, size }) {
             ))}
         </div>
     );
-    return size === 'md' ? <Duo stat={stat}>{bars}</Duo> : <>{stat}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/employees')}>Employees</LinkBtn></div></>;
+    return size === 'md' ? <Duo stat={stat}>{bars}</Duo> : <>{stat}{bars}<div className="w-foot"><LinkBtn onClick={() => nav('/company/employees')}>Employees</LinkBtn></div></>;
 }
 
 function Tasks({ d, nav, size }) {
     const tk = d.team.tasks;
     if (!tk.total) {
-        return <Empty action={<LinkBtn onClick={() => nav('/tasks')}>Task board</LinkBtn>}>No tasks yet.</Empty>;
+        return <Empty action={<LinkBtn onClick={() => nav('/projects/tasks')}>Task board</LinkBtn>}>No tasks yet.</Empty>;
     }
     const stat = (
         <>
@@ -812,12 +812,12 @@ function Tasks({ d, nav, size }) {
         </div>
     ) : <div className="w-cap">Nothing scheduled</div>;
     if (size === 'md') return <Duo stat={stat}>{list}</Duo>;
-    return <>{stat}{list}<div className="w-foot"><span className="w-note">{tk.done} done</span><LinkBtn onClick={() => nav('/tasks')}>Task board</LinkBtn></div></>;
+    return <>{stat}{list}<div className="w-foot"><span className="w-note">{tk.done} done</span><LinkBtn onClick={() => nav('/projects/tasks')}>Task board</LinkBtn></div></>;
 }
 
 function Pipeline({ d, nav, size }) {
     const p = d.pipeline;
-    if (!p.total) return <Empty action={<LinkBtn onClick={() => nav('/crm')}>Open CRM</LinkBtn>}>No leads yet.</Empty>;
+    if (!p.total) return <Empty action={<LinkBtn onClick={() => nav('/business/crm')}>Open CRM</LinkBtn>}>No leads yet.</Empty>;
     const max = Math.max(1, ...p.stages.map((s) => s.count));
     // Average expenses per lead: sales & marketing spend over every lead on the
     // board (salesMetrics), net of GST.
@@ -853,7 +853,7 @@ function Pipeline({ d, nav, size }) {
 function Arr({ d, nav, size }) {
     const a = d.sales.arr;
     if (!a.count) {
-        return <Empty action={<LinkBtn onClick={() => nav('/billing/recurring')}>Recurring</LinkBtn>}>No active recurring invoices.</Empty>;
+        return <Empty action={<LinkBtn onClick={() => nav('/finance/billing/recurring')}>Recurring</LinkBtn>}>No active recurring invoices.</Empty>;
     }
     const stat = (
         <>
@@ -869,7 +869,7 @@ function Arr({ d, nav, size }) {
             <div>Clients<b>{a.clients}</b></div>
         </div>
     );
-    return <Duo stat={<>{stat}<div className="w-bottom"><LinkBtn onClick={() => nav('/billing/recurring')}>Recurring</LinkBtn></div></>}>{kv}</Duo>;
+    return <Duo stat={<>{stat}<div className="w-bottom"><LinkBtn onClick={() => nav('/finance/billing/recurring')}>Recurring</LinkBtn></div></>}>{kv}</Duo>;
 }
 
 function AcquisitionSpend({ d, nav, size, period, setPeriod }) {
@@ -1004,10 +1004,10 @@ function Activity({ d, nav, size }) {
     const unread = all.filter((n) => !n.read).length;
     if (!all.length) return <Empty>Nothing new.</Empty>;
     const go = (n) => nav(
-        n.type === 'payment_submitted' ? '/billing/invoices'
-            : n.type === 'advance_submitted' || n.type === 'order_confirmed' ? '/billing/proforma'
-            : String(n.type || '').startsWith('quotation') || n.type === 'revision_requested' ? '/billing/quotations'
-                : '/recruitment-tracker',
+        n.type === 'payment_submitted' ? '/finance/billing/invoices'
+            : n.type === 'advance_submitted' || n.type === 'order_confirmed' ? '/finance/billing/proforma'
+            : String(n.type || '').startsWith('quotation') || n.type === 'revision_requested' ? '/finance/billing/quotations'
+                : '/company/recruitment-tracker',
     );
     if (size === 'sm') {
         return (
@@ -1048,7 +1048,7 @@ function Payables({ d, nav, size }) {
                 <div><i style={{ background: 'var(--chart-a)' }} />Owed to you<b>{inrShort(m.receivable)}</b></div>
                 <div><i style={{ background: 'var(--chart-b)' }} />You owe<b>{inrShort(m.payable)}</b></div>
             </div>
-            <LinkBtn onClick={() => nav('/purchase-bills')}>Bills</LinkBtn>
+            <LinkBtn onClick={() => nav('/finance/purchase-bills')}>Bills</LinkBtn>
         </Duo>
     );
 }

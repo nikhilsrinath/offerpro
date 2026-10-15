@@ -253,15 +253,18 @@ export default function CashBook({ projectId = null, children }) {
   const periodText = range.from ? `${fmtDate(range.from)} – ${fmtDate(range.to)}` : preset === 'custom' ? 'Custom range' : 'All time';
   const record = (direction) => setEditing(fresh(direction));
   // A project's page lists its money in its own ledger (`children`) instead
-  // of the entries table, and opens an entry from there.
+  // of the entries table, and opens an entry from there. The search, Credit /
+  // Debit and period above it narrow that ledger too (`narrow`).
   const ledger = typeof children === 'function'
     ? children({
       onEdit: (direction, id) => {
         const r = allRows.find((x) => x.direction === direction && x.id === id);
         if (r) setEditing({ ...r, ...(r._full || {}), _share: undefined, _full: undefined, date: r.day });
       },
+      narrow: { view, search, from: range.from, to: range.to },
     })
     : children;
+  const narrowable = !children || typeof children === 'function';
 
   return (
     <Page>
@@ -301,9 +304,9 @@ export default function CashBook({ projectId = null, children }) {
         </div>
       </div>
 
-      {ledger || (<>
-      {/* ── narrow the list ── */}
-      <Toolbar right={<Btn onClick={exportCsv} disabled={filtered.length === 0}><Download size={15} aria-hidden="true" /> Export CSV</Btn>}>
+      {/* ── narrow the list (on a project's page, its ledger: that has its own Export CSV) ── */}
+      {narrowable && (
+      <Toolbar right={ledger ? undefined : <Btn onClick={exportCsv} disabled={filtered.length === 0}><Download size={15} aria-hidden="true" /> Export CSV</Btn>}>
         <Search value={search} onChange={setSearch} placeholder="Search description, party, reference…" width={280} />
         <Seg value={view} onChange={setView} label="Direction" options={VIEWS} />
         <Seg value={preset} onChange={setPreset} label="Period" options={PRESETS} />
@@ -314,9 +317,11 @@ export default function CashBook({ projectId = null, children }) {
             <Input type="date" aria-label="To date" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
           </Row>
         )}
-        <Dropdown label="Reason" value={groupFilter} onChange={setGroupFilter}
-          options={[{ id: 'all', label: 'All' }, ...groups.map((g) => ({ id: g, label: g }))]} />
-        {splitting && (
+        {!ledger && (
+          <Dropdown label="Reason" value={groupFilter} onChange={setGroupFilter}
+            options={[{ id: 'all', label: 'All' }, ...groups.map((g) => ({ id: g, label: g }))]} />
+        )}
+        {splitting && !ledger && (
           <Dropdown label="Project" value={where} onChange={setWhere}
             options={[
               { id: 'all', label: 'All' },
@@ -326,7 +331,9 @@ export default function CashBook({ projectId = null, children }) {
             ]} />
         )}
       </Toolbar>
+      )}
 
+      {ledger || (<>
       {/* ── the entries ── */}
       {filtered.length === 0 ? (
         <Panel>

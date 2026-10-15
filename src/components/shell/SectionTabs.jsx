@@ -35,6 +35,21 @@ export default function SectionTabs({ tabs, label, base }) {
         return <Navigate to={tabPath(base, tabs, mode) + (q ? '?' + q : '')} replace />;
     }
 
+    const switcher = (
+        <Seg label={label} value={active.id} onChange={select}
+            options={tabs.map((x) => ({ id: x.id, label: x.label }))} />
+    );
+
+    // A tab with its own header (`ownsBar`) is handed the switcher to set in
+    // it, so the page does not spend a whole row on two buttons.
+    if (active.ownsBar) {
+        return (
+            <div key={active.id} style={{ height: '100%', minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+                {active.render({ switcher })}
+            </div>
+        );
+    }
+
     return (
         <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
             <div className="edge-scroll" style={{
@@ -42,8 +57,7 @@ export default function SectionTabs({ tabs, label, base }) {
                 padding: '10px clamp(12px, 2vw, 20px)', overflowX: 'auto',
                 borderBottom: '1px solid ' + t.line, background: t.panel,
             }}>
-                <Seg label={label} value={active.id} onChange={select}
-                    options={tabs.map((x) => ({ id: x.id, label: x.label }))} />
+                {switcher}
                 {active.note && (
                     <span style={{ fontSize: 12, color: t.faint, whiteSpace: 'nowrap' }}>{active.note}</span>
                 )}

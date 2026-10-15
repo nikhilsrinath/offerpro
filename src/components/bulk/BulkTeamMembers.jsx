@@ -208,7 +208,7 @@ export default function BulkTeamMembers() {
                         ok={`${processed} profile${processed === 1 ? '' : 's'} created`}
                         failed={failed}
                         action={(
-                            <Btn primary onClick={() => navigate('/employees')}>
+                            <Btn primary onClick={() => navigate('/company/employees')}>
                                 <Users aria-hidden="true" size={13} strokeWidth={1.8} /> View employee registry
                             </Btn>
                         )}

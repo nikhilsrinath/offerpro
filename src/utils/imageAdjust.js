@@ -7,6 +7,27 @@
 
 export const ADJUST_DEFAULT = { scale: 100, x: 0, y: 0 };
 
+/** How far a logo's Size slider goes (other images stop at 250%). */
+export const LOGO_MAX_SCALE = 1000;
+
+/* The limits of placing an item by hand on a document's preview (Editable). */
+export const MIN_SCALE = 20;
+export const MAX_SCALE = 1000;
+const MAX_MOVE = 400; // mm: further than any sheet is wide or tall
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const half = (v) => Math.round(v * 2) / 2;
+
+/** The adjustment moved by (dx, dy) mm, to the nearest half millimetre. */
+export function moveBy(value, dx, dy) {
+    const a = adjustOf(value);
+    return { ...a, x: half(clamp(a.x + dx, -MAX_MOVE, MAX_MOVE)), y: half(clamp(a.y + dy, -MAX_MOVE, MAX_MOVE)) };
+}
+
+/** The adjustment at this size, a percentage. */
+export function sizeTo(value, scale) {
+    return { ...adjustOf(value), scale: Math.round(clamp(scale, MIN_SCALE, MAX_SCALE)) };
+}
+
 /** The adjustment with every field present; anything missing is the default. */
 export function adjustOf(value) {
     const a = { ...ADJUST_DEFAULT, ...(value || {}) };

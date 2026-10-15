@@ -199,7 +199,7 @@ function invoiceRows(model, docs, push, { withCustomer = true } = {}) {
     return docs.map((d) => ({
         id: d.id, data: d,
         onClick: withCustomer ? () => push({ kind: 'customer', key: customerKey(d) }) : undefined,
-        to: withCustomer ? undefined : '/billing/invoices',
+        to: withCustomer ? undefined : '/finance/billing/invoices',
     }));
 }
 const invoiceCols = (model, { withCustomer = true, extra = [] } = {}) => [
@@ -327,7 +327,7 @@ function NetView({ model, push }) {
                     line={{ key: 'net', label: 'Net', color: t.text }} tipFormat={fmtInr} onSelect={(i) => push({ kind: 'bucket', index: i })} />
                 <div style={{ marginTop: 8 }}><Legend items={[{ label: 'Income', color: cat[0] }, { label: 'Expenses', color: cat[1] }, { label: 'Net', color: t.text, line: true }]} /></div>
             </Section>
-            <Section title="Where the money went" right={<OpenModule to="/profit-loss">Profit & Loss</OpenModule>}>
+            <Section title="Where the money went" right={<OpenModule to="/finance/profit-loss">Profit & Loss</OpenModule>}>
                 <RankBars rows={model.categories.map((c) => ({ ...c, key: c.name, name: c.label }))} format={fmtShort} max={10} color={cat[1]} onSelect={(r) => push({ kind: 'category', name: r.key })} />
             </Section>
         </>
@@ -404,7 +404,7 @@ function CustomerView({ model, k, push }) {
             <Section title="Payment standing" note="all invoices, lifetime">
                 <SplitBar format={(v) => String(v)} unit="Invoices" parts={states.map((s) => ({ id: s.id, label: s.label, value: s.rows.length, color: col[s.id] }))} />
             </Section>
-            <Section title="Invoices" right={<OpenModule to="/client-directory">Customers</OpenModule>}>
+            <Section title="Invoices" right={<OpenModule to="/business/client-directory">Customers</OpenModule>}>
                 <List cols={invoiceCols(model, { withCustomer: false, extra: [{ label: 'Days to pay', align: 'right', render: (x) => { const v = daysToPay(x); return v === null ? '-' : `${v}d`; } }] })}
                     rows={invoiceRows(model, d.invoices, push, { withCustomer: false })} />
             </Section>
@@ -425,8 +425,8 @@ function CategoryView({ model, name }) {
             ]} />
             <Section title="Trend"><Columns data={d.series} series={[{ key: 'value', label: name, color: cat[1] }]} tipFormat={fmtInr} height={190} /></Section>
             <Section title="By vendor"><RankBars rows={d.parties} format={fmtShort} color={cat[1]} /></Section>
-            <Section title="Entries" right={<OpenModule to="/purchase-bills">Purchases</OpenModule>}>
-                <List rows={d.rows.map((e, i) => ({ id: i, data: e, to: e.kind === 'Purchase' ? '/purchase-bills' : '/profit-loss' }))} cols={[
+            <Section title="Entries" right={<OpenModule to="/finance/purchase-bills">Purchases</OpenModule>}>
+                <List rows={d.rows.map((e, i) => ({ id: i, data: e, to: e.kind === 'Purchase' ? '/finance/purchase-bills' : '/finance/profit-loss' }))} cols={[
                     { label: 'Date', render: (e) => fmtDay(e.date) },
                     { label: 'Item', wrap: true, render: (e) => e.label },
                     { label: 'Kind', render: (e) => e.kind },
@@ -451,7 +451,7 @@ function ProductView({ model, k, push }) {
             ]} />
             <Section title="Sales trend"><Columns data={d.series} series={[{ key: 'value', label: 'Revenue', color: cat[0] }]} tipFormat={fmtInr} height={190} /></Section>
             <Section title="Who buys it"><RankBars rows={d.buyers} format={fmtShort} /></Section>
-            <Section title="Lines billed" right={<OpenModule to="/products-directory">Products</OpenModule>}>
+            <Section title="Lines billed" right={<OpenModule to="/business/products-directory">Products</OpenModule>}>
                 <List rows={d.lines.map((l, i) => ({ id: i, data: l, onClick: () => push({ kind: 'customer', key: customerKey(l.doc) }) }))} cols={[
                     { label: 'Date', render: (l) => fmtDay(l.date) },
                     { label: 'Invoice', render: (l) => invoiceNo(l.doc) },
@@ -492,7 +492,7 @@ function AgingView({ model, focus, push }) {
                     onSelect={(p) => push({ kind: 'aging', id: p.id })} />
             </Section>
             <Section title="Who owes"><RankBars rows={[...byCust.values()].sort((a, b) => b.value - a.value)} format={fmtShort} max={8} sub={(r) => (r.overdue > 0 ? `${fmtShort(r.overdue)} late` : '')} onSelect={(r) => push({ kind: 'customer', key: r.key })} /></Section>
-            <Section title={focused ? focused.label : 'Open invoices'} right={<OpenModule to="/billing/invoices">Invoices</OpenModule>}>
+            <Section title={focused ? focused.label : 'Open invoices'} right={<OpenModule to="/finance/billing/invoices">Invoices</OpenModule>}>
                 <List rows={listRows.map((r) => ({ id: r.doc.id, data: r, onClick: () => push({ kind: 'customer', key: customerKey(r.doc) }) }))} cols={[
                     { label: 'Invoice', render: (r) => invoiceNo(r.doc) },
                     { label: 'Customer', render: (r) => r.doc.clientName || 'Unnamed' },
@@ -540,7 +540,7 @@ function QuotesView({ model, focus, push }) {
                 <SplitBar format={fmtShort} unit="Quoted" selected={focus} parts={model.quotes.map((q) => ({ id: q.id, label: q.label, value: q.amount, color: col[q.id], note: `${q.count}` }))}
                     onSelect={(p) => push({ kind: 'quotes', id: p.id })} />
             </Section>
-            <Section title={focused ? focused.label : 'Quotations'} right={<OpenModule to="/billing/quotations">Quotations</OpenModule>}>
+            <Section title={focused ? focused.label : 'Quotations'} right={<OpenModule to="/finance/billing/quotations">Quotations</OpenModule>}>
                 <List rows={rows.map((d) => ({ id: d.id, data: d, onClick: () => push({ kind: 'customer', key: customerKey(d) }) }))} cols={[
                     { label: 'Quote', render: (d) => invoiceNo(d) },
                     { label: 'Customer', render: (d) => d.clientName || 'Unnamed' },
@@ -571,8 +571,8 @@ function PipelineView({ model, focus }) {
             <Section title="Stages by value">
                 <SplitBar format={fmtShort} unit="Value" selected={focus} parts={stages.map((s) => ({ id: s.id, label: s.label, value: s.value, color: color[s.id], note: `${s.count}` }))} />
             </Section>
-            <Section title={focused ? `${focused.label} leads` : 'All leads'} right={<OpenModule to="/crm">CRM</OpenModule>}>
-                <List rows={rows.map((l) => ({ id: l.id, data: l, to: '/crm' }))} cols={[
+            <Section title={focused ? `${focused.label} leads` : 'All leads'} right={<OpenModule to="/business/crm">CRM</OpenModule>}>
+                <List rows={rows.map((l) => ({ id: l.id, data: l, to: '/business/crm' }))} cols={[
                     { label: 'Company', render: (l) => l.company_name || l.name || 'Unnamed' },
                     { label: 'Contact', render: (l) => l.person_name || '-' },
                     ...(focused ? [] : [{ label: 'Stage', render: (l) => l._stage }]),
@@ -607,8 +607,8 @@ function HeadcountView({ model, push }) {
                 <RankBars rows={model.departments} format={(v) => String(v)} total={active.length} onSelect={(r) => push({ kind: 'department', name: r.name })} max={12} />
             </Section>
             <Section title="Employment type"><RankBars rows={model.employmentTypes} format={(v) => String(v)} /></Section>
-            <Section title="Joiners and leavers" right={<OpenModule to="/employees">Employees</OpenModule>}>
-                <List rows={movement.map((m, i) => ({ id: i, data: m, to: m.what === 'Left' ? '/employees/ex-employees' : '/employees' }))} empty="No one joined or left in this period" cols={[
+            <Section title="Joiners and leavers" right={<OpenModule to="/company/employees">Employees</OpenModule>}>
+                <List rows={movement.map((m, i) => ({ id: i, data: m, to: m.what === 'Left' ? '/company/employees/ex-employees' : '/company/employees' }))} empty="No one joined or left in this period" cols={[
                     { label: 'Name', render: (m) => m.e.name || 'Unnamed' },
                     { label: 'Event', render: (m) => <span style={{ color: m.what === 'Left' ? t.down : t.up }}>{m.what}</span> },
                     { label: 'Date', render: (m) => fmtDay(m.date) },
@@ -633,8 +633,8 @@ function DepartmentView({ model, name }) {
             ]} />
             <Section title="Headcount over time"><Area data={d.series} step valueLabel="People" format={(v) => String(Math.round(v))} height={150} /></Section>
             <Section title="Roles"><RankBars rows={d.roles} format={(v) => String(v)} max={10} /></Section>
-            <Section title="People" right={<OpenModule to="/employees">Employees</OpenModule>}>
-                <List rows={d.current.map((e) => ({ id: e.id, data: e, to: '/employees' }))} cols={[
+            <Section title="People" right={<OpenModule to="/company/employees">Employees</OpenModule>}>
+                <List rows={d.current.map((e) => ({ id: e.id, data: e, to: '/company/employees' }))} cols={[
                     { label: 'Name', render: (e) => e.name || 'Unnamed' },
                     { label: 'Role', render: (e) => e.role || '-' },
                     { label: 'Type', render: (e) => ({ fulltime: 'Full-time', intern: 'Intern', contract: 'Contract', parttime: 'Part-time' }[e.offerType] || 'Full-time') },
@@ -666,8 +666,8 @@ function TasksView({ model, focus }) {
             <Section title="Open work by person">
                 <RankBars rows={model.workload.map((w) => ({ ...w, value: w.open }))} format={(v) => `${v} open`} max={10} sub={(r) => (r.overdue ? `${r.overdue} late` : '')} />
             </Section>
-            <Section title={focused ? focused.label : 'All tasks'} right={<OpenModule to="/tasks">Task board</OpenModule>}>
-                <List rows={rows.map((x) => ({ id: x.id, data: x, to: '/tasks' }))} cols={[
+            <Section title={focused ? focused.label : 'All tasks'} right={<OpenModule to="/projects/tasks">Task board</OpenModule>}>
+                <List rows={rows.map((x) => ({ id: x.id, data: x, to: '/projects/tasks' }))} cols={[
                     { label: 'Task', wrap: true, render: (x) => x.title },
                     { label: 'Owner', render: (x) => x.assignedName || '-' },
                     ...(focused ? [] : [{ label: 'State', render: (x) => x._state }]),
@@ -710,10 +710,10 @@ function DocGroupView({ model, id }) {
     );
 }
 
-const DOC_ROUTE = { invoice: '/billing/invoices', quotation: '/billing/quotations', proforma: '/billing/proforma' };
+const DOC_ROUTE = { invoice: '/finance/billing/invoices', quotation: '/finance/billing/quotations', proforma: '/finance/billing/proforma' };
 function DocList({ rows }) {
     return (
-        <List rows={rows.map((r) => ({ id: r.id, data: r, to: DOC_ROUTE[r.type] || '/records' }))} empty="No documents" cols={[
+        <List rows={rows.map((r) => ({ id: r.id, data: r, to: DOC_ROUTE[r.type] || '/documents/records' }))} empty="No documents" cols={[
             { label: 'Number', render: (r) => r.number || '-' },
             { label: 'Type', render: (r) => String(r.type).replace(/_/g, ' ') },
             { label: 'For', wrap: true, render: (r) => r.title },

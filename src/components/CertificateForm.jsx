@@ -1,17 +1,28 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, CheckCircle, ChevronRight, Eye, Trash2, ImagePlus, Sparkles, RectangleHorizontal, RectangleVertical } from 'lucide-react';
+import { useLeaveGuard } from '../hooks/useLeaveGuard';
+import {
+  ChevronRight, ChevronDown, Eye, Trash2, ImagePlus, Sparkles, RectangleHorizontal, RectangleVertical, Type, Plus, AlertCircle, X,
+  MousePointerClick,
+} from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 import { resolveFormImages } from '../utils/imageUtils';
 import {
-  CERTIFICATE_DEFAULTS, CERTIFICATE_ACCENTS, CERTIFICATE_TITLES, certificateYear, certificateFooter,
+  CERTIFICATE_DEFAULTS, CERTIFICATE_ACCENTS, CERTIFICATE_PAPERS, CERTIFICATE_TITLES,
 } from '../services/certificateTemplates';
 import CertificatePreview from './CertificatePreview';
 import A4Stage from './shared/A4Stage';
-import ImageAdjust from './shared/ImageAdjust';
+import { EditProvider, EditBar } from './shared/Editable';
+
+/* The certificate is made on the certificate itself, the way a design tool
+   works: click any line of text and type on it, click the logo, a signature,
+   the seal or the artwork to move, resize, replace or remove it. The bar over
+   the sheet holds whatever the selected item can do, and, with nothing
+   selected, the page's own settings (orientation, colours, issue date) and
+   the pieces that can be added back. */
 
 const IMAGE_FIELDS = ['logo', 'signature', 'secondSignature', 'art', 'stampUrl'];
 
@@ -48,31 +59,72 @@ const readImage = (file, max) => new Promise((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
-/* An upload that can be taken off again, and readjusted while it is there. */
-function ImageField({ label, value, onPick, onRemove, adjust, onAdjust }) {
+// A button that opens the file picker.
+function UploadButton({ label, onPick }) {
   return (
-    <div className="easy-field full">
-      <label className="easy-lbl">{label}</label>
-      <div className="easy-upload-wrap">
-        <input aria-label={label} type="file" onChange={onPick} accept="image/*" />
-        <div className={`easy-upload ${value ? 'done' : ''}`}>
-          {value ? <><CheckCircle size={16} /> {label} added · choose another</> : <><Upload size={16} /> Choose file</>}
-        </div>
-      </div>
-      {value && (
-        <div className="cert-img-actions">
-          <button type="button" className="cert-btn danger" onClick={onRemove} aria-label={`Remove ${label.toLowerCase()}`}>
-            <Trash2 size={13} aria-hidden="true" /> Remove
-          </button>
-          <ImageAdjust label={label} value={adjust} onChange={onAdjust} />
+    <label className="cert-btn">
+      <ImagePlus size={13} aria-hidden="true" /> {label}
+      <input type="file" accept="image/*" onChange={onPick} aria-label={label} />
+    </label>
+  );
+}
+
+/* A colour as one button showing it; the choices open under it, the way a
+   design tool keeps its toolbar to one line. */
+function ColourPick({ label, options, value, onPick }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    const esc = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', esc); };
+  }, [open]);
+  const named = options.find((c) => c.id === value)?.label || 'Custom';
+  return (
+    <div className="cert-pop" ref={ref}>
+      <button type="button" className="cert-tool-btn" aria-expanded={open} aria-haspopup="true" onClick={() => setOpen(!open)}
+        aria-label={`${label}: ${named}`}>
+        <span className="cert-dot" style={{ background: value }} aria-hidden="true" /> {label}
+        <ChevronDown size={12} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="cert-pop-panel" role="group" aria-label={label}>
+          <div className="cert-swatches compact">
+            {options.map((c) => (
+              <button
+                key={c.id} type="button" title={c.label} aria-label={c.label} aria-pressed={value === c.id}
+                className={`cert-swatch ${value === c.id ? 'active' : ''}`}
+                style={{ background: c.id }} onClick={() => onPick(c.id)}
+              />
+            ))}
+          </div>
+          <label className="cert-pop-custom">
+            <input type="color" className="cert-swatch-custom" aria-label={`Custom ${label.toLowerCase()}`}
+              value={value} onChange={(e) => onPick(e.target.value)} />
+            Custom colour
+          </label>
         </div>
       )}
     </div>
   );
 }
 
-export default function CertificateForm() {
+// What has to be on a certificate before it can be issued, and where it is on the sheet.
+const REQUIRED = [
+  { field: 'recipientName', item: 'nameAdjust', label: 'Recipient Name', text: 'recipientName', message: "Type the recipient's name on the certificate." },
+  { field: 'achievementTitle', item: 'footerAdjust', label: 'Line Under The Description', message: 'Add the programme or achievement in the bar above.' },
+  { field: 'issueDate', item: null, message: 'Pick the issue date in the bar above.' },
+  { field: 'authorizedSignatory', item: 'signatoryAdjust', label: 'Signatory Name', text: 'authorizedSignatory', message: "Type the signatory's name." },
+  { field: 'signatoryDesignation', item: 'signatoryAdjust', label: 'Signatory Name', text: 'signatoryDesignation', message: "Type the signatory's designation." },
+];
+
+export default function CertificateForm({ switcher }) {
   const navigate = useNavigate();
+  // Leaving with the document half filled in asks first; saving it does not.
+  const leave = useLeaveGuard();
   const { user } = useAuth();
   const { activeOrg } = useOrg();
   const org = activeOrg || {};
@@ -80,6 +132,7 @@ export default function CertificateForm() {
     template: 'custom',
     orientation: CERTIFICATE_DEFAULTS.orientation,
     accentColor: CERTIFICATE_DEFAULTS.accentColor,
+    paperColor: CERTIFICATE_DEFAULTS.paperColor,
     art: null,          // an image of the person's own; none is the sample drawing
     artHidden: false,   // the artwork band taken off the sheet altogether
     showStamp: true,
@@ -100,6 +153,7 @@ export default function CertificateForm() {
     footerLine: '',
     authorizedSignatory: org.owner_full_name || '',
     signatoryDesignation: org.document_designation || '',
+    secondShown: false, // a second signatory added from the bar, before anything is typed for them
     secondSignatory: '',
     secondDesignation: '',
     logo: org.logo_url || null,
@@ -108,9 +162,17 @@ export default function CertificateForm() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // What is picked on the sheet ({ field, label, text, zoom }), and the text being typed on.
+  const [selected, setSelected] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [problem, setProblem] = useState('');
 
-  const set = (patch) => setFormData((prev) => ({ ...prev, ...patch }));
-  const handleChange = (e) => set({ [e.target.name]: e.target.value });
+  const set = (patch) => { setFormData((prev) => ({ ...prev, ...patch })); leave.markDirty(); setProblem(''); };
+  const place = (field, value) => set({ [field]: value });
+  const choose = (next) => {
+    setSelected(next);
+    if (!next || next.field !== selected?.field) setEditing(null);
+  };
 
   // Picking a file again after removing it must fire, so the input is emptied.
   const pick = (field, max) => async (e) => {
@@ -125,18 +187,29 @@ export default function CertificateForm() {
       alert('That image could not be read. Try a PNG or JPG.');
     }
   };
-  const remove = (field) => () => set({ [field]: null, [field + 'Adjust']: null });
+  const remove = (field) => () => { set({ [field]: null, [field + 'Adjust']: null }); choose(null); };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    const empty = (f) => !String(formData[f] || '').trim();
+    const needs = [...REQUIRED];
+    if (!formData.logo) needs.push({ field: 'issuingOrganization', item: 'orgAdjust', label: 'Company Name', text: 'issuingOrganization', message: 'Type the company name on the certificate.' });
+    // A line under the description typed by hand stands in for the programme.
+    const gap = needs.find((n) => empty(n.field) && !(n.field === 'achievementTitle' && !empty('footerLine')));
+    if (gap) {
+      setProblem(gap.message);
+      setSelected(gap.item ? { field: gap.item, label: gap.label, text: gap.text } : null);
+      setEditing(gap.text || null);
+      return;
+    }
     setIsSubmitting(true);
     try {
       const resolved = await resolveFormImages(formData, IMAGE_FIELDS);
       await storageService.save(formData, 'certificate', activeOrg?.id, user?.id);
       await pdfService.generateCertificate(resolved);
+      leave.release();
       setTimeout(() => {
         setIsSubmitting(false);
-        navigate('/records');
+        navigate('/documents/records');
       }, 800);
     } catch (err) {
       console.error(err);
@@ -146,257 +219,200 @@ export default function CertificateForm() {
   };
 
   const handlePreview = async () => {
+    choose(null);
     const resolved = await resolveFormImages(formData, IMAGE_FIELDS);
     pdfService.generateCertificate(resolved, true);
   };
 
   const portrait = formData.orientation === 'portrait';
-  const artState = formData.artHidden ? 'none' : formData.art ? 'custom' : 'sample';
-  const artNote = {
-    sample: 'Sample artwork, in your accent colour',
-    custom: 'Your image, cropped to fill the band',
-    none: 'No artwork: the text takes the whole sheet',
-  }[artState];
   // The stamp cannot sit on artwork that has been taken off the sheet.
   // Nor in the bottom right once a second signatory signs there: it moves to the centre.
-  const hasSecond = !!(formData.secondSignatory || formData.secondDesignation || formData.secondSignature);
-  const stampPositions = STAMP_POSITIONS.filter((p) => (p.id !== 'art' || !formData.artHidden) && (p.id !== 'bottom-right' || !hasSecond));
+  // Without artwork a lone signatory signs in the centre, so the stamp cannot go there.
+  const hasSecond = !!(formData.secondShown || formData.secondSignatory || formData.secondDesignation || formData.secondSignature);
+  const stampPositions = STAMP_POSITIONS.filter((p) => (p.id !== 'art' || !formData.artHidden)
+    && (p.id !== 'bottom-right' || !hasSecond)
+    && (p.id !== 'bottom-center' || hasSecond || !formData.artHidden));
   const stampPosition = stampPositions.some((p) => p.id === formData.stampPosition) ? formData.stampPosition : hasSecond ? 'bottom-center' : 'bottom-right';
 
-  return (
-    <div className="mou-split-layout">
+  const dateInput = (
+    <label className="cert-tool">
+      <span className="cert-tool-lbl">Issue Date</span>
+      <input type="date" className="cert-tool-inp" aria-label="Issue date" value={formData.issueDate}
+        onChange={(e) => set({ issueDate: e.target.value })} />
+    </label>
+  );
+  const typeButton = selected?.text && (
+    <button type="button" className="edit-bar-text" onClick={() => setEditing(selected.text)}>
+      <Type size={13} aria-hidden="true" /> Edit Text
+    </button>
+  );
 
-      {/* LEFT: Form */}
-      <div className="mou-form-pane">
-        <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
-
-          {/* 1. Recipient */}
-          <div className="easy-section">
-            <div className="easy-section-head">
-              <div className="easy-num">1</div>
-              <span className="easy-section-title">Recipient</span>
-            </div>
-            <div className="easy-row">
-              <div className="easy-field full">
-                <label className="easy-lbl">Full name</label>
-                <input aria-label="Full name" name="recipientName" value={formData.recipientName} onChange={handleChange} required placeholder="Jane Smith" className="easy-inp" />
-              </div>
-              <div className="easy-field full">
-                <label className="easy-lbl">Programme / achievement</label>
-                <input aria-label="Programme / achievement" name="achievementTitle" value={formData.achievementTitle} onChange={handleChange} required placeholder="React Development Bootcamp" className="easy-inp" />
-              </div>
-              <div className="easy-field full">
-                <label className="easy-lbl">Description</label>
-                <textarea aria-label="Description" name="description" value={formData.description} onChange={handleChange} placeholder="For outstanding performance..." rows="3" className="easy-inp" style={{ resize: 'vertical' }} />
-              </div>
-            </div>
-          </div>
-
-          {/* 2. Design */}
-          <div className="easy-section">
-            <div className="easy-section-head">
-              <div className="easy-num">2</div>
-              <span className="easy-section-title">Design</span>
-            </div>
-            <div className="easy-row">
-              <div className="easy-field">
-                <span className="easy-lbl" id="cert-orient">Orientation</span>
-                <div className="cert-seg" role="group" aria-labelledby="cert-orient">
-                  <button type="button" aria-pressed={!portrait} className={!portrait ? 'active' : ''} onClick={() => set({ orientation: 'landscape' })}>
-                    <RectangleHorizontal size={14} aria-hidden="true" /> Landscape
-                  </button>
-                  <button type="button" aria-pressed={portrait} className={portrait ? 'active' : ''} onClick={() => set({ orientation: 'portrait' })}>
-                    <RectangleVertical size={14} aria-hidden="true" /> Portrait
-                  </button>
-                </div>
-              </div>
-              <div className="easy-field">
-                <span className="easy-lbl" id="cert-accent">Accent colour</span>
-                <div className="cert-swatches" role="group" aria-labelledby="cert-accent">
-                  {CERTIFICATE_ACCENTS.map((c) => (
-                    <button
-                      key={c.id} type="button" title={c.label} aria-label={c.label} aria-pressed={formData.accentColor === c.id}
-                      className={`cert-swatch ${formData.accentColor === c.id ? 'active' : ''}`}
-                      style={{ background: c.id }} onClick={() => set({ accentColor: c.id })}
-                    />
-                  ))}
-                  <input type="color" className="cert-swatch-custom" aria-label="Custom accent colour" title="Custom colour"
-                    value={formData.accentColor} onChange={(e) => set({ accentColor: e.target.value })} />
-                </div>
-              </div>
-
-              <div className="easy-field full">
-                <span className="easy-lbl" id="cert-art">Artwork</span>
-                <div className="cert-art" role="group" aria-labelledby="cert-art">
-                  <div className={`cert-art-thumb ${portrait ? 'wide' : ''} ${artState}`} aria-hidden="true"
-                    style={artState === 'none' ? undefined : {
-                      backgroundColor: formData.accentColor,
-                      backgroundImage: formData.art ? `url("${formData.art}")` : undefined,
-                    }}>
-                    {artState === 'sample' && <Sparkles size={16} />}
-                  </div>
-                  <div className="cert-art-side">
-                    <div className="cert-art-note" aria-live="polite">{artNote}</div>
-                    <div className="cert-art-btns">
-                      <label className="cert-btn">
-                        <ImagePlus size={13} aria-hidden="true" /> {formData.art ? 'Change Image' : 'Upload Image'}
-                        <input type="file" accept="image/*" onChange={pick('art', 1800)} aria-label="Upload artwork image" />
-                      </label>
-                      {artState !== 'sample' && (
-                        <button type="button" className="cert-btn" onClick={() => set({ art: null, artAdjust: null, artHidden: false })}>
-                          <Sparkles size={13} aria-hidden="true" /> Use Sample
-                        </button>
-                      )}
-                      {artState !== 'none' && (
-                        <button type="button" className="cert-btn danger" onClick={() => set({ art: null, artAdjust: null, artHidden: true })}>
-                          <Trash2 size={13} aria-hidden="true" /> Remove
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                {artState === 'custom' && (
-                  <ImageAdjust label="Artwork" value={formData.artAdjust} onChange={(v) => set({ artAdjust: v })} />
-                )}
-              </div>
-
-              <div className="easy-field full">
-                <button
-                  type="button" role="switch" aria-checked={!!formData.showStamp}
-                  className={`easy-switch-row ${formData.showStamp ? 'active' : ''}`}
-                  onClick={() => set({ showStamp: !formData.showStamp })}
-                >
-                  <span className="easy-switch-label">Include company stamp</span>
-                  <span className="easy-switch-dot" aria-hidden="true" />
-                </button>
-              </div>
-              {formData.showStamp && (
-                <div className="easy-field full">
-                  <span className="easy-lbl" id="cert-stamp-pos">Stamp position</span>
-                  <div className="cert-seg" role="group" aria-labelledby="cert-stamp-pos">
-                    {stampPositions.map((p) => (
-                      <button key={p.id} type="button" aria-pressed={stampPosition === p.id} className={stampPosition === p.id ? 'active' : ''}
-                        onClick={() => set({ stampPosition: p.id, stampAdjust: null })}>
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-                  <ImageAdjust label="Round Seal" value={formData.stampAdjust} onChange={(v) => set({ stampAdjust: v })} />
-                </div>
-              )}
-
-              <div className="easy-field full">
-                <label className="easy-lbl">Certificate title</label>
-                <input aria-label="Certificate title" name="certificateTitle" list="cert-titles" value={formData.certificateTitle} onChange={handleChange} placeholder={CERTIFICATE_DEFAULTS.certificateTitle} className="easy-inp" />
-                <datalist id="cert-titles">
-                  {CERTIFICATE_TITLES.map((title) => <option key={title} value={title} />)}
-                </datalist>
-              </div>
-              <div className="easy-field full">
-                <label className="easy-lbl">Line above the name</label>
-                <input aria-label="Line above the name" name="introLine" value={formData.introLine} onChange={handleChange} placeholder={CERTIFICATE_DEFAULTS.introLine} className="easy-inp" />
-              </div>
-              <div className="easy-field full">
-                <label className="easy-lbl">Line under the description</label>
-                <input aria-label="Line under the description" name="footerLine" value={formData.footerLine} onChange={handleChange} placeholder={certificateFooter({ ...formData, footerLine: '' })} className="easy-inp" />
-                <span className="cert-hint">Left empty, it is written from the programme, organization and location.</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. Organization */}
-          <div className="easy-section">
-            <div className="easy-section-head">
-              <div className="easy-num">3</div>
-              <span className="easy-section-title">Issuing Organization</span>
-            </div>
-            <div className="easy-row">
-              <div className="easy-field full">
-                <label className="easy-lbl">{formData.logo ? 'Organization name (optional)' : 'Organization name'}</label>
-                <input aria-label="Organization name" name="issuingOrganization" value={formData.issuingOrganization} onChange={handleChange} required={!formData.logo} placeholder="Acme Academy" className="easy-inp" />
-              </div>
-              <div className="easy-field">
-                <label className="easy-lbl">Location</label>
-                <input aria-label="Location" name="location" value={formData.location} onChange={handleChange} placeholder="Bengaluru" className="easy-inp" />
-              </div>
-              <div className="easy-field">
-                <label className="easy-lbl">Issue date</label>
-                <input aria-label="Issue date" type="date" name="issueDate" value={formData.issueDate} onChange={handleChange} required className="easy-inp" />
-              </div>
-              <div className="easy-field">
-                <label className="easy-lbl">Year on the artwork</label>
-                <input aria-label="Year on the artwork" name="yearLabel" value={formData.yearLabel} onChange={handleChange} maxLength={4} inputMode="numeric" placeholder={certificateYear({ ...formData, yearLabel: '' })} className="easy-inp" />
-              </div>
-              <ImageField
-                label="Logo" value={formData.logo} onPick={pick('logo')} onRemove={remove('logo')}
-                adjust={formData.logoAdjust} onAdjust={(v) => set({ logoAdjust: v })}
-              />
-            </div>
-          </div>
-
-          {/* 4. Signatories */}
-          <div className="easy-section">
-            <div className="easy-section-head">
-              <div className="easy-num">4</div>
-              <span className="easy-section-title">Signatories</span>
-            </div>
-            <div className="easy-row">
-              <div className="easy-field">
-                <label className="easy-lbl">Signatory name</label>
-                <input aria-label="Signatory name" name="authorizedSignatory" value={formData.authorizedSignatory} onChange={handleChange} required placeholder="Dr. Robert Johnson" className="easy-inp" />
-              </div>
-              <div className="easy-field">
-                <label className="easy-lbl">Designation</label>
-                <input aria-label="Designation" name="signatoryDesignation" value={formData.signatoryDesignation} onChange={handleChange} required placeholder="Program Director" className="easy-inp" />
-              </div>
-              <ImageField
-                label="Signature" value={formData.signature} onPick={pick('signature')} onRemove={remove('signature')}
-                adjust={formData.signatureAdjust} onAdjust={(v) => set({ signatureAdjust: v })}
-              />
-
-              <div className="easy-field">
-                <label className="easy-lbl">Second signatory (optional)</label>
-                <input aria-label="Second signatory name" name="secondSignatory" value={formData.secondSignatory} onChange={handleChange} placeholder="Priya Menon" className="easy-inp" />
-              </div>
-              <div className="easy-field">
-                <label className="easy-lbl">Designation</label>
-                <input aria-label="Second signatory designation" name="secondDesignation" value={formData.secondDesignation} onChange={handleChange} placeholder="Vice President" className="easy-inp" />
-              </div>
-              <ImageField
-                label="Second signature" value={formData.secondSignature} onPick={pick('secondSignature')} onRemove={remove('secondSignature')}
-                adjust={formData.secondSignatureAdjust} onAdjust={(v) => set({ secondSignatureAdjust: v })}
-              />
-            </div>
-          </div>
-
-          {/* Submit */}
-          <button type="submit" className="easy-submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Generating...' : 'Issue Certificate'}
-            {!isSubmitting && <ChevronRight size={18} />}
+  // What the selected item can do, beside moving and resizing it.
+  const tools = (() => {
+    switch (selected?.field) {
+      case 'logoAdjust':
+        return <>
+          <UploadButton label="Replace Logo" onPick={pick('logo')} />
+          <button type="button" className="cert-btn danger" onClick={remove('logo')}><Trash2 size={13} aria-hidden="true" /> Remove</button>
+        </>;
+      case 'placeAdjust':
+        return <>{typeButton}{dateInput}</>;
+      case 'titleAdjust':
+        return <>
+          {typeButton}
+          <select className="cert-tool-inp" aria-label="Choose a title" value=""
+            onChange={(e) => e.target.value && set({ certificateTitle: e.target.value })}>
+            <option value="">Choose A Title…</option>
+            {CERTIFICATE_TITLES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </>;
+      case 'footerAdjust':
+        return <>
+          {typeButton}
+          <label className="cert-tool">
+            <span className="cert-tool-lbl">Programme</span>
+            <input className="cert-tool-inp wide" aria-label="Programme or achievement" placeholder="React Development Bootcamp"
+              value={formData.achievementTitle} onChange={(e) => set({ achievementTitle: e.target.value })} />
+          </label>
+          {formData.footerLine && (
+            <button type="button" className="cert-btn" onClick={() => set({ footerLine: '' })}>
+              <Sparkles size={13} aria-hidden="true" /> Write It For Me
+            </button>
+          )}
+        </>;
+      case 'signatureAdjust':
+      case 'signatoryAdjust':
+        return <>
+          {typeButton}
+          <UploadButton label={formData.signature ? 'Replace Signature' : 'Add Signature'} onPick={pick('signature')} />
+          {formData.signature && (
+            <button type="button" className="cert-btn danger" onClick={remove('signature')}><Trash2 size={13} aria-hidden="true" /> Remove Signature</button>
+          )}
+        </>;
+      case 'secondSignatureAdjust':
+      case 'secondSignatoryAdjust':
+        return <>
+          {typeButton}
+          <UploadButton label={formData.secondSignature ? 'Replace Signature' : 'Add Signature'} onPick={pick('secondSignature')} />
+          <button type="button" className="cert-btn danger" onClick={() => {
+            set({
+              secondShown: false, secondSignatory: '', secondDesignation: '', secondSignature: null,
+              secondSignatureAdjust: null, secondSignatoryAdjust: null,
+            });
+            choose(null);
+          }}><Trash2 size={13} aria-hidden="true" /> Remove Signatory</button>
+        </>;
+      case 'stampAdjust':
+        return <>
+          <select className="cert-tool-inp" aria-label="Seal position" value={stampPosition}
+            onChange={(e) => set({ stampPosition: e.target.value, stampAdjust: null })}>
+            {stampPositions.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
+          <button type="button" className="cert-btn danger" onClick={() => { set({ showStamp: false }); choose(null); }}>
+            <Trash2 size={13} aria-hidden="true" /> Remove
           </button>
-
-          {/* Mobile preview */}
-          <button type="button" onClick={handlePreview} className="easy-submit-outline mou-mobile-preview-btn" style={{ marginTop: '0.75rem' }}>
-            <Eye size={16} /> Preview as PDF
+        </>;
+      case 'artAdjust':
+        return <>
+          <UploadButton label={formData.art ? 'Replace Image' : 'Use My Image'} onPick={pick('art', 1800)} />
+          {formData.art && (
+            <button type="button" className="cert-btn" onClick={() => set({ art: null, artAdjust: null })}>
+              <Sparkles size={13} aria-hidden="true" /> Use Sample
+            </button>
+          )}
+          {!formData.art && (
+            <input type="color" className="cert-swatch-custom" aria-label="Artwork colour" title="Artwork colour"
+              value={formData.accentColor} onChange={(e) => set({ accentColor: e.target.value })} />
+          )}
+          <button type="button" className="cert-btn danger" onClick={() => { set({ art: null, artAdjust: null, artHidden: true }); choose(null); }}>
+            <Trash2 size={13} aria-hidden="true" /> Remove Artwork
           </button>
+        </>;
+      default:
+        return typeButton || null;
+    }
+  })();
 
-        </form>
+  // With nothing selected: the page itself, and what can be put back on it.
+  const pageTools = (
+    <div className="cert-tools" role="group" aria-label="Page">
+      <div className="cert-seg" role="group" aria-label="Orientation">
+        <button type="button" aria-pressed={!portrait} className={!portrait ? 'active' : ''} onClick={() => set({ orientation: 'landscape' })}
+          title="Landscape" aria-label="Landscape">
+          <RectangleHorizontal size={15} aria-hidden="true" />
+        </button>
+        <button type="button" aria-pressed={portrait} className={portrait ? 'active' : ''} onClick={() => set({ orientation: 'portrait' })}
+          title="Portrait" aria-label="Portrait">
+          <RectangleVertical size={15} aria-hidden="true" />
+        </button>
       </div>
+      <ColourPick label="Accent" options={CERTIFICATE_ACCENTS} value={formData.accentColor} onPick={(c) => set({ accentColor: c })} />
+      <ColourPick label="Background" options={CERTIFICATE_PAPERS} value={formData.paperColor} onPick={(c) => set({ paperColor: c })} />
+      {dateInput}
+      <span className="cert-tools-sep" aria-hidden="true" />
+      {!formData.logo && <UploadButton label="Add Logo" onPick={pick('logo')} />}
+      {formData.artHidden && (
+        <button type="button" className="cert-btn" onClick={() => set({ artHidden: false })}><Plus size={13} aria-hidden="true" /> Add Artwork</button>
+      )}
+      {!formData.showStamp && (
+        <button type="button" className="cert-btn" onClick={() => set({ showStamp: true })}><Plus size={13} aria-hidden="true" /> Add Seal</button>
+      )}
+      {!hasSecond && (
+        <button type="button" className="cert-btn" onClick={() => {
+          set({ secondShown: true });
+          setSelected({ field: 'secondSignatoryAdjust', label: 'Second Signatory Name', text: 'secondSignatory' });
+          setEditing('secondSignatory');
+        }}><Plus size={13} aria-hidden="true" /> Add Signatory</button>
+      )}
+    </div>
+  );
 
-      {/* RIGHT: Live Preview */}
-      <div className="mou-preview-pane">
-        <div className="mou-preview-toolbar">
-          <span className="mou-preview-toolbar-label">Live Preview</span>
-          <button type="button" onClick={handlePreview} className="easy-submit-outline" style={{ padding: '0.375rem 0.875rem', fontSize: '0.75rem', width: 'auto' }}>
-            <Eye size={14} /> Open PDF
+  return (
+    <EditProvider
+      selected={selected} onSelect={choose} onChange={place}
+      editing={editing} onEdit={setEditing} onText={(field, value) => set({ [field]: value })}
+    >
+    <div className="cert-editor">
+      <div className="cert-head">
+        {switcher}
+        <span className="cert-head-hint">
+          <MousePointerClick size={13} aria-hidden="true" /> Click anything on the certificate to edit it
+        </span>
+        <div className="cert-actions">
+          <button type="button" onClick={handlePreview} className="cert-act">
+            <Eye size={14} aria-hidden="true" /> Preview PDF
+          </button>
+          <button type="button" onClick={handleSubmit} className="cert-act primary" disabled={isSubmitting}>
+            {isSubmitting ? 'Generating…' : 'Issue Certificate'}
+            {!isSubmitting && <ChevronRight size={15} aria-hidden="true" />}
           </button>
         </div>
-        <A4Stage>
-          <CertificatePreview formData={formData} />
-        </A4Stage>
       </div>
-
-
+      <div className="cert-body">
+        <div className="cert-bar">
+          {selected ? (
+            <EditBar
+              selected={selected} value={formData[selected.field]}
+              onChange={(v) => place(selected.field, v)} onDone={() => choose(null)}
+            >
+              {tools}
+            </EditBar>
+          ) : pageTools}
+        </div>
+        {problem && (
+          <div className="cert-problem" role="alert">
+            <AlertCircle size={14} aria-hidden="true" /> {problem}
+            <button type="button" aria-label="Dismiss" onClick={() => setProblem('')}><X size={13} aria-hidden="true" /></button>
+          </div>
+        )}
+        {/* A tap anywhere on the paper but an item lets go of the selection. */}
+        <div className="edit-stage cert-stage" onPointerDown={() => choose(null)}>
+          <A4Stage fit="page">
+            <CertificatePreview formData={formData} />
+          </A4Stage>
+        </div>
+      </div>
     </div>
+    </EditProvider>
   );
 }

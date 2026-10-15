@@ -110,9 +110,9 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
                 onClick={() => navigate('/projects')} />
             <Tile icon={ListChecks} label="Project tasks" value={String(openTasks.length)} exact={`${openTasks.length} open`}
                 tone={lateTasks.length ? 'down' : null}
-                onClick={() => navigate('/tasks')} />
+                onClick={() => navigate('/projects/tasks')} />
             <Tile icon={IndianRupee} label="Open contract value" value={fmtShort(contract)} exact={fmtInr(contract)}
-                onClick={() => navigate('/portfolio')} />
+                onClick={() => navigate('/projects/portfolio')} />
         </TileRow>
 
         <CardGrid cols={cols}>
@@ -137,7 +137,7 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
                 )}
                 {risky > 0 && (
                     <ListRow label={`${risky} project${risky === 1 ? '' : 's'} at risk or off track`} sub="project health"
-                        tone="down" value="Portfolio" onClick={() => navigate('/portfolio')} />
+                        tone="down" value="Portfolio" onClick={() => navigate('/projects/portfolio')} />
                 )}
             </Card>
 
@@ -177,13 +177,13 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
                     ))}
             </Card>
 
-            <Card title="Open work by project" note="open tasks · today" right={<More label="Tasks" to="/tasks" />}>
+            <Card title="Open work by project" note="open tasks · today" right={<More label="Tasks" to="/projects/tasks" />}>
                 <RankBars rows={taskLoad} format={(v) => String(v)} max={6} color={cat[0]}
                     sub={(r) => (r.late ? <span style={{ color: t.down }}>{r.late} late</span> : '')}
                     onSelect={(r) => navigate(`/projects/${r.key}`)} empty="No open tasks on projects" />
             </Card>
 
-            <Card style={grid(margins ? 2 : 1)} title="Margin by project" note="net margin to date · revenue less direct and labour cost" right={withHealth ? <More label="Portfolio" to="/portfolio" /> : null}>
+            <Card style={grid(margins ? 2 : 1)} title="Margin by project" note="net margin to date · revenue less direct and labour cost" right={withHealth ? <More label="Portfolio" to="/projects/portfolio" /> : null}>
                 {!withHealth ? null
                     : !fin ? <EmptyNote>Margins need the Project financials permission.</EmptyNote>
                         : rows === undefined ? <EmptyNote>Loading…</EmptyNote>
