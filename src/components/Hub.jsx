@@ -682,7 +682,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                 .nm-nav:hover { color: ${t.text} !important; background: ${t.panelAlt}; }
                 .nm-sq:hover { color: ${t.text} !important; border-color: ${t.lineStrong} !important; }
                 .nm-chip:hover { color: ${t.text} !important; }
-                .nm-ask:focus-within { border-color: ${t.accent} !important; box-shadow: 0 0 0 3px ${t.isDark ? 'rgba(47,140,255,.18)' : 'rgba(31,122,240,.14)'} !important; }
+                .nm-ask:focus-within { border-color: ${t.ghost} !important; box-shadow: none !important; }
                 .nm-ask input::placeholder { color: ${t.faint}; }
                 .nm-chip:hover, .nm-search:hover { border-color: ${t.lineStrong} !important; }
                 .nm-lrow:hover { background: ${t.panelAlt}; }

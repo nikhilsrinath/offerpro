@@ -24,8 +24,11 @@ import './copilot.css';
                      click away without leaving the dashboard.
    · variant="full"  the full-screen workspace. History is a standing list on
                      the left, the conversation fills the rest.
+   · variant="page"  the full layout as an ordinary page (Ask), inside the
+                     module frame instead of over it. `welcome` replaces the
+                     empty state and is handed the composer to place.
 
-   Both render the same state from AssistantContext, so a chat started in one
+   All render the same state from AssistantContext, so a chat started in one
    is the same chat in the other.
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -99,29 +102,34 @@ const lastLine = (c) => {
 
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, onCollapse, onClose, onHide }) {
+export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, onCollapse, onClose, onHide, welcome }) {
     const a = useAssistant();
     const navigate = useNavigate();
     const [callOpen, setCallOpen] = useState(false);
-    const full = variant === 'full';
+    const page = variant === 'page';
+    const full = variant === 'full' || page;
     const phone = usePhone();
     const [sideOpen, setSideOpen] = useState(() => !(typeof window !== 'undefined' && window.innerWidth < 760));
     const { registerDock } = a;
     const dock = useDockWidth(!full && !phone);
 
-    // The launcher hides while a dock is on screen.
-    useEffect(() => (full ? undefined : registerDock()), [full, registerDock]);
+    // The launcher hides while a dock, or the Ask page, is on screen.
+    useEffect(() => (variant === 'full' ? undefined : registerDock()), [variant, registerDock]);
 
 
     const historyCount = a.chats.filter((c) => c.messages.length).length;
     const showHistory = !full && a.view === 'history';
 
+    const composer = <Composer a={a} onCall={() => setCallOpen(true)} autoFocus={full} />;
+    // The page's own empty state carries the composer itself.
+    const ownWelcome = welcome && a.messages.length === 0;
+
     const chatBody = (
         <>
             {a.messages.length === 0
-                ? <Welcome a={a} compact={!full} />
-                : <Thread a={a} onOpen={(href) => { if (full) onClose?.(); navigate(href); }} />}
-            <div className="cp-foot">
+                ? (ownWelcome ? welcome({ a, composer }) : <Welcome a={a} compact={!full} />)
+                : <Thread a={a} onOpen={(href) => { if (variant === 'full') onClose?.(); navigate(href); }} />}
+            {!ownWelcome && <div className="cp-foot">
                 <div className="cp-foot-inner">
                     {a.pendingQuestion && !a.streaming && (
                         <div className="cp-pending" role="status">
@@ -129,10 +137,10 @@ export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, on
                             <button type="button" onClick={() => a.dismissQuestion(a.activeId, a.pendingQuestion.id)}>Skip</button>
                         </div>
                     )}
-                    <Composer a={a} onCall={() => setCallOpen(true)} autoFocus={full} />
+                    {composer}
                     <div className="cp-disclaimer">Answers use your live EdgeOS data. Check anything you act on.</div>
                 </div>
-            </div>
+            </div>}
         </>
     );
 
@@ -181,7 +189,8 @@ export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, on
 
     /* ── full screen ──────────────────────────────────────────────────── */
     return (
-        <div className="cp cp-full eo-surface" data-theme={theme} role="dialog" aria-modal="true" aria-label="EdgeAI copilot">
+        <div className={`cp cp-full${page ? ' cp-page' : ''} eo-surface`} data-theme={theme}
+            role={page ? 'region' : 'dialog'} aria-modal={page ? undefined : 'true'} aria-label={page ? 'Ask EdgeAI' : 'EdgeAI copilot'}>
             {sideOpen && phone && <div className="cp-scrim" onClick={() => setSideOpen(false)} />}
             {sideOpen && (
                 <aside className="cp-side" aria-label="Chat history">
@@ -215,10 +224,12 @@ export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, on
                                 <Minimize2 size={15} strokeWidth={1.8} aria-hidden="true" />
                             </button>
                         )}
-                        <button type="button" className="cp-icon" onClick={() => { setCallOpen(false); onClose?.(); }}
-                            aria-label="Close copilot" title="Close (Esc)">
-                            <X size={17} strokeWidth={1.8} aria-hidden="true" />
-                        </button>
+                        {onClose && (
+                            <button type="button" className="cp-icon" onClick={() => { setCallOpen(false); onClose(); }}
+                                aria-label="Close copilot" title="Close (Esc)">
+                                <X size={17} strokeWidth={1.8} aria-hidden="true" />
+                            </button>
+                        )}
                     </div>
                 </header>
                 {chatBody}

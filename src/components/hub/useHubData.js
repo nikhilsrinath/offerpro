@@ -34,7 +34,7 @@ const pct = (now, prev) => (prev > 0 ? ((now - prev) / prev) * 100 : (now > 0 ? 
  * listenSection is a no-op before then, and a hook that subscribed too early
  * would sit on an empty list for the life of the page.
  */
-function useLive(section, ready) {
+export function useLive(section, ready) {
     const [list, setList] = useState(() => orgStore.getSectionAsList(section));
     useEffect(() => {
         if (!ready) return undefined;
@@ -43,7 +43,9 @@ function useLive(section, ready) {
     return list;
 }
 
-export function useHubData(activeOrg, geoPeriod = '12M') {
+/* `lite` (Today, Ask) skips the sales map and EdgeBrain status, which only
+   the hub's widgets show. */
+export function useHubData(activeOrg, geoPeriod = '12M', { lite = false } = {}) {
     const orgId = activeOrg?.id || null;
     const [readyFor, setReadyFor] = useState(null);
     const ready = !!orgId && readyFor === orgId;
@@ -170,7 +172,7 @@ export function useHubData(activeOrg, geoPeriod = '12M') {
 
         return {
             inByDay, outByDay,
-            revMonth, revPrev, revDelta: pct(revMonth, revPrevToDate),
+            revMonth, revPrev, revPrevToDate, revDelta: pct(revMonth, revPrevToDate),
             spendMonth, spendPrev, spendDelta: pct(spendMonth, spendPrevToDate),
             sparkRev: cumulative(spark(inByDay, today.getDate())),
             sparkSpend: cumulative(spark(outByDay, today.getDate())),
@@ -333,14 +335,14 @@ export function useHubData(activeOrg, geoPeriod = '12M') {
     /* ── geography ──────────────────────────────────────────────────────── */
     const [geoRows, setGeoRows] = useState(null);
     useEffect(() => {
-        if (!orgId) return undefined;
+        if (!orgId || lite) return undefined;
         let cancelled = false;
         const { from, to } = periodRange(String(geoPeriod).toLowerCase());
         salesGeoService.byCountry(orgId, { from, to })
             .then((rows) => { if (!cancelled) setGeoRows(rows || []); })
             .catch(() => { if (!cancelled) setGeoRows([]); });
         return () => { cancelled = true; };
-    }, [orgId, geoPeriod]);
+    }, [orgId, geoPeriod, lite]);
 
     const geo = useMemo(() => {
         // The RPC aggregates documents and cash-book rows in one pass. When it
@@ -393,13 +395,13 @@ export function useHubData(activeOrg, geoPeriod = '12M') {
     /* ── EdgeBrain ──────────────────────────────────────────────────────── */
     const [brain, setBrain] = useState({ loading: true, status: null, error: null });
     useEffect(() => {
-        if (!orgId) return undefined;
+        if (!orgId || lite) return undefined;
         let cancelled = false;
         getBrainStatus(orgId)
             .then((status) => { if (!cancelled) setBrain({ loading: false, status, error: null }); })
             .catch((err) => { if (!cancelled) setBrain({ loading: false, status: null, error: err?.message || 'Unavailable' }); });
         return () => { cancelled = true; };
-    }, [orgId]);
+    }, [orgId, lite]);
 
     const notifications = useMemo(
         () => [...notifs].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
@@ -408,6 +410,6 @@ export function useHubData(activeOrg, geoPeriod = '12M') {
 
     return {
         ready, loadError, money, docs, team, pipeline, geo, brain, notifications, pnl, sales,
-        finDocs, income, expenses,
+        finDocs, income, expenses, purchases, tasks, leads, employees,
     };
 }

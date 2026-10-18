@@ -37,14 +37,13 @@
 
 /* ── focus ────────────────────────────────────────────────────────────────── */
 
-.edge-shell main :where(a, button, input, select, textarea, summary, [tabindex], [role="button"]):focus-visible {
+.edge-shell main :where(a, button, summary, [tabindex], [role="button"]):focus-visible {
   outline: 2px solid var(--edge-accent) !important;
   outline-offset: 2px !important;
 }
 
-.edge-shell main :where(input, select, textarea):focus-visible {
-  outline-offset: 0 !important;
-}
+/* Text fields show focus by their border and caret, never a blue ring (the
+   app-wide rule is at the end of index.css). */
 
 .edge-shell main ::placeholder {
   color: var(--edge-faint) !important;
@@ -249,9 +248,9 @@
   .easy-inp, .pro-input, .prod-select, .form-input, .fin-input, .crm-input, .customer-input,
   .billing-input, .records-search, .bulk-input
 ):focus {
-  border-color: var(--edge-accent);
+  border-color: var(--edge-ghost);
   background: var(--edge-card);
-  box-shadow: 0 0 0 3px var(--edge-accent-soft);
+  box-shadow: none;
 }
 
 .edge-shell main .prod-search {
@@ -608,7 +607,7 @@
 }
 
 .edge-shell main .easy-inp:focus {
-  border-color: var(--edge-accent);
+  border-color: var(--edge-ghost);
   box-shadow: none;
 }
 
@@ -645,7 +644,7 @@
 }
 
 .edge-shell main :where(.sig-capture-type-input, .payment-conf-field input):focus {
-  border-color: var(--edge-accent);
+  border-color: var(--edge-ghost);
   box-shadow: none;
 }
 

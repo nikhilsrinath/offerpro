@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Plus, Minus, Search, X, FileInput, Pencil, Trash2, CheckCircle, Paperclip, IndianRupee, Ban, RotateCcw,
+  Search, X, FileInput, Pencil, Trash2, CheckCircle, Paperclip, IndianRupee, Ban, RotateCcw,
 } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
 import { receiptService } from '../../services/receiptService';
@@ -23,6 +23,7 @@ import VendorSelect from '../shared/VendorSelect';
 import { RowMenu } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
 import { initialQuery } from '../../services/urlQuery';
+import { ProjectLedger } from '../projects/ProjectFinance';
 
 const CATEGORIES = ['Operations', 'Inventory', 'Software', 'Hardware', 'Marketing', 'Travel', 'Utilities', 'Professional fees', 'Rent', 'Other'];
 const FILTERS = ['all', 'paid', 'unpaid', 'partially_paid', 'overdue', 'void'];
@@ -33,6 +34,15 @@ const blank = (vendorId = '') => ({
   amount_paid: 0, receipt_path: null, notes: '',
 });
 
+/**
+ * The Company Ledger: a project's (Finance › Company Ledger inside it, with
+ * `projectId`) or the whole company's (Finance › Company Ledger). Both work
+ * the same way: Record Money's Credit and Debit, a purchase bill is a credit,
+ * money in is a credit, paying a vendor and every other cost is a debit, and
+ * the ledger under it carries the balance. Company-wide, every bill and entry
+ * is listed whole, with the project(s) it is on, and the project filter
+ * narrows it to one project (at that project's share), or to General.
+ */
 export default function PurchaseInvoices({ projectId = null, children }) {
   const toast = useToast();
   const [params, setParams] = useSearchParams();
@@ -41,16 +51,22 @@ export default function PurchaseInvoices({ projectId = null, children }) {
   const expenses = useSection('expenses');
   const allocations = useSection('project_allocations');
   const projects = useSection('projects');
-  // With `projectId` (a project's Purchase Bills) only bills linked to the
-  // project are listed, whole. A bill is paid in full whatever its split,
-  // while the totals count the project's share. A new bill starts on it.
+  // Company-wide: 'all', 'general' (on no project) or one project's id.
+  const [projectFilter, setProjectFilter] = useState(() => (projectId ? 'all' : params.get('project') || 'all'));
+  const filterProject = !projectId && projectFilter !== 'all' && projectFilter !== 'general'
+    ? projects.find((p) => p.id === projectFilter) || null : null;
+  // What a new bill or entry starts on: the project page's project, or the one filtered to.
+  const startOn = projectId || filterProject?.id || null;
+  // With `projectId` only bills linked to the project are listed, whole. A
+  // bill is paid in full whatever its split, while the totals count the
+  // project's share. A new bill starts on it.
   const scope = useProjectScope(projectId);
   const bills = useMemo(() => (scope
     ? scope.data.purchases.map((b) => ({ ...b._full, _share: b._share, _shareNet: b.subtotal }))
     : allBills), [scope, allBills]);
-  const fresh = useCallback((vendorId = '') => (projectId
-    ? { ...blank(vendorId), _picker: pickerFor(projectId) }
-    : blank(vendorId)), [projectId]);
+  const fresh = useCallback((vendorId = '') => (startOn
+    ? { ...blank(vendorId), _picker: pickerFor(startOn) }
+    : blank(vendorId)), [startOn]);
 
   const [search, setSearch] = useState(initialQuery);
   const [filter, setFilter] = useState('all');
@@ -62,23 +78,25 @@ export default function PurchaseInvoices({ projectId = null, children }) {
   // A project's Company Ledger pays the vendor, not the bill: its Debit form.
   const [payingVendor, setPayingVendor] = useState(null);
 
-  // A project's Record Money: Credit or Debit asks the kind first. Sales &
-  // Services is a purchase bill, Vendor Payment pays a vendor, and any other
-  // kind is a General Ledger entry on the project, already of that kind.
+  // Record Money: Credit or Debit asks the kind first. Sales & Services is a
+  // purchase bill, Vendor Payment pays a vendor, and any other kind is a
+  // General Ledger entry (on the project, when there is one), already of that kind.
   const t = useT();
   const income = useSection('income_entries');
   const [choosing, setChoosing] = useState(null); // 'in' | 'out' while the kind is picked
   const [entry, setEntry] = useState(null);
   // The entry's Type and Sub-Type were picked a step before, so its form leaves them out.
   const [entryTyped, setEntryTyped] = useState(false);
-  const projectClient = scope?.project?.client_id || '';
+  const projectClient = (scope?.project || filterProject)?.client_id || '';
   const freshEntry = useCallback((direction) => ({
-    ...blankEntry(direction), _picker: pickerFor(projectId), ...(direction === 'in' ? { client_id: projectClient } : {}),
-  }), [projectId, projectClient]);
-  const recent = useMemo(() => (scope ? [
-    ...scope.data.income.map((e) => ({ ...e, direction: 'in', day: e.date || e.received_on })),
-    ...scope.data.expenses.map((e) => ({ ...e, direction: 'out', day: e.date || e.incurred_on })),
-  ].sort((a, b) => String(b.day).localeCompare(String(a.day))).slice(0, 3) : []), [scope]);
+    ...blankEntry(direction),
+    ...(startOn ? { _picker: pickerFor(startOn) } : {}),
+    ...(direction === 'in' && projectClient ? { client_id: projectClient } : {}),
+  }), [startOn, projectClient]);
+  const recent = useMemo(() => [
+    ...(scope ? scope.data.income : income).map((e) => ({ ...e, direction: 'in', day: e.date || e.received_on })),
+    ...(scope ? scope.data.expenses : expenses).map((e) => ({ ...e, direction: 'out', day: e.date || e.incurred_on })),
+  ].sort((a, b) => String(b.day).localeCompare(String(a.day))).slice(0, 3), [scope, income, expenses]);
   const openEntry = (r, direction) => {
     const full = r._full || r;
     setEntry({ ...full, direction, date: full.date || full.received_on || full.incurred_on });
@@ -108,8 +126,8 @@ export default function PurchaseInvoices({ projectId = null, children }) {
   }, [params, setParams, fresh]);
 
   const vendorById = useMemo(() => Object.fromEntries(vendors.map((v) => [v.id, v])), [vendors]);
-  // The project(s) each bill is split to, for the company-wide list. A
-  // project's own list doesn't need the column: every bill there is on it.
+  // The project(s) each bill is split to, for the company-wide project filter.
+  // A project's own list doesn't need it: every bill there is on it.
   const projectsByBill = useMemo(() => {
     if (projectId) return {};
     const byId = Object.fromEntries(projects.map((p) => [p.id, p]));
@@ -119,14 +137,20 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     });
     return out;
   }, [projectId, projects, allocations]);
-  const projectLabel = (p) => p.code || p.name || 'Project';
   const today = todayIso();
   const balance = (b) => Math.max(0, b.total - b.amount_paid);
   const overdue = (b) => b.status !== 'void' && b.status !== 'paid' && b.due_date && b.due_date < today && balance(b) > 0.009;
 
+  // Company-wide, the bills of the project (or General) the page is filtered to.
+  const scopedBills = useMemo(() => {
+    if (projectId || projectFilter === 'all') return bills;
+    if (projectFilter === 'general') return bills.filter((b) => !(projectsByBill[b.id] || []).length);
+    return bills.filter((b) => (projectsByBill[b.id] || []).some((p) => p.id === projectFilter));
+  }, [projectId, projectFilter, bills, projectsByBill]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return bills
+    return scopedBills
       .filter((b) => vendorFilter === 'all' || b.vendor_id === vendorFilter)
       .filter((b) => filter === 'all' || (filter === 'overdue' ? overdue(b) : b.status === filter))
       .filter((b) => !q || [b.bill_number, b.description, b.category, vendorById[b.vendor_id]?.company_name]
@@ -134,11 +158,11 @@ export default function PurchaseInvoices({ projectId = null, children }) {
         .some((f) => String(f || '').toLowerCase().includes(q)))
       .sort((a, b) => String(b.bill_date).localeCompare(String(a.bill_date)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bills, search, filter, vendorFilter, vendorById, projectsByBill]);
+  }, [scopedBills, search, filter, vendorFilter, vendorById, projectsByBill]);
 
   const totals = useMemo(() => {
     const share = (b) => b._share ?? 1;
-    const live = bills.filter((b) => b.status !== 'void').map((b) => (share(b) === 1 ? b : {
+    const live = scopedBills.filter((b) => b.status !== 'void').map((b) => (share(b) === 1 ? b : {
       ...b, total: b.total * share(b), amount_paid: b.amount_paid * share(b), tax_amount: b.tax_amount * share(b),
     }));
     return {
@@ -147,8 +171,7 @@ export default function PurchaseInvoices({ projectId = null, children }) {
       paid: live.reduce((s, b) => s + Math.min(b.amount_paid, b.total), 0),
       inputGst: live.reduce((s, b) => s + b.tax_amount, 0),
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bills]);
+  }, [scopedBills]);
 
   // Both dates are left for the user to pick; nothing is filled in for them.
   // `_dirty` marks a form someone has typed in, so closing it asks first.
@@ -321,12 +344,22 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     return e ? [{ label: 'Delete Payment', icon: Trash2, tone: 'danger', onClick: () => handleDeletePayment(e) }] : [];
   };
 
+  const narrowed = !!search.trim() || filter !== 'all' || vendorFilter !== 'all';
+  const ledgerProps = {
+    bills: filtered, billMenu, paymentMenu, onEdit: editEntry, filtered: narrowed,
+    emptyText: narrowed ? 'Nothing matches these filters.' : undefined,
+  };
+  const pickProject = (v) => {
+    setProjectFilter(v);
+    const next = new URLSearchParams(params);
+    if (v === 'all') next.delete('project'); else next.set('project', v);
+    setParams(next, { replace: true });
+  };
+
   return (
     <div style={{ maxWidth: '100%' }}>
-      {projectId && (
-        <RecordMoneyCard t={t} scoped recent={recent} onRecord={setChoosing} style={{ marginBottom: 12 }}
-          onOpen={(r) => openEntry(r, r.direction)} />
-      )}
+      <RecordMoneyCard t={t} scoped recent={recent} onRecord={setChoosing} style={{ marginBottom: 12 }}
+        onOpen={(r) => openEntry(r, r.direction)} />
       <div className="prod-stats">
         <Stat icon={<FileInput size={15} />} label="Total billed" value={money(totals.billed)} onClick={() => setFilter('all')} />
         <Stat icon={<CheckCircle size={15} />} label="Paid" value={money(totals.paid)} accent="var(--text-primary)" onClick={() => setFilter('paid')} />
@@ -337,9 +370,18 @@ export default function PurchaseInvoices({ projectId = null, children }) {
       <div className="prod-toolbar">
         <div className="prod-search">
           <Search size={14} />
-          <input aria-label="Search purchase invoices" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={projectId ? 'Search bill no., vendor, category...' : 'Search bill no., vendor, project, category...'} />
+          <input aria-label="Search the ledger" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={projectId ? 'Search bill no., vendor, category...' : 'Search bill no., vendor, project, category...'} />
           {search && <button type="button" onClick={() => setSearch('')} className="prod-search-clear" aria-label="Clear search" title="Clear search"><X size={13} /></button>}
         </div>
+        {!projectId && (
+          <select aria-label="Filter by project" value={projectFilter} onChange={(e) => pickProject(e.target.value)} className="prod-select">
+            <option value="all">All projects</option>
+            <option value="general">General (no project)</option>
+            {projects.filter((p) => !p.archived_at || p.id === projectFilter).map((p) => (
+              <option key={p.id} value={p.id}>{[p.code, p.name].filter(Boolean).join(' · ')}</option>
+            ))}
+          </select>
+        )}
         <select aria-label="Filter by vendor" value={vendorFilter} onChange={(e) => setVendorFilter(e.target.value)} className="prod-select">
           <option value="all">All vendors</option>
           {vendors.map((v) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
@@ -351,103 +393,18 @@ export default function PurchaseInvoices({ projectId = null, children }) {
             </button>
           ))}
         </div>
-        <button
-          className="prod-add-btn"
-          onClick={() => {
-            setEditing(fresh(vendorFilter === 'all' ? '' : vendorFilter));
-            setFormError('');
-          }}
-        >
-          <Plus size={15} /> {projectId ? 'Credit' : 'Record Bill'}
-        </button>
-        {projectId && (
-          <button
-            className="prod-add-btn"
-            title="Record money paid to a vendor"
-            onClick={() => setPayingVendor({ vendorId: vendorFilter === 'all' ? '' : vendorFilter })}
-          >
-            <Minus size={15} /> Debit
-          </button>
-        )}
+        {/* Credit and Debit are recorded from the Record Money card above. */}
       </div>
 
-      {/* A project's page lists its bills as a ledger (`children`) instead of
-          the table: the same search and filters, the same actions on a bill. */}
-      {children ? children({
-        bills: filtered, billMenu, paymentMenu, onEdit: editEntry,
-        filtered: !!search.trim() || filter !== 'all' || vendorFilter !== 'all',
-        emptyText: search.trim() || filter !== 'all' || vendorFilter !== 'all' ? 'Nothing matches these filters.' : undefined,
-      }) : filtered.length === 0 ? (
-        <div className="prod-empty">
-          <FileInput size={40} strokeWidth={1} />
-          <p>{bills.length === 0 ? (projectId ? 'No bills on this project yet' : 'No purchase invoices yet') : 'Nothing matches these filters'}</p>
-          <span>Record bills your vendors send you, so money out is a tracked payable with its GST, not just an expense line.</span>
-        </div>
-      ) : (
-        <div className="prod-perf-table-wrap">
-          <table className="prod-perf-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                {!projectId && <th>Project</th>}
-                <th>Bill</th>
-                <th>Vendor</th>
-                <th>Due</th>
-                <th className="num">Total</th>
-                <th className="num">GST</th>
-                <th className="num">Balance</th>
-                <th>Status</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((b) => {
-                const late = overdue(b);
-                return (
-                  <tr key={b.id} style={b.status === 'void' ? { opacity: 0.5 } : undefined}>
-                    <td className="prod-perf-date">{fmtDate(b.bill_date)}</td>
-                    {!projectId && (() => {
-                      const on = projectsByBill[b.id] || [];
-                      return (
-                        <td title={on.map((p) => [p.code, p.name].filter(Boolean).join(' · ')).join(', ') || undefined}>
-                          {on.length === 0 ? '-' : (
-                            <>
-                              <div>{projectLabel(on[0])}</div>
-                              {on[0].code && on[0].name && <div className="prod-perf-meta">{on[0].name}{on.length > 1 ? ` · +${on.length - 1} more` : ''}</div>}
-                              {!(on[0].code && on[0].name) && on.length > 1 && <div className="prod-perf-meta">+{on.length - 1} more</div>}
-                            </>
-                          )}
-                        </td>
-                      );
-                    })()}
-                    <td>
-                      <div className="prod-perf-name">{b.bill_number}</div>
-                      <div className="prod-perf-meta">
-                        {b.category}{b.description ? ` · ${b.description}` : ''}
-                        {b._share < 1 ? ` · ${money(b._shareNet, 2)} of it on this project` : ''}
-                      </div>
-                    </td>
-                    <td>{vendorById[b.vendor_id]?.company_name || '-'}</td>
-                    <td className="prod-perf-date" style={late ? { color: 'var(--error)', fontWeight: 600 } : undefined}>
-                      {fmtDate(b.due_date)}{late ? ' · overdue' : ''}
-                    </td>
-                    <td className="num">{money(b.total, 2)}</td>
-                    <td className="num">{money(b.tax_amount, 2)}</td>
-                    <td className="num strong">{money(balance(b), 2)}</td>
-                    <td style={{ textTransform: 'capitalize', fontSize: '0.75rem' }}>{b.status.replace('_', ' ')}</td>
-                    <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
-                      <RowMenu label={`Actions for bill ${b.bill_number}`} items={billMenu(b)} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* The ledger: a project's page passes its own (`children`); company-wide
+          it is every bill and entry, or one project's, or General's. The same
+          search and filters, the same actions on a bill. */}
+      {children ? children(ledgerProps)
+        : filterProject ? <ProjectLedger key={filterProject.id} project={filterProject} only="purchases" here="company" {...ledgerProps} />
+        : <ProjectLedger only="purchases" here="company" general={projectFilter === 'general'} {...ledgerProps} />}
 
       {editing && (
-        <Modal title={editing.id ? 'Edit bill' : projectId ? 'Record a Credit (Purchase Bill)' : 'Record a purchase invoice'} onClose={() => setEditing(null)} width={720} dirty={!!editing._dirty}>
+        <Modal title={editing.id ? 'Edit bill' : 'Record a Credit (Purchase Bill)'} onClose={() => setEditing(null)} width={720} dirty={!!editing._dirty}>
           <form onSubmit={handleSave} className="prod-modal-body">
             {formError && <div className="prod-form-error">{formError}</div>}
             <div className="prod-form-grid">

@@ -3671,8 +3671,8 @@ input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: var(--blue);
-  box-shadow: var(--focus-ring);
+  border-color: var(--border-strong);
+  box-shadow: none;
 }
 
 label {
@@ -10270,7 +10270,7 @@ label {
   transition: border-color 0.15s;
 }
 
-.fin-list-search-wrap:focus-within { border-color: var(--blue); box-shadow: var(--focus-ring); }
+.fin-list-search-wrap:focus-within { border-color: var(--border-strong); box-shadow: none; }
 
 /* The ring sits on the wrap, so the inner input must not draw its own. */
 .fin-list-search-wrap .fin-list-search:focus { border: none; box-shadow: none; }
@@ -15171,4 +15171,13 @@ label:has(+ :is(input, select, textarea)[required])::after {
   .cert-head { flex-wrap: wrap; gap: 0.5rem; }
   .cert-head-hint { display: none; }
   .cert-actions { margin-left: auto; }
+}
+
+/* ── No blue focus ring on text fields, anywhere ────────────────────────────
+   A focused field shows its caret (and, where styled, a darker border); the
+   ring is kept only for buttons, links and other controls reached by keyboard.
+   High specificity and !important so the per-page focus rules can't put it back. */
+html body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="color"]):not([type="file"]), textarea, select, [contenteditable="true"]):is(:focus, :focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
 }

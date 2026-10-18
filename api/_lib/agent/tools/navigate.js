@@ -32,7 +32,7 @@ export const PAGES = {
   recurring: { href: '/finance/billing/recurring', label: 'Recurring invoices' },
   cashbook: { href: '/finance/general-ledger', label: 'General ledger' },
   vendors: { href: '/business/vendor-directory', label: 'Vendor Directory' },
-  purchases: { href: '/finance/purchase-bills', label: 'Purchase bills' },
+  purchases: { href: '/finance/company-ledger', label: 'Company ledger' },
   profit_loss: { href: '/finance/profit-loss', label: 'Profit & loss' },
   tax_summary: { href: '/finance/tax-summary', label: 'Tax summary' },
   employees: { href: '/company/employees', label: 'Employees' },

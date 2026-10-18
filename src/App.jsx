@@ -8,7 +8,7 @@ import {
   GitBranch, Package,
   Truck, FileInput, TrendingUp, CalendarCheck, Megaphone,
   BrainCircuit, Banknote, FolderKanban, SquareKanban, PieChart, FolderOpen,
-  Wallet, BarChart3, UsersRound, FileStack, Gauge
+  Wallet, BarChart3, UsersRound, FileStack, Gauge, CalendarDays, MessageSquareText
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
 import subPages from './components/landing/subPageData';
@@ -57,6 +57,8 @@ import KanbanChart from './components/projects/KanbanChart';
 import AIAssistant from './components/assistant/AIAssistant';
 import { AssistantProvider } from './components/assistant/AssistantContext';
 import EdgeBrain from './components/brain/EdgeBrain';
+import TodayPage from './components/today/TodayPage';
+import AskPage from './components/today/AskPage';
 import { useTaskDeadlineMonitor } from './hooks/useTaskDeadlineMonitor';
 import { useTheme } from './hooks/useTheme';
 import { PLANS } from './services/planConfig';
@@ -99,13 +101,16 @@ const MODULE_FILTER = {
   overall: ['dashboard/projects', 'dashboard/finance', 'dashboard/sales', 'dashboard/team',
             'dashboard/documents', 'dashboard/usage'],
   brain: ['edgebrain'],
+  // One page each, so the shell shows no tabs for them.
+  today: ['today'],
+  ask: ['ask'],
   // Ex-employees and leave are tabs of Employees and Attendance, not rail items.
   team: ['company-hierarchy', 'employees', 'attendance', 'recruitment-tracker', 'announcements'],
   // Tasks live inside each project (Project Management); Tasks and Timesheets
   // keep their routes but are no longer rail items (MODULE_EXTRA_PAGES).
   projects: ['projects', 'kanban-chart', 'portfolio'],
   documents: ['document-library', 'offer-letters', 'certificates', 'templates'],
-  finance: ['finance-status', 'general-ledger', 'invoices', 'quotations', 'proforma', 'purchase-bills', 'tax-summary', 'profit-loss'],
+  finance: ['finance-status', 'general-ledger', 'invoices', 'quotations', 'proforma', 'company-ledger', 'tax-summary', 'profit-loss'],
   // Vendors sit with clients: both are the parties the company deals with.
   business: ['client-directory', 'vendor-directory', 'products-directory'],
 };
@@ -175,7 +180,7 @@ const FLUSH_PAGES = new Set([
   'company-hierarchy',
   'templates/nda', 'templates/mou', 'templates/partnership', 'templates/custom',
   'new-invoice', 'new-quotation', 'new-proforma',
-  'edgebrain',
+  'edgebrain', 'ask',
 ]);
 
 // Pages split into tabs by SectionTabs, which owns their scrolling: the page
@@ -187,6 +192,8 @@ const isTabbed = (path) => path !== '/company/employees/new'
 
 const MODULE_META = {
   brain:     { id: 'brain', label: 'EdgeBrain' },
+  today:     { id: 'today', label: 'Today' },
+  ask:       { id: 'ask', label: 'Ask' },
   team:      { id: 'team', label: 'Company' },
   documents: { id: 'documents', label: 'Documents' },
   finance:   { id: 'finance', label: 'Finance' },
@@ -196,6 +203,8 @@ const MODULE_META = {
 };
 
 const NAV_ITEMS = [
+  { id: 'today', label: 'Today', icon: CalendarDays },
+  { id: 'ask', label: 'Ask', icon: MessageSquareText },
   { id: 'dashboard/projects', label: 'Projects', icon: FolderKanban },
   { id: 'dashboard/finance', label: 'Finance', icon: Wallet },
   { id: 'dashboard/sales', label: 'Sales & Marketing', icon: BarChart3 },
@@ -222,7 +231,7 @@ const NAV_ITEMS = [
   { id: 'quotations', label: 'Quotations', icon: FilePlus },
   { id: 'proforma', label: 'Proforma Invoice', icon: FileCheck },
   { id: 'recurring', label: 'Recurring', icon: RotateCcw },
-  { id: 'purchase-bills', label: 'Purchase Bills', icon: FileInput },
+  { id: 'company-ledger', label: 'Company Ledger', icon: FileInput },
   { id: 'tax-summary', label: 'Tax Summary', icon: Scale },
   { id: 'profit-loss', label: 'Profit & Loss', icon: TrendingUp },
   { section: 'BUSINESS' },
@@ -236,6 +245,8 @@ const NAV_ITEMS = [
 ];
 
 const PAGE_META = {
+  today: { title: 'Today', subtitle: 'What needs you today, worked out from your live records' },
+  ask: { title: 'Ask', subtitle: 'Ask about your company, or tell EdgeAI what to do' },
   edgebrain: { title: 'EdgeBrain', subtitle: 'Your company, organised as one connected context your AI can reason over' },
   dashboard: { title: 'Dashboard', subtitle: 'The whole organisation for one period. Click anything for the analysis behind it' },
   'dashboard/finance': { title: 'Finance Dashboard', subtitle: 'Credit, debit, and who owes whom' },
@@ -259,7 +270,7 @@ const PAGE_META = {
   proforma: { title: 'Billing', subtitle: 'Quotations, proformas and invoices' },
   recurring: { title: 'Recurring Invoices', subtitle: 'Set up and manage recurring invoices' },
   'vendor-directory': { title: 'Vendor Directory', subtitle: 'Suppliers, payment terms and what you owe each of them' },
-  'purchase-bills': { title: 'Purchase Bills', subtitle: 'Bills received from vendors, tracked as money out' },
+  'company-ledger': { title: 'Company Ledger', subtitle: 'Every credit and debit across the company and all its projects: vendor bills, money in, payments and costs' },
   'tax-summary': { title: 'Tax Summary', subtitle: 'Output GST against input GST. A preparation aid, not a filing tool' },
   'profit-loss': { title: 'Profit & Loss', subtitle: 'Income, expenses and net profit for any period' },
   'new-invoice': { title: 'New Invoice', subtitle: 'Generate professional business invoices' },
@@ -567,6 +578,8 @@ function AppContent() {
             <Route path="dashboard/documents" element={<DocumentsDash />} />
             <Route path="dashboard/usage" element={<UsageDash />} />
             <Route path="edgebrain" element={<EdgeBrain />} />
+            <Route path="today" element={<TodayPage />} />
+            <Route path="ask" element={<AskPage theme={theme} />} />
             <Route path="profile" element={<CompanyProfile />} />
             {/* Every path is named after its place in the sidebar: the page,
                 then the tab inside it, under its module (/finance/billing/proforma,
@@ -598,7 +611,7 @@ function AppContent() {
             <Route path="finance/billing/invoices/new" element={<InvoiceForm />} />
             <Route path="finance/billing/recurring/new" element={<RecurringInvoiceForm />} />
             <Route path="finance/billing/recurring/:id/edit" element={<RecurringInvoiceFormWrapper />} />
-            <Route path="finance/purchase-bills" element={<PurchaseInvoices />} />
+            <Route path="finance/company-ledger" element={<PurchaseInvoices />} />
             <Route path="finance/tax-summary" element={<TaxSummary />} />
             <Route path="finance/profit-loss" element={<ProfitLoss />} />
             {/* Business */}
@@ -670,7 +683,9 @@ const MOVED = {
   'billing/invoices/new': '/finance/billing/invoices/new',
   'billing/recurring/new': '/finance/billing/recurring/new',
   'billing/recurring/:id/edit': ({ id }) => `/finance/billing/recurring/${id}/edit`,
-  'purchase-bills': '/finance/purchase-bills',
+  'purchase-bills': '/finance/company-ledger',
+  // Purchase Bills became the Company Ledger.
+  'finance/purchase-bills': '/finance/company-ledger',
   'tax-summary': '/finance/tax-summary',
   'profit-loss': '/finance/profit-loss',
   'crm': '/business/crm',
@@ -710,7 +725,7 @@ const MOVED = {
   'new-quotation': '/finance/billing/quotations/new',
   'new-quotation/:docId': ({ docId }) => `/finance/billing/quotations/${docId}/edit`,
   'new-proforma': '/finance/billing/proforma/new',
-  'purchases': '/finance/purchase-bills',
+  'purchases': '/finance/company-ledger',
   'vendors': '/business/vendor-directory',
   'customers': '/business/client-directory',
   'products': '/business/products-directory',

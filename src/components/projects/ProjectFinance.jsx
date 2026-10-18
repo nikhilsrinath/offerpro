@@ -31,7 +31,7 @@ const SOURCE_LABEL = { invoice: 'Invoice', income_entry: 'Income', expense: 'Exp
 // Inside the project, a link opens the project's own page for that kind.
 const SOURCE_TAB = { invoice: 'billing', income_entry: 'cashbook', expense: 'cashbook', purchase_invoice: 'bills' };
 const SOURCE_PATH = {
-    invoice: () => '/finance/billing/invoices', income_entry: () => '/finance/general-ledger', expense: () => '/finance/general-ledger', purchase_invoice: () => '/finance/purchase-bills',
+    invoice: () => '/finance/billing/invoices', income_entry: () => '/finance/general-ledger', expense: () => '/finance/general-ledger', purchase_invoice: () => '/finance/company-ledger',
 };
 
 function periodChoices() {
@@ -266,15 +266,33 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
  * `narrow` ({ view, search, from, to }, the General Ledger's filter bar) keeps
  * only the credits ('in') or debits ('out') in the period that match the
  * search; the running and closing balances are then those of what is shown.
+ *
+ * Without `project` it is the company's Company Ledger (Finance): the same
+ * credit and debit over every bill and entry, whole, whichever projects they
+ * are split to, with a Project column saying which. `general` keeps only what
+ * is on no project.
  */
-export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, billMenu, paymentMenu, emptyText, readOnly, filtered, narrow }) {
+export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bills, billMenu, paymentMenu, emptyText, readOnly, filtered, narrow, general }) {
     const t = useT();
     const toast = useToast();
     const allocations = useSection('project_allocations');
     const allBills = useSection('purchase_invoices');
+    const allProjects = useSection('projects');
     const sources = useSources();
+    const company = !project;
     // `readOnly` (the General Ledger's copy of the Company Ledger) has no actions column.
-    const editable = !readOnly && canAllocate() && !isClosed(project);
+    const editable = !company && !readOnly && canAllocate() && !isClosed(project);
+    // Company-wide, the projects each source is split to.
+    const projectsOf = useMemo(() => {
+        if (!company) return {};
+        const byId = Object.fromEntries(allProjects.map((p) => [p.id, p]));
+        const out = {};
+        allocations.forEach((a) => {
+            const p = byId[a.project_id];
+            if (p) (out[`${a.source_type}:${a.source_id}`] ||= []).push(p);
+        });
+        return out;
+    }, [company, allProjects, allocations]);
     // The page belongs to the filters it was picked under: narrowing starts again at page one.
     const narrowKey = narrow ? [narrow.view, narrow.search, narrow.from, narrow.to].join('|') : '';
     const [pager, setPager] = useState({ key: narrowKey, page: 1 });
@@ -288,7 +306,13 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
 
     const rows = useMemo(() => {
         const sourceById = Object.fromEntries(sources.map((s) => [`${s.type}:${s.id}`, s]));
-        const mine = allocations.filter((a) => a.project_id === project.id);
+        // Company-wide every source is a row of its own, whole; in a project,
+        // each of the project's links to one.
+        const mine = company
+            ? sources
+                .filter((s) => s.type !== 'invoice' && (!general || !projectsOf[`${s.type}:${s.id}`]))
+                .map((s) => ({ id: `${s.type}:${s.id}`, source_type: s.type, source_id: s.id, mode: 'full' }))
+            : allocations.filter((a) => a.project_id === project.id);
         const linked = new Set(mine.map((a) => `${a.source_type}:${a.source_id}`));
         return mine
             .map((a) => ({ a, s: sourceById[`${a.source_type}:${a.source_id}`] }))
@@ -325,12 +349,13 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
                 out.push({
                     a, s, value, credit, settles, pays,
                     balance: settles ? before : before + (credit ? value : -value),
-                    splitCount: allocations.filter((x) => x.source_type === a.source_type && x.source_id === a.source_id).length,
+                    splitCount: company ? 0 : allocations.filter((x) => x.source_type === a.source_type && x.source_id === a.source_id).length,
+                    projects: company ? projectsOf[`${a.source_type}:${a.source_id}`] || [] : null,
                 });
                 return out;
             }, [])
             .reverse();
-    }, [allocations, sources, project.id, only, billById, filtered]);
+    }, [allocations, sources, project, company, general, projectsOf, only, billById, filtered]);
 
     // What the filter bar keeps, with the balance carried again over just those rows.
     const nView = narrow?.view || 'all';
@@ -343,7 +368,8 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
         return rows.slice().reverse()
             .filter((r) => (!nFrom && !nTo) || inRange(r.s?.date, nFrom, nTo))
             .filter((r) => nView === 'all' || r.credit === (nView === 'in'))
-            .filter((r) => !nSearch || [r.s?.party, r.s?.description, r.s?.number, r.s?.kind, r.pays?.number, SOURCE_LABEL[r.a.source_type]]
+            .filter((r) => !nSearch || [r.s?.party, r.s?.description, r.s?.number, r.s?.kind, r.pays?.number, SOURCE_LABEL[r.a.source_type],
+                ...(r.projects || []).flatMap((p) => [p.code, p.name])]
                 .some((v) => String(v || '').toLowerCase().includes(nSearch)))
             .map((r) => {
                 if (!r.settles) balance += r.credit ? r.value : -r.value;
@@ -369,18 +395,20 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
     const side = (n) => `${money(Math.abs(n), 2)} ${n < 0 ? 'Dr' : 'Cr'}`;
     const nameOf = (r) => r.s?.party || SOURCE_LABEL[r.a.source_type];
     const kindOf = (r) => (r.pays ? 'Payment' : r.s?.kind || SOURCE_LABEL[r.a.source_type]);
+    const projectText = (r) => (r.projects?.length ? r.projects.map((p) => p.code || p.name).join(', ') : 'General');
 
     const exportCsv = () => downloadCsv(
-        `${only === 'purchases' ? 'company-ledger' : 'project-ledger'}-${project.code || project.name || 'project'}.csv`,
-        ['Date', 'Particular / Company Name', 'Type', 'Invoice No', 'Credit', 'Debit', 'Balance', 'Note'],
+        company ? 'company-ledger.csv'
+            : `${only === 'purchases' ? 'company-ledger' : 'project-ledger'}-${project.code || project.name || 'project'}.csv`,
+        ['Date', 'Particular / Company Name', ...(company ? ['Project'] : []), 'Type', 'Invoice No', 'Credit', 'Debit', 'Balance', 'Note'],
         [
             ...shown.map((r) => [
-                r.s?.date || '', nameOf(r), kindOf(r), r.s?.number || '',
+                r.s?.date || '', nameOf(r), ...(company ? [projectText(r)] : []), kindOf(r), r.s?.number || '',
                 r.credit ? r.value.toFixed(2) : '', r.credit ? '' : r.value.toFixed(2),
                 `${Math.abs(r.balance).toFixed(2)} ${r.balance < 0 ? 'Dr' : 'Cr'}`,
                 r.settles ? 'Receipt against a linked invoice, not counted' : r.pays ? `Paid against bill ${r.pays.number}` : '',
             ]),
-            ['', 'Closing Balance', '', '', closing.credit.toFixed(2), closing.debit.toFixed(2),
+            ['', 'Closing Balance', ...(company ? [''] : []), '', '', closing.credit.toFixed(2), closing.debit.toFixed(2),
                 `${Math.abs(closing.balance).toFixed(2)} ${closing.balance < 0 ? 'Dr' : 'Cr'}`, ''],
         ],
     );
@@ -394,7 +422,7 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
             <Panel>
                 <Empty>
                     {only === 'purchases'
-                        ? (emptyText || 'No credit or debit on this project yet.')
+                        ? (emptyText || (company ? 'No credit or debit recorded yet. Record a credit (a purchase bill, or money in) or a debit to start the ledger.' : 'No credit or debit on this project yet.'))
                         : 'Nothing linked yet. Anything raised from this project’s Billing, General Ledger or Company Ledger pages is linked to it on its own.'}
                 </Empty>
             </Panel>
@@ -414,8 +442,9 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
 
     return (
         <div>
-            <Table actions={<Btn size="sm" onClick={exportCsv}><Download size={14} aria-hidden="true" /> Export CSV</Btn>} id={only === 'purchases' ? 'project-purchase-ledger' : 'project-ledger'} cols={[
+            <Table actions={<Btn size="sm" onClick={exportCsv}><Download size={14} aria-hidden="true" /> Export CSV</Btn>} id={company ? 'company-ledger' : only === 'purchases' ? 'project-purchase-ledger' : 'project-ledger'} cols={[
                 { key: 'd', label: 'Date', width: 110 }, { key: 'p', label: 'Particular / Company Name', always: true },
+                ...(company ? [{ key: 'pr', label: 'Project' }] : []),
                 { key: 't', label: 'Type' }, { key: 'n', label: 'Invoice No' },
                 { key: 'cr', label: 'Credit', align: 'right' }, { key: 'dr', label: 'Debit', align: 'right' },
                 { key: 'b', label: 'Balance', align: 'right' },
@@ -431,6 +460,8 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
                             const tab = SOURCE_TAB[a.source_type];
                             const open = direction && onEdit ? () => onEdit(direction, a.source_id)
                                 : onOpen && tab !== here ? () => onOpen(tab) : null;
+                            // Company-wide, a bill is on this very page: its name is not a link.
+                            const plain = (company || here === 'company') && a.source_type === 'purchase_invoice';
                             // A bill row on Purchase Bills says where the bill stands and carries its actions.
                             const bill = a.source_type === 'purchase_invoice' ? billInfo[a.source_id] : null;
                             const owed = bill ? Math.max(0, bill.total - bill.amount_paid) : 0;
@@ -445,7 +476,7 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
                                                 background: 'none', border: 0, padding: 0, color: t.text, textDecoration: 'underline',
                                                 textUnderlineOffset: 3, font: 'inherit', cursor: 'pointer', textAlign: 'left',
                                             }}>{name}</button>
-                                        ) : onOpen ? name : <Link to={SOURCE_PATH[a.source_type]()} style={{ color: t.text }}>{name}</Link>}
+                                        ) : onOpen || plain ? name : <Link to={SOURCE_PATH[a.source_type]()} style={{ color: t.text }}>{name}</Link>}
                                         {r.splitCount > 1 && <Muted> · split {r.splitCount} ways</Muted>}
                                         {r.settles && <Muted> · receipt against a linked invoice</Muted>}
                                         {r.pays && <Muted> · paid against bill {r.pays.number}</Muted>}
@@ -460,6 +491,16 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
                                             </span>
                                         )}
                                     </Td>
+                                    {company && show('pr') && (
+                                        <Td muted>
+                                            {r.projects.length === 0 ? 'General' : (
+                                                <span title={r.projects.map((p) => [p.code, p.name].filter(Boolean).join(' · ')).join(', ')}>
+                                                    {r.projects[0].code || r.projects[0].name}
+                                                    {r.projects.length > 1 && <Muted> +{r.projects.length - 1}</Muted>}
+                                                </span>
+                                            )}
+                                        </Td>
+                                    )}
                                     {show('t') && <Td muted>{kindOf(r)}</Td>}
                                     {show('n') && <Td muted nowrap>{s?.number || '-'}</Td>}
                                     {show('cr') && <Td align="right" nowrap>{amount(r, r.credit)}</Td>}
@@ -481,6 +522,7 @@ export function ProjectLedger({ project, onOpen, onEdit, only, here, bills, bill
                         <Tr>
                             {show('d') && <Td />}
                             <Td><strong style={{ fontWeight: 600 }}>Closing Balance</strong></Td>
+                            {company && show('pr') && <Td />}
                             {show('t') && <Td />}
                             {show('n') && <Td />}
                             {show('cr') && (

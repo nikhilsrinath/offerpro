@@ -70,7 +70,7 @@ export const WIDGETS = [
     { id: 'pipeline', to: '/business/crm', group: 'sales', title: 'Pipeline', desc: 'CRM leads by stage, win rate and spend per lead', icon: Kanban, size: 'sm', sizes: ALL, render: Pipeline },
     { id: 'arr', to: '/finance/billing/recurring', group: 'sales', title: 'Annual recurring revenue', desc: 'Active recurring invoices, annualised', icon: Repeat, size: 'sm', sizes: SM_MD, render: Arr },
     { id: 'acquisition_spend', to: '/dashboard/sales', group: 'sales', title: 'Sales & marketing spend', desc: 'Sales spend and marketing spend over 1, 3, 6 or 12 months', icon: Megaphone, size: 'md', sizes: ALL, periods: true, period: '3M', render: AcquisitionSpend },
-    { id: 'payables', to: '/finance/purchase-bills', group: 'finance', title: 'Payables', desc: 'What you owe vendors against what you are owed', icon: CalendarRange, size: 'sm', sizes: SM_MD, render: Payables },
+    { id: 'payables', to: '/finance/company-ledger', group: 'finance', title: 'Payables', desc: 'What you owe vendors against what you are owed', icon: CalendarRange, size: 'sm', sizes: SM_MD, render: Payables },
     { id: 'volume', to: '/documents/records', group: 'documents', title: 'Issuance', desc: 'Documents over 1, 3, 6 or 12 months, by type', icon: FileText, size: 'md', sizes: MD_LG, periods: true, period: '1Y', render: Volume },
     { id: 'activity', to: '/company/recruitment-tracker', group: 'general', title: 'Activity', desc: 'Latest notifications', icon: Bell, size: 'md', sizes: ALL, render: Activity },
     { id: 'shortcuts', to: '/dashboard', group: 'general', title: 'Shortcuts', desc: 'Jump into any module', icon: LayoutGrid, size: 'sm', sizes: ALL, render: Shortcuts },

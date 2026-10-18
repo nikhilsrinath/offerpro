@@ -695,7 +695,7 @@ function PageStyle({ t }) {
             }
             .edge-page .edge-btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
             .edge-page .edge-seg:hover { color: ${t.text} !important; }
-            .edge-page .edge-input:focus { border-color: ${t.accent} !important; box-shadow: 0 0 0 3px ${t.accentSoft}; }
+            .edge-page .edge-input:focus { border-color: ${t.ghost} !important; box-shadow: none; }
             .edge-page .edge-input::placeholder { color: ${t.faint}; }
             .edge-page input[list]::-webkit-calendar-picker-indicator { display: none !important; opacity: 0; }
             .edge-page select.edge-input option { background: ${t.card}; color: ${t.text}; }

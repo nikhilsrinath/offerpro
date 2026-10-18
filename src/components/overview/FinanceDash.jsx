@@ -115,7 +115,7 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
                 delta={payables.overdue > 0
                     ? <span style={{ fontSize: 12, fontWeight: 600, color: t.down }}>{fmtShort(payables.overdue)} late</span> : null}
                 foot={`you owe ${payables.rows.length} vendor${payables.rows.length === 1 ? '' : 's'} · today`}
-                onClick={() => navigate('/finance/purchase-bills')} />
+                onClick={() => navigate('/finance/company-ledger')} />
             <Tile icon={Landmark} label="Net cash" value={fmtShort(cash.net)} exact={fmtInr(cash.net)} tone={cash.net < 0 ? 'down' : null}
                 foot={`${fmtShort(cash.received)} in · ${fmtShort(cash.paidOut)} out · all time`}
                 onClick={() => navigate('/finance/general-ledger')} />
@@ -178,13 +178,13 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
                     onSelect={(r) => open({ kind: 'customer', key: r.key })} empty="Nobody owes you anything" />
             </Card>
 
-            <Card title="What you owe" note="unpaid vendor bills · today" right={<More label="Bills" to="/finance/purchase-bills" />}>
+            <Card title="What you owe" note="unpaid vendor bills · today" right={<More label="Bills" to="/finance/company-ledger" />}>
                 <RankBars rows={payables.rows.map((v) => ({
                     ...v,
                     tip: <TipBody title={v.name} rows={[{ label: 'Owed', value: fmtInr(v.value) }, { label: 'Overdue', value: fmtInr(v.overdue) }, { label: 'Open bills', value: String(v.count) }]} />,
                 }))} format={fmtShort} color={cat[1]} total={payables.total}
                     sub={(r) => (r.overdue > 0.5 ? <span style={{ color: t.down }}>{fmtShort(r.overdue)} late</span> : '')}
-                    onSelect={(r) => navigate(r.key === 'none' ? '/finance/purchase-bills' : `/finance/purchase-bills?vendor=${r.key}`)} empty="No unpaid vendor bills" />
+                    onSelect={(r) => navigate(r.key === 'none' ? '/finance/company-ledger' : `/finance/company-ledger?vendor=${r.key}`)} empty="No unpaid vendor bills" />
             </Card>
 
             <Card title="Spending" note="by category, net of GST" right={<More onClick={() => open({ kind: 'metric', id: 'net' })} />}>

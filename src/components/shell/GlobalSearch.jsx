@@ -85,7 +85,7 @@ function useIndex() {
             [p.sku, p.category, p.hsn_sac], withQ('/business/products-directory', p.name)));
         bills.forEach((b) => add('Purchase bills', `Bill ${b.bill_number || ''}`.trim(),
             [vendorName[b.vendor_id], b.status].filter(Boolean).join(' · '),
-            [b.bill_number, vendorName[b.vendor_id], b.description, b.category], withQ('/finance/purchase-bills', b.bill_number)));
+            [b.bill_number, vendorName[b.vendor_id], b.description, b.category], withQ('/finance/company-ledger', b.bill_number)));
         tasks.forEach((x) => add('Tasks', x.title,
             [projectName[x.projectId], x.status === 'in-progress' ? 'in progress' : x.status].filter(Boolean).join(' · '),
             [projectName[x.projectId], x.description], `/projects/tasks?task=${x.id}`));

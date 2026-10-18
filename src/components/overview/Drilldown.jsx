@@ -425,8 +425,8 @@ function CategoryView({ model, name }) {
             ]} />
             <Section title="Trend"><Columns data={d.series} series={[{ key: 'value', label: name, color: cat[1] }]} tipFormat={fmtInr} height={190} /></Section>
             <Section title="By vendor"><RankBars rows={d.parties} format={fmtShort} color={cat[1]} /></Section>
-            <Section title="Entries" right={<OpenModule to="/finance/purchase-bills">Purchases</OpenModule>}>
-                <List rows={d.rows.map((e, i) => ({ id: i, data: e, to: e.kind === 'Purchase' ? '/finance/purchase-bills' : '/finance/profit-loss' }))} cols={[
+            <Section title="Entries" right={<OpenModule to="/finance/company-ledger">Purchases</OpenModule>}>
+                <List rows={d.rows.map((e, i) => ({ id: i, data: e, to: e.kind === 'Purchase' ? '/finance/company-ledger' : '/finance/profit-loss' }))} cols={[
                     { label: 'Date', render: (e) => fmtDay(e.date) },
                     { label: 'Item', wrap: true, render: (e) => e.label },
                     { label: 'Kind', render: (e) => e.kind },
