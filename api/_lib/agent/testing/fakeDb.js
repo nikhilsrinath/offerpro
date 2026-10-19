@@ -88,6 +88,17 @@ export function fakeDb(seed = {}, { deny = {}, rpc = {} } = {}) {
       gte(c, v) { state.filters.push((r) => r[c] >= v); return q; },
       lte(c, v) { state.filters.push((r) => r[c] <= v); return q; },
       is(c, v) { state.filters.push((r) => (r[c] ?? null) === v); return q; },
+      // Only the form the app uses: .not(col, 'is', null).
+      not(c, op, v) { state.filters.push((r) => (op === 'is' ? (r[c] ?? null) !== v : r[c] !== v)); return q; },
+      // Only the form the library uses: 'stem:* | stem:*' over heading + content.
+      textSearch(_c, query) {
+        const stems = String(query).split('|').map((t) => t.trim().replace(/:\*$/, '').toLowerCase()).filter(Boolean);
+        state.filters.push((r) => {
+          const words = `${r.heading || ''} ${r.content || ''}`.toLowerCase().match(/[\p{L}\p{N}]+/gu) || [];
+          return stems.some((s) => words.some((w) => w.startsWith(s)));
+        });
+        return q;
+      },
       order(col, o) { state.order = { col, asc: o?.ascending !== false }; return q; },
       limit(n) { state.limit = n; return q; },
       maybeSingle() { state.single = true; return q; },

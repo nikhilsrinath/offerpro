@@ -61,6 +61,16 @@ function refreshScreens(tables) {
 const STORE_KEY = 'edgeos.ai.chats';
 const MAX_CHATS = 60;
 const MAX_ENTITIES = 10;
+const MAX_SOURCES = 8;
+
+/** The records an answer read, for the links under it: each once, only ones that open somewhere. */
+const mergeSources = (prev = [], next = []) => {
+    const out = [...prev];
+    for (const e of next) {
+        if (e?.href && e.id && !out.some((x) => x.id === e.id)) out.push({ type: e.type, id: e.id, label: e.label, href: e.href });
+    }
+    return out.slice(0, MAX_SOURCES);
+};
 const LIVE = new Set(['proposed', 'executing', 'confirmed']);
 
 let seq = 0;
@@ -243,7 +253,10 @@ export function AssistantProvider({ edgeContext, children }) {
                     setOpen(false);
                     add({ kind: 'notice', content: `Opened ${data.label}.` });
                     break;
-                case 'entities': remember(chatId, replyId, data.entities); break;
+                case 'entities':
+                    remember(chatId, replyId, data.entities);
+                    patchMessage(chatId, replyId, (m) => ({ sources: mergeSources(m.sources, data.entities) }));
+                    break;
                 case 'card_update': cardUpdateRef.current?.(chatId, data); added += 1; break;
                 case 'error': patchMessage(chatId, replyId, { content: data.message || 'Something went wrong.', error: true }); said = data.message || 'x'; break;
                 default: break;
@@ -269,6 +282,9 @@ export function AssistantProvider({ edgeContext, children }) {
             context: {
                 page: pageRef.current,
                 recentEntities: recent,
+                // An agent's own chat (Ask → Agents) tells the server which
+                // agent it is, so the answer starts from that agent's tools.
+                agent: chatNow?.agent || null,
                 // Cards still waiting, so "scrap that" or (on a call) "yes, do it"
                 // is understood against them by the model. Not matched by the app.
                 openCards: (chatNow?.messages || [])
@@ -451,7 +467,7 @@ export function AssistantProvider({ edgeContext, children }) {
     /* ── chats ─────────────────────────────────────────────────────────── */
 
     const startChat = useCallback(() => {
-        const blank = chatsRef.current.find((c) => !c.messages.length);
+        const blank = chatsRef.current.find((c) => !c.messages.length && !c.agent);
         if (blank) {
             setActiveId(blank.id);
         } else {
@@ -470,7 +486,7 @@ export function AssistantProvider({ edgeContext, children }) {
         const current = chatsRef.current.find((c) => c.id === activeId);
         let chatId = current?.id;
         if (!current || current.messages.length) {
-            const blank = chatsRef.current.find((c) => !c.messages.length);
+            const blank = chatsRef.current.find((c) => !c.messages.length && !c.agent);
             if (blank) chatId = blank.id;
             else {
                 const c = newChat();
@@ -484,6 +500,27 @@ export function AssistantProvider({ edgeContext, children }) {
         send(content, { chatId });
         return true;
     }, [streaming, activeId, send]);
+
+    /**
+     * An agent's own conversation (Compliance and Deadline Agent…): one per agent, kept in the
+     * same history, titled after the agent. Made active, created if missing;
+     * `fresh` starts it over (the old conversation is dropped).
+     */
+    const openAgentChat = useCallback((agent, title, { fresh = false } = {}) => {
+        const found = chatsRef.current.find((c) => c.agent === agent);
+        if (found && !fresh) {
+            // The agent was renamed since this chat was saved.
+            if (title && found.title !== title) patchChat(found.id, (c) => ({ ...c, title }));
+            setActiveId(found.id);
+            return found.id;
+        }
+        const c = { ...newChat(), title, titled: true, agent };
+        const keep = (cs) => [c, ...cs.filter((x) => x.agent !== agent)];
+        chatsRef.current = keep(chatsRef.current);
+        setChats(keep);
+        setActiveId(c.id);
+        return c.id;
+    }, [patchChat]);
 
     const pickChat = useCallback((id) => {
         setActiveId(id);
@@ -551,14 +588,14 @@ export function AssistantProvider({ edgeContext, children }) {
     const value = useMemo(() => ({
         chats, active, activeId: active.id, messages: active.messages,
         draft, setDraft, streaming, working, send, askNew, regenerate,
-        startChat, pickChat, removeChat, clearHistory, renameChat, togglePin, shareChat,
+        startChat, pickChat, openAgentChat, removeChat, clearHistory, renameChat, togglePin, shareChat,
         answer, takeOffer, dismissQuestion, pendingQuestion,
         confirmCard, cancelCard, undoCard,
         open, setOpen, view, setView, docked: docks > 0, registerDock,
         note, setNote, speech,
     }), [
         chats, active, draft, streaming, working, send, askNew, regenerate,
-        startChat, pickChat, removeChat, clearHistory, renameChat, togglePin, shareChat,
+        startChat, pickChat, openAgentChat, removeChat, clearHistory, renameChat, togglePin, shareChat,
         answer, takeOffer, dismissQuestion, pendingQuestion,
         confirmCard, cancelCard, undoCard,
         open, view, docks, registerDock, note, speech,

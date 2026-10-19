@@ -13,7 +13,7 @@ import { getPlanConfig, DEFAULT_PLAN } from '../../services/planConfig';
 import { RailSlotContext } from './railSlot';
 import { useRailPin, RailPinButton } from './railPin';
 import {
-    RailIsland, RailHead, RailBrand, RailBack, RailHeading, RailList, RailItem, IslandBtn, RailFoot, RailPlanCard, RailSpacer,
+    RailIsland, RailHead, RailBrand, RailBack, RailHeading, RailList, RailItem, IslandBtn, AccountBtns, RailFoot, RailPlanCard, RailSpacer,
 } from './railIsland';
 import MobileNav from './MobileNav';
 import { MODULES, RAIL_GROUPS } from './modules';
@@ -402,9 +402,9 @@ export default function ModuleShell({
                     {!railSlot && <RailSpacer />}
 
                     {workspace ? (
-                        /* ── foot, as on the hub: notifications and the account.
-                           Shut, both read as icons with a red dot when they
-                           need attention. */
+                        /* ── foot: notifications, the theme, then the account as on the hub.
+                           Shut, a column of icons, a red dot where something
+                           needs attention. */
                         <RailFoot t={t} open={rail} footRef={footRef}>
                             <IslandBtn
                                 t={t} icon={Bell} label="Notifications" dot={unread > 0} btnRef={notifBtnRef}
@@ -412,36 +412,21 @@ export default function ModuleShell({
                                 aria-expanded={menu === 'notifs'} aria-haspopup="true" aria-controls="edge-notif-panel"
                                 onClick={() => setMenu((m) => (m === 'notifs' ? null : 'notifs'))}
                             />
-                            <button type="button" className="ri-ibtn" ref={accountBtnRef}
-                                aria-label={accountLabel} title={orgName}
-                                aria-expanded={menu === 'account'} aria-haspopup="menu" aria-controls="edge-account-menu"
-                                onClick={() => setMenu((m) => (m === 'account' ? null : 'account'))}
-                                style={{
-                                    position: 'relative', width: 38, height: 38, padding: 3, flexShrink: 0, cursor: 'pointer',
-                                    borderRadius: 12, border: '1px solid ' + (menu === 'account' ? t.accent : t.line),
-                                    background: t.panelAlt, display: 'grid', placeItems: 'center',
-                                }}>
-                                {avatar(30, 9)}
-                                {profile.incomplete && (
-                                    <span aria-hidden="true" style={{
-                                        position: 'absolute', top: -2, right: -2, width: 9, height: 9, borderRadius: 999,
-                                        background: t.down, border: '1.5px solid ' + t.card,
-                                    }} />
-                                )}
-                            </button>
+                            {/* Without a top bar the theme switch lives here. */}
+                            <IslandBtn t={t} icon={isDark ? Sun : Moon} label={isDark ? 'Light mode' : 'Dark mode'} onClick={() => onToggleTheme?.()} />
+                            <AccountBtns t={t} profile={profile} onLogout={onLogout} />
 
                             {menu === 'notifs' && (
                                 <Pop t={t} width={318} id="edge-notif-panel" role="region" label="Notifications"
                                     at={{ left: islandW + 4, bottom: 12 }}>{notifPanel}</Pop>
                             )}
-                            {menu === 'account' && (
-                                <Pop t={t} width={252} id="edge-account-menu" role="menu" label="Account"
-                                    at={{ left: islandW + 4, bottom: 12 }}>{accountPanel}</Pop>
-                            )}
                         </RailFoot>
-                    ) : (
+                    ) : (<>
                         <RailPlanCard t={t} open={rail} plan={plan} />
-                    )}
+                        <RailFoot t={t} open={rail}>
+                            <AccountBtns t={t} profile={profile} onLogout={onLogout} />
+                        </RailFoot>
+                    </>)}
                 </RailIsland>
             )}
 
@@ -634,6 +619,10 @@ function notifTarget(n) {
     }
     if (n.project_id) return `/projects/${n.project_id}`;
     switch (n.type) {
+        case 'deadline_watch':
+            return '/ask?agent=deadline_watch';
+        case 'operations_monitor':
+            return '/ask?agent=operations_monitor';
         case 'offer_signed':
         case 'role_change_acknowledged':
         case 'termination_acknowledged':

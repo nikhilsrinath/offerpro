@@ -371,7 +371,13 @@ const add_client_note = {
     };
   },
 
-  validate() { return []; },
+  // The same note twice on the same day is a repeat, not a second note.
+  async validate(args, ctx) {
+    const [row] = await rowsById([args.client], ctx);
+    const line = `${formatDate(ctx.today)}: ${args.note}`.trim().toLowerCase();
+    const has = String(row?.notes || '').split(/\r?\n/).some((l) => l.trim().toLowerCase() === line);
+    return has ? [`${q(row.name)} already has that note for today.`] : [];
+  },
 
   async preview(args, ctx) {
     const [row] = await rowsById([args.client], ctx);

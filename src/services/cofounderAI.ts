@@ -1,6 +1,7 @@
 /**
  * EdgeOS Co-founder AI Service
- * Powered by Gemini (gemini-3.6-flash) through the /api/nvidia proxy
+ * Powered by OpenRouter through the /api/nvidia proxy, which picks the model
+ * (api/_lib/llm.js)
  * Optimized for sub-7-second responses
  */
 
@@ -11,8 +12,8 @@ import { orgStore } from './orgStore';
 
 // Backend proxy URL - all AI requests go through our backend
 const NVIDIA_API_URL = '/api/nvidia';
-// Keep in step with DEFAULT_MODEL in api/nvidia.js.
-const MODEL = 'gemini-3.6-flash';
+// Informational only: the server ignores it and uses OPENROUTER_MODEL.
+const MODEL = 'google/gemini-3.6-flash';
 
 export interface EdgeContext {
   company: string;

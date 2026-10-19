@@ -194,6 +194,12 @@ begin
     insert into ai_actions (org_id, user_id, tool, risk)
     select o, m.user_id, 'create_task', 'low' from memberships m where m.org_id = o limit 1;
 
+    -- Agents (0089), service role only: no client access at all, asserted in
+    -- 21_agent_deadline_watch_test.sql.
+    insert into agent_settings (org_id, agent, config) values (o, 'deadline_watch', '{}');
+    insert into agent_runs (org_id, agent, run_key) values (o, 'deadline_watch', 'fixture-' || s);
+    insert into agent_alerts (org_id, agent, dedupe_key, record_type, severity) values (o, 'deadline_watch', 'task:x:' || s, 'task', 'high');
+
     -- Document library (0063): a stored file and one passage read from it.
     insert into library_documents (org_id, title, file_name, mime_type, size_bytes, storage_path)
       values (o, 'Handbook ' || s, 'handbook.pdf', 'application/pdf', 1024, o || '/handbook-' || s || '.pdf')
@@ -455,9 +461,10 @@ begin
       for t in select * from _tables order by tbl loop
         -- Own-org behaviour of these is not "the matrix" and is asserted
         -- directly in 04_role_smoke_test.sql (member_permissions in
-        -- 09_member_permissions_test.sql, ai_actions in 13_ai_actions_test.sql). Cross-tenant, they are probed
+        -- 09_member_permissions_test.sql, ai_actions in 13_ai_actions_test.sql, agent_* in 21). Cross-tenant, they are probed
         -- like everything else.
-        if v_side = 'own' and t.tbl in ('memberships', 'audit_log', 'role_permissions', 'member_permissions', 'ai_actions') then
+        if v_side = 'own' and t.tbl in ('memberships', 'audit_log', 'role_permissions', 'member_permissions', 'ai_actions',
+                                         'agent_settings', 'agent_runs', 'agent_alerts') then
           continue;
         end if;
 

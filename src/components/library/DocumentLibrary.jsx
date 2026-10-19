@@ -94,6 +94,15 @@ export default function DocumentLibrary() {
     const [queue, setQueue] = useState([]);
     const [openId, setOpenId] = useState(null);
     const [dragging, setDragging] = useState(false);
+    // ?doc=<id> opens that document: EdgeAI's source links under an answer
+    // point here. Closing it drops the parameter, so the same link works again.
+    const docParam = new URLSearchParams(location.search).get('doc');
+    const [linkedDoc, setLinkedDoc] = useState(null);
+    if (docParam !== linkedDoc) { setLinkedDoc(docParam); if (docParam) setOpenId(docParam); }
+    const closeDoc = () => {
+        setOpenId(null);
+        if (docParam) navigate(location.pathname, { replace: true });
+    };
 
     const canCreate = orgStore.can('library_documents', 'create');
     const canEdit = orgStore.can('library_documents', 'edit');
@@ -327,13 +336,13 @@ export default function DocumentLibrary() {
                 <DocumentSheet
                     id={openId} orgId={orgId}
                     canEdit={canEdit} canDelete={canDelete}
-                    onClose={() => setOpenId(null)}
+                    onClose={closeDoc}
                     onChanged={(row) => {
                         setDocs((d) => (d || []).map((x) => (x.id === row.id ? { ...x, ...row } : x)));
                         // Moved to another register: it leaves this list, so the sheet goes with it.
-                        if (row.collection && row.collection !== collection) setOpenId(null);
+                        if (row.collection && row.collection !== collection) closeDoc();
                     }}
-                    onRemoved={(id) => { setDocs((d) => (d || []).filter((x) => x.id !== id)); setOpenId(null); }}
+                    onRemoved={(id) => { setDocs((d) => (d || []).filter((x) => x.id !== id)); closeDoc(); }}
                 />
             )}
         </Page>
@@ -420,6 +429,8 @@ function DocumentSheet({ id, orgId, canEdit, canDelete, onClose, onChanged, onRe
     const load = useCallback(async () => {
         try {
             const d = await libraryService.get(id);
+            // A link to a document that was deleted, or that this role cannot see.
+            if (!d) { toast('That document is not in the library you can see.', 'error'); onClose(); return; }
             setDoc(d);
             setForm(d ? {
                 title: d.title, category: d.category, collection: d.collection || 'general',

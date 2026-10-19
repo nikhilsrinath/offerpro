@@ -73,3 +73,21 @@ export function treatmentOf(key, direction) {
   if (found && found.direction === direction) return found.treatment;
   return direction === 'in' ? 'revenue' : 'operating';
 }
+
+/* ── what a row does to profit ────────────────────────────────────────────── */
+
+export const groupOf = (key) => categoryOf(key)?.group_label || 'Other';
+
+/**
+ * The treatment to use for a row. Rows carry their own, stamped by the database
+ * at write time so that re-categorising the taxonomy cannot restate a reported
+ * period; this only resolves it for a row written before 0038.
+ */
+export const rowTreatment = (row, direction) => row?.treatment || treatmentOf(row?.category, direction);
+
+/** Does this money-in row belong in P&L income? */
+export const countsAsIncome = (row) => !row?.document_id && INCOME_TREATMENTS.has(rowTreatment(row, 'in'));
+/** Does this money-out row belong in the P&L expense line? */
+export const countsAsExpense = (row) => EXPENSE_TREATMENTS.has(rowTreatment(row, 'out'));
+/** Money coming back: reduces an expense rather than adding to income. */
+export const isCostRecovery = (row) => rowTreatment(row, 'in') === 'cost_recovery';

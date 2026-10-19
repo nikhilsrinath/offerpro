@@ -1,11 +1,13 @@
 /**
  * AI Proxy - Vercel Serverless Function
- * Forwards AI chatbot requests to Gemini with a server-held API key.
+ * Forwards AI chatbot requests to OpenRouter with a server-held API key
+ * (_lib/llm.js picks the model).
  *
- * Gemini is reached through its OpenAI-compatible endpoint, not the native
- * generateContent API, so the request body, the SSE frames and the client
- * parser in src/services/cofounderAI.ts are all unchanged from the NVIDIA
- * version. The provider swapped; the wire format did not.
+ * OpenRouter speaks the OpenAI chat-completions format, so the request body,
+ * the SSE frames and the client parser in src/services/cofounderAI.ts are
+ * unchanged from the NVIDIA and Gemini versions. The provider swapped; the
+ * wire format did not. (OpenRouter also sends ": OPENROUTER PROCESSING"
+ * keep-alive comments, which the client's "data: " parser skips.)
  *
  * The route is still called /api/nvidia because renaming it would touch the
  * dev middleware list in vite.config.js and NVIDIA_API_URL in cofounderAI.ts
@@ -25,6 +27,7 @@
 import { requireUser, requireOrgRole, HttpError } from './_lib/auth.js';
 import { supabaseAdmin } from './_lib/supabaseAdmin.js';
 import { logAiUsage } from './_lib/aiUsage.js';
+import { openRouter, reasoningFor, hasAiKey, AI_MODEL } from './_lib/llm.js';
 
 // Mirrors `limits.aiMessages` in src/services/planConfig.js. Duplicated rather
 // than imported for the same reason api/_lib/docShape.js duplicates the row
@@ -35,14 +38,12 @@ const AI_MESSAGE_LIMITS = { free: 10, pro: 50, max: Infinity };
 // The largest completion any caller may ask for, whatever the request says.
 const MAX_TOKENS_CEILING = 2048;
 
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-const DEFAULT_MODEL = 'gemini-3.6-flash';
-
 // Gemini 3.x models think before answering, and the thinking is billed against
-// max_tokens. At the 400 the co-founder UI asks for, the entire budget goes to
-// reasoning and the response streams back with finish_reason "length" and no
-// content at all: an empty bubble, not an error. 'none' turns that off and
-// brings a full answer back in ~2s, which is what the sub-7-second target in
+// max_tokens. At the 400 the co-founder UI asks for, the entire budget can go
+// to reasoning and the response streams back with finish_reason "length" and
+// no content at all: an empty bubble, not an error. The least thinking the
+// model allows (reasoningFor('none') → minimal, see _lib/llm.js) brings a full
+// answer back quickly, which is what the sub-7-second target in
 // cofounderAI.ts needs. A caller may ask for more by sending reasoning_effort,
 // but then it must send a max_tokens large enough to pay for it.
 const DEFAULT_REASONING_EFFORT = 'none';
@@ -61,15 +62,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    console.error('[AI Proxy] Missing GEMINI_API_KEY environment variable');
+  if (!hasAiKey()) {
+    console.error('[AI Proxy] Missing OPENROUTER_API_KEY environment variable');
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
   try {
-    const { model, messages, max_tokens, temperature, top_p, stream, org_id, reasoning_effort } = req.body;
+    // `model` in the body is ignored: the server picks it (_lib/llm.js).
+    const { messages, max_tokens, temperature, top_p, stream, org_id, reasoning_effort } = req.body;
 
     // Validate required fields
     if (!messages || !Array.isArray(messages)) {
@@ -94,33 +94,24 @@ export default async function handler(req, res) {
       });
     }
 
-    const response = await fetch(GEMINI_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'Accept': stream ? 'text/event-stream' : 'application/json',
-      },
-      body: JSON.stringify({
-        model: model || DEFAULT_MODEL,
-        messages,
-        // Capped, not just defaulted. `max_tokens` arrives from the request body
-        // and every token is billed to the account whose key sits in this
-        // function's environment, so an unbounded value let one authenticated
-        // caller spend arbitrarily on a single message that the meter counts as
-        // one. 2048 is well above what the co-founder UI asks for.
-        max_tokens: Math.min(Math.max(Number(max_tokens) || 150, 1), MAX_TOKENS_CEILING),
-        temperature: temperature ?? 0.2,
-        top_p: top_p ?? 0.8,
-        stream: stream ?? true,
-        reasoning_effort: reasoning_effort ?? DEFAULT_REASONING_EFFORT,
-      }),
-    });
+    const response = await openRouter({
+      messages,
+      // Capped, not just defaulted. `max_tokens` arrives from the request body
+      // and every token is billed to the account whose key sits in this
+      // function's environment, so an unbounded value let one authenticated
+      // caller spend arbitrarily on a single message that the meter counts as
+      // one. 2048 is well above what the co-founder UI asks for.
+      max_tokens: Math.min(Math.max(Number(max_tokens) || 150, 1), MAX_TOKENS_CEILING),
+      temperature: temperature ?? 0.2,
+      top_p: top_p ?? 0.8,
+      // Hidden: the browser reads only the answer from the stream.
+      reasoning: reasoningFor(reasoning_effort ?? DEFAULT_REASONING_EFFORT, { hide: true }),
+    }, { stream: stream ?? true });
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '');
       console.error('[AI Proxy] API Error:', response.status, errorText);
-      await logAiUsage({ orgId: org_id, user, surface: 'copilot', outcome: 'failed', model: model || DEFAULT_MODEL });
+      await logAiUsage({ orgId: org_id, user, surface: 'copilot', outcome: 'failed', model: AI_MODEL });
       return res.status(response.status).json({
         error: `AI provider error: ${response.status}`,
         details: errorText.substring(0, 500),
@@ -145,7 +136,7 @@ export default async function handler(req, res) {
 
     // Logged before end(): a serverless function may be frozen the moment its
     // response is complete, and an un-awaited insert would be lost with it.
-    await logAiUsage({ orgId: org_id, user, surface: 'copilot', model: model || DEFAULT_MODEL });
+    await logAiUsage({ orgId: org_id, user, surface: 'copilot', model: AI_MODEL });
     res.end();
 
   } catch (error) {

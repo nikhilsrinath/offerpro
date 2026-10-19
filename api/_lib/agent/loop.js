@@ -3,6 +3,7 @@ import { buildSystemPrompt } from './prompt.js';
 import { callModel } from './model.js';
 import { propose, modelView, confirm, cancel } from './pipeline.js';
 import { buildContext as brainContext } from '../brainRetrieval.js';
+import { reviewAnswer } from '../knowledge.js';
 
 /**
  * One user message, start to finish.
@@ -34,6 +35,14 @@ function cleanHistory(history) {
     .slice(-MAX_HISTORY)
     .map((m) => ({ role: m.role, content: m.content.slice(0, 2000) }));
 }
+
+/**
+ * Record text (document passages above all) is wrapped in <data> blocks the
+ * prompt tells the model to treat as data. A record that itself contains
+ * "</data>" must not be able to close the block early and have what follows
+ * read as something other than data.
+ */
+export const fenceData = (text) => String(text).replace(/<\/(data)/gi, '<\\/$1');
 
 function parseArgs(raw) {
   if (raw && typeof raw === 'object') return raw;
@@ -124,7 +133,7 @@ export async function runChat(ctx, { message, history, chatId, messageId }, emit
       new Promise((r) => setTimeout(() => r(null), 4000)),
     ]);
     if (pkg?.context) {
-      messages.push({ role: 'system', content: `<data source="edgebrain">\n${pkg.context}\n</data>` });
+      messages.push({ role: 'system', content: `<data source="edgebrain">\n${fenceData(pkg.context)}\n</data>` });
     }
   }
   messages.push(...cleanHistory(history), { role: 'user', content: userMessage });
@@ -141,7 +150,8 @@ export async function runChat(ctx, { message, history, chatId, messageId }, emit
     messages.push(reply);
     const calls = reply.tool_calls || [];
     if (!calls.length) {
-      emit('text', { text: reply.content || '' });
+      // An answer quoting documents is checked against what was retrieved.
+      emit('text', { text: reviewAnswer(ctx, reply.content || '', { userMessage }) });
       return { steps: step + 1 };
     }
 
@@ -176,7 +186,7 @@ export async function runChat(ctx, { message, history, chatId, messageId }, emit
           content = { status: 'error', message: 'That lookup failed.' };
         }
       }
-      messages.push({ role: 'tool', tool_call_id: call.id, content: `<data tool="${name}">${JSON.stringify(content)}</data>` });
+      messages.push({ role: 'tool', tool_call_id: call.id, content: `<data tool="${name}">${fenceData(JSON.stringify(content))}</data>` });
     }
     if (halt) {
       if (reply.content?.trim()) emit('text', { text: reply.content });

@@ -16,6 +16,10 @@ import { PLANS, DEFAULT_PLAN } from '../../../src/services/planConfig.js';
  */
 
 const ACTIONS = ['view', 'create', 'edit', 'delete'];
+const AGENT_CHATS = ['deadline_watch', 'business_intelligence', 'internal_knowledge', 'deal_intelligence', 'operations_monitor'];
+// Agents whose chat may only read: write tools are not offered there and are
+// refused if called (registry.allowed).
+const READ_ONLY_AGENTS = ['internal_knowledge'];
 
 export async function buildAgentContext({ user, token, orgId, body = {}, actionId = null }) {
   if (!orgId) throw new HttpError(400, 'Missing org_id');
@@ -63,6 +67,9 @@ export async function buildAgentContext({ user, token, orgId, body = {}, actionI
     dbFor: (id) => userClient(token, { actionId: id }),
     actionId,
     page: cleanPage(body.context?.page),
+    // Which agent's own chat this is (Ask → Agents), if any. A focus for the
+    // prompt only: it grants nothing.
+    agent: AGENT_CHATS.includes(body.context?.agent) ? body.context.agent : null,
     recentEntities: cleanEntities(body.context?.recentEntities),
     // What is on the table in this chat: the question EdgeAI last asked, and
     // the cards still waiting. The model reads the next message against them.
@@ -78,6 +85,7 @@ export async function buildAgentContext({ user, token, orgId, body = {}, actionI
     const keys = Array.isArray(resource) ? resource : [resource];
     return keys.some((k) => perms[k]?.[action] === true);
   };
+  ctx.readOnly = READ_ONLY_AGENTS.includes(ctx.agent);
   ctx.allowed = new Set(Object.entries(perms).filter(([, p]) => p.view).map(([k]) => k));
   ctx.hasPlanFeature = (feature) => {
     const cfg = PLANS[plan];

@@ -430,9 +430,13 @@ const create_task = {
     };
   },
 
-  validate(args) {
+  // Also run again on confirm, so a second tap or a repeated request cannot
+  // add the same open task twice.
+  async validate(args, ctx) {
     const problems = [];
-    if (!args.title) problems.push('A task needs a title.');
+    if (!args.title) return ['A task needs a title.'];
+    const twin = await openTwin(args, ctx);
+    if (twin) problems.push(`${q(twin.title)} is already an open task${twin.deadline ? `, due ${formatDate(twin.deadline)}` : ''}. Update that one instead of adding a second.`);
     return problems;
   },
 
@@ -484,6 +488,15 @@ const create_task = {
     return row?.id ? [entityOf('task', row)] : [];
   },
 };
+
+/** An open task with the same title (letters and digits only, any case) on the same project, if there is one. */
+async function openTwin(args, ctx) {
+  const key = (s) => String(s || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  const want = key(args.title);
+  if (!want) return null;
+  const rows = await loadKind('task', ctx);
+  return rows.find((t) => t.status !== 'done' && key(t.title) === want && (t.project_id || null) === (args.project || null)) || null;
+}
 
 /* ── delete ───────────────────────────────────────────────────────────────── */
 

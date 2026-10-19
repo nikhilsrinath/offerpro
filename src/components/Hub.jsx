@@ -13,7 +13,7 @@ import { useProfileCompletion } from '../hooks/useProfileCompletion';
 import { MODULES, RAIL_GROUPS } from './shell/modules';
 import { useRailPin, RailPinButton } from './shell/railPin';
 import {
-    RailIsland, RailHead, RailBrand, RailHeading, RailList, RailItem, IslandBtn, RailFoot, RailPlanCard, RailSpacer,
+    RailIsland, RailHead, RailBrand, RailHeading, RailList, RailItem, AccountBtns, RailFoot, RailPlanCard, RailSpacer,
 } from './shell/railIsland';
 import MobileNav from './shell/MobileNav';
 import CountryDialog from './CountryDialog';
@@ -395,10 +395,7 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                     <RailSpacer />
                     <RailPlanCard t={t} open={rail} plan={plan} />
                     <RailFoot t={t} open={rail}>
-                        <IslandBtn t={t} icon={Building2} label="Company profile" dot={profile.incomplete}
-                            to={profile.next ? `/profile#${profile.next.section}` : '/profile'} />
-                        <IslandBtn t={t} icon={UserIcon} label="My portal" to="/me" />
-                        <IslandBtn t={t} icon={LogOut} label="Log out" danger onClick={() => onLogout?.()} />
+                        <AccountBtns t={t} profile={profile} onLogout={onLogout} />
                     </RailFoot>
                 </RailIsland>
             )}

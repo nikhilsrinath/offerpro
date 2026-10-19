@@ -18,13 +18,13 @@ import { supabaseAdmin } from './_lib/supabaseAdmin.js';
 import { logAiUsage } from './_lib/aiUsage.js';
 import { allowedResources } from './_lib/brainRetrieval.js';
 import { extractDocument, chunkMarkdown, leadSummary } from './_lib/libraryExtract.js';
+import { openRouter, reasoningFor, hasAiKey, AI_MODEL as MODEL } from './_lib/llm.js';
 
 export const config = { maxDuration: 60 };
 
 const BUCKET = 'library';
-const MODEL = 'gemini-3.6-flash';
-const GEMINI_NATIVE = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
-// Inline data is capped by the API at ~20 MB per request, base64 included.
+// The file travels base64-encoded inside the request; kept well under the
+// ~20 MB a request may carry once encoded.
 const OCR_MAX_BYTES = 14 * 1024 * 1024;
 // Mirrors api/nvidia.js and api/brain.js.
 const AI_MESSAGE_LIMITS = { free: 10, pro: 50, max: Infinity };
@@ -68,7 +68,7 @@ async function processDocument(orgId, docId, user) {
 
     outcome = await extractDocument(
       { buffer, fileName: doc.file_name, mimeType: doc.mime_type, title: doc.title },
-      { ocr: process.env.GEMINI_API_KEY ? (bytes, mime, hint) => ocr(orgId, bytes, mime, hint, user) : null },
+      { ocr: hasAiKey() ? (bytes, mime, hint) => ocr(orgId, bytes, mime, hint, user) : null },
     );
   } catch (err) {
     outcome = { status: 'failed', method: null, markdown: '', pages: null, error: err?.message || String(err) };
@@ -143,19 +143,17 @@ async function ocr(orgId, bytes, mimeType, hint, user) {
     '- If something is illegible write [illegible]. Never guess a number or a name.\n' +
     '- Output only the Markdown, with no preamble and no code fences around it.';
 
-  const response = await fetch(GEMINI_NATIVE, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-    body: JSON.stringify({
-      contents: [{
-        role: 'user',
-        parts: [
-          { text: prompt },
-          { inline_data: { mime_type: mimeType, data: Buffer.from(bytes).toString('base64') } },
-        ],
-      }],
-      generationConfig: { temperature: 0, maxOutputTokens: 16384 },
-    }),
+  // An image goes as image_url and a PDF as a file part, both as data URLs:
+  // OpenRouter hands them to the model as the file itself, not as text.
+  const dataUrl = `data:${mimeType};base64,${Buffer.from(bytes).toString('base64')}`;
+  const attachment = mimeType.startsWith('image/')
+    ? { type: 'image_url', image_url: { url: dataUrl } }
+    : { type: 'file', file: { filename: mimeType === 'application/pdf' ? 'document.pdf' : 'document', file_data: dataUrl } };
+  const response = await openRouter({
+    messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, attachment] }],
+    temperature: 0,
+    max_tokens: 16384,
+    reasoning: reasoningFor('low', { hide: true }),
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
@@ -166,11 +164,10 @@ async function ocr(orgId, bytes, mimeType, hint, user) {
   const json = await response.json();
   await logAiUsage({
     orgId, user, surface: 'library', model: MODEL,
-    promptTokens: json?.usageMetadata?.promptTokenCount,
-    completionTokens: json?.usageMetadata?.candidatesTokenCount,
+    promptTokens: json?.usage?.prompt_tokens,
+    completionTokens: json?.usage?.completion_tokens,
   });
-  const text = (json?.candidates?.[0]?.content?.parts || [])
-    .filter((p) => !p.thought).map((p) => p.text || '').join('').trim()
+  const text = String(json?.choices?.[0]?.message?.content || '').trim()
     .replace(/^```(?:markdown|md)?\n([\s\S]*?)\n```$/, '$1');
   if (!text) throw new Error('The AI returned no text for this file.');
   return text;

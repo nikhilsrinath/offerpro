@@ -1,4 +1,15 @@
 {
+    "crons": [
+        {
+            "path": "/api/agents",
+            "schedule": "30 2 * * *"
+        }
+    ],
+    "functions": {
+        "api/agents.js": {
+            "maxDuration": 60
+        }
+    },
     "rewrites": [
         {
             "source": "/api/(.*)",

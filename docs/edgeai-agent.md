@@ -8,7 +8,7 @@ EdgeAI operates the app on the user's behalf. It reads freely, and it **proposes
 message ─► POST /api/agent {mode:'chat'}  (SSE)
              context: user, role, permissions (my_permissions), plan, today in the org's
              timezone, the page, recentEntities, EdgeBrain facts as <data>
-             model (Gemini, OpenAI-compatible, function calling) ⇄ tools, ≤ 8 steps
+             model (OpenRouter, OpenAI-compatible, function calling) ⇄ tools, ≤ 8 steps
                read / navigate tool → runs now, result goes back to the model as <data>
                write tool          → resolve → validate → preview → ai_actions (proposed)
                                      → card to the client; the turn ends
@@ -59,6 +59,9 @@ Other modes: `cancel`, `status` (latest state of cards in a reopened thread).
 | Tasks | `create_task`, `update_task`, `complete_task`, `reopen_task` | `delete_task` |
 | Clients / CRM | `create_client`, `update_client`, `move_client_stage`, `add_client_note` | `delete_client` |
 | Finance | `create_invoice_draft`, `create_quotation_draft`, `create_proforma_draft`, `convert_quotation` | `create_cash_entry`, `record_payment`, `mark_invoice_paid`, `issue_document`, `create_vendor`, `create_purchase_bill`, `cancel_financial_document`, `delete_financial_document` |
+| Documents (Internal Knowledge) | `search_documents`, `read_document`, `list_documents` — reads, run at once; need `library_documents: view` | |
+| Deals (Deal Intelligence) | `deal_pipeline`, `deal_list`, `deal_risks`, `deal_priorities`, `deal_detail` — reads, run at once; need `clients: view` | |
+| Operations (Operations Monitoring Agent) | `ops_overview`, `ops_issues`, `ops_projects`, `ops_blockers`, `ops_trend` — reads, run at once; each source filtered by its own view permission | |
 
 Finance notes:
 
@@ -69,6 +72,16 @@ Finance notes:
 - **Payments** are recorded as confirmed (`confirmed_at`, `confirmed_by`), like "Mark paid" in the list; the database moves the document to paid / partially paid. More than the balance is refused.
 - **Purchase bills** take the amount as said: "85k incl GST" backs out the subtotal at the vendor's last GST rate; the card shows the total the database will store.
 - **Cards** for documents show the lines and the CGST/SGST or IGST split; an invoice opens as the real `InvoicePreview` (scaled into the card by `DocPaper.jsx`), open by default when issuing.
+
+Agent chats (Ask → Agents) send `context.agent`, which adds a focus block to the prompt and grants nothing. The **Internal Knowledge** chat (`internal_knowledge`) is also **read-only by enforcement**: `ctx.readOnly` makes `registry.allowed()` refuse every write tool, so neither the model nor a document's text can get a card made there. Document passages reach the model fenced (`fenceData` in `loop.js`), and the final answer goes through `reviewAnswer()` (`api/_lib/knowledge.js`), which flags any quotation that is not word for word in what was retrieved.
+
+The **Deal Intelligence** chat (`deal_intelligence`) is read-only by default, as Business Intelligence is: the deal tools only read, and a follow-up task, a note or a stage move is proposed through the normal card only when the user asks. Every rule, severity and priority score comes from `src/shared/dealIntel.js`, never from the model.
+
+The **Operations Monitoring Agent** chat (`operations_monitor`) is read-only by default too: a corrective task or a new deadline is proposed through the normal card only when the user asks. Every finding, severity and priority score comes from `src/shared/opsMonitor.js` (its deadline rules are the Compliance and Deadline Agent's `detectDeadlines`), never from the model. Its scheduled run shares 0089's agent tables; 0090 makes each alert's notification carry its agent's type.
+
+Two checks stop duplicates, at proposal and again at confirm:
+- `create_task` refuses an open task with the same title (letters and digits only, ignoring case) on the same project.
+- `add_client_note` refuses the same note on the same day.
 
 ## Adding a tool
 
@@ -130,8 +143,9 @@ Finance notes:
 ## Evals
 
 ```
-node scripts/eval-agent.js            # all cases (needs GEMINI_API_KEY; uses .env)
+node scripts/eval-agent.js            # all cases (needs OPENROUTER_API_KEY; uses .env)
 node scripts/eval-agent.js task- crm-  # by id prefix
+node scripts/eval-agent.js kn-        # Internal Knowledge (library passages are ranked in memory)
 ```
 
 Runs each case through the real loop and model over the fixture company in `scripts/eval-agent.world.js`, with an in-memory database. Reports per-module tool and argument accuracy and the number of unconfirmed writes. Targets: **≥ 95% tool, ≥ 90% args, 0 writes.** Phase 1 + 2 (88 cases: tasks, CRM, cash, finance) runs at 98.9–100% tool and args, 0 writes.

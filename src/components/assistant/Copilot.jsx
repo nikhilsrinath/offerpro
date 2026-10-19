@@ -26,7 +26,9 @@ import './copilot.css';
                      the left, the conversation fills the rest.
    · variant="page"  the full layout as an ordinary page (Ask), inside the
                      module frame instead of over it. `welcome` replaces the
-                     empty state and is handed the composer to place.
+                     empty state and is handed the composer to place;
+                     `switcher` sits in the head, and `pane`, when set,
+                     replaces the history and the conversation entirely.
 
    All render the same state from AssistantContext, so a chat started in one
    is the same chat in the other.
@@ -102,7 +104,7 @@ const lastLine = (c) => {
 
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, onCollapse, onClose, onHide, welcome }) {
+export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, onCollapse, onClose, onHide, welcome, switcher, pane }) {
     const a = useAssistant();
     const navigate = useNavigate();
     const [callOpen, setCallOpen] = useState(false);
@@ -191,8 +193,8 @@ export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, on
     return (
         <div className={`cp cp-full${page ? ' cp-page' : ''} eo-surface`} data-theme={theme}
             role={page ? 'region' : 'dialog'} aria-modal={page ? undefined : 'true'} aria-label={page ? 'Ask EdgeAI' : 'EdgeAI copilot'}>
-            {sideOpen && phone && <div className="cp-scrim" onClick={() => setSideOpen(false)} />}
-            {sideOpen && (
+            {sideOpen && phone && !pane && <div className="cp-scrim" onClick={() => setSideOpen(false)} />}
+            {sideOpen && !pane && (
                 <aside className="cp-side" aria-label="Chat history">
                     <div className="cp-side-head">
                         <span className={`cp-orb${a.streaming ? ' is-live' : ''}`} aria-hidden="true" />
@@ -207,18 +209,23 @@ export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, on
             )}
             <div className="cp-col">
                 <header className="cp-head">
-                    {!sideOpen && (
+                    {!sideOpen && !pane && (
                         <button type="button" className="cp-icon" onClick={() => setSideOpen(true)} aria-label="Show chat history" title="History">
                             <PanelLeft size={16} strokeWidth={1.8} aria-hidden="true" />
                         </button>
                     )}
-                    <span className="cp-sub" style={{ fontSize: 15.5, color: 'var(--text-2)' }}>
-                        {a.active.messages.length ? a.active.title : 'New chat'}
-                    </span>
+                    {switcher}
+                    {!pane && (
+                        <span className="cp-sub" style={{ fontSize: 15.5, color: 'var(--text-2)' }}>
+                            {a.active.messages.length ? a.active.title : 'New chat'}
+                        </span>
+                    )}
                     <div className="cp-head-actions">
-                        <button type="button" className="cp-icon" onClick={a.startChat} aria-label="New chat" title="New chat">
-                            <Plus size={16} strokeWidth={1.8} aria-hidden="true" />
-                        </button>
+                        {!pane && (
+                            <button type="button" className="cp-icon" onClick={a.startChat} aria-label="New chat" title="New chat">
+                                <Plus size={16} strokeWidth={1.8} aria-hidden="true" />
+                            </button>
+                        )}
                         {onCollapse && (
                             <button type="button" className="cp-icon" onClick={onCollapse} aria-label="Back to the dashboard panel" title="Dock to dashboard">
                                 <Minimize2 size={15} strokeWidth={1.8} aria-hidden="true" />
@@ -232,11 +239,74 @@ export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, on
                         )}
                     </div>
                 </header>
-                {chatBody}
+                {pane || chatBody}
             </div>
             {note}
             {call}
         </div>
+    );
+}
+
+/* ── an agent's chat ──────────────────────────────────────────────────────
+   EdgeAI as a column beside an agent's page. It is the agent's own
+   conversation (one per agent, in the same history), on the same runtime:
+   cards, choices, follow-ups and Open links work exactly as in Ask. The
+   prompts only put a plain sentence to the model. */
+
+export function AgentChat({ agent, title, prompts = [], intro, placeholder, theme = 'dark' }) {
+    const a = useAssistant();
+    const navigate = useNavigate();
+    const [callOpen, setCallOpen] = useState(false);
+    const { openAgentChat } = a;
+    useEffect(() => { openAgentChat(agent, title); }, [agent, title, openAgentChat]);
+    const mine = a.active.agent === agent;
+    const ask = (text) => a.send(text, { chatId: mine ? a.activeId : openAgentChat(agent, title) });
+
+    return (
+        <section className="cp cp-agent eo-surface" data-theme={theme} aria-label={`Ask ${title}`}>
+            <div className="cp-col">
+                <header className="cp-head">
+                    <span className={`cp-orb${a.streaming ? ' is-live' : ''}`} aria-hidden="true" />
+                    <span className="cp-sub">Ask {title}</span>
+                    <div className="cp-head-actions">
+                        <button type="button" className="cp-icon" disabled={a.streaming || !a.messages.length}
+                            onClick={() => openAgentChat(agent, title, { fresh: true })} aria-label="New conversation" title="New conversation">
+                            <Plus size={16} strokeWidth={1.8} aria-hidden="true" />
+                        </button>
+                    </div>
+                </header>
+                {mine && a.messages.length ? (
+                    <Thread a={a} onOpen={(href) => navigate(href)} />
+                ) : (
+                    <div className="cp-welcome eo-scroll">
+                        <div className="cp-welcome-inner cp-agent-intro">
+                            {intro && <p>{intro}</p>}
+                            <div className="cp-prompts">
+                                {prompts.map((p) => (
+                                    <button key={p} type="button" onClick={() => ask(p)} disabled={a.streaming}>
+                                        {p}<ArrowUpRight size={14} strokeWidth={2} aria-hidden="true" />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+                <div className="cp-foot">
+                    <div className="cp-foot-inner">
+                        {mine && a.pendingQuestion && !a.streaming && (
+                            <div className="cp-pending" role="status">
+                                <span>Waiting for: {a.pendingQuestion.content}</span>
+                                <button type="button" onClick={() => a.dismissQuestion(a.activeId, a.pendingQuestion.id)}>Skip</button>
+                            </div>
+                        )}
+                        {mine && <Composer a={a} onCall={() => setCallOpen(true)} placeholder={placeholder} />}
+                        <div className="cp-disclaimer">Answers use your live EdgeOS data. Nothing changes until you confirm it.</div>
+                    </div>
+                </div>
+            </div>
+            {a.note && <div className="cp-note" role="status">{a.note}</div>}
+            {callOpen && <VoiceCall a={a} onClose={() => setCallOpen(false)} />}
+        </section>
     );
 }
 
@@ -445,6 +515,16 @@ function Thread({ a, onOpen }) {
                                         {working && replying && <span className="cp-working">{working}</span>}
                                     </span>
                                 )}
+                            {m.content && !replying && m.sources?.length > 0 && (
+                                <div className="cp-sources" aria-label="Records this answer used">
+                                    <span className="cp-sources-label">Records</span>
+                                    {m.sources.map((r) => (
+                                        <button key={r.id} type="button" className="cp-source" title={`Open ${r.label}`} onClick={() => onOpen(r.href)}>
+                                            {r.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                             {m.hint && <div className="cp-hint">{m.hint}</div>}
                             {m.kind === 'input' && !m.resolved && (
                                 <FollowUpChips options={m.input?.options} disabled={streaming} label={m.content}
@@ -577,7 +657,7 @@ function MessageActions({ a, message, canRegenerate, after }) {
 
 /* ── composer ───────────────────────────────────────────────────────────── */
 
-function Composer({ a, onCall, autoFocus }) {
+function Composer({ a, onCall, autoFocus, placeholder }) {
     const inputRef = useRef(null);
     const { draft, setDraft, send, streaming, speech } = a;
     const { supported, listening, finalText, interim, start, stop, reset } = speech;
@@ -641,7 +721,7 @@ function Composer({ a, onCall, autoFocus }) {
                 ref={inputRef} rows={1} value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }}
-                placeholder={listening ? 'Listening…' : 'Ask anything about your company'}
+                placeholder={listening ? 'Listening…' : (placeholder || 'Ask anything about your company')}
                 aria-label="Message EdgeAI"
             />
             <button

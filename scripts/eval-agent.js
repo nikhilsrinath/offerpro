@@ -14,24 +14,26 @@
  * Targets (docs/edgeai-agent.md): ≥ 95% correct tool, ≥ 90% fully correct
  * args, 0 unconfirmed writes.
  *
- * Needs GEMINI_API_KEY (read from .env if not in the environment). Costs one
+ * Needs OPENROUTER_API_KEY (read from .env if not in the environment; the
+ * model is OPENROUTER_MODEL or api/_lib/llm.js's default). Costs one
  * to three model calls per case; it does not touch Supabase or the AI meter.
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { runChat } from '../api/_lib/agent/loop.js';
 import { toCard } from '../api/_lib/agent/actions.js';
 import { fakeDb, fakeCtx } from '../api/_lib/agent/testing/fakeDb.js';
+import { rankWithoutIndex } from '../api/_lib/knowledge.js';
 import { CASES } from './eval-agent.cases.js';
 import { worldSeed, OWNER_PERMS, TODAY } from './eval-agent.world.js';
 
-if (!process.env.GEMINI_API_KEY && existsSync('.env')) {
+if (!process.env.OPENROUTER_API_KEY && existsSync('.env')) {
   for (const line of readFileSync('.env', 'utf8').split(/\r?\n/)) {
     const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^['"]|['"]$/g, '');
   }
 }
-if (!process.env.GEMINI_API_KEY) {
-  console.error('GEMINI_API_KEY is not set.');
+if (!process.env.OPENROUTER_API_KEY) {
+  console.error('OPENROUTER_API_KEY is not set.');
   process.exit(2);
 }
 
@@ -52,6 +54,10 @@ function same(want, got) {
 async function runCase(c) {
   const db = fakeDb(worldSeed());
   const ctx = fakeCtx({ db, perms: structuredClone(OWNER_PERMS), today: TODAY, recentEntities: c.recent || [] });
+  // The world is in memory, so library passages are ranked here rather than by
+  // library_search() in Postgres; a case may run inside an agent's own chat.
+  ctx.rankPassages = rankWithoutIndex;
+  if (c.agent) { ctx.agent = c.agent; ctx.readOnly = c.agent === 'internal_knowledge'; }
   const proposals = [];
   ctx.actionStore = {
     countPending: async () => 0,
@@ -91,8 +97,12 @@ async function runCase(c) {
       clarify: noCard && (kinds.has('choice') || kinds.has('input') || /\?\s*$/.test(text.trim())),
       noWrite: noCard && !kinds.has('choice') && !kinds.has('input'),
     }[want.kind];
-    toolOk = !!outcome && noCard;
-    argsOk = toolOk;
+    // A read case may also name the tool it should have used (by its status
+    // line) and words the answer must contain.
+    const usedOk = !want.status || events.some((e) => e.event === 'status' && want.status.test(e.text || ''));
+    const saysOk = !want.says || want.says.test(text);
+    toolOk = !!outcome && noCard && usedOk;
+    argsOk = toolOk && saysOk;
   }
   return { c, toolOk, argsOk, writes: writes.length, first, events, text, error, ms: Date.now() - started };
 }

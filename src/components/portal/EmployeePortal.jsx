@@ -19,12 +19,13 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useOrg } from '../../context/OrgContext';
+import { useProfileCompletion } from '../../hooks/useProfileCompletion';
 import { useToast } from '../shared/Toast';
 import { useTheme } from '../../hooks/useTheme';
 import { EdgeThemeContext } from '../../theme/EdgeTheme';
 import { makeTokens, MONO } from '../../theme/edge';
 import {
-  RailIsland, RailHead, RailHeading, RailList, RailItem, IslandBtn, RailFoot, RailSpacer,
+  RailIsland, RailHead, RailHeading, RailList, RailItem, IslandBtn, AccountBtns, RailFoot, RailSpacer,
 } from '../shell/railIsland';
 import { Page, Btn, Loading, Empty } from '../ui/edge';
 import { meService } from '../../services/meService';
@@ -53,6 +54,7 @@ const TABS = [
 
 export default function EmployeePortal() {
   const { user, logout } = useAuth();
+  const profile = useProfileCompletion();
   const { activeOrg } = useOrg();
   const toast = useToast();
   const { theme, toggleTheme } = useTheme();
@@ -255,7 +257,13 @@ export default function EmployeePortal() {
                 <IslandBtn t={t} icon={ArrowLeft} label="Back to hub" onClick={() => navigate('/hub')} />
               )}
               <IslandBtn t={t} icon={theme === 'dark' ? Sun : Moon} label={theme === 'dark' ? 'Light mode' : 'Dark mode'} onClick={toggleTheme} />
-              <IslandBtn t={t} icon={LogOut} label="Sign out" danger onClick={logout} />
+              {/* The account actions every rail ends with. An employee has no
+                  company profile to open, and this page is already the portal. */}
+              {role && role !== 'employee' ? (
+                <AccountBtns t={t} profile={profile} onLogout={logout} portal={false} />
+              ) : (
+                <IslandBtn t={t} icon={LogOut} label="Log out" danger onClick={logout} />
+              )}
             </RailFoot>
           </RailIsland>
         )}

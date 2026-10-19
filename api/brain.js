@@ -24,9 +24,8 @@ import {
   neighbors, getMetrics, buildContext, libraryContext,
 } from './_lib/brainRetrieval.js';
 import { wbsContext, WBS_SYSTEM_PROMPT, parseSuggestion } from './_lib/wbsSuggest.js';
+import { openRouter, reasoningFor, hasAiKey, AI_MODEL as MODEL } from './_lib/llm.js';
 
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-const MODEL = 'gemini-3.6-flash';
 // Mirrors AI_MESSAGE_LIMITS in api/nvidia.js and limits.aiMessages in
 // planConfig.js. A brain question costs the same upstream as a co-founder
 // message, so it is metered against the same counter.
@@ -318,9 +317,8 @@ async function ask(res, { orgId, user, perms, allowed, body }) {
 
   const history = conversationHistory(body.history);
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    console.error('[brain] Missing GEMINI_API_KEY');
+  if (!hasAiKey()) {
+    console.error('[brain] Missing OPENROUTER_API_KEY');
     throw new HttpError(500, 'Server configuration error');
   }
 
@@ -354,38 +352,32 @@ async function ask(res, { orgId, user, perms, allowed, body }) {
     syncedAt: state.last_sync_at,
   });
 
-  const response = await fetch(GEMINI_URL, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        // The thread, then the records, then the question. The context goes in
-        // the final message rather than the first so it is the freshest thing
-        // in the window: it is retrieved for THIS question, and an older turn's
-        // wording must not outweigh the records this one was given.
-        ...history,
-        {
-          role: 'user',
-          content: `Context retrieved from the company's records ` +
-            `(last synchronised ${state.last_sync_at || 'unknown'}):\n\n${pkg.context}\n\n` +
-            (history.length
-              ? 'The turns above are this same conversation. Records in this block supersede ' +
-                'anything said earlier; if they contradict an answer you already gave, correct ' +
-                'it explicitly rather than quietly changing it.\n\n'
-              : '') +
-            `Question: ${question}`,
-        },
-      ],
-      max_tokens: 900,
-      temperature: 0.1,
-      top_p: 0.8,
-      stream: false,
-      // Same reasoning as api/nvidia.js: with thinking billed against
-      // max_tokens, a 3.x model can spend the whole budget before writing a word.
-      reasoning_effort: 'none',
-    }),
+  const response = await openRouter({
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      // The thread, then the records, then the question. The context goes in
+      // the final message rather than the first so it is the freshest thing
+      // in the window: it is retrieved for THIS question, and an older turn's
+      // wording must not outweigh the records this one was given.
+      ...history,
+      {
+        role: 'user',
+        content: `Context retrieved from the company's records ` +
+          `(last synchronised ${state.last_sync_at || 'unknown'}):\n\n${pkg.context}\n\n` +
+          (history.length
+            ? 'The turns above are this same conversation. Records in this block supersede ' +
+              'anything said earlier; if they contradict an answer you already gave, correct ' +
+              'it explicitly rather than quietly changing it.\n\n'
+            : '') +
+          `Question: ${question}`,
+      },
+    ],
+    max_tokens: 900,
+    temperature: 0.1,
+    top_p: 0.8,
+    // Same reasoning as api/nvidia.js: with thinking billed against
+    // max_tokens, a 3.x model can spend the whole budget before writing a word.
+    reasoning: reasoningFor('none', { hide: true }),
   });
 
   if (!response.ok) {
@@ -453,9 +445,8 @@ async function wbsSuggest(res, { orgId, user, perms, body }) {
     return res.status(200).json({ success: true, status: 'needs_context', missing: ctx.missing });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    console.error('[brain] Missing GEMINI_API_KEY');
+  if (!hasAiKey()) {
+    console.error('[brain] Missing OPENROUTER_API_KEY');
     throw new HttpError(500, 'Server configuration error');
   }
   const used = await meterMessage(orgId);
@@ -467,20 +458,14 @@ async function wbsSuggest(res, { orgId, user, perms, body }) {
     });
   }
 
-  const response = await fetch(GEMINI_URL, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [
-        { role: 'system', content: WBS_SYSTEM_PROMPT },
-        { role: 'user', content: `Context from the company's records:\n\n${ctx.text}` },
-      ],
-      max_tokens: 2000,
-      temperature: 0.2,
-      stream: false,
-      reasoning_effort: 'none',
-    }),
+  const response = await openRouter({
+    messages: [
+      { role: 'system', content: WBS_SYSTEM_PROMPT },
+      { role: 'user', content: `Context from the company's records:\n\n${ctx.text}` },
+    ],
+    max_tokens: 2000,
+    temperature: 0.2,
+    reasoning: reasoningFor('none', { hide: true }),
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => '');

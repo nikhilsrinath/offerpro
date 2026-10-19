@@ -63,7 +63,7 @@ export function RailPinButton({ t, pinned, onToggle, visible }) {
                 transition: 'opacity .16s, color .14s, background .14s',
             }}
         >
-            <Icon aria-hidden="true" size={16} strokeWidth={1.7} />
+            <Icon aria-hidden="true" size={15} strokeWidth={1.7} />
         </button>
     );
 }

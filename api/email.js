@@ -99,7 +99,7 @@ export default async function handler(req, res) {
 }
 
 /** Reads and decrypts the org's Gmail credentials. Service role only. */
-async function loadOrgCredentials(orgId) {
+export async function loadOrgCredentials(orgId) {
   const { data, error } = await supabaseAdmin()
     .from('org_secrets')
     .select('gmail_user, gmail_cipher, gmail_iv, gmail_tag')
@@ -123,7 +123,7 @@ async function loadOrgCredentials(orgId) {
 }
 
 /** Claims quota for `units` messages, or 429s. */
-async function claimQuota(orgId, userId, kind, units) {
+export async function claimQuota(orgId, userId, kind, units) {
   let remaining = null;
   for (let i = 0; i < units; i++) {
     const { data, error } = await supabaseAdmin()
@@ -210,7 +210,7 @@ export function sanitizeFromName(name) {
  * tell a wrong password from an unreachable server. The detail goes to the
  * server log, where only the operator sees it.
  */
-function smtpMessage(err) {
+export function smtpMessage(err) {
   if (err?.code === 'EAUTH') {
     return 'Gmail rejected the saved credentials. Re-enter the App Password in '
       + 'Profile → Email Configuration (2-Step Verification must be on).';

@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
     if (process.env[key] === undefined) process.env[key] = value
   }
 
-  const SERVER_ONLY = ['SUPABASE_SERVICE_ROLE_KEY', 'SECRETS_ENCRYPTION_KEY', 'PORTAL_TOKEN_SECRET', 'GEMINI_API_KEY']
+  const SERVER_ONLY = ['SUPABASE_SERVICE_ROLE_KEY', 'SECRETS_ENCRYPTION_KEY', 'PORTAL_TOKEN_SECRET', 'OPENROUTER_API_KEY']
   const missing = SERVER_ONLY.filter((k) => !process.env[k])
   if (missing.length) {
     console.warn(`[vite] missing server-only env: ${missing.join(', ')} — /api routes will fail on localhost`)
@@ -36,7 +36,7 @@ export default defineConfig(({ mode }) => {
         // exists in production is quota enforcement nobody has tested.
         name: 'dev-api-routes',
         configureServer(server) {
-          const routes = ['email', 'org-secrets', 'portal', 'portal-token', 'admin', 'nvidia', 'export', 'brain', 'library', 'agent']
+          const routes = ['email', 'org-secrets', 'portal', 'portal-token', 'admin', 'nvidia', 'export', 'brain', 'library', 'agent', 'agents']
           for (const route of routes) {
             server.middlewares.use(`/api/${route}`, async (req, res) => {
               let body = ''

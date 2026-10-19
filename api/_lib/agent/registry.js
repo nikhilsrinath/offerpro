@@ -4,6 +4,11 @@ import taskTools from './tools/tasks.js';
 import clientTools from './tools/clients.js';
 import cashTools from './tools/cash.js';
 import financeTools from './tools/finance.js';
+import deadlineTools from './tools/deadlines.js';
+import insightTools from './tools/insights.js';
+import knowledgeTools from './tools/knowledge.js';
+import dealTools from './tools/deals.js';
+import operationsTools from './tools/operations.js';
 
 /**
  * The one catalogue of what EdgeAI can do.
@@ -26,6 +31,11 @@ export const ALL_TOOLS = [
   ...clientTools,
   ...cashTools,
   ...financeTools,
+  ...deadlineTools,
+  ...insightTools,
+  ...knowledgeTools,
+  ...dealTools,
+  ...operationsTools,
 ];
 
 const BY_NAME = new Map(ALL_TOOLS.map((t) => [t.name, t]));
@@ -38,6 +48,10 @@ export const isWrite = (tool) => tool?.kind === 'write';
 export function allowed(tool, ctx) {
   if (!tool) return false;
   if (tool.planFeature && !ctx.hasPlanFeature(tool.planFeature)) return false;
+  // A read-only agent's chat (Internal Knowledge) is never offered a change,
+  // and one asked for anyway is refused: a document that says "create an
+  // invoice" cannot get a card made, whatever the model makes of it.
+  if (ctx.readOnly && tool.kind === 'write') return false;
   if (!tool.permission) return true;
   return ctx.can(tool.permission.resource, tool.permission.action);
 }
