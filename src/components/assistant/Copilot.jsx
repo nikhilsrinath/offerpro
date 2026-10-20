@@ -189,6 +189,49 @@ export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, on
         );
     }
 
+    /* ── page (Ask) ───────────────────────────────────────────────────── */
+    /* The section switch heads the whole page, as on Agents and Connectors;
+       the chat list sits below it, its own hide button in its top row. */
+    if (page) {
+        const listed = sideOpen && !pane;
+        return (
+            <div className="cp cp-full cp-page eo-surface" data-theme={theme} role="region" aria-label="Ask EdgeAI">
+                <header className="cp-head">
+                    {!sideOpen && !pane && (
+                        <button type="button" className="cp-icon" onClick={() => setSideOpen(true)} aria-label="Show chat history" title="History">
+                            <PanelLeft size={16} strokeWidth={1.8} aria-hidden="true" />
+                        </button>
+                    )}
+                    {switcher}
+                    {!sideOpen && !pane && (
+                        <div className="cp-head-actions">
+                            <button type="button" className="cp-icon" onClick={a.startChat} aria-label="New chat" title="New chat">
+                                <Plus size={16} strokeWidth={1.8} aria-hidden="true" />
+                            </button>
+                        </div>
+                    )}
+                </header>
+                <div className="cp-page-body">
+                    {listed && phone && <div className="cp-scrim" onClick={() => setSideOpen(false)} />}
+                    {listed && (
+                        <aside className="cp-side" aria-label="Chat history">
+                            <History a={a} phone={phone} onPicked={() => { if (phone) setSideOpen(false); }}
+                                hide={
+                                    <button type="button" className="cp-icon" onClick={() => setSideOpen(false)}
+                                        aria-label="Hide chat history" title="Hide history">
+                                        {phone ? <X size={16} aria-hidden="true" /> : <PanelLeft size={16} strokeWidth={1.8} aria-hidden="true" />}
+                                    </button>
+                                } />
+                        </aside>
+                    )}
+                    <div className="cp-col">{pane || chatBody}</div>
+                </div>
+                {note}
+                {call}
+            </div>
+        );
+    }
+
     /* ── full screen ──────────────────────────────────────────────────── */
     return (
         <div className={`cp cp-full${page ? ' cp-page' : ''} eo-surface`} data-theme={theme}
@@ -803,6 +846,7 @@ function History({ a, phone, onPicked }) {
                 <button type="button" className="cp-newbtn" onClick={() => { a.startChat(); onPicked?.(); }}>
                     <Plus size={14} strokeWidth={2.2} aria-hidden="true" />New
                 </button>
+                {hide}
             </div>
 
             <div className="cp-hist-list eo-scroll">

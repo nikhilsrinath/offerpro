@@ -186,7 +186,14 @@ html.cp-resizing iframe { pointer-events: none; }
 /* ── page variant (Ask) ───────────────────────────────────────────────── */
 /* The full layout, in flow: it fills the module frame's page card. */
 .cp-full.cp-page { position: relative; inset: auto; z-index: auto; height: 100%; min-height: 0; animation: none; background: var(--bg); }
+.cp-full.cp-page { flex-direction: column; }
+.cp-page-body { display: flex; flex: 1; min-height: 0; min-width: 0; position: relative; }
 .cp-page .cp-side { background: var(--card); }
+/* Search, New and the hide button: one 32px row, nothing taller. */
+.cp-page .cp-hist-top { align-items: center; }
+.cp-page .cp-hist-top > * { box-sizing: border-box; height: 32px; margin: 0; }
+.cp-page .cp-hist-top .cp-icon { width: 32px; }
+.cp-page .cp-hist-top .cp-search input { height: 100%; padding: 0; margin: 0; border: 0; box-shadow: none; line-height: normal; min-height: 0; }
 .cp-page .cp-composer { background: var(--card); }
 
 /* Ask · Agents · Connectors switch, in the page head. */

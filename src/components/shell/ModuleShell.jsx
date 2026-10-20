@@ -16,7 +16,8 @@ import {
     RailIsland, RailHead, RailBrand, RailBack, RailHeading, RailList, RailItem, IslandBtn, AccountBtns, RailFoot, RailPlanCard, RailSpacer,
 } from './railIsland';
 import MobileNav from './MobileNav';
-import { MODULES, RAIL_GROUPS } from './modules';
+import { MODULES, RAIL_IDS } from './modules';
+import GlobalSearch from './GlobalSearch';
 import Copilot from '../assistant/Copilot';
 import { useAssistant } from '../assistant/assistantStore';
 import './edgeBridge.css';
@@ -313,20 +314,15 @@ export default function ModuleShell({
                             flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '4px 9px 12px',
                         }} />
                     ) : tabs ? (
-                        /* The hub's rail, grouped as on the hub, this module lit. */
+                        /* The hub's rail, as on the hub, this module lit. */
                         <RailList label="Modules">
-                            {RAIL_GROUPS.map((g) => (
-                                <React.Fragment key={g.label}>
-                                    <RailHeading t={t} open={rail}>{g.label}</RailHeading>
-                                    {g.ids.map((id) => {
-                                        const m = MODULES.find((x) => x.id === id);
-                                        return m && (
-                                            <RailItem key={id} t={t} open={rail} icon={m.icon} label={m.label}
-                                                to={'/' + m.defaultPage} active={m.id === mod?.id} />
-                                        );
-                                    })}
-                                </React.Fragment>
-                            ))}
+                            {RAIL_IDS.map((id) => {
+                                const m = MODULES.find((x) => x.id === id);
+                                return m && (
+                                    <RailItem key={id} t={t} open={rail} icon={m.icon} label={m.label}
+                                        to={'/' + m.defaultPage} active={m.id === mod?.id} />
+                                );
+                            })}
                         </RailList>
                     ) : (<>
                     <RailList label={(mod?.label || 'Module') + ' pages'}>
@@ -441,9 +437,12 @@ export default function ModuleShell({
                         ? { padding: '9px 12px', height: 53, borderBottom: '1px solid ' + t.line, background: t.panel }
                         : { padding: noRail ? '0 14px' : '0 14px 0 6px', height: 64 }),
                 }}>
-                    {(isMobile || tabs || noRail) && (
-                        <Link to={back.to} aria-label={back.label} title={back.label} className={tabs || (noRail && !isMobile) ? 'edge-icon' : undefined}
-                            style={tabs || (noRail && !isMobile) ? { ...iconBtn(t), marginLeft: -6 } : { color: t.dim, display: 'grid', placeItems: 'center', flexShrink: 0, width: 32, height: 32 }}>
+                    {/* A hub module's page is headed like the hub: the search, no
+                        back arrow or title (the rail and the tabs say where you are). */}
+                    {tabs ? <GlobalSearch t={t} /> : (<>
+                    {(isMobile || noRail) && (
+                        <Link to={back.to} aria-label={back.label} title={back.label} className={noRail && !isMobile ? 'edge-icon' : undefined}
+                            style={noRail && !isMobile ? { ...iconBtn(t), marginLeft: -6 } : { color: t.dim, display: 'grid', placeItems: 'center', flexShrink: 0, width: 32, height: 32 }}>
                             <ArrowLeft aria-hidden="true" size={17} strokeWidth={1.8} />
                         </Link>
                     )}
@@ -458,6 +457,7 @@ export default function ModuleShell({
                             <div style={{ fontSize: 12, color: t.faint, marginTop: 2, whiteSpace: 'nowrap' }}>{subtitle}</div>
                         )}
                     </div>
+                    </>)}
 
                     <div style={{ flex: 1 }} />
 

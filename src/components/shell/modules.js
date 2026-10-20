@@ -3,7 +3,7 @@ import { Users, FileText, Receipt, BarChart3, PieChart, BrainCircuit, FolderKanb
 /* The workspace's modules, in the order the hub rail and the phone's bottom
    bar list them. `defaultPage` is where opening the module lands. Today and
    Ask are one page each; they come last here so the hub's module launcher
-   widget keeps its order, and RAIL_GROUPS puts them first in the rail. */
+   widget keeps its order, and RAIL_IDS puts them first in the rail. */
 export const MODULES = [
     { id: 'overall',   code: 'DSH', label: 'Dashboard', desc: 'Full analytics',        icon: PieChart,  defaultPage: 'dashboard/projects' },
     { id: 'projects',  code: 'PRJ', label: 'Projects',  desc: 'Delivery · tasks',      icon: FolderKanban, defaultPage: 'projects' },
@@ -16,9 +16,6 @@ export const MODULES = [
     { id: 'ask',       code: 'ASK', label: 'Ask',       desc: 'Ask EdgeAI anything',  icon: MessageSquareText, defaultPage: 'ask' },
 ];
 
-// The hub rail's sections, as MODULES ids. A module's pages wear the same rail
-// (ModuleShell `topNav`), so the two read as one menu.
-export const RAIL_GROUPS = [
-    { label: 'Main menu', ids: ['today', 'ask', 'overall', 'projects', 'finance', 'business'] },
-    { label: 'Features', ids: ['team', 'documents', 'brain'] },
-];
+// The hub rail's modules, in order, as one plain list. A module's pages wear
+// the same rail (ModuleShell `topNav`), so the two read as one menu.
+export const RAIL_IDS = ['today', 'ask', 'overall', 'projects', 'finance', 'business', 'team', 'documents', 'brain'];

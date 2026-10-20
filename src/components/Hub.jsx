@@ -10,10 +10,10 @@ import { documentStore } from '../services/documentStore';
 import { getPlanConfig, DEFAULT_PLAN } from '../services/planConfig';
 import { makeTokens, MONO } from '../theme/edge';
 import { useProfileCompletion } from '../hooks/useProfileCompletion';
-import { MODULES, RAIL_GROUPS } from './shell/modules';
+import { MODULES, RAIL_IDS } from './shell/modules';
 import { useRailPin, RailPinButton } from './shell/railPin';
 import {
-    RailIsland, RailHead, RailBrand, RailHeading, RailList, RailItem, AccountBtns, RailFoot, RailPlanCard, RailSpacer,
+    RailIsland, RailHead, RailBrand, RailList, RailItem, AccountBtns, RailFoot, RailPlanCard, RailSpacer,
 } from './shell/railIsland';
 import MobileNav from './shell/MobileNav';
 import CountryDialog from './CountryDialog';
@@ -82,7 +82,7 @@ function useNow(every) {
 
 /* ── bar and rail primitives ───────────────────────────────────────────── */
 
-// The rail's sections are RAIL_GROUPS. The hub itself is reached from the brand mark.
+// The rail's modules are RAIL_IDS. The hub itself is reached from the brand mark.
 const MODULE_BY_ID = Object.fromEntries(MODULES.map((m) => [m.id, m]));
 
 function SquareBtn({ t, children, title, onClick, active, expanded }) {
@@ -381,15 +381,10 @@ export default function Hub({ user, theme, onToggleTheme, onLogout }) {
                     </RailHead>
 
                     <RailList label="Modules">
-                        {RAIL_GROUPS.map((g) => (
-                            <React.Fragment key={g.label}>
-                                <RailHeading t={t} open={rail}>{g.label}</RailHeading>
-                                {g.ids.map((id) => {
-                                    const m = MODULE_BY_ID[id];
-                                    return m && <RailItem key={id} t={t} open={rail} icon={m.icon} label={m.label} to={'/' + m.defaultPage} active={false} />;
-                                })}
-                            </React.Fragment>
-                        ))}
+                        {RAIL_IDS.map((id) => {
+                            const m = MODULE_BY_ID[id];
+                            return m && <RailItem key={id} t={t} open={rail} icon={m.icon} label={m.label} to={'/' + m.defaultPage} active={false} />;
+                        })}
                     </RailList>
 
                     <RailSpacer />
