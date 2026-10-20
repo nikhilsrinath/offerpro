@@ -40,10 +40,12 @@
 // (computed in the org's timezone by the caller), never the machine clock.
 
 import { isIsoDate, formatDate } from './dates.js';
-import { daysUntil } from './deadlineWatch.js';
+import { daysUntil, alertsDue } from './deadlineWatch.js';
+import { baseCurrency, currencyLocale, recordCurrency } from './currency.js';
 import { money, localDay, resolvePeriod, comparisonPeriod } from './bizIntel.js';
 
 export const AGENT_ID = 'deal_intelligence';
+export const AGENT_NAME = 'Deal Intelligence Agent';
 
 export const SEVERITIES = ['critical', 'high', 'medium', 'low'];
 const RANK = { critical: 0, high: 1, medium: 2, low: 3 };
@@ -59,11 +61,16 @@ export const DEFAULT_CONFIG = Object.freeze({
   critical_after_days: 7,      // a follow-up task overdue by this many days: critical
   horizon_days: 7,             // "this week": next steps due within this
   high_value_amount: null,     // null: the top quarter of recorded open values
+  // The automatic run (api/_lib/deals.js runDealsForOrg).
+  notify_min: 'high',          // the least severe finding that is sent as an alert
+  repeat_days: 3,              // remind about the same unresolved item after this; 0 = once
+  email_digest: false,         // also email the digest to owners and admins
+  daily: false,                // run on the server every morning
 });
 
 const INT_LIMITS = {
   stale_days: [1, 365], very_stale_days: [1, 730], quote_wait_days: [1, 120], quote_expiry_warn_days: [0, 60],
-  approval_wait_days: [1, 120], critical_after_days: [1, 365], horizon_days: [1, 60],
+  approval_wait_days: [1, 120], critical_after_days: [1, 365], horizon_days: [1, 60], repeat_days: [0, 60],
 };
 
 /** Settings as passed, made safe: unknown keys dropped, numbers clamped. */
@@ -77,6 +84,9 @@ export function normalizeConfig(raw) {
   }
   const hv = Number(src.high_value_amount);
   if (src.high_value_amount !== undefined && src.high_value_amount !== null && Number.isFinite(hv) && hv > 0) out.high_value_amount = hv;
+  if (SEVERITIES.includes(src.notify_min)) out.notify_min = src.notify_min;
+  if (typeof src.email_digest === 'boolean') out.email_digest = src.email_digest;
+  if (typeof src.daily === 'boolean') out.daily = src.daily;
   // "Very stale" is never sooner than "stale".
   out.very_stale_days = Math.max(out.very_stale_days, out.stale_days);
   return out;
@@ -93,11 +103,11 @@ const clip = (s, k = 140) => {
 };
 
 /** "₹31,800" for INR, "$1,200" for another currency: amounts in two currencies are never added. */
-export function moneyIn(v, currency = 'INR') {
-  const cur = String(currency || 'INR').toUpperCase();
-  if (cur === 'INR') return money(v);
+export function moneyIn(v, currency) {
+  const cur = recordCurrency(currency);
+  if (cur === baseCurrency()) return money(v);
   try {
-    return r2(v).toLocaleString('en-IN', { style: 'currency', currency: cur, maximumFractionDigits: 2 });
+    return r2(v).toLocaleString(currencyLocale(cur), { style: 'currency', currency: cur, maximumFractionDigits: 2 });
   } catch {
     return `${cur} ${r2(v)}`;
   }
@@ -760,5 +770,47 @@ export function buildDealSnapshot(input, { period = 'this_month', compare = 'pre
     findings,
     ranking,
     coverage: cov,
+  };
+}
+
+/* ── the automatic run's alerts ───────────────────────────────────────────── */
+
+/**
+ * What the daily run may alert on. Overdue follow-ups are overdue tasks, and
+ * when the Compliance and Deadline Agent's daily run is on it alerts on those
+ * itself; this one then leaves them to it, so nothing reaches the bell twice.
+ */
+export function dealAlertable(findings, { deadlineDaily = false } = {}) {
+  return deadlineDaily ? findings.filter((f) => f.category !== 'overdue_follow_up') : findings;
+}
+
+/** The Compliance and Deadline Agent's rule, unchanged: new, escalated, or due a repeat. */
+export function dealAlertsDue(findings, sent, rawConfig, now = new Date()) {
+  const c = normalizeConfig(rawConfig);
+  return alertsDue(findings, sent, { notify_min: c.notify_min, repeat_days: c.repeat_days }, now);
+}
+
+const DIGEST_LINES = 12;
+
+/** The digest an alert carries: title, a short message for the bell, the email text and its lines. */
+export function buildDealDigest(findings, due, orgName = '') {
+  const order = new Map(findings.map((f, i) => [f.key, i]));
+  const list = [...due].sort((a, b) => (order.get(a.finding.key) ?? 0) - (order.get(b.finding.key) ?? 0));
+  const lines = list.slice(0, DIGEST_LINES).map(({ finding: f }) => `• [${f.severity}] ${f.deal.name} — ${f.title}. ${f.next_step}`);
+  const more = list.length > DIGEST_LINES ? `\n…and ${list.length - DIGEST_LINES} more.` : '';
+  const count = (s) => list.filter((d) => d.finding.severity === s).length;
+  const [critical, high, rest] = [count('critical'), count('high'), count('medium') + count('low')];
+  const title = `${AGENT_NAME}: ${[
+    critical ? `${critical} critical` : null,
+    high ? `${high} high` : null,
+    rest ? `${rest} to watch` : null,
+  ].filter(Boolean).join(', ') || 'nothing new'}`;
+  const deals = new Set(list.map((d) => d.finding.deal.id)).size;
+  const message = `${plural(deals, 'deal')} need${deals === 1 ? 's' : ''} action. First: ${list[0] ? `${list[0].finding.deal.name} — ${list[0].finding.title}.` : 'nothing.'}`;
+  return {
+    title,
+    message,
+    text: `${orgName ? `${orgName}: ` : ''}${message}\n\nNeeds action:\n${lines.join('\n')}${more}\n\nOpen EdgeOS → Ask → Agents → ${AGENT_NAME} for the full list.`,
+    lines,
   };
 }

@@ -1,5 +1,6 @@
 import DocumentHeader from './DocumentHeader';
 import StampPreview from './StampPreview';
+import { Editable } from './shared/Editable';
 
 export default function MoUPreview({ formData }) {
   const fmtDatePreamble = (d) => {
@@ -42,9 +43,11 @@ export default function MoUPreview({ formData }) {
   };
 
   return (
-    <div className="a4-sheet">
+    <div className="a4-sheet" data-edit-root>
       {/* Professional Header */}
-      <DocumentHeader formData={headerData} />
+      <DocumentHeader formData={headerData} wrapLogo={(img) => (
+        <Editable field="logoAdjust" label="Logo" value={formData.logoAdjust} origin="left top" style={{ display: 'inline-block' }}>{img}</Editable>
+      )} />
 
       {/* TITLE */}
       <div className="nda-title">MEMORANDUM OF UNDERSTANDING (MoU)</div>
@@ -245,7 +248,9 @@ export default function MoUPreview({ formData }) {
         <div className="nda-sig-col">
           <div className="nda-sig-name">{fp.toUpperCase()}</div>
           {formData.firstPartySignature ? (
-            <img src={formData.firstPartySignature} alt="Signature" className="nda-sig-img" />
+            <Editable field="firstPartySignatureAdjust" label="First Party Signature" value={formData.firstPartySignatureAdjust} origin="left bottom" style={{ display: 'inline-block' }}>
+              <img src={formData.firstPartySignature} alt="Signature" className="nda-sig-img" />
+            </Editable>
           ) : (
             <div className="nda-sig-line"><span>Signature: ___________________________</span></div>
           )}
@@ -253,21 +258,21 @@ export default function MoUPreview({ formData }) {
           <div>Designation: {formData.firstPartySignatoryDesignation || '___________________'}</div>
           <div>Date: {fmtDate(formData.firstPartySignatoryDate || formData.effectiveDate)}</div>
           <div className="nda-stamp-area">
-            {formData.showStamp && (
-              <>
-                {formData.stampType === 'uploaded' && formData.stampUrl ? (
-                  <img src={formData.stampUrl} alt="Company Stamp" className="doc-stamp-img" />
-                ) : formData.stampType === 'generated' && formData.firstPartyName ? (
-                  <StampPreview companyName={formData.firstPartyName} city={formData.stampCity} size={65} />
-                ) : null}
-              </>
+            {formData.showStamp && (formData.stampType === 'uploaded' ? formData.stampUrl : formData.stampType === 'generated' && formData.firstPartyName) && (
+              <Editable field="stampAdjust" label="Company Stamp" value={formData.stampAdjust} origin="center" style={{ display: 'inline-block' }}>
+                {formData.stampType === 'uploaded'
+                  ? <img src={formData.stampUrl} alt="Company Stamp" className="doc-stamp-img" />
+                  : <StampPreview companyName={formData.firstPartyName} city={formData.stampCity} size={65} />}
+              </Editable>
             )}
           </div>
         </div>
         <div className="nda-sig-col">
           <div className="nda-sig-name">{sp.toUpperCase()}</div>
           {formData.secondPartySignature ? (
-            <img src={formData.secondPartySignature} alt="Signature" className="nda-sig-img" />
+            <Editable field="secondPartySignatureAdjust" label="Second Party Signature" value={formData.secondPartySignatureAdjust} origin="left bottom" style={{ display: 'inline-block' }}>
+              <img src={formData.secondPartySignature} alt="Signature" className="nda-sig-img" />
+            </Editable>
           ) : (
             <div className="nda-sig-line"><span>Signature: ___________________________</span></div>
           )}

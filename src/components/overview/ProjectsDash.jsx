@@ -11,6 +11,7 @@ import { fmtShort, fmtInr, fmtDay, addDays } from './overviewModel';
 import { RankBars, SplitBar, EmptyNote, TipBody } from './vizKit';
 import { Dashboard, Card, Tile, More, TileRow, CardGrid, ListRow } from './dashKit';
 import { projectSectionPath } from '../projects/projectPaths';
+import { projectRef } from '../projects/projectSlug';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Dashboard · Projects: what is being delivered, what is late, and whether
@@ -165,7 +166,7 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
                     };
                 }).sort((a, b) => b.value - a.value)} format={(v) => `${v}%`} total={0} max={7} color={cat[2]}
                     sub={(r) => (r.none ? 'no plan' : '')}
-                    onSelect={(r) => navigate(`/projects/${r.key}`)} empty="No open projects" />
+                    onSelect={(r) => navigate(`/projects/${projectRef(r.key)}`)} empty="No open projects" />
             </Card>
 
             <Card title="Milestones" note="late, then due in the next 14 days">
@@ -173,14 +174,14 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
                     : [...lateMs.map((m) => ({ m, late: true })), ...soonMs.map((m) => ({ m, late: false }))].slice(0, 8).map(({ m, late }) => (
                         <ListRow key={m.id} label={m.title} sub={nameOf[m.project_id]}
                             value={late ? `late · ${fmtDay(m.due_date).slice(0, 6)}` : fmtDay(m.due_date).slice(0, 6)} tone={late ? 'down' : null}
-                            onClick={() => navigate(`/projects/${m.project_id}`)} />
+                            onClick={() => navigate(`/projects/${projectRef(m.project_id)}`)} />
                     ))}
             </Card>
 
             <Card title="Open work by project" note="open tasks · today" right={<More label="Tasks" to="/projects/tasks" />}>
                 <RankBars rows={taskLoad} format={(v) => String(v)} max={6} color={cat[0]}
                     sub={(r) => (r.late ? <span style={{ color: t.down }}>{r.late} late</span> : '')}
-                    onSelect={(r) => navigate(`/projects/${r.key}`)} empty="No open tasks on projects" />
+                    onSelect={(r) => navigate(`/projects/${projectRef(r.key)}`)} empty="No open tasks on projects" />
             </Card>
 
             <Card style={grid(margins ? 2 : 1)} title="Margin by project" note="net margin to date · revenue less direct and labour cost" right={withHealth ? <More label="Portfolio" to="/projects/portfolio" /> : null}>
@@ -189,7 +190,7 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
                         : rows === undefined ? <EmptyNote>Loading…</EmptyNote>
                             : !margins?.length ? <EmptyNote>No project has money booked against it yet</EmptyNote>
                                 : <RankBars rows={margins.map((m) => ({ ...m, color: m.value < 0 ? status.critical : status.good }))} format={fmtShort} total={0} max={8}
-                                    sub={(r) => (r.pct == null ? '' : `${r.pct.toFixed(0)}%`)} onSelect={(r) => navigate(`/projects/${r.key}`)} />}
+                                    sub={(r) => (r.pct == null ? '' : `${r.pct.toFixed(0)}%`)} onSelect={(r) => navigate(`/projects/${projectRef(r.key)}`)} />}
             </Card>
         </CardGrid>
     </>);

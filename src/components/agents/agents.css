@@ -9,6 +9,19 @@
 .ag-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .ag-card { display: flex; flex-direction: column; gap: 6px; min-height: 176px; text-align: left; padding: 16px; border-radius: 14px; background: var(--card); border: 1px solid var(--line) !important; box-shadow: var(--hi); transition: border-color .15s, transform .2s cubic-bezier(.16, 1, .3, 1); color: var(--text); }
 .ag-card:hover { border-color: var(--accent) !important; transform: translateY(-2px); }
+/* The whole card opens the agent; the switch sits above that button. */
+.ag-card { position: relative; }
+.ag-card-hit { position: absolute; inset: 0; border-radius: inherit; background: none; border: none !important; cursor: pointer; z-index: 0; }
+.ag-card > :not(.ag-card-hit) { position: relative; z-index: 1; pointer-events: none; }
+.ag-card .ag-switch { pointer-events: auto; }
+.ag-switch { display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 2px 0 8px; border-radius: 999px; background: none; border: none !important; color: var(--muted); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.ag-switch:disabled { cursor: not-allowed; opacity: .55; }
+.ag-switch-track { width: 30px; height: 18px; border-radius: 999px; background: var(--ghost); position: relative; transition: background .15s; flex: none; }
+.ag-switch-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .25); transition: transform .15s; }
+.ag-switch.is-on { color: var(--pos); }
+.ag-switch.is-on .ag-switch-track { background: var(--pos); }
+.ag-switch.is-on .ag-switch-knob { transform: translateX(12px); }
+.ag-auto-err { margin: 0 0 12px; }
 .ag-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .ag-ico { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: none; color: var(--accent); background: color-mix(in srgb, var(--accent) 13%, transparent); }
 .ag-name { font-size: 14px; font-weight: 700; }

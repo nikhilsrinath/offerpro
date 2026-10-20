@@ -5,6 +5,7 @@ import { profitAndLoss, periodSeries, periodBounds, downloadCsv } from '../../se
 import { categoryLabel, loadFinanceCategories } from '../../services/financeCategories';
 import { Stat } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
+import { baseCurrency, currencySymbol } from '../../shared/currency.js';
 
 const PRESETS = [
   { id: 'month', label: 'This month' },
@@ -53,7 +54,7 @@ export default function ProfitLoss() {
       ['Total expenses', (-pl.expenses).toFixed(2)],
       ['Net profit', pl.net.toFixed(2)],
     ];
-    downloadCsv(`profit-loss-${range.from || 'start'}-to-${range.to || 'today'}.csv`, ['Line', 'Amount (INR)'], rows);
+    downloadCsv(`profit-loss-${range.from || 'start'}-to-${range.to || 'today'}.csv`, ['Line', `Amount (${baseCurrency()})`], rows);
   };
 
   return (
@@ -100,7 +101,7 @@ export default function ProfitLoss() {
               <CartesianGrid strokeDasharray="2 5" vertical={false} stroke="var(--border-default)" />
               <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={13.5} />
               <YAxis tickLine={false} axisLine={false} fontSize={12.5} width={70}
-                tickFormatter={(v) => (Math.abs(v) >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${(v / 1000).toFixed(0)}k`)} />
+                tickFormatter={(v) => (Math.abs(v) >= 100000 ? `${currencySymbol()}${(v / 100000).toFixed(1)}L` : `${currencySymbol()}${(v / 1000).toFixed(0)}k`)} />
               <Tooltip formatter={(v, name) => [money(v), name]} cursor={{ fill: 'var(--surface-hover)' }} />
               <Legend formatter={(value) => <span style={{ color: 'var(--text-secondary)' }}>{value}</span>} />
               <Bar dataKey="income" name="Income" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={28} />

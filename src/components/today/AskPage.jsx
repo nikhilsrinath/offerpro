@@ -14,6 +14,7 @@ import DealIntel, { DealIntelCard } from '../agents/DealIntel';
 import { DEAL_AGENT } from '../agents/dealAgent';
 import OperationsMonitor, { OperationsMonitorCard } from '../agents/OperationsMonitor';
 import { OPS_AGENT } from '../agents/opsAgent';
+import { useAutomation } from '../agents/automation';
 import '../agents/agents.css';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -101,16 +102,19 @@ function EmptyView({ icon: Icon, title, text }) {
 const AGENTS = [DEADLINE_AGENT, BI_AGENT, KNOWLEDGE_AGENT, DEAL_AGENT, OPS_AGENT];
 
 function AgentsView({ onOpen }) {
+    // One status call for every card's "run automatically" switch.
+    const auto = useAutomation();
     return (
         <div className="ask-pane eo-scroll">
             <div className="ask-pane-inner">
                 <div className="ask-pane-head"><h2>Agents</h2><span className="ag-badge">{AGENTS.length}</span></div>
+                {auto.error && <div className="ag-flash is-neg ag-auto-err" role="alert"><span>{auto.error}</span></div>}
                 <div className="ag-grid">
-                    <DeadlineWatchCard onOpen={() => onOpen(DEADLINE_AGENT.id)} />
-                    <BusinessIntelCard onOpen={() => onOpen(BI_AGENT.id)} />
-                    <InternalKnowledgeCard onOpen={() => onOpen(KNOWLEDGE_AGENT.id)} />
-                    <DealIntelCard onOpen={() => onOpen(DEAL_AGENT.id)} />
-                    <OperationsMonitorCard onOpen={() => onOpen(OPS_AGENT.id)} />
+                    <DeadlineWatchCard auto={auto} onOpen={() => onOpen(DEADLINE_AGENT.id)} />
+                    <BusinessIntelCard auto={auto} onOpen={() => onOpen(BI_AGENT.id)} />
+                    <InternalKnowledgeCard auto={auto} onOpen={() => onOpen(KNOWLEDGE_AGENT.id)} />
+                    <DealIntelCard auto={auto} onOpen={() => onOpen(DEAL_AGENT.id)} />
+                    <OperationsMonitorCard auto={auto} onOpen={() => onOpen(OPS_AGENT.id)} />
                 </div>
             </div>
         </div>

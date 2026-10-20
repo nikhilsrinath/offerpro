@@ -3,6 +3,7 @@
 // state, template placeholders, and turning a template's HTML into something
 // a PDF or a Word file can be built from. Nothing here touches the network or
 // the DOM (the unit tests run in node).
+import { currencyLocale, recordCurrency } from '../shared/currency.js';
 
 // ─── Validation ──────────────────────────────────────────────────────────────
 
@@ -159,11 +160,12 @@ const ALIASES = {
 const fmtDay = (d) => (d
   ? new Date(`${String(d).slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
   : '');
-export const fmtMoney = (v, currency = 'INR') => {
+export const fmtMoney = (v, code) => {
   const n = Number(v);
   if (!Number.isFinite(n)) return '';
+  const currency = recordCurrency(code);
   try {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency, maximumFractionDigits: 2 }).format(n);
+    return new Intl.NumberFormat(currencyLocale(currency), { style: 'currency', currency, maximumFractionDigits: 2 }).format(n);
   } catch {
     return `${currency} ${n.toFixed(2)}`;
   }

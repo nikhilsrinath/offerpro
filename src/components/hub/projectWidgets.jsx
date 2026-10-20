@@ -5,6 +5,7 @@ import { orgStore } from '../../services/orgStore';
 import { portfolio, employeeAllocation, canSeeFinancials } from '../../services/projectService';
 import { usePreview, PREVIEW_PROJECTS } from './previewData';
 import { projectSectionPath } from '../projects/projectPaths';
+import { projectRef } from '../projects/projectSlug';
 
 /* Project widgets for the hub, its default board. Each one fetches what it
    needs through the permission-checked RPCs and shows a locked state when the
@@ -83,7 +84,7 @@ export function ProjectsHealth({ nav, size }) {
     const list = risky.length ? (
         <div className="w-list">
             {risky.map((r) => (
-                <button key={r.project_id} type="button" className="w-li" onClick={() => nav(`/projects/${r.project_id}`)}>
+                <button key={r.project_id} type="button" className="w-li" onClick={() => nav(`/projects/${projectRef(r.project_id)}`)}>
                     <span className={`w-dot${r.health === 'off_track' ? ' is-bad' : ''}`} aria-hidden="true" />
                     <span className="w-t">{r.name}</span>
                     <span className={`w-when${r.health === 'off_track' ? ' down' : ''}`}>{r.health === 'off_track' ? 'Off track' : 'At risk'}</span>
@@ -197,7 +198,7 @@ export function ProjectsList({ nav, size }) {
                 const p = pct(r.milestones_done, r.milestones_total);
                 return (
                     <Bar key={r.project_id} name={r.name} value={r.milestones_total ? `${p}%` : '-'} pct={p} strong={p >= 100}
-                        onClick={() => nav(`/projects/${r.project_id}`)}
+                        onClick={() => nav(`/projects/${projectRef(r.project_id)}`)}
                         label={`${r.name}: ${r.milestones_done} of ${r.milestones_total} milestones done`} />
                 );
             })}

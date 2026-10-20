@@ -1,4 +1,5 @@
 import { formatDate, formatDateShort, parseDate, isIsoDate } from '../../../src/shared/dates.js';
+import { currencyLocale, recordCurrency } from '../../../src/shared/currency.js';
 
 /**
  * Small pieces every tool uses: how figures and dates read on a card, and
@@ -11,12 +12,14 @@ import { formatDate, formatDateShort, parseDate, isIsoDate } from '../../../src/
  * A tool never guesses its way past any of these.
  */
 
-export const money = (v, currency = 'INR') => {
+// In the org's currency unless the record names another (see recordCurrency).
+export const money = (v, code) => {
   const n = Number(v) || 0;
+  const currency = recordCurrency(code);
   try {
-    return n.toLocaleString('en-IN', { style: 'currency', currency, maximumFractionDigits: 2 });
+    return n.toLocaleString(currencyLocale(currency), { style: 'currency', currency, maximumFractionDigits: 2 });
   } catch {
-    return `${currency} ${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+    return `${currency} ${n.toLocaleString(currencyLocale(currency), { maximumFractionDigits: 2 })}`;
   }
 };
 

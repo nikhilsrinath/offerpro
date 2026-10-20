@@ -10,10 +10,11 @@
    ══════════════════════════════════════════════════════════════════════════ */
 
 import { projectSectionPath } from '../projects/projectPaths';
+import { currencySymbol, currencyLocale } from '../../shared/currency.js';
 
 const day = (v) => (v ? String(v).slice(0, 10) : '');
 const num = (v) => Number(v) || 0;
-const inr = (v) => '₹' + Math.round(num(v)).toLocaleString('en-IN');
+const inr = (v) => currencySymbol() + Math.round(num(v)).toLocaleString(currencyLocale());
 
 export function localDay(d = new Date()) {
     const x = new Date(d);

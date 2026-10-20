@@ -7,6 +7,7 @@ import { emailService } from '../services/emailService';
 import { useOrg } from '../context/OrgContext';
 import { confirmDialog } from '../services/confirm';
 import { initialQuery } from '../services/urlQuery';
+import { currencySymbol, currencyLocale } from '../shared/currency.js';
 
 const TYPE_CONFIG = {
   offer: { icon: Briefcase, color: '#3b82f6', bg: '#3b82f612', bgSolid: 'rgba(59,130,246,0.08)', label: 'Offer Letter' },
@@ -284,7 +285,7 @@ export default function InternRecords() {
                     <span>{record.data?.title || 'Agreement'}</span>
                   )}
                   {record.type === 'invoice' && (
-                    <span>₹{record.data?.totals?.grandTotal?.toLocaleString() || '0'}{record.data?.invoiceNumber ? ` · ${record.data.invoiceNumber}` : ''}</span>
+                    <span>{currencySymbol()}{record.data?.totals?.grandTotal?.toLocaleString(currencyLocale()) || '0'}{record.data?.invoiceNumber ? ` · ${record.data.invoiceNumber}` : ''}</span>
                   )}
                 </div>
 
@@ -341,7 +342,7 @@ export default function InternRecords() {
                           : record.type === 'nda' ? 'NDA Agreement'
                           : record.type === 'mou' ? 'MoU Agreement'
                           : record.type === 'agreement' ? (record.data?.title || 'Agreement')
-                          : `₹${record.data?.totals?.grandTotal?.toLocaleString()}`}
+                          : `${currencySymbol()}${record.data?.totals?.grandTotal?.toLocaleString(currencyLocale())}`}
                       </div>
                       <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
                         {record.type === 'offer' ? record.data?.department

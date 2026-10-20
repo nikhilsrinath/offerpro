@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLeaveGuard } from '../hooks/useLeaveGuard';
-import { Upload, CheckCircle, Eye, ChevronRight } from 'lucide-react';
+import { Upload, CheckCircle, Eye, ChevronRight, Trash2 } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +10,7 @@ import { usePlanStatus } from '../hooks/usePlanStatus';
 import MoUPreview from './MoUPreview';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 import A4Stage from './shared/A4Stage';
+import { EditProvider, EditBar } from './shared/Editable';
 import { useFormProject, useClientAsParty, linkRecordToProject, projectFormNote } from './projects/projectScope';
 
 export default function MoUForm() {
@@ -63,6 +64,10 @@ export default function MoUForm() {
   const fromProject = useFormProject('record', '/documents/records');
   useClientAsParty(fromProject.client, setFormData, { name: 'secondPartyName', address: 'secondPartyAddress' });
 
+  // What is picked on the preview to move or resize ({ field, label, zoom }).
+  const [selected, setSelected] = useState(null);
+  const place = (field, value) => { setFormData((prev) => ({ ...prev, [field]: value })); leave.markDirty(); };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -115,6 +120,7 @@ export default function MoUForm() {
   };
 
   return (
+    <EditProvider selected={selected} onSelect={setSelected} onChange={place}>
     <div className="mou-split-layout">
 
       {/* LEFT: Form */}
@@ -193,6 +199,23 @@ export default function MoUForm() {
               <div className="easy-field">
                 <label className="easy-lbl">State</label>
                 <input aria-label="State" name="executionState" value={formData.executionState} onChange={handleChange} placeholder="e.g. Tamil Nadu" className="easy-inp" required />
+              </div>
+              <div className="easy-field full">
+                <span className="easy-lbl">Logo</span>
+                <div className="easy-upload-wrap">
+                  <input aria-label="Logo" type="file" onChange={(e) => { if (e.target.files[0]) place('logoAdjust', null); handleFileUpload(e, 'companyLogo'); }} accept="image/*" />
+                  <div className={`easy-upload ${formData.companyLogo ? 'done' : ''}`}>
+                    {formData.companyLogo ? <><CheckCircle size={16} /> Logo added · choose another</> : <><Upload size={16} /> Upload logo</>}
+                  </div>
+                </div>
+                {formData.companyLogo && (
+                  <div className="cert-img-actions">
+                    <button type="button" className="cert-btn danger" onClick={() => { setFormData((prev) => ({ ...prev, companyLogo: null, logoAdjust: null })); setSelected(null); }} aria-label="Remove logo">
+                      <Trash2 size={13} aria-hidden="true" /> Remove
+                    </button>
+                    <span className="cert-hint">Tap it on the preview to move or resize it.</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -343,7 +366,7 @@ export default function MoUForm() {
               <div className="easy-field">
                 <label className="easy-lbl">Signature</label>
                 <div className="easy-upload-wrap">
-                  <input aria-label="Signature" type="file" onChange={(e) => handleFileUpload(e, 'firstPartySignature')} accept="image/*" />
+                  <input aria-label="Signature" type="file" onChange={(e) => { if (e.target.files[0]) place('firstPartySignatureAdjust', null); handleFileUpload(e, 'firstPartySignature'); }} accept="image/*" />
                   <div className={`easy-upload ${formData.firstPartySignature ? 'done' : ''}`}>
                     {formData.firstPartySignature ? <><CheckCircle size={16} /> Uploaded</> : <><Upload size={16} /> Upload signature</>}
                   </div>
@@ -372,7 +395,7 @@ export default function MoUForm() {
               <div className="easy-field">
                 <label className="easy-lbl">Signature</label>
                 <div className="easy-upload-wrap">
-                  <input aria-label="Signature" type="file" onChange={(e) => handleFileUpload(e, 'secondPartySignature')} accept="image/*" />
+                  <input aria-label="Signature" type="file" onChange={(e) => { if (e.target.files[0]) place('secondPartySignatureAdjust', null); handleFileUpload(e, 'secondPartySignature'); }} accept="image/*" />
                   <div className={`easy-upload ${formData.secondPartySignature ? 'done' : ''}`}>
                     {formData.secondPartySignature ? <><CheckCircle size={16} /> Uploaded</> : <><Upload size={16} /> Upload signature</>}
                   </div>
@@ -417,11 +440,22 @@ export default function MoUForm() {
             <Eye size={14} /> Open PDF
           </button>
         </div>
-        <A4Stage>
-          <MoUPreview formData={formData} />
-        </A4Stage>
+        <div className="edit-bar-row">
+          <EditBar
+            selected={selected} value={selected && formData[selected.field]}
+            onChange={(v) => place(selected.field, v)} onDone={() => setSelected(null)}
+            hint="Tap the logo, a signature or the stamp on the page to move or resize it"
+          />
+        </div>
+        {/* A tap anywhere on the paper but an item lets go of the selection. */}
+        <div className="edit-stage" onPointerDown={() => setSelected(null)}>
+          <A4Stage>
+            <MoUPreview formData={formData} />
+          </A4Stage>
+        </div>
       </div>
 
     </div>
+    </EditProvider>
   );
 }

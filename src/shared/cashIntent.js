@@ -22,6 +22,7 @@ import { todayIso, parseDate as parseAnyDate } from './dates.js';
 import {
   PAYMENT_METHODS, allCategories, categoryOf, categoriesFor, treatmentOf,
 } from './financeTaxonomy.js';
+import { currencySymbol, currencyLocale } from './currency.js';
 
 /* ── the draft ────────────────────────────────────────────────────────────── */
 
@@ -308,7 +309,7 @@ export function amountHints(texts, limit = 3) {
         const label = before || words3(raw.slice(m.index + m[0].length, m.index + m[0].length + 40), true);
         seen.set(amount, {
           value: String(amount),
-          label: `${m[1] || '₹'}${amount.toLocaleString('en-IN')}${label ? ` · ${label}` : ''}`,
+          label: `${m[1] || currencySymbol()}${amount.toLocaleString(currencyLocale())}${label ? ` · ${label}` : ''}`,
         });
       }
       m = STATED_FIGURE.exec(raw);

@@ -33,6 +33,7 @@ import ProjectFiles from './docs/ProjectFiles';
 import ProjectTemplates from './docs/ProjectTemplates';
 import { orgStore } from '../../services/orgStore';
 import { projectSectionPath, parseProjectPath, legacyProjectPath, billingKindOf, documentsViewOf } from './projectPaths';
+import { findProject, projectSlug, withProjectRef } from './projectSlug';
 import {
     LayoutDashboard, Wallet, Users, Flag, FileText, History,
     Gauge, BookOpen, Receipt, ShoppingCart, Scale, TrendingUp,
@@ -175,15 +176,20 @@ export default function ProjectDetail() {
     const { projectId } = useParams();
     const [params] = useSearchParams();
     const projects = useSection('projects');
-    const project = projects.find((p) => p.id === projectId);
+    const project = findProject(projectId, projects);
+    const ref = project ? projectSlug(project, projects) : projectId;
 
     // Older links named the page in ?tab= (and Billing's kind in ?doc=).
-    const legacy = legacyProjectPath(projectId, location.search);
+    const legacy = legacyProjectPath(project?.id || projectId, location.search);
     if (legacy) return <Navigate to={legacy} replace state={location.state} />;
     // A project opens on its Overview dashboard; the bare path, and any
     // path that names no page, lead there.
     if (activeSection(location.pathname) === 'home') {
-        return <Navigate to={projectSectionPath(projectId) + location.search} replace state={location.state} />;
+        return <Navigate to={projectSectionPath(project?.id || projectId) + location.search} replace state={location.state} />;
+    }
+    // Opened by its id (an older or server-written link): the URL shows its name.
+    if (project && projectId !== ref) {
+        return <Navigate to={withProjectRef(location.pathname, ref) + location.search} replace state={location.state} />;
     }
 
     if (!project) {

@@ -1,4 +1,5 @@
 import { todayIso } from '../../services/financeAnalytics';
+import { baseCurrency, currencySymbol, recordCurrency } from '../../shared/currency.js';
 
 export const SECTION = { in: 'income_entries', out: 'expenses' };
 
@@ -9,16 +10,19 @@ export const GST_RATES = [0, 5, 12, 18, 28];
 // Enough to cover what a small exporter is paid in. The rate is always entered
 // by hand: EdgeOS has no rate feed, and a stale automatic rate is worse than a
 // deliberate one.
-export const CURRENCIES = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'AUD', 'CAD', 'JPY'];
+// The org's own currency (Company Profile) is always first.
+const LISTED = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'AUD', 'CAD', 'JPY'];
+export const currencies = () => [baseCurrency(), ...LISTED.filter((c) => c !== baseCurrency())];
 
-const SYMBOL = { INR: '₹', USD: '$', EUR: '€', GBP: '£', JPY: '¥' };
-export const sym = (c) => SYMBOL[c] || `${c} `;
+export const sym = (c) => currencySymbol(recordCurrency(c));
+/** True when an entry is in some currency other than the org's own. */
+export const isForeign = (c) => recordCurrency(c) !== baseCurrency();
 
 // Shared by both directions. `original_amount` is the single amount input: the
 // figure in the entry's own currency. The base-currency `amount` every total
 // sums is derived from it by the database, never typed.
 const COMMON = () => ({
-  description: '', original_amount: '', currency: 'INR', fx_rate: 1,
+  description: '', original_amount: '', currency: baseCurrency(), fx_rate: 1,
   tax_amount: '', tax_rate: 0, date: todayIso(),
   payment_method: 'bank_transfer', reference: '',
   country_code: '', place_of_supply: '', is_inter_state: false,
@@ -79,6 +83,20 @@ export function spreadVendorPayment(bills, amount) {
       return { bill, pay };
     })
     .filter((x) => x.pay > 0.009);
+}
+
+/**
+ * A purchase paid now: what the bill (the credit) holds for a payment of
+ * `paid`, GST inclusive. The arithmetic of app.purchase_invoice_guard(), run
+ * backwards, so the bill's total and the payment are the same figure.
+ */
+export function purchaseFromPaid(paid, rate) {
+  const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+  const gross = round2(paid);
+  const r = Number(rate) || 0;
+  const subtotal = r > 0 ? round2(gross / (1 + r / 100)) : gross;
+  const tax = round2(subtotal * r / 100);
+  return { subtotal, tax, total: round2(subtotal + tax) };
 }
 
 /**

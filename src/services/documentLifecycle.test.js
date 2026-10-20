@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { lifecycleOf, revertedStatusOf, ownMoneyReceived, isCarriedAdvance } from './documentLifecycle';
+import { lifecycleOf, revertedStatusOf, ownMoneyReceived, isCarriedAdvance, reactivationOf } from './documentLifecycle';
 
 const doc = (over = {}) => ({ id: 'd1', type: 'quotation', status: 'draft', doc_number: 'QT-1', grand_total: 1000, ...over });
 
@@ -78,6 +78,47 @@ describe('revertedStatusOf', () => {
   it('leaves a document alone that was not marked converted', () => {
     expect(revertedStatusOf({ type: 'quotation', status: 'accepted' })).toBeNull();
     expect(revertedStatusOf(null)).toBeNull();
+  });
+});
+
+describe('reactivationOf', () => {
+  const inv = (over = {}) => doc({ id: 'i1', type: 'invoice', status: 'cancelled', doc_number: 'INV-7', ...over });
+
+  it('only reactivates a cancelled tax invoice', () => {
+    expect(reactivationOf(doc({ status: 'cancelled' }), []).allowed).toBe(false);
+    expect(reactivationOf(inv({ status: 'sent' }), []).reason).toMatch(/not cancelled/);
+    expect(reactivationOf(inv(), []).allowed).toBe(true);
+  });
+
+  it('goes back to the status it was cancelled from, or sent', () => {
+    expect(reactivationOf(inv({ cancelled_from: 'viewed' }), []).status).toBe('viewed');
+    expect(reactivationOf(inv({ cancelled_from: 'draft' }), []).status).toBe('draft');
+    // Payment-made statuses are for the trigger to work out again.
+    expect(reactivationOf(inv({ cancelled_from: 'partially_paid' }), []).status).toBe('sent');
+    expect(reactivationOf(inv(), []).status).toBe('sent');
+  });
+
+  it('marks its source converted to it again', () => {
+    const q = { id: 'q1', type: 'quotation', status: 'accepted', doc_number: 'QT-3' };
+    const r = reactivationOf(inv({ converted_from: 'q1' }), [q]);
+    expect(r.allowed).toBe(true);
+    expect(r.parent).toBe(q);
+  });
+
+  it('refuses while its source has been converted to another live document', () => {
+    const q = { id: 'q1', type: 'quotation', status: 'converted', doc_number: 'QT-3', converted_to: 'i2' };
+    const again = { id: 'i2', type: 'invoice', status: 'sent', doc_number: 'INV-8', converted_from: 'q1' };
+    const me = inv({ converted_from: 'q1' });
+    expect(reactivationOf(me, [q, again, me]).reason).toMatch(/QT-3.*INV-8.*first/);
+    // Once that one is cancelled, this one can come back.
+    expect(reactivationOf(me, [q, { ...again, status: 'cancelled' }, me]).allowed).toBe(true);
+  });
+
+  it('leaves a source that was cancelled since alone', () => {
+    const q = { id: 'q1', type: 'quotation', status: 'cancelled', doc_number: 'QT-3' };
+    const r = reactivationOf(inv({ converted_from: 'q1' }), [q]);
+    expect(r.allowed).toBe(true);
+    expect(r.parent).toBeNull();
   });
 });
 

@@ -11,6 +11,7 @@ import DocumentCard from './shared/DocumentCard';
 import { documentStore } from '../../services/documentStore';
 import { createPortalLink } from '../../services/portalService';
 import { useOrg } from '../../context/OrgContext';
+import { baseCurrency } from '../../shared/currency.js';
 
 const MOCK_OFFER_SAMPLE = [
     { candidate_name: "Rahul Sharma", role: "UI Designer", department: "Product", salary: "25000", start_date: "2026-04-01", manager_name: "Nikhil", location: "Chennai", email: "rahul@example.com" },
@@ -125,7 +126,7 @@ export default function BulkOfferLetters() {
                     start_date: parseDate(row.start_date),
                     end_date: '',
                     salary: salary,
-                    currency: 'INR',
+                    currency: baseCurrency(),
                     payment_frequency: 'Monthly',
                     is_paid: !!salary,
                     responsibilities: '',

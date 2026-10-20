@@ -13,6 +13,8 @@ import { supabase } from '../lib/supabase';
 import { Page, Btn, Seg, Bar, Loading, Empty } from './ui/edge';
 import { useT, MONO } from './ui/edgeUtils';
 import { DIAL_CODES } from '../data/dialCodes';
+import { INDIAN_STATES } from '../data/indianStates';
+import { CURRENCY_OPTIONS } from '../shared/currency.js';
 
 import StampPreview from './StampPreview';
 import PortalJoinCode from './settings/PortalJoinCode';
@@ -29,6 +31,7 @@ import ImageEditor from './ImageEditor';
 
 const EMPTY_FORM = {
   company_name: '', company_tagline: '', company_address: '',
+  country: '', state: '', currency: 'INR',
   owner_full_name: '', document_designation: '',
   company_email: '', company_phone: '', company_website: '',
   gstin: '', cin: '',
@@ -69,6 +72,15 @@ const DIAL_OPTIONS = (() => {
     .sort((a, b) => Number(a.code) - Number(b.code));
 })();
 const DIAL_SET = new Set(DIAL_OPTIONS.map((o) => o.code));
+
+// Country names, in English, for every ISO code the dial list knows. Stored as
+// the name: organizations.country has always held "India", not "IN".
+const COUNTRY_NAMES = (() => {
+  let dn = null;
+  try { dn = new Intl.DisplayNames(['en'], { type: 'region' }); } catch { /* old browser */ }
+  const names = Object.keys(DIAL_CODES).map((iso) => { try { return dn?.of(iso) || iso; } catch { return iso; } });
+  return [...new Set(names)].sort((a, b) => a.localeCompare(b));
+})();
 
 // "+91 98765 43210" → { code: '91', number: '98765 43210' }. A number with no
 // recognisable prefix keeps the default country code.
@@ -527,6 +539,36 @@ export default function CompanyProfile() {
                 </Fields>
               </Panel>
 
+              <Panel t={t} title="Region & currency">
+                <Fields>
+                  <FormField t={t} label="Country" htmlFor="cp-country">
+                    <Select t={t} {...bind('country')} autoComplete="country-name">
+                      <option value="">Choose a country</option>
+                      {form.country && !COUNTRY_NAMES.includes(form.country) && <option value={form.country}>{form.country}</option>}
+                      {COUNTRY_NAMES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </Select>
+                  </FormField>
+                  <FormField t={t} label="State" htmlFor="cp-state">
+                    {form.country === 'India' ? (
+                      <Select t={t} {...bind('state')} autoComplete="address-level1">
+                        <option value="">Choose a state</option>
+                        {form.state && !INDIAN_STATES.includes(form.state) && <option value={form.state}>{form.state}</option>}
+                        {INDIAN_STATES.map((st) => <option key={st} value={st}>{st}</option>)}
+                      </Select>
+                    ) : (
+                      <TextInput t={t} {...bind('state')} autoComplete="address-level1" maxLength={100} />
+                    )}
+                  </FormField>
+                  <FormField t={t} label="Currency" htmlFor="cp-currency" wide
+                    hint="Every amount in EdgeOS is shown in this currency. Existing figures are relabelled, not converted.">
+                    <Select t={t} {...bind('currency')}>
+                      {!CURRENCY_OPTIONS.some((c) => c.code === form.currency) && <option value={form.currency}>{form.currency}</option>}
+                      {CURRENCY_OPTIONS.map((c) => <option key={c.code} value={c.code}>{`${c.symbol.trim()} ${c.code} · ${c.name}`}</option>)}
+                    </Select>
+                  </FormField>
+                </Fields>
+              </Panel>
+
               <Panel t={t} title="Contact & tax" done={stepDone.contact}>
                 <Fields>
                   <FormField t={t} label="Contact email" required htmlFor="cp-company_email" warn={warn('company_email')}>
@@ -883,6 +925,18 @@ function TextInput({ t, as, mono, style, ...props }) {
         ...style,
       }}
     />
+  );
+}
+
+function Select({ t, style, children, ...props }) {
+  return (
+    <select {...props} className="edge-input cp-input" style={{
+      width: '100%', height: 40, padding: '0 10px', boxSizing: 'border-box',
+      background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 8,
+      color: t.text, fontFamily: MONO, fontSize: 14.5, outline: 'none', ...style,
+    }}>
+      {children}
+    </select>
   );
 }
 

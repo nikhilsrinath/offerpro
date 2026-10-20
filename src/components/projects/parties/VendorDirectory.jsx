@@ -14,6 +14,7 @@ import {
 import { useProjectVendors, useSetup, todayIso } from './partyData';
 import { projectLabel } from '../../../services/projectAnalytics';
 import { SetupGate, Badge, Logo, LogoField, ContactsEditor, Detail, FieldError, AttachedFiles, Bar } from './partyUi';
+import { recordCurrency } from '../../../shared/currency.js';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Vendor Management › Vendor Directory, who the project buys from.
@@ -477,7 +478,7 @@ function VendorForm({ vendor, project, onClose }) {
                 <div style={grid}>
                     {F({ k: 'contract_start', label: 'Contract start', children: <Input type="date" value={form.contract_start} onChange={set('contract_start')} /> })}
                     {F({ k: 'contract_end', label: 'Contract end', children: <Input type="date" value={form.contract_end} min={form.contract_start || undefined} onChange={set('contract_end')} /> })}
-                    {F({ k: 'contract_value', label: `Contract value (${project.currency || 'INR'})`, children: <Input type="number" min="0" step="0.01" value={form.contract_value} onChange={set('contract_value')} /> })}
+                    {F({ k: 'contract_value', label: `Contract value (${recordCurrency(project.currency)})`, children: <Input type="number" min="0" step="0.01" value={form.contract_value} onChange={set('contract_value')} /> })}
                     {F({ k: 'scope', label: 'Scope on this project', children: <Input value={form.scope} maxLength={500} onChange={set('scope')} /> })}
                 </div>
                 {canBank && (

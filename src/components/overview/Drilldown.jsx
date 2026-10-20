@@ -12,6 +12,7 @@ import {
 import { useViz } from './vizHooks';
 import { Columns, Area, RankBars, SplitBar, Legend, EmptyNote, Delta } from './vizKit';
 import { titleCaseNode } from '../../utils/titleCase';
+import { currencySymbol } from '../../shared/currency.js';
 
 /* ══════════════════════════════════════════════════════════════════════════
    The drill-down sheet. Every chart on the Overview opens one of these views;
@@ -319,7 +320,7 @@ function NetView({ model, push }) {
                 { label: 'Margin', value: pl.margin === null ? '-' : `${pl.margin.toFixed(1)}%` },
             ]} />
             <Explain>
-                Of every ₹100 earned {pl.income > 0 ? <>you kept <b style={{ color: t.text }}>₹{Math.max(-999, (pl.net / pl.income) * 100).toFixed(0)}</b> after costs</> : 'nothing was earned in this period'}.
+                Of every {currencySymbol()}100 earned {pl.income > 0 ? <>you kept <b style={{ color: t.text }}>{currencySymbol()}{Math.max(-999, (pl.net / pl.income) * 100).toFixed(0)}</b> after costs</> : 'nothing was earned in this period'}.
                 {pl.byCategory[0] && <> The largest cost was <b style={{ color: t.text }}>{categoryLabel(pl.byCategory[0].name)}</b> at {fmtShort(pl.byCategory[0].value)}.</>}
             </Explain>
             <Section title="Income vs expenses" note="line = net">

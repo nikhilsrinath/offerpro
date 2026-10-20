@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useT } from '../ui/edgeUtils';
+import { projectRef } from './projectSlug';
 
 /** Code + name, linking to the project. */
 export default function ProjectBadge({ project, link = true }) {
@@ -14,7 +15,7 @@ export default function ProjectBadge({ project, link = true }) {
     );
     if (!link) return body;
     return (
-        <Link to={`/projects/${project.id}`} style={{ textDecoration: 'none', minWidth: 0 }}
+        <Link to={`/projects/${projectRef(project.id)}`} style={{ textDecoration: 'none', minWidth: 0 }}
             onClick={(e) => e.stopPropagation()}>
             {body}
         </Link>

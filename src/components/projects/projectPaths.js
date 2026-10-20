@@ -9,8 +9,10 @@
      /projects/:id/documents-management/project-documents/general-documents
 
    The section ids (the keys) are the ones the pages have always used; older
-   ?tab= links are turned into these paths by ProjectDetail.
+   ?tab= links are turned into these paths by ProjectDetail. :id is written
+   as the project's name (projectSlug.js); an id there still opens it.
    ══════════════════════════════════════════════════════════════════════════ */
+import { projectRef } from './projectSlug';
 
 export const SECTION_PATHS = {
     finance: 'finance/status',
@@ -70,7 +72,7 @@ export const documentsViewOf = (view) => kindOfView(DOCUMENT_VIEWS, view) || 'bu
  * any filter the page reads (`{ client }`).
  */
 export function projectSectionPath(projectId, section, view, query) {
-    const base = `/projects/${projectId}`;
+    const base = `/projects/${projectRef(projectId)}`;
     // A project opens on its Overview dashboard (the widget board).
     if (!section || section === 'home' || section === 'dashboard') return `${base}/dashboard/overview`;
     let path = `${base}/${SECTION_PATHS[section] || section}`;

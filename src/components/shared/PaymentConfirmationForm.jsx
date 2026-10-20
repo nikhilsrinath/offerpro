@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Loader2 } from 'lucide-react';
+import { currencySymbol } from '../../shared/currency.js';
 
 const PAYMENT_MODES = ['UPI', 'NEFT', 'IMPS', 'Cheque'];
 
@@ -78,7 +79,7 @@ export default function PaymentConfirmationForm({ amount, invoiceId, onSubmit })
           {errors.paymentDate && <span className="payment-conf-error">{errors.paymentDate}</span>}
         </div>
         <div className="payment-conf-field">
-          <label className="req">Amount Paid (₹)</label>
+          <label className="req">Amount Paid ({currencySymbol()})</label>
           <input
             type="number"
             value={form.amountPaid}

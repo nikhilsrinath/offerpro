@@ -2,9 +2,10 @@
 // Kept out of financeUi.jsx so that file exports only components.
 import { useEffect, useState } from 'react';
 import { orgStore } from '../../services/orgStore';
+import { baseCurrency, currencyLocale } from '../../shared/currency.js';
 
-export const money = (v, digits = 0) => (Number(v) || 0).toLocaleString('en-IN', {
-  style: 'currency', currency: 'INR', maximumFractionDigits: digits,
+export const money = (v, digits = 0) => (Number(v) || 0).toLocaleString(currencyLocale(), {
+  style: 'currency', currency: baseCurrency(), maximumFractionDigits: digits,
 });
 
 export const fmtDate = (d) => (d

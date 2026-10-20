@@ -14,8 +14,12 @@ import { projectLabel } from '../../services/projectAnalytics';
 import { money, useSection } from './financeHooks';
 import { titleCase } from '../../utils/titleCase';
 import {
-  CURRENCIES, GST_RATES, SECTION, billAllocationsOf, billBalance, billPickerOf, blank, sym,
+  currencies, isForeign, GST_RATES, SECTION, billAllocationsOf, billBalance, billPickerOf, blank, sym,
 } from './cashEntry';
+import { baseCurrency, currencySymbol } from '../../shared/currency.js';
+
+// The payroll categories, and who each is paid to. 'Salaries' is the legacy key (0038).
+const PAYROLL = { salaries: 'employee', Salaries: 'employee', intern_stipend: 'intern' };
 
 /**
  * The money in / money out form, shared by the General Ledger and Purchase
@@ -57,6 +61,16 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
   const projectName = (id) => projectLabel(projects.find((p) => p.id === id)) || 'Project';
 
   const set = (k, v) => setEditing((e) => ({ ...e, [k]: v }));
+
+  // Salaries and stipends are paid to people, not vendors: "Paid to" offers
+  // employees (interns for a stipend) and stores the choice as employee_id.
+  // Someone who has left is still offered when the entry already names them.
+  const payroll = editing?.direction === 'out' && !editing?.purchase_invoice_id
+    ? PAYROLL[editing.category] || null : null;
+  const payees = payroll
+    ? employees.filter((p) => p.id === editing.employee_id
+      || (!p.exited_at && (payroll === 'intern') === (p.offerType === 'intern')))
+    : [];
 
   // What the entry is worth in rupees. The figure the database will store as
   // `amount` and every total will sum. Shown live so a foreign-currency entry is
@@ -124,7 +138,9 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
     // write does not carry them either.
     const { direction: _d, day: _day, party: _party, treatment: _t, _picker: chosen, _share: _s, _full: _f, _parts: _p, ...data } = editing;
     // A bill payment is paid, in rupees, and split the way the bill is.
-    if (payingBill) Object.assign(data, { currency: 'INR', fx_rate: 1, tax_amount: 0, tax_rate: 0, status: 'paid', billable: false });
+    if (payingBill) Object.assign(data, { currency: baseCurrency(), fx_rate: 1, tax_amount: 0, tax_rate: 0, status: 'paid', billable: false });
+    // A salary or stipend has a person, never a vendor.
+    if (payroll) data.vendor_id = '';
     const picker = payingBill ? billPicker(payingBill, Number(editing.original_amount)) : chosen;
     try {
       let id = editing.id;
@@ -228,7 +244,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
                 value={editing.original_amount}
                 onChange={(e) => set('original_amount', e.target.value)} />
             </div>
-            {editing.currency !== 'INR' && (
+            {isForeign(editing.currency) && (
               <p className="prod-field-note">Recorded as {money(baseAmount, 2)} at the rate under More details.</p>
             )}
             {payingBill && (
@@ -259,6 +275,20 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
                 <option value="">Not recorded</option>
                 {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
+            </div>
+          ) : payroll ? (
+            <div className="prod-field full">
+              <label htmlFor="cb-payee">Paid to</label>
+              <select id="cb-payee" value={editing.employee_id || ''}
+                onChange={(e) => set('employee_id', e.target.value)}>
+                <option value="">{payroll === 'intern' ? 'Not an intern' : 'Not an employee'}</option>
+                {payees.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              {payees.length === 0 && (
+                <p className="prod-field-note">
+                  {payroll === 'intern' ? 'No current interns in Team.' : 'No current employees in Team.'}
+                </p>
+              )}
             </div>
           ) : (
             <div className="prod-field full">
@@ -369,19 +399,19 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
         </div>
 
         {/*: everything else, one click away, */}
-        <MoreDetails initialOpen={!!editing.id} force={editing.currency !== 'INR'}>
+        <MoreDetails initialOpen={!!editing.id} force={isForeign(editing.currency)}>
           <div className="prod-form-grid">
             <div className="prod-field">
               <label htmlFor="cb-currency">Currency</label>
               <select id="cb-currency" value={editing.currency} disabled={!!payingBill}
                 onChange={(e) => set('currency', e.target.value)}>
-                {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                {[...new Set([editing.currency, ...currencies()].filter(Boolean))].map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
 
-            {editing.currency !== 'INR' ? (
+            {isForeign(editing.currency) ? (
               <div className="prod-field">
-                <label className="req" htmlFor="cb-fx">Rate for 1 {editing.currency} in ₹</label>
+                <label className="req" htmlFor="cb-fx">Rate for 1 {editing.currency} in {currencySymbol()}</label>
                 <input id="cb-fx" type="number" min="0.000001" step="0.000001" required
                   value={editing.fx_rate} onChange={(e) => set('fx_rate', e.target.value)} />
                 <p className="prod-field-note">The rate on the day the money moved.</p>
@@ -414,7 +444,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
               </div>
             ) : (
               <>
-                {!payingBill && (
+                {!payingBill && !payroll && (
                 <div className="prod-field">
                   <label htmlFor="cb-employee">Paid to a person</label>
                   <select id="cb-employee" value={editing.employee_id || ''}

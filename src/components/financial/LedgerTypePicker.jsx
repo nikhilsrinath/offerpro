@@ -8,13 +8,18 @@ import { Modal } from './financeUi';
 /** Sales & Services on the Credit side is goods or services taken on a bill. */
 const isSalesGroup = (label) => /^sales/i.test(String(label || ''));
 
+/** Product & Delivery on the Debit side is shown, and works, as Vendor Payment. */
+const isVendorGroup = (label) => /^product\s*&\s*delivery/i.test(String(label || ''));
+const VENDOR_LABEL = 'Vendor Payment';
+
 /**
  * The first steps of a project's Credit or Debit: the Type, then the
  * Sub-Type inside it, so the form that follows does not ask for either. The
- * Types are the category groups; Debit also offers Vendor Payment. `onPick`
- * gets { kind: 'bill' } for Sales & Services (a purchase bill, owed to the
- * vendor), { kind: 'vendor' } for Vendor Payment, or
- * { kind: 'entry', group, category } once a Sub-Type is chosen.
+ * Types are the category groups. On the Debit side Product & Delivery is
+ * Vendor Payment: its Sub-Types are what was bought. `onPick` gets
+ * { kind: 'bill' } for Sales & Services (a purchase bill, owed to the
+ * vendor), { kind: 'vendor', category } once a Vendor Payment Sub-Type is
+ * chosen, or { kind: 'entry', group, category } for any other Sub-Type.
  */
 export default function LedgerTypePicker({ direction, onPick, onClose }) {
   const t = useT();
@@ -24,25 +29,29 @@ export default function LedgerTypePicker({ direction, onPick, onClose }) {
 
   const isIn = direction === 'in';
   const side = isIn ? 'Credit' : 'Debit';
+  const vendorGroup = !isIn && isVendorGroup(group?.label);
   const options = group
     ? group.items.map((c) => ({
       key: c.key, label: c.label, note: c.hint || '',
-      pick: () => onPick({ kind: 'entry', group, category: c.key }),
+      pick: () => onPick(vendorGroup ? { kind: 'vendor', category: c.key } : { kind: 'entry', group, category: c.key }),
     }))
     : [
       ...groupedCategories(direction).map((g) => {
         const bill = isIn && isSalesGroup(g.label);
+        const vendor = !isIn && isVendorGroup(g.label);
         return {
-          key: g.label, label: g.label,
-          note: bill ? 'Goods or services taken on a bill, owed to the vendor' : g.items.map((c) => c.label).join(', '),
+          key: g.label, label: vendor ? VENDOR_LABEL : g.label,
+          note: bill ? 'Goods or services taken on a bill, owed to the vendor'
+            : vendor ? `Pay a vendor what is pending, or for a purchase paid now: ${g.items.map((c) => c.label).join(', ')}`
+              : g.items.map((c) => c.label).join(', '),
+          icon: vendor ? Truck : undefined,
           pick: bill ? () => onPick({ kind: 'bill' }) : () => setGroup(g),
         };
       }),
-      ...(isIn ? [] : [{ key: 'vendor', label: 'Vendor Payment', note: 'Pay a vendor what is pending to them', icon: Truck, pick: () => onPick({ kind: 'vendor' }) }]),
     ];
 
   return (
-    <Modal title={group ? `${titleCase(group.label)}: Choose a Sub-Type` : `What Kind of ${side}?`} onClose={onClose} width={760}>
+    <Modal title={group ? `${titleCase(vendorGroup ? VENDOR_LABEL : group.label)}: Choose a Sub-Type` : `What Kind of ${side}?`} onClose={onClose} width={760}>
       <div className="prod-modal-body" style={{ display: 'grid', gap: 10, overflowX: 'hidden' }}>
         <Steps t={t} step={group ? 2 : 1} />
         {group && (

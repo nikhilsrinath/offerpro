@@ -7,6 +7,7 @@ import { orgStore } from '../../services/orgStore';
 import { receiptService } from '../../services/receiptService';
 import { todayIso } from '../../services/financeAnalytics';
 import { TAX_RATES } from '../../services/catalogService';
+import { categoryLabel } from '../../services/financeCategories';
 import { useToast } from '../shared/Toast';
 import { Stat, Modal, ReceiptField } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
@@ -24,6 +25,7 @@ import { RowMenu } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
 import { initialQuery } from '../../services/urlQuery';
 import { ProjectLedger } from '../projects/ProjectFinance';
+import { currencySymbol } from '../../shared/currency.js';
 
 const CATEGORIES = ['Operations', 'Inventory', 'Software', 'Hardware', 'Marketing', 'Travel', 'Utilities', 'Professional fees', 'Rent', 'Other'];
 const FILTERS = ['all', 'paid', 'unpaid', 'partially_paid', 'overdue', 'void'];
@@ -106,7 +108,7 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     const direction = choosing;
     setChoosing(null);
     if (pick.kind === 'bill') { setEditing(fresh('')); setFormError(''); }
-    else if (pick.kind === 'vendor') setPayingVendor({ vendorId: '' });
+    else if (pick.kind === 'vendor') setPayingVendor({ vendorId: '', category: pick.category });
     else { setEntry({ ...freshEntry(direction), category: pick.category }); setEntryTyped(true); }
   };
   // A row of the ledger that is a General Ledger entry opens its form here.
@@ -421,6 +423,10 @@ export default function PurchaseInvoices({ projectId = null, children }) {
                 <label>Category</label>
                 <select aria-label="Category" value={editing.category} onChange={(e) => set('category', e.target.value)}>
                   {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {/* A purchase paid now through Vendor Payment keeps its Sub-Type. */}
+                  {editing.category && !CATEGORIES.includes(editing.category) && (
+                    <option value={editing.category}>{categoryLabel(editing.category)}</option>
+                  )}
                 </select>
               </div>
               <div className="prod-field">
@@ -432,8 +438,8 @@ export default function PurchaseInvoices({ projectId = null, children }) {
                 <input aria-label="Due date" type="date" min={editing.bill_date || undefined} value={editing.due_date || ''} onChange={(e) => set('due_date', e.target.value)} />
               </div>
               <div className="prod-field">
-                <label className="req">Amount before tax (₹)</label>
-                <input aria-label="Amount before tax (₹)" className="pi-no-spin" type="number" min="0" step="0.01" value={editing.subtotal} onChange={(e) => set('subtotal', e.target.value)} required />
+                <label className="req">Amount before tax ({currencySymbol()})</label>
+                <input aria-label={`Amount before tax (${currencySymbol()})`} className="pi-no-spin" type="number" min="0" step="0.01" value={editing.subtotal} onChange={(e) => set('subtotal', e.target.value)} required />
               </div>
               <div className="prod-field">
                 <label>GST rate</label>
@@ -451,8 +457,8 @@ export default function PurchaseInvoices({ projectId = null, children }) {
                     <input aria-label="What the other amount is for" value={editing.other_label || ''} onChange={(e) => set('other_label', e.target.value)} placeholder="What it is, e.g. Freight" />
                   </div>
                   <div className="prod-field">
-                    <label>Amount (₹)</label>
-                    <input aria-label="Other amount (₹)" className="pi-no-spin" type="number" min="0" step="0.01" value={editing.other_amount} onChange={(e) => set('other_amount', e.target.value)} />
+                    <label>Amount ({currencySymbol()})</label>
+                    <input aria-label={`Other amount (${currencySymbol()})`} className="pi-no-spin" type="number" min="0" step="0.01" value={editing.other_amount} onChange={(e) => set('other_amount', e.target.value)} />
                   </div>
                   <div className="prod-field">
                     <label>GST rate on other amount</label>
@@ -474,7 +480,7 @@ export default function PurchaseInvoices({ projectId = null, children }) {
                 {editing._roundOpen ? (
                   <div className="pi-round-row">
                     <input
-                      aria-label="Rounded total (₹)" className="pi-no-spin" type="number" min="0" step="0.01" autoFocus
+                      aria-label={`Rounded total (${currencySymbol()})`} className="pi-no-spin" type="number" min="0" step="0.01" autoFocus
                       placeholder={`Rounded total, e.g. ${Math.round(exactTotal)}`}
                       value={editing._finalTotal} onChange={(e) => set('_finalTotal', e.target.value)}
                     />
@@ -519,7 +525,10 @@ export default function PurchaseInvoices({ projectId = null, children }) {
       {paying && <CashEntryModal entry={paying} onClose={() => setPaying(null)} />}
       {choosing && <LedgerTypePicker direction={choosing} onPick={pickKind} onClose={() => setChoosing(null)} />}
       {entry && <CashEntryModal key={entry.id || 'new'} entry={entry} fresh={freshEntry} typeChosen={entryTyped} onClose={() => setEntry(null)} />}
-      {payingVendor && <VendorPaymentModal bills={bills} vendorId={payingVendor.vendorId} onClose={() => setPayingVendor(null)} />}
+      {payingVendor && (
+        <VendorPaymentModal bills={bills} vendorId={payingVendor.vendorId} category={payingVendor.category}
+          startOn={startOn} projectId={projectId} onClose={() => setPayingVendor(null)} />
+      )}
     </div>
   );
 }

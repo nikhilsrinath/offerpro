@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   collectDeals, detectRisks, prioritize, buildDealSnapshot, flowFor, datedNotes, normalizeConfig,
-  quoteState, totalsByCurrency, totalsText, DEFAULT_CONFIG,
+  quoteState, totalsByCurrency, totalsText, DEFAULT_CONFIG, dealAlertsDue, buildDealDigest,
 } from './dealIntel.js';
 
 /*
@@ -315,5 +315,51 @@ describe('settings', () => {
     expect(c.high_value_amount).toBeNull();
     expect(c).not.toHaveProperty('evil');
     expect(normalizeConfig()).toEqual({ ...DEFAULT_CONFIG });
+  });
+
+  it('keep the automatic run\'s settings and drop a bad notify_min', () => {
+    const c = normalizeConfig({ daily: true, email_digest: true, notify_min: 'medium', repeat_days: 99 });
+    expect(c).toMatchObject({ daily: true, email_digest: true, notify_min: 'medium', repeat_days: 60 });
+    const bad = normalizeConfig({ daily: 'yes', notify_min: 'everything' });
+    expect(bad).toMatchObject({ daily: false, notify_min: 'high', repeat_days: 3, email_digest: false });
+  });
+});
+
+describe('alerts', () => {
+  const NOW = new Date('2026-10-19T03:00:00Z');
+
+  it('send new high and critical findings, not medium ones, by default', () => {
+    const { f } = run();
+    const due = dealAlertsDue(f, new Map(), {}, NOW);
+    expect(due.length).toBeGreaterThan(0);
+    expect(due.every((d) => ['critical', 'high'].includes(d.finding.severity))).toBe(true);
+    expect(due.map((d) => d.finding.key)).toEqual(expect.arrayContaining(['quote_lapsed:q1', 'overdue_follow_up:acme']));
+    expect(due.some((d) => d.finding.severity === 'medium')).toBe(false);
+    expect(dealAlertsDue(f, new Map(), { notify_min: 'medium' }, NOW).some((d) => d.finding.severity === 'medium')).toBe(true);
+  });
+
+  it('do not resend until repeat_days, and resend on escalation', () => {
+    const { f } = run();
+    const lapsed = f.find((x) => x.key === 'quote_lapsed:q1');
+    const sent = new Map([[lapsed.key, { last_notified_at: '2026-10-18T03:00:00Z', severity: 'high' }]]);
+    expect(dealAlertsDue([lapsed], sent, {}, NOW)).toEqual([]);
+    expect(dealAlertsDue([lapsed], sent, {}, new Date('2026-10-21T03:00:00Z'))).toHaveLength(1);
+    const escalated = { ...lapsed, severity: 'critical' };
+    expect(dealAlertsDue([escalated], sent, {}, NOW)[0].why).toBe('escalated');
+  });
+
+  it('the digest counts by severity, names the deal and the next step, and caps at 12 lines', () => {
+    const { f } = run();
+    const due = dealAlertsDue(f, new Map(), {}, NOW);
+    const d = buildDealDigest(f, due, 'Test Co');
+    expect(d.title).toMatch(/^Deal Intelligence Agent: /);
+    expect(d.title).toMatch(/\d+ (critical|high)/);
+    expect(d.lines[0]).toMatch(/^• \[(critical|high)\] .+ — .+\. .+/);
+    expect(d.text).toMatch(/^Test Co: /);
+    expect(d.text).toMatch(/Open EdgeOS → Ask → Agents → Deal Intelligence Agent for the full list\.$/);
+    const many = Array.from({ length: 15 }, (_, i) => ({ finding: { ...due[0].finding, key: `k${i}` } }));
+    const big = buildDealDigest(many.map((m) => m.finding), many);
+    expect(big.lines).toHaveLength(12);
+    expect(big.text).toMatch(/…and 3 more\./);
   });
 });

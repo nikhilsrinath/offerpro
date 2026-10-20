@@ -9,6 +9,7 @@ import { useToast } from '../shared/Toast';
 import { orgStore } from '../../services/orgStore';
 import { milestoneProgress, isClosed } from '../../services/projectAnalytics';
 import { addMilestone, updateMilestone, removeMilestone } from '../../services/projectService';
+import { currencySymbol } from '../../shared/currency.js';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Milestones: the plan, in order. Drag a row (or use ↑ ↓) to reorder.
@@ -213,7 +214,7 @@ function MilestoneSheet({ project, milestone, onClose }) {
                     </Field>
                 )}
                 {form.by === 'amount' && (
-                    <Field label="Amount (₹, before GST)"><Input type="number" min="0" step="0.01" value={form.billing_amount} onChange={set('billing_amount')} /></Field>
+                    <Field label={`Amount (${currencySymbol()}, before GST)`}><Input type="number" min="0" step="0.01" value={form.billing_amount} onChange={set('billing_amount')} /></Field>
                 )}
             </Grid>
             {error && <div role="alert" style={{ marginTop: 12, fontSize: 12.5, color: t.down }}>{error}</div>}

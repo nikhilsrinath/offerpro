@@ -10,13 +10,14 @@ import { useSection, money, fmtDate } from '../financial/financeHooks';
 import {
     periodOptions, periodBounds, netOfTax, balanceOf, isOverdue, daysOverdue, downloadCsv, todayIso, inRange,
 } from '../../services/financeAnalytics';
-import { categoryLabel } from '../../services/financeCategories';
+import { categoryLabel, categoryOf } from '../../services/financeCategories';
 import { isClosed } from '../../services/projectAnalytics';
 import {
     financials, unallocate, canAllocate, unbilledHours,
 } from '../../services/projectService';
 import { useToast } from '../shared/Toast';
 import { useProjectScope } from './projectScope';
+import { currencySymbol } from '../../shared/currency.js';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Two of a project's finance pages: Financial Status and Profit & Loss,
@@ -60,26 +61,26 @@ function useSources() {
             ...docs.filter((d) => d.type === 'invoice' && !DEAD.has(d.status)).map((d) => ({
                 type: 'invoice', id: d.id, date: d.issue_date, net: Number(d.taxable_amount) || 0, gross: Number(d.grand_total) || 0,
                 party: d.clientName || clientName[d.customer_id] || '', kind: 'Sales',
-                number: d.doc_number || d.invoiceNumber || '', client_id: d.customer_id,
+                number: d.doc_number || d.invoiceNumber || '', client_id: d.customer_id, created: d.created_at || d.createdAt || '',
             })),
             ...income.map((e) => ({
                 type: 'income_entry', id: e.id, date: e.received_on, net: netOfTax(e), gross: Number(e.amount) || 0,
                 party: clientName[e.client_id] || e.description || '', kind: categoryLabel(e.category),
-                number: e.reference || '', client_id: e.client_id, description: e.description || '',
+                number: e.reference || '', client_id: e.client_id, description: e.description || '', created: e.created_at || '',
                 settles: e.document_id ? `invoice:${e.document_id}` : null,
             })),
             ...expenses.map((e) => ({
                 type: 'expense', id: e.id, date: e.incurred_on, net: netOfTax(e), gross: Number(e.amount) || 0,
                 party: vendorName[e.vendor_id] || e.description || '', kind: categoryLabel(e.category),
-                number: e.reference || '', client_id: e.client_id, description: e.description || '',
+                number: e.reference || '', client_id: e.client_id, description: e.description || '', created: e.created_at || '',
                 settles: e.purchase_invoice_id ? `purchase_invoice:${e.purchase_invoice_id}` : null,
             })),
             // A voided bill is kept so its row can still be restored; it counts for nothing.
             ...bills.map((b) => ({
                 type: 'purchase_invoice', id: b.id, date: b.bill_date, net: Number(b.subtotal) || 0,
                 gross: Number(b.total) || 0, void: b.status === 'void',
-                party: vendorName[b.vendor_id] || b.description || '', kind: b.category || 'Purchase',
-                number: b.bill_number || '', client_id: null, description: b.description || '',
+                party: vendorName[b.vendor_id] || b.description || '', kind: (categoryOf(b.category)?.active ? categoryLabel(b.category) : b.category) || 'Purchase',
+                number: b.bill_number || '', client_id: null, description: b.description || '', created: b.created_at || '',
             })),
         ];
     }, [docs, income, expenses, bills, vendors, clients]);
@@ -145,7 +146,7 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
             const rows = await unbilledHours(project.id);
             if (rows.length === 0) { toast('No approved, unbilled hours on this project.', 'info'); return; }
             const missing = rows.filter((r) => !(Number(r.bill_rate) > 0)).map((r) => r.full_name);
-            if (missing.length) toast(`No bill rate for ${missing.join(', ')}. Set it on the Team tab; their lines start at ₹0.`, 'error', 6000);
+            if (missing.length) toast(`No bill rate for ${missing.join(', ')}. Set it on the Team tab; their lines start at ${currencySymbol()}0.`, 'error', 6000);
             navigate('/finance/billing/invoices/new', {
                 state: {
                     projectId: project.id, clientId: project.client_id,
@@ -171,7 +172,7 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
     return (
         <div style={{ display: 'grid', gap: 14 }}>
             <PeriodPicker value={periodId} onChange={setPeriodId} choices={choices}
-                note="Before GST, in ₹. Revenue is what was invoiced; collected cash is beside it." />
+                note={`Before GST, in ${currencySymbol()}. Revenue is what was invoiced; collected cash is beside it.`} />
 
             {loading ? <Loading /> : error ? (
                 <Panel><Empty>{error}</Empty></Panel>
@@ -327,8 +328,11 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                 // salaries, labour…), unless the page is narrowed to some bills.
                 return a.source_type !== 'invoice' && !filtered;
             })
-            // Oldest first to carry the balance; on one day, a bill before what pays it.
+            // Oldest first to carry the balance (shown reversed, latest on top);
+            // on one day, in the order they were recorded, and a bill before
+            // what pays it when that is not known.
             .sort((x, y) => String(x.s?.date || '9999').localeCompare(String(y.s?.date || '9999'))
+                || String(x.s?.created || '').localeCompare(String(y.s?.created || ''))
                 || (y.a.source_type === 'purchase_invoice') - (x.a.source_type === 'purchase_invoice'))
             .reduce((out, { a, s }) => {
                 // GST included, as on the bill or invoice itself; a part-share is
@@ -570,7 +574,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
     );
 }
 
-const LEDGER_PAGE = 10;
+const LEDGER_PAGE = 25;
 
 const CREDIT = new Set(['invoice', 'income_entry']);
 const ENTRY_DIRECTION = { income_entry: 'in', expense: 'out' };
@@ -612,7 +616,7 @@ export function ProjectProfitLoss({ project }) {
     return (
         <div style={{ display: 'grid', gap: 14 }}>
             <PeriodPicker value={periodId} onChange={setPeriodId} choices={choices}
-                note="Before GST, in ₹. A split entry counts only this project’s share." />
+                note={`Before GST, in ${currencySymbol()}. A split entry counts only this project’s share.`} />
             {loading ? <Loading /> : error ? (
                 <Panel><Empty>{error}</Empty></Panel>
             ) : f && (

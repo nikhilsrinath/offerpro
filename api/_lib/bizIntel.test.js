@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { fakeDb, fakeCtx } from './agent/testing/fakeDb.js';
-import { loadSources, snapshotFor, ROW_CAP } from './bizIntel.js';
+import { loadSources, snapshotFor, ROW_CAP, runBizForOrg, runBizWeeklyForOrg, runBizScheduled } from './bizIntel.js';
+import { fakeAdmin, noMail } from './agent/testing/fakeAdmin.js';
 import insightTools, { readPeriodArgs } from './agent/tools/insights.js';
 import { registryProblems, toolsFor } from './agent/registry.js';
 
@@ -251,5 +252,62 @@ describe('the tools as the model sees them', () => {
     expect(data.money.revenue_net_of_gst).toMatchObject({ value: '₹5,000', before: '₹12,000' });
     expect(data.comparison_note).toMatch(/30 days against 19/);
     expect(data.owed).toBeUndefined();
+  });
+});
+
+describe('the automatic run', () => {
+  const MON_IST = new Date('2026-10-18T20:00:00Z'); // Monday 19 Oct, 01:30 in India
+  const setup = (config = { daily: true }) => {
+    const s = seed();
+    s.organizations = [{ id: 'org-1', company_name: 'Test Co' }];
+    s.memberships = [{ org_id: 'org-1', user_id: 'u-owner', role: 'owner' }, { org_id: 'org-1', user_id: 'u-member', role: 'member' }];
+    s.agent_settings = [{ org_id: 'org-1', agent: 'business_intelligence', config }];
+    const db = fakeDb(s);
+    let now = MON_IST;
+    return { db, admin: fakeAdmin(db, () => now), setNow: (d) => { now = d; }, org: db.tables.organizations[0], deps: () => noMail(now) };
+  };
+
+  it('daily run alerts large overdue receivables once, to owners and admins', async () => {
+    const w = setup();
+    const r = await runBizForOrg(w.admin, w.org, { deps: w.deps() });
+    expect(r.status).toBe('succeeded');
+    const keys = w.db.tables.agent_alerts.filter((a) => a.notify_count > 0).map((a) => a.dedupe_key);
+    expect(keys).toContain('receivables_overdue');
+    expect(keys.some((k) => /tasks|milestones|projects|leave/.test(k))).toBe(false);
+    expect(w.db.tables.notifications.map((n) => n.user_id)).toEqual(['u-owner']);
+    expect(w.db.tables.notifications[0].title).toMatch(/^Business Intelligence Agent: /);
+    expect(JSON.stringify(w.db.tables.notifications)).not.toMatch(/Secret Client|999,999/);
+    w.setNow(new Date('2026-10-19T20:00:00Z'));
+    expect(await runBizForOrg(w.admin, w.org, { deps: w.deps() })).toMatchObject({ status: 'succeeded', alerted: 0 });
+  });
+
+  it('weekly runs only on summary_day in the org\'s timezone', async () => {
+    const w = setup({ daily: true, weekly_summary: true, summary_day: 1 });
+    const r = await runBizWeeklyForOrg(w.admin, w.org, { deps: w.deps() });
+    expect(r).toMatchObject({ status: 'succeeded', weekly: true, week_from: '2026-10-12', week_to: '2026-10-18' });
+    expect(w.db.tables.agent_runs.at(-1).run_key).toBe('week:2026-10-12');
+    expect(w.db.tables.notifications.at(-1).title).toMatch(/week of/);
+    w.setNow(new Date('2026-10-19T20:00:00Z')); // Tuesday in India
+    expect(await runBizWeeklyForOrg(w.admin, w.org, { deps: w.deps() })).toMatchObject({ status: 'skipped', reason: 'not the summary day' });
+  });
+
+  it('weekly sends once per week', async () => {
+    const w = setup({ daily: true, weekly_summary: true, summary_day: 1 });
+    await runBizWeeklyForOrg(w.admin, w.org, { deps: w.deps() });
+    expect(await runBizWeeklyForOrg(w.admin, w.org, { deps: w.deps() })).toMatchObject({ status: 'skipped', reason: 'already ran or running' });
+  });
+
+  it('weekly off, or the agent off, sends no summary', async () => {
+    const off = setup({ daily: true, weekly_summary: false, summary_day: 1 });
+    expect(await runBizWeeklyForOrg(off.admin, off.org, { deps: off.deps() })).toMatchObject({ status: 'skipped', reason: 'weekly summary off' });
+    const agentOff = setup({ daily: false, weekly_summary: true, summary_day: 1 });
+    expect(await runBizWeeklyForOrg(agentOff.admin, agentOff.org, { deps: agentOff.deps() })).toMatchObject({ status: 'skipped' });
+  });
+
+  it('the scheduled sweep does the daily pass and the weekly summary', async () => {
+    const w = setup({ daily: true, weekly_summary: true, summary_day: 1 });
+    const out = await runBizScheduled(w.admin, { deps: w.deps() });
+    expect(out).toEqual([expect.objectContaining({ org: 'org-1', status: 'succeeded', weekly: 'succeeded' })]);
+    expect(w.db.tables.agent_runs.map((r) => r.run_key)).toEqual(['2026-10-19', 'week:2026-10-12']);
   });
 });

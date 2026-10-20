@@ -56,6 +56,17 @@ export function fakeDb(seed = {}, { deny = {}, rpc = {} } = {}) {
         });
         return { data: state.single ? made[0] : made, error: null };
       }
+      if (state.op === 'upsert') {
+        const cols = String(state.conflict || 'id').split(',').map((c) => c.trim());
+        const made = (Array.isArray(state.payload) ? state.payload : [state.payload]).map((p) => {
+          const hit = rows().find((r) => cols.every((c) => r[c] === p[c]));
+          if (hit) Object.assign(hit, p);
+          else rows().push({ ...p });
+          writes.push({ op: 'upsert', table, row: p });
+          return hit || p;
+        });
+        return { data: state.single ? made[0] : made, error: null };
+      }
       if (state.op === 'update') {
         const hit = rows().filter(match);
         for (const r of hit) Object.assign(r, state.payload, { updated_at: tick() });
@@ -80,6 +91,7 @@ export function fakeDb(seed = {}, { deny = {}, rpc = {} } = {}) {
       },
       insert(p) { state.op = 'insert'; state.payload = p; return q; },
       update(p) { state.op = 'update'; state.payload = p; return q; },
+      upsert(p, o) { state.op = 'upsert'; state.payload = p; state.conflict = o?.onConflict; return q; },
       delete() { state.op = 'delete'; return q; },
       eq(c, v) { state.filters.push((r) => r[c] === v); return q; },
       neq(c, v) { state.filters.push((r) => r[c] !== v); return q; },

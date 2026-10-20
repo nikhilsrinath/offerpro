@@ -10,6 +10,7 @@ import { OPS_AGENT, useOpsSnapshot } from './opsAgent';
 import { GROUPS as AREAS, SCORING } from '../../shared/opsMonitor';
 import { formatMoney } from '../../shared/deadlineWatch';
 import { formatDate } from '../../shared/dates';
+import AgentCard from './AgentCard';
 import './agents.css';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -53,30 +54,18 @@ const plural = (k, one, many = `${one}s`) => `${k} ${k === 1 ? one : many}`;
 
 /* ── the card on the Agents grid ──────────────────────────────────────────── */
 
-export function OperationsMonitorCard({ onOpen }) {
+export function OperationsMonitorCard({ onOpen, auto }) {
     const { data, loading, error } = useOpsSnapshot();
-    const Icon = OPS_AGENT.icon;
     const c = data?.counts;
     const urgent = c ? c.critical + c.high : 0;
     return (
-        <button type="button" className="ag-card" onClick={onOpen}>
-            <span className="ag-card-top">
-                <span className="ag-ico" aria-hidden="true"><Icon size={18} strokeWidth={1.9} /></span>
-                <span className={`ag-state${data?.settings?.daily ? '' : ' is-off'}`}>
-                    <i aria-hidden="true" />{data?.settings?.daily ? 'Daily' : 'On Demand'}
-                </span>
-            </span>
-            <span className="ag-name">{OPS_AGENT.name}</span>
-            <span className="ag-desc">{OPS_AGENT.blurb}</span>
-            <span className="ag-foot">
-                {loading && !data ? <span className="ag-muted">Checking…</span>
-                    : error || !c ? <span className="ag-muted">{data?.unavailable === 'not_visible' ? 'Nothing visible to your role' : 'Open to check'}</span>
-                        : urgent ? <span className="ag-badge is-neg">{urgent} need{urgent === 1 ? 's' : ''} attention</span>
-                            : c.total ? <span className="ag-badge">{plural(c.total, 'thing')} to watch</span>
-                                : <span className="ag-badge is-pos">All clear</span>}
-                <ArrowUpRight size={15} strokeWidth={2} aria-hidden="true" className="ag-go" />
-            </span>
-        </button>
+        <AgentCard agent={OPS_AGENT} auto={auto} onOpen={onOpen}>
+            {loading && !data ? <span className="ag-muted">Checking…</span>
+                : error || !c ? <span className="ag-muted">{data?.unavailable === 'not_visible' ? 'Nothing visible to your role' : 'Open to check'}</span>
+                    : urgent ? <span className="ag-badge is-neg">{urgent} need{urgent === 1 ? 's' : ''} attention</span>
+                        : c.total ? <span className="ag-badge">{plural(c.total, 'thing')} to watch</span>
+                            : <span className="ag-badge is-pos">All clear</span>}
+        </AgentCard>
     );
 }
 

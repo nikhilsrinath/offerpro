@@ -17,6 +17,7 @@ import { orgStore } from '../../services/orgStore';
 import HealthChip from './HealthChip';
 import { useProjectPins, togglePin, movePin, withPinsFirst } from './projectPins';
 import { Pin, PinOff, ChevronUp, ChevronDown } from 'lucide-react';
+import { projectRef } from './projectSlug';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Projects.
@@ -121,7 +122,7 @@ export default function ProjectsPage() {
         </Row>
     ) : <Btn primary onClick={() => navigate('/projects/new')}>New project</Btn>;
 
-    const open = (p) => navigate(`/projects/${p.id}`);
+    const open = (p) => navigate(`/projects/${projectRef(p.id)}`);
     const nameOf = (e) => e?.name || e?.full_name || e?.studentName || '';
 
     if (projects.length === 0) {

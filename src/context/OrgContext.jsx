@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { orgStore } from '../services/orgStore';
+import { setBaseCurrency } from '../shared/currency.js';
 import { createOrganization as provisionOrganization } from '../services/orgProvisioning';
 
 export const OrgContext = createContext({});
@@ -11,6 +12,16 @@ export const OrgProvider = ({ children }) => {
   const [organizations, setOrganizations] = useState([]);
   const [activeOrg, setActiveOrg] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Set during render, not in an effect, so the children rendering below
+  // already format amounts in the org's currency on this same pass. Only when
+  // it changes: the recipient portal sets the sender's currency itself, and an
+  // unrelated re-render here must not put it back.
+  const appliedCurrency = useRef();
+  if (activeOrg && appliedCurrency.current !== activeOrg.currency) {
+    appliedCurrency.current = activeOrg.currency;
+    setBaseCurrency(activeOrg.currency);
+  }
 
   useEffect(() => {
     if (user && !needsOnboarding) {

@@ -1,8 +1,20 @@
 {
     "crons": [
         {
-            "path": "/api/agents",
+            "path": "/api/agents?agent=deadline_watch",
             "schedule": "30 2 * * *"
+        },
+        {
+            "path": "/api/agents?agent=operations_monitor",
+            "schedule": "35 2 * * *"
+        },
+        {
+            "path": "/api/agents?agent=deal_intelligence",
+            "schedule": "40 2 * * *"
+        },
+        {
+            "path": "/api/agents?agent=business_intelligence",
+            "schedule": "45 2 * * *"
         }
     ],
     "functions": {

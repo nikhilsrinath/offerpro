@@ -10,6 +10,7 @@ import {
     Table, Tr, Td, Avatar, Status, Bar, StatBand, Empty, Loading, Modal, ConfirmBtn, Muted,
 } from './ui/edge';
 import { useT, fmtDate, MONO } from './ui/edgeUtils';
+import { baseCurrency } from '../shared/currency.js';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Offer tracker.
@@ -50,15 +51,15 @@ const TABS = [
     { id: 'terminations', label: 'Exits', noun: 'notice' },
 ];
 
-const EMPTY_FORM = {
+const emptyForm = () => ({
     offerType: 'internship', studentName: '', email: '', phone: '', role: '',
     department: '', supervisorName: '', startDate: '', endDate: '',
-    acceptanceDeadline: '', isPaid: false, stipend: '', currency: 'INR',
+    acceptanceDeadline: '', isPaid: false, stipend: '', currency: baseCurrency(),
     paymentFrequency: 'Monthly', responsibilities: '',
-};
+});
 
 function formFromOffer(offer) {
-    if (!offer) return EMPTY_FORM;
+    if (!offer) return emptyForm();
     return {
         offerType: offer.offer_type || 'internship',
         studentName: offer.issued_to || '',
@@ -72,7 +73,7 @@ function formFromOffer(offer) {
         acceptanceDeadline: offer.valid_until || '',
         isPaid: !!offer.is_paid,
         stipend: offer.salary ?? '',
-        currency: offer.currency || 'INR',
+        currency: offer.currency || baseCurrency(),
         paymentFrequency: offer.payment_frequency || 'Monthly',
         responsibilities: offer.responsibilities || '',
     };
@@ -266,7 +267,7 @@ function OfferModal({ activeOrg, offer, onClose }) {
                                 <Input value={form.stipend} onChange={set('stipend')} type="number"
                                     placeholder="Amount" style={{ width: 120 }} />
                                 <Select value={form.currency} onChange={set('currency')} style={{ width: 78 }}>
-                                    <option value="INR">INR</option><option value="USD">USD</option><option value="EUR">EUR</option>
+                                    {[...new Set([baseCurrency(), 'INR', 'USD', 'EUR'])].map((c) => <option key={c} value={c}>{c}</option>)}
                                 </Select>
                                 <Select value={form.paymentFrequency} onChange={set('paymentFrequency')} style={{ width: 106 }}>
                                     <option value="Monthly">Monthly</option>

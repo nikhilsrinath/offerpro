@@ -5762,28 +5762,6 @@ label {
   background: rgba(16, 185, 129, 0.04);
 }
 
-/* Readjust a logo, signature or seal (shared/ImageAdjust) */
-.img-adjust { margin-top: 0.5rem; }
-.img-adjust-toggle {
-  display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.3rem 0.6rem;
-  border: 1px solid var(--border-default); border-radius: 8px; background: var(--bg-elevated);
-  color: var(--text-secondary); font: inherit; font-size: 0.75rem; font-weight: 500; cursor: pointer;
-}
-.img-adjust-toggle:hover { color: var(--text-primary); border-color: var(--border-strong); }
-.img-adjust-body {
-  display: grid; gap: 0.5rem; margin-top: 0.5rem; padding: 0.75rem;
-  border: 1px solid var(--border-default); border-radius: 10px; background: var(--bg-elevated);
-}
-.img-adjust-row { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) 3.75rem; align-items: center; gap: 0.6rem; margin: 0; font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); text-transform: none; letter-spacing: normal; }
-.img-adjust-row input[type="range"] { width: 100%; min-width: 0; padding: 0; accent-color: var(--blue); }
-.img-adjust-row output { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-primary); }
-.img-adjust-reset {
-  justify-self: start; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.55rem;
-  border: 1px solid var(--border-default); border-radius: 7px; background: transparent;
-  color: var(--text-secondary); font: inherit; font-size: 0.72rem; cursor: pointer;
-}
-.img-adjust-reset:disabled { opacity: 0.45; cursor: default; }
-
 /* Certificate editor: orientation, accent, artwork and removable uploads */
 .cert-btn {
   position: relative; display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.3rem 0.6rem;
@@ -5795,7 +5773,6 @@ label {
 .cert-btn input[type="file"] { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
 .cert-btn:focus-within { outline: 2px solid var(--blue); outline-offset: 2px; }
 .cert-img-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.5rem; margin-top: 0.5rem; }
-.cert-img-actions .img-adjust { margin-top: 0; flex: 1 1 14rem; min-width: 0; }
 .cert-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; border: 1px solid var(--border-default); border-radius: 10px; background: var(--bg-elevated); }
 .cert-seg button {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; padding: 0.45rem 0.5rem;
@@ -15172,6 +15149,18 @@ label:has(+ :is(input, select, textarea)[required])::after {
   .cert-head-hint { display: none; }
   .cert-actions { margin-left: auto; }
 }
+
+/* ── Task board: cards lift on hover, the grip and the move button show on
+   hover or keyboard focus, a column lights up while a card is dragged over it. */
+.kb-card { transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease, opacity .14s ease; }
+.kb-card:hover { transform: translateY(-1px); box-shadow: 0 6px 16px -8px rgba(15, 23, 42, 0.28); border-color: var(--kb-hover) !important; }
+.kb-card:active { cursor: grabbing; }
+.kb-card.is-dragging { opacity: 0.4; transform: none; box-shadow: none; }
+.kb-card .kb-grip, .kb-card .kb-move { opacity: 0; transition: opacity .12s ease; }
+.kb-card:hover .kb-grip, .kb-card:hover .kb-move, .kb-card:focus-within .kb-move { opacity: 1; }
+.kb-col-body { scrollbar-width: thin; }
+.kb-col { transition: border-color .12s ease, background-color .12s ease; }
+@media (hover: none) { .kb-card .kb-move { opacity: 1; } }
 
 /* ── No blue focus ring on text fields, anywhere ────────────────────────────
    A focused field shows its caret (and, where styled, a darker border); the

@@ -3,6 +3,7 @@ import { userClient } from './db.js';
 import { KINDS, isUuid } from './resolvers.js';
 import { todayIn, DEFAULT_TZ } from '../../../src/shared/dates.js';
 import { PLANS, DEFAULT_PLAN } from '../../../src/services/planConfig.js';
+import { setBaseCurrency } from '../../../src/shared/currency.js';
 
 /**
  * Everything a tool may know about who is asking, built fresh per request.
@@ -47,6 +48,9 @@ export async function buildAgentContext({ user, token, orgId, body = {}, actionI
 
   const plan = PLANS[planRes.data?.plan] ? planRes.data.plan : DEFAULT_PLAN;
   const org = orgRes.data || {};
+  // Every figure the agents and tools write for this request is in the org's
+  // currency (Company Profile, 0091). Unset on a database without it: INR.
+  setBaseCurrency(org.currency);
   const tz = org.timezone || org.time_zone || DEFAULT_TZ;
 
   const ctx = {

@@ -12,6 +12,7 @@
 
 import { supabase } from '../lib/supabase';
 import { esc } from '../utils/htmlEscape';
+import { currencySymbol as symbolOf, currencyLocale, recordCurrency } from '../shared/currency.js';
 
 const API_URL = '/api/email';
 
@@ -157,7 +158,7 @@ export const emailService = {
   }) {
     if (!to) return { success: false, message: 'No email address for this client.' };
     const what = revised ? 'the revised quotation' : 'your quotation';
-    const money = `₹${(Number(amount) || 0).toLocaleString('en-IN')}`;
+    const money = `${symbolOf()}${(Number(amount) || 0).toLocaleString(currencyLocale())}`;
     const until = validUntil ? fmtDate(validUntil) : '';
     const text = [
       `Hi ${recipientName || 'there'},`,
@@ -202,7 +203,7 @@ function buildEmailBody(data, companyName) {
   const deadline = fmtDate(data.acceptanceDeadline);
   const responsibilities = data.responsibilities || '';
   const hasPay = data.isPaid && data.stipend;
-  const currencySymbol = data.currency === 'INR' ? '₹' : data.currency === 'USD' ? '$' : data.currency === 'EUR' ? '€' : data.currency === 'GBP' ? '£' : (data.currency || '');
+  const currencySymbol = symbolOf(recordCurrency(data.currency)).trim();
   const payFreq = (data.paymentFrequency || 'Monthly').toLowerCase();
   const contactEmail = data.contactEmail || '';
   const contactPhone = data.contactPhone || '';

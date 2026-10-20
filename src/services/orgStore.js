@@ -20,6 +20,7 @@ import {
 } from '../shared/finDocs.js';
 import { IMAGE_KINDS, resolveImageUrl } from './imageUploadService';
 import { loadMyPermissions as loadEffectivePermissions } from './permissionService';
+import { baseCurrency } from '../shared/currency.js';
 
 let _orgId = null;
 let _cache = {};
@@ -215,7 +216,7 @@ const SECTIONS = {
       client_id: nn(i.client_id),
       status: i.status || 'planned',
       billing_type: i.billing_type || 'fixed_price',
-      currency: (i.currency || 'INR').slice(0, 3).toUpperCase(),
+      currency: (i.currency || baseCurrency()).slice(0, 3).toUpperCase(),
       contract_value: num(i.contract_value, 0),
       budget_labour: num(i.budget_labour, 0),
       budget_vendor: num(i.budget_vendor, 0),
@@ -729,7 +730,7 @@ const SECTIONS = {
     toRow: (i) => ({
       description: i.description || '',
       original_amount: num(i.original_amount ?? i.amount, 0),
-      currency: (i.currency || 'INR').toUpperCase(),
+      currency: (i.currency || baseCurrency()).toUpperCase(),
       fx_rate: num(i.fx_rate, 1) || 1,
       category: i.category || 'other_expense',
       incurred_on: date(i.date || i.incurred_on) || date(nowIso()),
@@ -789,7 +790,7 @@ const SECTIONS = {
       description: i.description || '',
       category: i.category || 'other_income',
       original_amount: num(i.original_amount ?? i.amount, 0),
-      currency: (i.currency || 'INR').toUpperCase(),
+      currency: (i.currency || baseCurrency()).toUpperCase(),
       fx_rate: num(i.fx_rate, 1) || 1,
       tax_amount: num(i.tax_amount, 0), tax_rate: num(i.tax_rate, 0),
       received_on: date(i.date || i.received_on) || date(nowIso()),
@@ -1126,7 +1127,7 @@ const SECRET_FIELDS = ['gmail_user', 'gmail_app_password', 'emailjs_service_id',
 const ORG_FIELDS = ['company_name', 'company_tagline', 'company_email',
   'company_phone', 'company_website', 'company_address', 'company_description',
   'owner_full_name', 'owner_role', 'document_designation', 'industry', 'country',
-  'city', 'company_size', 'primary_contact_name', 'use_cases', 'account_usage',
+  'state', 'currency', 'city', 'company_size', 'primary_contact_name', 'use_cases', 'account_usage',
   'referral_source', 'include_logo', 'logo_path', 'signature_path', 'stamp_path',
   'stamp_type', 'stamp_city'];
 
@@ -1316,6 +1317,10 @@ export const orgStore = {
     Object.assign(profile, bankingRes.data || {});
     profile.plan = subRes.data?.plan || 'free';
     profile.is_premium = profile.plan !== 'free';
+    // A database without 0091 has no state/currency columns; keep what this
+    // browser last saved for the org rather than reverting to INR.
+    const prev = _cache?._profile?.id === orgId ? _cache._profile : {};
+    for (const k of ['state', 'currency']) if (!(k in org) && prev[k]) profile[k] = prev[k];
     _cache._profile = profile;
     _cache._usage = usageRes.data || {};
     _cache._role = mine.role;
@@ -1434,7 +1439,17 @@ export const orgStore = {
     const { org, banking, secrets } = splitProfileUpdates(updates);
 
     if (Object.keys(org).length) {
-      const { error } = await supabase.from('organizations').update(org).eq('id', _orgId);
+      let { error } = await supabase.from('organizations').update(org).eq('id', _orgId);
+      // state and currency arrive with 0091. Until a database has it, PostgREST
+      // rejects the whole update for the unknown column, which would block every
+      // profile save. Save the rest; the cache above still holds both, so the
+      // app shows the chosen currency on this browser meanwhile.
+      if (error && error.code === 'PGRST204' && /'(state|currency)'/.test(error.message || '')) {
+        const { state: _state, currency: _currency, ...rest } = org;
+        ({ error } = Object.keys(rest).length
+          ? await supabase.from('organizations').update(rest).eq('id', _orgId)
+          : { error: null });
+      }
       if (error) throw error;
     }
     if (Object.keys(banking).length) {
@@ -1935,7 +1950,7 @@ async function saveCompensation(employeeId, data) {
     org_id: _orgId,
     is_paid: bool(data.isPaid, true),
     amount: num(amount, 0),
-    currency: (data.currency || 'INR').slice(0, 3).toUpperCase(),
+    currency: (data.currency || baseCurrency()).slice(0, 3).toUpperCase(),
     payment_frequency: data.paymentFrequency || 'Monthly',
   }, { onConflict: 'employee_id' });
 

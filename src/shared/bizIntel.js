@@ -21,7 +21,8 @@ import { shiftDays, endOfMonth, formatDate, isIsoDate } from './dates.js';
 import { issuedInvoices, balanceOf, isOverdue } from './finDocs.js';
 import { profitAndLoss, cashPosition, inRange } from './financeReports.js';
 import { categoryLabel } from './financeTaxonomy.js';
-import { detectDeadlines, formatMoney, daysUntil } from './deadlineWatch.js';
+import { detectDeadlines, formatMoney, daysUntil, alertsDue as deadlineAlertsDue } from './deadlineWatch.js';
+import { baseCurrency, currencyLocale } from './currency.js';
 
 export const AGENT_ID = 'business_intelligence';
 
@@ -34,7 +35,7 @@ export function money(v) {
   const x = r2(v);
   const whole = Number.isInteger(x);
   try {
-    return x.toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 });
+    return x.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 });
   } catch {
     return formatMoney(x);
   }
@@ -899,4 +900,123 @@ export function breakdownFor(dim, data, snap, { limit = 10, vendorName = () => n
     default:
       return { unavailable: `Unknown breakdown "${dim}".` };
   }
+}
+
+/* ── the automatic run: daily alerts and the weekly summary ───────────────── */
+
+export const AGENT_NAME = 'Business Intelligence Agent';
+
+export const AUTO_DEFAULTS = Object.freeze({
+  daily: false,           // run on the server every morning (the card's switch)
+  weekly_summary: true,   // while on, also send the week's summary once a week
+  summary_day: 1,         // 0 = Sunday … 6 = Saturday, in the org's timezone
+  notify_min: 'high',     // the least severe insight that is sent as an alert
+  repeat_days: 3,         // remind about the same unresolved insight after this; 0 = once
+  email_digest: false,    // also email alerts and the summary to owners and admins
+});
+const AUTO_SEVERITIES = ['high', 'medium', 'low'];
+
+/** Settings as passed, made safe: unknown keys dropped, numbers clamped. */
+export function normalizeAutoConfig(raw) {
+  const src = raw && typeof raw === 'object' ? raw : {};
+  const out = { ...AUTO_DEFAULTS };
+  for (const k of ['daily', 'weekly_summary', 'email_digest']) if (typeof src[k] === 'boolean') out[k] = src[k];
+  if (AUTO_SEVERITIES.includes(src.notify_min)) out.notify_min = src.notify_min;
+  const clampInt = (v, lo, hi) => (v === undefined || v === null || v === '' || !Number.isFinite(Number(v)) ? null : Math.min(hi, Math.max(lo, Math.round(Number(v)))));
+  const day = clampInt(src.summary_day, 0, 6);
+  if (day !== null) out.summary_day = day;
+  const rep = clampInt(src.repeat_days, 0, 60);
+  if (rep !== null) out.repeat_days = rep;
+  return out;
+}
+
+/**
+ * The insights the daily run may alert on: money only, and only concerns.
+ * Overdue tasks, milestones and projects are the Compliance and Deadline and
+ * Operations Monitoring Agents' to alert, so nothing reaches the bell twice.
+ * One alert per kind of insight: its id is the key.
+ */
+export function bizAlertable(insights) {
+  return (insights || []).filter((i) => i.area === 'finance' && i.severity !== 'positive').map((i) => ({ ...i, key: i.id }));
+}
+
+/** The Compliance and Deadline Agent's rule, unchanged: new, escalated, or due a repeat. */
+export function bizAlertsDue(findings, sent, rawConfig, now = new Date()) {
+  const c = normalizeAutoConfig(rawConfig);
+  return deadlineAlertsDue(findings, sent, { notify_min: c.notify_min, repeat_days: c.repeat_days }, now);
+}
+
+/** The daily alert's digest: title, a short message for the bell, and the email text. */
+export function buildBizDigest(findings, due, orgName = '') {
+  const order = new Map(findings.map((f, i) => [f.key, i]));
+  const list = [...due].sort((a, b) => (order.get(a.finding.key) ?? 0) - (order.get(b.finding.key) ?? 0));
+  const lines = list.map(({ finding: f }) => `• [${f.severity}] ${f.title}: ${f.finding} ${f.next_step || ''}`.trim());
+  const high = list.filter((d) => d.finding.severity === 'high').length;
+  const rest = list.length - high;
+  const title = `${AGENT_NAME}: ${[high ? `${high} high` : null, rest ? `${rest} to watch` : null].filter(Boolean).join(', ') || 'nothing new'}`;
+  const message = list.length ? `${list[0].finding.title}: ${list[0].finding.finding}${list.length > 1 ? ` And ${list.length - 1} more.` : ''}` : 'Nothing new.';
+  return {
+    title,
+    message,
+    text: `${orgName ? `${orgName}: ` : ''}${message}\n\nNeeds attention:\n${lines.join('\n')}\n\nOpen EdgeOS → Ask → Agents → ${AGENT_NAME} for the figures behind each.`,
+    lines,
+  };
+}
+
+const weekday = (day) => {
+  const [y, m, d] = day.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+};
+export { weekday as weekdayOf };
+
+/** The Monday–Sunday week before the one `today` is in, and the week before that. */
+export function lastWeek(today) {
+  const monday = shiftDays(today, -((weekday(today) + 6) % 7));
+  return { from: shiftDays(monday, -7), to: shiftDays(monday, -1), prevFrom: shiftDays(monday, -14), prevTo: shiftDays(monday, -8) };
+}
+
+const TABLE_WORDS = { docs: 'invoices', income: 'cash-book income', expenses: 'expenses', purchases: 'vendor bills' };
+
+/**
+ * The weekly summary, from a snapshot whose period is last week and whose
+ * comparison is the week before. Every figure is one the snapshot computed;
+ * a figure whose tables were not read is named as left out, never shown as
+ * zero.
+ */
+export function buildWeeklySummary(snap, orgName = '') {
+  const cov = snap.coverage || {};
+  const ok = (k) => cov[k] === 'ok' || cov[k] === 'truncated';
+  const leftOut = (fig) => `left out (could not read ${NEEDS[fig].filter((k) => !ok(k)).map((k) => TABLE_WORDS[k] || k).join(', ')})`;
+  const f = snap.finance || {};
+  const pf = snap.previous_finance || {};
+  const pos = snap.position || {};
+  const vs = (cur, prev) => {
+    if (prev === null || prev === undefined) return '';
+    const c = change(cur, prev);
+    if (c.direction === 'flat') return ' (same as the week before)';
+    return ` (${c.pct !== null ? pctText(c.pct) : c.direction === 'up' ? 'up' : 'down'} on ${money(prev)} the week before)`;
+  };
+  const line = (label, fig, cur, prev) => (f[fig] === null || f[fig] === undefined || !NEEDS[fig].every(ok)
+    ? `• ${label}: ${leftOut(fig)}`
+    : `• ${label}: ${money(cur)}${vs(cur, prev)}`);
+  const collectedOf = (x) => (x?.collected ? x.collected.on_invoices + x.collected.advances : null);
+  const lines = [
+    line('Invoiced', 'invoiced', f.invoiced?.gross, pf.invoiced?.gross),
+    line('Collected on invoices', 'collected', collectedOf(f), collectedOf(pf)),
+    line('Money in', 'cash', f.cash?.in, pf.cash?.in),
+    line('Money out', 'cash', f.cash?.out, pf.cash?.out),
+    pos.receivable ? `• Owed to you today: ${money(pos.receivable.outstanding)}, of which ${money(pos.receivable.overdue)} overdue (${pos.receivable.overdue_count} invoice${pos.receivable.overdue_count === 1 ? '' : 's'})` : `• Owed to you today: ${leftOut('receivable')}`,
+    pos.payable ? `• You owe vendors today: ${money(pos.payable.outstanding)}, of which ${money(pos.payable.overdue)} overdue` : `• You owe vendors today: ${leftOut('payable')}`,
+  ];
+  const concerns = (snap.insights || []).filter((i) => i.severity !== 'positive').slice(0, 5);
+  const span = `${formatDate(snap.period.from)} – ${formatDate(snap.period.to)}`;
+  const title = `${AGENT_NAME}: week of ${span}`;
+  const message = `${lines[0].slice(2)}. ${lines[1].slice(2)}.${concerns.length ? ` ${concerns.length} thing${concerns.length === 1 ? '' : 's'} need${concerns.length === 1 ? 's' : ''} attention.` : ''}`;
+  const text = [
+    `${orgName ? `${orgName}: ` : ''}the week of ${span}, against ${formatDate(snap.compare?.from)} – ${formatDate(snap.compare?.to)}.`,
+    '', ...lines,
+    ...(concerns.length ? ['', 'Needs attention:', ...concerns.map((i) => `• [${i.severity}] ${i.title}: ${i.finding}`)] : ['', 'Nothing stands out.']),
+    '', `Open EdgeOS → Ask → Agents → ${AGENT_NAME} for the full picture.`,
+  ].join('\n');
+  return { title, message, text, lines };
 }

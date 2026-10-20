@@ -1,5 +1,6 @@
 import { LayoutDashboard, Wallet, BarChart3, UsersRound, FileStack } from 'lucide-react';
 import { canSeeFinancials } from '../../services/projectService';
+import { projectRef } from './projectSlug';
 
 /* The pages of one project's Dashboard (/projects/:id/dashboard/:view) and
    their place in the project rail, kept apart from ProjectDashboards.jsx so that file exports
@@ -27,6 +28,6 @@ export function projectDashboardGroup(projectId, pathname) {
     const [, , , part] = pathname.split('/');
     return {
         id: 'project-group-dashboard', label: 'Dashboard', icon: LayoutDashboard,
-        to: `/projects/${projectId}/dashboard/overview`, active: part === 'dashboard',
+        to: `/projects/${projectRef(projectId)}/dashboard/overview`, active: part === 'dashboard',
     };
 }

@@ -1,6 +1,7 @@
 import DocumentHeader from './DocumentHeader';
 import StampPreview from './StampPreview';
 import { adjustCss } from '../utils/imageAdjust';
+import { Editable } from './shared/Editable';
 
 export default function OfferPreview({ formData }) {
   const formatDate = (dateStr) => {
@@ -22,9 +23,11 @@ export default function OfferPreview({ formData }) {
   const today = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="a4-sheet offer-preview">
+    <div className="a4-sheet offer-preview" data-edit-root>
       {/* Professional Header */}
-      <DocumentHeader formData={formData} />
+      <DocumentHeader formData={formData} wrapLogo={(img) => (
+        <Editable field="logoAdjust" label="Logo" value={formData.logoAdjust} origin="left top" style={{ display: 'inline-block' }}>{img}</Editable>
+      )} />
 
       {/* Date */}
       <p className="offer-text" style={{ marginTop: '1.8em' }}>Date: {formatDate(today)}</p>
@@ -114,7 +117,9 @@ export default function OfferPreview({ formData }) {
         <div className="offer-sig-left">
           <p className="offer-text">Sincerely,</p>
           {formData.signature ? (
-            <img src={formData.signature} alt="Signature" className="offer-sig-img" style={adjustCss(formData.signatureAdjust, 'left bottom')} />
+            <Editable field="signatureAdjust" label="Signature" value={formData.signatureAdjust} origin="left bottom" style={{ display: 'inline-block' }}>
+              <img src={formData.signature} alt="Signature" className="offer-sig-img" />
+            </Editable>
           ) : (
             <div style={{ height: '40px' }} />
           )}
@@ -123,15 +128,13 @@ export default function OfferPreview({ formData }) {
           <p className="offer-bold" style={{ fontSize: '10pt' }}>{formData.companyName || ''}</p>
         </div>
         <div className="offer-stamp-right">
-          {formData.showStamp && (
+          {formData.showStamp && (formData.stampType === 'uploaded' ? formData.stampUrl : formData.stampType === 'generated' && formData.companyName) && (
             // the adjustment sits on a wrapper: the stamp itself is already tilted
-            <div style={{ display: 'inline-block', ...adjustCss(formData.stampAdjust, 'center') }}>
-              {formData.stampType === 'uploaded' && formData.stampUrl ? (
-                <img src={formData.stampUrl} alt="Company Stamp" className="doc-stamp-img" />
-              ) : formData.stampType === 'generated' && formData.companyName ? (
-                <StampPreview companyName={formData.companyName} city={formData.stampCity} size={70} />
-              ) : null}
-            </div>
+            <Editable field="stampAdjust" label="Company Stamp" value={formData.stampAdjust} origin="center" style={{ display: 'inline-block' }}>
+              {formData.stampType === 'uploaded'
+                ? <img src={formData.stampUrl} alt="Company Stamp" className="doc-stamp-img" />
+                : <StampPreview companyName={formData.companyName} city={formData.stampCity} size={70} />}
+            </Editable>
           )}
         </div>
       </div>

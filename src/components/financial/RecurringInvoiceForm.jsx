@@ -10,6 +10,7 @@ import { useToast } from '../shared/Toast';
 import A4Stage from '../shared/A4Stage';
 import { confirmDialog } from '../../services/confirm';
 import { useFormProject, projectStartLines, projectBillingForm } from '../projects/projectScope';
+import { currencySymbol, baseCurrency, currencyLocale } from '../../shared/currency.js';
 
 /* ─── Constants ─── */
 const GST_RATES = [0, 5, 12, 18, 28];
@@ -40,7 +41,7 @@ function addDays(dateStr, days) {
 }
 
 function formatCurrency(n) {
-  return (n || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
+  return (n || 0).toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), maximumFractionDigits: 2 });
 }
 
 function formatDate(d) {
@@ -816,8 +817,8 @@ function RecurringInvoicePreview({ formData, totals, dueDatePreview, company }) 
                 <td style={{ color: '#666', fontSize: '0.85em' }}>{item.hsnSac || '-'}</td>
                 <td>{item.quantity || 0}</td>
                 <td style={{ color: '#666', fontSize: '0.85em' }}>{item.unit || 'Nos'}</td>
-                <td>{'\u20B9'}{(Number(item.rate) || 0).toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{'\u20B9'}{lineTotal.toLocaleString()}</td>
+                <td>{currencySymbol()}{(Number(item.rate) || 0).toLocaleString(currencyLocale())}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600 }}>{currencySymbol()}{lineTotal.toLocaleString(currencyLocale())}</td>
               </tr>
             );
           })}
@@ -828,21 +829,21 @@ function RecurringInvoicePreview({ formData, totals, dueDatePreview, company }) 
       <div className="inv-totals">
         <div className="inv-total-row">
           <span>Subtotal:</span>
-          <span>{'\u20B9'}{totals.subtotal.toLocaleString()}</span>
+          <span>{currencySymbol()}{totals.subtotal.toLocaleString(currencyLocale())}</span>
         </div>
         {formData.gstRate > 0 && (
           <>
             <div className="inv-total-divider" />
             <div className="inv-total-row inv-total-gst">
               <span>GST @ {formData.gstRate}%:</span>
-              <span>{'\u20B9'}{totals.gst.toLocaleString()}</span>
+              <span>{currencySymbol()}{totals.gst.toLocaleString(currencyLocale())}</span>
             </div>
           </>
         )}
         <div className="inv-total-divider inv-total-divider-bold" />
         <div className="inv-total-row inv-total-grand">
           <span>TOTAL AMOUNT:</span>
-          <span>{'\u20B9'}{totals.grandTotal.toLocaleString()}</span>
+          <span>{currencySymbol()}{totals.grandTotal.toLocaleString(currencyLocale())}</span>
         </div>
       </div>
 

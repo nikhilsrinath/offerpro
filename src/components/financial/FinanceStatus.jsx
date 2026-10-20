@@ -18,6 +18,7 @@ import { Dropdown } from '../ui/edge';
 import {
   issuedInvoices, balanceOf, isOverdue, daysOverdue, todayIso,
 } from '../../services/financeAnalytics';
+import { currencySymbol, currencyLocale } from '../../shared/currency.js';
 
 const TYPE_CONFIG = {
   quotation: { label: 'Quotation', icon: FilePlus, color: '#3b82f6', prefix: 'QUO' },
@@ -60,7 +61,7 @@ const monthsAgo = (months) => {
 
 const STATUS_LABEL = (s) => s.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
-const inr = (v) => '₹' + Math.round(Number(v) || 0).toLocaleString('en-IN');
+const inr = (v) => currencySymbol() + Math.round(Number(v) || 0).toLocaleString(currencyLocale());
 
 // Recharts reads its colours from the theme tokens so the charts follow
 // light/dark like every other surface, rather than baking in one palette.
@@ -596,7 +597,7 @@ export default function FinanceStatus() {
                       </div>
                     </div>
                     <div className="fin-status-deal-meta">
-                      <span className="fin-status-deal-value">₹{group.totalValue.toLocaleString('en-IN')}</span>
+                      <span className="fin-status-deal-value">{currencySymbol()}{group.totalValue.toLocaleString(currencyLocale())}</span>
                       <div className="fin-status-deal-badges">
                         {group.documents.map((doc) => {
                           const cfg = TYPE_CONFIG[doc.type];
@@ -664,7 +665,7 @@ export default function FinanceStatus() {
                                       </div>
                                       <div className="fin-status-timeline-row">
                                         <span>Amount</span>
-                                        <strong>₹{(doc.grand_total || doc.amount || doc.subtotal || 0).toLocaleString('en-IN')}</strong>
+                                        <strong>{currencySymbol()}{(doc.grand_total || doc.amount || doc.subtotal || 0).toLocaleString(currencyLocale())}</strong>
                                       </div>
                                       {doc.items && doc.items.length > 0 && (
                                         <div className="fin-status-timeline-row">
@@ -757,7 +758,7 @@ export default function FinanceStatus() {
                         <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {doc.items?.map((it) => it.description).join(', ') || '-'}
                         </td>
-                        <td className="fin-list-amount">₹{(doc.grand_total || doc.amount || doc.subtotal || 0).toLocaleString('en-IN')}</td>
+                        <td className="fin-list-amount">{currencySymbol()}{(doc.grand_total || doc.amount || doc.subtotal || 0).toLocaleString(currencyLocale())}</td>
                         <td>{doc.issue_date || '-'}</td>
                         <td><DocumentStatusBadge status={doc.status} size="small" /></td>
                         <td>

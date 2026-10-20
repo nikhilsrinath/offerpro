@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
     IndianRupee, Wallet, Hourglass, TrendingUp, Receipt, FileSignature, FileText, Users, Gauge,
     ListChecks, AlertTriangle, Briefcase,
@@ -21,6 +21,7 @@ import ProjectOverviewWidgets from './projectOverviewWidgets';
 import ProjectActions from './ProjectActions';
 import PageTabs from './PageTabs';
 import { projectSectionPath } from './projectPaths';
+import { findProject, projectSlug, projectRef, withProjectRef } from './projectSlug';
 
 /* ══════════════════════════════════════════════════════════════════════════
    One project's Dashboard: the company Dashboard's flow, for one project.
@@ -41,11 +42,15 @@ const n = (v) => Number(v) || 0;
 export default function ProjectDashboardPage() {
     const { projectId, view } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const projects = useSection('projects');
-    const project = projects.find((p) => p.id === projectId);
+    const project = findProject(projectId, projects);
+    const ref = project ? projectSlug(project, projects) : projectId;
     const page = projectDashboards().find((x) => x.id === view);
 
-    if (!page) return <Navigate to={`/projects/${projectId}/dashboard/overview`} replace />;
+    if (!page) return <Navigate to={`/projects/${ref}/dashboard/overview`} replace />;
+    // Opened by its id (an older or server-written link): the URL shows its name.
+    if (project && projectId !== ref) return <Navigate to={withProjectRef(location.pathname, ref) + location.search} replace />;
     if (!project) {
         return (
             <Page>
@@ -84,7 +89,7 @@ function DashboardPage({ project, page, navigate }) {
     const name = project.name || project.code || 'Project';
     const tabs = (
         <PageTabs label="Dashboard pages" current={view} pages={projectDashboards()}
-            onOpen={(id) => navigate(`/projects/${project.id}/dashboard/${id}`)} />
+            onOpen={(id) => navigate(`/projects/${projectRef(project.id)}/dashboard/${id}`)} />
     );
 
     return (
@@ -287,7 +292,7 @@ function SalesView({ board, open, navigate, t, status, cols, tileCols }) {
                         <Figure big label="other projects" value={String(sibling.length)} />
                     </FigureRow>
                     {sibling.slice(0, 4).map((p) => (
-                        <ListRow key={p.id} label={p.name || p.code} sub={p.code} onClick={() => navigate(`/projects/${p.id}`)} />
+                        <ListRow key={p.id} label={p.name || p.code} sub={p.code} onClick={() => navigate(`/projects/${projectRef(p.id)}`)} />
                     ))}
                     <div style={{ marginTop: 10 }}><More label="Client" to={`/business/client-directory?client=${client.id}`} /></div>
                 </>) : <EmptyNote>This project has no client, so there is nothing to sell.</EmptyNote>}

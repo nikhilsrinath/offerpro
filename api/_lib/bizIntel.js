@@ -1,4 +1,13 @@
-import { buildSnapshot, resolvePeriod, comparisonPeriod } from '../../src/shared/bizIntel.js';
+import {
+  buildSnapshot, resolvePeriod, comparisonPeriod, AGENT_ID, AGENT_NAME, normalizeAutoConfig, bizAlertable, bizAlertsDue,
+  buildBizDigest, lastWeek, buildWeeklySummary, weekdayOf,
+} from '../../src/shared/bizIntel.js';
+import { setBaseCurrency } from '../../src/shared/currency.js';
+import { todayIn, DEFAULT_TZ } from '../../src/shared/dates.js';
+
+const todayFor = (tz, now) => todayIn(tz || DEFAULT_TZ, now);
+import { readSettings, recentRuns, alertState } from './deadlines.js';
+import { runAgentPass, runAgentScheduled } from './agentRun.js';
 import { formatHealthReasons } from '../../src/services/projectAnalytics.js';
 import { allCategories, setCategories } from '../../src/shared/financeTaxonomy.js';
 
@@ -222,4 +231,109 @@ export function limitsOf(rows, coverage, notes = []) {
   if (foreign) out.push(`${foreign} invoice${foreign === 1 ? ' is' : 's are'} in a currency other than INR and ${foreign === 1 ? 'is' : 'are'} added at face value, as the dashboard does.`);
   out.push('Task completion dates are not stored; "finished in the period" counts done tasks last updated in it.');
   return out;
+}
+
+/* ── settings and the automatic run ───────────────────────────────────────── */
+
+export const readBizSettings = (admin, orgId) => readSettings(admin, orgId, AGENT_ID, normalizeAutoConfig);
+
+export async function saveBizSettings(admin, orgId, userId, raw) {
+  const config = normalizeAutoConfig(raw);
+  const { error } = await admin.from('agent_settings').upsert({
+    org_id: orgId, agent: AGENT_ID, config, updated_by: userId, updated_at: new Date().toISOString(),
+  }, { onConflict: 'org_id,agent' });
+  if (error) throw new Error(/agent_settings/.test(error.message) ? `${AGENT_NAME} settings need database migration 0089.` : error.message);
+  return config;
+}
+
+export const bizRecentRuns = (admin, orgId, n = 5) => recentRuns(admin, orgId, n, AGENT_ID);
+
+// Money only: the automatic run alerts on finance, and leaves work and people
+// to the agents that watch them.
+const FINANCE = ['docs', 'income', 'expenses', 'purchases', 'vendors'];
+const FINANCE_SOURCES = Object.fromEntries(FINANCE.map((k) => [k, SOURCES[k]]));
+
+/** The whole org's finance rows, with the service role (every query filtered by org_id), as a snapshot. */
+async function orgSnapshot(admin, orgId, { period, compare, today, tz }) {
+  const [{ rows, coverage }] = await Promise.all([
+    loadSources(admin, orgId, () => true, { sources: FINANCE_SOURCES }),
+    ensureCategories(admin),
+  ]);
+  const essential = ['docs', 'income', 'expenses', 'purchases'];
+  if (essential.every((k) => coverage[k] === 'failed')) throw new Error('could not read the finance records');
+  const vendors = new Map((rows.vendors || []).map((v) => [v.id, v.company_name]));
+  const snap = buildSnapshot({
+    finance: { docs: rows.docs, purchases: rows.purchases, expenses: rows.expenses, income: rows.income },
+    coverage,
+  }, { period, compare, today, tz, vendorName: (id) => vendors.get(id) || null });
+  if (snap.error) throw new Error(snap.error);
+  return { snap, not_read: essential.filter((k) => coverage[k] === 'failed') };
+}
+
+/** The daily pass: finance insights at or above the threshold that are new, escalated or due a repeat. */
+export async function runBizForOrg(admin, org, { trigger = 'schedule', deps = {}, force = false } = {}) {
+  setBaseCurrency(org.currency);
+  return runAgentPass(admin, org, {
+    agent: AGENT_ID, label: AGENT_NAME, trigger, deps, force,
+    settings: await readBizSettings(admin, org.id),
+    evaluate: async ({ config, today, now, tz }) => {
+      const { snap, not_read } = await orgSnapshot(admin, org.id, { period: 'this_month', compare: 'previous', today, tz });
+      const findings = bizAlertable(snap.insights);
+      const due = bizAlertsDue(findings, await alertState(admin, org.id, AGENT_ID), config, now);
+      return {
+        seen: findings.map((f) => ({ key: f.key, record_type: 'insight', record_id: null, due_date: null, severity: f.severity })),
+        due,
+        digest: due.length ? buildBizDigest(findings, due) : null,
+        emailDigest: due.length ? buildBizDigest(findings, due, org.company_name || org.name || '') : null,
+        stats: { findings: findings.length, high: findings.filter((f) => f.severity === 'high').length, ...(not_read.length ? { not_read } : {}) },
+      };
+    },
+  });
+}
+
+/**
+ * The weekly summary: last Monday–Sunday against the week before, once a
+ * week (its run key is the week), on the org's chosen weekday in its own
+ * timezone. It is a report, so it is sent even when nothing is wrong. It
+ * marks no alert seen or resolved: the daily pass owns those.
+ */
+export async function runBizWeeklyForOrg(admin, org, { trigger = 'schedule', deps = {}, force = false } = {}) {
+  setBaseCurrency(org.currency);
+  const settings = await readBizSettings(admin, org.id);
+  const c = settings.config;
+  if (!force && trigger === 'schedule' && !(c.daily && c.weekly_summary)) return { org: org.id, status: 'skipped', reason: 'weekly summary off' };
+  const now = deps.now ? deps.now() : new Date();
+  const tz = org?.timezone || org?.time_zone || undefined;
+  const today = todayFor(tz, now);
+  if (!force && trigger === 'schedule' && weekdayOf(today) !== c.summary_day) return { org: org.id, status: 'skipped', reason: 'not the summary day' };
+  const w = lastWeek(today);
+  return runAgentPass(admin, org, {
+    agent: AGENT_ID, label: AGENT_NAME, trigger, deps, force: true,
+    runKey: trigger === 'schedule' ? `week:${w.from}` : `manual-week:${now.toISOString().slice(0, 16)}`,
+    settings,
+    evaluate: async ({ today: day, tz: zone }) => {
+      const { snap, not_read } = await orgSnapshot(admin, org.id, {
+        period: { id: 'custom', from: w.from, to: w.to }, compare: { from: w.prevFrom, to: w.prevTo }, today: day, tz: zone,
+      });
+      const name = org.company_name || org.name || '';
+      return {
+        seen: [], due: [],
+        digest: buildWeeklySummary(snap),
+        emailDigest: buildWeeklySummary(snap, name),
+        stats: { weekly: true, week_from: w.from, week_to: w.to, ...(not_read.length ? { not_read } : {}) },
+      };
+    },
+  });
+}
+
+/** The scheduled sweep: for every org that switched the agent on, the daily pass, then the weekly summary when it is due. */
+export function runBizScheduled(admin, { budgetMs = 45000, deps = {} } = {}) {
+  return runAgentScheduled(admin, {
+    agent: AGENT_ID, normalize: normalizeAutoConfig, budgetMs,
+    runOne: async (org) => {
+      const daily = await runBizForOrg(admin, org, { trigger: 'schedule', deps });
+      const weekly = await runBizWeeklyForOrg(admin, org, { trigger: 'schedule', deps });
+      return { ...daily, weekly: weekly.status === 'skipped' ? weekly.reason : weekly.status };
+    },
+  });
 }

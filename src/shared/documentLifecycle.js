@@ -17,9 +17,10 @@
 // Pure functions. InvoiceList does the writes.
 import { docNumber } from './finDocs.js';
 import { existingConversion } from './documentConversion.js';
+import { currencySymbol, currencyLocale } from './currency.js';
 
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-const inr = (n) => '₹' + round2(n).toLocaleString('en-IN');
+const inr = (n) => currencySymbol() + round2(n).toLocaleString(currencyLocale());
 const LABEL = { invoice: 'invoice', quotation: 'quotation', proforma: 'proforma' };
 
 /**
@@ -96,6 +97,48 @@ export function lifecycleOf(doc, docs) {
   }
 
   return { delete: del, cancel };
+}
+
+// The statuses an invoice can be put back to as it was. Anything money had
+// moved it to (partially paid, paid) is left for the payments trigger to work
+// out again, so it comes back as sent.
+const RESTORABLE = new Set(['draft', 'sent', 'viewed', 'overdue']);
+
+/**
+ * Whether a cancelled tax invoice may be reactivated, the status it returns
+ * to, and the document it was converted from that must be marked converted to
+ * it again (null when there is none to relink).
+ *
+ * It keeps its number throughout, so bringing it back leaves no gap and no
+ * duplicate in the series. What it must not do is bill the client twice: if
+ * its quotation or proforma has since been converted to another live document,
+ * that one has to be cancelled first.
+ *
+ * @param {object} doc
+ * @param {object[]} docs  every financial document of the organization
+ * @returns {{ allowed: boolean, reason: string, status: string|null, parent: object|null }}
+ */
+export function reactivationOf(doc, docs) {
+  const no = (reason) => ({ allowed: false, reason, status: null, parent: null });
+  if (!doc || doc.type !== 'invoice') return no('Only a tax invoice can be reactivated.');
+  if (doc.status !== 'cancelled') return no('This invoice is not cancelled.');
+
+  const parent = doc.converted_from ? (docs || []).find((d) => d.id === doc.converted_from) || null : null;
+  // A source cancelled since is left alone: the invoice stands on its own.
+  const live = parent && parent.status !== 'cancelled' ? parent : null;
+  if (live) {
+    const other = existingConversion(live, (docs || []).filter((d) => d.id !== doc.id));
+    if (other) {
+      return no(`${docNumber(live)} has since been converted to ${docNumber(other)}. Cancel that first.`);
+    }
+  }
+
+  return {
+    allowed: true,
+    reason: '',
+    status: RESTORABLE.has(doc.cancelled_from) ? doc.cancelled_from : 'sent',
+    parent: live && !(live.status === 'converted' && live.converted_to === doc.id) ? live : null,
+  };
 }
 
 /**

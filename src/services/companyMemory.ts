@@ -5,6 +5,7 @@
 
 import { supabase } from '../lib/supabase';
 import { orgStore } from './orgStore';
+import { currencySymbol, currencyLocale } from '../shared/currency.js';
 
 // Memory lives in one row per org: ai_company_memory(org_id, memory jsonb).
 // Firebase wrote it to RTDB `memory/{orgId}` and Firestore `memory/{orgId}` at
@@ -727,13 +728,13 @@ function formatFinancials(finDocs: any, expenses: any): string {
     const amount = d.grand_total || d.amount || 0;
     const status = d.status || 'draft';
     const date = d.issue_date || d.created_at || '';
-    return `${idx + 1}. [${type} ${id}] ${client} - ₹${amount.toLocaleString()} (${status}) ${date ? `on ${date}` : ''}`;
+    return `${idx + 1}. [${type} ${id}] ${client} - ${currencySymbol()}${amount.toLocaleString(currencyLocale())} (${status}) ${date ? `on ${date}` : ''}`;
   };
 
   const sections: string[] = [];
   sections.push(`FINANCIAL SUMMARY:
-- Total Collected: ₹${totalPaid.toLocaleString()}
-- Total Pending: ₹${totalPending.toLocaleString()}
+- Total Collected: ${currencySymbol()}${totalPaid.toLocaleString(currencyLocale())}
+- Total Pending: ${currencySymbol()}${totalPending.toLocaleString(currencyLocale())}
 - Total Invoices: ${invoices.length} (${paid.length} paid, ${pending.length} unpaid)`);
 
   if (invoices.length > 0) {
@@ -748,9 +749,9 @@ function formatFinancials(finDocs: any, expenses: any): string {
   if (expList.length > 0) {
     const totalExp = expList.reduce((acc, e) => acc + (e.amount || 0), 0);
     const expStrings = expList.slice(0, 10).map((e, idx) => 
-      `${idx + 1}. ${e.category || 'General'}: ₹${(e.amount || 0).toLocaleString()} - ${e.description || 'No description'}`
+      `${idx + 1}. ${e.category || 'General'}: ${currencySymbol()}${(e.amount || 0).toLocaleString(currencyLocale())} - ${e.description || 'No description'}`
     );
-    sections.push(`EXPENSES (Total: ₹${totalExp.toLocaleString()}):\n${expStrings.join('\n')}`);
+    sections.push(`EXPENSES (Total: ${currencySymbol()}${totalExp.toLocaleString(currencyLocale())}):\n${expStrings.join('\n')}`);
   }
 
   return sections.join('\n\n');
@@ -786,7 +787,7 @@ function formatCatalog(catalog: any): string {
   const items = (Object.values(catalog) as any[]).filter((p) => !p.archived_at);
   if (items.length === 0) return 'The product catalogue is empty.';
 
-  const money = (n: any) => `₹${(Number(n) || 0).toLocaleString('en-IN')}`;
+  const money = (n: any) => `${currencySymbol()}${(Number(n) || 0).toLocaleString(currencyLocale())}`;
   const ranked = [...items].sort((a, b) => (Number(b.revenue) || 0) - (Number(a.revenue) || 0));
 
   const lines = ranked.map((p, idx) => {
@@ -866,7 +867,7 @@ function formatCRM(crm: any): string {
   const formatItem = (item: any, idx: number) => {
     const contact = item.person_name && item.company_name ? ` (contact: ${item.person_name})` : '';
     const parts = [`${idx + 1}. ${nameOf(item)}${contact}`];
-    if (item.value) parts.push(`Value: ₹${Number(item.value).toLocaleString('en-IN')}`);
+    if (item.value) parts.push(`Value: ${currencySymbol()}${Number(item.value).toLocaleString(currencyLocale())}`);
     if (item.email) parts.push(item.email);
     if (item.phone) parts.push(item.phone);
     let out = parts.join(' - ');
@@ -890,8 +891,8 @@ function formatCRM(crm: any): string {
 
   const sections: string[] = [];
   sections.push(`CRM PIPELINE (${items.length} lead${items.length === 1 ? '' : 's'}):
-- Open pipeline value (excludes lost): ₹${openValue.toLocaleString('en-IN')}
-- Won (stage "deal"): ${(byStage.get('deal') || []).length} worth ₹${wonValue.toLocaleString('en-IN')}`);
+- Open pipeline value (excludes lost): ${currencySymbol()}${openValue.toLocaleString(currencyLocale())}
+- Won (stage "deal"): ${(byStage.get('deal') || []).length} worth ${currencySymbol()}${wonValue.toLocaleString(currencyLocale())}`);
 
   const ORDER = ['lead', 'contacted', 'deal', 'not_deal'];
   for (const stage of ORDER) {

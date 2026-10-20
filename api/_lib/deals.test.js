@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { fakeDb, fakeCtx } from './agent/testing/fakeDb.js';
-import { loadDealRows, dealSnapshotFor, dealLimits } from './deals.js';
+import { loadDealRows, dealSnapshotFor, dealLimits, runDealsForOrg, runDealsScheduled } from './deals.js';
+import { fakeAdmin, noMail } from './agent/testing/fakeAdmin.js';
 import { runChat } from './agent/loop.js';
 import { buildSystemPrompt } from './agent/prompt.js';
 import { toolsFor, getTool } from './agent/registry.js';
@@ -265,5 +266,84 @@ describe('no duplicate follow-ups', () => {
     const { ctx } = world({ db });
     expect(await note.validate({ client: 'c-kite', note: 'Wants the proposal in Hindi' }, ctx)).toEqual(['“Kite Labs” already has that note for today.']);
     expect(await note.validate({ client: 'c-kite', note: 'Budget approved' }, ctx)).toEqual([]);
+  });
+});
+
+describe('the automatic run', () => {
+  const NOW = new Date('2026-10-19T03:00:00Z'); // 08:30 in India
+  const setup = ({ config = { daily: true } } = {}) => {
+    const s = seed();
+    s.organizations = [{ id: 'org-1', company_name: 'Test Co' }, { id: 'org-2', company_name: 'Rival Co' }];
+    s.memberships = [
+      { org_id: 'org-1', user_id: 'u-owner', role: 'owner' }, { org_id: 'org-1', user_id: 'u-admin', role: 'admin' },
+      { org_id: 'org-1', user_id: 'u-member', role: 'member' }, { org_id: 'org-2', user_id: 'u-rival', role: 'owner' },
+    ];
+    s.agent_settings = [{ org_id: 'org-1', agent: 'deal_intelligence', config }];
+    const db = fakeDb(s);
+    let now = NOW;
+    return { db, admin: fakeAdmin(db, () => now), setNow: (d) => { now = d; }, org: db.tables.organizations[0], deps: () => noMail(now) };
+  };
+
+  it('alerts owners and admins about a quotation unanswered for weeks', async () => {
+    const w = setup();
+    const r = await runDealsForOrg(w.admin, w.org, { deps: w.deps() });
+    expect(r.status).toBe('succeeded');
+    expect(r.alerted).toBeGreaterThan(0);
+    const n = w.db.tables.notifications;
+    expect(n.map((x) => x.user_id).sort()).toEqual(['u-admin', 'u-owner']);
+    expect(n[0]).toMatchObject({ type: 'deal_intelligence' });
+    expect(n[0].title).toMatch(/^Deal Intelligence Agent: /);
+    const keys = w.db.tables.agent_alerts.filter((a) => a.notify_count > 0).map((a) => a.dedupe_key);
+    expect(keys).toEqual(expect.arrayContaining(['quote_unanswered:q1', 'quote_lapsed:q1', 'overdue_follow_up:c-acme']));
+  });
+
+  it('second day does not resend', async () => {
+    const w = setup();
+    await runDealsForOrg(w.admin, w.org, { deps: w.deps() });
+    const before = w.db.tables.notifications.length;
+    w.setNow(new Date('2026-10-20T03:00:00Z'));
+    const r = await runDealsForOrg(w.admin, w.org, { deps: w.deps() });
+    expect(r).toMatchObject({ status: 'succeeded', alerted: 0, notifications: 0 });
+    expect(w.db.tables.notifications).toHaveLength(before);
+  });
+
+  it('leaves overdue follow-ups to the Compliance and Deadline Agent when its daily run is on', async () => {
+    const w = setup();
+    w.db.tables.agent_settings.push({ org_id: 'org-1', agent: 'deadline_watch', config: { daily: true } });
+    const r = await runDealsForOrg(w.admin, w.org, { deps: w.deps() });
+    expect(r.follow_ups_left_to).toBe('deadline_watch');
+    const sent = w.db.tables.agent_alerts.filter((a) => a.notify_count > 0).map((a) => a.dedupe_key);
+    expect(sent).not.toContain('overdue_follow_up:c-acme');
+    expect(sent).toContain('quote_lapsed:q1');
+    // Still seen, so it resolves when fixed and is alerted if the other run is switched off.
+    expect(w.db.tables.agent_alerts.map((a) => a.dedupe_key)).toContain('overdue_follow_up:c-acme');
+  });
+
+  it('reads only this org', async () => {
+    const w = setup();
+    await runDealsForOrg(w.admin, w.org, { deps: w.deps() });
+    const all = JSON.stringify(w.db.tables.notifications) + JSON.stringify(w.db.tables.agent_alerts);
+    expect(all).not.toMatch(/Rival|QT-RIVAL|c-rival|q9/);
+  });
+
+  it('daily off → skipped, nothing read or sent', async () => {
+    const w = setup({ config: { daily: false } });
+    const r = await runDealsForOrg(w.admin, w.org, { deps: w.deps() });
+    expect(r).toMatchObject({ status: 'skipped', reason: 'daily run off' });
+    expect(w.db.tables.notifications).toHaveLength(0);
+  });
+
+  it('clients table unreadable → failed run, nothing sent', async () => {
+    const w = setup();
+    breakTable(w.db, 'clients', { code: 'XX000', message: 'boom' });
+    const r = await runDealsForOrg(w.admin, w.org, { deps: w.deps() });
+    expect(r).toMatchObject({ status: 'failed', reason: 'could not read the CRM deals' });
+    expect(w.db.tables.notifications).toHaveLength(0);
+  });
+
+  it('the scheduled sweep runs orgs that switched it on', async () => {
+    const w = setup();
+    const out = await runDealsScheduled(w.admin, { deps: w.deps() });
+    expect(out.map((r) => [r.org, r.status])).toEqual([['org-1', 'succeeded']]);
   });
 });

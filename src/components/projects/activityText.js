@@ -1,3 +1,4 @@
+import { currencySymbol, currencyLocale } from '../../shared/currency.js';
 // Human sentences for the project's audit rows (0020's write_audit, plus the
 // explicit projects.status_change / projects.reopen rows from 0045 and 0052).
 
@@ -55,7 +56,7 @@ export function describeActivity(a) {
         case 'project_documents.delete':
             return 'Document unlinked';
         case 'project_allocations.insert':
-            return d.amount ? `Money linked: ₹${Number(d.amount).toLocaleString('en-IN')}` : 'Money linked in full';
+            return d.amount ? `Money linked: ${currencySymbol()}${Number(d.amount).toLocaleString(currencyLocale())}` : 'Money linked in full';
         case 'project_allocations.update':
             return 'Money split changed';
         case 'project_allocations.delete':

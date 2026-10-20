@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { setBaseCurrency } from '../../src/shared/currency.js';
 import { todayIn, DEFAULT_TZ } from '../../src/shared/dates.js';
 import {
   AGENT_ID, detectDeadlines, normalizeConfig, summarize, countFindings, alertsDue, buildDigest,
@@ -210,6 +211,8 @@ export async function emailDigest(orgId, recipients, digest, orgName, deps, labe
  * run it without a mail server.
  */
 export async function runForOrg(admin, org, { trigger = 'schedule', deps = {}, force = false } = {}) {
+  // Amounts in the alerts and the digest are written in the org's currency.
+  setBaseCurrency(org.currency);
   const now = deps.now ? deps.now() : new Date();
   const today = todayIn(orgTz(org), now);
   const settings = await readSettings(admin, org.id);

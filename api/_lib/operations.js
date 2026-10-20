@@ -4,6 +4,7 @@ import {
 } from '../../src/shared/opsMonitor.js';
 import { AGENT_ID as DEADLINE_AGENT, normalizeConfig as deadlineConfig } from '../../src/shared/deadlineWatch.js';
 import { loadSources, ROW_CAP } from './bizIntel.js';
+import { setBaseCurrency } from '../../src/shared/currency.js';
 import { readSettings as readAgentSettings, recentRuns, alertState, recipientsOf, emailDigest } from './deadlines.js';
 
 /**
@@ -244,6 +245,7 @@ const ESSENTIAL = ['tasks', 'projects', 'milestones'];
  * "what changed this week" compares with.
  */
 export async function runOpsForOrg(admin, org, { trigger = 'schedule', deps = {}, force = false } = {}) {
+  setBaseCurrency(org.currency);
   const now = deps.now ? deps.now() : new Date();
   const today = todayIn(orgTz(org), now);
   const settings = await readSettings(admin, org.id);

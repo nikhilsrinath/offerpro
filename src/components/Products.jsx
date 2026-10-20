@@ -14,9 +14,10 @@ import {
   GENERAL, splitChoice, productChoice, inScope, choiceLabel, saveWithOptional,
 } from '../services/belongsTo';
 import { initialQuery } from '../services/urlQuery';
+import { currencySymbol, baseCurrency, currencyLocale } from '../shared/currency.js';
 
-const money = (n, digits = 0) => (Number(n) || 0).toLocaleString('en-IN', {
-  style: 'currency', currency: 'INR', maximumFractionDigits: digits,
+const money = (n, digits = 0) => (Number(n) || 0).toLocaleString(currencyLocale(), {
+  style: 'currency', currency: baseCurrency(), maximumFractionDigits: digits,
 });
 
 const qty = (n) => {
@@ -557,8 +558,8 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
 
             {!service && (<>
             <div className="prod-field">
-              <label>Unit price (₹)</label>
-              <input aria-label="Unit price (₹)"
+              <label>Unit price ({currencySymbol()})</label>
+              <input aria-label={`Unit price (${currencySymbol()})`}
                 type="number" min="0" step="0.01"
                 value={value.unit_price}
                 onChange={(e) => set('unit_price', e.target.value)}

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   resolvePeriod, comparisonPeriod, addMonths, change, pctText, financeFor, positionNow, overdueAsOf,
   workFor, peopleFor, buildSnapshot, breakdownFor, localDay, NEEDS,
+  bizAlertable, lastWeek, buildWeeklySummary, normalizeAutoConfig, AUTO_DEFAULTS,
 } from './bizIntel.js';
 
 const TODAY = '2026-10-19';
@@ -367,5 +368,48 @@ describe('breakdowns', () => {
     expect(b.rows).toHaveLength(1);
     expect(b.count).toBe(2);
     expect(b.total).toBe(31800);
+  });
+});
+
+describe('the automatic run', () => {
+  it('bizAlertable keeps finance concerns only, keyed by insight', () => {
+    const out = bizAlertable([
+      { id: 'receivables_overdue', area: 'finance', severity: 'high' },
+      { id: 'revenue_up', area: 'finance', severity: 'positive' },
+      { id: 'tasks_overdue', area: 'operations', severity: 'high' },
+      { id: 'leave_pending', area: 'people', severity: 'medium' },
+    ]);
+    expect(out.map((f) => f.key)).toEqual(['receivables_overdue']);
+  });
+
+  it('lastWeek on a Wednesday gives the Monday–Sunday before', () => {
+    expect(lastWeek('2026-10-21')).toEqual({ from: '2026-10-12', to: '2026-10-18', prevFrom: '2026-10-05', prevTo: '2026-10-11' });
+    // On the Monday itself: the week that just ended.
+    expect(lastWeek('2026-10-19').from).toBe('2026-10-12');
+    // On a Sunday: still the week before this one.
+    expect(lastWeek('2026-10-25').from).toBe('2026-10-12');
+  });
+
+  it('settings are made safe', () => {
+    expect(normalizeAutoConfig()).toEqual({ ...AUTO_DEFAULTS });
+    expect(normalizeAutoConfig({ summary_day: 9, repeat_days: -1, notify_min: 'critical', daily: 'yes', weekly_summary: false }))
+      .toMatchObject({ summary_day: 6, repeat_days: 0, notify_min: 'high', daily: false, weekly_summary: false });
+  });
+
+  it('the summary names figures it could not read', () => {
+    const data = {
+      finance: {
+        docs: [{ id: 'i1', type: 'invoice', status: 'sent', doc_number: 'INV-1', issue_date: '2026-10-14', due_date: '2026-10-30', grand_total: 11800, taxable_amount: 10000, amount_paid: 0, payments: [] }],
+        purchases: [], expenses: [], income: [],
+      },
+      coverage: { docs: 'ok', income: 'ok', purchases: 'ok', expenses: 'not_visible' },
+    };
+    const snap = buildSnapshot(data, { period: { id: 'custom', from: '2026-10-12', to: '2026-10-18' }, compare: { from: '2026-10-05', to: '2026-10-11' }, today: TODAY });
+    const s = buildWeeklySummary(snap, 'Test Co');
+    expect(s.title).toMatch(/^Business Intelligence Agent: week of /);
+    expect(s.text).toMatch(/Invoiced: ₹11,800/);
+    expect(s.text).toMatch(/Money in: left out \(could not read expenses\)/);
+    expect(s.text).not.toMatch(/Money (in|out): ₹0/);
+    expect(s.text).toMatch(/^Test Co: the week of /);
   });
 });

@@ -15,12 +15,13 @@ import { orgStore } from './orgStore';
 import { documentStore } from './documentStore';
 import { emailService } from './emailService';
 import { isOverdue, balanceOf, daysOverdue, todayIso } from './financeAnalytics';
+import { baseCurrency, currencyLocale } from '../shared/currency.js';
 
 export const REMINDER_INTERVAL_DAYS = 7;
 export const MAX_AUTO_REMINDERS = 3;
 
-const money = (v) => (Number(v) || 0).toLocaleString('en-IN', {
-  style: 'currency', currency: 'INR', maximumFractionDigits: 2,
+const money = (v) => (Number(v) || 0).toLocaleString(currencyLocale(), {
+  style: 'currency', currency: baseCurrency(), maximumFractionDigits: 2,
 });
 
 function reminderDue(doc, now = new Date()) {

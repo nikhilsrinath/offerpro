@@ -790,7 +790,7 @@ function Composer({ a, onCall, autoFocus, placeholder }) {
 
 /* ── history ────────────────────────────────────────────────────────────── */
 
-function History({ a, phone, onPicked }) {
+function History({ a, phone, onPicked, hide }) {
     const [q, setQ] = useState('');
     const [menu, setMenu] = useState(null);          // { id, x, y }
     const [renamingId, setRenamingId] = useState(null);

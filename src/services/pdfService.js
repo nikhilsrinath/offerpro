@@ -858,7 +858,11 @@ export const pdfService = {
     y += 4;
 
     if (data.disclosingSignature) {
-      try { doc.addImage(data.disclosingSignature, 'PNG', mg, y, 38, 14); y += 17; }
+      try {
+        // Readjusted on the form (disclosingSignatureAdjust), growing up from the name under it.
+        const box = adjustBox(data.disclosingSignatureAdjust, { x: mg, y, w: 38, h: 14 }, 0, 1);
+        doc.addImage(data.disclosingSignature, 'PNG', box.x, box.y, box.w, box.h); y += 17;
+      }
       catch { setN(10); doc.text('By: _____________________________', mg, y); y += 7; }
     } else {
       setN(10); doc.text('By: _____________________________', mg, y); y += 7;
@@ -879,7 +883,11 @@ export const pdfService = {
     y += 4;
 
     if (data.receivingSignature) {
-      try { doc.addImage(data.receivingSignature, 'PNG', rightX, y, 38, 14); y += 17; }
+      try {
+        // Readjusted on the form (receivingSignatureAdjust), growing up from the name under it.
+        const box = adjustBox(data.receivingSignatureAdjust, { x: rightX, y, w: 38, h: 14 }, 0, 1);
+        doc.addImage(data.receivingSignature, 'PNG', box.x, box.y, box.w, box.h); y += 17;
+      }
       catch { setN(10); doc.text('By: ______________________________', rightX, y); y += 7; }
     } else {
       setN(10); doc.text('By: ______________________________', rightX, y); y += 7;
@@ -1115,7 +1123,11 @@ export const pdfService = {
     y += 4;
 
     if (data.firstPartySignature) {
-      try { doc.addImage(data.firstPartySignature, 'PNG', mg, y, 38, 14); y += 17; }
+      try {
+        // Readjusted on the form (firstPartySignatureAdjust), growing up from the name under it.
+        const box = adjustBox(data.firstPartySignatureAdjust, { x: mg, y, w: 38, h: 14 }, 0, 1);
+        doc.addImage(data.firstPartySignature, 'PNG', box.x, box.y, box.w, box.h); y += 17;
+      }
       catch { setN(10); doc.text('Signature: ___________________________', mg, y); y += 7; }
     } else {
       setN(10); doc.text('Signature: ___________________________', mg, y); y += 7;
@@ -1136,7 +1148,11 @@ export const pdfService = {
     y += 4;
 
     if (data.secondPartySignature) {
-      try { doc.addImage(data.secondPartySignature, 'PNG', rightX, y, 38, 14); y += 17; }
+      try {
+        // Readjusted on the form (secondPartySignatureAdjust), growing up from the name under it.
+        const box = adjustBox(data.secondPartySignatureAdjust, { x: rightX, y, w: 38, h: 14 }, 0, 1);
+        doc.addImage(data.secondPartySignature, 'PNG', box.x, box.y, box.w, box.h); y += 17;
+      }
       catch { setN(10); doc.text('Signature: ___________________________', rightX, y); y += 7; }
     } else {
       setN(10); doc.text('Signature: ___________________________', rightX, y); y += 7;

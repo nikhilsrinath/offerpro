@@ -12,6 +12,7 @@ import CountrySelect from '../shared/CountrySelect';
 import { useToast } from '../shared/Toast';
 import A4Stage from '../shared/A4Stage';
 import { useFormProject, projectStartLines, linkToProject, projectFormNote } from '../projects/projectScope';
+import { currencySymbol, baseCurrency, currencyLocale } from '../../shared/currency.js';
 
 const GST_RATES = [0, 5, 12, 18, 28];
 const ADVANCE_PRESETS = [25, 50, 75, 100];
@@ -249,7 +250,7 @@ export default function ProformaInvoiceForm() {
   };
 
   const fmt = (num) => {
-    return (num || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
+    return (num || 0).toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() });
   };
 
   // Build a save payload for documentStore
@@ -378,7 +379,7 @@ export default function ProformaInvoiceForm() {
 
     // Open WhatsApp with pre-filled message
     const phone = (formData.clientPhone || '').replace(/[^0-9+]/g, '');
-    const message = `Hi ${formData.clientName},\n\nPlease find your proforma invoice *${doc.id}* from *${company.company_name}*.\n\nTotal: ₹${totals.grandTotal.toLocaleString('en-IN')}\nAdvance (${activeAdvancePercent}%): ₹${totals.advanceAmount.toLocaleString('en-IN')}\nDue: ${formData.dueDate}\n\nView & respond here:\n${portalUrl}\n\nThank you!`;
+    const message = `Hi ${formData.clientName},\n\nPlease find your proforma invoice *${doc.id}* from *${company.company_name}*.\n\nTotal: ${currencySymbol()}${totals.grandTotal.toLocaleString(currencyLocale())}\nAdvance (${activeAdvancePercent}%): ${currencySymbol()}${totals.advanceAmount.toLocaleString(currencyLocale())}\nDue: ${formData.dueDate}\n\nView & respond here:\n${portalUrl}\n\nThank you!`;
     const waUrl = `https://wa.me/${phone.replace('+', '')}?text=${encodeURIComponent(message)}`;
     window.open(waUrl, '_blank');
 
@@ -900,12 +901,12 @@ function ProformaPreview({ formData, totals, itemCalcs, company, activeAdvancePe
                 <td className="inv-td-muted">{item.hsnSac || '-'}</td>
                 <td>{item.quantity || 0}</td>
                 <td className="inv-td-muted">{item.unit}</td>
-                <td>{'\u20B9'}{(Number(item.rate) || 0).toLocaleString('en-IN')}</td>
+                <td>{currencySymbol()}{(Number(item.rate) || 0).toLocaleString(currencyLocale())}</td>
                 <td>{item.gstRate}%</td>
-                <td>{'\u20B9'}{c.taxable.toLocaleString('en-IN')}</td>
-                <td style={{ color: '#3b82f6', fontSize: '8pt' }}>{'\u20B9'}{c.cgst.toLocaleString('en-IN')}</td>
-                <td style={{ color: '#3b82f6', fontSize: '8pt' }}>{'\u20B9'}{c.sgst.toLocaleString('en-IN')}</td>
-                <td className="inv-td-amount">{'\u20B9'}{lineTotal.toLocaleString('en-IN')}</td>
+                <td>{currencySymbol()}{c.taxable.toLocaleString(currencyLocale())}</td>
+                <td style={{ color: '#3b82f6', fontSize: '8pt' }}>{currencySymbol()}{c.cgst.toLocaleString(currencyLocale())}</td>
+                <td style={{ color: '#3b82f6', fontSize: '8pt' }}>{currencySymbol()}{c.sgst.toLocaleString(currencyLocale())}</td>
+                <td className="inv-td-amount">{currencySymbol()}{lineTotal.toLocaleString(currencyLocale())}</td>
               </tr>
             );
           })}
@@ -916,32 +917,32 @@ function ProformaPreview({ formData, totals, itemCalcs, company, activeAdvancePe
       <div className="inv-totals">
         <div className="inv-total-row">
           <span>Subtotal:</span>
-          <span>{'\u20B9'}{totals.subtotal.toLocaleString('en-IN')}</span>
+          <span>{currencySymbol()}{totals.subtotal.toLocaleString(currencyLocale())}</span>
         </div>
         <div className="inv-total-divider" />
         <div className="inv-total-row inv-total-gst">
           <span>Total CGST:</span>
-          <span>{'\u20B9'}{totals.totalCGST.toLocaleString('en-IN')}</span>
+          <span>{currencySymbol()}{totals.totalCGST.toLocaleString(currencyLocale())}</span>
         </div>
         <div className="inv-total-row inv-total-gst">
           <span>Total SGST:</span>
-          <span>{'\u20B9'}{totals.totalSGST.toLocaleString('en-IN')}</span>
+          <span>{currencySymbol()}{totals.totalSGST.toLocaleString(currencyLocale())}</span>
         </div>
         <div className="inv-total-divider inv-total-divider-bold" />
         <div className="inv-total-row inv-total-grand">
           <span>GRAND TOTAL:</span>
-          <span>{'\u20B9'}{totals.grandTotal.toLocaleString('en-IN')}</span>
+          <span>{currencySymbol()}{totals.grandTotal.toLocaleString(currencyLocale())}</span>
         </div>
 
         <div className="inv-total-divider" />
 
         <div className="inv-total-row" style={{ color: '#059669' }}>
           <span>Advance ({activeAdvancePercent}%):</span>
-          <span>{'\u20B9'}{totals.advanceAmount.toLocaleString('en-IN')}</span>
+          <span>{currencySymbol()}{totals.advanceAmount.toLocaleString(currencyLocale())}</span>
         </div>
         <div className="inv-total-row" style={{ fontWeight: 700, color: '#d97706' }}>
           <span>Balance Due:</span>
-          <span>{'\u20B9'}{totals.balanceDue.toLocaleString('en-IN')}</span>
+          <span>{currencySymbol()}{totals.balanceDue.toLocaleString(currencyLocale())}</span>
         </div>
       </div>
 

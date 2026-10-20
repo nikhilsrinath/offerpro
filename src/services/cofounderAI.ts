@@ -9,6 +9,7 @@ import type { CompanyMemory, CompanyFacts, OnboardingQuestion } from './companyM
 import { getRelevantMemory, buildOnboardingPrompt, isOnboardingComplete, getCurrentOnboardingQuestion } from './companyMemory';
 import { supabase } from '../lib/supabase';
 import { orgStore } from './orgStore';
+import { currencySymbol, currencyLocale } from '../shared/currency.js';
 
 // Backend proxy URL - all AI requests go through our backend
 const NVIDIA_API_URL = '/api/nvidia';
@@ -166,15 +167,15 @@ You are talking directly to ${userName}, the ${userRole}. Address them by name a
 Your mission: Help ${firstName || 'the founder'} make sharp decisions, execute fast, and grow the business.
 
 Current Business Context:
-• Revenue: ₹${context.financials.totalRevenue.toLocaleString()} total | ₹${context.financials.lastMonthRevenue.toLocaleString()} last month
+• Revenue: ${currencySymbol()}${context.financials.totalRevenue.toLocaleString(currencyLocale())} total | ${currencySymbol()}${context.financials.lastMonthRevenue.toLocaleString(currencyLocale())} last month
 • Growth: ${context.financials.growthRate} month-over-month
 • Invoices: ${context.financials.invoicesPaid} paid | ${context.financials.invoicesPending} pending
-• Pending Revenue: ₹${context.financials.pendingRevenue.toLocaleString()}
+• Pending Revenue: ${currencySymbol()}${context.financials.pendingRevenue.toLocaleString(currencyLocale())}
 • Documents: ${context.documents.total} total (${context.documents.offerLetters} offers, ${context.documents.invoices} invoices)
 
-6-Month Revenue Trend: ${context.trends.monthlyRevenue.map(m => `${m.month}: ₹${m.revenue.toLocaleString()}`).join(' | ')}
+6-Month Revenue Trend: ${context.trends.monthlyRevenue.map(m => `${m.month}: ${currencySymbol()}${m.revenue.toLocaleString(currencyLocale())}`).join(' | ')}
 ${context.projects ? `Projects: ${context.projects.active} open, ${context.projects.atRisk} at risk or off track
-${context.projects.list.slice(0, 12).map((p) => `  - ${p.code} ${p.name} (${p.client || 'internal'}) · ${p.status}${p.health ? ` · ${p.health.replace('_', ' ')}` : ''}${p.netMargin != null ? ` · net margin ₹${Math.round(p.netMargin).toLocaleString()}` : ''}`).join('\n')}
+${context.projects.list.slice(0, 12).map((p) => `  - ${p.code} ${p.name} (${p.client || 'internal'}) · ${p.status}${p.health ? ` · ${p.health.replace('_', ' ')}` : ''}${p.netMargin != null ? ` · net margin ${currencySymbol()}${Math.round(p.netMargin).toLocaleString(currencyLocale())}` : ''}`).join('\n')}
 ` : ''}
 STRICT RULES - NO HALLUCINATION:
 - Address ${userName} by name when appropriate
@@ -222,8 +223,8 @@ function buildSystemPromptWithMemory(
       '• Industry: ' + relevant.facts.industry + '\n' +
       '• Team Size: ' + relevant.facts.team_size + ' people\n' +
       '• Location: ' + relevant.facts.city + ', ' + relevant.facts.country + '\n' +
-      (relevant.facts.key_metrics?.total_revenue ? '• Total Revenue: ₹' + relevant.facts.key_metrics.total_revenue.toLocaleString() + '\n' : '') +
-      (relevant.facts.key_metrics?.pending_revenue ? '• Pending Revenue: ₹' + relevant.facts.key_metrics.pending_revenue.toLocaleString() + '\n' : '') +
+      (relevant.facts.key_metrics?.total_revenue ? '• Total Revenue: ' + currencySymbol() + relevant.facts.key_metrics.total_revenue.toLocaleString(currencyLocale()) + '\n' : '') +
+      (relevant.facts.key_metrics?.pending_revenue ? '• Pending Revenue: ' + currencySymbol() + relevant.facts.key_metrics.pending_revenue.toLocaleString(currencyLocale()) + '\n' : '') +
       (relevant.facts.key_metrics?.invoice_count ? '• Invoices: ' + relevant.facts.key_metrics.invoice_count + '\n' : '') +
       (relevant.facts.key_metrics?.offer_count ? '• Offers: ' + relevant.facts.key_metrics.offer_count + '\n' : '') +
       (relevant.facts.key_metrics?.nda_count ? '• NDAs: ' + relevant.facts.key_metrics.nda_count + '\n' : '') +
@@ -266,7 +267,7 @@ ${risksSection}
 3. DO NOT write creative descriptions about what the company does.
 4. DO NOT make up "NovaTech", "Renewable Energy", "AI startup" or any fictional details.
 5. If data shows "No employees", say exactly that - don't invent team members.
-6. If revenue is 0, say "₹0" - don't make up numbers.
+6. If revenue is 0, say "${currencySymbol()}0" - don't make up numbers.
 7. Answer in 1-2 sentences using ONLY the Facts above.
 8. NO FLUFF. NO MARKETING LANGUAGE. ONLY FACTS FROM DATABASE.`;
 }
@@ -335,7 +336,7 @@ For questions about THIS company's specific data (employees, revenue, invoices, 
 • Follow "HOW TO ANSWER FROM THIS CONTEXT" in the data. When a HEADLINE FIGURE answers the question (net cash, total revenue, receivables, payables…), that figure IS the answer: quote it exactly and never build your own total from other numbers. A hand-made total leaves something out
 • Keep bases apart: revenue is not cash, invoiced is not collected, funding is not revenue
 • If data shows company name "Gomma Inc", say "Gomma Inc" · not any other name
-• If revenue is ₹21,797.64, report exactly that, never round or change it
+• If revenue is ${currencySymbol()}21,797.64, report exactly that, never round or change it
 • If a specific record is missing, say "I don't see that in our records"
 • DOCUMENT LIBRARY passages are quoted from the company's uploaded files. When you use one, name the document and its page/slide/section. If the passages don't contain the answer, say so and name the document that likely does, never fill in what such a document "usually" says
 
@@ -621,7 +622,7 @@ export function getSuggestedPrompts(context: EdgeContext): SuggestedPrompt[] {
   if (context.financials.invoicesPending > 0) {
     prompts.push({ 
       id: '4', 
-      text: `Follow up on ₹${context.financials.pendingRevenue.toLocaleString()} pending revenue` 
+      text: `Follow up on ${currencySymbol()}${context.financials.pendingRevenue.toLocaleString(currencyLocale())} pending revenue` 
     });
   }
 

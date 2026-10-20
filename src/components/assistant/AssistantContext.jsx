@@ -9,6 +9,7 @@ import {
 import { amountHints } from '../../shared/cashIntent';
 import { cardLine } from './cardText';
 import { orgStore } from '../../services/orgStore';
+import { findProject } from '../projects/projectSlug';
 
 // The orgStore sections that show each table the agent can change. After a
 // confirm or an undo the confirming tab re-reads them at once; other tabs and
@@ -121,8 +122,10 @@ function loadChats() {
 /** The record open on the current page, when the URL names one. */
 function pageOf(location) {
     const route = location.pathname + location.search;
-    const project = location.pathname.match(/^\/projects\/([0-9a-f-]{36})/i);
-    if (project) return { route, recordType: 'project', recordId: project[1] };
+    // /projects/<name or id>/...: the static pages there (tasks, new) match no project.
+    const part = location.pathname.match(/^\/projects\/([^/]+)/)?.[1];
+    const project = part && findProject(decodeURIComponent(part), orgStore.getSectionAsList('projects') || []);
+    if (project) return { route, recordType: 'project', recordId: project.id };
     const task = new URLSearchParams(location.search).get('task');
     if (location.pathname === '/projects/tasks' && task) return { route, recordType: 'task', recordId: task };
     return { route };

@@ -9,6 +9,7 @@ import {
 import { isIsoDate } from '../../../../src/shared/dates.js';
 import { resolveEntity, loadKind, byId } from '../resolvers.js';
 import { choiceFrom, needsInput, notFound, money, formatDate } from '../helpers.js';
+import { baseCurrency, currencySymbol, recordCurrency } from '../../../../src/shared/currency.js';
 
 /**
  * create_cash_entry: money in or out that no invoice represents.
@@ -223,8 +224,8 @@ const create_cash_entry = {
       const param = SLOT_PARAM[qn.slot] || qn.slot;
       return needsInput(param, qn.text, qn.options || [], { hint: qn.hint || null });
     }
-    if (draft.currency !== 'INR' && !(Number(args.fx_rate) > 0) && Number(draft.fx_rate) === 1) {
-      return needsInput('fx_rate', `What rate did you get for 1 ${draft.currency} in ₹?`, [],
+    if (recordCurrency(draft.currency) !== baseCurrency() && !(Number(args.fx_rate) > 0) && Number(draft.fx_rate) === 1) {
+      return needsInput('fx_rate', `What rate did you get for 1 ${draft.currency} in ${currencySymbol().trim()}?`, [],
         { hint: 'There is no rate feed; the rate you enter is the one the books use.' });
     }
 
@@ -265,7 +266,7 @@ const create_cash_entry = {
     const project = draft.project_id ? await byId('project', draft.project_id, ctx) : null;
     const rows = [
       ['Direction', inward ? 'Money in' : 'Money out'],
-      ['Amount', draft.currency === 'INR' ? money(base)
+      ['Amount', recordCurrency(draft.currency) === baseCurrency() ? money(base)
         : `${money(draft.original_amount, draft.currency)} × ${draft.fx_rate} = ${money(base)}`],
       ['For', draft.description],
       ['Category', categoryLabel(draft.category)],

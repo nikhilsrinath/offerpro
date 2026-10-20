@@ -17,7 +17,9 @@ import A4Stage from './shared/A4Stage';
 import ProjectPicker from './shared/ProjectPicker';
 import { pickerFor, saveSplitFromPicker } from '../services/projectService';
 import { orgStore } from '../services/orgStore';
+import { projectIdOf } from './projects/projectSlug';
 import { useFormProject, projectStartLines } from './projects/projectScope';
+import { baseCurrency, currencyLocale } from '../shared/currency.js';
 
 
 
@@ -32,7 +34,8 @@ export default function InvoiceForm() {
   // nothing at all.
   // The project can also come from the route (/projects/:projectId/...), which
   // neither the navigation state nor ?project= carries.
-  const routeProjectId = useParams().projectId;
+  // The route names it by its name (projectSlug.js); the picker wants the id.
+  const routeProjectId = projectIdOf(useParams().projectId);
   const [projectPicker, setProjectPicker] = useState(() =>
     pickerFor(routeProjectId || location.state?.projectId || params.get('project') || ''));
   // A milestone's "Create invoice" (ProjectMilestones.jsx) sends the milestone,
@@ -737,7 +740,7 @@ export default function InvoiceForm() {
                     </div>
                     <div>
                       <label className="easy-lbl-sm">Amount</label>
-                      <div className="easy-line-amount">{(item.quantity * item.price).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}</div>
+                      <div className="easy-line-amount">{(item.quantity * item.price).toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), maximumFractionDigits: 0 })}</div>
                     </div>
                   </div>
                 </div>
@@ -783,7 +786,7 @@ export default function InvoiceForm() {
               <div className="easy-totals">
                 <div className="easy-total-row">
                   <span>Subtotal</span>
-                  <strong>{totals.subtotal.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</strong>
+                  <strong>{totals.subtotal.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</strong>
                 </div>
 
                 <div className="easy-total-row">
@@ -799,13 +802,13 @@ export default function InvoiceForm() {
                 {totals.discountAmount > 0 && (
                   <div className="easy-total-row" style={{ color: '#ef4444' }}>
                     <span>Discount amount</span>
-                    <span>-{totals.discountAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                    <span>-{totals.discountAmount.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</span>
                   </div>
                 )}
 
                 <div className="easy-total-row">
                   <span>Taxable amount</span>
-                  <strong>{totals.taxableAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</strong>
+                  <strong>{totals.taxableAmount.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</strong>
                 </div>
 
                 <div className="easy-total-divider" />
@@ -813,17 +816,17 @@ export default function InvoiceForm() {
                 {isInterState ? (
                   <div className="easy-total-row" style={{ color: 'var(--text-secondary)' }}>
                     <span>IGST @ {formData.gstRate}%</span>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totals.igst.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totals.igst.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</span>
                   </div>
                 ) : (
                   <>
                     <div className="easy-total-row" style={{ color: 'var(--text-secondary)' }}>
                       <span>CGST @ {formData.gstRate / 2}%</span>
-                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totals.cgst.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totals.cgst.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</span>
                     </div>
                     <div className="easy-total-row" style={{ color: 'var(--text-secondary)' }}>
                       <span>SGST @ {formData.gstRate / 2}%</span>
-                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totals.sgst.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totals.sgst.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</span>
                     </div>
                   </>
                 )}
@@ -832,7 +835,7 @@ export default function InvoiceForm() {
 
                 <div className="easy-total-row easy-total-grand">
                   <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>Total</span>
-                  <span>{totals.grandTotal.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                  <span>{totals.grandTotal.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</span>
                 </div>
 
                 {totalMakingCost > 0 && (
@@ -840,11 +843,11 @@ export default function InvoiceForm() {
                     <div className="easy-total-divider" />
                     <div className="easy-total-row" style={{ color: 'var(--text-primary)' }}>
                       <span>Making cost</span>
-                      <span style={{ fontWeight: 600 }}>-{totalMakingCost.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                      <span style={{ fontWeight: 600 }}>-{totalMakingCost.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</span>
                     </div>
                     <div className="easy-total-row" style={{ fontWeight: 700, color: estimatedProfit >= 0 ? '#10b981' : '#ef4444' }}>
                       <span>Profit</span>
-                      <span>{estimatedProfit.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                      <span>{estimatedProfit.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</span>
                     </div>
                   </>
                 )}

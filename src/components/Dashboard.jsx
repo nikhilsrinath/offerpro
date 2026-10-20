@@ -16,6 +16,7 @@ import { useOrg } from '../context/OrgContext';
 import { useAuth } from '../context/AuthContext';
 import { displayNameOf } from '../lib/user';
 import SalesByCountries from './dashboard/SalesByCountries';
+import { currencySymbol, currencyLocale } from '../shared/currency.js';
 
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const chartStyles = () => ({
@@ -154,7 +155,7 @@ export default function Dashboard() {
   const STAT_CARDS = [
     { label: 'Total Documents', value: stats.total, icon: FileText, color: '#3b82f6', bg: '#3b82f612', nav: 'records' },
     { label: 'Team Members', value: employeeCount, icon: Users, color: '#8b5cf6', bg: '#8b5cf612', nav: 'employees' },
-    { label: 'Revenue Generated', value: `₹${stats.revenue.toLocaleString()}`, icon: TrendingUp, color: '#10b981', bg: '#10b98112', nav: 'revenue' },
+    { label: 'Revenue Generated', value: `${currencySymbol()}${stats.revenue.toLocaleString(currencyLocale())}`, icon: TrendingUp, color: '#10b981', bg: '#10b98112', nav: 'revenue' },
     { label: 'Invoices Issued', value: stats.invoices, icon: Receipt, color: '#f59e0b', bg: '#f59e0b12', nav: 'invoices' },
   ];
 
@@ -235,7 +236,7 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="pro-revenue-block">
-            <div className="pro-revenue-amount">₹{stats.revenue.toLocaleString()}</div>
+            <div className="pro-revenue-amount">{currencySymbol()}{stats.revenue.toLocaleString(currencyLocale())}</div>
             <div className="pro-revenue-meta">{stats.invoices} invoice{stats.invoices !== 1 ? 's' : ''} issued</div>
           </div>
           <div style={{ width: '100%', height: 220, marginTop: '0.5rem' }}>
@@ -252,7 +253,7 @@ export default function Dashboard() {
                 <YAxis tick={chartStyles().axis} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
                 <Tooltip
                   contentStyle={chartStyles().tooltip}
-                  formatter={(v) => [`₹${v.toLocaleString()}`, 'Revenue']}
+                  formatter={(v) => [`${currencySymbol()}${v.toLocaleString(currencyLocale())}`, 'Revenue']}
                   labelStyle={chartStyles().label}
                 />
                 <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2.5} fill="url(#revenueGrad)" />
@@ -368,7 +369,7 @@ export default function Dashboard() {
                       <span className="pro-activity-meta">{r.type} · {new Date(r.created_at).toLocaleDateString()}</span>
                     </div>
                     {r.type === 'invoice' && r.data?.totals?.grandTotal && (
-                      <span className="pro-activity-amount">₹{r.data.totals.grandTotal.toLocaleString()}</span>
+                      <span className="pro-activity-amount">{currencySymbol()}{r.data.totals.grandTotal.toLocaleString(currencyLocale())}</span>
                     )}
                   </div>
                 );

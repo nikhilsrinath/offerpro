@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useSection } from '../financial/financeHooks';
 import { docNumber } from '../../services/documentStore';
+import { projectRef } from '../projects/projectSlug';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Search the whole workspace from the top bar: projects, clients, leads,
@@ -55,7 +56,7 @@ function useIndex() {
 
         projects.forEach((p) => add('Projects', p.name || p.code,
             [p.code, p.client_id ? clientName[p.client_id] || 'Client' : 'Internal'].filter(Boolean).join(' · '),
-            [p.code, clientName[p.client_id], ...(p.tags || [])], `/projects/${p.id}`));
+            [p.code, clientName[p.client_id], ...(p.tags || [])], `/projects/${projectRef(p.id)}`));
         customers.forEach((c) => add('Clients', c.name || c.clientName,
             [c.contact_name || c.contactPerson, c.email].filter(Boolean).join(' · '),
             [c.email, c.phone, c.gstin, c.contact_name, c.contactPerson, c.city], withQ('/business/client-directory', c.name || c.clientName)));

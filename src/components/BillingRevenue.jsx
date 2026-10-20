@@ -18,6 +18,7 @@ import { receiptService, RECEIPT_ACCEPT } from '../services/receiptService';
 import { categoryLabel, countsAsIncome, groupOf, loadFinanceCategories } from '../services/financeCategories';
 import { confirmDialog } from '../services/confirm';
 import { RowMenu } from './ui/edge';
+import { currencySymbol, currencyLocale } from '../shared/currency.js';
 
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const chartStyles = () => ({
@@ -199,10 +200,10 @@ export default function BillingRevenue() {
               <TrendingUp size={20} />
             </div>
           </div>
-          <div className="pro-stat-value" style={{ color: 'var(--success)' }}>₹{stats.totalRevenue.toLocaleString()}</div>
+          <div className="pro-stat-value" style={{ color: 'var(--success)' }}>{currencySymbol()}{stats.totalRevenue.toLocaleString(currencyLocale())}</div>
           <div className="pro-stat-label">
             Revenue · {stats.invoiceCount} invoice{stats.invoiceCount !== 1 ? 's' : ''}
-            {stats.directRevenue > 0 ? ` + ₹${stats.directRevenue.toLocaleString()} without one` : ''}
+            {stats.directRevenue > 0 ? ` + ${currencySymbol()}${stats.directRevenue.toLocaleString(currencyLocale())} without one` : ''}
           </div>
         </div>
 
@@ -212,7 +213,7 @@ export default function BillingRevenue() {
               <Wallet size={20} />
             </div>
           </div>
-          <div className="pro-stat-value" style={{ color: 'var(--text-primary)' }}>₹{stats.totalMakingCharges.toLocaleString()}</div>
+          <div className="pro-stat-value" style={{ color: 'var(--text-primary)' }}>{currencySymbol()}{stats.totalMakingCharges.toLocaleString(currencyLocale())}</div>
           <div className="pro-stat-label">Making Charges · {stats.totalRevenue > 0 ? `${((stats.totalMakingCharges / stats.totalRevenue) * 100).toFixed(0)}% of revenue` : 'No data'}</div>
         </div>
 
@@ -222,7 +223,7 @@ export default function BillingRevenue() {
               <TrendingDown size={20} />
             </div>
           </div>
-          <div className="pro-stat-value" style={{ color: '#ef4444' }}>₹{stats.totalExpenses.toLocaleString()}</div>
+          <div className="pro-stat-value" style={{ color: '#ef4444' }}>{currencySymbol()}{stats.totalExpenses.toLocaleString(currencyLocale())}</div>
           <div className="pro-stat-label">Expenses · {expenses.length} entries</div>
         </div>
 
@@ -233,7 +234,7 @@ export default function BillingRevenue() {
             </div>
           </div>
           <div className="pro-stat-value" style={{ color: stats.netProfit >= 0 ? 'var(--success)' : 'var(--error)' }}>
-            {stats.netProfit >= 0 ? '+' : ''}₹{stats.netProfit.toLocaleString()}
+            {stats.netProfit >= 0 ? '+' : ''}{currencySymbol()}{stats.netProfit.toLocaleString(currencyLocale())}
           </div>
           <div className="pro-stat-label">
             Net {stats.netProfit >= 0 ? 'Profit' : 'Loss'} · {stats.totalRevenue > 0 ? `${((stats.netProfit / stats.totalRevenue) * 100).toFixed(1)}% margin` : 'No revenue yet'}
@@ -259,7 +260,7 @@ export default function BillingRevenue() {
                 <YAxis tick={chartStyles().axis} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
                 <Tooltip
                   contentStyle={chartStyles().tooltip}
-                  formatter={(v, name) => [`₹${v.toLocaleString()}`, name === 'revenue' ? 'Revenue' : 'Expenses']}
+                  formatter={(v, name) => [`${currencySymbol()}${v.toLocaleString(currencyLocale())}`, name === 'revenue' ? 'Revenue' : 'Expenses']}
                   labelStyle={chartStyles().label}
                 />
                 <Legend
@@ -299,7 +300,7 @@ export default function BillingRevenue() {
                     </Pie>
                     <Tooltip
                       contentStyle={chartStyles().tooltip}
-                      formatter={(v, name) => [`₹${v.toLocaleString()}`, name]}
+                      formatter={(v, name) => [`${currencySymbol()}${v.toLocaleString(currencyLocale())}`, name]}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -309,7 +310,7 @@ export default function BillingRevenue() {
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <div style={{ width: 10, height: 10, borderRadius: '50%', background: d.color, flexShrink: 0 }} />
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', flex: 1 }}>{d.name}</span>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>₹{d.value.toLocaleString()}</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>{currencySymbol()}{d.value.toLocaleString(currencyLocale())}</span>
                   </div>
                 ))}
               </div>
@@ -356,8 +357,8 @@ export default function BillingRevenue() {
                   </div>
                 </div>
                 <div className="br-top-money">
-                  <div>₹{Number(p.revenue).toLocaleString('en-IN')}</div>
-                  <span>₹{Number(p.revenue_paid).toLocaleString('en-IN')} collected</span>
+                  <div>{currencySymbol()}{Number(p.revenue).toLocaleString(currencyLocale())}</div>
+                  <span>{currencySymbol()}{Number(p.revenue_paid).toLocaleString(currencyLocale())} collected</span>
                 </div>
               </div>
             ))}
@@ -388,7 +389,7 @@ export default function BillingRevenue() {
               <YAxis tick={chartStyles().axis} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v < -1000 ? `${(v/1000).toFixed(0)}k` : v} />
               <Tooltip
                 contentStyle={chartStyles().tooltip}
-                formatter={(v) => [`₹${v.toLocaleString()}`, 'Net Profit']}
+                formatter={(v) => [`${currencySymbol()}${v.toLocaleString(currencyLocale())}`, 'Net Profit']}
                 labelStyle={chartStyles().label}
               />
               <Area type="monotone" dataKey="profit" stroke="#3b82f6" strokeWidth={2.5} fill="url(#profitGrad)" />
@@ -420,7 +421,7 @@ export default function BillingRevenue() {
                   <div key={cat} className="billing-breakdown-item">
                     <div className="billing-breakdown-info">
                       <span className="billing-breakdown-cat">{cat}</span>
-                      <span className="billing-breakdown-amount">₹{amount.toLocaleString()}</span>
+                      <span className="billing-breakdown-amount">{currencySymbol()}{amount.toLocaleString(currencyLocale())}</span>
                     </div>
                     <div className="billing-breakdown-bar">
                       <div className="billing-breakdown-fill" style={{ width: `${(amount / stats.totalExpenses) * 100}%` }} />
@@ -455,13 +456,13 @@ export default function BillingRevenue() {
                   <div key={r.id || i} className="billing-invoice-item">
                     <div className="billing-invoice-info">
                       <span className="billing-invoice-title">{r.title}</span>
-                      <span className="billing-invoice-date">{new Date(r.created_at).toLocaleDateString()}{cost > 0 ? ` · Cost: ₹${cost.toLocaleString()}` : ''}</span>
+                      <span className="billing-invoice-date">{new Date(r.created_at).toLocaleDateString()}{cost > 0 ? ` · Cost: ${currencySymbol()}${cost.toLocaleString(currencyLocale())}` : ''}</span>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <span className="billing-invoice-amount">₹{revenue.toLocaleString()}</span>
+                      <span className="billing-invoice-amount">{currencySymbol()}{revenue.toLocaleString(currencyLocale())}</span>
                       {cost > 0 && (
                         <div style={{ fontSize: '0.6875rem', color: profit >= 0 ? '#10b981' : '#ef4444', fontWeight: 600, marginTop: '0.125rem' }}>
-                          {profit >= 0 ? '+' : ''}₹{profit.toLocaleString()} profit
+                          {profit >= 0 ? '+' : ''}{currencySymbol()}{profit.toLocaleString(currencyLocale())} profit
                         </div>
                       )}
                     </div>
@@ -508,7 +509,7 @@ export default function BillingRevenue() {
                 </div>
                 <div className="billing-expense-right">
                   <span className="billing-expense-amount" style={{ color: 'var(--success)' }}>
-                    +₹{Number(e.amount).toLocaleString()}
+                    +{currencySymbol()}{Number(e.amount).toLocaleString(currencyLocale())}
                   </span>
                 </div>
               </div>
@@ -543,11 +544,11 @@ export default function BillingRevenue() {
                   <span className="billing-expense-desc">{exp.description}</span>
                   <span className="billing-expense-meta">
                     {exp.category} · {new Date(exp.date).toLocaleDateString()}
-                    {Number(exp.tax_amount) > 0 ? ` · GST ₹${Number(exp.tax_amount).toLocaleString()}` : ''}
+                    {Number(exp.tax_amount) > 0 ? ` · GST ${currencySymbol()}${Number(exp.tax_amount).toLocaleString(currencyLocale())}` : ''}
                   </span>
                 </div>
                 <div className="billing-expense-right">
-                  <span className="billing-expense-amount">₹{Number(exp.amount).toLocaleString()}</span>
+                  <span className="billing-expense-amount">{currencySymbol()}{Number(exp.amount).toLocaleString(currencyLocale())}</span>
                   {!exp.receipt_path && (
                     <input type="file" accept={RECEIPT_ACCEPT} hidden id={`receipt-${exp.id}`}
                       onChange={(e) => { handleAttachReceipt(exp, e.target.files?.[0]); e.target.value = ''; }} />

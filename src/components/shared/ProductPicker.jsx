@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Package, Search, X, Check } from 'lucide-react';
 import { catalogService } from '../../services/catalogService';
+import { baseCurrency, currencyLocale } from '../../shared/currency.js';
 
 /**
  * "Select product" for a single line item on the Quotation, Proforma and
@@ -46,8 +47,8 @@ export default function ProductPicker({ linkedId, onSelect, onClear }) {
     : products
   ).slice(0, 50);
 
-  const money = (n) => (Number(n) || 0).toLocaleString('en-IN', {
-    style: 'currency', currency: 'INR', maximumFractionDigits: 2,
+  const money = (n) => (Number(n) || 0).toLocaleString(currencyLocale(), {
+    style: 'currency', currency: baseCurrency(), maximumFractionDigits: 2,
   });
 
   return (

@@ -7,6 +7,7 @@
 // @ts-ignore
 import { storageService } from './storageService';
 import { orgStore } from './orgStore';
+import { baseCurrency, currencySymbol } from '../shared/currency.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -98,7 +99,7 @@ export function getStepPrompt(op: EmployeeOperation): string {
       department: `Which department will ${firstName} be in? (e.g. Engineering, Sales, Marketing, Operations, HR)`,
       empType:    `Is this a Full-time position or an Internship?\n\n1. Full-time\n2. Internship`,
       startDate:  `What is ${firstName}'s start date? (e.g. 2026-05-01)`,
-      salary:     `What is their salary or stipend? (e.g. ₹50,000 per month or ₹6,00,000 annual)`,
+      salary:     `What is their salary or stipend? (e.g. ${currencySymbol()}50,000 per month or ${currencySymbol()}6,00,000 annual)`,
       confirm:    buildConfirmPrompt(d),
     };
     return map[current] ?? 'Please provide the next detail.';
@@ -238,7 +239,7 @@ export async function executeEmployeeOperation(
         offerType: d.empType || 'fulltime',
         startDate: d.startDate,
         stipend: d.salaryAmount || d.salary || '',
-        currency: 'INR',
+        currency: baseCurrency(),
         paymentFrequency: d.salaryFrequency || 'Monthly',
         status: 'active',
         companyName: activeOrg?.company_name || '',

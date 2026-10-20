@@ -6,6 +6,7 @@ import { AgentChat } from '../assistant/Copilot';
 import { KNOWLEDGE_AGENT, useLibraryStatus } from './knowledgeAgent';
 import { READ_STATES, libraryDocHref } from '../../shared/libraryReadability';
 import { collectionOf, categoryLabel } from '../../services/libraryService';
+import AgentCard from './AgentCard';
 import './agents.css';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -37,25 +38,15 @@ const fmtDay = (iso) => {
 
 /* ── the card on the Agents grid ──────────────────────────────────────────── */
 
-export function InternalKnowledgeCard({ onOpen }) {
+export function InternalKnowledgeCard({ onOpen, auto }) {
     const s = useLibraryStatus();
-    const Icon = KNOWLEDGE_AGENT.icon;
     return (
-        <button type="button" className="ag-card" onClick={onOpen}>
-            <span className="ag-card-top">
-                <span className="ag-ico" aria-hidden="true"><Icon size={18} strokeWidth={1.9} /></span>
-                <span className="ag-state is-off"><i aria-hidden="true" />Read-Only</span>
-            </span>
-            <span className="ag-name">{KNOWLEDGE_AGENT.name}</span>
-            <span className="ag-desc">{KNOWLEDGE_AGENT.blurb}</span>
-            <span className="ag-foot">
-                {!s.canView ? <span className="ag-muted">No library access</span>
-                    : s.loading && !s.docs ? <span className="ag-muted">Reading…</span>
-                        : s.error || !s.total ? <span className="ag-muted">{s.error ? 'Open to ask' : 'No documents yet'}</span>
-                            : <span className="ag-badge is-pos">{s.readable.length} searchable</span>}
-                <ArrowUpRight size={15} strokeWidth={2} aria-hidden="true" className="ag-go" />
-            </span>
-        </button>
+        <AgentCard agent={KNOWLEDGE_AGENT} auto={auto} onOpen={onOpen}>
+            {!s.canView ? <span className="ag-muted">No library access</span>
+                : s.loading && !s.docs ? <span className="ag-muted">Reading…</span>
+                    : s.error || !s.total ? <span className="ag-muted">{s.error ? 'Open to ask' : 'No documents yet'}</span>
+                        : <span className="ag-badge is-pos">{s.readable.length} searchable</span>}
+        </AgentCard>
     );
 }
 

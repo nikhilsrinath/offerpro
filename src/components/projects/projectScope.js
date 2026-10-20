@@ -13,6 +13,7 @@ import { netOfTax } from '../../services/financeAnalytics';
 import { orgStore } from '../../services/orgStore';
 import { linkDocument } from '../../services/projectService';
 import { projectSectionPath, projectBillingFormPath } from './projectPaths';
+import { findProject } from './projectSlug';
 
 const n = (v) => Number(v) || 0;
 const round2 = (v) => Math.round(v * 100) / 100;
@@ -138,10 +139,12 @@ export function useFormProject(kind, fallbackPath) {
     const location = useLocation();
     const [params] = useSearchParams();
     const inProject = useParams().projectId;
-    const projectId = inProject || location.state?.projectId || params.get('project') || null;
+    const ref = inProject || location.state?.projectId || params.get('project') || null;
     const projects = useSection('projects');
     const customers = useSection('customers');
-    const project = projectId ? projects.find((p) => p.id === projectId) || null : null;
+    // The route names the project by its name; state and ?project= by its id.
+    const project = findProject(ref, projects);
+    const projectId = project?.id || null;
     const client = project?.client_id ? customers.find((c) => c.id === project.client_id) || null : null;
     const toDocuments = kind === 'record' || params.get('from') === 'documents';
     return {

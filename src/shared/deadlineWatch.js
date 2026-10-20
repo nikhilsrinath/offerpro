@@ -1,4 +1,5 @@
 import { isIsoDate, formatDate, formatDateShort } from './dates.js';
+import { currencyLocale, recordCurrency } from './currency.js';
 
 /**
  * Compliance and Deadline Agent: the rules, and nothing else.
@@ -227,11 +228,12 @@ export function countFindings(findings) {
 }
 function blank() { return { total: 0, overdue: 0, today: 0, soon: 0 }; }
 
-export function formatMoney(v, currency = 'INR') {
+export function formatMoney(v, currency) {
+  const c = recordCurrency(currency);
   try {
-    return Number(v).toLocaleString('en-IN', { style: 'currency', currency, maximumFractionDigits: 0 });
+    return Number(v).toLocaleString(currencyLocale(c), { style: 'currency', currency: c, maximumFractionDigits: 0 });
   } catch {
-    return `${currency} ${Math.round(Number(v)).toLocaleString('en-IN')}`;
+    return `${c} ${Math.round(Number(v)).toLocaleString(currencyLocale(c))}`;
   }
 }
 

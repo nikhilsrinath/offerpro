@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fakeDb, fakeCtx } from './agent/testing/fakeDb.js';
+import { fakeAdmin } from './agent/testing/fakeAdmin.js';
 
 /*
  * /api/agents for Business Intelligence (kept under api/_lib: Vercel would
@@ -37,6 +38,29 @@ vi.mock('./agent/context.js', async () => {
   };
 });
 
+// The service role: memberships for the role checks, the agent tables for the switch.
+let adminDb = null;
+let role = 'owner';
+const freshAdmin = ({ settingsTable = true } = {}) => {
+  const seed = {
+    memberships: [{ id: 'm1', org_id: 'org-1', user_id: 'u-1', role }],
+    organizations: [{ id: 'org-1', company_name: 'Test Co' }],
+    agent_runs: [], agent_alerts: [], notifications: [],
+  };
+  if (settingsTable) seed.agent_settings = [{ org_id: 'org-1', agent: 'deal_intelligence', config: { stale_days: 21, daily: false } }];
+  const db = fakeDb(seed);
+  adminDb = fakeAdmin(db);
+  if (!settingsTable) {
+    // 0089 not applied: every agent_settings query fails as PostgREST does.
+    const from = adminDb.from;
+    adminDb.from = (t) => (t === 'agent_settings'
+      ? new Proxy({}, { get: (_, k) => (k === 'then' ? (res) => res({ data: null, error: { code: 'PGRST205', message: 'Could not find the table public.agent_settings' } }) : () => adminDb.from(t)) })
+      : from(t));
+  }
+  return db;
+};
+vi.mock('./supabaseAdmin.js', () => ({ supabaseAdmin: () => adminDb }));
+
 const { default: handler } = await import('../agents.js');
 
 function call(body) {
@@ -47,7 +71,15 @@ function call(body) {
   return handler({ method: 'POST', headers: { authorization: 'Bearer t' }, body }, res).then(() => res);
 }
 
-beforeEach(() => { membership = 'member'; lastCtx = null; perms = { financial_documents: ALL }; });
+function cron(query) {
+  const res = { code: 0, body: null, headers: {} };
+  res.status = (c) => { res.code = c; return res; };
+  res.json = (b) => { res.body = b; return res; };
+  res.setHeader = (k, v) => { res.headers[k] = v; };
+  return handler({ method: 'GET', url: `/api/agents${query}`, query: Object.fromEntries(new URLSearchParams(query.slice(1))), headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } }, res).then(() => res);
+}
+
+beforeEach(() => { membership = 'member'; lastCtx = null; perms = { financial_documents: ALL }; role = 'owner'; freshAdmin(); });
 
 describe('POST /api/agents business_intelligence', () => {
   it('returns the snapshot over what the caller may see', async () => {
@@ -67,9 +99,13 @@ describe('POST /api/agents business_intelligence', () => {
     expect(lastCtx).toBeNull();
   });
 
-  it('only the snapshot mode exists for this agent', async () => {
-    const res = await call({ org_id: 'org-1', agent: 'business_intelligence', mode: 'run' });
-    expect(res.code).toBe(400);
+  it('settings and run are owner/admin only; an unknown mode is refused', async () => {
+    role = 'member';
+    const db = freshAdmin();
+    expect((await call({ org_id: 'org-1', agent: 'business_intelligence', mode: 'run' })).code).toBe(403);
+    expect((await call({ org_id: 'org-1', agent: 'business_intelligence', mode: 'settings', config: { daily: true } })).code).toBe(403);
+    expect(db.tables.agent_settings.some((r) => r.agent === 'business_intelligence')).toBe(false);
+    expect((await call({ org_id: 'org-1', agent: 'business_intelligence', mode: 'explode' })).code).toBe(400);
   });
 
   it('an unknown period falls back to this month instead of reading everything', async () => {
@@ -112,10 +148,92 @@ describe('POST /api/agents deal_intelligence', () => {
     expect(lastCtx).toBeNull();
   });
 
-  it('only the snapshot mode exists, and an unknown period falls back to this month', async () => {
+  it('an unknown mode is refused, and an unknown period falls back to this month', async () => {
     perms = { clients: ALL };
-    expect((await call({ org_id: 'org-1', agent: 'deal_intelligence', mode: 'run' })).code).toBe(400);
+    expect((await call({ org_id: 'org-1', agent: 'deal_intelligence', mode: 'explode' })).code).toBe(400);
     const res = await call({ org_id: 'org-1', agent: 'deal_intelligence', mode: 'snapshot', period: 'all_time' });
     expect(res.body.period.id).toBe('this_month');
+  });
+
+  it('the page uses the saved settings', async () => {
+    perms = { clients: ALL, financial_documents: ALL };
+    const res = await call({ org_id: 'org-1', agent: 'deal_intelligence', mode: 'snapshot' });
+    expect(res.body.config.stale_days).toBe(21);
+    expect(res.body.settings).toMatchObject({ stale_days: 21, daily: false, notify_min: 'high' });
+  });
+
+  it('deal settings and run are admin only', async () => {
+    role = 'member';
+    const db = freshAdmin();
+    expect((await call({ org_id: 'org-1', agent: 'deal_intelligence', mode: 'settings', config: { daily: true } })).code).toBe(403);
+    expect((await call({ org_id: 'org-1', agent: 'deal_intelligence', mode: 'run' })).code).toBe(403);
+    expect(db.tables.agent_settings[0].config.daily).toBe(false);
+    role = 'admin';
+    const db2 = freshAdmin();
+    const saved = await call({ org_id: 'org-1', agent: 'deal_intelligence', mode: 'settings', config: { daily: true, quote_wait_days: 10 } });
+    expect(saved.body.settings).toMatchObject({ daily: true, quote_wait_days: 10 });
+    expect(db2.tables.agent_settings[0].config).toMatchObject({ daily: true, quote_wait_days: 10 });
+  });
+});
+
+describe('POST /api/agents automation', () => {
+  it('status lists all five with their daily state', async () => {
+    role = 'member';
+    freshAdmin();
+    const res = await call({ org_id: 'org-1', agent: 'automation', mode: 'status' });
+    expect(res.code).toBe(200);
+    expect(res.body.can_manage).toBe(false);
+    expect(res.body.unavailable).toBe(false);
+    expect(Object.keys(res.body.agents).sort()).toEqual(['business_intelligence', 'deadline_watch', 'deal_intelligence', 'internal_knowledge', 'operations_monitor']);
+    expect(res.body.agents.deal_intelligence.daily).toBe(false);
+    expect(res.body.agents.internal_knowledge).toEqual({ daily: false, coming_soon: true });
+    expect(res.body.agents.business_intelligence).toMatchObject({ weekly_summary: true, summary_day: 1 });
+  });
+
+  it('status reports unavailable when agent_settings is missing', async () => {
+    freshAdmin({ settingsTable: false });
+    const res = await call({ org_id: 'org-1', agent: 'automation', mode: 'status' });
+    expect(res.body.unavailable).toBe(true);
+    const set = await call({ org_id: 'org-1', agent: 'automation', mode: 'set', target: 'deal_intelligence', daily: true });
+    expect(set.code).toBe(409);
+  });
+
+  it('a member cannot set', async () => {
+    role = 'member';
+    const db = freshAdmin();
+    const res = await call({ org_id: 'org-1', agent: 'automation', mode: 'set', target: 'deal_intelligence', daily: true });
+    expect(res.code).toBe(403);
+    expect(db.tables.agent_settings[0].config.daily).toBe(false);
+  });
+
+  it('set keeps the agent\'s other settings', async () => {
+    const db = freshAdmin();
+    const res = await call({ org_id: 'org-1', agent: 'automation', mode: 'set', target: 'deal_intelligence', daily: true });
+    expect(res.code).toBe(200);
+    expect(res.body.agents.deal_intelligence.daily).toBe(true);
+    expect(db.tables.agent_settings[0].config).toMatchObject({ daily: true, stale_days: 21 });
+    // A new agent's row is created with its defaults.
+    await call({ org_id: 'org-1', agent: 'automation', mode: 'set', target: 'business_intelligence', daily: true });
+    expect(db.tables.agent_settings.find((r) => r.agent === 'business_intelligence').config).toMatchObject({ daily: true, weekly_summary: true });
+  });
+
+  it('refuses the agent that has no automatic mode, and a non-boolean', async () => {
+    expect((await call({ org_id: 'org-1', agent: 'automation', mode: 'set', target: 'internal_knowledge', daily: true })).code).toBe(400);
+    expect((await call({ org_id: 'org-1', agent: 'automation', mode: 'set', target: 'deal_intelligence', daily: 'yes' })).code).toBe(400);
+  });
+});
+
+describe('GET /api/agents (cron)', () => {
+  it('runs only the named agent', async () => {
+    process.env.CRON_SECRET = 'a-long-enough-cron-secret';
+    const db = freshAdmin();
+    db.tables.agent_settings.push({ org_id: 'org-1', agent: 'operations_monitor', config: { daily: true } });
+    db.tables.agent_settings[0].config.daily = true;
+    db.tables.clients = [];
+    const res = await cron('?agent=deal_intelligence');
+    expect(res.code).toBe(200);
+    expect(res.body).toMatchObject({ success: true, agent: 'deal_intelligence', orgs: 1 });
+    expect(db.tables.agent_runs.map((r) => r.agent)).toEqual(['deal_intelligence']);
+    expect((await cron('?agent=finance_bot')).code).toBe(400);
   });
 });

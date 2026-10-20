@@ -6,12 +6,12 @@ import { useAuth } from '../../context/AuthContext';
 import { useSection } from '../financial/financeHooks';
 import ProjectBadge from '../projects/ProjectBadge';
 import TaskModal from './TaskModal';
-import { Star } from 'lucide-react';
+import { Star, GripVertical, ArrowRight, Check, RotateCcw, CalendarDays } from 'lucide-react';
 import {
     Page, Toolbar, Panel, Row, Btn, Seg, Search, Select, Table, Tr, Td,
-    Avatar, Status, Bar, Breakdown, Empty, Muted,
+    Avatar, Status, Breakdown, Empty, Muted,
 } from '../ui/edge';
-import { useT, MONO } from '../ui/edgeUtils';
+import { useT } from '../ui/edgeUtils';
 import { initialQuery } from '../../services/urlQuery';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -21,8 +21,9 @@ import { initialQuery } from '../../services/urlQuery';
    per state, because a board's value is seeing the shape of the work. List is
    for when you want to sort by deadline or scan one person's load.
 
-   Status is changed from the card itself, so moving a task from pending to
-   done is one click rather than open-edit-save. Priority is a word, not a
+   Status is changed from the card itself: drag it to another column, or use
+   its move button (the keyboard way), so moving a task from pending to done
+   never needs open-edit-save. Priority is a word, not a
    coloured chip, and only High and Overdue are allowed to use colour, if
    everything is highlighted, nothing is.
 
@@ -166,13 +167,24 @@ export default function TasksPage({ projectId = null, embedded = false }) {
     }, [scoped, byId]);
 
     const move = async (task, next) => {
+        if (!task || task.status === next) return;
+        // The card lands in its new column at once; the store confirms it.
+        setTasks((all) => all.map((x) => (x.id === task.id ? { ...x, status: next } : x)));
         try {
             await taskStore.update(task.id, { status: next });
-            reload();
         } catch {
             /* the store repaints on its own change event */
         }
+        reload();
     };
+
+    // Drag and drop between board columns: which card is held, which column it is over.
+    const [drag, setDrag] = useState(null);
+    const [dropCol, setDropCol] = useState(null);
+    const endDrag = () => { setDrag(null); setDropCol(null); };
+
+    // Each column's colour: grey waiting, blue moving, green finished.
+    const colTone = (id) => (id === 'done' ? t.up : id === 'in-progress' ? t.accent : t.faint);
 
     const openCreate = () => { setEditing(null); setShowModal(true); };
     const openEdit = (task) => { setEditing(task); setShowModal(true); };
@@ -189,58 +201,86 @@ export default function TasksPage({ projectId = null, embedded = false }) {
         setShowModal(true);
     }, [linkedTask, openedLink, tasks]);
 
-    const Card = ({ task }) => {
+    // A plain render function, not a component: a component declared in here
+    // would remount on every render and the browser would drop a drag mid-way.
+    const renderCard = (task) => {
         const dl = deadlineOf(task.deadline);
-        const over = isOverdue(task);
+        const late = isOverdue(task);
         const person = byId[task.assignedTo];
-        const next = task.status === 'pending' ? 'in-progress' : task.status === 'in-progress' ? 'done' : null;
+        const name = empName(person);
+        const done = task.status === 'done';
+        const next = task.status === 'pending' ? 'in-progress' : task.status === 'in-progress' ? 'done' : 'pending';
+        const nextLabel = next === 'in-progress' ? 'Start' : next === 'done' ? 'Mark Done' : 'Reopen';
+        const NextIcon = next === 'in-progress' ? ArrowRight : next === 'done' ? Check : RotateCcw;
+        const accent = late ? t.down : task.priority === 'high' ? (t.isDark ? '#e0a020' : '#c27c00') : null;
+        const dateColor = late || dl?.tone === 'down' ? t.down : dl?.tone === 'neutral' ? t.dim : t.faint;
         return (
-            <div style={{
-                border: '1px solid ' + (over ? t.lineStrong : t.line),
-                borderLeft: '2px solid ' + (over ? t.down : task.priority === 'high' ? t.dim : t.line),
-                borderRadius: 9, padding: 11, background: t.panel,
-                opacity: task.status === 'done' ? 0.62 : 1,
-            }}>
-                <button type="button" onClick={() => openEdit(task)} className="edge-tr" style={{
-                    display: 'flex', gap: 6, alignItems: 'flex-start', width: '100%', textAlign: 'left', padding: 0, marginBottom: 9,
-                    background: 'transparent', border: 'none', cursor: 'pointer',
-                    fontFamily: MONO, fontSize: 13, color: t.text, lineHeight: 1.5,
+            <div key={task.id} draggable
+                onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', task.id);
+                    setDrag(task.id);
+                }}
+                onDragEnd={endDrag}
+                className={'kb-card' + (drag === task.id ? ' is-dragging' : '')}
+                style={{
+                    '--kb-hover': t.lineStrong,
+                    position: 'relative', border: '1px solid ' + t.line, borderRadius: 10,
+                    padding: '8px 9px 8px 10px', background: t.card, cursor: 'grab',
+                    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.05)', overflow: 'hidden',
                 }}>
-                    <span style={{ flex: 1, minWidth: 0 }}>{task.title}</span>
-                    {task.important && <Important t={t} />}
-                </button>
+                {accent && (
+                    <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 8, bottom: 8, width: 3, borderRadius: '0 3px 3px 0', background: accent }} />
+                )}
+                <div style={{ display: 'flex', gap: 4, alignItems: 'flex-start' }}>
+                    <button type="button" onClick={() => openEdit(task)} title="Open task" style={{
+                        flex: 1, minWidth: 0, display: 'flex', gap: 5, alignItems: 'flex-start', textAlign: 'left', padding: 0,
+                        background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                        fontSize: 12.5, fontWeight: 500, color: t.text, lineHeight: 1.4,
+                        textDecoration: done ? 'line-through' : 'none', textDecorationColor: t.ghost,
+                    }}>
+                        <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere', color: done ? t.faint : t.text }}>{task.title}</span>
+                        {task.important && <Important t={t} />}
+                    </button>
+                    <GripVertical className="kb-grip" size={14} aria-hidden="true" style={{ color: t.ghost, flexShrink: 0, marginTop: 1 }} />
+                </div>
 
                 {!projectId && task.projectId && (
-                    <div style={{ fontSize: 11.5, marginBottom: 7 }}><ProjectBadge project={projectById[task.projectId]} /></div>
+                    <div style={{ fontSize: 11, marginTop: 5 }}><ProjectBadge project={projectById[task.projectId]} /></div>
                 )}
 
                 {task.description && (
                     <p style={{
-                        margin: '0 0 9px', fontSize: 11.5, color: t.faint, lineHeight: 1.6,
-                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                        margin: '4px 0 0', fontSize: 11, color: t.faint, lineHeight: 1.45,
+                        display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden',
                     }}>{task.description}</p>
                 )}
 
-                <Row gap={8} style={{ marginBottom: 9 }}>
-                    <Avatar name={empName(person) || '?'} size={20} />
-                    <span style={{
-                        flex: 1, minWidth: 0, fontSize: 11.5, color: t.faint,
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    }}>{empName(person) || 'Unassigned'}</span>
-                    {task.priority === 'high' && (
-                        <span style={{ fontSize: 10.5, letterSpacing: '0.06em', color: t.dim }}>HIGH</span>
-                    )}
-                </Row>
-
-                <Row gap={8} style={{ paddingTop: 9, borderTop: '1px solid ' + t.lineSoft }}>
-                    <span style={{ flex: 1, minWidth: 0 }}>
-                        {dl && <Status tone={over ? 'down' : dl.tone}>{dl.text}</Status>}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 8 }}>
+                    <span title={name || 'Unassigned'} style={{ display: 'inline-flex', opacity: name ? 1 : 0.55 }}>
+                        <Avatar name={name || '?'} size={18} />
                     </span>
-                    {next && <Btn size="sm" onClick={() => move(task, next)}>
-                        {next === 'done' ? 'Done' : 'Start'}
-                    </Btn>}
-                    {task.status === 'done' && <Btn size="sm" onClick={() => move(task, 'pending')}>Reopen</Btn>}
-                </Row>
+                    <span style={{
+                        flex: 1, minWidth: 0, fontSize: 11, color: name ? t.dim : t.ghost,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>{name || 'Unassigned'}</span>
+                    {task.priority === 'high' && !late && (
+                        <span style={{ fontSize: 10.5, fontWeight: 600, color: accent }}>High</span>
+                    )}
+                    {dl && !done && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 500, color: dateColor, whiteSpace: 'nowrap' }}>
+                            <CalendarDays size={11} aria-hidden="true" />{dl.text}
+                        </span>
+                    )}
+                    <button type="button" className="kb-move" onClick={() => move(task, next)}
+                        aria-label={`${nextLabel}: ${task.title}`} title={nextLabel} style={{
+                            width: 22, height: 22, flexShrink: 0, display: 'grid', placeItems: 'center', padding: 0,
+                            borderRadius: 6, cursor: 'pointer', color: next === 'done' ? t.up : t.dim,
+                            background: t.panelAlt, border: '1px solid ' + t.line,
+                        }}>
+                        <NextIcon size={12} aria-hidden="true" />
+                    </button>
+                </div>
             </div>
         );
     };
@@ -298,23 +338,27 @@ export default function TasksPage({ projectId = null, embedded = false }) {
             {/* Progress, not four counters: how much of the work is finished. */}
             {stats.total > 0 && (
                 <div style={{
-                    border: '1px solid ' + t.line, borderRadius: 10,
-                    padding: '13px 15px', marginBottom: 14,
+                    display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
+                    border: '1px solid ' + t.line, borderRadius: 12, background: t.card,
+                    padding: '9px 14px', marginBottom: 12,
                 }}>
-                    <Row gap={14} wrap style={{ marginBottom: 10 }}>
-                        <span style={{ fontSize: 19.5, fontWeight: 500, letterSpacing: '-0.03em' }}>
+                    <Row gap={8}>
+                        <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.02em' }}>
                             {Math.round((stats.done / stats.total) * 100)}%
                         </span>
-                        <span style={{ fontSize: 11.5, letterSpacing: '0.09em', color: t.faint, alignSelf: 'center' }}>
-                            DONE: {stats.done} of {stats.total}
-                        </span>
-                        <div style={{ flex: 1 }} />
-                        {stats.overdue > 0 && (
-                            <Status tone="down">{stats.overdue} overdue</Status>
-                        )}
-                        <Muted>{stats.progress} in progress · {stats.pending} not started</Muted>
+                        <Muted>Done · {stats.done} of {stats.total}</Muted>
                     </Row>
-                    <Bar value={stats.done} max={stats.total} height={5} />
+                    {/* One bar, three shares: done, in progress, not started. */}
+                    <div role="img" aria-label={`${stats.done} done, ${stats.progress} in progress, ${stats.pending} not started`} style={{
+                        flex: '1 1 160px', display: 'flex', gap: 2, height: 6, borderRadius: 99, overflow: 'hidden', background: t.panelAlt,
+                    }}>
+                        {COLUMNS.slice().reverse().map((c) => {
+                            const n = c.id === 'done' ? stats.done : c.id === 'in-progress' ? stats.progress : stats.pending;
+                            return n > 0 && <span key={c.id} style={{ flex: n, background: colTone(c.id), opacity: c.id === 'pending' ? 0.35 : 1 }} />;
+                        })}
+                    </div>
+                    {stats.overdue > 0 && <Status tone="down">{stats.overdue} overdue</Status>}
+                    <Muted>{stats.progress} in progress · {stats.pending} not started</Muted>
                 </div>
             )}
 
@@ -325,25 +369,53 @@ export default function TasksPage({ projectId = null, embedded = false }) {
                     </Empty>
                 </Panel>
             ) : view === 'board' ? (
-                <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', alignItems: 'start' }}>
+                <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', alignItems: 'start' }}>
                     {COLUMNS.map((col) => {
                         const items = filtered.filter((x) => x.status === col.id);
+                        const tone = colTone(col.id);
+                        const held = drag ? tasks.find((x) => x.id === drag) : null;
+                        const target = !!held && held.status !== col.id;
+                        const hot = target && dropCol === col.id;
                         return (
-                            <section key={col.id} style={{
-                                border: '1px solid ' + t.line, borderRadius: 10,
-                                background: t.panel, minWidth: 0,
-                            }}>
-                                <header style={{
-                                    display: 'flex', alignItems: 'center', gap: 8,
-                                    padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft,
+                            <section key={col.id} aria-label={`${col.label}, ${items.length} tasks`} className="kb-col"
+                                onDragOver={(e) => { if (!target) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dropCol !== col.id) setDropCol(col.id); }}
+                                onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDropCol((o) => (o === col.id ? null : o)); }}
+                                onDrop={(e) => {
+                                    e.preventDefault();
+                                    const id = e.dataTransfer.getData('text/plain') || drag;
+                                    move(tasks.find((x) => x.id === id), col.id);
+                                    endDrag();
+                                }}
+                                style={{
+                                    border: '1px ' + (target ? 'dashed ' : 'solid ') + (hot ? tone : t.line), borderRadius: 12, minWidth: 0,
+                                    background: hot ? `color-mix(in srgb, ${tone} 7%, ${t.panelAlt})` : t.panelAlt,
+                                    overflow: 'hidden',
                                 }}>
-                                    <span style={{ fontSize: 13, color: t.text, flex: 1 }}>{col.label}</span>
-                                    <span style={{ fontSize: 11.5, color: t.ghost }}>{items.length}</span>
+                                <header style={{
+                                    display: 'flex', alignItems: 'center', gap: 7, padding: '8px 11px',
+                                    borderTop: '2px solid ' + tone,
+                                }}>
+                                    <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', background: tone, flexShrink: 0 }} />
+                                    <span style={{ fontSize: 12.5, fontWeight: 600, color: t.text, flex: 1 }}>{col.label}</span>
+                                    <span style={{
+                                        fontSize: 11, fontWeight: 600, color: t.dim, minWidth: 20, height: 18, padding: '0 6px',
+                                        boxSizing: 'border-box', display: 'grid', placeItems: 'center', borderRadius: 99,
+                                        background: t.card, border: '1px solid ' + t.line,
+                                    }}>{items.length}</span>
                                 </header>
-                                <div style={{ display: 'grid', gap: 8, padding: 10 }}>
-                                    {items.length === 0
-                                        ? <div style={{ padding: '20px 6px', textAlign: 'center', fontSize: 11.5, color: t.ghost }}>Nothing here</div>
-                                        : items.map((task) => <Card key={task.id} task={task} />)}
+                                <div className="kb-col-body" style={{
+                                    display: 'grid', gap: 6, padding: '2px 8px 8px', alignContent: 'start',
+                                    maxHeight: 'calc(100vh - 290px)', minHeight: 64, overflowY: 'auto',
+                                }}>
+                                    {items.map(renderCard)}
+                                    {(items.length === 0 || target) && (
+                                        <div style={{
+                                            padding: target ? '12px 6px' : '18px 6px', textAlign: 'center', fontSize: 11, borderRadius: 9,
+                                            color: hot ? tone : t.ghost, border: target ? '1px dashed ' + (hot ? tone : t.line) : 'none',
+                                        }}>
+                                            {target ? `Drop to move to ${col.label}` : 'Nothing here'}
+                                        </div>
+                                    )}
                                 </div>
                             </section>
                         );

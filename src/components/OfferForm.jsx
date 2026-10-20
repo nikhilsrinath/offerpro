@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLeaveGuard } from '../hooks/useLeaveGuard';
-import { Upload, CheckCircle, ChevronRight, Eye, Send, Loader, ExternalLink, Copy, X } from 'lucide-react';
+import { Upload, CheckCircle, ChevronRight, Eye, Send, Loader, ExternalLink, Copy, X, Trash2 } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
@@ -12,8 +12,9 @@ import { usePlanStatus } from '../hooks/usePlanStatus';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 import { createPortalLink } from '../services/portalService';
 import OfferPreview from './OfferPreview';
-import ImageAdjust from './shared/ImageAdjust';
 import A4Stage from './shared/A4Stage';
+import { EditProvider, EditBar } from './shared/Editable';
+import { baseCurrency } from '../shared/currency.js';
 
 function getDisplayName(emp) {
   if (emp.studentName) return emp.studentName;
@@ -77,7 +78,7 @@ export default function OfferForm() {
     acceptanceDeadline: '',
     isPaid: false,
     stipend: '',
-    currency: 'INR',
+    currency: baseCurrency(),
     paymentFrequency: 'Monthly'
   });
 
@@ -88,6 +89,10 @@ export default function OfferForm() {
   const [portalUrl, setPortalUrl] = useState('');
   const [portalLinkLoading, setPortalLinkLoading] = useState(false);
   const [portalCopied, setPortalCopied] = useState(false);
+
+  // What is picked on the preview to move or resize ({ field, label, zoom }).
+  const [selected, setSelected] = useState(null);
+  const place = (field, value) => { setFormData((prev) => ({ ...prev, [field]: value })); leave.markDirty(); };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -103,7 +108,7 @@ export default function OfferForm() {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => setFormData(prev => ({ ...prev, companyLogo: reader.result }));
+      reader.onloadend = () => setFormData(prev => ({ ...prev, companyLogo: reader.result, logoAdjust: null }));
       reader.readAsDataURL(file);
     }
   };
@@ -112,7 +117,7 @@ export default function OfferForm() {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => setFormData(prev => ({ ...prev, signature: reader.result }));
+      reader.onloadend = () => setFormData(prev => ({ ...prev, signature: reader.result, signatureAdjust: null }));
       reader.readAsDataURL(file);
     }
   };
@@ -174,7 +179,7 @@ export default function OfferForm() {
         start_date: formData.startDate || '',
         end_date: formData.endDate || '',
         salary: formData.isPaid ? formData.stipend : null,
-        currency: formData.currency || 'INR',
+        currency: formData.currency || baseCurrency(),
         payment_frequency: formData.paymentFrequency || 'Monthly',
         is_paid: formData.isPaid,
         responsibilities: formData.responsibilities || '',
@@ -245,6 +250,7 @@ export default function OfferForm() {
   };
 
   return (
+    <EditProvider selected={selected} onSelect={setSelected} onChange={place}>
     <div className="mou-split-layout">
 
       {/* LEFT: Form */}
@@ -343,7 +349,12 @@ export default function OfferForm() {
                   </div>
                 </div>
                 {formData.companyLogo && (
-                  <ImageAdjust label="Logo" value={formData.logoAdjust} onChange={(v) => setFormData((prev) => ({ ...prev, logoAdjust: v }))} />
+                  <div className="cert-img-actions">
+                    <button type="button" className="cert-btn danger" onClick={() => { setFormData((prev) => ({ ...prev, companyLogo: null, logoAdjust: null })); setSelected(null); }} aria-label="Remove logo">
+                      <Trash2 size={13} aria-hidden="true" /> Remove
+                    </button>
+                    <span className="cert-hint">Tap it on the preview to move or resize it.</span>
+                  </div>
                 )}
               </div>
               <div className="easy-field">
@@ -355,9 +366,6 @@ export default function OfferForm() {
                   </div>
                 </div>
                 {formData.signature && <img src={formData.signature} alt="Signature" style={{ height: '28px', marginTop: '0.25rem' }} />}
-                {formData.signature && (
-                  <ImageAdjust label="Signature" value={formData.signatureAdjust} onChange={(v) => setFormData((prev) => ({ ...prev, signatureAdjust: v }))} />
-                )}
               </div>
               <div className="easy-field full">
                 <button
@@ -369,9 +377,6 @@ export default function OfferForm() {
                   <span className="easy-switch-label">Include company stamp</span>
                   <span className="easy-switch-dot" aria-hidden="true" />
                 </button>
-                {formData.showStamp && (
-                  <ImageAdjust label="Round Seal" value={formData.stampAdjust} onChange={(v) => setFormData((prev) => ({ ...prev, stampAdjust: v }))} />
-                )}
               </div>
             </div>
           </div>
@@ -589,11 +594,22 @@ export default function OfferForm() {
             <Eye size={14} /> Open PDF
           </button>
         </div>
-        <A4Stage>
-          <OfferPreview formData={formData} />
-        </A4Stage>
+        <div className="edit-bar-row">
+          <EditBar
+            selected={selected} value={selected && formData[selected.field]}
+            onChange={(v) => place(selected.field, v)} onDone={() => setSelected(null)}
+            hint="Tap the logo, the signature or the stamp on the page to move or resize it"
+          />
+        </div>
+        {/* A tap anywhere on the paper but an item lets go of the selection. */}
+        <div className="edit-stage" onPointerDown={() => setSelected(null)}>
+          <A4Stage>
+            <OfferPreview formData={formData} />
+          </A4Stage>
+        </div>
       </div>
 
     </div>
+    </EditProvider>
   );
 }

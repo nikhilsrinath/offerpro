@@ -2,6 +2,7 @@ import { supabaseAdmin } from './_lib/supabaseAdmin.js';
 import { sendError, readJsonBody, HttpError } from './_lib/auth.js';
 import { verifyToken } from './_lib/portalToken.js';
 import { recordFromRow, financialDocFromRow } from './_lib/docShape.js';
+import { currencySymbol, currencyLocale, setBaseCurrency } from '../src/shared/currency.js';
 
 /**
  * The recipient portal's only door into the database.
@@ -85,15 +86,15 @@ async function loadDocument(grant) {
 async function loadCompany(orgId, document, table) {
   const admin = supabaseAdmin();
 
-  const { data: org, error } = await admin
-    .from('organizations')
-    .select('company_name, company_tagline, company_email, company_phone, company_address, company_website, owner_full_name, document_designation, logo_path, signature_path, stamp_path')
-    .eq('id', orgId)
-    .is('deleted_at', null)
-    .maybeSingle();
+  const COLUMNS = 'company_name, company_tagline, company_email, company_phone, company_address, company_website, owner_full_name, document_designation, logo_path, signature_path, stamp_path';
+  const read = (cols) => admin.from('organizations').select(cols).eq('id', orgId).is('deleted_at', null).maybeSingle();
+  // currency arrives with 0091; a database without it still serves the page, in INR.
+  let { data: org, error } = await read(`${COLUMNS}, currency`);
+  if (error && /currency/.test(error.message || '')) ({ data: org, error } = await read(COLUMNS));
 
   if (error) throw new HttpError(500, error.message);
   if (!org) throw new HttpError(404, 'Organization not found');
+  setBaseCurrency(org.currency);
 
   const company = {
     company_name: org.company_name || '',
@@ -105,6 +106,7 @@ async function loadCompany(orgId, document, table) {
     company_phone: org.company_phone || '',
     phone: org.company_phone || '',
     company_website: org.company_website || '',
+    currency: org.currency || 'INR',
     authorized_person: org.owner_full_name || '',
     authorized_designation: org.document_designation || '',
     logo_url: publicUrl(org.logo_path),
@@ -634,7 +636,7 @@ function labelFor(type) {
 
 function formatAmount(payment) {
   const amount = Number(payment?.amountPaid) || 0;
-  return `₹${amount.toLocaleString('en-IN')}`;
+  return `${currencySymbol()}${amount.toLocaleString(currencyLocale())}`;
 }
 
 async function notify(grant, action, document, signerName, payload) {

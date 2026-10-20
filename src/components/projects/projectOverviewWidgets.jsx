@@ -15,6 +15,7 @@ import { Card, Tile, Figure, FigureRow, SubLabel, More, TileRow, CardGrid, ListR
 import { useWidgetLayout } from '../hub/useWidgetLayout';
 import { describeActivity } from './activityText';
 import { projectSectionPath } from './projectPaths';
+import { projectRef } from './projectSlug';
 
 /* ══════════════════════════════════════════════════════════════════════════
    A project's Overview: the page a project opens on. It is built from the
@@ -323,7 +324,7 @@ export default function ProjectOverviewWidgets({ tabs, ctx }) {
     const { board, navigate, t, cols, tileCols } = ctx;
     // A link names a project section, or one of the dashboard's own pages.
     const go = (to) => (to.startsWith('dashboard:')
-        ? navigate(`/projects/${board.project.id}/dashboard/${to.slice(10)}`)
+        ? navigate(`/projects/${projectRef(board.project.id)}/dashboard/${to.slice(10)}`)
         : ctx.open(to));
     const offered = (w) => !w.fin || board.fin;
     const shown = layout.map((l) => ({ ...BY_ID.get(l.id), size: l.size })).filter(offered);

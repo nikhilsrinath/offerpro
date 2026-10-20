@@ -17,6 +17,7 @@ import ClientProjectSelect, { ProjectScopeFilter } from './shared/ClientProjectS
 import { useClientProjects } from './shared/useClientProjects';
 import { OTHERS, initialProject, assignProject, filterByProject } from '../services/clientProjects';
 import { initialQuery } from '../services/urlQuery';
+import { currencySymbol, currencyLocale } from '../shared/currency.js';
 
 const EMPTY_CUSTOMER = {
   // clientName is the billing name. The company, or the person when the
@@ -37,7 +38,7 @@ const EMPTY_CUSTOMER = {
 const hasContact = (c) => !!c.person_name && c.person_name !== c.clientName;
 
 function fmt(n) {
-  return '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  return currencySymbol() + Number(n || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 const TYPE_CFG = {

@@ -25,6 +25,7 @@ import '../../theme/surface.css';
 import '../assistant/copilot.css';
 import { confirmDialog } from '../../services/confirm';
 import { titleCaseNode } from '../../utils/titleCase';
+import { projectRef } from '../projects/projectSlug';
 
 // Shared with the hub, so hiding the dock in one place hides it in both.
 const AI_KEY = 'edgeos.hub.ai.hidden';
@@ -617,12 +618,14 @@ function notifTarget(n) {
     if (n.type === 'quotation_accepted' && n.financial_doc_id) {
         return `/projects/new?fromQuotation=${n.financial_doc_id}`;
     }
-    if (n.project_id) return `/projects/${n.project_id}`;
+    if (n.project_id) return `/projects/${projectRef(n.project_id)}`;
     switch (n.type) {
         case 'deadline_watch':
             return '/ask?agent=deadline_watch';
         case 'operations_monitor':
-            return '/ask?agent=operations_monitor';
+        case 'deal_intelligence':
+        case 'business_intelligence':
+            return `/ask?agent=${n.type}`;
         case 'offer_signed':
         case 'role_change_acknowledged':
         case 'termination_acknowledged':

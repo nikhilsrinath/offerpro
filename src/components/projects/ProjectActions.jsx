@@ -11,6 +11,7 @@ import {
 } from '../../services/projectService';
 import { RowMenu } from './pm/pmUi';
 import ProjectForm from './ProjectForm';
+import { projectRef } from './projectSlug';
 
 /* The project's own controls: its status, and Edit / Duplicate / Archive /
    Delete under one Actions menu. Shown on the project's home and its
@@ -60,7 +61,7 @@ export default function ProjectActions({ project }) {
         editable && !closed && { label: 'Edit', onSelect: () => setEditing(true) },
         editable && { label: 'Duplicate', disabled: busy, onSelect: () => act(async () => {
             const { project: copy } = await duplicateProject(project.id);
-            navigate(`/projects/${copy.id}`);
+            navigate(`/projects/${projectRef(copy.id)}`);
         }, 'Duplicated') },
         editable && (project.archived_at
             ? { label: 'Unarchive', disabled: busy, onSelect: () => act(() => unarchiveProject(project.id), 'Restored') }

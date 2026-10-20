@@ -15,6 +15,8 @@ import {
   Page, Toolbar, Row, Panel, Btn, Seg, Search, Input, Dropdown, RowMenu, Table, Tr, Td, Status, Bar, Empty, Muted,
 } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
+import { isForeign } from './cashEntry';
+import { baseCurrency, currencyLocale, recordCurrency } from '../../shared/currency.js';
 import { pickerFor, canSeeFinancials } from '../../services/projectService';
 import { projectLabel } from '../../services/projectAnalytics';
 import { GENERAL, rowsFor, splitTotals, withParts } from '../../services/ledgerSplit';
@@ -32,7 +34,7 @@ const PRESETS = [
   { id: 'custom',  label: 'Custom' },
 ];
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 25;
 
 const VIEWS = [
   { id: 'all', label: 'Everything' },
@@ -183,7 +185,7 @@ export default function CashBook({ projectId = null, children }) {
         .some((f) => String(f || '').toLowerCase().includes(q)));
   }, [rows, range.from, range.to, view, groupFilter, search]);
 
-  // Six entries a page. The page belongs to the filters it was picked under,
+  // 25 entries a page. The page belongs to the filters it was picked under,
   // so changing any filter starts again at page one.
   const filterKey = [preset, from, to, view, groupFilter, where, search].join('|');
   const [pager, setPager] = useState({ key: filterKey, page: 1 });
@@ -215,7 +217,7 @@ export default function CashBook({ projectId = null, children }) {
       r.is_inter_state ? 'IGST' : 'CGST+SGST',
       r.place_of_supply || '',
       r.country_code || '',
-      r.currency || 'INR',
+      recordCurrency(r.currency),
       Number(r.original_amount ?? r.amount ?? 0).toFixed(2),
       Number(r.fx_rate || 1).toFixed(6),
       r.quantity == null ? '' : String(r.quantity),
@@ -228,7 +230,7 @@ export default function CashBook({ projectId = null, children }) {
     downloadCsv(
       `general-ledger-${range.from || 'start'}-to-${range.to || 'today'}.csv`,
       ['Date', 'Direction', 'Category', 'Treatment', 'Description', 'Party', 'Method', 'Reference',
-        'Amount (INR)', 'GST (INR)', 'GST rate %', 'GST kind', 'Place of supply', 'Country',
+        `Amount (${baseCurrency()})`, `GST (${baseCurrency()})`, 'GST rate %', 'GST kind', 'Place of supply', 'Country',
         'Currency', 'Original amount', 'FX rate', 'Quantity', 'Unit', 'Department', 'Billable', 'Product',
         ...(splitting ? ['Project'] : [])],
       body,
@@ -265,12 +267,16 @@ export default function CashBook({ projectId = null, children }) {
     })
     : children;
   const narrowable = !children || typeof children === 'function';
+  // A page with its own ledger (a project's, or the company-wide one on
+  // Finance) is laid out the same: three tiles over the ledger, no Record
+  // Money (that is on the Company Ledger) and no split by project.
+  const flat = !!scope || typeof children === 'function';
 
   return (
     <Page>
-      {/* A project's Record Money is on its Company Ledger page, not here. */}
-      <div className={scope ? 'gl-bento gl-bento-flat' : 'gl-bento'}>
-        {!scope && (
+      {/* Record Money is on the Company Ledger page, not here. */}
+      <div className={flat ? 'gl-bento gl-bento-flat' : 'gl-bento'}>
+        {!flat && (
           <RecordMoneyCard t={t} recent={recent} onRecord={record} style={{ gridArea: 'rec' }}
             onOpen={(r) => setEditing({ ...r, ...(r._full || {}), _share: undefined, _full: undefined, date: r.day })} />
         )}
@@ -361,7 +367,7 @@ export default function CashBook({ projectId = null, children }) {
             const meta = [
               ready ? categoryLabel(r.category) : r.category,
               Number(r.tax_amount) > 0 ? `${r.is_inter_state ? 'IGST' : 'GST'} ${money(r.tax_amount)}${Number(r.tax_rate) > 0 ? ` @ ${Number(r.tax_rate)}%` : ''}` : '',
-              r.currency && r.currency !== 'INR' ? `${r.currency} ${Number(r.original_amount).toLocaleString('en-IN')} @ ${Number(r.fx_rate)}` : '',
+              r.currency && isForeign(r.currency) ? `${r.currency} ${Number(r.original_amount).toLocaleString(currencyLocale(r.currency))} @ ${Number(r.fx_rate)}` : '',
               r.quantity ? `${Number(r.quantity).toLocaleString('en-IN')} ${r.unit || ''}`.trimEnd() : '',
               !isIn && r.department_id ? nameOf(departments, r.department_id) : '',
               !isIn && r.billable ? 're-billable' : '',
@@ -433,7 +439,7 @@ export default function CashBook({ projectId = null, children }) {
       </>)}
 
       {/* ── where it went, by project: also a filter ── */}
-      {splitting && byWhere.length > 0 && (
+      {splitting && !flat && byWhere.length > 0 && (
         <div style={{ marginTop: 16 }}>
           <Panel title="Where the money went" note={periodText}>
             <div style={{ display: 'grid' }}>

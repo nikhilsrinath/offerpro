@@ -1,3 +1,4 @@
+import { baseCurrency } from './currency.js';
 // finDocs.js: invoices, quotations and proformas as data, for both sides.
 //
 // The browser's orgStore and the agent's server-side executors write
@@ -175,7 +176,7 @@ export function finDocToRow(i, { signaturePath = null, today = null } = {}) {
     // deliberately blanking the field means.
     country_code: i.country_code === undefined ? undefined : nn(i.country_code),
     country_source: i.country_source === undefined ? undefined : nn(i.country_source),
-    currency: (i.currency || 'INR').slice(0, 3).toUpperCase(),
+    currency: (i.currency || baseCurrency()).slice(0, 3).toUpperCase(),
     // The forms speak camelCase and nest the discount; the columns are
     // snake_case and flat. These are not cosmetic aliases: the totals trigger
     // computes subtotal/gst/grand_total from discount_type, discount_value,

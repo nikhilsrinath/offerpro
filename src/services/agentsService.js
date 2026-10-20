@@ -34,6 +34,14 @@ export const agentsService = {
   opsSnapshot: (orgId) => call({ org_id: orgId, agent: 'operations_monitor', mode: 'snapshot' }),
   opsSaveSettings: (orgId, config) => call({ org_id: orgId, agent: 'operations_monitor', mode: 'settings', config }),
   opsRunNow: (orgId) => call({ org_id: orgId, agent: 'operations_monitor', mode: 'run' }),
+  dealSaveSettings: (orgId, config) => call({ org_id: orgId, agent: 'deal_intelligence', mode: 'settings', config }),
+  dealRunNow: (orgId) => call({ org_id: orgId, agent: 'deal_intelligence', mode: 'run' }),
+  bizSaveSettings: (orgId, config) => call({ org_id: orgId, agent: 'business_intelligence', mode: 'settings', config }),
+  /** The daily alerting pass now, or with `weekly` the week's summary now. */
+  bizRunNow: (orgId, { weekly = false } = {}) => call({ org_id: orgId, agent: 'business_intelligence', mode: 'run', weekly }),
+  /** Every agent's automatic on/off state, for the cards' switch. */
+  automation: (orgId) => call({ org_id: orgId, agent: 'automation', mode: 'status' }),
+  setAutomation: (orgId, target, daily) => call({ org_id: orgId, agent: 'automation', mode: 'set', target, daily }),
 };
 
 export default agentsService;

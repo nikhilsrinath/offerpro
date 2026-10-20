@@ -26,6 +26,7 @@
  */
 import { supabaseAdmin } from './supabaseAdmin.js';
 import { HttpError } from './auth.js';
+import { currencySymbol, currencyLocale } from '../../src/shared/currency.js';
 
 /** Nodes whose `resource` is null are org-level and visible to any member. */
 function resourceFilter(query, allowed) {
@@ -397,7 +398,7 @@ const HEADLINES = [
 function inr(v) {
   const n = Number(v);
   if (!Number.isFinite(n)) return String(v ?? '');
-  return `${n < 0 ? '−' : ''}₹${Math.abs(n).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+  return `${n < 0 ? '−' : ''}${currencySymbol()}${Math.abs(n).toLocaleString(currencyLocale(), { maximumFractionDigits: 2 })}`;
 }
 
 /** The headline block for the aggregates this caller may see. Empty when none. */

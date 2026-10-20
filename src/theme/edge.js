@@ -1,3 +1,4 @@
+import { compactNumber } from '../shared/currency.js';
 /* ══════════════════════════════════════════════════════════════════════════
    EdgeOS theme tokens.
 
@@ -78,11 +79,5 @@ export function makeTokens(isDark) {
 }
 
 /** Compact Indian-notation figures: 1.24Cr, 3.10L, 4.5k. */
-export const fmtCompact = (n) => {
-    const v = Math.round(n || 0);
-    const a = Math.abs(v);
-    if (a >= 10000000) return (v / 10000000).toFixed(2) + 'Cr';
-    if (a >= 100000)   return (v / 100000).toFixed(2) + 'L';
-    if (a >= 1000)     return (v / 1000).toFixed(1) + 'k';
-    return String(v);
-};
+// Lakh/crore for INR, million/billion for any other org currency.
+export const fmtCompact = (n) => compactNumber(n);

@@ -1,12 +1,25 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowUpRight, RefreshCw, Sparkles, CheckCircle2, Info, Lock } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, RefreshCw, Sparkles, CheckCircle2, Info, Lock, CalendarDays } from 'lucide-react';
 import { useAssistant } from '../assistant/assistantStore';
 import { AgentChat } from '../assistant/Copilot';
 import { BI_AGENT, useBizSnapshot } from './bizAgent';
 import { change, pctText, money, DEFINITIONS } from '../../shared/bizIntel';
 import { formatDate } from '../../shared/dates';
+import AgentCard from './AgentCard';
+import { AutoButtons, AutoFlash, AutoSettings, AgentRuns } from './AgentAutomation';
+import { summaryDayText, useAutoPanel } from './automation';
+import { agentsService } from '../../services/agentsService';
+
+const BI_TOGGLES = [
+    ['daily', 'Daily Run', 'Every morning on the server: alerts on money (overdue receivables and bills, falling revenue or collections). Tasks and projects are left to the other agents. The same as Run Automatically on the card.'],
+    ['weekly_summary', 'Weekly Summary', 'While the daily run is on, also send last week against the week before, once a week, even when nothing is wrong.'],
+    ['email_digest', 'Email Digest', 'Also email alerts and the summary from your company Gmail (Profile → Email Configuration).'],
+];
+const BI_NUMBERS = [['repeat_days', 'Remind Again After', 'days (0 = once)', 60]];
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 import './agents.css';
+import { projectRef } from '../projects/projectSlug';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Business Intelligence: the second agent.
@@ -59,7 +72,7 @@ const HREF = {
     invoice: () => '/finance/billing/invoices',
     bill: () => '/finance/company-ledger',
     task: (id) => `/projects/tasks?task=${id}`,
-    project: (id) => `/projects/${id}`,
+    project: (id) => `/projects/${projectRef(id)}`,
 };
 
 const timeAgo = (iso) => {
@@ -72,27 +85,17 @@ const timeAgo = (iso) => {
 
 /* ── the card on the Agents grid ──────────────────────────────────────────── */
 
-export function BusinessIntelCard({ onOpen }) {
+export function BusinessIntelCard({ onOpen, auto }) {
     const { data, loading, error } = useBizSnapshot('this_month');
-    const Icon = BI_AGENT.icon;
     const concerns = (data?.insights || []).filter((i) => i.severity !== 'positive').length;
     const visible = data && (data.finance || data.position || data.work || data.people);
     return (
-        <button type="button" className="ag-card" onClick={onOpen}>
-            <span className="ag-card-top">
-                <span className="ag-ico" aria-hidden="true"><Icon size={18} strokeWidth={1.9} /></span>
-                <span className="ag-state is-off"><i aria-hidden="true" />Read-Only</span>
-            </span>
-            <span className="ag-name">{BI_AGENT.name}</span>
-            <span className="ag-desc">{BI_AGENT.blurb}</span>
-            <span className="ag-foot">
-                {loading && !data ? <span className="ag-muted">Reading…</span>
-                    : error || !visible ? <span className="ag-muted">Open to ask</span>
-                        : concerns ? <span className="ag-badge is-neg">{concerns} need{concerns === 1 ? 's' : ''} attention</span>
-                            : <span className="ag-badge is-pos">Nothing stands out</span>}
-                <ArrowUpRight size={15} strokeWidth={2} aria-hidden="true" className="ag-go" />
-            </span>
-        </button>
+        <AgentCard agent={BI_AGENT} auto={auto} onOpen={onOpen}>
+            {loading && !data ? <span className="ag-muted">Reading…</span>
+                : error || !visible ? <span className="ag-muted">Open to ask</span>
+                    : concerns ? <span className="ag-badge is-neg">{concerns} need{concerns === 1 ? 's' : ''} attention</span>
+                        : <span className="ag-badge is-pos">Nothing stands out</span>}
+        </AgentCard>
     );
 }
 
@@ -102,10 +105,12 @@ export default function BusinessIntel({ onBack, theme = 'dark' }) {
     const [period, setPeriod] = useState('this_month');
     const [compare, setCompare] = useState('previous');
     const snap = useBizSnapshot(period, compare);
-    const { data, loading, error, reload } = snap;
+    const { data, loading, error, reload, orgId } = snap;
     const navigate = useNavigate();
     const a = useAssistant();
     const Icon = BI_AGENT.icon;
+    const panel = useAutoPanel(reload);
+    const s = data?.settings;
 
     const ask = (text) => {
         if (a.streaming) return;
@@ -128,15 +133,46 @@ export default function BusinessIntel({ onBack, theme = 'dark' }) {
                     <div className="ag-dtitle">
                         <h2>{BI_AGENT.name}</h2>
                         <span className="ag-sched">
-                            {loading ? 'Reading your records…' : `Read ${timeAgo(snap.at)}`} · Read-only, nothing is changed
+                            {loading ? 'Reading your records…' : `Read ${timeAgo(snap.at)}`}
+                            {s && <> · {s.daily ? `Money alerts every morning${s.weekly_summary ? `, ${summaryDayText(s.summary_day)}` : ''}` : 'Alerts only when run'}</>} · read-only, nothing is changed
                         </span>
                     </div>
                     <div className="ag-dactions">
                         <button type="button" className="ag-btn" onClick={reload} disabled={loading}>
                             <RefreshCw size={14} strokeWidth={2} aria-hidden="true" className={loading ? 'ag-spin' : ''} />Refresh
                         </button>
+                        {data?.can_manage && (
+                            <AutoButtons panel={panel} disabled={data.settings_unavailable}
+                                onRun={() => panel.run(() => agentsService.bizRunNow(orgId))}>
+                                <button type="button" className="ag-btn" disabled={panel.running || data.settings_unavailable}
+                                    title="Send last week's summary to owners and admins now"
+                                    onClick={() => panel.run(() => agentsService.bizRunNow(orgId, { weekly: true }), { weekly: true })}>
+                                    <CalendarDays size={14} strokeWidth={2} aria-hidden="true" />Send Weekly Summary
+                                </button>
+                            </AutoButtons>
+                        )}
                     </div>
                 </div>
+
+                <AutoFlash panel={panel} />
+                {data?.settings_unavailable && data.can_manage && (
+                    <div className="ag-flash is-mut" role="status"><span>Alerts and settings need database migration 0089. The page works without it.</span></div>
+                )}
+                {panel.settingsOpen && data?.can_manage && (
+                    <AutoSettings value={data.settings} disabled={data.settings_unavailable} critical={false}
+                        toggles={BI_TOGGLES} numbers={BI_NUMBERS}
+                        onSave={async (form) => { await agentsService.bizSaveSettings(orgId, form); panel.setSettingsOpen(false); reload(); }}
+                        onClose={() => panel.setSettingsOpen(false)}>
+                        {(form, set, off) => (
+                            <label className="ag-field">
+                                <span>Summary Day</span>
+                                <select value={form.summary_day} onChange={(e) => set('summary_day', Number(e.target.value))} disabled={off || !form.weekly_summary}>
+                                    {WEEKDAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
+                                </select>
+                            </label>
+                        )}
+                    </AutoSettings>
+                )}
 
                 <div className="bi-controls">
                     <div className="ag-seg" role="tablist" aria-label="Period">
@@ -249,6 +285,7 @@ export default function BusinessIntel({ onBack, theme = 'dark' }) {
                         </div>
 
                         <About data={data} />
+                        {data.can_manage && <AgentRuns runs={data.runs} />}
                     </div>
                 )}
             </div>

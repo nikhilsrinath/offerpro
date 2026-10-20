@@ -12,6 +12,7 @@ import CountrySelect from '../shared/CountrySelect';
 import { useToast } from '../shared/Toast';
 import A4Stage from '../shared/A4Stage';
 import { useFormProject, projectStartLines, linkToProject, projectFormNote } from '../projects/projectScope';
+import { currencySymbol, baseCurrency, currencyLocale } from '../../shared/currency.js';
 
 const UNIT_OPTIONS = ['Hrs', 'Units', 'Nos', 'Kg', 'Ltr'];
 const GST_RATES = [0, 5, 12, 18, 28];
@@ -42,7 +43,7 @@ function numberToWords(num) {
 }
 
 function formatCurrency(amount) {
-  return (amount || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
+  return (amount || 0).toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() });
 }
 
 function formatDate(dateStr) {
@@ -1294,11 +1295,11 @@ export default function QuotationForm({ editDocId }) {
                         {item.unit}
                       </td>
                       <td style={{ padding: '7px 10px', textAlign: 'right' }}>
-                        {'\u20B9'}
+                        {currencySymbol()}
                         {(Number(item.rate) || 0).toLocaleString('en-IN')}
                       </td>
                       <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600 }}>
-                        {'\u20B9'}
+                        {currencySymbol()}
                         {lineTotal.toLocaleString('en-IN')}
                       </td>
                     </tr>
@@ -1326,7 +1327,7 @@ export default function QuotationForm({ editDocId }) {
                   }}
                 >
                   <span>Subtotal</span>
-                  <span>{'\u20B9'}{totals.subtotal.toLocaleString('en-IN')}</span>
+                  <span>{currencySymbol()}{totals.subtotal.toLocaleString(currencyLocale())}</span>
                 </div>
 
                 {totals.discountAmount > 0 && (
@@ -1345,7 +1346,7 @@ export default function QuotationForm({ editDocId }) {
                         ? ` (${formData.discountValue}%)`
                         : ''}
                     </span>
-                    <span>-{'\u20B9'}{totals.discountAmount.toLocaleString('en-IN')}</span>
+                    <span>-{currencySymbol()}{totals.discountAmount.toLocaleString(currencyLocale())}</span>
                   </div>
                 )}
 
@@ -1360,7 +1361,7 @@ export default function QuotationForm({ editDocId }) {
                     }}
                   >
                     <span>GST</span>
-                    <span>{'\u20B9'}{totals.gstAmount.toLocaleString('en-IN')}</span>
+                    <span>{currencySymbol()}{totals.gstAmount.toLocaleString(currencyLocale())}</span>
                   </div>
                 )}
 
@@ -1377,7 +1378,7 @@ export default function QuotationForm({ editDocId }) {
                   }}
                 >
                   <span>TOTAL</span>
-                  <span>{'\u20B9'}{totals.grandTotal.toLocaleString('en-IN')}</span>
+                  <span>{currencySymbol()}{totals.grandTotal.toLocaleString(currencyLocale())}</span>
                 </div>
               </div>
             </div>

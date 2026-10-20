@@ -11,6 +11,7 @@ import {
 } from '../../services/projectAnalytics';
 import { canSeeFinancials, canCreateProjects, portfolio } from '../../services/projectService';
 import HealthChip from './HealthChip';
+import { projectRef } from './projectSlug';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Kanban Chart: every project as a card in the column of its status,
@@ -135,7 +136,7 @@ export default function KanbanChart() {
     }
 
     const late = shown.filter((p) => isLate(p, today)).length;
-    const open = (p) => navigate(`/projects/${p.id}`);
+    const open = (p) => navigate(`/projects/${projectRef(p.id)}`);
     const filtering = client !== 'all' || manager !== 'all' || health !== 'all' || !!query;
 
     return (

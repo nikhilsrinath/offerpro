@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, Edit3, Copy, CheckCircle, Bell, Search, Filter, Plus, X, Download, Trash2, Ban } from 'lucide-react';
+import { Eye, Edit3, Copy, CheckCircle, Bell, Search, Filter, Plus, X, Download, Trash2, Ban, RotateCcw } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { documentStore, docNumber as docNo } from '../../services/documentStore';
@@ -20,11 +20,12 @@ import { canCreateProjects } from '../../services/projectService';
 import { advanceOf } from '../../services/proformaAdvance';
 import { conversionTargets, buildConversion, carriedAdvance, existingConversion } from '../../services/documentConversion';
 import ConvertDialog from './ConvertDialog';
-import { lifecycleOf, revertedStatusOf, isCarriedAdvance } from '../../services/documentLifecycle';
+import { lifecycleOf, revertedStatusOf, isCarriedAdvance, reactivationOf } from '../../services/documentLifecycle';
 import { orgStore } from '../../services/orgStore';
 import { confirmDialog } from '../../services/confirm';
 import { useProjectScope, projectBillingPath, projectBillingForm } from '../projects/projectScope';
 import { initialQuery } from '../../services/urlQuery';
+import { currencySymbol, currencyLocale } from '../../shared/currency.js';
 
 // With `projectId` (a project's Billing page) it lists only that project's
 // documents, and a new or revised one opens its form on the project.
@@ -352,8 +353,8 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                   <td>${esc(item.description || '-')}</td>
                   ${gstRate > 0 ? `<td class="inv-td-muted">${esc(item.hsnSac || item.hsnCode || '-')}</td>` : ''}
                   <td>${esc(item.quantity || 0)}</td>
-                  <td>\u20B9${(Number(item.rate) || Number(item.price) || 0).toLocaleString('en-IN')}</td>
-                  <td class="inv-td-amount">\u20B9${lineTotal.toLocaleString('en-IN')}</td>
+                  <td>\${currencySymbol()}${(Number(item.rate) || Number(item.price) || 0).toLocaleString(currencyLocale())}</td>
+                  <td class="inv-td-amount">\${currencySymbol()}${lineTotal.toLocaleString(currencyLocale())}</td>
                 </tr>`;
       }).join('')}
           </tbody>
@@ -361,19 +362,19 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
 
         <!-- Totals -->
         <div class="inv-totals">
-          <div class="inv-total-row"><span>Subtotal:</span><span>\u20B9${subtotal.toLocaleString('en-IN')}</span></div>
-          ${discountAmt > 0 ? `<div class="inv-total-row" style="color:#ef4444"><span>Discount (${doc.discount?.type === 'percentage' ? esc(doc.discount.value) + '%' : 'flat'}):</span><span>-\u20B9${discountAmt.toLocaleString('en-IN')}</span></div>` : ''}
-          <div class="inv-total-row"><span>Taxable Amount:</span><span>\u20B9${taxableAmount.toLocaleString('en-IN')}</span></div>
+          <div class="inv-total-row"><span>Subtotal:</span><span>\${currencySymbol()}${subtotal.toLocaleString(currencyLocale())}</span></div>
+          ${discountAmt > 0 ? `<div class="inv-total-row" style="color:#ef4444"><span>Discount (${doc.discount?.type === 'percentage' ? esc(doc.discount.value) + '%' : 'flat'}):</span><span>-\${currencySymbol()}${discountAmt.toLocaleString(currencyLocale())}</span></div>` : ''}
+          <div class="inv-total-row"><span>Taxable Amount:</span><span>\${currencySymbol()}${taxableAmount.toLocaleString(currencyLocale())}</span></div>
           ${gstRate > 0 ? `
             <div class="inv-total-divider"></div>
-            <div class="inv-total-row inv-total-gst"><span>CGST @ ${halfRate}%:</span><span>\u20B9${cgst.toLocaleString('en-IN')}</span></div>
-            <div class="inv-total-row inv-total-gst"><span>SGST @ ${halfRate}%:</span><span>\u20B9${sgst.toLocaleString('en-IN')}</span></div>
+            <div class="inv-total-row inv-total-gst"><span>CGST @ ${halfRate}%:</span><span>\${currencySymbol()}${cgst.toLocaleString(currencyLocale())}</span></div>
+            <div class="inv-total-row inv-total-gst"><span>SGST @ ${halfRate}%:</span><span>\${currencySymbol()}${sgst.toLocaleString(currencyLocale())}</span></div>
           ` : ''}
           <div class="inv-total-divider inv-total-divider-bold"></div>
-          <div class="inv-total-row inv-total-grand"><span>${doc.type === 'proforma' ? 'ORDER VALUE' : 'TOTAL AMOUNT'}:</span><span>\u20B9${grandTotal.toLocaleString('en-IN')}</span></div>
+          <div class="inv-total-row inv-total-grand"><span>${doc.type === 'proforma' ? 'ORDER VALUE' : 'TOTAL AMOUNT'}:</span><span>\${currencySymbol()}${grandTotal.toLocaleString(currencyLocale())}</span></div>
           ${advance && advance.percent > 0 ? `
-            <div class="inv-total-row"><span>Advance payable now (${advance.percent}%):</span><span>\u20B9${advance.advance.toLocaleString('en-IN')}</span></div>
-            <div class="inv-total-row"><span>Balance on delivery:</span><span>\u20B9${advance.balance.toLocaleString('en-IN')}</span></div>
+            <div class="inv-total-row"><span>Advance payable now (${advance.percent}%):</span><span>\${currencySymbol()}${advance.advance.toLocaleString(currencyLocale())}</span></div>
+            <div class="inv-total-row"><span>Balance on delivery:</span><span>\${currencySymbol()}${advance.balance.toLocaleString(currencyLocale())}</span></div>
           ` : ''}
         </div>
         ${doc.type === 'proforma' ? '<div class="inv-notes"><div class="inv-notes-text">This is a proforma invoice issued to confirm the order. It is not a tax invoice and cannot be used to claim input tax credit.</div></div>' : ''}
@@ -480,7 +481,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
       const label = built.type === 'proforma' ? 'proforma' : 'invoice';
       toast(resumed
         ? `${docNo(source)} was already converted to ${label} ${docNo(built)}, marked converted`
-        : `Converted to ${label} ${docNo(built)}${advance ? ` with ₹${advance.amount.toLocaleString('en-IN')} advance applied` : ''}`,
+        : `Converted to ${label} ${docNo(built)}${advance ? ` with ${currencySymbol()}${advance.amount.toLocaleString(currencyLocale())} advance applied` : ''}`,
       'success');
       setConvertSource(null);
       loadDocuments();
@@ -553,7 +554,8 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
       for (const p of (doc.payments || []).filter((row) => isCarriedAdvance(row, parent))) {
         await documentStore.deletePayment(p.id, doc.id);
       }
-      await documentStore.updateStatus(doc.id, 'cancelled');
+      // Where it stood is kept, so reactivating it can put it back there.
+      await documentStore.updateStatus(doc.id, 'cancelled', { cancelled_from: doc.status });
       const released = await releaseParent(doc);
       // The reason is kept as a notification, not on the document: a sent
       // quotation's content is frozen, and the reason is not part of it.
@@ -568,6 +570,46 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
       setCancelTarget(null);
     } catch (err) {
       toast(`Could not cancel: ${err.message}`, 'error');
+    } finally {
+      setLifecycleBusy(null);
+      loadDocuments();
+    }
+  };
+
+  // A cancelled tax invoice brought back, under the same number. Cancelling is
+  // undone in reverse: its status first, then the source marked converted to
+  // it again, then the proforma's advance carried back onto it (the payments
+  // trigger moves it to part paid or paid from there).
+  const handleReactivate = async (doc) => {
+    const rule = reactivationOf(doc, documentStore.getAll());
+    if (!rule.allowed) { toast(rule.reason, 'info'); return; }
+    const ok = await confirmDialog({
+      title: `Reactivate ${docNo(doc)}`,
+      message: `The invoice comes back under the same number and counts towards revenue, receivables and GST again.${rule.parent ? ` ${docNo(rule.parent)} is marked converted to it again.` : ''}`,
+      confirmLabel: 'Reactivate',
+      tone: 'default',
+    });
+    if (!ok) return;
+    setLifecycleBusy(doc.id);
+    try {
+      await documentStore.updateStatus(doc.id, rule.status, { cancelled_from: null });
+      if (rule.parent) {
+        await documentStore.updateStatus(rule.parent.id, 'converted', { converted_to: doc.id });
+        const advance = rule.parent.type === 'proforma' ? carriedAdvance(rule.parent) : null;
+        const fresh = documentStore.getById(doc.id) || doc;
+        if (advance && !(fresh.payments || []).some((p) => p.method === advance.method && p.reference === advance.reference)) {
+          await documentStore.recordPayment(doc.id, advance);
+        }
+      }
+      Promise.resolve(documentStore.addNotification({
+        type: 'document_reactivated',
+        title: `${typeLabel} Reactivated`,
+        message: `${docNo(doc)} for ${doc.issued_to || doc.clientName || 'client'} reactivated`,
+        documentId: doc.id,
+      })).catch(() => {});
+      toast(`${docNo(doc)} reactivated`, 'success');
+    } catch (err) {
+      toast(`Could not reactivate: ${err.message}`, 'error');
     } finally {
       setLifecycleBusy(null);
       loadDocuments();
@@ -691,8 +733,8 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                 <tr key={doc.id}>
                   <td className="fin-list-id">{docNo(doc)}</td>
                   <td>{doc.issued_to || doc.client?.name || '-'}</td>
-                  <td className="fin-list-amount">₹{(doc.grand_total || doc.amount || 0).toLocaleString('en-IN')}</td>
-                  {type === 'invoice' && <td>₹{(doc.gst || 0).toLocaleString('en-IN')}</td>}
+                  <td className="fin-list-amount">{currencySymbol()}{(doc.grand_total || doc.amount || 0).toLocaleString(currencyLocale())}</td>
+                  {type === 'invoice' && <td>{currencySymbol()}{(doc.gst || 0).toLocaleString(currencyLocale())}</td>}
                   <td>{doc.issue_date || '-'}</td>
                   <td>
                     {doc.valid_until || doc.due_date || '-'}
@@ -728,7 +770,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                       {type === 'proforma' && conversionTargets(doc).includes('invoice') && (
                         <button className="fin-list-action-btn primary"
                           title={Number(doc.amount_paid) > 0
-                            ? `Convert to Tax Invoice (the ₹${Number(doc.amount_paid).toLocaleString('en-IN')} advance is applied)`
+                            ? `Convert to Tax Invoice (the ${currencySymbol()}${Number(doc.amount_paid).toLocaleString(currencyLocale())} advance is applied)`
                             : 'Convert to Tax Invoice'}
                           disabled={convertingId === doc.id} onClick={() => runConversion(doc, 'invoice')}>
                           {convertingId === doc.id ? 'Converting…' : 'Convert'}
@@ -775,6 +817,15 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                             disabled: lifecycleBusy === doc.id, onClick: () => openCancel(doc),
                           };
                         })()] : []),
+                        // Shown even when it cannot be used yet: clicking says why.
+                        type === 'invoice' && doc.status === 'cancelled' && canEditDocs && (() => {
+                          const rule = reactivationOf(doc, documents);
+                          return {
+                            label: 'Reactivate invoice', icon: RotateCcw,
+                            muted: !rule.allowed, hint: rule.allowed ? undefined : rule.reason, showHint: true,
+                            disabled: lifecycleBusy === doc.id, onClick: () => handleReactivate(doc),
+                          };
+                        })(),
                       ]} />
                     </div>
                   </td>
@@ -797,7 +848,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
         open={!!cancelTarget}
         onClose={lifecycleBusy ? undefined : () => setCancelTarget(null)}
         title={`Cancel ${docNo(cancelTarget) || typeLabel.toLowerCase()}`}
-        note={cancelTarget ? `${cancelTarget.issued_to || cancelTarget.clientName || 'Client'} · ₹${(cancelTarget.grand_total || cancelTarget.amount || 0).toLocaleString('en-IN')}` : ''}
+        note={cancelTarget ? `${cancelTarget.issued_to || cancelTarget.clientName || 'Client'} · ${currencySymbol()}${(cancelTarget.grand_total || cancelTarget.amount || 0).toLocaleString(currencyLocale())}` : ''}
         footer={(
           <>
             <Btn onClick={() => setCancelTarget(null)} disabled={!!lifecycleBusy}>Keep it</Btn>
@@ -867,7 +918,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
    document: the row says what happened and carries the action that answers it. */
 function AttentionPanel({ docs, type, onVerify, onReject, onRevise, onRedraft, onConvert }) {
   const t = useT();
-  const money = (n) => '₹' + (Number(n) || 0).toLocaleString('en-IN');
+  const money = (n) => currencySymbol() + (Number(n) || 0).toLocaleString(currencyLocale());
   const client = (doc) => doc.issued_to || doc.client?.name || 'Client';
 
   const items = docs.flatMap((doc) => {

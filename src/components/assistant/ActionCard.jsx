@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useEffect, useId, useMemo, useRef, useState } fr
 import {
     Check, X, Pencil, Undo2, ExternalLink, Loader2, AlertTriangle, ShieldAlert, Clock, FileText,
 } from 'lucide-react';
+import { currencyLocale, recordCurrency } from '../../shared/currency.js';
 
 const DocPaper = lazy(() => import('./DocPaper'));
 
@@ -246,11 +247,12 @@ export default function ActionCard({ card, onConfirm, onCancel, onUndo, onOpen }
     );
 }
 
-const inr = (v, currency = 'INR') => {
+const inr = (v, code) => {
+    const currency = recordCurrency(code);
     try {
-        return (Number(v) || 0).toLocaleString('en-IN', { style: 'currency', currency, maximumFractionDigits: 2 });
+        return (Number(v) || 0).toLocaleString(currencyLocale(currency), { style: 'currency', currency, maximumFractionDigits: 2 });
     } catch {
-        return `${currency} ${(Number(v) || 0).toLocaleString('en-IN')}`;
+        return `${currency} ${(Number(v) || 0).toLocaleString(currencyLocale(currency))}`;
     }
 };
 
@@ -259,7 +261,7 @@ const inr = (v, currency = 'INR') => {
 function DocTable({ doc, full }) {
     const [paper, setPaper] = useState(full && doc.type === 'invoice');
     const t = doc.totals || {};
-    const cur = doc.currency || 'INR';
+    const cur = recordCurrency(doc.currency);
     const half = (doc.gstRate || 0) / 2;
     return (
         <div className="cp-doc">

@@ -1,4 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react';
+import { currencySymbol } from '../../shared/currency.js';
 
 const UNITS = ['Hrs', 'Units', 'Nos', 'Kg', 'Ltr'];
 const GST_RATES = [0, 5, 12, 18, 28];
@@ -9,7 +10,7 @@ export default function LineItemsEditor({
   showHSN = true,
   showGST = true,
   showUnit = true,
-  currency = '₹',
+  currency = currencySymbol(),
 }) {
   const handleAdd = () => {
     onItemsChange([

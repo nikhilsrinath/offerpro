@@ -1,6 +1,12 @@
-import { buildDealSnapshot, datedNotes } from '../../src/shared/dealIntel.js';
+import {
+  buildDealSnapshot, datedNotes, AGENT_ID, AGENT_NAME, normalizeConfig, dealAlertable, dealAlertsDue, buildDealDigest,
+} from '../../src/shared/dealIntel.js';
+import { AGENT_ID as DEADLINE_AGENT, normalizeConfig as deadlineConfig } from '../../src/shared/deadlineWatch.js';
 import { loadSources, ROW_CAP } from './bizIntel.js';
 import { localDay } from '../../src/shared/bizIntel.js';
+import { currencySymbol, setBaseCurrency } from '../../src/shared/currency.js';
+import { readSettings, recentRuns, alertState } from './deadlines.js';
+import { runAgentPass, runAgentScheduled } from './agentRun.js';
 
 /**
  * Deal Intelligence on the server: loading the rows a deal snapshot is built
@@ -15,7 +21,10 @@ import { localDay } from '../../src/shared/bizIntel.js';
  * not have yet (client communications and approvals are 0074), which means
  * nothing is recorded there rather than that it could not be read.
  *
- * Read-only: nothing here writes.
+ * Read-only for a person: nothing they call writes. The automatic run at the
+ * end (runDealsForOrg) uses the service role, filters every query by org_id,
+ * and writes only the agent tables and notifications (0089, 0090), plus the
+ * digest email when it is switched on.
  */
 
 // "relation does not exist" from Postgres, and PostgREST's "not in the schema cache".
@@ -122,7 +131,7 @@ export function dealLimits(coverage) {
   if (capped.length) out.push(`Only the first ${ROW_CAP} rows of ${capped.join(', ')} were read; totals over them may be incomplete.`);
   if (missing.length) out.push(`Not set up on this database yet: ${missing.join(', ')}. Nothing is recorded there.`);
   out.push('EdgeOS stores no follow-up date or next action on a deal. Follow-ups are the open tasks on projects linked to the client; a deal with no linked project has none that can be seen.');
-  out.push('Deal values carry no currency; they are shown in ₹, as the CRM board shows them. Quotation amounts include GST and are never added across currencies.');
+  out.push(`Deal values carry no currency; they are shown in ${currencySymbol().trim()}, as the CRM board shows them. Quotation amounts include GST and are never added across currencies.`);
   out.push('No close probability is recorded, so none is estimated. Priority is a transparent score of the signals listed with it.');
   out.push('"No activity" means none recorded in EdgeOS. Calls, emails or meetings that were not logged are not seen.');
   return out;
@@ -204,4 +213,67 @@ export async function dealExtras(ctx, deal) {
   out.notes = datedNotes(all).slice(0, 10).map((x) => ({ date: x.date, text: cap(x.text) }));
   out.notes_undated = all.trim() && !out.notes.length ? cap(all) : null;
   return out;
+}
+
+/* ── settings and the automatic run ───────────────────────────────────────── */
+
+export const readDealSettings = (admin, orgId) => readSettings(admin, orgId, AGENT_ID, normalizeConfig);
+
+export async function saveDealSettings(admin, orgId, userId, raw) {
+  const config = normalizeConfig(raw);
+  const { error } = await admin.from('agent_settings').upsert({
+    org_id: orgId, agent: AGENT_ID, config, updated_by: userId, updated_at: new Date().toISOString(),
+  }, { onConflict: 'org_id,agent' });
+  if (error) throw new Error(/agent_settings/.test(error.message) ? `${AGENT_NAME} settings need database migration 0089.` : error.message);
+  return config;
+}
+
+export const dealRecentRuns = (admin, orgId, n = 5) => recentRuns(admin, orgId, n, AGENT_ID);
+export const dealAlertState = (admin, orgId) => alertState(admin, orgId, AGENT_ID);
+
+/**
+ * One org's pass, with the service role: every deal risk is "seen" (so a
+ * fixed one resolves), and those at or above the alert threshold that are
+ * new, escalated or due a repeat go to owners and admins. The CRM has no
+ * deal owner, so there is no one narrower to send them to.
+ */
+export async function runDealsForOrg(admin, org, { trigger = 'schedule', deps = {}, force = false } = {}) {
+  setBaseCurrency(org.currency);
+  return runAgentPass(admin, org, {
+    agent: AGENT_ID, label: AGENT_NAME, trigger, deps, force,
+    settings: await readDealSettings(admin, org.id),
+    evaluate: async ({ config, today, now, tz }) => {
+      const { rows, coverage } = await loadDealRows(admin, org.id, () => true);
+      if (coverage.clients !== 'ok' && coverage.clients !== 'truncated') throw new Error('could not read the CRM deals');
+      const snap = buildDealSnapshot({ ...rows, coverage }, { today, tz, config });
+      if (snap.error) throw new Error(snap.error);
+      const deadline = await readSettings(admin, org.id, DEADLINE_AGENT, deadlineConfig);
+      const deadlineDaily = !deadline.unavailable && deadline.config.daily === true;
+      const candidates = dealAlertable(snap.findings, { deadlineDaily });
+      const due = dealAlertsDue(candidates, await dealAlertState(admin, org.id), config, now);
+      const name = org.company_name || org.name || '';
+      const not_read = Object.keys(coverage).filter((k) => coverage[k] === 'failed');
+      return {
+        seen: snap.findings.map((f) => ({ key: f.key, record_type: f.category, record_id: f.deal.id, due_date: null, severity: f.severity })),
+        due,
+        digest: due.length ? buildDealDigest(snap.findings, due) : null,
+        emailDigest: due.length ? buildDealDigest(snap.findings, due, name) : null,
+        stats: {
+          findings: snap.findings.length,
+          critical: snap.findings.filter((f) => f.severity === 'critical').length,
+          high: snap.findings.filter((f) => f.severity === 'high').length,
+          open_deals: snap.pipeline.open_deals,
+          follow_ups_left_to: deadlineDaily ? DEADLINE_AGENT : null,
+          ...(not_read.length ? { not_read } : {}),
+        },
+      };
+    },
+  });
+}
+
+export function runDealsScheduled(admin, { budgetMs = 45000, deps = {} } = {}) {
+  return runAgentScheduled(admin, {
+    agent: AGENT_ID, normalize: normalizeConfig, budgetMs,
+    runOne: (org) => runDealsForOrg(admin, org, { trigger: 'schedule', deps }),
+  });
 }

@@ -7,6 +7,10 @@ import { DEAL_AGENT, useDealSnapshot } from './dealAgent';
 import { totalsText, DEFINITIONS } from '../../shared/dealIntel';
 import { money } from '../../shared/bizIntel';
 import { formatDate } from '../../shared/dates';
+import AgentCard from './AgentCard';
+import { AutoButtons, AutoFlash, AutoSettings, AgentRuns } from './AgentAutomation';
+import { useAutoPanel } from './automation';
+import { agentsService } from '../../services/agentsService';
 import './agents.css';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -47,6 +51,20 @@ const SEVERITY = {
 
 const CRM = '/business/crm';
 
+const DEAL_TOGGLES = [
+    ['daily', 'Daily Run', 'Every morning on the server, even when nobody has EdgeOS open. The same as Run Automatically on the card.'],
+    ['email_digest', 'Email Digest', 'Also email the digest from your company Gmail (Profile → Email Configuration).'],
+];
+const DEAL_NUMBERS = [
+    ['stale_days', 'No Activity After', 'days'],
+    ['very_stale_days', 'High After', 'days without activity'],
+    ['quote_wait_days', 'Quotation Unanswered After', 'days'],
+    ['quote_expiry_warn_days', 'Quotation Ending Within', 'days', 60],
+    ['approval_wait_days', 'Approval Waiting After', 'days'],
+    ['critical_after_days', 'Follow-Up Critical After', 'days late'],
+    ['repeat_days', 'Remind Again After', 'days (0 = once)', 60],
+];
+
 const timeAgo = (iso) => {
     if (!iso) return '';
     const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -58,27 +76,17 @@ const plural = (k, one, many = `${one}s`) => `${k} ${k === 1 ? one : many}`;
 
 /* ── the card on the Agents grid ──────────────────────────────────────────── */
 
-export function DealIntelCard({ onOpen }) {
+export function DealIntelCard({ onOpen, auto }) {
     const { data, loading, error } = useDealSnapshot();
-    const Icon = DEAL_AGENT.icon;
     const urgent = data?.pipeline ? data.pipeline.risks.critical + data.pipeline.risks.high : 0;
     return (
-        <button type="button" className="ag-card" onClick={onOpen}>
-            <span className="ag-card-top">
-                <span className="ag-ico" aria-hidden="true"><Icon size={18} strokeWidth={1.9} /></span>
-                <span className="ag-state is-off"><i aria-hidden="true" />Read-Only</span>
-            </span>
-            <span className="ag-name">{DEAL_AGENT.name}</span>
-            <span className="ag-desc">{DEAL_AGENT.blurb}</span>
-            <span className="ag-foot">
-                {loading && !data ? <span className="ag-muted">Reading…</span>
-                    : error || !data?.pipeline ? <span className="ag-muted">{data?.unavailable === 'not_visible' ? 'No CRM access' : 'Open to ask'}</span>
-                        : data.pipeline.open_deals === 0 ? <span className="ag-muted">No open deals</span>
-                            : urgent ? <span className="ag-badge is-neg">{urgent} urgent</span>
-                                : <span className="ag-badge is-pos">{plural(data.pipeline.open_deals, 'open deal')}</span>}
-                <ArrowUpRight size={15} strokeWidth={2} aria-hidden="true" className="ag-go" />
-            </span>
-        </button>
+        <AgentCard agent={DEAL_AGENT} auto={auto} onOpen={onOpen}>
+            {loading && !data ? <span className="ag-muted">Reading…</span>
+                : error || !data?.pipeline ? <span className="ag-muted">{data?.unavailable === 'not_visible' ? 'No CRM access' : 'Open to ask'}</span>
+                    : data.pipeline.open_deals === 0 ? <span className="ag-muted">No open deals</span>
+                        : urgent ? <span className="ag-badge is-neg">{urgent} urgent</span>
+                            : <span className="ag-badge is-pos">{plural(data.pipeline.open_deals, 'open deal')}</span>}
+        </AgentCard>
     );
 }
 
@@ -87,10 +95,11 @@ export function DealIntelCard({ onOpen }) {
 export default function DealIntel({ onBack, theme = 'dark' }) {
     const [period, setPeriod] = useState('this_month');
     const snap = useDealSnapshot(period);
-    const { data, loading, error, reload } = snap;
+    const { data, loading, error, reload, orgId } = snap;
     const navigate = useNavigate();
     const a = useAssistant();
     const Icon = DEAL_AGENT.icon;
+    const panel = useAutoPanel(reload);
 
     const ask = (text) => {
         if (a.streaming) return;
@@ -112,7 +121,8 @@ export default function DealIntel({ onBack, theme = 'dark' }) {
                     <div className="ag-dtitle">
                         <h2>{DEAL_AGENT.name}</h2>
                         <span className="ag-sched">
-                            {loading ? 'Reading your deals…' : `Read ${timeAgo(snap.at)}`} · Read-only, nothing is changed
+                            {loading ? 'Reading your deals…' : `Read ${timeAgo(snap.at)}`}
+                            {data?.settings && <> · {data.settings.daily ? 'Alerts every morning' : 'Alerts only when run'}</>} · read-only, nothing is changed
                         </span>
                     </div>
                     <div className="ag-dactions">
@@ -122,10 +132,24 @@ export default function DealIntel({ onBack, theme = 'dark' }) {
                         <button type="button" className="ag-btn" onClick={reload} disabled={loading}>
                             <RefreshCw size={14} strokeWidth={2} aria-hidden="true" className={loading ? 'ag-spin' : ''} />Refresh
                         </button>
+                        {data?.can_manage && (
+                            <AutoButtons panel={panel} disabled={data.settings_unavailable}
+                                onRun={() => panel.run(() => agentsService.dealRunNow(orgId))} />
+                        )}
                     </div>
                 </div>
 
+                <AutoFlash panel={panel} />
                 {error && <div className="ag-flash is-neg" role="alert"><span>{error}</span></div>}
+                {data?.settings_unavailable && data.can_manage && (
+                    <div className="ag-flash is-mut" role="status"><span>Alerts and settings need database migration 0089. The page works without it.</span></div>
+                )}
+                {panel.settingsOpen && data?.can_manage && (
+                    <AutoSettings value={data.settings} disabled={data.settings_unavailable}
+                        toggles={DEAL_TOGGLES} numbers={DEAL_NUMBERS}
+                        onSave={async (form) => { await agentsService.dealSaveSettings(orgId, form); panel.setSettingsOpen(false); reload(); }}
+                        onClose={() => panel.setSettingsOpen(false)} />
+                )}
                 {!data && loading && <Skeleton />}
 
                 {data?.unavailable && (
@@ -238,6 +262,7 @@ export default function DealIntel({ onBack, theme = 'dark' }) {
                                 {(data.limits || []).map((l) => <li key={l} className="is-limit">{l}</li>)}
                             </ul>
                         </details>
+                        {data.can_manage && <AgentRuns runs={data.runs} />}
                     </div>
                 )}
             </div>

@@ -50,6 +50,7 @@ import ProjectForm from './components/projects/ProjectForm';
 import ProjectDetail, { projectSections, activeSection, projectRail } from './components/projects/ProjectDetail';
 import ProjectDashboardPage from './components/projects/ProjectDashboards';
 import { projectDashboardGroup } from './components/projects/projectDashboardNav';
+import { findProject } from './components/projects/projectSlug';
 import { useSection } from './components/financial/financeHooks';
 import Portfolio from './components/projects/Portfolio';
 import Timesheets from './components/projects/Timesheets';
@@ -87,6 +88,7 @@ import FinanceStatus from './components/financial/FinanceStatus';
 import Vendors from './components/financial/Vendors';
 import PurchaseInvoices from './components/financial/PurchaseInvoices';
 import CashBook from './components/financial/CashBook';
+import { ProjectLedger } from './components/projects/ProjectFinance';
 import TaxSummary from './components/financial/TaxSummary';
 import ProfitLoss from './components/financial/ProfitLoss';
 import CompanyBilling from './components/financial/CompanyBilling';
@@ -509,7 +511,7 @@ function AppContent() {
   // Inside one project the rail is that project's own sections; the heading
   // is its name and the first item leads back to the list.
   const openProjectId = activePage === 'project-detail' ? location.pathname.split('/')[2] : null;
-  const openProject = openProjectId && allProjects.find((p) => p.id === openProjectId);
+  const openProject = openProjectId && findProject(openProjectId, allProjects);
   let moduleItems = activeModule
     ? NAV_ITEMS.filter((i) => i.id && MODULE_FILTER[activeModule]?.includes(i.id))
       .map((i) => ({ ...i, to: pagePath(activeModule, i.id) }))
@@ -599,7 +601,12 @@ function AppContent() {
             <Route path="documents/document-library/:register" element={<DocumentLibrary />} />
             {/* Finance */}
             <Route path="finance/finance-status" element={<FinanceStatus />} />
-            <Route path="finance/general-ledger" element={<CashBook />} />
+            <Route path="finance/general-ledger" element={(
+              // The same page as a project's General Ledger, over the whole company: its ledger has a Project column.
+              <CashBook>
+                {({ onEdit, narrow }) => <ProjectLedger onEdit={onEdit} narrow={narrow} only="purchases" here="cashbook" readOnly />}
+              </CashBook>
+            )} />
             <Route path="finance/billing" element={<Navigate to="/finance/billing/quotations" replace />} />
             <Route path="finance/billing/quotations" element={<CompanyBilling kind="quotation" />} />
             <Route path="finance/billing/proforma" element={<CompanyBilling kind="proforma" />} />

@@ -3,6 +3,7 @@ import { useT, MONO, fmtDate } from '../ui/edgeUtils';
 import { Bar, Empty, Muted } from '../ui/edge';
 import { fmtCompact } from '../../theme/edge';
 import { indexMetrics, DOMAINS, domainOf } from '../../services/brainService';
+import { currencySymbol } from '../../shared/currency.js';
 
 /* What the brain knows, as a column beside the graph.
 
@@ -19,7 +20,7 @@ export default function BrainSummary({ status, metrics, onAsk }) {
     const t = useT();
     const { single, grouped } = useMemo(() => indexMetrics(metrics), [metrics]);
 
-    const money = (v) => (v === undefined || v === null ? '-' : `₹${fmtCompact(v)}`);
+    const money = (v) => (v === undefined || v === null ? '-' : `${currencySymbol()}${fmtCompact(v)}`);
     const num = (v) => (v === undefined || v === null ? '-' : String(v));
 
     const byDomain = useMemo(() => {

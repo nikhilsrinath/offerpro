@@ -6,6 +6,7 @@ import {
     countsAsIncome, categoryLabel, groupOf, rowTreatment,
     TREATMENTS, INCOME_TREATMENTS,
 } from '../services/financeCategories';
+import { baseCurrency, compactNumber, currencySymbol, currencyLocale, recordCurrency } from '../shared/currency.js';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Country drill-down for the Hub's Revenue by Geography map.
@@ -27,15 +28,8 @@ const SOLD = new Set(['sent', 'viewed', 'partially_paid', 'overdue', 'paid', 'pa
 const LIVE_OFFER_DEAD = new Set(['cancelled', 'expired', 'declined', 'draft']);
 const DOC_ROUTE = { invoice: '/finance/billing/invoices', quotation: '/finance/billing/quotations', proforma: '/finance/billing/proforma' };
 
-const fmtCompact = (n) => {
-    const v = Math.round(n || 0);
-    const a = Math.abs(v);
-    if (a >= 10000000) return (v / 10000000).toFixed(2) + 'Cr';
-    if (a >= 100000)   return (v / 100000).toFixed(2) + 'L';
-    if (a >= 1000)     return (v / 1000).toFixed(1) + 'k';
-    return String(v);
-};
-const inr = (n) => '₹' + Math.round(n || 0).toLocaleString('en-IN');
+const fmtCompact = (n) => compactNumber(n);
+const inr = (n) => currencySymbol() + Math.round(n || 0).toLocaleString(currencyLocale());
 const dateOf = (d) => String(d.issue_date || d.created_at || '').slice(0, 10);
 const val = (d) => Number(d.grand_total || d.amount || d.subtotal || 0);
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' }) : '-');
@@ -332,7 +326,7 @@ export default function CountryDialog({
             operatingOut: outs.filter((r) => rowTreatment(r, 'out') === 'operating')
                 .reduce((a, r) => a + gross(r), 0),
             currencies: [...new Set([...ins, ...outs].map((r) => r.currency)
-                .filter((c) => c && c !== 'INR'))],
+                .filter((c) => c && recordCurrency(c) !== baseCurrency()))],
         };
     }, [income, expenses, code, api]);
 
@@ -497,7 +491,7 @@ export default function CountryDialog({
                                                 <div title={inr(v)} style={{
                                                     fontSize: isMobile ? 17.5 : 20, letterSpacing: '-0.045em', color: c,
                                                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                                }}>₹{fmtCompact(v)}</div>
+                                                }}>{currencySymbol()}{fmtCompact(v)}</div>
                                             </div>
                                         ))}
                                     </div>
@@ -531,7 +525,7 @@ export default function CountryDialog({
                                                     <div title={inr(v)} style={{
                                                         fontSize: isMobile ? 17.5 : 20, letterSpacing: '-0.045em', color: c,
                                                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                                    }}>₹{fmtCompact(v)}</div>
+                                                    }}>{currencySymbol()}{fmtCompact(v)}</div>
                                                 </div>
                                             ))}
                                         </div>
@@ -582,46 +576,46 @@ export default function CountryDialog({
                                              note={m.dormant.length ? '+' + m.dormant.length + ' in directory' : null}
                                              onClick={() => setTab('customers')} />
                                         {m.customers[0] && (
-                                            <Row t={t} label="Top customer" value={'₹' + fmtCompact(m.customers[0].revenue)}
+                                            <Row t={t} label="Top customer" value={currencySymbol() + fmtCompact(m.customers[0].revenue)}
                                                  note={m.customers[0].name} onClick={() => setTab('customers')} />
                                         )}
                                         <Row t={t} label="Invoices issued" value={m.invoiceCount}
-                                             note={m.invoiceCount ? 'avg ₹' + fmtCompact(m.revenue / m.invoiceCount) : null}
+                                             note={m.invoiceCount ? 'avg ' + currencySymbol() + fmtCompact(m.revenue / m.invoiceCount) : null}
                                              onClick={m.docs.length ? () => setTab('documents') : undefined} />
                                         <Row t={t} label="Overdue"
-                                             value={m.overdue.size ? '₹' + fmtCompact(m.overdueAmount) : 'None'}
+                                             value={m.overdue.size ? currencySymbol() + fmtCompact(m.overdueAmount) : 'None'}
                                              note={m.overdue.size ? m.overdue.size + (m.overdue.size === 1 ? ' invoice' : ' invoices') : null}
                                              tone={m.overdue.size ? t.down : t.faint}
                                              onClick={m.overdue.size ? () => setTab('documents') : undefined} />
-                                        <Row t={t} label="Pipeline" value={'₹' + fmtCompact(geoRow ? geoRow.pipeline : m.pipeline)}
+                                        <Row t={t} label="Pipeline" value={currencySymbol() + fmtCompact(geoRow ? geoRow.pipeline : m.pipeline)}
                                              note={m.offers.length + ' live ' + (m.offers.length === 1 ? 'quote' : 'quotes')}
                                              onClick={m.offers.length ? () => setTab('documents') : undefined} />
                                         {m.products[0] && (
-                                            <Row t={t} label="Top product" value={'₹' + fmtCompact(m.products[0].amount)}
+                                            <Row t={t} label="Top product" value={currencySymbol() + fmtCompact(m.products[0].amount)}
                                                  note={m.products[0].name} onClick={() => setTab('products')} />
                                         )}
                                         {cash.directCount > 0 && (
-                                            <Row t={t} label="Direct receipts" value={'₹' + fmtCompact(cash.direct)}
+                                            <Row t={t} label="Direct receipts" value={currencySymbol() + fmtCompact(cash.direct)}
                                                  note={cash.directCount + (cash.directCount === 1 ? ' entry' : ' entries') + ' · no invoice'}
                                                  onClick={() => setTab('cash')} />
                                         )}
                                         {cash.cashOut > 0 && (
-                                            <Row t={t} label="Spent here" value={'₹' + fmtCompact(cash.cashOut)}
+                                            <Row t={t} label="Spent here" value={currencySymbol() + fmtCompact(cash.cashOut)}
                                                  note={cash.outs.length + (cash.outs.length === 1 ? ' payment' : ' payments')}
                                                  tone={t.down} onClick={() => setTab('cash')} />
                                         )}
                                         {(cash.cashIn > 0 || cash.cashOut > 0) && marginBase > 0 && (
                                             <Row t={t} label="Net of running costs"
-                                                 value={(netHere < 0 ? '−₹' : '₹') + fmtCompact(Math.abs(netHere))}
+                                                 value={(netHere < 0 ? '−' + currencySymbol() : currencySymbol()) + fmtCompact(Math.abs(netHere))}
                                                  note={((netHere / marginBase) * 100).toFixed(0) + '% margin'}
                                                  tone={netHere < 0 ? t.down : undefined} />
                                         )}
                                         {(cash.taxIn > 0 || cash.taxOut > 0) && (
                                             <Row t={t} label="GST in cash entries"
-                                                 value={'₹' + fmtCompact(cash.taxIn - cash.taxOut)}
-                                                 note={'₹' + fmtCompact(cash.taxIn) + ' out · ₹' + fmtCompact(cash.taxOut) + ' in'} />
+                                                 value={currencySymbol() + fmtCompact(cash.taxIn - cash.taxOut)}
+                                                 note={currencySymbol() + fmtCompact(cash.taxIn) + ' out · ' + currencySymbol() + fmtCompact(cash.taxOut) + ' in'} />
                                         )}
-                                        <Row t={t} label="Previous period" value={'₹' + fmtCompact(prev)}
+                                        <Row t={t} label="Previous period" value={currencySymbol() + fmtCompact(prev)}
                                              note={growth !== null ? (growth >= 0 ? '+' : '') + growth.toFixed(1) + '%' : null} />
                                     </div>
                                 </div>
@@ -644,7 +638,7 @@ export default function CountryDialog({
                                                 <Bar t={t} pct={(c.revenue / (m.customers[0].revenue || 1)) * 100} />
                                             </span>
                                             <span style={{ textAlign: 'right', flexShrink: 0 }}>
-                                                <span style={line1}>₹{fmtCompact(c.revenue)}</span>
+                                                <span style={line1}>{currencySymbol()}{fmtCompact(c.revenue)}</span>
                                                 <span style={{ ...line2(t), color: c.paid >= c.revenue ? t.up : t.faint }}>
                                                     {c.revenue ? Math.round((c.paid / c.revenue) * 100) : 0}% paid
                                                 </span>
@@ -715,7 +709,7 @@ export default function CountryDialog({
                                                 <div style={{ borderBottom: '1px solid ' + t.lineSoft }}>
                                                     {cash.inByTreatment.map((b) => (
                                                         <Row key={b.key} t={t} label={b.label}
-                                                             value={'₹' + fmtCompact(b.amount)}
+                                                             value={currencySymbol() + fmtCompact(b.amount)}
                                                              note={b.count + (b.count === 1 ? ' entry' : ' entries')
                                                                  + (INCOME_TREATMENTS.has(b.key) ? ' · counts as revenue' : ' · not revenue')}
                                                              tone={INCOME_TREATMENTS.has(b.key) ? undefined : t.dim} />
@@ -727,12 +721,12 @@ export default function CountryDialog({
                                                 {cash.inByGroup.length > 0 && (
                                                     <div style={{ fontSize: 11, color: t.faint, marginTop: 8, lineHeight: 1.6 }}>
                                                         {cash.inByGroup.map((g) => g.key + ': '
-                                                            + g.items.map((it) => it.label + ' ₹' + fmtCompact(it.amount)).join(', ')).join(' · ')}
+                                                            + g.items.map((it) => it.label + ' ' + currencySymbol() + fmtCompact(it.amount)).join(', ')).join(' · ')}
                                                     </div>
                                                 )}
                                                 {cash.methodsIn.length > 1 && (
                                                     <div style={{ fontSize: 11, color: t.faint, marginTop: 6 }}>
-                                                        received by {cash.methodsIn.map((x) => x.label + ' ₹' + fmtCompact(x.amount)).join(' · ')}
+                                                        received by {cash.methodsIn.map((x) => x.label + ' ' + currencySymbol() + fmtCompact(x.amount)).join(' · ')}
                                                     </div>
                                                 )}
                                             </div>
@@ -747,11 +741,11 @@ export default function CountryDialog({
                                                     <div key={g.key} style={{ borderTop: '1px solid ' + t.lineSoft, padding: '10px 0' }}>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                                             <span style={{ flex: 1, minWidth: 0, fontSize: 13 }}>{g.key}</span>
-                                                            <span style={{ fontSize: 13 }}>₹{fmtCompact(g.amount)}</span>
+                                                            <span style={{ fontSize: 13 }}>{currencySymbol()}{fmtCompact(g.amount)}</span>
                                                         </div>
                                                         <Bar t={t} pct={(g.amount / (cash.outByGroup[0].amount || 1)) * 100} />
                                                         <div style={{ fontSize: 11, color: t.faint, marginTop: 6, lineHeight: 1.6 }}>
-                                                            {g.items.map((it) => it.label + ' ₹' + fmtCompact(it.amount)).join(' · ')}
+                                                            {g.items.map((it) => it.label + ' ' + currencySymbol() + fmtCompact(it.amount)).join(' · ')}
                                                         </div>
                                                     </div>
                                                 ))}
@@ -772,8 +766,8 @@ export default function CountryDialog({
                                                         <span style={line2(t)}>
                                                             {categoryLabel(r.category) || r.category}
                                                             {' · ' + fmtDate(r.on)}
-                                                            {r.currency && r.currency !== 'INR'
-                                                                ? ' · ' + r.currency + ' ' + (Number(r.original_amount) || 0).toLocaleString('en-IN')
+                                                            {r.currency && recordCurrency(r.currency) !== baseCurrency()
+                                                                ? ' · ' + r.currency + ' ' + (Number(r.original_amount) || 0).toLocaleString(currencyLocale(r.currency))
                                                                 : ''}
                                                             {r.place_of_supply ? ' · ' + r.place_of_supply : ''}
                                                         </span>
@@ -784,7 +778,7 @@ export default function CountryDialog({
                                                         </span>
                                                         <span style={line2(t)}>
                                                             {TREATMENTS[rowTreatment(r, r.dir)]?.label || rowTreatment(r, r.dir)}
-                                                            {Number(r.tax_amount) > 0 ? ' · GST ₹' + fmtCompact(r.tax_amount) : ''}
+                                                            {Number(r.tax_amount) > 0 ? ' · GST ' + currencySymbol() + fmtCompact(r.tax_amount) : ''}
                                                         </span>
                                                     </span>
                                                     <ChevronRight size={12} style={{ color: t.faint, flexShrink: 0 }} />
@@ -807,7 +801,7 @@ export default function CountryDialog({
                                                 <Bar t={t} pct={(p.amount / (m.products[0].amount || 1)) * 100} />
                                             </span>
                                             <span style={{ textAlign: 'right', flexShrink: 0 }}>
-                                                <span style={line1}>₹{fmtCompact(p.amount)}</span>
+                                                <span style={line1}>{currencySymbol()}{fmtCompact(p.amount)}</span>
                                                 <span style={line2(t)}>qty {p.qty.toLocaleString('en-IN')}</span>
                                             </span>
                                         </div>

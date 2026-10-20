@@ -11,6 +11,8 @@ import {
 } from '../../services/projectService';
 import { projectSectionPath } from './projectPaths';
 import AddClientDialog from '../shared/AddClientDialog';
+import { projectRef } from './projectSlug';
+import { currencySymbol, baseCurrency } from '../../shared/currency.js';
 
 /* ══════════════════════════════════════════════════════════════════════════
    New project: and, with `project` passed, the edit sheet for one.
@@ -71,7 +73,7 @@ export default function ProjectForm({ project = null, onDone }) {
         client_id: project?.client_id || prefill?.client_id || '',
         billing_type: project?.billing_type || 'fixed_price',
         delivery_method: project?.delivery_method || '',
-        currency: project?.currency || 'INR',
+        currency: project?.currency || baseCurrency(),
         contract_value: String(project?.contract_value ?? prefill?.contract_value ?? ''),
         budget_labour: String(project?.budget_labour ?? ''),
         budget_vendor: String(project?.budget_vendor ?? ''),
@@ -135,7 +137,7 @@ export default function ProjectForm({ project = null, onDone }) {
                 if (problems.length) {
                     navigate(projectSectionPath(created.id, 'team'), { state: { problems } });
                 } else {
-                    navigate(`/projects/${created.id}`);
+                    navigate(`/projects/${projectRef(created.id)}`);
                 }
             }
         } catch (err) {
@@ -197,16 +199,16 @@ export default function ProjectForm({ project = null, onDone }) {
 
             <Panel title="Contract and budget" note={fin ? 'All amounts before GST' : 'Visible to people with Project financials'} pad={15} style={{ marginBottom: 14 }}>
                 <Grid min={160} gap={12}>
-                    <Field label="Contract value (₹)" hint="Net of GST">
+                    <Field label={`Contract value (${currencySymbol(form.currency)})`} hint="Net of GST">
                         <Input type="number" min="0" step="1" inputMode="decimal" value={form.contract_value} onChange={set('contract_value')} />
                     </Field>
                     <Field label="Currency">
                         <Input value={form.currency} maxLength={3} onChange={(e) => set('currency')(e.target.value.toUpperCase())} />
                     </Field>
-                    <Field label="Labour budget (₹)">
+                    <Field label={`Labour budget (${currencySymbol(form.currency)})`}>
                         <Input type="number" min="0" step="1" inputMode="decimal" value={form.budget_labour} onChange={set('budget_labour')} />
                     </Field>
-                    <Field label="Vendor budget (₹)">
+                    <Field label={`Vendor budget (${currencySymbol(form.currency)})`}>
                         <Input type="number" min="0" step="1" inputMode="decimal" value={form.budget_vendor} onChange={set('budget_vendor')} />
                     </Field>
                 </Grid>
@@ -218,7 +220,7 @@ export default function ProjectForm({ project = null, onDone }) {
                                     <Input value={b.name} aria-label={`Other budget ${i + 1} name`} placeholder="e.g. Approval budget"
                                         onChange={(e) => setOther(i, { name: e.target.value })} />
                                 </Field>
-                                <Field label={i === 0 ? 'Amount (₹)' : undefined}>
+                                <Field label={i === 0 ? `Amount (${currencySymbol(form.currency)})` : undefined}>
                                     <Input type="number" min="0" step="1" inputMode="decimal" aria-label={`Other budget ${i + 1} amount`}
                                         value={b.amount} onChange={(e) => setOther(i, { amount: e.target.value })} />
                                 </Field>

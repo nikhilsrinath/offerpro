@@ -1,3 +1,4 @@
+import { baseCurrency, recordCurrency } from './currency.js';
 // documentConversion.js: how a quotation becomes a proforma or an invoice,
 // and how a proforma becomes its tax invoice.
 //
@@ -83,7 +84,7 @@ export function recommendTarget(quotation, docs, today = todayIso()) {
   const paid = history.filter((d) => Number(d.amount_paid) > 0);
   const overdue = history.filter((d) => isOverdue(d, today));
   const terms = [quotation.terms, quotation.notes, quotation.payment_instructions].filter(Boolean).join('\n');
-  const currency = (quotation.currency || 'INR').toUpperCase();
+  const currency = recordCurrency(quotation.currency);
   const abroad = !!quotation.country_code && quotation.country_code.toUpperCase() !== 'IN';
 
   const facts = {
@@ -91,7 +92,7 @@ export function recommendTarget(quotation, docs, today = todayIso()) {
     paidInvoices: paid.length,
     overdueInvoices: overdue.length,
     advanceInTerms: ADVANCE_TERMS.test(terms),
-    foreign: currency !== 'INR' || abroad,
+    foreign: currency !== baseCurrency() || abroad,
   };
 
   const reasons = [];
@@ -107,7 +108,7 @@ export function recommendTarget(quotation, docs, today = todayIso()) {
       : 'First order from this client. No invoice has been issued to them before.');
   }
   if (facts.foreign) {
-    reasons.push(currency !== 'INR' ? `Billed in ${currency}.` : `Client is outside India (${quotation.country_code.toUpperCase()}).`);
+    reasons.push(currency !== baseCurrency() ? `Billed in ${currency}.` : `Client is outside India (${quotation.country_code.toUpperCase()}).`);
   }
 
   if (reasons.length) return { target: 'proforma', reasons, facts };

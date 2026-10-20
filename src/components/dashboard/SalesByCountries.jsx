@@ -3,6 +3,7 @@ import { ChevronDown, Globe } from 'lucide-react';
 import { useOrg } from '../../context/OrgContext';
 import { catalogService } from '../../services/catalogService';
 import { salesGeoService, summarise, PERIODS, periodRange } from '../../services/salesGeoService';
+import { currencySymbol, currencyLocale } from '../../shared/currency.js';
 
 /**
  * Sales by Countries.
@@ -39,7 +40,7 @@ function flagEmoji(code) {
   );
 }
 
-const money = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
+const money = (n) => `${currencySymbol()}${Math.round(Number(n) || 0).toLocaleString(currencyLocale())}`;
 
 /**
  * Keep callouts from sitting on top of each other.

@@ -5,6 +5,7 @@ import { statusLabel } from '../../services/projectAnalytics';
 import { canCreateProjects } from '../../services/projectService';
 import { orgStore } from '../../services/orgStore';
 import AllocationBar from './AllocationBar';
+import { projectRef } from './projectSlug';
 
 /* A "Projects" block for another screen: a client's projects (clientId), or a
    person's memberships, current and past (employeeId). Plain markup so it sits
@@ -44,7 +45,7 @@ export default function RelatedProjects({ clientId = null, employeeId = null }) 
                         const current = m ? (!m.end_date || m.end_date >= today) : null;
                         return (
                             <li key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13.5, flexWrap: 'wrap' }}>
-                                <Link to={`/projects/${p.id}`} style={{ color: 'var(--text-primary)', flex: 1, minWidth: 160 }}>
+                                <Link to={`/projects/${projectRef(p.id)}`} style={{ color: 'var(--text-primary)', flex: 1, minWidth: 160 }}>
                                     <span style={{ color: 'var(--text-muted)', fontSize: 12.5 }}>{p.code}</span> {p.name}
                                 </Link>
                                 {m ? (

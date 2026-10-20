@@ -13,6 +13,7 @@ import {
     Page, Toolbar, Panel, Row, Grid, Btn, Seg, Field, Input, Select, Textarea, Empty,
 } from './ui/edge';
 import { useT } from './ui/edgeUtils';
+import { baseCurrency } from '../shared/currency.js';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Add or edit a person.
@@ -36,7 +37,7 @@ const blank = (org) => ({
     studentName: '', photo_path: null, email: '', phone: '', studentAddress: '',
     role: '', department: '', supervisorName: '', responsibilities: '',
     startDate: '', endDate: '', acceptanceDeadline: '',
-    isPaid: true, stipend: '', currency: 'INR', paymentFrequency: 'Monthly',
+    isPaid: true, stipend: '', currency: baseCurrency(), paymentFrequency: 'Monthly',
     companyName: org.company_name || '',
     companyTagline: org.company_tagline || '',
     companyAddress: org.company_address || '',
@@ -287,7 +288,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                                 <Field label="Amount"><Input type="number" value={form.stipend} onChange={set('stipend')} placeholder="0" /></Field>
                                 <Field label="Currency">
                                     <Select value={form.currency} onChange={set('currency')}>
-                                        <option value="INR">INR</option><option value="USD">USD</option><option value="EUR">EUR</option>
+                                        {[...new Set([baseCurrency(), 'INR', 'USD', 'EUR'])].map((c) => <option key={c} value={c}>{c}</option>)}
                                     </Select>
                                 </Field>
                                 <Field label="Paid">

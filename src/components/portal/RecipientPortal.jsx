@@ -16,6 +16,7 @@ import UPIQRGenerator from '../shared/UPIQRGenerator';
 import PaymentConfirmationForm from '../shared/PaymentConfirmationForm';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
 import { advanceOf } from '../../services/proformaAdvance';
+import { currencySymbol, currencySymbol as symbolOf, currencyLocale, recordCurrency, setBaseCurrency } from '../../shared/currency.js';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -126,6 +127,7 @@ export default function RecipientPortal({ documentId }) {
           type: loaded.type === 'offer' ? 'offer_letter' : loaded.type,
           issued_to: loaded.issued_to || loaded.studentName || loaded.recipientName || loaded.name || '',
         });
+        setBaseCurrency(liveCompany?.currency);
         setCompany(liveCompany);
         setReadOnly(scope !== 'sign');
         setStatus(loaded.status);
@@ -583,7 +585,7 @@ export default function RecipientPortal({ documentId }) {
                   {docData.type === 'offer_letter' && (() => {
                     const isFT = docData.offer_type === 'fulltime';
                     const isCollab = docData.offer_type === 'collaboration';
-                    const currSym = { INR: '₹', USD: '$', EUR: '€', GBP: '£' }[docData.currency] || (docData.currency || '₹');
+                    const currSym = symbolOf(recordCurrency(docData.currency)).trim();
                     const detailRows = [
                       ['Position', docData.role],
                       ['Type', isFT ? 'Full-Time Employment' : isCollab ? 'Collaboration Agreement' : 'Internship'],
@@ -591,7 +593,7 @@ export default function RecipientPortal({ documentId }) {
                       docData.supervisor && ['Reporting To', docData.supervisor],
                       docData.start_date && ['Start Date', fmtOfferDate(docData.start_date)],
                       (!isFT || isCollab) && docData.end_date && ['End Date', fmtOfferDate(docData.end_date)],
-                      docData.is_paid && docData.salary && ['Compensation', `${currSym} ${Number(docData.salary).toLocaleString('en-IN')} / ${(docData.payment_frequency || 'Monthly').toLowerCase()}`],
+                      docData.is_paid && docData.salary && ['Compensation', `${currSym} ${Number(docData.salary).toLocaleString(currencyLocale())} / ${(docData.payment_frequency || 'Monthly').toLowerCase()}`],
                       docData.valid_until && ['Respond By', fmtOfferDate(docData.valid_until)],
                     ].filter(Boolean);
 
@@ -703,7 +705,7 @@ export default function RecipientPortal({ documentId }) {
                           <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>New Role</td><td style={{ fontWeight: 700 }}>{docData.new_role || '-'}</td></tr>
                           {docData.current_department && <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>Current Dept.</td><td style={{ fontWeight: 600 }}>{docData.current_department}</td></tr>}
                           {docData.new_department && <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>New Dept.</td><td style={{ fontWeight: 700 }}>{docData.new_department}</td></tr>}
-                          {docData.new_salary && <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>New Compensation</td><td style={{ fontWeight: 700 }}>₹ {Number(docData.new_salary).toLocaleString('en-IN')} / {docData.salary_frequency || 'month'}</td></tr>}
+                          {docData.new_salary && <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>New Compensation</td><td style={{ fontWeight: 700 }}>{currencySymbol()} {Number(docData.new_salary).toLocaleString(currencyLocale())} / {docData.salary_frequency || 'month'}</td></tr>}
                           <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>Effective Date</td><td style={{ fontWeight: 700 }}>{fmtOfferDate(docData.effective_date)}</td></tr>
                         </tbody>
                       </table>
@@ -881,8 +883,8 @@ export default function RecipientPortal({ documentId }) {
                             <tr key={i}>
                               <td>{item.description}</td>
                               <td className="rp-doc-table-center">{item.quantity} {item.unit || ''}</td>
-                              <td className="rp-doc-table-right">₹{item.rate?.toLocaleString('en-IN')}</td>
-                              <td className="rp-doc-table-right">₹{((item.quantity || 0) * (item.rate || 0)).toLocaleString('en-IN')}</td>
+                              <td className="rp-doc-table-right">{currencySymbol()}{item.rate?.toLocaleString(currencyLocale())}</td>
+                              <td className="rp-doc-table-right">{currencySymbol()}{((item.quantity || 0) * (item.rate || 0)).toLocaleString(currencyLocale())}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -942,8 +944,8 @@ export default function RecipientPortal({ documentId }) {
                             <tr key={i}>
                               <td>{item.description}</td>
                               <td className="rp-doc-table-center">{item.quantity}</td>
-                              <td className="rp-doc-table-right">₹{item.rate?.toLocaleString('en-IN')}</td>
-                              <td className="rp-doc-table-right">₹{((item.quantity || 0) * (item.rate || 0)).toLocaleString('en-IN')}</td>
+                              <td className="rp-doc-table-right">{currencySymbol()}{item.rate?.toLocaleString(currencyLocale())}</td>
+                              <td className="rp-doc-table-right">{currencySymbol()}{((item.quantity || 0) * (item.rate || 0)).toLocaleString(currencyLocale())}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1290,7 +1292,7 @@ export default function RecipientPortal({ documentId }) {
                   {docData.new_salary && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
                       <span style={{ color: 'var(--rp-text-muted)' }}>New Compensation</span>
-                      <strong>₹{Number(docData.new_salary).toLocaleString('en-IN')} / {docData.salary_frequency || 'month'}</strong>
+                      <strong>{currencySymbol()}{Number(docData.new_salary).toLocaleString(currencyLocale())} / {docData.salary_frequency || 'month'}</strong>
                     </div>
                   )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
@@ -1521,7 +1523,7 @@ function BankRow({ label, value, copyable, onCopy, copied }) {
   );
 }
 
-const inr = (n) => '₹' + (Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+const inr = (n) => currencySymbol() + (Number(n) || 0).toLocaleString(currencyLocale(), { maximumFractionDigits: 2 });
 
 /** grand_total is written by the totals trigger and already includes GST. */
 function grandTotalOf(doc) {

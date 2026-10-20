@@ -22,6 +22,7 @@ import {
   issuedInvoices, balanceOf, isOverdue, daysOverdue, profitAndLoss, inRange, periodBounds, netOfTax,
 } from '../../services/financeAnalytics';
 import { categoryLabel, countsAsExpense, countsAsIncome } from '../../services/financeCategories';
+import { compactNumber, currencyLocale, currencySymbol } from '../../shared/currency.js';
 
 const n = (v) => Number(v) || 0;
 export const dayOf = (d) => (d ? String(d).slice(0, 10) : '');
@@ -538,17 +539,13 @@ function buildInsights({ kpis, customers, categories, aging, pl, invoiced, overd
 
 /* ── formatting ───────────────────────────────────────────────────────────── */
 
-export const fmtInr = (v) => '₹' + Math.round(n(v)).toLocaleString('en-IN');
+// In the org's currency (Company Profile → Region & currency).
+export const fmtInr = (v) => currencySymbol() + Math.round(n(v)).toLocaleString(currencyLocale());
 export const fmtShort = (v) => {
   const x = Math.round(n(v));
-  const a = Math.abs(x);
-  const s = x < 0 ? '-' : '';
-  if (a >= 10000000) return `${s}₹${(a / 10000000).toFixed(2)}Cr`;
-  if (a >= 100000) return `${s}₹${(a / 100000).toFixed(2)}L`;
-  if (a >= 1000) return `${s}₹${(a / 1000).toFixed(1)}k`;
-  return `${s}₹${a}`;
+  return `${x < 0 ? '-' : ''}${currencySymbol()}${compactNumber(Math.abs(x))}`;
 };
-export const fmtAxis = (v) => fmtShort(v).replace('₹', '');
+export const fmtAxis = (v) => compactNumber(v);
 export const fmtDay = (s) => (s ? parse(dayOf(s)).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-');
 
 /* ── drill-down slices ────────────────────────────────────────────────────── */

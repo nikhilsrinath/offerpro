@@ -12,6 +12,7 @@ import { hasFeature } from '../../services/planConfig';
 import { orgStore } from '../../services/orgStore';
 import HealthChip from './HealthChip';
 import { ChevronUp, ChevronDown } from 'lucide-react';
+import { projectRef } from './projectSlug';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Portfolio: every project on one page. Pro and Max. Money columns need
@@ -191,7 +192,7 @@ export default function Portfolio() {
                                     .map((r) => ({ key: r.project_id, name: r.name, value: Number(r.net_margin),
                                         color: Number(r.net_margin) < 0 ? t.down : undefined }))
                                     .sort((a, b) => b.value - a.value)}
-                                onSelect={(r) => navigate(`/projects/${r.key}`)} />
+                                onSelect={(r) => navigate(`/projects/${projectRef(r.key)}`)} />
                         </Panel>
                     )}
                     <Panel title="Health of open projects" pad={15}>
@@ -219,7 +220,7 @@ export default function Portfolio() {
                         {(show, vis) => (
                             <>
                                 {sorted.map((r) => (
-                                    <Tr key={r.project_id} onClick={() => navigate(`/projects/${r.project_id}`)} label={`Open ${r.name}`}>
+                                    <Tr key={r.project_id} onClick={() => navigate(`/projects/${projectRef(r.project_id)}`)} label={`Open ${r.name}`}>
                                         {vis.map((c) => <Td key={c.key} align={c.align} nowrap={c.key !== 'name'}>{cell(r, c.key)}</Td>)}
                                     </Tr>
                                 ))}

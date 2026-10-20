@@ -12,6 +12,7 @@ import A4Stage from '../shared/A4Stage';
 import { EditProvider, EditBar } from '../shared/Editable';
 import AgreementPreview from './AgreementPreview';
 import { useFormProject, useClientAsParty, linkRecordToProject, projectFormNote } from '../projects/projectScope';
+import { currencySymbol } from '../../shared/currency.js';
 
 const IMAGE_FIELDS = ['firstPartySignature', 'secondPartySignature', 'companyLogo', 'stampUrl'];
 
@@ -289,11 +290,11 @@ export default function AgreementForm({ kind }) {
                 <div className="easy-row">
                   <div className="easy-field full">
                     <label className="easy-lbl" htmlFor="pt-fpc">First party contribution</label>
-                    <input id="pt-fpc" name="firstPartyContribution" value={formData.firstPartyContribution} onChange={handleChange} placeholder="e.g. ₹10,00,000 in capital and the technology platform" className="easy-inp" required />
+                    <input id="pt-fpc" name="firstPartyContribution" value={formData.firstPartyContribution} onChange={handleChange} placeholder={`e.g. ${currencySymbol()}10,00,000 in capital and the technology platform`} className="easy-inp" required />
                   </div>
                   <div className="easy-field full">
                     <label className="easy-lbl" htmlFor="pt-spc">Second party contribution</label>
-                    <input id="pt-spc" name="secondPartyContribution" value={formData.secondPartyContribution} onChange={handleChange} placeholder="e.g. Sales network, domain expertise and ₹5,00,000" className="easy-inp" required />
+                    <input id="pt-spc" name="secondPartyContribution" value={formData.secondPartyContribution} onChange={handleChange} placeholder={`e.g. Sales network, domain expertise and ${currencySymbol()}5,00,000`} className="easy-inp" required />
                   </div>
                   <div className="easy-field">
                     <label className="easy-lbl" htmlFor="pt-share">First party profit share (%)</label>

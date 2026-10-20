@@ -10,6 +10,7 @@ import { agentsService } from '../../services/agentsService';
 import { DEADLINE_AGENT, useDeadlineScan } from './deadlineAgent';
 import { formatMoney } from '../../shared/deadlineWatch';
 import { formatDateShort } from '../../shared/dates';
+import AgentCard from './AgentCard';
 import './agents.css';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -60,30 +61,18 @@ const timeAgo = (iso) => {
 
 /* ── the card on the Agents grid ──────────────────────────────────────────── */
 
-export function DeadlineWatchCard({ onOpen }) {
+export function DeadlineWatchCard({ onOpen, auto }) {
     const { data, loading, error } = useDeadlineScan();
-    const Icon = DEADLINE_AGENT.icon;
     const c = data?.counts;
     const urgent = c ? c.critical + c.high : 0;
     return (
-        <button type="button" className="ag-card" onClick={onOpen}>
-            <span className="ag-card-top">
-                <span className="ag-ico" aria-hidden="true"><Icon size={18} strokeWidth={1.9} /></span>
-                <span className={`ag-state${data?.settings?.daily ? '' : ' is-off'}`}>
-                    <i aria-hidden="true" />{data?.settings?.daily ? 'Daily' : 'On Demand'}
-                </span>
-            </span>
-            <span className="ag-name">{DEADLINE_AGENT.name}</span>
-            <span className="ag-desc">{DEADLINE_AGENT.blurb}</span>
-            <span className="ag-foot">
-                {loading && !data ? <span className="ag-muted">Checking…</span>
-                    : error ? <span className="ag-muted">Open to check</span>
-                        : urgent ? <span className="ag-badge is-neg">{urgent} need{urgent === 1 ? 's' : ''} action</span>
-                            : c?.total ? <span className="ag-badge">{c.total} coming up</span>
-                                : <span className="ag-badge is-pos">All clear</span>}
-                <ArrowUpRight size={15} strokeWidth={2} aria-hidden="true" className="ag-go" />
-            </span>
-        </button>
+        <AgentCard agent={DEADLINE_AGENT} auto={auto} onOpen={onOpen}>
+            {loading && !data ? <span className="ag-muted">Checking…</span>
+                : error ? <span className="ag-muted">Open to check</span>
+                    : urgent ? <span className="ag-badge is-neg">{urgent} need{urgent === 1 ? 's' : ''} action</span>
+                        : c?.total ? <span className="ag-badge">{c.total} coming up</span>
+                            : <span className="ag-badge is-pos">All clear</span>}
+        </AgentCard>
     );
 }
 
