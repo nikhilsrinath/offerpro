@@ -144,7 +144,7 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
   };
 
   return (
-    <Modal title="Record a Debit (Vendor Payment)" onClose={onClose} width={680} dirty={dirty}>
+    <Modal title="Record a Debit (Vendor Payment)" onClose={onClose} width={1180} dirty={dirty}>
       <form onSubmit={save} className="prod-modal-body cb-form">
         {onStep && <LedgerSteps step={3} onStep={onStep} />}
         {error && <div className="prod-form-error" role="alert">{error}</div>}
@@ -152,18 +152,6 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
           <p className="prod-perf-note">Debit · Vendor Payment · <strong>{titleCase(subTypeLabel)}</strong></p>
         )}
         <div className="prod-form-grid">
-          {/* The proof first, with the number printed on it. */}
-          <div className="prod-field">
-            <label>Receipt or proof</label>
-            <ReceiptField path={form.receipt_path} kind="expenses"
-              onChange={(path) => set('receipt_path', path)} />
-          </div>
-          <div className="prod-field">
-            <label htmlFor="vp-receipt-no">Receipt Number</label>
-            <input id="vp-receipt-no" value={form.receipt_number} placeholder="As printed on the receipt"
-              onChange={(e) => set('receipt_number', e.target.value)} />
-          </div>
-
           <div className="prod-field full">
             <label className="req" htmlFor="vp-vendor">Vendor</label>
             <VendorSelect id="vp-vendor" vendors={activeVendors} value={form.vendor_id}
@@ -236,6 +224,18 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
             </>
           )}
 
+          {/* The proof, with the number printed on it. */}
+          <div className="prod-field">
+            <label>Receipt or proof</label>
+            <ReceiptField path={form.receipt_path} kind="expenses"
+              onChange={(path) => set('receipt_path', path)} />
+          </div>
+          <div className="prod-field">
+            <label htmlFor="vp-receipt-no">Receipt Number</label>
+            <input id="vp-receipt-no" value={form.receipt_number} placeholder="As printed on the receipt"
+              onChange={(e) => set('receipt_number', e.target.value)} />
+          </div>
+
           <fieldset className="prod-field full cb-fieldset">
             <legend>How did you pay?</legend>
             <div className="cb-chips">
@@ -249,9 +249,9 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
 
         </div>
 
-        {/* The rest of what an edit of this payment offers, shown up front. */}
-        <section className="cb-more" aria-labelledby="vp-more-title">
-          <h3 id="vp-more-title" className="cb-more-title">More Details</h3>
+        {/* The rest of what an edit of this payment offers, folded away until asked for. */}
+        <details className="cb-more">
+          <summary className="cb-more-title">More Details</summary>
           <div className="prod-form-grid">
             <div className="prod-field">
               <label htmlFor="vp-ref">Reference</label>
@@ -305,7 +305,7 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
               <textarea id="vp-notes" rows={2} value={form.notes} onChange={(e) => set('notes', e.target.value)} />
             </div>
           </div>
-        </section>
+        </details>
         <div className="prod-modal-foot">
           <button type="button" onClick={onClose} className="prod-btn-ghost">Cancel</button>
           <button type="submit" disabled={saving} className="prod-btn-primary">

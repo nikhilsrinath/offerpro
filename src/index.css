@@ -13805,6 +13805,11 @@ label {
 .cb-more { margin-top: 1.4rem; border-top: 1px solid var(--cb-line); padding-top: 0.9rem; }
 .cb-more > .prod-form-grid { margin-top: 1rem; }
 .cb-more-title { margin: 0; padding: 0.4rem 0; font-size: 0.9rem; font-weight: 600; color: var(--cb-text); }
+/* More Details folds: a chevron that turns when it opens. */
+summary.cb-more-title { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; list-style: none; user-select: none; }
+summary.cb-more-title::-webkit-details-marker { display: none; }
+summary.cb-more-title::before { content: ""; width: 0.45rem; height: 0.45rem; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform 0.15s ease; }
+details.cb-more[open] > summary.cb-more-title::before { transform: rotate(45deg); }
 .cb-form .prod-modal-foot { margin-top: 1.5rem; }
 .cb-form .prod-modal-foot button { min-height: 44px; padding: 0 1.25rem; font-size: 0.9rem; }
 @media (max-width: 640px) {

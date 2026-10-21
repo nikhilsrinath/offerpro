@@ -43,6 +43,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
 
   const [editing, setEditing] = useState(entry);
   const [saving, setSaving] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [formError, setFormError] = useState('');
 
   // The category list is reference data loaded on first use; re-render once
@@ -188,7 +189,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
 
   return (
     <Modal
-      width={880}
+      width={1180}
       title={editing.id
         ? `Edit ${editing.direction === 'in' ? 'credit' : editing.purchase_invoice_id ? 'bill payment' : 'debit'}`
         : editing.purchase_invoice_id ? 'Record a bill payment'
@@ -235,21 +236,8 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
           </div>
         )}
 
-        {/*: the essentials: the proof first, then how much, when, what for, why, how, who, */}
+        {/*: the essentials: how much, when, what for, who, where it belongs, then the proof, */}
         <div className="prod-form-grid">
-          <div className="prod-field">
-            <label>Receipt or proof</label>
-            <ReceiptField path={editing.receipt_path}
-              kind={editing.direction === 'in' ? 'income' : 'expenses'}
-              onChange={(p) => set('receipt_path', p)} />
-          </div>
-
-          <div className="prod-field">
-            <label htmlFor="cb-receipt-no">Receipt Number</label>
-            <input id="cb-receipt-no" value={editing.receipt_number || ''} placeholder="As printed on the receipt"
-              onChange={(e) => set('receipt_number', e.target.value)} />
-          </div>
-
           <div className="prod-field">
             <label className="req" htmlFor="cb-amount">Amount</label>
             <div className="cb-amount">
@@ -378,6 +366,19 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
           />
           )}
 
+          <div className="prod-field">
+            <label>Receipt or proof</label>
+            <ReceiptField path={editing.receipt_path}
+              kind={editing.direction === 'in' ? 'income' : 'expenses'}
+              onChange={(p) => set('receipt_path', p)} />
+          </div>
+
+          <div className="prod-field">
+            <label htmlFor="cb-receipt-no">Receipt Number</label>
+            <input id="cb-receipt-no" value={editing.receipt_number || ''} placeholder="As printed on the receipt"
+              onChange={(e) => set('receipt_number', e.target.value)} />
+          </div>
+
           <fieldset className="prod-field full cb-fieldset">
             <legend>{editing.direction === 'in' ? 'How were you paid?' : 'How did you pay?'}</legend>
             <div className="cb-chips">
@@ -413,9 +414,11 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
           )}
         </div>
 
-        {/*: everything else, shown up front as on an edit, */}
-        <section className="cb-more" aria-labelledby="cb-more-title">
-          <h3 id="cb-more-title" className="cb-more-title">More Details</h3>
+        {/*: everything else, folded away until asked for; held open while a
+            foreign currency needs its rate, a required field inside. */}
+        <details className="cb-more" open={moreOpen || isForeign(editing.currency)}
+          onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
+          <summary className="cb-more-title">More Details</summary>
           <div className="prod-form-grid">
             <div className="prod-field">
               <label htmlFor="cb-currency">Currency</label>
@@ -559,7 +562,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
                 onChange={(e) => set('notes', e.target.value)} />
             </div>
           </div>
-        </section>
+        </details>
 
         <div className="prod-modal-foot">
           <button type="button" className="prod-btn-ghost" onClick={() => onClose()}>Cancel</button>
