@@ -4,7 +4,7 @@ import {
     Panel, Grid, Row, Btn, Select, Search, Table, Tr, Td, Empty, Muted, Status, StatBand, Modal, Field, Input,
     Loading, RowMenu,
 } from '../ui/edge';
-import { ChevronLeft, ChevronRight, Download, Pencil, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Paperclip, Pencil, Trash2 } from 'lucide-react';
 import { confirmDialog } from '../../services/confirm';
 import { orgStore } from '../../services/orgStore';
 import { receiptService } from '../../services/receiptService';
@@ -486,6 +486,14 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
     const partsOf = (r) => r.breakdown.map((p) => expenses.find((e) => e.id === p.id)).filter(Boolean);
     // The receipt numbers typed on the entry, or on each entry of a grouped payment.
     const receiptOf = (r) => [...new Set((r.breakdown ? partsOf(r).map((e) => e.receipt_number) : [r.s?.receiptNo]).filter(Boolean))].join(', ');
+    // The files attached to the entry, or to each entry of a grouped payment, each one viewable.
+    const receiptItems = (r) => {
+        const paths = [...new Set((r.breakdown ? partsOf(r).map((e) => e.receipt_path) : [r.s?.receipt]).filter(Boolean))];
+        return paths.map((p, i) => ({
+            label: paths.length > 1 ? `View Receipt ${i + 1}` : 'View Receipt', icon: Paperclip,
+            onClick: async () => { if (!(await receiptService.open(p))) toast('Could not open the receipt', 'error'); },
+        }));
+    };
     const projectText = (r) => (r.projects?.length ? r.projects.map((p) => p.code || p.name).join(', ') : 'General');
 
     const exportCsv = () => downloadCsv(
@@ -561,6 +569,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                             // A bill row on Purchase Bills says where the bill stands and carries its actions.
                             const bill = a.source_type === 'purchase_invoice' ? billInfo[a.source_id] : null;
                             const owed = bill ? Math.max(0, bill.total - bill.amount_paid) : 0;
+                            const receipts = bill ? [] : receiptItems(r);
                             return (
                                 <Tr key={a.id}>
                                     {show('d') && <Td muted nowrap>{s ? fmtDate(s.date) : '-'}</Td>}
@@ -608,9 +617,10 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                         {bill && billMenu
                                             ? <RowMenu label={`Actions for bill ${bill.bill_number}`} items={billMenu(bill)} />
                                             : (r.pays || s?.advance || s?.vendorPay || r.breakdown) && paymentMenu ? <RowMenu label={kindOf(r) === 'Advance' ? 'Actions for this advance' : 'Actions for this payment'}
-                                                items={r.breakdown ? paymentMenu(r.breakdown.map((p) => p.id), open) : paymentMenu(a.source_id)} />
-                                            : (open || deletable) && <RowMenu label={`Actions for ${name}`} items={[
-                                                open && { label: 'Edit', icon: Pencil, onClick: open },
+                                                items={[...receipts, ...(r.breakdown ? paymentMenu(r.breakdown.map((p) => p.id), open) : paymentMenu(a.source_id))]} />
+                                            : (open || deletable || receipts.length > 0) && <RowMenu label={`Actions for ${name}`} items={[
+                                                ...receipts,
+                                                open &&{ label: 'Edit', icon: Pencil, onClick: open },
                                                 deletable && ENTRY_DIRECTION[a.source_type] && { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => askDelete(r) },
                                             ]} />}
                                     </Td>}
