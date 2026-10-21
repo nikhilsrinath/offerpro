@@ -9,7 +9,6 @@ import { RowMenu, Table, Tr, Td } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
 import { Stat, Modal } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
-import { todayIso } from '../../services/financeAnalytics';
 import { confirmDialog } from '../../services/confirm';
 import BelongsToSelect, { BelongsToFilter, ProjectOnlySelect } from '../shared/BelongsToSelect';
 import {
@@ -41,7 +40,6 @@ const COLS = [
   { key: 'billed', label: 'Billed', align: 'right' },
   { key: 'paid', label: 'Paid', align: 'right' },
   { key: 'outstanding', label: 'Outstanding', align: 'right' },
-  { key: 'overdue', label: 'Overdue', align: 'right', def: false },
   { key: 'count', label: 'Bills & expenses', align: 'right', def: false },
   { key: 'last', label: 'Last activity' },
   { key: 'actions', label: '', always: true, width: 56 },
@@ -68,9 +66,8 @@ export default function Vendors() {
 
   // Per-vendor totals from the bills and expenses that name them.
   const ledger = useMemo(() => {
-    const today = todayIso();
     const out = {};
-    for (const v of vendors) out[v.id] = { billed: 0, paid: 0, outstanding: 0, overdue: 0, count: 0, last: null };
+    for (const v of vendors) out[v.id] = { billed: 0, paid: 0, outstanding: 0, count: 0, last: null };
     for (const p of purchases) {
       const l = out[p.vendor_id];
       if (!l || p.status === 'void') continue;
@@ -78,7 +75,6 @@ export default function Vendors() {
       l.billed += p.total;
       l.paid += p.amount_paid;
       l.outstanding += bal;
-      if (bal > 0.009 && p.due_date && p.due_date < today) l.overdue += bal;
       l.count += 1;
       if (!l.last || p.bill_date > l.last) l.last = p.bill_date;
     }
@@ -104,8 +100,8 @@ export default function Vendors() {
   }, [vendors, search, showArchived, scope, links]);
 
   const totals = useMemo(() => Object.values(ledger).reduce((a, l) => ({
-    outstanding: a.outstanding + l.outstanding, overdue: a.overdue + l.overdue, billed: a.billed + l.billed,
-  }), { outstanding: 0, overdue: 0, billed: 0 }), [ledger]);
+    outstanding: a.outstanding + l.outstanding, billed: a.billed + l.billed,
+  }), { outstanding: 0, billed: 0 }), [ledger]);
 
   const set = (k, v) => setEditing((e) => ({ ...e, [k]: v }));
 
@@ -173,7 +169,6 @@ export default function Vendors() {
         <Stat icon={<Truck size={15} />} label="Active vendors" value={vendors.filter((v) => !v.archived_at).length} />
         <Stat icon={<FileText size={15} />} label="Total billed" value={money(totals.billed)} />
         <Stat icon={<IndianRupee size={15} />} label="Payable" value={money(totals.outstanding)} accent="var(--text-primary)" />
-        <Stat icon={<AlertTriangle size={15} />} label="Overdue payables" value={money(totals.overdue)} accent="var(--error)" />
       </div>
 
       <div className="prod-toolbar">
@@ -230,9 +225,8 @@ export default function Vendors() {
                 {show('billed') && <Td align="right" nowrap>{money(l.billed)}</Td>}
                 {show('paid') && <Td align="right" nowrap><span style={{ color: l.paid > 0 ? t.up : undefined }}>{money(l.paid)}</span></Td>}
                 {show('outstanding') && (
-                  <Td align="right" nowrap><span style={{ fontWeight: 600, color: l.overdue > 0 ? t.down : undefined }}>{money(l.outstanding)}</span></Td>
+                  <Td align="right" nowrap><span style={{ fontWeight: 600 }}>{money(l.outstanding)}</span></Td>
                 )}
-                {show('overdue') && <Td align="right" nowrap><span style={{ color: l.overdue > 0 ? t.down : undefined }}>{money(l.overdue)}</span></Td>}
                 {show('count') && <Td align="right" nowrap muted>{l.count || 0}</Td>}
                 {show('last') && <Td nowrap muted>{fmtDate(l.last)}</Td>}
                 {show('actions') && (

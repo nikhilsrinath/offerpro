@@ -8,8 +8,10 @@ import {
 import { useToast } from '../shared/Toast';
 import ProjectPicker from '../shared/ProjectPicker';
 import VendorSelect from '../shared/VendorSelect';
+import CountrySelect from '../shared/CountrySelect';
+import { INDIAN_STATES } from '../../data/indianStates';
 import { titleCase } from '../../utils/titleCase';
-import { Modal } from './financeUi';
+import { Modal, ReceiptField } from './financeUi';
 import { money, useSection } from './financeHooks';
 import {
   ADVANCE, billBalance, billPickerOf, blank, spreadVendorPayment, vendorCredit,
@@ -31,6 +33,8 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
   const expenses = useSection('expenses');
   const allocations = useSection('project_allocations');
   const bills = useSection('purchase_invoices');
+  const departments = useSection('departments');
+  const clients = useSection('customers');
 
   // What is pending to each vendor, over their bills still open.
   const pendingBy = useMemo(() => {
@@ -45,6 +49,8 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
     vendor_id: vendorId,
     mode: (pendingBy[vendorId] || 0) > 0.009 ? 'pending' : 'advance',
     amount: '', date: todayIso(), payment_method: 'bank_transfer', reference: '', notes: '', description: '',
+    receipt_path: null, receipt_number: '',
+    department_id: '', client_id: '', country_code: '', place_of_supply: '', is_inter_state: false, quantity: '', unit: '',
     picker: startOn ? pickerFor(startOn) : pickerFromAllocations('purchase_invoice', null),
   }));
   const [saving, setSaving] = useState(false);
@@ -105,12 +111,18 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
         vendor_id: vendor.id,
         category: isAdvance ? ADVANCE : 'vendor_bill_payment',
         original_amount: String(amount),
-        description: (isAdvance && form.description.trim())
+        description: form.description.trim()
           || `${isAdvance ? 'Advance' : 'Payment'} to ${vendor.company_name}${isAdvance && subTypeLabel ? `, ${subTypeLabel}` : ''}`,
         date: form.date,
         payment_method: form.payment_method,
         reference: form.reference.trim(),
         notes: form.notes.trim(),
+        receipt_path: form.receipt_path,
+        // Sent only when typed, so the payment still saves before 0095.
+        ...(form.receipt_number.trim() ? { receipt_number: form.receipt_number.trim() } : {}),
+        department_id: form.department_id, client_id: form.client_id,
+        country_code: form.country_code, place_of_supply: form.place_of_supply, is_inter_state: form.is_inter_state,
+        quantity: form.quantity, unit: form.unit.trim(),
         currency: baseCurrency(), fx_rate: 1, tax_amount: 0, tax_rate: 0, status: 'paid', billable: false,
       };
       const { id } = await orgStore.addItem('expenses', entry);
@@ -138,6 +150,18 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
           <p className="prod-perf-note">Debit · Vendor Payment · <strong>{titleCase(subTypeLabel)}</strong></p>
         )}
         <div className="prod-form-grid">
+          {/* The proof first, with the number printed on it. */}
+          <div className="prod-field">
+            <label>Receipt or proof</label>
+            <ReceiptField path={form.receipt_path} kind="expenses"
+              onChange={(path) => set('receipt_path', path)} />
+          </div>
+          <div className="prod-field">
+            <label htmlFor="vp-receipt-no">Receipt Number</label>
+            <input id="vp-receipt-no" value={form.receipt_number} placeholder="As printed on the receipt"
+              onChange={(e) => set('receipt_number', e.target.value)} />
+          </div>
+
           <div className="prod-field full">
             <label className="req" htmlFor="vp-vendor">Vendor</label>
             <VendorSelect id="vp-vendor" vendors={activeVendors} value={form.vendor_id}
@@ -190,14 +214,16 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
             <input id="vp-date" type="date" value={form.date} onChange={(e) => set('date', e.target.value)} required />
           </div>
 
+          <div className="prod-field full">
+            <label htmlFor="vp-desc">What is it for?</label>
+            <input id="vp-desc" value={form.description}
+              placeholder={isAdvance ? (subTypeLabel ? `e.g. ${subTypeLabel}` : 'e.g. Steel for the second floor')
+                : vendor ? `Payment to ${vendor.company_name}` : 'e.g. Payment for September supplies'}
+              onChange={(e) => set('description', e.target.value)} />
+          </div>
+
           {isAdvance && (
             <>
-              <div className="prod-field full">
-                <label htmlFor="vp-desc">What is it for?</label>
-                <input id="vp-desc" value={form.description}
-                  placeholder={subTypeLabel ? `e.g. ${subTypeLabel}` : 'e.g. Steel for the second floor'}
-                  onChange={(e) => set('description', e.target.value)} />
-              </div>
               <ProjectPicker
                 label="Project or General"
                 noneLabel="Others (not for a project)"
@@ -219,15 +245,65 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
             </div>
           </fieldset>
 
-          <div className="prod-field">
-            <label htmlFor="vp-ref">Reference</label>
-            <input id="vp-ref" value={form.reference} onChange={(e) => set('reference', e.target.value)} placeholder="UTR, cheque no., etc." />
-          </div>
-          <div className="prod-field">
-            <label htmlFor="vp-notes">Notes</label>
-            <input id="vp-notes" value={form.notes} onChange={(e) => set('notes', e.target.value)} />
-          </div>
         </div>
+
+        {/* The rest of what an edit of this payment offers, shown up front. */}
+        <section className="cb-more" aria-labelledby="vp-more-title">
+          <h3 id="vp-more-title" className="cb-more-title">More Details</h3>
+          <div className="prod-form-grid">
+            <div className="prod-field">
+              <label htmlFor="vp-ref">Reference</label>
+              <input id="vp-ref" value={form.reference} onChange={(e) => set('reference', e.target.value)} placeholder="UTR, cheque no., payout id" />
+            </div>
+            <div className="prod-field">
+              <label htmlFor="vp-department">Department</label>
+              <select id="vp-department" value={form.department_id} onChange={(e) => set('department_id', e.target.value)}>
+                <option value="">Not attributed</option>
+                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+            <div className="prod-field">
+              <label htmlFor="vp-client">For a client</label>
+              <select id="vp-client" value={form.client_id} onChange={(e) => set('client_id', e.target.value)}>
+                <option value="">Not client-specific</option>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div className="prod-field">
+              <label htmlFor="vp-country">Country</label>
+              <CountrySelect id="vp-country" value={form.country_code}
+                ariaLabel="Country the money went to"
+                placeholder="Worked out automatically"
+                onChange={(code) => set('country_code', code || '')} />
+            </div>
+            <div className="prod-field">
+              <label htmlFor="vp-pos">Place of supply</label>
+              <select id="vp-pos" value={form.place_of_supply} onChange={(e) => set('place_of_supply', e.target.value)}>
+                <option value="">Not recorded</option>
+                {INDIAN_STATES.map((st) => <option key={st} value={st}>{st}</option>)}
+              </select>
+              <label className="cb-check">
+                <input type="checkbox" checked={form.is_inter_state}
+                  onChange={(e) => set('is_inter_state', e.target.checked)} />
+                Inter-state (IGST)
+              </label>
+            </div>
+            <div className="prod-field">
+              <label htmlFor="vp-qty">Quantity</label>
+              <input id="vp-qty" type="number" min="0" step="0.001" value={form.quantity}
+                placeholder="Optional" onChange={(e) => set('quantity', e.target.value)} />
+            </div>
+            <div className="prod-field">
+              <label htmlFor="vp-unit">Unit</label>
+              <input id="vp-unit" value={form.unit} placeholder="Nos, kg, hours, litres"
+                onChange={(e) => set('unit', e.target.value)} />
+            </div>
+            <div className="prod-field full">
+              <label htmlFor="vp-notes">Notes</label>
+              <textarea id="vp-notes" rows={2} value={form.notes} onChange={(e) => set('notes', e.target.value)} />
+            </div>
+          </div>
+        </section>
         <div className="prod-modal-foot">
           <button type="button" onClick={onClose} className="prod-btn-ghost">Cancel</button>
           <button type="submit" disabled={saving} className="prod-btn-primary">

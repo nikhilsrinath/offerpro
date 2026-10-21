@@ -294,10 +294,10 @@ export default function CashBook({ projectId = null, children }) {
             onOpen={(r) => setEditing({ ...r, ...(r._full || {}), _share: undefined, _full: undefined, date: r.day })} />
         )}
 
-        <FlowTile t={t} area="in" icon={ArrowDownLeft} tone={t.up} label="Credit" value={money(tileIn)}
+        <FlowTile t={t} area="in" icon={ArrowDownLeft} tone={t.up} label="Credit" value={money(tileIn, 2)}
           note={`${(tiles || flow).inCount} ${(tiles || flow).inCount === 1 ? 'entry' : 'entries'} · ${periodText}`}
           active={!ledger && view === 'in'} onClick={ledger ? undefined : () => setView(view === 'in' ? 'all' : 'in')} />
-        <FlowTile t={t} area="out" icon={ArrowUpRight} tone={t.down} label="Debit" value={money(tileOut)}
+        <FlowTile t={t} area="out" icon={ArrowUpRight} tone={t.down} label="Debit" value={money(tileOut, 2)}
           note={!tiles && flow.pending > 0 ? `${money(flow.pending)} not paid yet` : `${(tiles || flow).outCount} ${(tiles || flow).outCount === 1 ? 'entry' : 'entries'} · ${periodText}`}
           active={!ledger && view === 'out'} onClick={ledger ? undefined : () => setView(view === 'out' ? 'all' : 'out')} />
         <div style={{
@@ -310,9 +310,9 @@ export default function CashBook({ projectId = null, children }) {
             {splitting && where !== 'all' && <Status tone="accent">{whereLabel}</Status>}
           </div>
           {tiles ? (
-            // The ledger's closing balance, Cr or Dr as on its last line.
+            // The ledger's closing balance, as on its last line.
             <div style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1, fontVariantNumeric: 'tabular-nums', color: tiles.balance >= 0 ? t.up : t.down }}>
-              {money(Math.abs(tiles.balance))} <span style={{ fontSize: 15, fontWeight: 500 }}>{tiles.balance < 0 ? 'Dr' : 'Cr'}</span>
+              {money(tiles.balance, 2)}
             </div>
           ) : (
             <div style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1, fontVariantNumeric: 'tabular-nums', color: flow.net >= 0 ? t.up : t.down }}>

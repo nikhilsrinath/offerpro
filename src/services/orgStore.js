@@ -723,6 +723,8 @@ const SECTIONS = {
       purchase_invoice_id: r.purchase_invoice_id || null,
       // 0094: the entries one payment was saved as share this.
       payment_group_id: r.payment_group_id || null,
+      // 0095, present only when the database has the column.
+      ...('receipt_number' in r ? { receipt_number: r.receipt_number || '' } : {}),
       created_at: r.created_at, updated_at: r.updated_at,
     }),
     // `amount` is deliberately NOT sent: app.expense_guard() derives it from
@@ -759,6 +761,9 @@ const SECTIONS = {
       // 0094. Sent only when set, so a payment that is one entry still saves
       // on a database without the column.
       ...(i.payment_group_id ? { payment_group_id: i.payment_group_id } : {}),
+      // 0095. Sent only once the entry has one (typed, or read from a database
+      // with the column), so an entry without it still saves before 0095.
+      ...optional(i, { receipt_number: nn }),
     }),
   },
 
@@ -789,6 +794,8 @@ const SECTIONS = {
       original_amount: r.original_amount == null ? Number(r.amount) || 0 : Number(r.original_amount),
       catalog_item_id: r.catalog_item_id || null,
       quantity: r.quantity == null ? null : Number(r.quantity), unit: r.unit || null,
+      // 0095, present only when the database has the column.
+      ...('receipt_number' in r ? { receipt_number: r.receipt_number || '' } : {}),
       created_at: r.created_at, updated_at: r.updated_at,
     }),
     // As with expenses: `amount` is derived by the guard from original_amount ×
@@ -810,6 +817,8 @@ const SECTIONS = {
       quantity: i.quantity === '' || i.quantity == null ? null : num(i.quantity, 0),
       unit: nn(i.unit),
       receipt_path: nn(i.receipt_path), notes: nn(i.notes),
+      // 0095, as on expenses.
+      ...optional(i, { receipt_number: nn }),
     }),
   },
 

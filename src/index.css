@@ -13804,14 +13804,7 @@ label {
 
 .cb-more { margin-top: 1.4rem; border-top: 1px solid var(--cb-line); padding-top: 0.9rem; }
 .cb-more > .prod-form-grid { margin-top: 1rem; }
-.cb-more-toggle {
-  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; width: 100%; padding: 0.4rem 0;
-  border: 0; background: transparent; cursor: pointer; font-family: inherit; text-align: left;
-}
-.cb-more-toggle > span:first-child { font-size: 0.9rem; font-weight: 600; color: var(--cb-text); text-decoration: underline; text-underline-offset: 3px; }
-.cb-more-toggle:disabled { cursor: default; }
-.cb-more-toggle:disabled > span:first-child { text-decoration: none; }
-.cb-more-hint { font-size: 0.78rem; color: var(--cb-faint); }
+.cb-more-title { margin: 0; padding: 0.4rem 0; font-size: 0.9rem; font-weight: 600; color: var(--cb-text); }
 .cb-form .prod-modal-foot { margin-top: 1.5rem; }
 .cb-form .prod-modal-foot button { min-height: 44px; padding: 0 1.25rem; font-size: 0.9rem; }
 @media (max-width: 640px) {

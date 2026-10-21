@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
 import { receiptService } from '../../services/receiptService';
-import { todayIso } from '../../services/financeAnalytics';
 import { TAX_RATES } from '../../services/catalogService';
 import { categoryLabel } from '../../services/financeCategories';
 import { useToast } from '../shared/Toast';
@@ -29,8 +28,9 @@ import { ProjectLedger } from '../projects/ProjectFinance';
 import { currencySymbol } from '../../shared/currency.js';
 
 const CATEGORIES = ['Operations', 'Inventory', 'Software', 'Hardware', 'Marketing', 'Travel', 'Utilities', 'Professional fees', 'Rent', 'Other'];
-// Paid is every debit (money gone to a vendor), Unpaid every credit (a bill).
-const FILTERS = ['all', 'paid', 'unpaid', 'overdue', 'void'];
+// The ledger's two sides: Debit is every payment (money gone to a vendor),
+// Credit every bill.
+const FILTERS = [['all', 'All'], ['credit', 'Credit'], ['debit', 'Debit']];
 
 const blank = (vendorId = '') => ({
   vendor_id: vendorId, bill_number: '', bill_date: '', due_date: '',
@@ -142,18 +142,10 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     });
     return out;
   }, [projectId, projects, allocations]);
-  const today = todayIso();
   const balance = (b) => Math.max(0, b.total - b.amount_paid);
-  const overdue = (b) => b.status !== 'void' && b.status !== 'paid' && b.due_date && b.due_date < today && balance(b) > 0.009;
-  const matches = (b) => {
-    if (filter === 'all') return true;
-    if (filter === 'overdue') return overdue(b);
-    if (filter === 'void') return b.status === 'void';
-    // Paid and Unpaid are the ledger's two sides, not where a bill stands:
-    // Paid is every debit (money gone to a vendor), Unpaid every credit (a bill).
-    return b.status !== 'void';
-  };
-  const side = filter === 'paid' ? 'out' : filter === 'unpaid' ? 'in' : 'all';
+  // Credit and Debit are the ledger's two sides, not where a bill stands.
+  const matches = (b) => filter === 'all' || b.status !== 'void';
+  const side = filter === 'debit' ? 'out' : filter === 'credit' ? 'in' : 'all';
 
   // Company-wide, the bills of the project (or General) the page is filtered to.
   const scopedBills = useMemo(() => {
@@ -185,7 +177,6 @@ export default function PurchaseInvoices({ projectId = null, children }) {
   // The debit rows the ledger keeps when it is narrowed by vendor or search:
   // a payment is the vendor's, not a bill's.
   const keepAdvances = useMemo(() => {
-    if (filter === 'overdue' || filter === 'void') return new Set();
     const q = search.trim().toLowerCase();
     return new Set(vendorDebits
       .filter((e) => !e.purchase_invoice_id)
@@ -193,7 +184,7 @@ export default function PurchaseInvoices({ projectId = null, children }) {
       .filter((e) => !q || [e.description, e.reference, vendorById[e.vendor_id]?.company_name, e.category === ADVANCE ? 'advance' : 'payment']
         .some((f) => String(f || '').toLowerCase().includes(q)))
       .map((e) => `expense:${e.id}`));
-  }, [vendorDebits, filter, search, vendorFilter, vendorById]);
+  }, [vendorDebits, search, vendorFilter, vendorById]);
 
   const totals = useMemo(() => {
     const share = (b) => b._share ?? 1;
@@ -399,8 +390,8 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     ];
   };
 
-  // Paid and Unpaid keep one side of the ledger rather than narrowing it to some bills.
-  const narrowed = !!search.trim() || filter === 'overdue' || filter === 'void' || vendorFilter !== 'all';
+  // Credit and Debit keep one side of the ledger rather than narrowing it to some bills.
+  const narrowed = !!search.trim() || vendorFilter !== 'all';
   const ledgerProps = {
     bills: filtered, billMenu, paymentMenu, onEdit: editEntry, filtered: narrowed, keep: keepAdvances,
     narrow: side === 'all' ? undefined : { view: side },
@@ -419,8 +410,8 @@ export default function PurchaseInvoices({ projectId = null, children }) {
         onOpen={(r) => openEntry(r, r.direction)} />
       <div className="prod-stats">
         <Stat icon={<FileInput size={15} />} label="Total billed" value={money(totals.billed)} onClick={() => setFilter('all')} />
-        <Stat icon={<CheckCircle size={15} />} label="Paid" value={money(totals.paid)} accent="var(--text-primary)" onClick={() => setFilter('paid')} />
-        <Stat icon={<IndianRupee size={15} />} label="Payable" value={money(totals.payable)} accent="var(--text-primary)" onClick={() => setFilter('unpaid')} />
+        <Stat icon={<CheckCircle size={15} />} label="Paid" value={money(totals.paid)} accent="var(--text-primary)" onClick={() => setFilter('debit')} />
+        <Stat icon={<IndianRupee size={15} />} label="Payable" value={money(totals.payable)} accent="var(--text-primary)" onClick={() => setFilter('credit')} />
         <Stat icon={<FileInput size={15} />} label="GST" value={money(totals.inputGst)} />
       </div>
 
@@ -443,10 +434,10 @@ export default function PurchaseInvoices({ projectId = null, children }) {
           <option value="all">All vendors</option>
           {vendors.map((v) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
         </select>
-        <div className="prod-seg" role="group" aria-label="Bill status">
-          {FILTERS.map((f) => (
+        <div className="prod-seg" role="group" aria-label="Ledger side">
+          {FILTERS.map(([f, label]) => (
             <button key={f} aria-pressed={filter === f} className={`pro-chip ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
-              {f === 'all' ? 'All' : f.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+              {label}
             </button>
           ))}
         </div>

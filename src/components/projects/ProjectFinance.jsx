@@ -14,7 +14,7 @@ import { deletePaymentParts } from '../financial/vendorAdvance';
 import { useT } from '../ui/edgeUtils';
 import { useSection, money, fmtDate } from '../financial/financeHooks';
 import {
-    periodOptions, periodBounds, netOfTax, balanceOf, isOverdue, daysOverdue, downloadCsv, todayIso, inRange,
+    periodOptions, periodBounds, netOfTax, balanceOf, isOverdue, daysOverdue, downloadCsv, inRange,
 } from '../../services/financeAnalytics';
 import { categoryLabel, categoryOf } from '../../services/financeCategories';
 import { isClosed } from '../../services/projectAnalytics';
@@ -73,14 +73,14 @@ function useSources() {
                 type: 'income_entry', id: e.id, date: e.received_on, net: netOfTax(e), gross: Number(e.amount) || 0,
                 party: clientName[e.client_id] || e.description || '', kind: categoryLabel(e.category),
                 number: e.reference || '', client_id: e.client_id, description: e.description || '', created: e.created_at || '',
-                receipt: e.receipt_path || null,
+                receipt: e.receipt_path || null, receiptNo: e.receipt_number || '',
                 settles: e.document_id ? `invoice:${e.document_id}` : null,
             })),
             ...expenses.map((e) => ({
                 type: 'expense', id: e.id, date: e.incurred_on, net: netOfTax(e), gross: Number(e.amount) || 0,
                 party: vendorName[e.vendor_id] || e.description || '', kind: categoryLabel(e.category),
                 number: e.reference || '', client_id: e.client_id, description: e.description || '', created: e.created_at || '',
-                receipt: e.receipt_path || null,
+                receipt: e.receipt_path || null, receiptNo: e.receipt_number || '',
                 // Paid to a vendor, before their bill (0093) or towards what they are owed.
                 advance: e.category === 'vendor_advance',
                 vendorPay: e.category === 'vendor_bill_payment',
@@ -410,7 +410,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
         return rows.slice().reverse()
             .filter((r) => (!nFrom && !nTo) || inRange(r.s?.date, nFrom, nTo))
             .filter((r) => nView === 'all' || r.credit === (nView === 'in'))
-            .filter((r) => !nSearch || [r.s?.party, r.s?.description, r.s?.number, r.s?.kind, r.pays?.number, SOURCE_LABEL[r.a.source_type],
+            .filter((r) => !nSearch || [r.s?.party, r.s?.description, r.s?.number, r.s?.receiptNo, r.s?.kind, r.pays?.number, SOURCE_LABEL[r.a.source_type],
                 ...(r.breakdown || []).map((p) => p.bill?.number),
                 ...(r.projects || []).flatMap((p) => [p.code, p.name])]
                 .some((v) => String(v || '').toLowerCase().includes(nSearch)))
@@ -478,26 +478,29 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
         }
     };
 
-    const side = (n) => `${money(Math.abs(n), 2)} ${n < 0 ? 'Dr' : 'Cr'}`;
+    // The balance is a plain signed amount, no Cr or Dr.
+    const side = (n) => money(n, 2);
     const nameOf = (r) => r.s?.party || SOURCE_LABEL[r.a.source_type];
     const kindOf = (r) => (r.breakdown?.some((p) => p.advance) || r.s?.advance ? 'Advance'
         : r.pays || r.breakdown || r.s?.vendorPay ? 'Payment' : r.s?.kind || SOURCE_LABEL[r.a.source_type]);
     const partsOf = (r) => r.breakdown.map((p) => expenses.find((e) => e.id === p.id)).filter(Boolean);
+    // The receipt numbers typed on the entry, or on each entry of a grouped payment.
+    const receiptOf = (r) => [...new Set((r.breakdown ? partsOf(r).map((e) => e.receipt_number) : [r.s?.receiptNo]).filter(Boolean))].join(', ');
     const projectText = (r) => (r.projects?.length ? r.projects.map((p) => p.code || p.name).join(', ') : 'General');
 
     const exportCsv = () => downloadCsv(
         company ? 'company-ledger.csv'
             : `${only === 'purchases' ? 'company-ledger' : 'project-ledger'}-${project.code || project.name || 'project'}.csv`,
-        ['Date', 'Particular / Company Name', ...(company ? ['Project'] : []), 'Type', 'Invoice No', 'Credit', 'Debit', 'Balance', 'Note'],
+        ['Date', 'Particular / Company Name', ...(company ? ['Project'] : []), 'Type', 'Invoice No', 'Receipt No', 'Credit', 'Debit', 'Balance', 'Note'],
         [
             ...shown.map((r) => [
-                r.s?.date || '', nameOf(r), ...(company ? [projectText(r)] : []), kindOf(r), r.s?.number || '',
+                r.s?.date || '', nameOf(r), ...(company ? [projectText(r)] : []), kindOf(r), r.s?.number || '', receiptOf(r),
                 r.credit ? r.value.toFixed(2) : '', r.credit ? '' : r.value.toFixed(2),
-                `${Math.abs(r.balance).toFixed(2)} ${r.balance < 0 ? 'Dr' : 'Cr'}`,
+                r.balance.toFixed(2),
                 r.settles ? 'Receipt against a linked invoice, not counted' : '',
             ]),
-            ['', 'Closing Balance', ...(company ? [''] : []), '', '', closing.credit.toFixed(2), closing.debit.toFixed(2),
-                `${Math.abs(closing.balance).toFixed(2)} ${closing.balance < 0 ? 'Dr' : 'Cr'}`, ''],
+            ['', 'Closing Balance', ...(company ? [''] : []), '', '', '', closing.credit.toFixed(2), closing.debit.toFixed(2),
+                closing.balance.toFixed(2), ''],
         ],
     );
 
@@ -536,7 +539,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
             <Table sticky actions={<Btn size="sm" onClick={exportCsv}><Download size={14} aria-hidden="true" /> Export CSV</Btn>} id={company ? 'company-ledger' : only === 'purchases' ? 'project-purchase-ledger' : 'project-ledger'} cols={[
                 { key: 'd', label: 'Date', width: 110 }, { key: 'p', label: 'Particular / Company Name', always: true },
                 ...(company ? [{ key: 'pr', label: 'Project' }] : []),
-                { key: 't', label: 'Type' }, { key: 'n', label: 'Invoice No' },
+                { key: 't', label: 'Type' }, { key: 'n', label: 'Invoice No' }, { key: 'rn', label: 'Receipt No' },
                 { key: 'cr', label: 'Credit', align: 'right' }, { key: 'dr', label: 'Debit', align: 'right' },
                 { key: 'b', label: 'Balance', align: 'right' },
                 ...(readOnly ? [] : [{ key: 'x', label: '', align: 'right', always: true }]),
@@ -558,8 +561,6 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                             // A bill row on Purchase Bills says where the bill stands and carries its actions.
                             const bill = a.source_type === 'purchase_invoice' ? billInfo[a.source_id] : null;
                             const owed = bill ? Math.max(0, bill.total - bill.amount_paid) : 0;
-                            const late = bill && bill.status !== 'void' && bill.status !== 'paid' && bill.due_date
-                                && bill.due_date < todayIso() && owed > 0.009;
                             return (
                                 <Tr key={a.id}>
                                     {show('d') && <Td muted nowrap>{s ? fmtDate(s.date) : '-'}</Td>}
@@ -573,11 +574,11 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                         {r.splitCount > 1 && <Muted> · split {r.splitCount} ways</Muted>}
                                         {r.settles && <Muted> · receipt against a linked invoice</Muted>}
                                         {bill && (
-                                            <span style={{ display: 'block', fontSize: 11.5, marginTop: 2, color: late ? t.down : t.faint }}>
+                                            <span style={{ display: 'block', fontSize: 11.5, marginTop: 2, color: t.faint }}>
                                                 {[
                                                     bill.status === 'void' ? 'Void, not counted' : bill.status === 'paid' ? 'Paid'
                                                         : `${Number(bill.amount_paid) > 0.009 ? `${money(bill.amount_paid, 2)} paid` : 'Unpaid'}, ${money(owed, 2)} to pay`,
-                                                    bill.status !== 'void' && bill.status !== 'paid' && bill.due_date ? `due ${fmtDate(bill.due_date)}${late ? ', overdue' : ''}` : '',
+                                                    bill.status !== 'void' && bill.status !== 'paid' && bill.due_date ? `due ${fmtDate(bill.due_date)}` : '',
                                                     Number(bill.tax_amount) > 0 && bill.status !== 'void' ? `GST ${money(bill.tax_amount, 2)}` : '',
                                                 ].filter(Boolean).join(' · ')}
                                             </span>
@@ -595,6 +596,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                     )}
                                     {show('t') && <Td muted>{kindOf(r)}</Td>}
                                     {show('n') && <Td muted nowrap>{s?.number || '-'}</Td>}
+                                    {show('rn') && <Td muted nowrap>{receiptOf(r) || '-'}</Td>}
                                     {show('cr') && <Td align="right" nowrap>{amount(r, r.credit)}</Td>}
                                     {show('dr') && <Td align="right" nowrap>{amount(r, !r.credit)}</Td>}
                                     {show('b') && (
@@ -621,6 +623,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                             {company && show('pr') && <Td />}
                             {show('t') && <Td />}
                             {show('n') && <Td />}
+                            {show('rn') && <Td />}
                             {show('cr') && (
                                 <Td align="right" nowrap>
                                     <span style={stack}>
@@ -641,7 +644,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                             )}
                             {show('b') && (
                                 <Td align="right" nowrap>
-                                    <span style={stack}>{blank}<span style={strong}>{side(closing.balance)}</span>{blank}</span>
+                                    <span style={stack}>{blank}{blank}<span style={ruled}>{side(closing.balance)}</span></span>
                                 </Td>
                             )}
                             {!readOnly && <Td />}

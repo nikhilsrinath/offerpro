@@ -103,7 +103,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
       country_code: e.country_code, place_of_supply: e.place_of_supply,
       is_inter_state: e.is_inter_state,
       quantity: e.quantity, unit: e.unit,
-      receipt_path: e.receipt_path, notes: e.notes,
+      receipt_path: e.receipt_path, receipt_number: e.receipt_number, notes: e.notes,
     }));
     setFormError('');
   };
@@ -233,8 +233,21 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
           </div>
         )}
 
-        {/*: the essentials: how much, when, what for, why, how, who, */}
+        {/*: the essentials: the proof first, then how much, when, what for, why, how, who, */}
         <div className="prod-form-grid">
+          <div className="prod-field">
+            <label>Receipt or proof</label>
+            <ReceiptField path={editing.receipt_path}
+              kind={editing.direction === 'in' ? 'income' : 'expenses'}
+              onChange={(p) => set('receipt_path', p)} />
+          </div>
+
+          <div className="prod-field">
+            <label htmlFor="cb-receipt-no">Receipt Number</label>
+            <input id="cb-receipt-no" value={editing.receipt_number || ''} placeholder="As printed on the receipt"
+              onChange={(e) => set('receipt_number', e.target.value)} />
+          </div>
+
           <div className="prod-field">
             <label className="req" htmlFor="cb-amount">Amount</label>
             <div className="cb-amount">
@@ -245,7 +258,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
                 onChange={(e) => set('original_amount', e.target.value)} />
             </div>
             {isForeign(editing.currency) && (
-              <p className="prod-field-note">Recorded as {money(baseAmount, 2)} at the rate under More details.</p>
+              <p className="prod-field-note">Recorded as {money(baseAmount, 2)} at the rate under More Details.</p>
             )}
             {payingBill && (
               <p className="prod-field-note">The bill's balance. Lower it for a part payment.</p>
@@ -398,8 +411,9 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
           )}
         </div>
 
-        {/*: everything else, one click away, */}
-        <MoreDetails initialOpen={!!editing.id} force={isForeign(editing.currency)}>
+        {/*: everything else, shown up front as on an edit, */}
+        <section className="cb-more" aria-labelledby="cb-more-title">
+          <h3 id="cb-more-title" className="cb-more-title">More Details</h3>
           <div className="prod-form-grid">
             <div className="prod-field">
               <label htmlFor="cb-currency">Currency</label>
@@ -538,19 +552,12 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
             </div>
 
             <div className="prod-field full">
-              <label>Receipt or proof</label>
-              <ReceiptField path={editing.receipt_path}
-                kind={editing.direction === 'in' ? 'income' : 'expenses'}
-                onChange={(p) => set('receipt_path', p)} />
-            </div>
-
-            <div className="prod-field full">
               <label htmlFor="cb-notes">Notes</label>
               <textarea id="cb-notes" rows={2} value={editing.notes || ''}
                 onChange={(e) => set('notes', e.target.value)} />
             </div>
           </div>
-        </MoreDetails>
+        </section>
 
         <div className="prod-modal-foot">
           <button type="button" className="prod-btn-ghost" onClick={() => onClose()}>Cancel</button>
@@ -560,23 +567,5 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
         </div>
       </form>
     </Modal>
-  );
-}
-
-/* The fields most entries never need, folded away. Opens by itself when
-   editing a saved entry, and stays open for a foreign-currency one, whose
-   rate is required. */
-function MoreDetails({ initialOpen, force, children }) {
-  const [shown, setOpen] = useState(initialOpen);
-  const open = shown || force;
-  return (
-    <div className="cb-more">
-      <button type="button" className="cb-more-toggle" aria-expanded={open} disabled={force}
-        onClick={() => setOpen((o) => !o)}>
-        <span>{open ? 'Fewer details' : 'More details'}</span>
-        <span className="cb-more-hint">currency, reference, country, receipt, notes</span>
-      </button>
-      {open && children}
-    </div>
   );
 }
