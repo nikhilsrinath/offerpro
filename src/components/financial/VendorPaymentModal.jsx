@@ -12,6 +12,7 @@ import CountrySelect from '../shared/CountrySelect';
 import { INDIAN_STATES } from '../../data/indianStates';
 import { titleCase } from '../../utils/titleCase';
 import { Modal, ReceiptField } from './financeUi';
+import { LedgerSteps } from './LedgerTypePicker';
 import { money, useSection } from './financeHooks';
 import {
   ADVANCE, billBalance, billPickerOf, blank, spreadVendorPayment, vendorCredit,
@@ -27,7 +28,7 @@ const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
  * Advance is paid before their bill (0093). What each bill counts as paid is
  * only worked out from the vendor's totals (vendorAdvance.js).
  */
-export default function VendorPaymentModal({ vendorId = '', category = '', startOn = null, projectId = null, onClose }) {
+export default function VendorPaymentModal({ vendorId = '', category = '', startOn = null, projectId = null, onStep, onClose }) {
   const toast = useToast();
   const vendors = useSection('vendors');
   const expenses = useSection('expenses');
@@ -145,6 +146,7 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
   return (
     <Modal title="Record a Debit (Vendor Payment)" onClose={onClose} width={680} dirty={dirty}>
       <form onSubmit={save} className="prod-modal-body cb-form">
+        {onStep && <LedgerSteps step={3} onStep={onStep} />}
         {error && <div className="prod-form-error" role="alert">{error}</div>}
         {subTypeLabel && (
           <p className="prod-perf-note">Debit · Vendor Payment · <strong>{titleCase(subTypeLabel)}</strong></p>

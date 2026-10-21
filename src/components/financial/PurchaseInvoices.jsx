@@ -18,7 +18,7 @@ import CashEntryModal from './CashEntryModal';
 import { ADVANCE, VENDOR_PAY, blank as blankEntry } from './cashEntry';
 import { deletePaymentParts, useSettledVendorBills } from './vendorAdvance';
 import VendorPaymentModal from './VendorPaymentModal';
-import LedgerTypePicker from './LedgerTypePicker';
+import LedgerTypePicker, { LedgerSteps } from './LedgerTypePicker';
 import { RecordMoneyCard } from './CashBook';
 import VendorSelect from '../shared/VendorSelect';
 import { RowMenu } from '../ui/edge';
@@ -88,7 +88,8 @@ export default function PurchaseInvoices({ projectId = null, children }) {
   // General Ledger entry (on the project, when there is one), already of that kind.
   const t = useT();
   const income = useSection('income_entries');
-  const [choosing, setChoosing] = useState(null); // 'in' | 'out' while the kind is picked
+  // { direction: 'in' | 'out', group } while the kind is picked; group opens on its Sub-Types.
+  const [choosing, setChoosing] = useState(null);
   const [entry, setEntry] = useState(null);
   // The entry's Type and Sub-Type were picked a step before, so its form leaves them out.
   const [entryTyped, setEntryTyped] = useState(false);
@@ -107,12 +108,22 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     setEntry({ ...full, direction, date: full.date || full.received_on || full.incurred_on });
     setEntryTyped(false);
   };
+  // The Type picked for the form that is open, so its steps can go back.
+  const [pickedFrom, setPickedFrom] = useState(null); // { direction, group } | null
   const pickKind = (pick) => {
-    const direction = choosing;
+    const direction = choosing.direction;
     setChoosing(null);
+    setPickedFrom({ direction, group: pick.group?.label || null });
     if (pick.kind === 'bill') { setEditing(fresh('')); setFormError(''); }
     else if (pick.kind === 'vendor') setPayingVendor({ vendorId: '', category: pick.category });
     else { setEntry({ ...freshEntry(direction), category: pick.category }); setEntryTyped(true); }
+  };
+  // A step clicked on a details form: back to the Type, or to its Sub-Types.
+  const backToStep = (n) => {
+    if (!pickedFrom) return;
+    setEditing(null); setEntry(null); setPayingVendor(null);
+    setChoosing({ direction: pickedFrom.direction, group: n === 2 ? pickedFrom.group : null });
+    setPickedFrom(null);
   };
   // A row of the ledger that is a General Ledger entry opens its form here.
   const editEntry = (direction, id) => {
@@ -123,6 +134,7 @@ export default function PurchaseInvoices({ projectId = null, children }) {
   // Vendors page links here with ?vendor=<id>&new=1 to open a bill for them.
   useEffect(() => {
     if (params.get('new') === '1') {
+      setPickedFrom(null);
       setEditing(fresh(params.get('vendor') || ''));
       const next = new URLSearchParams(params);
       next.delete('new');
@@ -275,7 +287,7 @@ export default function PurchaseInvoices({ projectId = null, children }) {
   };
 
   // Paying from a bill's row pays its vendor: one debit, not against the bill.
-  const handlePay = (b) => setPayingVendor({ vendorId: b.vendor_id, category: '' });
+  const handlePay = (b) => { setPickedFrom(null); setPayingVendor({ vendorId: b.vendor_id, category: '' }); };
 
   const handleVoid = async (b) => {
     if (!(await confirmDialog({ title: 'Void bill', message: `Void bill ${b.bill_number}? It will be excluded from payables, P&L and tax.`, confirmLabel: 'Void' }))) return;
@@ -406,7 +418,7 @@ export default function PurchaseInvoices({ projectId = null, children }) {
 
   return (
     <div style={{ maxWidth: '100%' }}>
-      <RecordMoneyCard t={t} scoped recent={recent} onRecord={setChoosing} style={{ marginBottom: 12 }}
+      <RecordMoneyCard t={t} scoped recent={recent} onRecord={(direction) => setChoosing({ direction, group: null })} style={{ marginBottom: 12 }}
         onOpen={(r) => openEntry(r, r.direction)} />
       <div className="prod-stats">
         <Stat icon={<FileInput size={15} />} label="Total billed" value={money(totals.billed)} onClick={() => setFilter('all')} />
@@ -454,6 +466,7 @@ export default function PurchaseInvoices({ projectId = null, children }) {
       {editing && (
         <Modal title={editing.id ? 'Edit bill' : 'Record a Credit (Purchase Bill)'} onClose={() => setEditing(null)} width={720} dirty={!!editing._dirty}>
           <form onSubmit={handleSave} className="prod-modal-body">
+            {!editing.id && pickedFrom && <LedgerSteps step={3} noSubType onStep={backToStep} />}
             {formError && <div className="prod-form-error">{formError}</div>}
             <div className="prod-form-grid">
               <div className="prod-field full">
@@ -568,11 +581,12 @@ export default function PurchaseInvoices({ projectId = null, children }) {
         </Modal>
       )}
 
-      {choosing && <LedgerTypePicker direction={choosing} onPick={pickKind} onClose={() => setChoosing(null)} />}
-      {entry && <CashEntryModal key={entry.id || 'new'} entry={entry} fresh={freshEntry} typeChosen={entryTyped} onClose={() => setEntry(null)} />}
+      {choosing && <LedgerTypePicker direction={choosing.direction} startGroup={choosing.group} onPick={pickKind} onClose={() => setChoosing(null)} />}
+      {entry && <CashEntryModal key={entry.id || 'new'} entry={entry} fresh={freshEntry} typeChosen={entryTyped}
+        onStep={entryTyped && pickedFrom ? backToStep : undefined} onClose={() => setEntry(null)} />}
       {payingVendor && (
         <VendorPaymentModal vendorId={payingVendor.vendorId} category={payingVendor.category}
-          startOn={startOn} projectId={projectId} onClose={() => setPayingVendor(null)} />
+          startOn={startOn} projectId={projectId} onStep={pickedFrom ? backToStep : undefined} onClose={() => setPayingVendor(null)} />
       )}
     </div>
   );

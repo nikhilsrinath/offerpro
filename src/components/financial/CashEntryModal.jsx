@@ -8,6 +8,7 @@ import { useToast } from '../shared/Toast';
 import CountrySelect from '../shared/CountrySelect';
 import { INDIAN_STATES } from '../../data/indianStates';
 import { Modal, ReceiptField } from './financeUi';
+import { LedgerSteps } from './LedgerTypePicker';
 import ProjectPicker from '../shared/ProjectPicker';
 import { pickerFromAllocations, saveSplitFromPicker, friendlyError } from '../../services/projectService';
 import { projectLabel } from '../../services/projectAnalytics';
@@ -27,7 +28,7 @@ const PAYROLL = { salaries: 'employee', Salaries: 'employee', intern_stipend: 'i
  * the blank entry when the direction is switched, on a project's page it is
  * already the project's.
  */
-export default function CashEntryModal({ entry, fresh = blank, onClose, typeChosen = false }) {
+export default function CashEntryModal({ entry, fresh = blank, onClose, typeChosen = false, onStep }) {
   const toast = useToast();
   const clients = useSection('customers');
   const vendors = useSection('vendors');
@@ -211,6 +212,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
 
         {/* With `typeChosen` the Type and Sub-Type were picked a step before,
             so the side and the kind are settled and only named here. */}
+        {typeChosen && !payingBill && onStep && <LedgerSteps step={3} onStep={onStep} />}
         {typeChosen && !payingBill && (
           <p className="prod-perf-note">
             {editing.direction === 'in' ? 'Credit' : 'Debit'} · {titleCase(typeLabel)} · <strong>{titleCase(categoryLabel(editing.category))}</strong>

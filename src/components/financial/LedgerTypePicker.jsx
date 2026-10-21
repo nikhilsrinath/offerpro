@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Truck } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, ChevronRight, Truck } from 'lucide-react';
 import { groupedCategories, loadFinanceCategories } from '../../services/financeCategories';
 import { useT } from '../ui/edgeUtils';
 import { titleCase } from '../../utils/titleCase';
@@ -18,14 +18,17 @@ const VENDOR_LABEL = 'Vendor Payment';
  * Types are the category groups. On the Debit side Product & Delivery is
  * Vendor Payment: its Sub-Types are what was bought. `onPick` gets
  * { kind: 'bill' } for Sales & Services (a purchase bill, owed to the
- * vendor), { kind: 'vendor', category } once a Vendor Payment Sub-Type is
- * chosen, or { kind: 'entry', group, category } for any other Sub-Type.
+ * vendor), { kind: 'vendor', group, category } once a Vendor Payment Sub-Type
+ * is chosen, or { kind: 'entry', group, category } for any other Sub-Type.
+ * `startGroup` (a Type's label) opens straight on that Type's Sub-Types, for
+ * the Sub-Type step clicked on a details form.
  */
-export default function LedgerTypePicker({ direction, onPick, onClose }) {
+export default function LedgerTypePicker({ direction, startGroup = null, onPick, onClose }) {
   const t = useT();
   const [, setReady] = useState(false);
   useEffect(() => { loadFinanceCategories().then(() => setReady(true)); }, []);
-  const [group, setGroup] = useState(null); // the Type, once chosen
+  const [groupLabel, setGroupLabel] = useState(startGroup); // the Type, once chosen
+  const group = groupLabel ? groupedCategories(direction).find((g) => g.label === groupLabel) || null : null;
 
   const isIn = direction === 'in';
   const side = isIn ? 'Credit' : 'Debit';
@@ -33,7 +36,7 @@ export default function LedgerTypePicker({ direction, onPick, onClose }) {
   const options = group
     ? group.items.map((c) => ({
       key: c.key, label: c.label, note: c.hint || '',
-      pick: () => onPick(vendorGroup ? { kind: 'vendor', category: c.key } : { kind: 'entry', group, category: c.key }),
+      pick: () => onPick(vendorGroup ? { kind: 'vendor', group, category: c.key } : { kind: 'entry', group, category: c.key }),
     }))
     : [
       ...groupedCategories(direction).map((g) => {
@@ -45,7 +48,7 @@ export default function LedgerTypePicker({ direction, onPick, onClose }) {
             : vendor ? `Pay a vendor what is pending, or an advance before their bill: ${g.items.map((c) => c.label).join(', ')}`
               : g.items.map((c) => c.label).join(', '),
           icon: vendor ? Truck : undefined,
-          pick: bill ? () => onPick({ kind: 'bill' }) : () => setGroup(g),
+          pick: bill ? () => onPick({ kind: 'bill' }) : () => setGroupLabel(g.label),
         };
       }),
     ];
@@ -53,16 +56,7 @@ export default function LedgerTypePicker({ direction, onPick, onClose }) {
   return (
     <Modal title={group ? `${titleCase(vendorGroup ? VENDOR_LABEL : group.label)}: Choose a Sub-Type` : `What Kind of ${side}?`} onClose={onClose} width={760}>
       <div className="prod-modal-body" style={{ display: 'grid', gap: 10, overflowX: 'hidden' }}>
-        <Steps t={t} step={group ? 2 : 1} />
-        {group && (
-          <button type="button" onClick={() => setGroup(null)} style={{
-            justifySelf: 'start', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px 4px 4px',
-            border: 'none', borderRadius: 8, background: 'transparent', color: t.dim, fontFamily: 'inherit',
-            fontSize: 13, cursor: 'pointer',
-          }}>
-            <ChevronLeft size={15} aria-hidden="true" /> Back to Types
-          </button>
-        )}
+        <LedgerSteps step={group ? 2 : 1} onStep={() => setGroupLabel(null)} />
         {options.length === 0 && <p className="prod-field-note">Loading the types…</p>}
         {options.map((o) => (
           <Choice key={o.key} t={t} tone={isIn ? t.up : t.down} icon={o.icon || (isIn ? ArrowDownLeft : ArrowUpRight)}
@@ -73,23 +67,37 @@ export default function LedgerTypePicker({ direction, onPick, onClose }) {
   );
 }
 
-/** Where the user is: Type, then Sub-Type, then the details. */
-function Steps({ t, step }) {
+/**
+ * Where the user is: Type, then Sub-Type, then the details. A step already
+ * passed is a button back to it (`onStep(1 | 2)`); `noSubType` leaves
+ * Sub-Type unclickable for a kind that has none (Sales & Services goes
+ * straight to its bill).
+ */
+export function LedgerSteps({ step, onStep, noSubType = false }) {
+  const t = useT();
   return (
     <ol aria-label="Steps" style={{ display: 'flex', gap: 8, margin: '0 0 4px', padding: 0, listStyle: 'none', flexWrap: 'wrap' }}>
       {['Type', 'Sub-Type', 'Details'].map((label, i) => {
-        const at = i + 1 === step;
-        const done = i + 1 < step;
+        const n = i + 1;
+        const at = n === step;
+        const done = n < step && !(n === 2 && noSubType);
+        const dot = (
+          <span aria-hidden="true" style={{
+            width: 20, height: 20, borderRadius: 99, display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 600,
+            background: at ? t.accent : done ? t.accentSoft : t.panelAlt, color: at ? '#fff' : done ? t.accent : t.faint,
+          }}>{n}</span>
+        );
         return (
           <li key={label} aria-current={at ? 'step' : undefined} style={{
             display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: at ? 600 : 500,
             color: at ? t.accent : done ? t.dim : t.faint,
           }}>
-            <span aria-hidden="true" style={{
-              width: 20, height: 20, borderRadius: 99, display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 600,
-              background: at ? t.accent : done ? t.accentSoft : t.panelAlt, color: at ? '#fff' : done ? t.accent : t.faint,
-            }}>{i + 1}</span>
-            {label}
+            {done && onStep ? (
+              <button type="button" onClick={() => onStep(n)} title={`Back to ${label}`} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, padding: 0, border: 'none',
+                background: 'transparent', color: 'inherit', font: 'inherit', cursor: 'pointer',
+              }}>{dot}{label}</button>
+            ) : <>{dot}{label}</>}
             {i < 2 && <ChevronRight size={13} aria-hidden="true" style={{ color: t.ghost || t.faint }} />}
           </li>
         );
