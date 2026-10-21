@@ -92,12 +92,12 @@ function UsageBody({ t, cat, status, cols, grid, tileCols, orgId, navigate, toda
                 spark={history?.available ? s.series.slice(-14).map((d) => d.total) : undefined} sparkBars color={cat[0]} />
             <Tile icon={Cpu} label="Tokens · 90 days" value={s.tokens.calls ? fmtTokens(s.tokens.prompt + s.tokens.completion) : '-'}
                 exact={s.tokens.calls ? `${(s.tokens.prompt + s.tokens.completion).toLocaleString('en-IN')} tokens` : 'no token counts yet'}
-                foot={s.tokens.calls ? `${fmtTokens(s.tokens.prompt)} in · ${fmtTokens(s.tokens.completion)} out` : 'reported by EdgeBrain & document reading'} />
+                foot={s.tokens.calls ? `${fmtTokens(s.tokens.prompt)} in · ${fmtTokens(s.tokens.completion)} out` : 'reported by Neurals & document reading'} />
         </TileRow>
 
         <CardGrid cols={cols}>
             {/* ── the allowance ─────────────────────────────────────────── */}
-            <Card accent style={grid(2)} title="AI allowance" note="Copilot, EdgeBrain and document reading share one allowance"
+            <Card accent style={grid(2)} title="AI allowance" note="Copilot, Neurals and document reading share one allowance"
                 right={<div style={{ display: 'flex', gap: 6 }}>
                     <button type="button" onClick={load} disabled={busy} className="ov-chip" aria-label="Refresh usage" style={{
                         display: 'inline-flex', alignItems: 'center', gap: 5, minHeight: 28, padding: '0 10px', borderRadius: 9, border: '1px solid ' + t.lineStrong,
@@ -141,7 +141,7 @@ function UsageBody({ t, cat, status, cols, grid, tileCols, orgId, navigate, toda
 
             <Card title="What counts" note="one AI message each">
                 {AI_SURFACES.map((x) => <ListRow key={x.id} label={x.label} sub={x.note} value="1" />)}
-                <ListRow label="Free" sub="building or syncing EdgeBrain, search, reading text-based files" value="0" tone="up" />
+                <ListRow label="Free" sub="building or syncing Neurals, search, reading text-based files" value="0" tone="up" />
             </Card>
 
             {/* ── history (0067) ────────────────────────────────────────── */}
@@ -165,7 +165,7 @@ function UsageBody({ t, cat, status, cols, grid, tileCols, orgId, navigate, toda
                 {history === undefined ? <EmptyNote>Loading…</EmptyNote> : noHistory ? <EmptyNote>No call history yet</EmptyNote> : (
                     <RankBars rows={s.bySurface.map((x) => ({ key: x.id, name: x.label, value: x.value, color: surfaceColor[x.id] }))}
                         format={(v) => String(v)} empty="No AI use recorded yet"
-                        onSelect={(r) => navigate(r.key === 'brain' ? '/edgebrain' : r.key === 'library' ? '/documents/document-library' : '/dashboard/overview')} />
+                        onSelect={(r) => navigate(r.key === 'brain' ? '/ai?view=neurals' : r.key === 'library' ? '/documents/document-library' : '/dashboard/overview')} />
                 )}
             </Card>
 

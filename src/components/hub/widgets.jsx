@@ -668,8 +668,8 @@ function Brain({ d, nav, ask, size }) {
     };
     const form = (
         <form className="w-ask" onSubmit={submit}>
-            <label className="eo-sr" htmlFor={`w-brain-ask-${size}`}>Ask EdgeBrain</label>
-            <input id={`w-brain-ask-${size}`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask EdgeBrain…" autoComplete="off" />
+            <label className="eo-sr" htmlFor={`w-brain-ask-${size}`}>Ask Neurals</label>
+            <input id={`w-brain-ask-${size}`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask Neurals…" autoComplete="off" />
             <button type="submit" aria-label="Ask in the copilot" disabled={!q.trim()}>
                 <ArrowUpRight size={13} strokeWidth={2} aria-hidden="true" />
             </button>
@@ -696,7 +696,7 @@ function Brain({ d, nav, ask, size }) {
             <>
                 <div className="w-kicker">Records</div>
                 {stat}
-                <div className="w-bottom"><LinkBtn onClick={() => nav('/edgebrain')}>Open</LinkBtn></div>
+                <div className="w-bottom"><LinkBtn onClick={() => nav('/ai?view=neurals')}>Open</LinkBtn></div>
             </>
         );
     }

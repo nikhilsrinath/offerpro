@@ -123,7 +123,7 @@ function search(index, query) {
     }).filter((g) => g.items.length);
 }
 
-export default function GlobalSearch({ t, width = 460 }) {
+export default function GlobalSearch({ t, width = 460, align = 'left' }) {
     const navigate = useNavigate();
     const index = useIndex();
     const [q, setQ] = useState('');
@@ -182,7 +182,8 @@ export default function GlobalSearch({ t, width = 460 }) {
     let n = -1;
 
     return (
-        <div ref={boxRef} style={{ position: 'relative', width, maxWidth: '46vw', minWidth: 0 }}>
+        // A fixed width on every page: the title beside it gives way, not the search.
+        <div ref={boxRef} style={{ position: 'relative', width, flexShrink: 0 }}>
             <div role="search" className="nm-ask" style={{
                 display: 'flex', alignItems: 'center', gap: 9, height: 40, padding: '0 6px 0 12px',
                 borderRadius: 11, border: '1px solid ' + (open ? t.accent : t.line), background: t.card,
@@ -212,7 +213,8 @@ export default function GlobalSearch({ t, width = 460 }) {
 
             {showList && (
                 <div style={{
-                    position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 500,
+                    // Opens toward the page so a search at the right edge stays on screen.
+                    position: 'absolute', top: 'calc(100% + 8px)', [align]: 0, zIndex: 500,
                     width: Math.max(width, 440), maxWidth: 'min(560px, 90vw)',
                     background: t.card, border: '1px solid ' + t.lineStrong, borderRadius: 14,
                     boxShadow: t.highlight + ', ' + t.shadow, overflow: 'hidden',

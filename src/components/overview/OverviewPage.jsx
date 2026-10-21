@@ -160,7 +160,7 @@ export default function OverviewPage() {
                 defaultCount={DEFAULT_LAYOUT.length}
                 widgetProps={widgetProps} metaArgs={{ geoPeriod }}
                 isMobile={isMobile} say={say}
-                emptyText="Add widgets to keep revenue, cash, clients and EdgeBrain in one view."
+                emptyText="Add widgets to keep revenue, cash, clients and Neurals in one view."
                 pickerNote="Choose what the overview shows"
                 groups={WIDGET_GROUPS} previewProps={previewProps} onGallery={setGalleryOpen}
             />

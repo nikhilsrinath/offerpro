@@ -137,11 +137,11 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
                     format={(v) => String(v)} total={model.docTotal} onSelect={(r) => open({ kind: 'docs', id: r.key })} empty="Nothing issued in this period" />
             </Card>
 
-            <Card title="General documents" note="the library EdgeBrain reads" right={<More label="Library" to="/documents/document-library" />}>
+            <Card title="General documents" note="the library EdgeAI reads" right={<More label="Library" to="/documents/document-library" />}>
                 {library === undefined ? <EmptyNote>Loading…</EmptyNote> : !lib ? <EmptyNote>The library is not available to your role</EmptyNote>
                     : lib.total === 0 ? <EmptyNote>No files in the library yet</EmptyNote> : (<>
                         <RankBars rows={lib.cats} format={(v) => String(v)} total={lib.total} max={5} color={cat[3]} onSelect={() => navigate('/documents/document-library')} />
-                        <SubLabel style={{ marginTop: 14 }}>Read by EdgeBrain</SubLabel>
+                        <SubLabel style={{ marginTop: 14 }}>Read by EdgeAI</SubLabel>
                         <SplitBar format={(v) => String(v)} unit="Files" parts={[
                             { id: 'ready', label: 'Readable', value: lib.st.ready, color: status.good },
                             { id: 'processing', label: 'Reading', value: lib.st.processing, color: cat[0] },

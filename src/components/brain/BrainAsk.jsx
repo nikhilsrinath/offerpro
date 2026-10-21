@@ -87,7 +87,7 @@ export default function BrainAsk({ orgId, stale, syncedAt }) {
             <div style={{ minHeight: 180, marginBottom: 16 }}>
                 {turns.length === 0 && !busy && (
                     <Empty>
-                        Ask anything about your company. EdgeBrain answers from your own
+                        Ask anything about your company. Neurals answers from your own
                         records and shows you which ones it used.
                     </Empty>
                 )}

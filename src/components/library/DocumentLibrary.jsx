@@ -499,7 +499,7 @@ function DocumentSheet({ id, orgId, canEdit, canDelete, onClose, onChanged, onRe
                     {canDelete && (
                         <ConfirmBtn
                             label="Delete" title="Delete document"
-                            message={`Delete “${doc.title}”? The file and everything EdgeBrain read from it are removed. This cannot be undone.`}
+                            message={`Delete “${doc.title}”? The file and everything EdgeAI read from it are removed. This cannot be undone.`}
                             onConfirm={remove}
                         />
                     )}
@@ -534,14 +534,14 @@ function DocumentSheet({ id, orgId, canEdit, canDelete, onClose, onChanged, onRe
                                 onChange={(e) => setForm({ ...form, tags: e.target.value })} />
                         </Field>
                     </div>
-                    <Field label="Description" hint="What this document is for, EdgeBrain reads this too" wide>
+                    <Field label="Description" hint="What this document is for, EdgeAI reads this too" wide>
                         <Textarea rows={2} value={form.description} maxLength={2000} disabled={!canEdit}
                             onChange={(e) => setForm({ ...form, description: e.target.value })} />
                     </Field>
 
                     <section aria-labelledby="lib-ai-h" style={{ border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden' }}>
                         <Row style={{ padding: '10px 13px', borderBottom: '1px solid ' + t.lineSoft }} wrap>
-                            <h3 id="lib-ai-h" style={{ margin: 0, fontSize: 13.5, fontWeight: 500, color: t.text }}>What EdgeBrain Read</h3>
+                            <h3 id="lib-ai-h" style={{ margin: 0, fontSize: 13.5, fontWeight: 500, color: t.text }}>What EdgeAI Read</h3>
                             <Status tone={st.tone}>{st.label}</Status>
                             {doc.extraction_method && <Muted>via {METHOD[doc.extraction_method] || doc.extraction_method}</Muted>}
                             {doc.chunk_count > 0 && <Muted>{doc.chunk_count} passage{doc.chunk_count === 1 ? '' : 's'} · {(doc.char_count || 0).toLocaleString('en-IN')} characters</Muted>}

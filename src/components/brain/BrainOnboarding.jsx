@@ -50,19 +50,19 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                         color: t.dim, marginBottom: 16,
                     }}>
                         <Sparkles aria-hidden="true" size={11} strokeWidth={1.9} />
-                        EDGEBRAIN
+                        Neurals
                     </div>
 
                     <h2 style={{
                         margin: 0, fontSize: 26, fontWeight: 500, letterSpacing: '-0.03em',
                         color: t.text, lineHeight: 1.2,
-                    }}>Build Your Company Brain</h2>
+                    }}>Build Your Neurals</h2>
 
                     <p style={{
                         margin: '12px 0 0', fontSize: 14, lineHeight: 1.75,
                         color: t.dim, maxWidth: 580,
                     }}>
-                        EdgeBrain organises the data already in EdgeOS into one connected
+                        Neurals organises the data already in EdgeOS into one connected
                         context your AI can reason over. So a question about a customer,
                         an invoice and the person who owns the account is one question
                         rather than three screens.
@@ -73,7 +73,7 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                     }}>
                         Nothing to upload and nothing to type. It reads the records this
                         organisation already holds, and your database stays the source of
-                        truth: EdgeBrain is a view onto it, never a copy that drifts.
+                        truth: Neurals is a view onto it, never a copy that drifts.
                     </p>
                 </div>
 
@@ -113,7 +113,7 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                         <div style={{ fontSize: 12, color: t.dim, lineHeight: 1.65 }}>
                             Every record keeps the permission of the table it came from. Someone
                             who cannot see pay or a customer list today will not see them
-                            through EdgeBrain, and no answer is assembled from anything
+                            through Neurals, and no answer is assembled from anything
                             outside this organisation.
                         </div>
                     </div>
@@ -129,11 +129,11 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                         display: 'flex', alignItems: 'center', gap: 13, marginTop: 22, flexWrap: 'wrap',
                     }}>
                         <Btn primary onClick={onBuild} disabled={building || !canBuild}>
-                            {building ? 'Building…' : 'Build Company Brain'}
+                            {building ? 'Building…' : 'Build Neurals'}
                         </Btn>
                         <span style={{ fontSize: 12, color: t.faint }}>
                             {!canBuild
-                                ? 'Your role cannot build the Company Brain. Ask an owner or admin.'
+                                ? 'Your role cannot build Neurals. Ask an owner or admin.'
                                 : building
                                     ? 'Reading your records and connecting them. This runs once.'
                                     : 'Takes a few seconds. You can keep working while it runs.'}

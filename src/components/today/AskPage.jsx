@@ -16,9 +16,10 @@ import OperationsMonitor, { OperationsMonitorCard } from '../agents/OperationsMo
 import { OPS_AGENT } from '../agents/opsAgent';
 import { useAutomation } from '../agents/automation';
 import '../agents/agents.css';
+import EdgeBrain from '../brain/EdgeBrain';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Ask: EdgeAI as a page of its own, in three parts behind one switch.
+   AI: EdgeAI as a page of its own, in four parts behind one switch.
 
    · Ask         the copilot's conversation, history and action cards (the
                  same chats the dock and the full-screen workspace show). Its
@@ -28,6 +29,8 @@ import '../agents/agents.css';
                  opens on its own page: ?agent=<id>, so a notification can
                  link straight to it.
    · Connectors  outside services EdgeAI can read from. Empty for now.
+   · Neurals     the company brain (components/brain/): the knowledge graph
+                 EdgeAI reasons over, with its dock, inside the pane's width.
 
    Nothing here decides what a message means. Every chip either sends a plain
    sentence to the model or starts one in the box for the person to finish;
@@ -38,6 +41,7 @@ const VIEWS = [
     { id: 'ask', label: 'Ask' },
     { id: 'agents', label: 'Agents' },
     { id: 'connectors', label: 'Connectors' },
+    { id: 'neurals', label: 'Neurals' },
 ];
 
 const focusComposer = () => {
@@ -94,6 +98,19 @@ function EmptyView({ icon: Icon, title, text }) {
                     <span className="ask-empty-ico" aria-hidden="true"><Icon size={20} strokeWidth={1.8} /></span>
                     <p>{text}</p>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+/* The graph needs a height to fill, so the pane is a column whose frame takes
+   what is left under the title, at the same width as Agents and Connectors. */
+function NeuralsView() {
+    return (
+        <div className="ask-pane ask-neurals eo-scroll">
+            <div className="ask-pane-inner">
+                <div className="ask-pane-head"><h2>Neurals</h2></div>
+                <div className="ask-neurals-frame"><EdgeBrain /></div>
             </div>
         </div>
     );
@@ -163,7 +180,9 @@ export default function AskPage({ theme = 'dark' }) {
                     ? <AgentsView onOpen={(id) => go('agents', id)} />
                     : view === 'connectors'
                         ? <EmptyView icon={Plug} title="Connectors" text="No connectors yet. Connected services will appear here." />
-                        : null;
+                        : view === 'neurals'
+                            ? <NeuralsView />
+                            : null;
 
     return (
         <Copilot

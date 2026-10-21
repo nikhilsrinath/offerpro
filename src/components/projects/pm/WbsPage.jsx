@@ -319,7 +319,7 @@ function Breakdowns({ data, busy, onApply }) {
         } catch (e) {
             setAi({
                 state: 'error', source: 'ai',
-                message: e.status === 429 ? 'Your plan’s AI messages are used up for now.' : e.message || 'EdgeBrain could not answer. Try again.',
+                message: e.status === 429 ? 'Your plan’s AI messages are used up for now.' : e.message || 'EdgeAI could not answer. Try again.',
             });
         }
     };
@@ -391,7 +391,7 @@ function Breakdowns({ data, busy, onApply }) {
                                 <Sparkles size={13} aria-hidden="true" />Industry specific
                             </div>
                             <div id="wbs-ai-note" style={{ fontSize: 11.5, color: t.faint, lineHeight: 1.5, flex: 1 }}>
-                                EdgeBrain suggests a breakdown for this project’s industry
+                                EdgeAI suggests a breakdown for this project’s industry
                             </div>
                             <div style={{ fontSize: 11, color: t.faint, marginTop: 8 }}>
                                 {ai?.state === 'loading' ? 'Reading the project…' : 'AI · you review it before it is added'}
@@ -403,7 +403,7 @@ function Breakdowns({ data, busy, onApply }) {
                         <div style={{ marginTop: 12, border: '1px solid ' + t.line, borderRadius: 9, background: t.panelAlt }}>
                             {ai.state === 'loading' && (
                                 <div role="status" style={{ padding: 14, fontSize: 12.5, color: t.dim }}>
-                                    EdgeBrain is reading the project and company details…
+                                    EdgeAI is reading the project and company details…
                                 </div>
                             )}
                             {ai.state === 'error' && (
@@ -417,7 +417,7 @@ function Breakdowns({ data, busy, onApply }) {
                                     <div role="status" style={{ fontSize: 12.5, color: t.text, marginBottom: 6 }}>
                                         Not enough is known about this project to suggest an industry-specific breakdown.
                                     </div>
-                                    <div style={{ fontSize: 12, color: t.dim, marginBottom: 6 }}>EdgeBrain needs:</div>
+                                    <div style={{ fontSize: 12, color: t.dim, marginBottom: 6 }}>EdgeAI needs:</div>
                                     <ul style={{ margin: '0 0 12px', paddingLeft: 18, fontSize: 12, color: t.dim, lineHeight: 1.7 }}>
                                         {ai.missing.map((m) => <li key={m}>{NEEDS[m] || m}</li>)}
                                         {ai.asks.map((m) => <li key={'a' + m}>{m}</li>)}
@@ -434,7 +434,7 @@ function Breakdowns({ data, busy, onApply }) {
                                     <div style={{ padding: '12px 14px', borderBottom: '1px solid ' + t.lineSoft }}>
                                         <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, display: 'flex', alignItems: 'center', gap: 5 }}>
                                             {ai.source === 'ai'
-                                                ? <><Sparkles size={11} aria-hidden="true" />EDGEBRAIN SUGGESTION{ai.industry ? ` · ${ai.industry.toUpperCase()}` : ''}</>
+                                                ? <><Sparkles size={11} aria-hidden="true" />EdgeAI Suggestion{ai.industry ? ` · ${ai.industry}` : ''}</>
                                                 : `PREVIEW · ${ai.label.toUpperCase()}`}
                                         </div>
                                         {ai.summary && <div style={{ fontSize: 12.5, color: t.dim, marginTop: 4, lineHeight: 1.5 }}>{ai.summary}</div>}

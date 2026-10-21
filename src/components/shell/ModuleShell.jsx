@@ -438,10 +438,9 @@ export default function ModuleShell({
                         ? { padding: '9px 12px', height: 53, borderBottom: '1px solid ' + t.line, background: t.panel }
                         : { padding: noRail ? '0 14px' : '0 14px 0 6px', height: 64 }),
                 }}>
-                    {/* A hub module's page is headed like the hub: the search, no
-                        back arrow or title (the rail and the tabs say where you are). */}
-                    {tabs ? <GlobalSearch t={t} /> : (<>
-                    {(isMobile || noRail) && (
+                    {/* The page title on the left; a hub module's page also carries
+                        the search on the right, by the theme and notifications. */}
+                    {!tabs && (isMobile || noRail) && (
                         <Link to={back.to} aria-label={back.label} title={back.label} className={noRail && !isMobile ? 'edge-icon' : undefined}
                             style={noRail && !isMobile ? { ...iconBtn(t), marginLeft: -6 } : { color: t.dim, display: 'grid', placeItems: 'center', flexShrink: 0, width: 32, height: 32 }}>
                             <ArrowLeft aria-hidden="true" size={17} strokeWidth={1.8} />
@@ -454,13 +453,14 @@ export default function ModuleShell({
                             letterSpacing: '-0.025em', color: t.text, lineHeight: 1.2,
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>{titleCaseNode(title)}</h1>
-                        {subtitle && !isMobile && (
+                        {subtitle && !isMobile && !tabs && (
                             <div style={{ fontSize: 12, color: t.faint, marginTop: 2, whiteSpace: 'nowrap' }}>{subtitle}</div>
                         )}
                     </div>
-                    </>)}
 
                     <div style={{ flex: 1 }} />
+
+                    {tabs && <GlobalSearch t={t} width={380} align="right" />}
 
                     {actions}
 

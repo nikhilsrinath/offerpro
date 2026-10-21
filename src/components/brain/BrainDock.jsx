@@ -144,7 +144,7 @@ export default function BrainDock({
                 />
             )}
             {/* ── the rail ─────────────────────────────────────────────────── */}
-            <nav aria-label="EdgeBrain panels" style={{
+            <nav aria-label="Neurals panels" style={{
                 width: 46, flexShrink: 0, display: 'flex', flexDirection: 'column',
                 alignItems: 'center', gap: 4, padding: '9px 0',
                 borderRight: open ? `1px solid ${t.line}` : 'none',

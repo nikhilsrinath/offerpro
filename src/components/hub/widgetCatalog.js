@@ -60,7 +60,7 @@ export const WIDGETS = [
         meta: (d) => (d.money.open.length ? `${d.money.open.length} open` : ''), render: Receivables,
     },
     { id: 'geomap', to: '/dashboard/sales', tapBody: false, group: 'sales', title: 'Geography', desc: 'World map of revenue. Zoom, pan, click a country', icon: MapIcon, size: 'lg', sizes: MD_LG, render: GeoMap },
-    { id: 'edgebrain', to: '/edgebrain', group: 'general', title: 'EdgeBrain', desc: 'Brain health, and a quick question to the copilot', icon: BrainCircuit, size: 'sm', sizes: ALL, render: Brain },
+    { id: 'edgebrain', to: '/ai?view=neurals', group: 'general', title: 'Neurals', desc: 'Brain health, and a quick question to the copilot', icon: BrainCircuit, size: 'sm', sizes: ALL, render: Brain },
     { id: 'team', to: '/company/employees', group: 'people', title: 'Team', desc: 'Headcount, and each department\'s share of it', icon: Users, size: 'sm', sizes: ALL, render: Team },
     { id: 'people_location', to: '/company/employees', group: 'people', title: 'People by location', desc: 'Where the team works', icon: MapPin, size: 'md', sizes: ALL, render: PeopleByLocation },
     { id: 'documents', to: '/documents/records', group: 'documents', title: 'Documents', desc: 'Issued over 1, 3, 6 or 12 months', icon: FileText, size: 'sm', sizes: SM_MD, periods: true, render: Documents },

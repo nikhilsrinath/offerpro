@@ -75,8 +75,8 @@ export default function EdgeBrain() {
         } catch (e) {
             if (orgRef.current !== orgId) return null;
             setError(e.status === 403
-                ? 'Your role does not have access to the Company Brain. An owner or admin can grant it under company settings.'
-                : e.message || 'Could not reach the Company Brain.');
+                ? 'Your role does not have access to Neurals. An owner or admin can grant it under company settings.'
+                : e.message || 'Could not reach Neurals.');
             return null;
         } finally {
             if (orgRef.current === orgId) setLoading(false);
@@ -254,11 +254,11 @@ export default function EdgeBrain() {
     /* ── the lifecycle gates ──────────────────────────────────────────────── */
 
     if (!orgId) {
-        return <Gate><Empty>Select an organisation to open its Company Brain.</Empty></Gate>;
+        return <Gate><Empty>Select an organisation to open its Neurals.</Empty></Gate>;
     }
 
     if (loading) {
-        return <Gate><Loading>Checking your Company Brain…</Loading></Gate>;
+        return <Gate><Loading>Checking Neurals…</Loading></Gate>;
     }
 
     if (error) {

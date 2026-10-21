@@ -7,7 +7,7 @@ import {
   Activity, Receipt, FilePlus, RotateCcw,
   GitBranch, Package,
   Truck, FileInput, TrendingUp, CalendarCheck, Megaphone,
-  BrainCircuit, Banknote, FolderKanban, SquareKanban, PieChart, FolderOpen,
+  Banknote, FolderKanban, SquareKanban, PieChart, FolderOpen,
   Wallet, BarChart3, UsersRound, FileStack, Gauge, CalendarDays, MessageSquareText, LayoutDashboard
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
@@ -56,7 +56,6 @@ import Timesheets from './components/projects/Timesheets';
 import KanbanChart from './components/projects/KanbanChart';
 import AIAssistant from './components/assistant/AIAssistant';
 import { AssistantProvider } from './components/assistant/AssistantContext';
-import EdgeBrain from './components/brain/EdgeBrain';
 import TodayPage from './components/today/TodayPage';
 import AskPage from './components/today/AskPage';
 import OverviewPage from './components/overview/OverviewPage';
@@ -103,7 +102,6 @@ import { portfolio as projectPortfolio } from './services/projectService';
 const MODULE_FILTER = {
   overall: ['dashboard/overview', 'dashboard/projects', 'dashboard/finance', 'dashboard/sales', 'dashboard/team',
             'dashboard/documents', 'dashboard/usage'],
-  brain: ['edgebrain'],
   // One page each, so the shell shows no tabs for them.
   today: ['today'],
   ai: ['ai'],
@@ -183,7 +181,7 @@ const FLUSH_PAGES = new Set([
   'company-hierarchy',
   'templates/nda', 'templates/mou', 'templates/partnership', 'templates/custom',
   'new-invoice', 'new-quotation', 'new-proforma',
-  'edgebrain', 'ai',
+  'ai',
 ]);
 
 // Pages split into tabs by SectionTabs, which owns their scrolling: the page
@@ -194,7 +192,6 @@ const isTabbed = (path) => path !== '/company/employees/new'
   && TABBED_BASES.some((b) => path === b || path.startsWith(b + '/'));
 
 const MODULE_META = {
-  brain:     { id: 'brain', label: 'EdgeBrain' },
   today:     { id: 'today', label: 'Today' },
   ai:        { id: 'ai', label: 'AI' },
   team:      { id: 'team', label: 'Company' },
@@ -215,8 +212,6 @@ const NAV_ITEMS = [
   { id: 'dashboard/team', label: 'Team', icon: UsersRound },
   { id: 'dashboard/documents', label: 'Documents', icon: FileStack },
   { id: 'dashboard/usage', label: 'Usage', icon: Gauge },
-  { section: 'EDGEBRAIN' },
-  { id: 'edgebrain', label: 'Company Brain', icon: BrainCircuit },
   { section: 'TEAM' },
   { id: 'company-hierarchy', label: 'Company Hierarchy', icon: GitBranch },
   { id: 'employees', label: 'Employees', icon: Users },
@@ -252,13 +247,12 @@ const PAGE_META = {
   today: { title: 'Today', subtitle: 'What needs you today, worked out from your live records' },
   ai: { title: 'AI', subtitle: 'Ask about your company, or tell EdgeAI what to do' },
   'dashboard/overview': { title: 'Overview', subtitle: 'Your company at a glance: the widgets you choose and the activity behind them' },
-  edgebrain: { title: 'EdgeBrain', subtitle: 'Your company, organised as one connected context your AI can reason over' },
   dashboard: { title: 'Dashboard', subtitle: 'The whole organisation for one period. Click anything for the analysis behind it' },
   'dashboard/finance': { title: 'Finance Dashboard', subtitle: 'Credit, debit, and who owes whom' },
   'dashboard/sales': { title: 'Sales & Marketing Dashboard', subtitle: 'Pipeline, recurring revenue, quotations, customers, markets and acquisition spend' },
   'dashboard/team': { title: 'Team Dashboard', subtitle: 'Headcount, attendance, leave and who is carrying the work' },
   'dashboard/projects': { title: 'Projects Dashboard', subtitle: 'What is being delivered, what is late, and whether it pays' },
-  'dashboard/documents': { title: 'Documents Dashboard', subtitle: 'Everything issued, every reply, and the library EdgeBrain reads' },
+  'dashboard/documents': { title: 'Documents Dashboard', subtitle: 'Everything issued, every reply, and the library EdgeAI reads' },
   'dashboard/usage': { title: 'Usage Dashboard', subtitle: 'AI messages and plan limits: how much you have used and what is left' },
   profile: { title: 'Company Profile', subtitle: 'The details every document you issue is signed with' },
   'offer-letters': { title: 'Offer Letters', subtitle: 'One offer at a time, or a whole batch from a CSV' },
@@ -286,7 +280,7 @@ const PAGE_META = {
   'products-directory': { title: 'Business Directory', subtitle: 'Product and service catalogue, and what each one has sold' },
   revenue: { title: 'Billing & Revenue', subtitle: 'Track revenue, expenses, and profitability' },
   records: { title: 'Records', subtitle: 'Manage and download issued documents' },
-  'document-library': { title: 'Document Library', subtitle: 'General documents, process assets and lessons learned. EdgeBrain reads them so the AI can answer from them' },
+  'document-library': { title: 'Document Library', subtitle: 'General documents, process assets and lessons learned. EdgeAI reads them so it can answer from them' },
   employees: { title: 'Employee Registry', subtitle: 'Manage your internal team and onboarding' },
   'ex-employees': { title: 'Ex-Employees', subtitle: 'Archive of employees who have left the organization' },
   me: { title: 'My Portal', subtitle: 'Your attendance, leave and announcements' },
@@ -582,7 +576,8 @@ function AppContent() {
             <Route path="dashboard/projects" element={<ProjectsDash />} />
             <Route path="dashboard/documents" element={<DocumentsDash />} />
             <Route path="dashboard/usage" element={<UsageDash />} />
-            <Route path="edgebrain" element={<EdgeBrain />} />
+            {/* EdgeBrain is now Neurals, a section of the AI page. */}
+            <Route path="edgebrain" element={<Navigate to="/ai?view=neurals" replace />} />
             <Route path="today" element={<TodayPage />} />
             <Route path="ai" element={<AskPage theme={theme} />} />
             <Route path="profile" element={<CompanyProfile />} />
