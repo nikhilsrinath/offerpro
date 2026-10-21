@@ -25,6 +25,7 @@ import { fmtDate, money, useSection } from './financeHooks';
 import { confirmDialog } from '../../services/confirm';
 import CashEntryModal from './CashEntryModal';
 import { SECTION, billBalance, billPaymentEntry, blank } from './cashEntry';
+import { useSettledVendorBills } from './vendorAdvance';
 
 const PRESETS = [
   { id: 'all',     label: 'All time' },
@@ -58,6 +59,8 @@ const VIEWS = [
 export default function CashBook({ projectId = null, children }) {
   const t = useT();
   const toast = useToast();
+  // A vendor payment edited here moves its vendor's bills' amount paid.
+  useSettledVendorBills();
   const [params, setParams] = useSearchParams();
 
   // With `projectId` (a project's Cash Book) only the entries linked to the

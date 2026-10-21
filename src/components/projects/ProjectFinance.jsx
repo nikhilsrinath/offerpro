@@ -81,8 +81,9 @@ function useSources() {
                 party: vendorName[e.vendor_id] || e.description || '', kind: categoryLabel(e.category),
                 number: e.reference || '', client_id: e.client_id, description: e.description || '', created: e.created_at || '',
                 receipt: e.receipt_path || null,
-                // Paid to a vendor before their bill (0093); `settles` once adjusted against it.
+                // Paid to a vendor, before their bill (0093) or towards what they are owed.
                 advance: e.category === 'vendor_advance',
+                vendorPay: e.category === 'vendor_bill_payment',
                 // The entries one payment was saved as share this (0094).
                 group: e.payment_group_id || null,
                 settles: e.purchase_invoice_id ? `purchase_invoice:${e.purchase_invoice_id}` : null,
@@ -480,11 +481,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
     const side = (n) => `${money(Math.abs(n), 2)} ${n < 0 ? 'Dr' : 'Cr'}`;
     const nameOf = (r) => r.s?.party || SOURCE_LABEL[r.a.source_type];
     const kindOf = (r) => (r.breakdown?.some((p) => p.advance) || r.s?.advance ? 'Advance'
-        : r.pays || r.breakdown ? 'Payment' : r.s?.kind || SOURCE_LABEL[r.a.source_type]);
-    // A grouped payment's note: what each of its entries paid.
-    const breakdownText = (r) => r.breakdown.map((p) => (p.bill
-        ? `${money(p.value, 2)} ${p.advance ? 'adjusted' : 'paid'} against bill ${p.bill.number}`
-        : p.advance ? `${money(p.value, 2)} still advance` : money(p.value, 2))).join(', ');
+        : r.pays || r.breakdown || r.s?.vendorPay ? 'Payment' : r.s?.kind || SOURCE_LABEL[r.a.source_type]);
     const partsOf = (r) => r.breakdown.map((p) => expenses.find((e) => e.id === p.id)).filter(Boolean);
     const projectText = (r) => (r.projects?.length ? r.projects.map((p) => p.code || p.name).join(', ') : 'General');
 
@@ -497,10 +494,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                 r.s?.date || '', nameOf(r), ...(company ? [projectText(r)] : []), kindOf(r), r.s?.number || '',
                 r.credit ? r.value.toFixed(2) : '', r.credit ? '' : r.value.toFixed(2),
                 `${Math.abs(r.balance).toFixed(2)} ${r.balance < 0 ? 'Dr' : 'Cr'}`,
-                r.settles ? 'Receipt against a linked invoice, not counted'
-                    : r.breakdown ? breakdownText(r)
-                    : r.pays ? `${r.s?.advance ? 'Advance adjusted' : 'Paid'} against bill ${r.pays.number}`
-                    : r.s?.advance ? 'Advance, not yet adjusted against a bill' : '',
+                r.settles ? 'Receipt against a linked invoice, not counted' : '',
             ]),
             ['', 'Closing Balance', ...(company ? [''] : []), '', '', closing.credit.toFixed(2), closing.debit.toFixed(2),
                 `${Math.abs(closing.balance).toFixed(2)} ${closing.balance < 0 ? 'Dr' : 'Cr'}`, ''],
@@ -578,9 +572,6 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                         ) : onOpen || plain ? name : <Link to={SOURCE_PATH[a.source_type]()} style={{ color: t.text }}>{name}</Link>}
                                         {r.splitCount > 1 && <Muted> · split {r.splitCount} ways</Muted>}
                                         {r.settles && <Muted> · receipt against a linked invoice</Muted>}
-                                        {r.pays && <Muted> · {r.s?.advance ? 'advance adjusted' : 'paid'} against bill {r.pays.number}</Muted>}
-                                        {r.s?.advance && !r.pays && !r.breakdown && <Muted> · advance, adjusted against their next bill</Muted>}
-                                        {r.breakdown && <Muted> · {breakdownText(r)}</Muted>}
                                         {bill && (
                                             <span style={{ display: 'block', fontSize: 11.5, marginTop: 2, color: late ? t.down : t.faint }}>
                                                 {[
@@ -614,7 +605,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                     {!readOnly && <Td align="right">
                                         {bill && billMenu
                                             ? <RowMenu label={`Actions for bill ${bill.bill_number}`} items={billMenu(bill)} />
-                                            : (r.pays || s?.advance || r.breakdown) && paymentMenu ? <RowMenu label={kindOf(r) === 'Advance' ? 'Actions for this advance' : 'Actions for this payment'}
+                                            : (r.pays || s?.advance || s?.vendorPay || r.breakdown) && paymentMenu ? <RowMenu label={kindOf(r) === 'Advance' ? 'Actions for this advance' : 'Actions for this payment'}
                                                 items={r.breakdown ? paymentMenu(r.breakdown.map((p) => p.id), open) : paymentMenu(a.source_id)} />
                                             : (open || deletable) && <RowMenu label={`Actions for ${name}`} items={[
                                                 open && { label: 'Edit', icon: Pencil, onClick: open },

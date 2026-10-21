@@ -16,10 +16,8 @@ import { pickerFromAllocations, pickerFor, saveSplitFromPicker, friendlyError } 
 import { useProjectScope } from '../projects/projectScope';
 import { confirmDialog } from '../../services/confirm';
 import CashEntryModal from './CashEntryModal';
-import { ADVANCE, billPaymentEntry, blank as blankEntry } from './cashEntry';
-import {
-  adjustAdvanceToBills, adjustAdvancesToBill, adjustEachAdvance, deletePaymentParts, unadjustAdvance,
-} from './vendorAdvance';
+import { ADVANCE, VENDOR_PAY, blank as blankEntry } from './cashEntry';
+import { deletePaymentParts, useSettledVendorBills } from './vendorAdvance';
 import VendorPaymentModal from './VendorPaymentModal';
 import LedgerTypePicker from './LedgerTypePicker';
 import { RecordMoneyCard } from './CashBook';
@@ -31,8 +29,7 @@ import { ProjectLedger } from '../projects/ProjectFinance';
 import { currencySymbol } from '../../shared/currency.js';
 
 const CATEGORIES = ['Operations', 'Inventory', 'Software', 'Hardware', 'Marketing', 'Travel', 'Utilities', 'Professional fees', 'Rent', 'Other'];
-// Paid is every bill with money paid on it, whole or part, and the advances;
-// Unpaid every bill with something still to pay.
+// Paid is every debit (money gone to a vendor), Unpaid every credit (a bill).
 const FILTERS = ['all', 'paid', 'unpaid', 'overdue', 'void'];
 
 const blank = (vendorId = '') => ({
@@ -81,9 +78,10 @@ export default function PurchaseInvoices({ projectId = null, children }) {
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
-  const [paying, setPaying] = useState(null);
-  // A project's Company Ledger pays the vendor, not the bill: its Debit form.
+  // A vendor is paid, never a bill: the Debit form.
   const [payingVendor, setPayingVendor] = useState(null);
+  // Each bill's amount paid is worked out from its vendor's totals.
+  useSettledVendorBills();
 
   // Record Money: Credit or Debit asks the kind first. Sales & Services is a
   // purchase bill, Vendor Payment pays a vendor, and any other kind is a
@@ -151,10 +149,11 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     if (filter === 'all') return true;
     if (filter === 'overdue') return overdue(b);
     if (filter === 'void') return b.status === 'void';
-    if (b.status === 'void') return false;
-    // Paid means nothing left to pay; a part-paid bill still owes, so it is Unpaid.
-    return filter === 'paid' ? balance(b) <= 0.009 : balance(b) > 0.009;
+    // Paid and Unpaid are the ledger's two sides, not where a bill stands:
+    // Paid is every debit (money gone to a vendor), Unpaid every credit (a bill).
+    return b.status !== 'void';
   };
+  const side = filter === 'paid' ? 'out' : filter === 'unpaid' ? 'in' : 'all';
 
   // Company-wide, the bills of the project (or General) the page is filtered to.
   const scopedBills = useMemo(() => {
@@ -175,25 +174,26 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopedBills, search, filter, vendorFilter, vendorById, projectsByBill]);
 
-  // Advances not yet adjusted against a bill (adjusted ones are bill payments
-  // and are counted in the bill's amount paid), under the page's project.
-  const openAdvanceRows = useMemo(() => {
+  // Every payment and advance to a vendor under the page's project.
+  const vendorDebits = useMemo(() => {
     const projectsOf = (id) => allocations.filter((a) => a.source_type === 'expense' && a.source_id === id).map((a) => a.project_id);
     return (scope ? scope.data.expenses : expenses)
-      .filter((e) => e.category === ADVANCE && !e.purchase_invoice_id)
+      .filter((e) => VENDOR_PAY.has(e.category))
       .filter((e) => projectId || projectFilter === 'all'
         || (projectFilter === 'general' ? projectsOf(e.id).length === 0 : projectsOf(e.id).includes(projectFilter)));
   }, [scope, expenses, allocations, projectId, projectFilter]);
-  // The advance rows the ledger keeps when it is narrowed to some bills.
+  // The debit rows the ledger keeps when it is narrowed by vendor or search:
+  // a payment is the vendor's, not a bill's.
   const keepAdvances = useMemo(() => {
-    if (filter !== 'all' && filter !== 'paid') return new Set();
+    if (filter === 'overdue' || filter === 'void') return new Set();
     const q = search.trim().toLowerCase();
-    return new Set(openAdvanceRows
+    return new Set(vendorDebits
+      .filter((e) => !e.purchase_invoice_id)
       .filter((e) => vendorFilter === 'all' || e.vendor_id === vendorFilter)
-      .filter((e) => !q || [e.description, e.reference, vendorById[e.vendor_id]?.company_name, 'advance']
+      .filter((e) => !q || [e.description, e.reference, vendorById[e.vendor_id]?.company_name, e.category === ADVANCE ? 'advance' : 'payment']
         .some((f) => String(f || '').toLowerCase().includes(q)))
       .map((e) => `expense:${e.id}`));
-  }, [openAdvanceRows, filter, search, vendorFilter, vendorById]);
+  }, [vendorDebits, filter, search, vendorFilter, vendorById]);
 
   const totals = useMemo(() => {
     const share = (b) => b._share ?? 1;
@@ -203,11 +203,10 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     return {
       billed: live.reduce((s, b) => s + b.total, 0),
       payable: live.reduce((s, b) => s + balance(b), 0),
-      paid: live.reduce((s, b) => s + Math.min(b.amount_paid, b.total), 0)
-        + openAdvanceRows.reduce((s, e) => s + (Number(e.amount) || 0), 0),
+      paid: vendorDebits.reduce((s, e) => s + (Number(e.amount) || 0), 0),
       inputGst: live.reduce((s, b) => s + b.tax_amount, 0),
     };
-  }, [scopedBills, openAdvanceRows]);
+  }, [scopedBills, vendorDebits]);
 
   // Both dates are left for the user to pick; nothing is filled in for them.
   // `_dirty` marks a form someone has typed in, so closing it asks first.
@@ -273,19 +272,7 @@ export default function PurchaseInvoices({ projectId = null, children }) {
         setFormError(`Bill saved, but the project split was not: ${allocErr.message}`);
         return;
       }
-      // What was paid to the vendor in advance settles the new bill first.
-      let adjusted = 0;
-      if (added) {
-        try {
-          adjusted = await adjustAdvancesToBill(added, { expenses, allocations });
-        } catch (advErr) {
-          toast(`Bill recorded, but the vendor's advance was not adjusted against it: ${advErr.message}`, 'error', 6000);
-          setEditing(null);
-          return;
-        }
-      }
-      toast(editing.id ? 'Bill updated'
-        : adjusted > 0 ? `Bill recorded, ${money(adjusted, 2)} of advance adjusted against it` : 'Bill recorded', 'success');
+      toast(editing.id ? 'Bill updated' : 'Bill recorded', 'success');
       setEditing(null);
     } catch (err) {
       setFormError(err.code === '23505'
@@ -296,13 +283,8 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     }
   };
 
-  // A payment is a money-out entry in the General Ledger, linked to the bill
-  // (0080). Its form opens here, over the bill list, with the bill's balance,
-  // vendor, project and GST already settled; saving it moves the amount paid.
-  const handlePay = (b) => {
-    if (balance(b) <= 0.009) { toast(`Bill ${b.bill_number} has nothing left to pay`, 'info'); return; }
-    setPaying(billPaymentEntry(b, { allocations, projects }));
-  };
+  // Paying from a bill's row pays its vendor: one debit, not against the bill.
+  const handlePay = (b) => setPayingVendor({ vendorId: b.vendor_id, category: '' });
 
   const handleVoid = async (b) => {
     if (!(await confirmDialog({ title: 'Void bill', message: `Void bill ${b.bill_number}? It will be excluded from payables, P&L and tax.`, confirmLabel: 'Void' }))) return;
@@ -326,28 +308,12 @@ export default function PurchaseInvoices({ projectId = null, children }) {
   };
 
   const handleDelete = async (b) => {
-    // Its payments are real money out in the General Ledger (0080). The FK
-    // keeps a paid bill from going alone, so the payments go first, named
-    // in the confirmation so nobody loses ledger entries by surprise.
+    // Payments are the vendor's, not the bill's: they all stay. Ones saved
+    // linked to it before that are let go of first (the FK would keep the bill).
     const linked = expenses.filter((e) => e.purchase_invoice_id === b.id);
-    // An advance adjusted against it was paid before the bill: it is kept, open again.
-    const advances = linked.filter((e) => e.category === ADVANCE);
-    const payments = linked.filter((e) => e.category !== ADVANCE);
-    const kept = advances.length
-      ? ` The advance adjusted against it (${money(advances.reduce((n, e) => n + (Number(e.amount) || 0), 0), 2)}) is kept and becomes an open advance again.`
-      : '';
-    const message = (payments.length
-      ? `Bill ${b.bill_number} has ${payments.length} payment${payments.length > 1 ? 's' : ''} in the General Ledger `
-        + `(${payments.map((e) => `${money(e.amount, 2)} on ${fmtDate(e.date || e.incurred_on)}`).join(', ')}). `
-        + `Deleting the bill deletes ${payments.length > 1 ? 'them' : 'it'} too. This cannot be undone.`
-      : `Are you sure you want to delete bill ${b.bill_number}? This cannot be undone.`) + kept;
-    if (!(await confirmDialog({ title: 'Delete bill', message, confirmLabel: payments.length ? 'Delete bill and payments' : undefined }))) return;
+    if (!(await confirmDialog({ title: 'Delete bill', message: `Are you sure you want to delete bill ${b.bill_number}? Payments to the vendor stay. This cannot be undone.` }))) return;
     try {
-      for (const e of advances) await unadjustAdvance(e);
-      for (const e of payments) {
-        await orgStore.removeItem('expenses', e.id);
-        if (e.receipt_path) receiptService.remove(e.receipt_path);
-      }
+      for (const e of linked) await orgStore.updateItem('expenses', e.id, { purchase_invoice_id: null, unlink_bill: true });
       await orgStore.removeItem('purchase_invoices', b.id);
       receiptService.remove(b.receipt_path);
       toast('Bill deleted', 'success');
@@ -364,7 +330,7 @@ export default function PurchaseInvoices({ projectId = null, children }) {
   /** What can be done to one bill, from its row. */
   const billMenu = (b) => [
     b.receipt_path && { label: 'View receipt', icon: Paperclip, onClick: () => receiptService.open(b.receipt_path) },
-    !projectId && b.status !== 'paid' && b.status !== 'void' && { label: 'Record payment', icon: CheckCircle, tone: 'success', onClick: () => handlePay(b) },
+    !projectId && b.status !== 'paid' && b.status !== 'void' && { label: 'Pay Vendor', icon: CheckCircle, tone: 'success', onClick: () => handlePay(b) },
     { label: 'Edit', icon: Pencil, onClick: () => { setEditing({
       ...b, _share: undefined, _shareNet: undefined,
       // The form's "Amount before tax" is the bill without the other amount.
@@ -378,13 +344,11 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => handleDelete(b) },
   ];
 
-  // A payment row in the ledger: taking it back reopens what it paid.
+  // A payment row in the ledger: taking it back leaves that much owed to the vendor again.
   const handleDeletePayment = async (e) => {
     if (!(await confirmDialog({
       title: 'Delete payment',
-      message: e.category === ADVANCE && !e.purchase_invoice_id
-        ? `Delete the advance of ${money(e.amount, 2)} on ${fmtDate(e.date || e.incurred_on)}? It goes from every ledger and project it is on.`
-        : `Delete the payment of ${money(e.amount, 2)} on ${fmtDate(e.date || e.incurred_on)}? It goes from every ledger and project it is on, and that amount becomes payable to the vendor again.`,
+      message: `Delete the ${e.category === ADVANCE ? 'advance' : 'payment'} of ${money(e.amount, 2)} on ${fmtDate(e.date || e.incurred_on)}? It goes from every ledger and project it is on.`,
       confirmLabel: 'Delete',
     }))) return;
     try {
@@ -398,37 +362,17 @@ export default function PurchaseInvoices({ projectId = null, children }) {
       toast(`Could not delete the payment: ${err.message}`, 'error');
     }
   };
-  // An open advance is laid against the vendor's open bills, oldest first.
-  const handleAdjust = async (e) => {
-    try {
-      const done = await adjustAdvanceToBills(e, { bills: allBills, allocations });
-      toast(done > 0 ? `${money(done, 2)} of the advance adjusted` : 'Nothing is pending to this vendor yet', done > 0 ? 'success' : 'info');
-    } catch (err) {
-      toast(`Could not adjust the advance: ${err.message}`, 'error');
-    }
-  };
-  const handleUnadjust = async (e) => {
-    try {
-      await unadjustAdvance(e);
-      orgStore.refreshSection('purchase_invoices');
-      toast('Advance taken off the bill; the bill is payable again', 'success');
-    } catch (err) {
-      toast(`Could not take the advance off the bill: ${err.message}`, 'error');
-    }
-  };
-  // One payment saved as several entries (0094) is acted on as a whole.
+  // One payment saved as several entries before payments stopped being split
+  // (0094) is acted on as a whole.
   const groupMenu = (ids, edit) => {
     const parts = ids.map((id) => expenses.find((x) => x.id === id)).filter(Boolean);
     if (parts.length === 0) return [];
     const isAdvance = parts.some((e) => e.category === ADVANCE);
-    const open = parts.filter((e) => e.category === ADVANCE && !e.purchase_invoice_id);
-    const owed = open.length > 0
-      && allBills.some((b) => b.vendor_id === open[0].vendor_id && b.status !== 'void' && balance(b) > 0.009);
     const total = parts.reduce((n, e) => n + (Number(e.amount) || 0), 0);
     const remove = async () => {
       if (!(await confirmDialog({
         title: isAdvance ? 'Delete advance' : 'Delete payment',
-        message: `Delete the ${isAdvance ? 'advance' : 'payment'} of ${money(total, 2)} on ${fmtDate(parts[0].date || parts[0].incurred_on)}? All of it goes from every ledger and project it is on, and what it paid on bills becomes payable to the vendor again.`,
+        message: `Delete the ${isAdvance ? 'advance' : 'payment'} of ${money(total, 2)} on ${fmtDate(parts[0].date || parts[0].incurred_on)}? All of it goes from every ledger and project it is on.`,
         confirmLabel: 'Delete',
       }))) return;
       try {
@@ -439,17 +383,8 @@ export default function PurchaseInvoices({ projectId = null, children }) {
         toast(`Could not delete all of it: ${err.message}`, 'error');
       }
     };
-    const adjust = async () => {
-      try {
-        const done = await adjustEachAdvance(open, { bills: allBills, allocations });
-        toast(done > 0 ? `${money(done, 2)} of the advance adjusted` : 'Nothing is pending to this vendor yet', done > 0 ? 'success' : 'info');
-      } catch (err) {
-        toast(`Could not adjust the advance: ${err.message}`, 'error');
-      }
-    };
     return [
       edit && { label: isAdvance ? 'Edit Advance' : 'Edit Payment', icon: Pencil, onClick: edit },
-      owed && { label: 'Adjust Against Bills', icon: CheckCircle, tone: 'success', onClick: adjust },
       { label: isAdvance ? 'Delete Advance' : 'Delete Payment', icon: Trash2, tone: 'danger', onClick: remove },
     ];
   };
@@ -458,20 +393,18 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     const e = expenses.find((x) => x.id === expenseId);
     if (!e) return [];
     const isAdvance = e.category === ADVANCE;
-    const owed = isAdvance && !e.purchase_invoice_id
-      && allBills.some((b) => b.vendor_id === e.vendor_id && b.status !== 'void' && balance(b) > 0.009);
     return [
       { label: isAdvance ? 'Edit Advance' : 'Edit Payment', icon: Pencil, onClick: () => editEntry('out', e.id) },
-      owed && { label: 'Adjust Against Bills', icon: CheckCircle, tone: 'success', onClick: () => handleAdjust(e) },
-      isAdvance && e.purchase_invoice_id && { label: 'Take Off the Bill', icon: RotateCcw, onClick: () => handleUnadjust(e) },
       { label: isAdvance ? 'Delete Advance' : 'Delete Payment', icon: Trash2, tone: 'danger', onClick: () => handleDeletePayment(e) },
     ];
   };
 
-  const narrowed = !!search.trim() || filter !== 'all' || vendorFilter !== 'all';
+  // Paid and Unpaid keep one side of the ledger rather than narrowing it to some bills.
+  const narrowed = !!search.trim() || filter === 'overdue' || filter === 'void' || vendorFilter !== 'all';
   const ledgerProps = {
     bills: filtered, billMenu, paymentMenu, onEdit: editEntry, filtered: narrowed, keep: keepAdvances,
-    emptyText: narrowed ? 'Nothing matches these filters.' : undefined,
+    narrow: side === 'all' ? undefined : { view: side },
+    emptyText: narrowed || side !== 'all' ? 'Nothing matches these filters.' : undefined,
   };
   const pickProject = (v) => {
     setProjectFilter(v);
@@ -644,11 +577,10 @@ export default function PurchaseInvoices({ projectId = null, children }) {
         </Modal>
       )}
 
-      {paying && <CashEntryModal entry={paying} onClose={() => setPaying(null)} />}
       {choosing && <LedgerTypePicker direction={choosing} onPick={pickKind} onClose={() => setChoosing(null)} />}
       {entry && <CashEntryModal key={entry.id || 'new'} entry={entry} fresh={freshEntry} typeChosen={entryTyped} onClose={() => setEntry(null)} />}
       {payingVendor && (
-        <VendorPaymentModal bills={bills} vendorId={payingVendor.vendorId} category={payingVendor.category}
+        <VendorPaymentModal vendorId={payingVendor.vendorId} category={payingVendor.category}
           startOn={startOn} projectId={projectId} onClose={() => setPayingVendor(null)} />
       )}
     </div>

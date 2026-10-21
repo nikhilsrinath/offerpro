@@ -85,35 +85,42 @@ export function spreadVendorPayment(bills, amount) {
     .filter((x) => x.pay > 0.009);
 }
 
-// Money paid to a vendor before their bill (0093): a debit only, adjusted
-// against the bill when it comes.
+// Money paid to a vendor before their bill (0093).
 export const ADVANCE = 'vendor_advance';
 
-/** A vendor's advances not yet adjusted against a bill, oldest first. */
-export const openAdvances = (expenses, vendorId) => expenses
-  .filter((e) => e.category === ADVANCE && !e.purchase_invoice_id && e.vendor_id === vendorId && Number(e.amount) > 0)
-  .sort((a, b) => String(a.date || a.incurred_on || '').localeCompare(String(b.date || b.incurred_on || ''))
-    || String(a.created_at || '').localeCompare(String(b.created_at || '')));
+// A debit to a vendor: a payment or an advance. It is one entry, never laid
+// against a bill or split; what each bill has had is only worked out from the
+// vendor's totals (settleVendor), for the bill's paid and payable figures.
+export const VENDOR_PAY = new Set(['vendor_bill_payment', ADVANCE]);
 
-/** What is still with a vendor as advance, over their open advances. */
-export const advanceTotal = (expenses, vendorId) => Math.round(openAdvances(expenses, vendorId)
-  .reduce((n, e) => n + (Number(e.amount) || 0), 0) * 100) / 100;
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const oldestFirst = (a, b) => String(a.bill_date || '').localeCompare(String(b.bill_date || ''))
+  || String(a.bill_number || '').localeCompare(String(b.bill_number || ''));
+
+/** Everything paid to a vendor, payments and advances alike. */
+export const vendorPaid = (expenses, vendorId) => r2(expenses
+  .filter((e) => e.vendor_id === vendorId && VENDOR_PAY.has(e.category))
+  .reduce((n, e) => n + (Number(e.amount) || 0), 0));
 
 /**
- * A bill's balance, taken from a vendor's open advances oldest first: what
- * each advance gives (`use`), until the bill is settled or they run out. An
- * advance that gives less than all of itself is split, the rest staying open.
+ * What each of a vendor's bills counts as paid: `paid` (the vendor's total)
+ * laid over the live bills oldest first. A void bill counts nothing.
  */
-export function spreadAdvances(advances, balance) {
-  let left = Math.round((Number(balance) || 0) * 100) / 100;
-  return advances
-    .map((advance) => {
-      const use = Math.min(left, Math.round((Number(advance.amount) || 0) * 100) / 100);
-      left = Math.round((left - use) * 100) / 100;
-      return { advance, use };
-    })
-    .filter((x) => x.use > 0.009);
+export function settleVendor(bills, paid) {
+  let left = r2(paid);
+  const out = {};
+  bills.filter((b) => b.status === 'void').forEach((b) => { out[b.id] = 0; });
+  bills.filter((b) => b.status !== 'void').sort(oldestFirst).forEach((b) => {
+    const take = Math.max(0, Math.min(left, r2(b.total)));
+    out[b.id] = take;
+    left = r2(left - take);
+  });
+  return out;
 }
+
+/** Paid to a vendor beyond all their live bills: an advance with them. */
+export const vendorCredit = (bills, expenses, vendorId) => Math.max(0, r2(vendorPaid(expenses, vendorId)
+  - bills.filter((b) => b.vendor_id === vendorId && b.status !== 'void').reduce((n, b) => n + (Number(b.total) || 0), 0)));
 
 /**
  * A new payment against a purchase bill: a money-out entry linked to the bill

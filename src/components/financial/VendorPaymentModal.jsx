@@ -12,35 +12,27 @@ import { titleCase } from '../../utils/titleCase';
 import { Modal } from './financeUi';
 import { money, useSection } from './financeHooks';
 import {
-  ADVANCE, advanceTotal, billBalance, billPickerOf, blank, openAdvances, spreadVendorPayment,
+  ADVANCE, billBalance, billPickerOf, blank, spreadVendorPayment, vendorCredit,
 } from './cashEntry';
-import { adjustEachAdvance } from './vendorAdvance';
 import { baseCurrency, currencySymbol } from '../../shared/currency.js';
 
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
 /**
  * The Company Ledger's Vendor Payment (the Debit side's Product & Delivery,
- * `category` being its Sub-Type). Two ways to pay a vendor:
- *
- *  · Against pending: the amount is laid against the vendor's open bills
- *    oldest first, one money-out entry per bill it reaches (0080), so each
- *    bill's paid amount and status follow on their own and the entry carries
- *    the bill's project split. Only a debit is recorded.
- *  · Advance: paid before the vendor's bill (0093). Only the debit is
- *    recorded, on the projects picked; when the bill (the credit) is recorded
- *    the advance is adjusted against it, oldest first, so it is paid without
- *    the money being counted twice.
- *
- * `bills` are the ones the page is about (a project's).
+ * `category` being its Sub-Type). Either way it is one debit to the vendor,
+ * never laid against a bill or split: Against Pending pays what they are owed,
+ * Advance is paid before their bill (0093). What each bill counts as paid is
+ * only worked out from the vendor's totals (vendorAdvance.js).
  */
-export default function VendorPaymentModal({ bills, vendorId = '', category = '', startOn = null, projectId = null, onClose }) {
+export default function VendorPaymentModal({ vendorId = '', category = '', startOn = null, projectId = null, onClose }) {
   const toast = useToast();
   const vendors = useSection('vendors');
   const expenses = useSection('expenses');
   const allocations = useSection('project_allocations');
+  const bills = useSection('purchase_invoices');
 
-  // What is pending to each vendor, over the bills still open.
+  // What is pending to each vendor, over their bills still open.
   const pendingBy = useMemo(() => {
     const out = {};
     bills.filter((b) => b.status !== 'void').forEach((b) => {
@@ -74,88 +66,47 @@ export default function VendorPaymentModal({ bills, vendorId = '', category = ''
   const pending = pendingBy[form.vendor_id] || 0;
   const amount = round2(form.amount);
   const isAdvance = form.mode === 'advance';
-  const parts = !isAdvance && form.vendor_id ? spreadVendorPayment(bills.filter((b) => b.vendor_id === form.vendor_id), amount) : [];
   const subTypeLabel = category ? categoryLabel(category) : '';
-  // Paid before, not yet adjusted against a bill.
-  const advance = form.vendor_id ? advanceTotal(expenses, form.vendor_id) : 0;
-  const [adjusting, setAdjusting] = useState(false);
-
-  // The vendor's open advances laid against what is pending, oldest first.
-  const adjustNow = async () => {
-    setAdjusting(true);
-    setError('');
-    let done = 0;
-    try {
-      done = await adjustEachAdvance(openAdvances(expenses, form.vendor_id), { bills, allocations });
-      toast(`${money(done, 2)} of advance adjusted against ${vendor.company_name}'s bills`, 'success');
-      onClose();
-    } catch (err) {
-      setError(`${done > 0 ? `${money(done, 2)} was adjusted, the rest was not. ` : ''}${friendlyError(err).message || 'Could not adjust the advance.'}`);
-    } finally {
-      setAdjusting(false);
-    }
-  };
+  // Paid to them beyond all their bills.
+  const advance = form.vendor_id ? vendorCredit(bills, expenses, form.vendor_id) : 0;
 
   /**
-   * One money-out entry against `bill`, carrying the bill's split (or
-   * `picker`). The entries of one payment share `group` (0094), so the ledger
-   * shows them as the one payment they are.
+   * Against Pending is on the projects of the bills it would cover, oldest
+   * first, as one split; with no such bill, on the page's project.
    */
-  const payBill = async (bill, pay, picker, group) => {
-    const { direction: _d, ...entry } = {
-      ...blank('out'),
-      purchase_invoice_id: bill.id,
-      vendor_id: bill.vendor_id,
-      category: 'vendor_bill_payment',
-      payment_group_id: group,
-      original_amount: String(pay),
-      description: `Payment to ${vendor.company_name}, against bill ${bill.bill_number}`,
-      date: form.date,
-      payment_method: form.payment_method,
-      reference: form.reference.trim(),
-      notes: form.notes.trim(),
-      currency: baseCurrency(), fx_rate: 1, tax_amount: 0, tax_rate: 0, status: 'paid', billable: false,
-    };
-    const { id } = await orgStore.addItem('expenses', entry);
-    await saveSplitFromPicker('expense', id, picker);
-  };
-
-  const savePending = async () => {
-    if (!(pending > 0.009)) { setError(`Nothing is pending to ${vendor.company_name}. Choose Advance.`); return; }
-    if (amount > pending + 0.005) { setError(`At most what is pending to ${vendor.company_name}, ${money(pending, 2)}.`); return; }
-    setSaving(true);
-    setError('');
-    let done = 0;
-    const group = parts.length > 1 ? crypto.randomUUID() : null;
-    try {
-      for (const { bill, pay } of parts) {
-        await payBill(bill, pay, billPickerOf(allocations, bill, pay), group);
-        done += pay;
+  const pendingPicker = () => {
+    const byProject = new Map();
+    let whole = null;
+    for (const { bill, pay } of spreadVendorPayment(bills.filter((b) => b.vendor_id === vendor.id), amount)) {
+      const p = billPickerOf(allocations, bill, pay);
+      if (!p) continue;
+      if (p.mode === 'single') whole = whole || p;
+      for (const r of p.rows) {
+        const add = p.mode === 'single' ? pay : Number(r.amount) || 0;
+        byProject.set(r.project_id, round2((byProject.get(r.project_id) || 0) + add));
       }
-      orgStore.refreshSection('purchase_invoices');
-      toast(`${money(amount, 2)} paid to ${vendor.company_name}`, 'success');
-      onClose();
-    } catch (err) {
-      // Part of it may already be in: show what is really there before a retry.
-      orgStore.refreshSection('purchase_invoices');
-      orgStore.refreshSection('expenses');
-      setForm((f) => ({ ...f, amount: done > 0 ? String(round2(amount - done)) : f.amount }));
-      setError(`${done > 0 ? `${money(done, 2)} was recorded, the rest was not. ` : ''}${friendlyError(err).message || 'Could not record the payment.'}`);
-    } finally {
-      setSaving(false);
     }
+    if (byProject.size === 0) return startOn ? pickerFor(startOn) : null;
+    if (byProject.size === 1 && whole) return whole;
+    return { mode: 'split', touched: true, rows: [...byProject].map(([project_id, a]) => ({ project_id, amount: String(a) })) };
   };
 
-  const saveAdvance = async () => {
+  const save = async (e) => {
+    e.preventDefault();
+    if (!vendor) { setError('Choose the vendor you paid.'); return; }
+    if (!(amount > 0)) { setError('Enter an amount greater than zero.'); return; }
+    if (!form.date) { setError('Choose the date it was paid.'); return; }
     setSaving(true);
     setError('');
     try {
+      // One debit to the vendor, whichever way it was paid.
       const { direction: _d, ...entry } = {
         ...blank('out'),
         vendor_id: vendor.id,
-        category: ADVANCE,
+        category: isAdvance ? ADVANCE : 'vendor_bill_payment',
         original_amount: String(amount),
-        description: form.description.trim() || `Advance to ${vendor.company_name}${subTypeLabel ? `, ${subTypeLabel}` : ''}`,
+        description: (isAdvance && form.description.trim())
+          || `${isAdvance ? 'Advance' : 'Payment'} to ${vendor.company_name}${isAdvance && subTypeLabel ? `, ${subTypeLabel}` : ''}`,
         date: form.date,
         payment_method: form.payment_method,
         reference: form.reference.trim(),
@@ -164,27 +115,19 @@ export default function VendorPaymentModal({ bills, vendorId = '', category = ''
       };
       const { id } = await orgStore.addItem('expenses', entry);
       try {
-        await saveSplitFromPicker('expense', id, form.picker);
+        await saveSplitFromPicker('expense', id, isAdvance ? form.picker : pendingPicker());
       } catch (err) {
-        toast(`Advance recorded, but its project split was not: ${friendlyError(err).message || err.message}. Edit it from the ledger.`, 'error', 6000);
+        toast(`Payment recorded, but its project split was not: ${friendlyError(err).message || err.message}. Edit it from the ledger.`, 'error', 6000);
         onClose();
         return;
       }
-      toast(`${money(amount, 2)} advance paid to ${vendor.company_name}`, 'success');
+      toast(`${money(amount, 2)} ${isAdvance ? 'advance ' : ''}paid to ${vendor.company_name}`, 'success');
       onClose();
     } catch (err) {
-      setError(friendlyError(err).message || 'Could not record the advance.');
+      setError(friendlyError(err).message || 'Could not record the payment.');
     } finally {
       setSaving(false);
     }
-  };
-
-  const save = (e) => {
-    e.preventDefault();
-    if (!vendor) { setError('Choose the vendor you paid.'); return; }
-    if (!(amount > 0)) { setError('Enter an amount greater than zero.'); return; }
-    if (!form.date) { setError('Choose the date it was paid.'); return; }
-    if (isAdvance) saveAdvance(); else savePending();
   };
 
   return (
@@ -202,7 +145,7 @@ export default function VendorPaymentModal({ bills, vendorId = '', category = ''
             {vendor ? (
               <p className="prod-field-note">
                 {pending > 0.009 ? <>Pending to {vendor.company_name}: <strong>{money(pending, 2)}</strong></> : `Nothing is pending to ${vendor.company_name}.`}
-                {advance > 0.009 && <> Advance with them: <strong>{money(advance, 2)}</strong>, adjusted against their next bill.</>}
+                {advance > 0.009 && <> Advance with them: <strong>{money(advance, 2)}</strong>.</>}
               </p>
             ) : owed.length > 0 && (
               <p className="prod-field-note">
@@ -214,9 +157,6 @@ export default function VendorPaymentModal({ bills, vendorId = '', category = ''
           <div className="prod-field full">
             <div className="cb-direction" role="group" aria-label="What this pays" style={{ marginBottom: 0 }}>
               <button type="button" aria-pressed={!isAdvance} className={!isAdvance ? 'active' : ''}
-                disabled={!!vendor && !(pending > 0.009)}
-                style={vendor && !(pending > 0.009) ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
-                title={vendor && !(pending > 0.009) ? `Nothing is pending to ${vendor.company_name}` : undefined}
                 onClick={() => set('mode', 'pending')}>
                 Against Pending
               </button>
@@ -227,27 +167,20 @@ export default function VendorPaymentModal({ bills, vendorId = '', category = ''
             </div>
             <p className="prod-field-note">
               {isAdvance
-                ? 'Paid before the bill. Only the debit is recorded now; when their bill is recorded, the advance is adjusted against it.'
-                : 'Pays what is already owed to the vendor, oldest bills first.'}
+                ? 'Paid before the bill. Recorded as one debit to the vendor.'
+                : 'Paid towards what the vendor is owed. Recorded as one debit to the vendor, not split over bills.'}
             </p>
-            {!isAdvance && advance > 0.009 && pending > 0.009 && (
-              <p className="prod-field-note">
-                {money(advance, 2)} paid as advance can settle this instead of new money.{' '}
-                <button type="button" className="prod-btn-ghost" style={{ padding: '0 4px' }} disabled={adjusting} onClick={adjustNow}>
-                  {adjusting ? 'Adjusting...' : 'Adjust Advance Against Pending'}
-                </button>
-              </p>
-            )}
           </div>
 
           <div className="prod-field">
             <label className="req" htmlFor="vp-amount">Amount paid ({currencySymbol()})</label>
             <input id="vp-amount" className="pi-no-spin" type="number" min="0.01" step="0.01" inputMode="decimal"
-              max={!isAdvance && pending ? pending : undefined} value={form.amount}
-              onChange={(e) => set('amount', e.target.value)} required />
+              value={form.amount} onChange={(e) => set('amount', e.target.value)} required />
             {!isAdvance && vendor && pending > 0.009 && (
               <p className="prod-field-note">
-                {amount > 0 && amount <= pending + 0.005 && <>{money(Math.max(0, pending - amount), 2)} stays payable · </>}
+                {amount > 0 && (amount <= pending + 0.005
+                  ? <>{money(pending - amount, 2)} stays payable · </>
+                  : <>{money(amount - pending, 2)} over what is pending stays with them as advance · </>)}
                 <button type="button" className="prod-btn-ghost" style={{ padding: '0 4px' }} onClick={() => set('amount', String(pending))}>Pay all</button>
               </p>
             )}
@@ -294,14 +227,6 @@ export default function VendorPaymentModal({ bills, vendorId = '', category = ''
             <label htmlFor="vp-notes">Notes</label>
             <input id="vp-notes" value={form.notes} onChange={(e) => set('notes', e.target.value)} />
           </div>
-
-          {!isAdvance && parts.length > 0 && amount <= pending + 0.005 && (
-            <div className="prod-field full">
-              <p className="prod-field-note">
-                Goes to the oldest bills first: {parts.map(({ bill, pay }) => `${bill.bill_number} ${money(pay, 2)}`).join(', ')}.
-              </p>
-            </div>
-          )}
         </div>
         <div className="prod-modal-foot">
           <button type="button" onClick={onClose} className="prod-btn-ghost">Cancel</button>
