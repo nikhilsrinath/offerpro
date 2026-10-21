@@ -38,7 +38,7 @@ const Auth = () => {
     setError(null);
     try {
       await login(email, password);
-      navigate('/hub', { replace: true });
+      navigate('/dashboard/overview', { replace: true });
     } catch (err) {
       setError(authErrorMessage(err));
     } finally {
@@ -50,7 +50,7 @@ const Auth = () => {
     setLoading(true);
     setError(null);
     try {
-      // Redirect-based: the browser leaves this page and returns to /hub with a
+      // Redirect-based: the browser leaves this page and returns to the dashboard with a
       // session, where AuthContext picks it up. Nothing after this line runs on
       // the success path, so there is no navigate() here.
       await loginWithGoogle();

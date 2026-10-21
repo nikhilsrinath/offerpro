@@ -139,7 +139,7 @@ export function buildEdgeContext(edgeData: {
       documentGrowth: 'stable',
     },
     team: {
-      user: user?.email || 'Unknown',
+      user: activeOrg?.company_name || activeOrg?.name || 'Unknown',
       role: user?.role || 'Admin',
     },
     orgId: activeOrg?.id || null,

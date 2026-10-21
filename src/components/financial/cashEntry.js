@@ -85,18 +85,34 @@ export function spreadVendorPayment(bills, amount) {
     .filter((x) => x.pay > 0.009);
 }
 
+// Money paid to a vendor before their bill (0093): a debit only, adjusted
+// against the bill when it comes.
+export const ADVANCE = 'vendor_advance';
+
+/** A vendor's advances not yet adjusted against a bill, oldest first. */
+export const openAdvances = (expenses, vendorId) => expenses
+  .filter((e) => e.category === ADVANCE && !e.purchase_invoice_id && e.vendor_id === vendorId && Number(e.amount) > 0)
+  .sort((a, b) => String(a.date || a.incurred_on || '').localeCompare(String(b.date || b.incurred_on || ''))
+    || String(a.created_at || '').localeCompare(String(b.created_at || '')));
+
+/** What is still with a vendor as advance, over their open advances. */
+export const advanceTotal = (expenses, vendorId) => Math.round(openAdvances(expenses, vendorId)
+  .reduce((n, e) => n + (Number(e.amount) || 0), 0) * 100) / 100;
+
 /**
- * A purchase paid now: what the bill (the credit) holds for a payment of
- * `paid`, GST inclusive. The arithmetic of app.purchase_invoice_guard(), run
- * backwards, so the bill's total and the payment are the same figure.
+ * A bill's balance, taken from a vendor's open advances oldest first: what
+ * each advance gives (`use`), until the bill is settled or they run out. An
+ * advance that gives less than all of itself is split, the rest staying open.
  */
-export function purchaseFromPaid(paid, rate) {
-  const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-  const gross = round2(paid);
-  const r = Number(rate) || 0;
-  const subtotal = r > 0 ? round2(gross / (1 + r / 100)) : gross;
-  const tax = round2(subtotal * r / 100);
-  return { subtotal, tax, total: round2(subtotal + tax) };
+export function spreadAdvances(advances, balance) {
+  let left = Math.round((Number(balance) || 0) * 100) / 100;
+  return advances
+    .map((advance) => {
+      const use = Math.min(left, Math.round((Number(advance.amount) || 0) * 100) / 100);
+      left = Math.round((left - use) * 100) / 100;
+      return { advance, use };
+    })
+    .filter((x) => x.use > 0.009);
 }
 
 /**

@@ -8,7 +8,7 @@ import {
 import { MONO, useT } from '../ui/edgeUtils';
 import { Btn, Status, Loading } from '../ui/edge';
 import { Tile, Card, DashStyle } from '../overview/dashKit';
-import { useAuth } from '../../context/AuthContext';
+import { useOrg } from '../../context/OrgContext';
 import { useAssistant } from '../assistant/assistantStore';
 import { headline } from '../hub/format';
 import { useTodayData } from './useTodayData';
@@ -18,7 +18,7 @@ import { suggestedQuestions } from './todayModel';
    Today: the owner's first page of the day. What is late, what is waiting on
    them, what falls due this week and what went well, each line one record
    that opens where it can be dealt with. Above it, a question box that hands
-   straight to EdgeAI on the Ask page.
+   straight to EdgeAI on the AI page.
 
    Everything here is counted from the org's own records (todayModel), so the
    page never says more than the books do.
@@ -91,7 +91,7 @@ function BriefCol({ icon: Icon, title, count, tone, children }) {
 export default function TodayPage() {
     const t = useT();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { activeOrg } = useOrg();
     const assistant = useAssistant();
     const { ready, loadError, model, leaveKnown } = useTodayData();
     const [q, setQ] = useState('');
@@ -99,8 +99,8 @@ export default function TodayPage() {
     if (!ready) return <Loading>Loading today…</Loading>;
 
     const s = model.snapshot;
-    const raw = (user?.email || 'there').split('@')[0];
-    const name = raw.charAt(0).toUpperCase() + raw.slice(1);
+    // The company, never a name pulled from the sign-in email.
+    const name = activeOrg?.company_name || activeOrg?.name || 'there';
     const now = new Date();
     const dateLine = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
     const dueToday = model.agenda[0]?.day === model.today ? model.agenda[0].items.length : 0;
@@ -111,11 +111,11 @@ export default function TodayPage() {
         dueToday ? `${dueToday} ${dueToday === 1 ? 'item falls' : 'items fall'} due today` : null,
     ].filter(Boolean).join('. ') + '.';
 
-    // The question goes to EdgeAI as a new chat, and the Ask page shows it.
+    // The question goes to EdgeAI as a new chat, and the AI page shows it.
     const ask = (text) => {
         const v = String(text || '').trim();
         if (!v) return;
-        if (assistant.askNew(v) !== false) navigate('/ask');
+        if (assistant.askNew(v) !== false) navigate('/ai');
     };
     const go = (to) => () => navigate(to);
 
@@ -136,7 +136,7 @@ export default function TodayPage() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                     <Status tone={model.needsYou ? 'warn' : 'up'}>{model.needsYou ? `${model.needsYou} Need You` : 'All Clear'}</Status>
-                    <Btn primary onClick={go('/ask')}><MessageSquareText aria-hidden="true" size={15} strokeWidth={2} />Ask EdgeAI</Btn>
+                    <Btn primary onClick={go('/ai')}><MessageSquareText aria-hidden="true" size={15} strokeWidth={2} />Ask EdgeAI</Btn>
                 </div>
             </header>
 

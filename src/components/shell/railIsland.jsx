@@ -59,9 +59,9 @@ export function RailHead({ children, pin }) {
 }
 
 /** The EdgeOS mark on its blue tile, and the name while open. */
-export function RailBrand({ t, open, to = '/hub' }) {
+export function RailBrand({ t, open, to = '/dashboard/overview' }) {
     return (
-        <Link to={to} aria-label="EdgeOS hub" title="Hub" style={{
+        <Link to={to} aria-label="EdgeOS dashboard" title="Dashboard" style={{
             display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1,
             textDecoration: 'none', color: t.text,
         }}>

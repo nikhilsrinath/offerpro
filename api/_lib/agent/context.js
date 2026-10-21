@@ -53,10 +53,13 @@ export async function buildAgentContext({ user, token, orgId, body = {}, actionI
   setBaseCurrency(org.currency);
   const tz = org.timezone || org.time_zone || DEFAULT_TZ;
 
+  const orgName = org.company_name || org.name || 'your company';
   const ctx = {
-    user: { id: user.id, email: user.email || null, name: meRes.data?.full_name || user.user_metadata?.full_name || user.email || 'you' },
+    // Named as the company, never by the sign-in email (which the model would
+    // otherwise greet them with).
+    user: { id: user.id, email: user.email || null, name: orgName },
     orgId,
-    orgName: org.company_name || org.name || 'your company',
+    orgName,
     org,
     role: membership.role,
     perms,

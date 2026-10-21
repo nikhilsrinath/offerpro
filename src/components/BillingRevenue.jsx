@@ -172,6 +172,8 @@ export default function BillingRevenue() {
     try {
       const exp = expenses.find((x) => x.id === id);
       await orgStore.removeItem('expenses', id);
+      // A bill payment leaves the bill owed again (0080), on every page that shows it.
+      if (exp?.purchase_invoice_id) orgStore.refreshSection('purchase_invoices');
       if (exp?.receipt_path) receiptService.remove(exp.receipt_path);
     } catch (err) {
       alert('Error deleting expense: ' + err.message);

@@ -75,7 +75,7 @@ export function usePreviousPage() {
 export function useGoBack() {
     const navigate = useNavigate();
     const prev = usePreviousPage();
-    return useCallback((fallback = '/hub') => {
+    return useCallback((fallback = '/dashboard/overview') => {
         if (prev) navigate(-1);
         else navigate(fallback, { replace: true });
     }, [navigate, prev]);

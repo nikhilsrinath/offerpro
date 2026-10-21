@@ -16,7 +16,10 @@ import { pickerFromAllocations, pickerFor, saveSplitFromPicker, friendlyError } 
 import { useProjectScope } from '../projects/projectScope';
 import { confirmDialog } from '../../services/confirm';
 import CashEntryModal from './CashEntryModal';
-import { billPaymentEntry, blank as blankEntry } from './cashEntry';
+import { ADVANCE, billPaymentEntry, blank as blankEntry } from './cashEntry';
+import {
+  adjustAdvanceToBills, adjustAdvancesToBill, adjustEachAdvance, deletePaymentParts, unadjustAdvance,
+} from './vendorAdvance';
 import VendorPaymentModal from './VendorPaymentModal';
 import LedgerTypePicker from './LedgerTypePicker';
 import { RecordMoneyCard } from './CashBook';
@@ -28,7 +31,9 @@ import { ProjectLedger } from '../projects/ProjectFinance';
 import { currencySymbol } from '../../shared/currency.js';
 
 const CATEGORIES = ['Operations', 'Inventory', 'Software', 'Hardware', 'Marketing', 'Travel', 'Utilities', 'Professional fees', 'Rent', 'Other'];
-const FILTERS = ['all', 'paid', 'unpaid', 'partially_paid', 'overdue', 'void'];
+// Paid is every bill with money paid on it, whole or part, and the advances;
+// Unpaid every bill with something still to pay.
+const FILTERS = ['all', 'paid', 'unpaid', 'overdue', 'void'];
 
 const blank = (vendorId = '') => ({
   vendor_id: vendorId, bill_number: '', bill_date: '', due_date: '',
@@ -142,6 +147,13 @@ export default function PurchaseInvoices({ projectId = null, children }) {
   const today = todayIso();
   const balance = (b) => Math.max(0, b.total - b.amount_paid);
   const overdue = (b) => b.status !== 'void' && b.status !== 'paid' && b.due_date && b.due_date < today && balance(b) > 0.009;
+  const matches = (b) => {
+    if (filter === 'all') return true;
+    if (filter === 'overdue') return overdue(b);
+    if (filter === 'void') return b.status === 'void';
+    if (b.status === 'void') return false;
+    return filter === 'paid' ? Number(b.amount_paid) > 0.009 : balance(b) > 0.009;
+  };
 
   // Company-wide, the bills of the project (or General) the page is filtered to.
   const scopedBills = useMemo(() => {
@@ -154,13 +166,33 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     const q = search.trim().toLowerCase();
     return scopedBills
       .filter((b) => vendorFilter === 'all' || b.vendor_id === vendorFilter)
-      .filter((b) => filter === 'all' || (filter === 'overdue' ? overdue(b) : b.status === filter))
+      .filter(matches)
       .filter((b) => !q || [b.bill_number, b.description, b.category, vendorById[b.vendor_id]?.company_name]
         .concat((projectsByBill[b.id] || []).flatMap((p) => [p.code, p.name]))
         .some((f) => String(f || '').toLowerCase().includes(q)))
       .sort((a, b) => String(b.bill_date).localeCompare(String(a.bill_date)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopedBills, search, filter, vendorFilter, vendorById, projectsByBill]);
+
+  // Advances not yet adjusted against a bill (adjusted ones are bill payments
+  // and are counted in the bill's amount paid), under the page's project.
+  const openAdvanceRows = useMemo(() => {
+    const projectsOf = (id) => allocations.filter((a) => a.source_type === 'expense' && a.source_id === id).map((a) => a.project_id);
+    return (scope ? scope.data.expenses : expenses)
+      .filter((e) => e.category === ADVANCE && !e.purchase_invoice_id)
+      .filter((e) => projectId || projectFilter === 'all'
+        || (projectFilter === 'general' ? projectsOf(e.id).length === 0 : projectsOf(e.id).includes(projectFilter)));
+  }, [scope, expenses, allocations, projectId, projectFilter]);
+  // The advance rows the ledger keeps when it is narrowed to some bills.
+  const keepAdvances = useMemo(() => {
+    if (filter !== 'all' && filter !== 'paid') return new Set();
+    const q = search.trim().toLowerCase();
+    return new Set(openAdvanceRows
+      .filter((e) => vendorFilter === 'all' || e.vendor_id === vendorFilter)
+      .filter((e) => !q || [e.description, e.reference, vendorById[e.vendor_id]?.company_name, 'advance']
+        .some((f) => String(f || '').toLowerCase().includes(q)))
+      .map((e) => `expense:${e.id}`));
+  }, [openAdvanceRows, filter, search, vendorFilter, vendorById]);
 
   const totals = useMemo(() => {
     const share = (b) => b._share ?? 1;
@@ -170,10 +202,11 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     return {
       billed: live.reduce((s, b) => s + b.total, 0),
       payable: live.reduce((s, b) => s + balance(b), 0),
-      paid: live.reduce((s, b) => s + Math.min(b.amount_paid, b.total), 0),
+      paid: live.reduce((s, b) => s + Math.min(b.amount_paid, b.total), 0)
+        + openAdvanceRows.reduce((s, e) => s + (Number(e.amount) || 0), 0),
       inputGst: live.reduce((s, b) => s + b.tax_amount, 0),
     };
-  }, [scopedBills]);
+  }, [scopedBills, openAdvanceRows]);
 
   // Both dates are left for the user to pick; nothing is filled in for them.
   // `_dirty` marks a form someone has typed in, so closing it asks first.
@@ -226,8 +259,9 @@ export default function PurchaseInvoices({ projectId = null, children }) {
         delete data.other_tax_rate;
       }
       let id = editing.id;
+      let added = null;
       if (id) await orgStore.updateItem('purchase_invoices', id, data);
-      else id = (await orgStore.addItem('purchase_invoices', data)).id;
+      else { added = await orgStore.addItem('purchase_invoices', data); id = added.id; }
       // The project split is saved after the bill, in the same click. If it
       // fails the bill stays saved: keep the sheet open on the saved bill so a
       // retry edits it rather than recording it twice.
@@ -238,7 +272,19 @@ export default function PurchaseInvoices({ projectId = null, children }) {
         setFormError(`Bill saved, but the project split was not: ${allocErr.message}`);
         return;
       }
-      toast(editing.id ? 'Bill updated' : 'Bill recorded', 'success');
+      // What was paid to the vendor in advance settles the new bill first.
+      let adjusted = 0;
+      if (added) {
+        try {
+          adjusted = await adjustAdvancesToBill(added, { expenses, allocations });
+        } catch (advErr) {
+          toast(`Bill recorded, but the vendor's advance was not adjusted against it: ${advErr.message}`, 'error', 6000);
+          setEditing(null);
+          return;
+        }
+      }
+      toast(editing.id ? 'Bill updated'
+        : adjusted > 0 ? `Bill recorded, ${money(adjusted, 2)} of advance adjusted against it` : 'Bill recorded', 'success');
       setEditing(null);
     } catch (err) {
       setFormError(err.code === '23505'
@@ -282,14 +328,21 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     // Its payments are real money out in the General Ledger (0080). The FK
     // keeps a paid bill from going alone, so the payments go first, named
     // in the confirmation so nobody loses ledger entries by surprise.
-    const payments = expenses.filter((e) => e.purchase_invoice_id === b.id);
-    const message = payments.length
+    const linked = expenses.filter((e) => e.purchase_invoice_id === b.id);
+    // An advance adjusted against it was paid before the bill: it is kept, open again.
+    const advances = linked.filter((e) => e.category === ADVANCE);
+    const payments = linked.filter((e) => e.category !== ADVANCE);
+    const kept = advances.length
+      ? ` The advance adjusted against it (${money(advances.reduce((n, e) => n + (Number(e.amount) || 0), 0), 2)}) is kept and becomes an open advance again.`
+      : '';
+    const message = (payments.length
       ? `Bill ${b.bill_number} has ${payments.length} payment${payments.length > 1 ? 's' : ''} in the General Ledger `
         + `(${payments.map((e) => `${money(e.amount, 2)} on ${fmtDate(e.date || e.incurred_on)}`).join(', ')}). `
         + `Deleting the bill deletes ${payments.length > 1 ? 'them' : 'it'} too. This cannot be undone.`
-      : `Are you sure you want to delete bill ${b.bill_number}? This cannot be undone.`;
+      : `Are you sure you want to delete bill ${b.bill_number}? This cannot be undone.`) + kept;
     if (!(await confirmDialog({ title: 'Delete bill', message, confirmLabel: payments.length ? 'Delete bill and payments' : undefined }))) return;
     try {
+      for (const e of advances) await unadjustAdvance(e);
       for (const e of payments) {
         await orgStore.removeItem('expenses', e.id);
         if (e.receipt_path) receiptService.remove(e.receipt_path);
@@ -328,27 +381,95 @@ export default function PurchaseInvoices({ projectId = null, children }) {
   const handleDeletePayment = async (e) => {
     if (!(await confirmDialog({
       title: 'Delete payment',
-      message: `Delete the payment of ${money(e.amount, 2)} on ${fmtDate(e.date || e.incurred_on)}? That amount becomes payable to the vendor again.`,
-      confirmLabel: 'Delete payment',
+      message: e.category === ADVANCE && !e.purchase_invoice_id
+        ? `Delete the advance of ${money(e.amount, 2)} on ${fmtDate(e.date || e.incurred_on)}? It goes from every ledger and project it is on.`
+        : `Delete the payment of ${money(e.amount, 2)} on ${fmtDate(e.date || e.incurred_on)}? It goes from every ledger and project it is on, and that amount becomes payable to the vendor again.`,
+      confirmLabel: 'Delete',
     }))) return;
     try {
       await orgStore.removeItem('expenses', e.id);
       if (e.receipt_path) receiptService.remove(e.receipt_path);
       orgStore.refreshSection('purchase_invoices');
-      toast('Payment deleted', 'success');
+      orgStore.refreshSection('project_allocations');
+      toast(e.category === ADVANCE ? 'Advance deleted' : 'Payment deleted', 'success');
     } catch (err) {
       orgStore.refreshSection('expenses');
       toast(`Could not delete the payment: ${err.message}`, 'error');
     }
   };
-  const paymentMenu = (expenseId) => {
+  // An open advance is laid against the vendor's open bills, oldest first.
+  const handleAdjust = async (e) => {
+    try {
+      const done = await adjustAdvanceToBills(e, { bills: allBills, allocations });
+      toast(done > 0 ? `${money(done, 2)} of the advance adjusted` : 'Nothing is pending to this vendor yet', done > 0 ? 'success' : 'info');
+    } catch (err) {
+      toast(`Could not adjust the advance: ${err.message}`, 'error');
+    }
+  };
+  const handleUnadjust = async (e) => {
+    try {
+      await unadjustAdvance(e);
+      orgStore.refreshSection('purchase_invoices');
+      toast('Advance taken off the bill; the bill is payable again', 'success');
+    } catch (err) {
+      toast(`Could not take the advance off the bill: ${err.message}`, 'error');
+    }
+  };
+  // One payment saved as several entries (0094) is acted on as a whole.
+  const groupMenu = (ids, edit) => {
+    const parts = ids.map((id) => expenses.find((x) => x.id === id)).filter(Boolean);
+    if (parts.length === 0) return [];
+    const isAdvance = parts.some((e) => e.category === ADVANCE);
+    const open = parts.filter((e) => e.category === ADVANCE && !e.purchase_invoice_id);
+    const owed = open.length > 0
+      && allBills.some((b) => b.vendor_id === open[0].vendor_id && b.status !== 'void' && balance(b) > 0.009);
+    const total = parts.reduce((n, e) => n + (Number(e.amount) || 0), 0);
+    const remove = async () => {
+      if (!(await confirmDialog({
+        title: isAdvance ? 'Delete advance' : 'Delete payment',
+        message: `Delete the ${isAdvance ? 'advance' : 'payment'} of ${money(total, 2)} on ${fmtDate(parts[0].date || parts[0].incurred_on)}? All of it goes from every ledger and project it is on, and what it paid on bills becomes payable to the vendor again.`,
+        confirmLabel: 'Delete',
+      }))) return;
+      try {
+        await deletePaymentParts(parts);
+        toast(isAdvance ? 'Advance deleted' : 'Payment deleted', 'success');
+      } catch (err) {
+        orgStore.refreshSection('expenses');
+        toast(`Could not delete all of it: ${err.message}`, 'error');
+      }
+    };
+    const adjust = async () => {
+      try {
+        const done = await adjustEachAdvance(open, { bills: allBills, allocations });
+        toast(done > 0 ? `${money(done, 2)} of the advance adjusted` : 'Nothing is pending to this vendor yet', done > 0 ? 'success' : 'info');
+      } catch (err) {
+        toast(`Could not adjust the advance: ${err.message}`, 'error');
+      }
+    };
+    return [
+      edit && { label: isAdvance ? 'Edit Advance' : 'Edit Payment', icon: Pencil, onClick: edit },
+      owed && { label: 'Adjust Against Bills', icon: CheckCircle, tone: 'success', onClick: adjust },
+      { label: isAdvance ? 'Delete Advance' : 'Delete Payment', icon: Trash2, tone: 'danger', onClick: remove },
+    ];
+  };
+  const paymentMenu = (expenseId, edit) => {
+    if (Array.isArray(expenseId)) return groupMenu(expenseId, edit);
     const e = expenses.find((x) => x.id === expenseId);
-    return e ? [{ label: 'Delete Payment', icon: Trash2, tone: 'danger', onClick: () => handleDeletePayment(e) }] : [];
+    if (!e) return [];
+    const isAdvance = e.category === ADVANCE;
+    const owed = isAdvance && !e.purchase_invoice_id
+      && allBills.some((b) => b.vendor_id === e.vendor_id && b.status !== 'void' && balance(b) > 0.009);
+    return [
+      { label: isAdvance ? 'Edit Advance' : 'Edit Payment', icon: Pencil, onClick: () => editEntry('out', e.id) },
+      owed && { label: 'Adjust Against Bills', icon: CheckCircle, tone: 'success', onClick: () => handleAdjust(e) },
+      isAdvance && e.purchase_invoice_id && { label: 'Take Off the Bill', icon: RotateCcw, onClick: () => handleUnadjust(e) },
+      { label: isAdvance ? 'Delete Advance' : 'Delete Payment', icon: Trash2, tone: 'danger', onClick: () => handleDeletePayment(e) },
+    ];
   };
 
   const narrowed = !!search.trim() || filter !== 'all' || vendorFilter !== 'all';
   const ledgerProps = {
-    bills: filtered, billMenu, paymentMenu, onEdit: editEntry, filtered: narrowed,
+    bills: filtered, billMenu, paymentMenu, onEdit: editEntry, filtered: narrowed, keep: keepAdvances,
     emptyText: narrowed ? 'Nothing matches these filters.' : undefined,
   };
   const pickProject = (v) => {
@@ -423,7 +544,7 @@ export default function PurchaseInvoices({ projectId = null, children }) {
                 <label>Category</label>
                 <select aria-label="Category" value={editing.category} onChange={(e) => set('category', e.target.value)}>
                   {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  {/* A purchase paid now through Vendor Payment keeps its Sub-Type. */}
+                  {/* A bill from the old "New Purchase, Paid Now" keeps its Sub-Type. */}
                   {editing.category && !CATEGORIES.includes(editing.category) && (
                     <option value={editing.category}>{categoryLabel(editing.category)}</option>
                   )}

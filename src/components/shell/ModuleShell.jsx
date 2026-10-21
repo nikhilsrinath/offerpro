@@ -33,7 +33,7 @@ const AI_KEY = 'edgeos.hub.ai.hidden';
 // screen from the launcher instead.
 const DOCK_MIN = 1100;
 // Where the top-left arrow of the rail leads.
-const HUB_BACK = { to: '/hub', label: 'Back to hub' };
+const HUB_BACK = { to: '/dashboard/overview', label: 'Back to dashboard' };
 // The rail island's outer widths (its 10px gutter included).
 const RAIL_OPEN_W = 248;
 const RAIL_SHUT_W = 80;
@@ -179,10 +179,10 @@ export default function ModuleShell({
 
     const plan = getPlanConfig(activeOrg?.plan || DEFAULT_PLAN);
     const unread = notifs.filter((n) => !n.read).length;
-    const rawName = (user?.email || 'there').split('@')[0];
-    const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+    // The account is the company's: its name and initials, never a name
+    // pulled from the sign-in email.
     const orgName = activeOrg?.company_name || activeOrg?.name || 'Workspace';
-    const accountLabel = `Account: ${displayName}, ${orgName}`
+    const accountLabel = `Account: ${orgName}`
         + (profile.incomplete ? ` · company profile incomplete, ${profile.summary.toLowerCase()}` : '');
 
     const islandW = railSlot ? RAIL_SLOT_W : rail ? RAIL_OPEN_W : RAIL_SHUT_W;
@@ -193,7 +193,7 @@ export default function ModuleShell({
         <span style={{
             width: size, height: size, borderRadius: radius, background: t.selBg, color: t.selText,
             display: 'grid', placeItems: 'center', fontSize: size > 24 ? 12 : 11.5, fontWeight: 600,
-        }}>{displayName.slice(0, 2).toUpperCase()}</span>
+        }}>{orgName.slice(0, 2).toUpperCase()}</span>
     ));
 
     /* The notification list and the account menu: under the top bar, or,
@@ -621,11 +621,11 @@ function notifTarget(n) {
     if (n.project_id) return `/projects/${projectRef(n.project_id)}`;
     switch (n.type) {
         case 'deadline_watch':
-            return '/ask?agent=deadline_watch';
+            return '/ai?agent=deadline_watch';
         case 'operations_monitor':
         case 'deal_intelligence':
         case 'business_intelligence':
-            return `/ask?agent=${n.type}`;
+            return `/ai?agent=${n.type}`;
         case 'offer_signed':
         case 'role_change_acknowledged':
         case 'termination_acknowledged':

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Bell, FolderKanban, CheckSquare, Search, Plug } from 'lucide-react';
 import Copilot from '../assistant/Copilot';
 import { useAssistant } from '../assistant/assistantStore';
-import { useAuth } from '../../context/AuthContext';
+import { useOrg } from '../../context/OrgContext';
 import DeadlineWatch, { DeadlineWatchCard } from '../agents/DeadlineWatch';
 import { DEADLINE_AGENT } from '../agents/deadlineAgent';
 import BusinessIntel, { BusinessIntelCard } from '../agents/BusinessIntel';
@@ -122,13 +122,13 @@ function AgentsView({ onOpen }) {
 }
 
 export default function AskPage({ theme = 'dark' }) {
-    const { user } = useAuth();
+    const { activeOrg } = useOrg();
     const a = useAssistant();
     const [params, setParams] = useSearchParams();
     const agent = AGENTS.some((x) => x.id === params.get('agent')) ? params.get('agent') : null;
     const view = agent ? 'agents' : (VIEWS.some((v) => v.id === params.get('view')) ? params.get('view') : 'ask');
-    const raw = (user?.email || 'there').split('@')[0];
-    const name = raw.charAt(0).toUpperCase() + raw.slice(1);
+    // The company, never a name pulled from the sign-in email.
+    const name = activeOrg?.company_name || activeOrg?.name || 'there';
 
     const go = (next, agentId = null) => {
         // Back on Ask, an agent's conversation gives way to an ordinary chat.

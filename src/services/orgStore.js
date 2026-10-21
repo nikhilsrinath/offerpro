@@ -721,6 +721,8 @@ const SECTIONS = {
       quantity: r.quantity == null ? null : Number(r.quantity), unit: r.unit || null,
       // 0080: the purchase bill this entry pays, if any.
       purchase_invoice_id: r.purchase_invoice_id || null,
+      // 0094: the entries one payment was saved as share this.
+      payment_group_id: r.payment_group_id || null,
       created_at: r.created_at, updated_at: r.updated_at,
     }),
     // `amount` is deliberately NOT sent: app.expense_guard() derives it from
@@ -751,7 +753,12 @@ const SECTIONS = {
       // 0080. Sent only when the entry pays a bill, so an ordinary entry still
       // saves on a database without the column. Category, vendor and GST of a
       // bill payment are stamped from the bill by app.expense_bill_link().
-      ...(i.purchase_invoice_id ? { purchase_invoice_id: i.purchase_invoice_id } : {}),
+      // `unlink_bill` takes an adjusted advance back off its bill (0093).
+      ...(i.purchase_invoice_id ? { purchase_invoice_id: i.purchase_invoice_id }
+        : i.unlink_bill ? { purchase_invoice_id: null } : {}),
+      // 0094. Sent only when set, so a payment that is one entry still saves
+      // on a database without the column.
+      ...(i.payment_group_id ? { payment_group_id: i.payment_group_id } : {}),
     }),
   },
 

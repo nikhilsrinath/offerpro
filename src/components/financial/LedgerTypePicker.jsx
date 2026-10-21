@@ -42,7 +42,7 @@ export default function LedgerTypePicker({ direction, onPick, onClose }) {
         return {
           key: g.label, label: vendor ? VENDOR_LABEL : g.label,
           note: bill ? 'Goods or services taken on a bill, owed to the vendor'
-            : vendor ? `Pay a vendor what is pending, or for a purchase paid now: ${g.items.map((c) => c.label).join(', ')}`
+            : vendor ? `Pay a vendor what is pending, or an advance before their bill: ${g.items.map((c) => c.label).join(', ')}`
               : g.items.map((c) => c.label).join(', '),
           icon: vendor ? Truck : undefined,
           pick: bill ? () => onPick({ kind: 'bill' }) : () => setGroup(g),

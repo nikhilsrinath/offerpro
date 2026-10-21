@@ -193,6 +193,8 @@ export default function CashBook({ projectId = null, children }) {
   const page = Math.min(pager.key === filterKey ? pager.page : 1, pageCount);
   const setPage = (n) => setPager({ key: filterKey, page: n });
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // The closing totals of the ledger below, when the page has one (`onTotals`).
+  const [ledgerTotals, setLedgerTotals] = useState(null);
 
   const flow = useMemo(
     () => cashFlow({
@@ -251,7 +253,14 @@ export default function CashBook({ projectId = null, children }) {
   };
 
   const recent = rows.slice(0, 3);
-  const inShare = flow.cashIn + flow.cashOut > 0 ? flow.cashIn / (flow.cashIn + flow.cashOut) : 0;
+  // Under a ledger the tiles are its own totals (bills on the credit side,
+  // what was paid on the debit side), not the cash flow of entries alone.
+  const tiles = ledgerTotals && typeof children === 'function'
+    ? { cashIn: ledgerTotals.credit, cashOut: ledgerTotals.debit, inCount: ledgerTotals.inCount, outCount: ledgerTotals.outCount, balance: ledgerTotals.balance }
+    : null;
+  const tileIn = tiles ? tiles.cashIn : flow.cashIn;
+  const tileOut = tiles ? tiles.cashOut : flow.cashOut;
+  const inShare = tileIn + tileOut > 0 ? tileIn / (tileIn + tileOut) : 0;
   const periodText = range.from ? `${fmtDate(range.from)} – ${fmtDate(range.to)}` : preset === 'custom' ? 'Custom range' : 'All time';
   const record = (direction) => setEditing(fresh(direction));
   // A project's page lists its money in its own ledger (`children`) instead
@@ -264,6 +273,7 @@ export default function CashBook({ projectId = null, children }) {
         if (r) setEditing({ ...r, ...(r._full || {}), _share: undefined, _full: undefined, date: r.day });
       },
       narrow: { view, search, from: range.from, to: range.to },
+      onTotals: setLedgerTotals,
     })
     : children;
   const narrowable = !children || typeof children === 'function';
@@ -281,11 +291,11 @@ export default function CashBook({ projectId = null, children }) {
             onOpen={(r) => setEditing({ ...r, ...(r._full || {}), _share: undefined, _full: undefined, date: r.day })} />
         )}
 
-        <FlowTile t={t} area="in" icon={ArrowDownLeft} tone={t.up} label="Credit" value={money(flow.cashIn)}
-          note={`${flow.inCount} ${flow.inCount === 1 ? 'entry' : 'entries'} · ${periodText}`}
+        <FlowTile t={t} area="in" icon={ArrowDownLeft} tone={t.up} label="Credit" value={money(tileIn)}
+          note={`${(tiles || flow).inCount} ${(tiles || flow).inCount === 1 ? 'entry' : 'entries'} · ${periodText}`}
           active={!ledger && view === 'in'} onClick={ledger ? undefined : () => setView(view === 'in' ? 'all' : 'in')} />
-        <FlowTile t={t} area="out" icon={ArrowUpRight} tone={t.down} label="Debit" value={money(flow.cashOut)}
-          note={flow.pending > 0 ? `${money(flow.pending)} not paid yet` : `${flow.outCount} ${flow.outCount === 1 ? 'entry' : 'entries'} · ${periodText}`}
+        <FlowTile t={t} area="out" icon={ArrowUpRight} tone={t.down} label="Debit" value={money(tileOut)}
+          note={!tiles && flow.pending > 0 ? `${money(flow.pending)} not paid yet` : `${(tiles || flow).outCount} ${(tiles || flow).outCount === 1 ? 'entry' : 'entries'} · ${periodText}`}
           active={!ledger && view === 'out'} onClick={ledger ? undefined : () => setView(view === 'out' ? 'all' : 'out')} />
         <div style={{
           gridArea: 'net', padding: '16px 18px', borderRadius: 18, background: t.card, border: '1px solid ' + t.line, boxShadow: t.highlight,
@@ -293,15 +303,22 @@ export default function CashBook({ projectId = null, children }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
             <span aria-hidden="true" style={{ width: 28, height: 28, borderRadius: 9, display: 'grid', placeItems: 'center', background: t.accentSoft, color: t.accent }}><Wallet size={14} /></span>
-            <span style={{ fontSize: 12.5, fontWeight: 500, color: t.dim, flex: 1 }}>{flow.net >= 0 ? 'Net cash in' : 'Net cash out'}</span>
+            <span style={{ fontSize: 12.5, fontWeight: 500, color: t.dim, flex: 1 }}>{tiles ? 'Balance' : flow.net >= 0 ? 'Net cash in' : 'Net cash out'}</span>
             {splitting && where !== 'all' && <Status tone="accent">{whereLabel}</Status>}
           </div>
-          <div style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1, fontVariantNumeric: 'tabular-nums', color: flow.net >= 0 ? t.up : t.down }}>
-            {flow.net < 0 ? '−' : ''}{money(Math.abs(flow.net))}
-          </div>
+          {tiles ? (
+            // The ledger's closing balance, Cr or Dr as on its last line.
+            <div style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1, fontVariantNumeric: 'tabular-nums', color: tiles.balance >= 0 ? t.up : t.down }}>
+              {money(Math.abs(tiles.balance))} <span style={{ fontSize: 15, fontWeight: 500 }}>{tiles.balance < 0 ? 'Dr' : 'Cr'}</span>
+            </div>
+          ) : (
+            <div style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1, fontVariantNumeric: 'tabular-nums', color: flow.net >= 0 ? t.up : t.down }}>
+              {flow.net < 0 ? '−' : ''}{money(Math.abs(flow.net))}
+            </div>
+          )}
           <div aria-hidden="true" style={{ display: 'flex', gap: 3, height: 8, borderRadius: 99, overflow: 'hidden', background: t.panelAlt }}>
             <span style={{ flex: `${inShare} 1 0`, background: t.up, borderRadius: 99, minWidth: inShare > 0 ? 4 : 0 }} />
-            <span style={{ flex: `${1 - inShare} 1 0`, background: t.down, borderRadius: 99, minWidth: inShare < 1 && flow.cashOut > 0 ? 4 : 0 }} />
+            <span style={{ flex: `${1 - inShare} 1 0`, background: t.down, borderRadius: 99, minWidth: inShare < 1 && tileOut > 0 ? 4 : 0 }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: t.faint }}>
             <span>{Math.round(inShare * 100)}% in</span>
@@ -312,7 +329,7 @@ export default function CashBook({ projectId = null, children }) {
 
       {/* ── narrow the list (on a project's page, its ledger: that has its own Export CSV) ── */}
       {narrowable && (
-      <Toolbar right={ledger ? undefined : <Btn onClick={exportCsv} disabled={filtered.length === 0}><Download size={15} aria-hidden="true" /> Export CSV</Btn>}>
+      <Toolbar sticky={false} right={ledger ? undefined : <Btn onClick={exportCsv} disabled={filtered.length === 0}><Download size={15} aria-hidden="true" /> Export CSV</Btn>}>
         <Search value={search} onChange={setSearch} placeholder="Search description, party, reference…" width={280} />
         <Seg value={view} onChange={setView} label="Direction" options={VIEWS} />
         <Seg value={preset} onChange={setPreset} label="Period" options={PRESETS} />

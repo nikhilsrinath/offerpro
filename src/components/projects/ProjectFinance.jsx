@@ -2,9 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
     Panel, Grid, Row, Btn, Select, Search, Table, Tr, Td, Empty, Muted, Status, StatBand, Modal, Field, Input,
-    ConfirmBtn, Loading, RowMenu,
+    Loading, RowMenu,
 } from '../ui/edge';
-import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Pencil, Trash2 } from 'lucide-react';
+import { confirmDialog } from '../../services/confirm';
+import { orgStore } from '../../services/orgStore';
+import { receiptService } from '../../services/receiptService';
+import { SECTION } from '../financial/cashEntry';
+import PaymentGroupModal from '../financial/PaymentGroupModal';
+import { deletePaymentParts } from '../financial/vendorAdvance';
 import { useT } from '../ui/edgeUtils';
 import { useSection, money, fmtDate } from '../financial/financeHooks';
 import {
@@ -13,7 +19,7 @@ import {
 import { categoryLabel, categoryOf } from '../../services/financeCategories';
 import { isClosed } from '../../services/projectAnalytics';
 import {
-    financials, unallocate, canAllocate, unbilledHours,
+    financials, canAllocate, unbilledHours,
 } from '../../services/projectService';
 import { useToast } from '../shared/Toast';
 import { useProjectScope } from './projectScope';
@@ -67,12 +73,18 @@ function useSources() {
                 type: 'income_entry', id: e.id, date: e.received_on, net: netOfTax(e), gross: Number(e.amount) || 0,
                 party: clientName[e.client_id] || e.description || '', kind: categoryLabel(e.category),
                 number: e.reference || '', client_id: e.client_id, description: e.description || '', created: e.created_at || '',
+                receipt: e.receipt_path || null,
                 settles: e.document_id ? `invoice:${e.document_id}` : null,
             })),
             ...expenses.map((e) => ({
                 type: 'expense', id: e.id, date: e.incurred_on, net: netOfTax(e), gross: Number(e.amount) || 0,
                 party: vendorName[e.vendor_id] || e.description || '', kind: categoryLabel(e.category),
                 number: e.reference || '', client_id: e.client_id, description: e.description || '', created: e.created_at || '',
+                receipt: e.receipt_path || null,
+                // Paid to a vendor before their bill (0093); `settles` once adjusted against it.
+                advance: e.category === 'vendor_advance',
+                // The entries one payment was saved as share this (0094).
+                group: e.payment_group_id || null,
                 settles: e.purchase_invoice_id ? `purchase_invoice:${e.purchase_invoice_id}` : null,
             })),
             // A voided bill is kept so its row can still be restored; it counts for nothing.
@@ -267,22 +279,29 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
  * `narrow` ({ view, search, from, to }, the General Ledger's filter bar) keeps
  * only the credits ('in') or debits ('out') in the period that match the
  * search; the running and closing balances are then those of what is shown.
+ * `keep` (a Set of 'type:id') are rows kept even though the page is narrowed to
+ * some bills: the open advances its filters still match.
  *
  * Without `project` it is the company's Company Ledger (Finance): the same
  * credit and debit over every bill and entry, whole, whichever projects they
  * are split to, with a Project column saying which. `general` keeps only what
  * is on no project.
  */
-export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bills, billMenu, paymentMenu, emptyText, readOnly, filtered, narrow, general }) {
+export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bills, billMenu, paymentMenu, emptyText, readOnly, filtered, keep, narrow, general, onTotals }) {
     const t = useT();
     const toast = useToast();
     const allocations = useSection('project_allocations');
     const allBills = useSection('purchase_invoices');
     const allProjects = useSection('projects');
+    const expenses = useSection('expenses');
     const sources = useSources();
+    // The payment (its entries' ids) open in the group editor.
+    const [groupEdit, setGroupEdit] = useState(null);
     const company = !project;
     // `readOnly` (the General Ledger's copy of the Company Ledger) has no actions column.
     const editable = !company && !readOnly && canAllocate() && !isClosed(project);
+    // Company-wide an entry can be deleted too; the store reports a role that may not.
+    const deletable = company ? !readOnly : editable;
     // Company-wide, the projects each source is split to.
     const projectsOf = useMemo(() => {
         if (!company) return {};
@@ -326,7 +345,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                 if (billId) return !billById || !!billById[billId];
                 // Every other credit and debit recorded on the project (funding,
                 // salaries, labour…), unless the page is narrowed to some bills.
-                return a.source_type !== 'invoice' && !filtered;
+                return a.source_type !== 'invoice' && (!filtered || !!keep?.has(`${a.source_type}:${a.source_id}`));
             })
             // Oldest first to carry the balance (shown reversed, latest on top);
             // on one day, in the order they were recorded, and a bill before
@@ -334,24 +353,42 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
             .sort((x, y) => String(x.s?.date || '9999').localeCompare(String(y.s?.date || '9999'))
                 || String(x.s?.created || '').localeCompare(String(y.s?.created || ''))
                 || (y.a.source_type === 'purchase_invoice') - (x.a.source_type === 'purchase_invoice'))
-            .reduce((out, { a, s }) => {
+            // One payment saved as several entries (0094: two bills paid, or an
+            // advance partly adjusted) is one row, where its first entry is.
+            .reduce((out, x) => {
+                const head = x.s?.group && out.heads.get(x.s.group);
+                if (head) head.parts.push(x);
+                else {
+                    const row = { ...x, parts: [x] };
+                    out.list.push(row);
+                    if (x.s?.group) out.heads.set(x.s.group, row);
+                }
+                return out;
+            }, { list: [], heads: new Map() }).list
+            .reduce((out, { a, s, parts }) => {
                 // GST included, as on the bill or invoice itself; a part-share is
                 // allocated before GST, so it is scaled up by the same proportion.
-                const value = !s || s.void ? 0
-                    : a.mode === 'full' ? s.gross
-                        : (Number(a.amount) || 0) * (s.net > 0 ? s.gross / s.net : 1);
+                const valueOf = (p) => (!p.s || p.s.void ? 0
+                    : p.a.mode === 'full' ? p.s.gross
+                        : (Number(p.a.amount) || 0) * (p.s.net > 0 ? p.s.gross / p.s.net : 1));
+                const value = parts.reduce((n, p) => n + valueOf(p), 0);
+                const billOf = (p) => (String(p.s?.settles || '').startsWith('purchase_invoice:') ? sourceById[p.s.settles] : null);
+                // What each entry of a grouped payment did, for the row's note.
+                const breakdown = parts.length > 1
+                    ? parts.map((p) => ({ id: p.a.source_id, value: valueOf(p), bill: billOf(p), advance: !!p.s?.advance }))
+                    : null;
                 // On the Company Ledger a purchase is the credit (it adds to what is
                 // payable) as is money coming in; paying the vendor, salaries and
                 // every other cost are the debit.
                 const credit = only === 'purchases'
                     ? a.source_type === 'purchase_invoice' || a.source_type === 'income_entry'
                     : CREDIT.has(a.source_type);
-                const pays = String(s?.settles || '').startsWith('purchase_invoice:') ? sourceById[s.settles] : null;
+                const pays = breakdown ? null : billOf({ s });
                 // The invoice is not on the Company Ledger, so a receipt against it counts there.
                 const settles = only !== 'purchases' && String(s?.settles || '').startsWith('invoice:') && linked.has(s.settles);
                 const before = out.length ? out[out.length - 1].balance : 0;
                 out.push({
-                    a, s, value, credit, settles, pays,
+                    a, s, value, credit, settles, pays, breakdown,
                     balance: settles ? before : before + (credit ? value : -value),
                     splitCount: company ? 0 : allocations.filter((x) => x.source_type === a.source_type && x.source_id === a.source_id).length,
                     projects: company ? projectsOf[`${a.source_type}:${a.source_id}`] || [] : null,
@@ -359,7 +396,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                 return out;
             }, [])
             .reverse();
-    }, [allocations, sources, project, company, general, projectsOf, only, billById, filtered]);
+    }, [allocations, sources, project, company, general, projectsOf, only, billById, filtered, keep]);
 
     // What the filter bar keeps, with the balance carried again over just those rows.
     const nView = narrow?.view || 'all';
@@ -373,6 +410,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
             .filter((r) => (!nFrom && !nTo) || inRange(r.s?.date, nFrom, nTo))
             .filter((r) => nView === 'all' || r.credit === (nView === 'in'))
             .filter((r) => !nSearch || [r.s?.party, r.s?.description, r.s?.number, r.s?.kind, r.pays?.number, SOURCE_LABEL[r.a.source_type],
+                ...(r.breakdown || []).map((p) => p.bill?.number),
                 ...(r.projects || []).flatMap((p) => [p.code, p.name])]
                 .some((v) => String(v || '').toLowerCase().includes(nSearch)))
             .map((r) => {
@@ -388,17 +426,66 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
         const counted = shown.filter((r) => !r.settles);
         const debit = counted.filter((r) => !r.credit).reduce((n, r) => n + r.value, 0);
         const credit = counted.filter((r) => r.credit).reduce((n, r) => n + r.value, 0);
-        return { debit, credit, balance: credit - debit, total: Math.max(debit, credit) };
+        return {
+            debit, credit, balance: credit - debit, total: Math.max(debit, credit),
+            inCount: counted.filter((r) => r.credit).length, outCount: counted.filter((r) => !r.credit).length,
+        };
     }, [shown]);
+    // The tiles above the ledger show these same totals, so the two never disagree.
+    useEffect(() => {
+        onTotals?.({ credit: closing.credit, debit: closing.debit, balance: closing.balance, inCount: closing.inCount, outCount: closing.outCount });
+    }, [onTotals, closing.credit, closing.debit, closing.balance, closing.inCount, closing.outCount]);
 
-    const remove = async (a) => {
-        try { await unallocate(a.id); toast('Link removed', 'success'); }
-        catch (e) { toast(e.message, 'error'); }
+    // A project's ledger is a view of the company's entries, so deleting here
+    // deletes the entry itself: it goes from the Company Ledger, the General
+    // Ledger and every project it was split to (0049 drops its links).
+    const askDelete = async (r) => {
+        const { a, s } = r;
+        if (r.breakdown) {
+            const ok = await confirmDialog({
+                title: 'Delete payment',
+                message: `Delete this payment of ${money(r.value, 2)} to ${nameOf(r)} everywhere, including the Company Ledger? All of it goes, and what it paid on bills becomes payable again. This cannot be undone.`,
+                confirmLabel: 'Delete',
+                tone: 'danger',
+            });
+            if (!ok) return;
+            try {
+                await deletePaymentParts(partsOf(r));
+                toast('Payment deleted', 'success');
+            } catch (e) {
+                toast(`Could not delete all of it: ${e.message}`, 'error');
+            }
+            return;
+        }
+        const others = r.splitCount > 1 ? ` It is also split to ${r.splitCount - 1} other project${r.splitCount > 2 ? 's' : ''} and goes from there too.` : '';
+        const ok = await confirmDialog({
+            title: 'Delete entry',
+            message: `Delete “${nameOf(r)}” everywhere, including the Company Ledger?${others} This cannot be undone.`,
+            confirmLabel: 'Delete',
+            tone: 'danger',
+        });
+        if (!ok) return;
+        try {
+            await orgStore.removeItem(SECTION[ENTRY_DIRECTION[a.source_type]], a.source_id);
+            orgStore.refreshSection('project_allocations');
+            // A payment against a bill leaves it owed again (0080), wherever the bill is shown.
+            if (String(s?.settles || '').startsWith('purchase_invoice:')) orgStore.refreshSection('purchase_invoices');
+            if (s?.receipt) receiptService.remove(s.receipt);
+            toast('Entry deleted', 'success');
+        } catch (e) {
+            toast(`Could not delete: ${e.message}`, 'error');
+        }
     };
 
     const side = (n) => `${money(Math.abs(n), 2)} ${n < 0 ? 'Dr' : 'Cr'}`;
     const nameOf = (r) => r.s?.party || SOURCE_LABEL[r.a.source_type];
-    const kindOf = (r) => (r.pays ? 'Payment' : r.s?.kind || SOURCE_LABEL[r.a.source_type]);
+    const kindOf = (r) => (r.breakdown?.some((p) => p.advance) || r.s?.advance ? 'Advance'
+        : r.pays || r.breakdown ? 'Payment' : r.s?.kind || SOURCE_LABEL[r.a.source_type]);
+    // A grouped payment's note: what each of its entries paid.
+    const breakdownText = (r) => r.breakdown.map((p) => (p.bill
+        ? `${money(p.value, 2)} ${p.advance ? 'adjusted' : 'paid'} against bill ${p.bill.number}`
+        : p.advance ? `${money(p.value, 2)} still advance` : money(p.value, 2))).join(', ');
+    const partsOf = (r) => r.breakdown.map((p) => expenses.find((e) => e.id === p.id)).filter(Boolean);
     const projectText = (r) => (r.projects?.length ? r.projects.map((p) => p.code || p.name).join(', ') : 'General');
 
     const exportCsv = () => downloadCsv(
@@ -410,7 +497,10 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                 r.s?.date || '', nameOf(r), ...(company ? [projectText(r)] : []), kindOf(r), r.s?.number || '',
                 r.credit ? r.value.toFixed(2) : '', r.credit ? '' : r.value.toFixed(2),
                 `${Math.abs(r.balance).toFixed(2)} ${r.balance < 0 ? 'Dr' : 'Cr'}`,
-                r.settles ? 'Receipt against a linked invoice, not counted' : r.pays ? `Paid against bill ${r.pays.number}` : '',
+                r.settles ? 'Receipt against a linked invoice, not counted'
+                    : r.breakdown ? breakdownText(r)
+                    : r.pays ? `${r.s?.advance ? 'Advance adjusted' : 'Paid'} against bill ${r.pays.number}`
+                    : r.s?.advance ? 'Advance, not yet adjusted against a bill' : '',
             ]),
             ['', 'Closing Balance', ...(company ? [''] : []), '', '', closing.credit.toFixed(2), closing.debit.toFixed(2),
                 `${Math.abs(closing.balance).toFixed(2)} ${closing.balance < 0 ? 'Dr' : 'Cr'}`, ''],
@@ -441,12 +531,15 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
     const at = Math.min(page, pageCount);
     const pageRows = shown.slice((at - 1) * LEDGER_PAGE, at * LEDGER_PAGE);
     const strong = { fontWeight: 600, fontVariantNumeric: 'tabular-nums' };
-    const stack = { display: 'grid', gap: 4, justifyItems: 'end', fontVariantNumeric: 'tabular-nums' };
-    const ruled = { ...strong, borderTop: '1px solid ' + t.lineStrong, borderBottom: '3px double ' + t.lineStrong, padding: '3px 0 2px' };
+    // Both sides are ruled off on the same three lines (side total, balancing
+    // figure, grand total), so the figures and double rules sit level across.
+    const stack = { display: 'grid', gridTemplateRows: 'repeat(3, 26px)', alignItems: 'center', justifyItems: 'end', fontVariantNumeric: 'tabular-nums' };
+    const ruled = { ...strong, borderTop: '1px solid ' + t.lineStrong, borderBottom: '3px double ' + t.lineStrong, padding: '2px 0 1px' };
+    const blank = <span aria-hidden="true" />;
 
     return (
         <div>
-            <Table actions={<Btn size="sm" onClick={exportCsv}><Download size={14} aria-hidden="true" /> Export CSV</Btn>} id={company ? 'company-ledger' : only === 'purchases' ? 'project-purchase-ledger' : 'project-ledger'} cols={[
+            <Table sticky actions={<Btn size="sm" onClick={exportCsv}><Download size={14} aria-hidden="true" /> Export CSV</Btn>} id={company ? 'company-ledger' : only === 'purchases' ? 'project-purchase-ledger' : 'project-ledger'} cols={[
                 { key: 'd', label: 'Date', width: 110 }, { key: 'p', label: 'Particular / Company Name', always: true },
                 ...(company ? [{ key: 'pr', label: 'Project' }] : []),
                 { key: 't', label: 'Type' }, { key: 'n', label: 'Invoice No' },
@@ -462,7 +555,9 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                             // A cash entry opens for editing right here; an invoice or bill opens its page.
                             const direction = ENTRY_DIRECTION[a.source_type];
                             const tab = SOURCE_TAB[a.source_type];
-                            const open = direction && onEdit ? () => onEdit(direction, a.source_id)
+                            // A payment saved as several entries is edited as one.
+                            const open = r.breakdown ? () => setGroupEdit(r.breakdown.map((p) => p.id))
+                                : direction && onEdit ? () => onEdit(direction, a.source_id)
                                 : onOpen && tab !== here ? () => onOpen(tab) : null;
                             // Company-wide, a bill is on this very page: its name is not a link.
                             const plain = (company || here === 'company') && a.source_type === 'purchase_invoice';
@@ -483,12 +578,14 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                         ) : onOpen || plain ? name : <Link to={SOURCE_PATH[a.source_type]()} style={{ color: t.text }}>{name}</Link>}
                                         {r.splitCount > 1 && <Muted> · split {r.splitCount} ways</Muted>}
                                         {r.settles && <Muted> · receipt against a linked invoice</Muted>}
-                                        {r.pays && <Muted> · paid against bill {r.pays.number}</Muted>}
+                                        {r.pays && <Muted> · {r.s?.advance ? 'advance adjusted' : 'paid'} against bill {r.pays.number}</Muted>}
+                                        {r.s?.advance && !r.pays && !r.breakdown && <Muted> · advance, adjusted against their next bill</Muted>}
+                                        {r.breakdown && <Muted> · {breakdownText(r)}</Muted>}
                                         {bill && (
                                             <span style={{ display: 'block', fontSize: 11.5, marginTop: 2, color: late ? t.down : t.faint }}>
                                                 {[
                                                     bill.status === 'void' ? 'Void, not counted' : bill.status === 'paid' ? 'Paid'
-                                                        : `${bill.status === 'partially_paid' ? 'Partially paid' : 'Unpaid'}, ${money(owed, 2)} to pay`,
+                                                        : `${Number(bill.amount_paid) > 0.009 ? `${money(bill.amount_paid, 2)} paid` : 'Unpaid'}, ${money(owed, 2)} to pay`,
                                                     bill.status !== 'void' && bill.status !== 'paid' && bill.due_date ? `due ${fmtDate(bill.due_date)}${late ? ', overdue' : ''}` : '',
                                                     Number(bill.tax_amount) > 0 && bill.status !== 'void' ? `GST ${money(bill.tax_amount, 2)}` : '',
                                                 ].filter(Boolean).join(' · ')}
@@ -517,8 +614,12 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                     {!readOnly && <Td align="right">
                                         {bill && billMenu
                                             ? <RowMenu label={`Actions for bill ${bill.bill_number}`} items={billMenu(bill)} />
-                                            : r.pays && paymentMenu ? <RowMenu label="Actions for this payment" items={paymentMenu(a.source_id)} />
-                                            : editable && <ConfirmBtn label="Remove" title="Remove from project" message="Unlink this entry from the project? The entry itself is kept." onConfirm={() => remove(a)} />}
+                                            : (r.pays || s?.advance || r.breakdown) && paymentMenu ? <RowMenu label={kindOf(r) === 'Advance' ? 'Actions for this advance' : 'Actions for this payment'}
+                                                items={r.breakdown ? paymentMenu(r.breakdown.map((p) => p.id), open) : paymentMenu(a.source_id)} />
+                                            : (open || deletable) && <RowMenu label={`Actions for ${name}`} items={[
+                                                open && { label: 'Edit', icon: Pencil, onClick: open },
+                                                deletable && ENTRY_DIRECTION[a.source_type] && { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => askDelete(r) },
+                                            ]} />}
                                     </Td>}
                                 </Tr>
                             );
@@ -533,7 +634,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                 <Td align="right" nowrap>
                                     <span style={stack}>
                                         <span>{money(closing.credit, 2)}</span>
-                                        {closing.balance < 0 && <span>{money(-closing.balance, 2)}</span>}
+                                        {closing.balance < 0 ? <span>{money(-closing.balance, 2)}</span> : blank}
                                         <span style={ruled}>{money(closing.total, 2)}</span>
                                     </span>
                                 </Td>
@@ -542,12 +643,16 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                 <Td align="right" nowrap>
                                     <span style={stack}>
                                         <span>{money(closing.debit, 2)}</span>
-                                        {closing.balance > 0 && <span>{money(closing.balance, 2)}</span>}
+                                        {closing.balance > 0 ? <span>{money(closing.balance, 2)}</span> : blank}
                                         <span style={ruled}>{money(closing.total, 2)}</span>
                                     </span>
                                 </Td>
                             )}
-                            {show('b') && <Td align="right" nowrap><span style={strong}>{side(closing.balance)}</span></Td>}
+                            {show('b') && (
+                                <Td align="right" nowrap>
+                                    <span style={stack}>{blank}<span style={strong}>{side(closing.balance)}</span>{blank}</span>
+                                </Td>
+                            )}
                             {!readOnly && <Td />}
                         </Tr>
                     </>
@@ -570,6 +675,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                     </Row>
                 </nav>
             )}
+            {groupEdit && <PaymentGroupModal ids={groupEdit} onClose={() => setGroupEdit(null)} />}
         </div>
     );
 }

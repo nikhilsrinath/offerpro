@@ -77,7 +77,7 @@ export default function AdminShell({
         <div style={{ flex: 1 }} />
 
         <button
-          type="button" onClick={() => navigate('/hub')} className="edge-row"
+          type="button" onClick={() => navigate('/dashboard/overview')} className="edge-row"
           style={{
             margin: 8, padding: '8px 10px', borderRadius: 7, textAlign: 'left',
             display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer',

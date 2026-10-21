@@ -203,7 +203,7 @@ export default function EmployeePortal() {
             attendance or leave to show. Ask an admin to link your record from the Employees page.
           </Empty>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-            {role && role !== 'employee' && <Btn onClick={() => navigate('/hub')}><ArrowLeft size={13} /> Back to hub</Btn>}
+            {role && role !== 'employee' && <Btn onClick={() => navigate('/dashboard/overview')}><ArrowLeft size={13} /> Back to dashboard</Btn>}
             <Btn onClick={logout}><LogOut size={13} /> Sign out</Btn>
           </div>
         </div>
@@ -254,7 +254,7 @@ export default function EmployeePortal() {
 
             <RailFoot t={t} open={!narrow}>
               {role && role !== 'employee' && (
-                <IslandBtn t={t} icon={ArrowLeft} label="Back to hub" onClick={() => navigate('/hub')} />
+                <IslandBtn t={t} icon={ArrowLeft} label="Back to dashboard" onClick={() => navigate('/dashboard/overview')} />
               )}
               <IslandBtn t={t} icon={theme === 'dark' ? Sun : Moon} label={theme === 'dark' ? 'Light mode' : 'Dark mode'} onClick={toggleTheme} />
               {/* The account actions every rail ends with. An employee has no

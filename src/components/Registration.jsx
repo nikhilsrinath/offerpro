@@ -142,7 +142,7 @@ export default function Registration({ onBack, isGoogleUser }) {
 
                 completeOnboarding();
                 setStep('redirecting');
-                navigate('/hub', { replace: true });
+                navigate('/dashboard/overview', { replace: true });
             } else {
                 // Email/Password signup flow
                 // Use the callback pattern to store org data BEFORE React re-renders
@@ -155,7 +155,7 @@ export default function Registration({ onBack, isGoogleUser }) {
                 setStep('redirecting');
                 // Signup leaves the browser on /signup, which matches no route
                 // inside the app shell. The hub is where a new workspace opens.
-                navigate('/hub', { replace: true });
+                navigate('/dashboard/overview', { replace: true });
             }
         } catch (err) {
             console.error('Registration failed:', err);

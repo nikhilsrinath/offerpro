@@ -11,8 +11,8 @@ import { KINDS, resolveEntity } from '../resolvers.js';
  */
 
 export const PAGES = {
-  hub: { href: '/hub', label: 'Hub' },
-  dashboard: { href: '/dashboard', label: 'Overview' },
+  hub: { href: '/dashboard/overview', label: 'Overview' },
+  dashboard: { href: '/dashboard/overview', label: 'Overview' },
   finance_dashboard: { href: '/dashboard/finance', label: 'Finance dashboard' },
   sales_dashboard: { href: '/dashboard/sales', label: 'Sales dashboard' },
   team_dashboard: { href: '/dashboard/team', label: 'Team dashboard' },

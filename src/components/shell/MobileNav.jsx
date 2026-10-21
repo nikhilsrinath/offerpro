@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Home, MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
 import { MONO } from '../../theme/edge';
 import { MODULES } from './modules';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   The phone's module bar: home, the three most-used modules, and a "More"
+   The phone's module bar: the Dashboard, the three most-used modules, and a "More"
    sheet for the rest. It sits in the page's own flex column rather than
    floating, so nothing underneath is ever hidden behind it.
    ══════════════════════════════════════════════════════════════════════════ */
@@ -13,7 +13,8 @@ import { MODULES } from './modules';
 /** Height of the bar itself, before the device's safe-area inset. */
 export const MOBILE_NAV_H = 60;
 
-const PRIMARY = ['team', 'documents', 'finance'];
+// The Dashboard first: its Overview is the workspace's first page.
+const PRIMARY = ['overall', 'team', 'documents', 'finance'];
 
 export default function MobileNav({ t, active }) {
     const [more, setMore] = useState(false);
@@ -93,10 +94,6 @@ export default function MobileNav({ t, active }) {
                 background: t.panel, borderTop: '1px solid ' + t.line,
                 paddingBottom: 'env(safe-area-inset-bottom)',
             }}>
-                <Link to="/hub" aria-current={active === 'hub' ? 'page' : undefined} style={tab(active === 'hub')}>
-                    <Home aria-hidden="true" size={19} strokeWidth={active === 'hub' ? 2 : 1.7} />
-                    Home
-                </Link>
                 {primary.map((m) => {
                     const on = m.id === active;
                     return (

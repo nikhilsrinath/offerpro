@@ -8,7 +8,7 @@ import {
   GitBranch, Package,
   Truck, FileInput, TrendingUp, CalendarCheck, Megaphone,
   BrainCircuit, Banknote, FolderKanban, SquareKanban, PieChart, FolderOpen,
-  Wallet, BarChart3, UsersRound, FileStack, Gauge, CalendarDays, MessageSquareText
+  Wallet, BarChart3, UsersRound, FileStack, Gauge, CalendarDays, MessageSquareText, LayoutDashboard
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
 import subPages from './components/landing/subPageData';
@@ -29,7 +29,6 @@ import TeamDash from './components/overview/TeamDash';
 import ProjectsDash from './components/overview/ProjectsDash';
 import DocumentsDash from './components/overview/DocumentsDash';
 import UsageDash from './components/overview/UsageDash';
-import Hub from './components/Hub';
 import ModuleShell from './components/shell/ModuleShell';
 import Customers from './components/Customers';
 import BillingRevenue from './components/BillingRevenue';
@@ -60,6 +59,8 @@ import { AssistantProvider } from './components/assistant/AssistantContext';
 import EdgeBrain from './components/brain/EdgeBrain';
 import TodayPage from './components/today/TodayPage';
 import AskPage from './components/today/AskPage';
+import OverviewPage from './components/overview/OverviewPage';
+import { HOME } from './components/shell/modules';
 import { useTaskDeadlineMonitor } from './hooks/useTaskDeadlineMonitor';
 import { useTheme } from './hooks/useTheme';
 import { PLANS } from './services/planConfig';
@@ -100,12 +101,12 @@ import { portfolio as projectPortfolio } from './services/projectService';
 
 
 const MODULE_FILTER = {
-  overall: ['dashboard/projects', 'dashboard/finance', 'dashboard/sales', 'dashboard/team',
+  overall: ['dashboard/overview', 'dashboard/projects', 'dashboard/finance', 'dashboard/sales', 'dashboard/team',
             'dashboard/documents', 'dashboard/usage'],
   brain: ['edgebrain'],
   // One page each, so the shell shows no tabs for them.
   today: ['today'],
-  ask: ['ask'],
+  ai: ['ai'],
   // Ex-employees and leave are tabs of Employees and Attendance, not rail items.
   team: ['company-hierarchy', 'employees', 'attendance', 'recruitment-tracker', 'announcements'],
   // Tasks live inside each project (Project Management); Tasks and Timesheets
@@ -172,9 +173,9 @@ function foldBilling(items, activePage) {
 
 // The rail's top arrow has two destinations and no others: inside a project
 // (its pages, and the forms opened from one) it leads to the project list,
-// everywhere else to the hub.
+// everywhere else to the Dashboard's Overview, the workspace's first page.
 const PROJECTS_BACK = { to: '/projects', label: 'Back to projects' };
-const HUB_BACK = { to: '/hub', label: 'Back to hub' };
+const HOME_BACK = { to: HOME, label: 'Back to dashboard' };
 
 // Pages whose content manages its own scrolling edge to edge: the org chart's
 // canvas and the form-beside-preview document editors.
@@ -182,7 +183,7 @@ const FLUSH_PAGES = new Set([
   'company-hierarchy',
   'templates/nda', 'templates/mou', 'templates/partnership', 'templates/custom',
   'new-invoice', 'new-quotation', 'new-proforma',
-  'edgebrain', 'ask',
+  'edgebrain', 'ai',
 ]);
 
 // Pages split into tabs by SectionTabs, which owns their scrolling: the page
@@ -195,7 +196,7 @@ const isTabbed = (path) => path !== '/company/employees/new'
 const MODULE_META = {
   brain:     { id: 'brain', label: 'EdgeBrain' },
   today:     { id: 'today', label: 'Today' },
-  ask:       { id: 'ask', label: 'Ask' },
+  ai:        { id: 'ai', label: 'AI' },
   team:      { id: 'team', label: 'Company' },
   documents: { id: 'documents', label: 'Documents' },
   finance:   { id: 'finance', label: 'Finance' },
@@ -205,8 +206,9 @@ const MODULE_META = {
 };
 
 const NAV_ITEMS = [
+  { id: 'dashboard/overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'today', label: 'Today', icon: CalendarDays },
-  { id: 'ask', label: 'Ask', icon: MessageSquareText },
+  { id: 'ai', label: 'AI', icon: MessageSquareText },
   { id: 'dashboard/projects', label: 'Projects', icon: FolderKanban },
   { id: 'dashboard/finance', label: 'Finance', icon: Wallet },
   { id: 'dashboard/sales', label: 'Sales & Marketing', icon: BarChart3 },
@@ -248,7 +250,8 @@ const NAV_ITEMS = [
 
 const PAGE_META = {
   today: { title: 'Today', subtitle: 'What needs you today, worked out from your live records' },
-  ask: { title: 'Ask', subtitle: 'Ask about your company, or tell EdgeAI what to do' },
+  ai: { title: 'AI', subtitle: 'Ask about your company, or tell EdgeAI what to do' },
+  'dashboard/overview': { title: 'Overview', subtitle: 'Your company at a glance: the widgets you choose and the activity behind them' },
   edgebrain: { title: 'EdgeBrain', subtitle: 'Your company, organised as one connected context your AI can reason over' },
   dashboard: { title: 'Dashboard', subtitle: 'The whole organisation for one period. Click anything for the analysis behind it' },
   'dashboard/finance': { title: 'Finance Dashboard', subtitle: 'Credit, debit, and who owes whom' },
@@ -338,7 +341,7 @@ const BILLING_FORM = { invoices: 'new-invoice', quotations: 'new-quotation', pro
 // The PAGE_META / MODULE_FILTER key a path belongs to.
 function pageOf(pathname) {
   let page = pathname.substring(1).replace(/\/+$/, '');
-  if (page === '') return 'hub';
+  if (page === '') return 'dashboard/overview';
   let parts = page.split('/');
   if (PREFIXES.has(parts[0]) && parts.length > 1) {
     parts = parts.slice(1);
@@ -507,7 +510,7 @@ function AppContent() {
   // account menu, so it wears the same frame with its sections as the rail.
   // /recurring/edit/:id reduces to 'recurring' above; its form is split too.
   const onProfile = activePage === 'profile';
-  const framed = (!!activeModule || onProfile) && activePage !== 'hub';
+  const framed = !!activeModule || onProfile;
   // Inside one project the rail is that project's own sections; the heading
   // is its name and the first item leads back to the list.
   const openProjectId = activePage === 'project-detail' ? location.pathname.split('/')[2] : null;
@@ -533,7 +536,7 @@ function AppContent() {
   const onBillingForm = /^\/finance\/billing\/[^/]+\/(new|[^/]+\/edit)$/.test(location.pathname);
   const formProjectId = onBillingForm ? new URLSearchParams(location.search).get('project') : null;
   const formProject = formProjectId && allProjects.find((p) => p.id === formProjectId);
-  const back = openProject || formProject || activePage === 'new-project' ? PROJECTS_BACK : HUB_BACK;
+  const back = openProject || formProject || activePage === 'new-project' ? PROJECTS_BACK : HOME_BACK;
   const flush = FLUSH_PAGES.has(activePage) || isTabbed(location.pathname)
     || /^\/finance\/billing\/recurring\/(new|[^/]+\/edit)$/.test(location.pathname) || !!openProject;
 
@@ -544,7 +547,7 @@ function AppContent() {
     financials: { totalRevenue: 0, pendingRevenue: 0, avgMonthlyRevenue: 0, lastMonthRevenue: 0, growthRate: '0%', invoicesIssued: 0, invoicesPaid: 0, invoicesPending: 0 },
     documents: { total: 0, offerLetters: 0, invoices: 0, quotations: 0, proformas: 0 },
     trends: { monthlyRevenue: [], documentGrowth: 'stable' },
-    team: { user: user?.email || 'Founder', role: 'Admin' },
+    team: { user: activeOrg?.company_name || activeOrg?.name || 'Founder', role: 'Admin' },
     orgId: activeOrg?.id || null,
   };
 
@@ -570,9 +573,9 @@ function AppContent() {
             onToggleTheme={toggleTheme} onLogout={askLogout}
           >
           <Routes>
-            <Route index element={<Navigate to="/hub" replace />} />
-            <Route path="hub" element={<Hub user={user} activeOrg={activeOrg} theme={theme} onToggleTheme={toggleTheme} onLogout={askLogout} />} />
-            <Route path="dashboard" element={<Navigate to="/dashboard/projects" replace />} />
+            <Route index element={<Navigate to={HOME} replace />} />
+            <Route path="dashboard" element={<Navigate to={HOME} replace />} />
+            <Route path="dashboard/overview" element={<OverviewPage />} />
             <Route path="dashboard/finance" element={<FinanceDash />} />
             <Route path="dashboard/sales" element={<SalesDash />} />
             <Route path="dashboard/team" element={<TeamDash />} />
@@ -581,7 +584,7 @@ function AppContent() {
             <Route path="dashboard/usage" element={<UsageDash />} />
             <Route path="edgebrain" element={<EdgeBrain />} />
             <Route path="today" element={<TodayPage />} />
-            <Route path="ask" element={<AskPage theme={theme} />} />
+            <Route path="ai" element={<AskPage theme={theme} />} />
             <Route path="profile" element={<CompanyProfile />} />
             {/* Every path is named after its place in the sidebar: the page,
                 then the tab inside it, under its module (/finance/billing/proforma,
@@ -604,7 +607,7 @@ function AppContent() {
             <Route path="finance/general-ledger" element={(
               // The same page as a project's General Ledger, over the whole company: its ledger has a Project column.
               <CashBook>
-                {({ onEdit, narrow }) => <ProjectLedger onEdit={onEdit} narrow={narrow} only="purchases" here="cashbook" readOnly />}
+                {({ onEdit, narrow, onTotals }) => <ProjectLedger onEdit={onEdit} narrow={narrow} onTotals={onTotals} only="purchases" here="cashbook" readOnly />}
               </CashBook>
             )} />
             <Route path="finance/billing" element={<Navigate to="/finance/billing/quotations" replace />} />
@@ -657,7 +660,7 @@ function AppContent() {
             {Object.entries(MOVED).map(([from, to]) => (
               <Route key={from} path={from} element={<Moved to={to} />} />
             ))}
-            <Route path="*" element={<Navigate to="/hub" replace />} />
+            <Route path="*" element={<Navigate to={HOME} replace />} />
           </Routes>
           </ShellFrame>
         </div>
@@ -676,6 +679,9 @@ function AppContent() {
 
 // Old path → current path (a function of the route's params where it has them).
 const MOVED = {
+  // The hub became the Dashboard's Overview; Ask became AI.
+  'hub': HOME,
+  'ask': '/ai',
   // Before every page sat under its module (/general-ledger → /finance/general-ledger).
   'finance-status': '/finance/finance-status',
   'general-ledger': '/finance/general-ledger',

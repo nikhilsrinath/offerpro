@@ -42,14 +42,15 @@ export function Page({ children, pad = true, fill = false }) {
 
 /** The strip of controls at the top of a page. Sticky, so actions stay
     reachable in a long list without floating over it. */
-export function Toolbar({ children, right }) {
+// `sticky={false}` lets the bar scroll away with the page (the General Ledger).
+export function Toolbar({ children, right, sticky = true }) {
     const t = useT();
     return (
         <div className="edge-toolbar" style={{
             display: 'flex', alignItems: 'flex-start', gap: 10,
             padding: 10, marginBottom: 12,
             background: t.card, border: '1px solid ' + t.line, borderRadius: 16, boxShadow: t.highlight,
-            position: 'sticky', top: 0, zIndex: 20,
+            ...(sticky ? { position: 'sticky', top: 0, zIndex: 20 } : {}),
         }}>
             {/* The filters wrap among themselves; the right-hand action stays
                 pinned to the top line instead of dropping under them. */}
@@ -519,7 +520,7 @@ function ColumnPicker({ cols, isOn, onToggle, onReset, onAll, changed }) {
     `show(key)` says whether to draw a column. A second argument is the list of
     visible columns, for rows that loop over them. Without an `id`, or with
     plain children, nothing changes and every column in `cols` is shown. */
-export function Table({ id, cols: allCols, children, empty, actions }) {
+export function Table({ id, cols: allCols, children, empty, actions, sticky }) {
     const t = useT();
     const [prefs, setPrefs] = useState(() => (id ? readColPrefs(id) : {}));
     const pickable = !!id && typeof children === 'function' && allCols.length > 1;
@@ -548,12 +549,17 @@ export function Table({ id, cols: allCols, children, empty, actions }) {
                 </div>
             )}
         <div style={tableFrame(t)}>
-            <div className="edge-scroll" style={{ overflowX: 'auto' }}>
+            {/* `sticky` keeps the column titles in view: the rows scroll under them inside a screen-high frame. */}
+            <div className="edge-scroll" style={sticky ? { overflow: 'auto', maxHeight: 'calc(100vh - 140px)' } : { overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO }}>
                     <thead>
                         <tr>
                             {cols.map((c) => (
-                                <th key={c.key} scope="col" style={{ ...thStyle(t, c.align), width: c.width }}>{titleCaseNode(c.label)}</th>
+                                <th key={c.key} scope="col" style={{
+                                    ...thStyle(t, c.align), width: c.width,
+                                    // A collapsed border scrolls away with the rows; an inset line stays on the title.
+                                    ...(sticky && { position: 'sticky', top: 0, zIndex: 1, borderBottom: 0, boxShadow: `inset 0 -1px 0 ${t.line}` }),
+                                }}>{titleCaseNode(c.label)}</th>
                             ))}
                         </tr>
                     </thead>

@@ -13,8 +13,6 @@ import {
 import { storageService } from '../services/storageService';
 import { documentStore } from '../services/documentStore';
 import { useOrg } from '../context/OrgContext';
-import { useAuth } from '../context/AuthContext';
-import { displayNameOf } from '../lib/user';
 import SalesByCountries from './dashboard/SalesByCountries';
 import { currencySymbol, currencyLocale } from '../shared/currency.js';
 
@@ -29,7 +27,6 @@ const chartStyles = () => ({
 export default function Dashboard() {
   const navigate = useNavigate();
   const { activeOrg } = useOrg();
-  const { user } = useAuth();
   const [records, setRecords] = useState([]);
   const [finDocs, setFinDocs] = useState([]);
   const [employeeCount, setEmployeeCount] = useState(0);
@@ -139,7 +136,7 @@ export default function Dashboard() {
     return 'Good evening';
   };
 
-  const orgName = activeOrg?.owner_full_name || activeOrg?.company_name || displayNameOf(user) || 'there';
+  const orgName = activeOrg?.company_name || activeOrg?.name || 'there';
 
   if (loading) {
     return (

@@ -109,12 +109,12 @@ export const AuthProvider = ({ children }) => {
   //
   // `next` is where to come back to. /join passes its own URL so an employee
   // redeeming an invitation returns to the page that was mid-redemption rather
-  // than to /hub, which would show them the create-a-company gate. They have
+  // than to the dashboard, which would show them the create-a-company gate. They have
   // no membership yet, which is the entire reason they are on /join.
   const loginWithGoogle = async (next) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: next || `${window.location.origin}/hub` },
+      options: { redirectTo: next || `${window.location.origin}/dashboard/overview` },
     });
     if (error) throw error;
   };
