@@ -152,7 +152,8 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     if (filter === 'overdue') return overdue(b);
     if (filter === 'void') return b.status === 'void';
     if (b.status === 'void') return false;
-    return filter === 'paid' ? Number(b.amount_paid) > 0.009 : balance(b) > 0.009;
+    // Paid means nothing left to pay; a part-paid bill still owes, so it is Unpaid.
+    return filter === 'paid' ? balance(b) <= 0.009 : balance(b) > 0.009;
   };
 
   // Company-wide, the bills of the project (or General) the page is filtered to.
