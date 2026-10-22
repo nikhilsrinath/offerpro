@@ -398,7 +398,7 @@ export default function CashBook({ projectId = null, children }) {
             ].filter(Boolean).join(' · ');
             const edit = () => setEditing({ ...r, ...(r._full || {}), _share: undefined, _full: undefined, date: r.day });
             return (
-              <Tr key={`${r.direction}-${r.id}`} onClick={edit} label={`Edit ${r.description}`}>
+              <Tr key={`${r.direction}-${r.id}`} onClick={edit} label={`Edit ${r.description}`} debit={!isIn}>
                 {show('d') && <Td muted nowrap>{fmtDate(r.day)}</Td>}
                 {show('e') && (
                   <Td>

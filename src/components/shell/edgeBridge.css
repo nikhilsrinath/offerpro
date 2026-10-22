@@ -1153,6 +1153,13 @@
 
 /* A kit <Table> on a page that is not a kit <Page> still tints its rows. */
 .edge-shell main .edge-tr:hover { background: var(--edge-panel-alt); }
+/* A debit row on a ledger: a soft blue wash fading out to the right. */
+.edge-shell main .edge-tr-debit {
+  background: linear-gradient(100deg, color-mix(in srgb, var(--edge-accent) 9%, transparent), color-mix(in srgb, var(--edge-accent) 2%, transparent));
+}
+.edge-shell main .edge-tr-debit:hover {
+  background: linear-gradient(100deg, color-mix(in srgb, var(--edge-accent) 14%, transparent), color-mix(in srgb, var(--edge-accent) 5%, transparent));
+}
 
 /* ── tables ───────────────────────────────────────────────────────────────────
    Every legacy table reads as the kit's <Table> (ui/edgeUtils tableFrame,

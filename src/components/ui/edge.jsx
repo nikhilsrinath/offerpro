@@ -583,7 +583,7 @@ export function Td({ children, align, nowrap, muted, width }) {
     );
 }
 
-export function Tr({ children, onClick, selected, label }) {
+export function Tr({ children, onClick, selected, label, debit }) {
     const t = useT();
     // A clickable row is reachable and operable from the keyboard too. Keys
     // pressed on a control inside the row are left to that control.
@@ -593,7 +593,7 @@ export function Tr({ children, onClick, selected, label }) {
     } : undefined;
     return (
         <tr
-            className="edge-tr" onClick={onClick} onKeyDown={onKeyDown}
+            className={debit ? 'edge-tr edge-tr-debit' : 'edge-tr'} onClick={onClick} onKeyDown={onKeyDown}
             tabIndex={onClick ? 0 : undefined} aria-label={label}
             style={{
                 cursor: onClick ? 'pointer' : undefined,

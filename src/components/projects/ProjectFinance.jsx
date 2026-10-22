@@ -576,7 +576,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                             const owed = bill ? Math.max(0, bill.total - bill.amount_paid) : 0;
                             const receipts = bill ? [] : receiptItems(r);
                             return (
-                                <Tr key={a.id}>
+                                <Tr key={a.id} debit={!r.credit}>
                                     {show('d') && <Td muted nowrap>{s ? fmtDate(s.date) : '-'}</Td>}
                                     <Td>
                                         {open ? (
