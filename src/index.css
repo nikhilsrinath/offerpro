@@ -14172,6 +14172,8 @@ details.cb-more[open] > summary.cb-more-title::before { transform: rotate(45deg)
 .vsel-add-row input { min-width: 0; }
 .vsel-add-foot { display: flex; justify-content: flex-end; gap: 0.5rem; }
 .vsel-note { font-size: 0.68rem; color: var(--text-muted); }
+.vsel-head { padding: 0.35rem 0.7rem 0.15rem; }
+.vsel-btn:disabled { cursor: default; opacity: 0.7; }
 
 /* Top Products panel on Billing & Revenue */
 

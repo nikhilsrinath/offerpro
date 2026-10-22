@@ -10,6 +10,7 @@ import { INDIAN_STATES } from '../../data/indianStates';
 import { Modal, ReceiptField } from './financeUi';
 import { LedgerSteps } from './LedgerTypePicker';
 import ProjectPicker from '../shared/ProjectPicker';
+import VendorSelect from '../shared/VendorSelect';
 import { pickerFromAllocations, saveSplitFromPicker, friendlyError } from '../../services/projectService';
 import { projectLabel } from '../../services/projectAnalytics';
 import { money, useSection } from './financeHooks';
@@ -26,9 +27,9 @@ const PAYROLL = { salaries: 'employee', Salaries: 'employee', intern_stipend: 'i
  * The money in / money out form, shared by the General Ledger and Purchase
  * Bills (whose "Record payment" opens it in place). `fresh(direction)` gives
  * the blank entry when the direction is switched, on a project's page it is
- * already the project's.
+ * already the project's. With `projectId` "Paid to" lists the project's vendors.
  */
-export default function CashEntryModal({ entry, fresh = blank, onClose, typeChosen = false, onStep }) {
+export default function CashEntryModal({ entry, fresh = blank, onClose, typeChosen = false, onStep, projectId = null }) {
   const toast = useToast();
   const clients = useSection('customers');
   const vendors = useSection('vendors');
@@ -309,12 +310,9 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
           ) : (
             <div className="prod-field full">
               <label htmlFor="cb-vendor">Paid to</label>
-              <select id="cb-vendor" value={editing.vendor_id || ''} disabled={!!payingBill}
-                onChange={(e) => set('vendor_id', e.target.value)}>
-                <option value="">Not a vendor</option>
-                {vendors.filter((v) => !v.archived_at || v.id === editing.vendor_id)
-                  .map((v) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
-              </select>
+              <VendorSelect id="cb-vendor" value={editing.vendor_id || ''} disabled={!!payingBill} noneLabel="Not a vendor"
+                vendors={vendors.filter((v) => !v.archived_at || v.id === editing.vendor_id)}
+                onChange={(v) => set('vendor_id', v)} projectId={projectId} />
             </div>
           )}
 
@@ -376,8 +374,9 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
           )}
 
           {/* Project-specific or General: asked up front, because it is how
-              the ledger is read, per project, and everything else. */}
-          {payingBill ? (
+              the ledger is read, per project, and everything else. On a
+              project's page it is that project's, and not asked. */}
+          {projectId ? null : payingBill ? (
             <div className="prod-field full">
               <label>Project or General</label>
               <p className="prod-field-note">

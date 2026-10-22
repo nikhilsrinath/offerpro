@@ -496,7 +496,7 @@ export default function CashBook({ projectId = null, children }) {
       )}
 
       {editing && (
-        <CashEntryModal key={editing.id || 'new'} entry={editing} fresh={fresh} onClose={() => setEditing(null)} />
+        <CashEntryModal key={editing.id || 'new'} entry={editing} fresh={fresh} projectId={projectId} onClose={() => setEditing(null)} />
       )}
 
       <style>{`

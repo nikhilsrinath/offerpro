@@ -79,9 +79,11 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
 
   /**
    * Against Pending is on the projects of the bills it would cover, oldest
-   * first, as one split; with no such bill, on the page's project.
+   * first, as one split; with no such bill, on the page's project. Recorded
+   * on a project's page it is that project's, whole.
    */
   const pendingPicker = () => {
+    if (projectId) return pickerFor(projectId);
     const byProject = new Map();
     let whole = null;
     for (const { bill, pay } of spreadVendorPayment(bills.filter((b) => b.vendor_id === vendor.id), amount)) {
@@ -212,7 +214,8 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
               onChange={(e) => set('description', e.target.value)} />
           </div>
 
-          {isAdvance && (
+          {/* On a project's page the payment is that project's, and not asked. */}
+          {isAdvance && !projectId && (
             <>
               <ProjectPicker
                 label="Project or General"

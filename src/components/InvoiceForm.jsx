@@ -767,13 +767,16 @@ export default function InvoiceForm() {
               <span className="easy-section-title">Summary</span>
             </div>
 
-            <ProjectPicker
-              value={projectPicker}
-              onChange={setProjectPicker}
-              net={totals.taxableAmount}
-              clientId={selectedCustomerId}
-              label="Project (optional)"
-            />
+            {/* Opened from a project, the invoice is that project's, and not asked. */}
+            {!routeProjectId && (
+              <ProjectPicker
+                value={projectPicker}
+                onChange={setProjectPicker}
+                net={totals.taxableAmount}
+                clientId={selectedCustomerId}
+                label="Project (optional)"
+              />
+            )}
 
             <div className="easy-summary-grid">
               <div className="easy-field">

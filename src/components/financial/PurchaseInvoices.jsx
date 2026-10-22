@@ -557,11 +557,14 @@ export default function PurchaseInvoices({ projectId = null, children }) {
                 <label>Description</label>
                 <input aria-label="Description" value={editing.description || ''} onChange={(e) => set('description', e.target.value)} placeholder="What was bought" />
               </div>
-              <ProjectPicker
-                value={editing._picker || pickerFromAllocations('purchase_invoice', editing.id)}
-                onChange={(p) => set('_picker', p)}
-                net={beforeTax}
-              />
+              {/* On a project's page the bill is that project's, and not asked. */}
+              {!projectId && (
+                <ProjectPicker
+                  value={editing._picker || pickerFromAllocations('purchase_invoice', editing.id)}
+                  onChange={(p) => set('_picker', p)}
+                  net={beforeTax}
+                />
+              )}
               <div className="prod-field full">
                 <label>Receipt / bill copy</label>
                 <ReceiptField path={editing.receipt_path} kind="purchases" onChange={(p) => set('receipt_path', p)} />
@@ -582,7 +585,7 @@ export default function PurchaseInvoices({ projectId = null, children }) {
       )}
 
       {choosing && <LedgerTypePicker direction={choosing.direction} startGroup={choosing.group} onPick={pickKind} onClose={() => setChoosing(null)} />}
-      {entry && <CashEntryModal key={entry.id || 'new'} entry={entry} fresh={freshEntry} typeChosen={entryTyped}
+      {entry && <CashEntryModal key={entry.id || 'new'} entry={entry} fresh={freshEntry} typeChosen={entryTyped} projectId={projectId}
         onStep={entryTyped && pickedFrom ? backToStep : undefined} onClose={() => setEntry(null)} />}
       {payingVendor && (
         <VendorPaymentModal vendorId={payingVendor.vendorId} category={payingVendor.category}
