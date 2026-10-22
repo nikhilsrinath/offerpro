@@ -15,7 +15,7 @@ import { projectLabel } from '../../services/projectAnalytics';
 import { money, useSection } from './financeHooks';
 import { titleCase } from '../../utils/titleCase';
 import {
-  currencies, isForeign, GST_RATES, SECTION, billAllocationsOf, billBalance, billPickerOf, blank, sym,
+  ADVANCE, VENDOR_PAY, currencies, isForeign, GST_RATES, SECTION, billAllocationsOf, billBalance, billPickerOf, blank, sym,
 } from './cashEntry';
 import { baseCurrency, currencySymbol } from '../../shared/currency.js';
 
@@ -73,6 +73,19 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
     ? employees.filter((p) => p.id === editing.employee_id
       || (!p.exited_at && (payroll === 'intern') === (p.offerType === 'intern')))
     : [];
+
+  // A debit to a vendor (VendorPaymentModal): Against Pending or Advance,
+  // switchable on an edit. Only the category says which.
+  const vendorPay = editing?.direction === 'out' && VENDOR_PAY.has(editing.category);
+  const isAdvance = vendorPay && editing.category === ADVANCE;
+  const setAdvance = (advance) => setEditing((e) => ({
+    ...e,
+    category: advance ? ADVANCE : 'vendor_bill_payment',
+    // The description it was given by default follows the switch.
+    description: advance
+      ? e.description.replace(/^Payment to /, 'Advance to ')
+      : e.description.replace(/^Advance to /, 'Payment to '),
+  }));
 
   // What the entry is worth in rupees. The figure the database will store as
   // `amount` and every total will sum. Shown live so a foreign-currency entry is
@@ -305,6 +318,26 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
             </div>
           )}
 
+          {vendorPay && (
+          <div className="prod-field full">
+            <div className="cb-direction" role="group" aria-label="What this pays" style={{ marginBottom: 0 }}>
+              <button type="button" aria-pressed={!isAdvance} className={!isAdvance ? 'active' : ''}
+                onClick={() => setAdvance(false)}>
+                Against Pending
+              </button>
+              <button type="button" aria-pressed={isAdvance} className={isAdvance ? 'active' : ''}
+                onClick={() => setAdvance(true)}>
+                Advance
+              </button>
+            </div>
+            <p className="prod-field-note">
+              {isAdvance
+                ? 'Paid before the bill. Recorded as one debit to the vendor.'
+                : 'Paid towards what the vendor is owed. Recorded as one debit to the vendor, not split over bills.'}
+            </p>
+          </div>
+          )}
+
           {payingBill ? (
           // The bill's own category, read-only: the entry is still stored as a
           // bill payment, so the cost and GST the bill counts are not counted again.
@@ -314,7 +347,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
               value={`${[payingBill.category, payingBill.description].filter(Boolean).join(' · ') || 'Purchase'} (bill payment)`} />
             <p className="prod-field-note">From the bill. It already counts the cost and its GST, so this is cash only.</p>
           </div>
-          ) : typeChosen ? null : (
+          ) : typeChosen || vendorPay ? null : (
           <>
             <div className="prod-field">
               <label htmlFor="cb-type">Type</label>
