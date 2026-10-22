@@ -27,11 +27,20 @@ describe('spreadVendorPayment', () => {
 describe('vendor totals', () => {
     const pay = (id, amount, extra = {}) => ({ id, amount, vendor_id: 'v1', category: 'vendor_bill_payment', ...extra });
 
-    it('counts every payment and advance to the vendor, linked to a bill or not', () => {
+    it('counts every debit to the vendor, whatever its type, linked to a bill or not', () => {
+        // A debit typed Contractors with the vendor on it is still money to them:
+        // the ledger takes it off, so the bill must count it paid too.
         expect(vendorPaid([
             pay('p1', 8), pay('p2', 4), pay('a1', 5, { category: 'vendor_advance', purchase_invoice_id: 'b1' }),
-            pay('other', 9, { vendor_id: 'v2' }), pay('rent', 7, { category: 'rent' }),
-        ], 'v1')).toBe(17);
+            pay('other', 9, { vendor_id: 'v2' }), pay('fees', 7, { category: 'contractor_fees' }),
+            pay('none', 3, { vendor_id: '' }),
+        ], 'v1')).toBe(24);
+    });
+
+    it('settles a bill paid by a debit typed as a cost, as the ledger balances it', () => {
+        const bills = [{ ...bill('BILL-001', '2026-10-08', 1500), id: 'b1', vendor_id: 'v1' }];
+        const paid = vendorPaid([pay('fees', 1500, { category: 'contractor_fees' })], 'v1');
+        expect(settleVendor(bills, paid)).toEqual({ b1: 1500 });
     });
 
     it('lays what was paid over the bills oldest first, as figures only', () => {

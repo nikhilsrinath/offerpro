@@ -97,9 +97,17 @@ const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const oldestFirst = (a, b) => String(a.bill_date || '').localeCompare(String(b.bill_date || ''))
   || String(a.bill_number || '').localeCompare(String(b.bill_number || ''));
 
-/** Everything paid to a vendor, payments and advances alike. */
+/**
+ * A debit is to a vendor when the vendor is picked on it, whatever its type: a
+ * payment, an advance, or one recorded under a cost type such as Contractors.
+ * The ledger takes every one of them off the balance, so the bills must count
+ * every one of them as paid too, or the two disagree.
+ */
+export const isVendorDebit = (e, vendorId) => !!e.vendor_id && (vendorId === undefined || e.vendor_id === vendorId);
+
+/** Everything paid to a vendor: every debit with the vendor on it. */
 export const vendorPaid = (expenses, vendorId) => r2(expenses
-  .filter((e) => e.vendor_id === vendorId && VENDOR_PAY.has(e.category))
+  .filter((e) => isVendorDebit(e, vendorId))
   .reduce((n, e) => n + (Number(e.amount) || 0), 0));
 
 /**

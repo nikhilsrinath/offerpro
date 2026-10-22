@@ -15,7 +15,7 @@ import { pickerFromAllocations, pickerFor, saveSplitFromPicker, friendlyError } 
 import { useProjectScope } from '../projects/projectScope';
 import { confirmDialog } from '../../services/confirm';
 import CashEntryModal from './CashEntryModal';
-import { ADVANCE, VENDOR_PAY, blank as blankEntry } from './cashEntry';
+import { ADVANCE, blank as blankEntry, isVendorDebit } from './cashEntry';
 import { deletePaymentParts, useSettledVendorBills } from './vendorAdvance';
 import VendorPaymentModal from './VendorPaymentModal';
 import LedgerTypePicker, { LedgerSteps } from './LedgerTypePicker';
@@ -178,11 +178,11 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopedBills, search, filter, vendorFilter, vendorById, projectsByBill]);
 
-  // Every payment and advance to a vendor under the page's project.
+  // Every debit to a vendor under the page's project, whatever its type.
   const vendorDebits = useMemo(() => {
     const projectsOf = (id) => allocations.filter((a) => a.source_type === 'expense' && a.source_id === id).map((a) => a.project_id);
     return (scope ? scope.data.expenses : expenses)
-      .filter((e) => VENDOR_PAY.has(e.category))
+      .filter((e) => isVendorDebit(e))
       .filter((e) => projectId || projectFilter === 'all'
         || (projectFilter === 'general' ? projectsOf(e.id).length === 0 : projectsOf(e.id).includes(projectFilter)));
   }, [scope, expenses, allocations, projectId, projectFilter]);

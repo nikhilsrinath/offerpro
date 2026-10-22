@@ -16,7 +16,7 @@ import { useSection, money, fmtDate } from '../financial/financeHooks';
 import {
     periodOptions, periodBounds, netOfTax, balanceOf, isOverdue, daysOverdue, downloadCsv, inRange,
 } from '../../services/financeAnalytics';
-import { categoryLabel, categoryOf } from '../../services/financeCategories';
+import { categoryLabel, categoryOf, loadFinanceCategories } from '../../services/financeCategories';
 import { isClosed } from '../../services/projectAnalytics';
 import {
     financials, canAllocate, unbilledHours,
@@ -59,6 +59,10 @@ function useSources() {
     const bills = useSection('purchase_invoices');
     const vendors = useSection('vendors');
     const clients = useSection('customers');
+    // The category names are loaded on first use; until then a row's Type would
+    // read as its raw key (contractor_fees), so the rows are made again once in.
+    const [categoriesIn, setCategoriesIn] = useState(false);
+    useEffect(() => { loadFinanceCategories().then(() => setCategoriesIn(true)).catch(() => {}); }, []);
     return useMemo(() => {
         const vendorName = Object.fromEntries(vendors.map((v) => [v.id, v.company_name]));
         const clientName = Object.fromEntries(clients.map((c) => [c.id, c.name]));
@@ -96,7 +100,8 @@ function useSources() {
                 number: b.bill_number || '', client_id: null, description: b.description || '', created: b.created_at || '',
             })),
         ];
-    }, [docs, income, expenses, bills, vendors, clients]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [docs, income, expenses, bills, vendors, clients, categoriesIn]);
 }
 
 /** project_financials for one period, reloaded whenever the project's links change. */
