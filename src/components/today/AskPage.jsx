@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Bell, FolderKanban, CheckSquare, Search, Plug } from 'lucide-react';
 import Copilot from '../assistant/Copilot';
@@ -17,6 +17,8 @@ import { OPS_AGENT } from '../agents/opsAgent';
 import { useAutomation } from '../agents/automation';
 import '../agents/agents.css';
 import EdgeBrain from '../brain/EdgeBrain';
+import * as brain from '../../services/brainService';
+import NeuralsActivation from './NeuralsActivation';
 
 /* ══════════════════════════════════════════════════════════════════════════
    AI: EdgeAI as a page of its own, in four parts behind one switch.
@@ -31,6 +33,10 @@ import EdgeBrain from '../brain/EdgeBrain';
    · Connectors  outside services EdgeAI can read from. Empty for now.
    · Neurals     the company brain (components/brain/): the knowledge graph
                  EdgeAI reasons over, with its dock, inside the pane's width.
+
+   Until the company has Neurals the page is only NeuralsActivation: the
+   switch and the chat history stay hidden, and every tab opens once it is
+   built (see useNeuralsGate).
 
    Nothing here decides what a message means. Every chip either sends a plain
    sentence to the model or starts one in the box for the person to finish;
@@ -138,6 +144,80 @@ function AgentsView({ onOpen }) {
     );
 }
 
+/* ── the Neurals gate ─────────────────────────────────────────────────────
+   phase: 'checking' | 'idle' (no brain yet) | 'building' | 'done' (built in
+   this visit, celebrating) | 'open'. If the status cannot be read the page
+   opens as before: a gate that fails shut would lock a company out of chat
+   over a network blip. Orgs seen with a brain are remembered for the session
+   so returning to the page does not re-check. */
+const OPENED = new Set();
+const MIN_BUILD_MS = 2600; // long enough for the animation to read
+const sleep = (ms) => new Promise((r) => { setTimeout(r, ms); });
+
+function useNeuralsGate(orgId) {
+    const [gate, setGate] = useState(() => ({ phase: orgId && OPENED.has(orgId) ? 'open' : 'checking' }));
+    const orgRef = useRef(orgId);
+    orgRef.current = orgId;
+
+    const countsOf = (res) => ({
+        nodes: res?.visibleNodeCount || res?.state?.node_count || 0,
+        edges: res?.state?.edge_count || 0,
+    });
+
+    // Waits out a build that someone else started, then celebrates it.
+    const waitForBuild = useCallback(async (id) => {
+        for (;;) {
+            await sleep(3000);
+            if (orgRef.current !== id) return;
+            let res;
+            try { res = await brain.getStatus(id); } catch { continue; }
+            if (orgRef.current !== id) return;
+            const st = res?.state?.status;
+            if (st === 'building') continue;
+            if (!st || st === 'absent') { setGate({ phase: 'idle', canBuild: !!res?.can?.build }); return; }
+            OPENED.add(id);
+            setGate({ phase: 'done', counts: countsOf(res) });
+            return;
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!orgId) { setGate({ phase: 'open' }); return; }
+        if (OPENED.has(orgId)) { setGate({ phase: 'open' }); return; }
+        setGate({ phase: 'checking' });
+        brain.getStatus(orgId).then((res) => {
+            if (orgRef.current !== orgId) return;
+            const st = res?.state?.status;
+            if (!st || st === 'absent') setGate({ phase: 'idle', canBuild: !!res?.can?.build });
+            else if (st === 'building') { setGate({ phase: 'building' }); waitForBuild(orgId); }
+            else { OPENED.add(orgId); setGate({ phase: 'open' }); }
+        }).catch(() => {
+            if (orgRef.current === orgId) setGate({ phase: 'open' });
+        });
+    }, [orgId, waitForBuild]);
+
+    const activate = useCallback(async () => {
+        const id = orgId;
+        setGate({ phase: 'building' });
+        const started = Date.now();
+        try {
+            const res = await brain.buildBrain(id);
+            if (res?.skipped) { waitForBuild(id); return; }
+            const status = await brain.getStatus(id).catch(() => null);
+            await sleep(Math.max(0, MIN_BUILD_MS - (Date.now() - started)));
+            if (orgRef.current !== id) return;
+            OPENED.add(id);
+            setGate({ phase: 'done', counts: status ? countsOf(status) : null });
+        } catch (e) {
+            if (orgRef.current !== id) return;
+            setGate({ phase: 'idle', canBuild: true, error: e.message || 'Activation did not complete. Try again.' });
+        }
+    }, [orgId, waitForBuild]);
+
+    const finish = useCallback(() => setGate({ phase: 'open' }), []);
+    return { ...gate, activate, finish };
+}
+
 export default function AskPage({ theme = 'dark' }) {
     const { activeOrg } = useOrg();
     const a = useAssistant();
@@ -146,6 +226,7 @@ export default function AskPage({ theme = 'dark' }) {
     const view = agent ? 'agents' : (VIEWS.some((v) => v.id === params.get('view')) ? params.get('view') : 'ask');
     // The company, never a name pulled from the sign-in email.
     const name = activeOrg?.company_name || activeOrg?.name || 'there';
+    const gate = useNeuralsGate(activeOrg?.id);
 
     const go = (next, agentId = null) => {
         // Back on Ask, an agent's conversation gives way to an ordinary chat.
@@ -183,6 +264,18 @@ export default function AskPage({ theme = 'dark' }) {
                         : view === 'neurals'
                             ? <NeuralsView />
                             : null;
+
+    if (gate.phase !== 'open') {
+        const activation = gate.phase === 'checking'
+            ? <div className="ask-pane" aria-busy="true" />
+            : (
+                <NeuralsActivation
+                    phase={gate.phase} canBuild={!!gate.canBuild} error={gate.error}
+                    counts={gate.counts} onActivate={gate.activate} onContinue={gate.finish}
+                />
+            );
+        return <Copilot variant="page" theme={theme} pane={activation} />;
+    }
 
     return (
         <Copilot

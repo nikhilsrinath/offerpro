@@ -1,0 +1,86 @@
+/* Neurals activation — the AI page before the company brain exists.
+   Tokens from theme/surface.css; the one colour is --accent. */
+
+.na { display: flex; }
+.na-inner { margin: auto; width: 100%; max-width: 560px; padding: 28px 20px 40px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; text-align: center; }
+
+/* ── the constellation ─────────────────────────────────────────────────── */
+.na-stage { width: 100%; max-width: 440px; }
+.na-svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+.na-link { stroke: var(--line-2); stroke-width: 1; stroke-linecap: round; transition: stroke .6s, opacity .6s; }
+.na-ring { opacity: .55; }
+
+.na-node-halo { fill: var(--accent); opacity: 0; transition: opacity .5s; }
+.na-node-dot { fill: var(--card-3); stroke: var(--line-2); stroke-width: 1; transition: fill .5s, stroke .5s; }
+.na-node-label { font-size: 11px; font-weight: 600; fill: var(--muted); text-anchor: middle; transition: fill .3s; }
+.na-node-label.is-now { fill: var(--accent); }
+
+.na-core { transform-box: fill-box; transform-origin: center; animation: naBreathe 3.6s ease-in-out infinite; filter: drop-shadow(0 0 14px var(--orb-glow-2)); }
+.na-orbit { fill: none; stroke: var(--accent); stroke-width: 1; opacity: .28; transform-box: fill-box; transform-origin: center; }
+.na-orbit-1 { stroke-dasharray: 2 7; animation: naSpin 18s linear infinite; }
+.na-orbit-2 { stroke-dasharray: 22 10 4 10; opacity: .16; animation: naSpin 30s linear infinite reverse; }
+.na-shock { fill: none; stroke: var(--accent); stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.na-check { fill: none; stroke: #fff; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 40; stroke-dashoffset: 40; opacity: 0; }
+.na-pulse { fill: var(--accent); filter: drop-shadow(0 0 4px var(--accent)); }
+
+/* building: links draw in turn, nodes fire in sequence, orbits speed up */
+.na[data-phase="building"] .na-link { stroke: var(--accent); stroke-dasharray: 1; stroke-dashoffset: 1; animation: naDraw 2.4s ease-in-out infinite; animation-delay: calc(var(--i) * .18s); }
+.na[data-phase="building"] .na-ring { animation-delay: calc(var(--i) * .18s + .9s); }
+.na[data-phase="building"] .na-node-dot { animation: naFire 1.6s ease-in-out infinite; animation-delay: calc(var(--i) * .2s); }
+.na[data-phase="building"] .na-node-halo { animation: naHalo 1.6s ease-out infinite; animation-delay: calc(var(--i) * .2s); }
+.na[data-phase="building"] .na-orbit-1 { opacity: .6; animation-duration: 2.6s; }
+.na[data-phase="building"] .na-orbit-2 { opacity: .4; animation-duration: 4.2s; }
+.na[data-phase="building"] .na-core { animation: naThink 1.1s ease-in-out infinite; }
+
+/* done: the web holds, a ring breaks outward, the core becomes a check */
+.na[data-phase="done"] .na-link { stroke: var(--accent); opacity: .7; stroke-dasharray: 1; stroke-dashoffset: 1; animation: naSettle .7s ease-out forwards; animation-delay: calc(var(--i) * .05s); }
+.na[data-phase="done"] .na-ring { opacity: .4; }
+.na[data-phase="done"] .na-node-dot { fill: var(--accent); stroke: var(--accent); animation: naPop .5s cubic-bezier(.34, 1.56, .64, 1) both; animation-delay: calc(.25s + var(--i) * .06s); transform-box: fill-box; transform-origin: center; }
+.na[data-phase="done"] .na-node-halo { opacity: .14; }
+.na[data-phase="done"] .na-node-label { fill: var(--text); }
+.na[data-phase="done"] .na-core { animation: naLand .7s cubic-bezier(.34, 1.56, .64, 1) both; }
+.na[data-phase="done"] .na-orbit { opacity: .35; }
+.na[data-phase="done"] .na-shock { animation: naShock 1.3s cubic-bezier(.16, 1, .3, 1) .15s both; }
+.na[data-phase="done"] .na-shock-2 { animation-delay: .45s; }
+.na[data-phase="done"] .na-check { opacity: 1; animation: naCheck .5s ease-out .35s forwards; }
+
+/* ── the words ─────────────────────────────────────────────────────────── */
+.na-copy { display: flex; flex-direction: column; align-items: center; margin-top: 8px; animation: naRise .5s ease-out both; }
+.na[data-phase="done"] .na-copy { animation: naRise .6s ease-out .5s both; }
+.na-badge { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line-2); font-size: 12px; font-weight: 600; color: var(--muted); }
+.na-badge.is-done { color: var(--accent); border-color: var(--accent); }
+.na-title { margin: 14px 0 0; font-size: 24px; font-weight: 700; letter-spacing: -.02em; color: var(--text); }
+.na-text { margin: 10px 0 0; font-size: 14px; line-height: 1.65; color: var(--muted); max-width: 460px; }
+.na-text b { color: var(--text); font-weight: 600; }
+.na-note { margin: 12px 0 0; font-size: 12.5px; color: var(--muted); }
+.na-safe { display: inline-flex; align-items: center; gap: 6px; margin: 16px 0 0; font-size: 12px; color: var(--muted); }
+.na-error { margin-top: 14px; padding: 10px 12px; border-radius: 9px; border: 1px solid var(--line-2); font-size: 12.5px; color: var(--text); max-width: 460px; }
+.na-step { color: var(--accent); font-weight: 600; display: inline-block; animation: naRise .35s ease-out both; }
+.na-dots { display: inline-flex; gap: 3px; margin-left: 4px; vertical-align: middle; }
+.na-dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); animation: naDot 1.2s ease-in-out infinite; }
+.na-dots i:nth-child(2) { animation-delay: .15s; }
+.na-dots i:nth-child(3) { animation-delay: .3s; }
+
+.na-btn { margin-top: 22px; height: 40px; padding: 0 22px; border-radius: 10px; border: 0 !important; background: var(--accent-btn); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 10px 26px -12px var(--orb-glow-2); transition: transform .2s cubic-bezier(.16, 1, .3, 1), box-shadow .2s; }
+.na-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 14px 30px -12px var(--accent); }
+.na-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+@keyframes naBreathe { 50% { transform: scale(1.06); } }
+@keyframes naThink { 50% { transform: scale(1.12); filter: drop-shadow(0 0 26px var(--accent)); } }
+@keyframes naSpin { to { transform: rotate(360deg); } }
+@keyframes naDraw { 0% { stroke-dashoffset: 1; opacity: .2; } 45% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: -1; opacity: .2; } }
+@keyframes naFire { 0%, 100% { fill: var(--card-3); stroke: var(--line-2); } 40% { fill: var(--accent); stroke: var(--accent); } }
+@keyframes naHalo { 0% { opacity: .35; r: 5; } 100% { opacity: 0; r: 18; } }
+@keyframes naSettle { to { stroke-dashoffset: 0; } }
+@keyframes naPop { 0% { transform: scale(.4); } 100% { transform: scale(1); } }
+@keyframes naLand { 0% { transform: scale(.8); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+@keyframes naShock { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(5.5); opacity: 0; } }
+@keyframes naCheck { to { stroke-dashoffset: 0; } }
+@keyframes naRise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes naDot { 0%, 100% { opacity: .25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-2px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .na *, .na *::before, .na *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+  .na-pulse { display: none; }
+}
