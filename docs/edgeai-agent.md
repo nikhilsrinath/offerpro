@@ -8,7 +8,7 @@ EdgeAI operates the app on the user's behalf. It reads freely, and it **proposes
 message ─► POST /api/agent {mode:'chat'}  (SSE)
              context: user, role, permissions (my_permissions), plan, today in the org's
              timezone, the page, recentEntities, EdgeBrain facts as <data>
-             model (OpenRouter, OpenAI-compatible, function calling) ⇄ tools, ≤ 8 steps
+             model (Gemini, OpenAI-compatible, function calling) ⇄ tools, ≤ 8 steps
                read / navigate tool → runs now, result goes back to the model as <data>
                write tool          → resolve → validate → preview → ai_actions (proposed)
                                      → card to the client; the turn ends
@@ -143,7 +143,7 @@ Two checks stop duplicates, at proposal and again at confirm:
 ## Evals
 
 ```
-node scripts/eval-agent.js            # all cases (needs OPENROUTER_API_KEY; uses .env)
+node scripts/eval-agent.js            # all cases (needs GEMINI_API_KEY; uses .env)
 node scripts/eval-agent.js task- crm-  # by id prefix
 node scripts/eval-agent.js kn-        # Internal Knowledge (library passages are ranked in memory)
 ```

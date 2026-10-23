@@ -63,7 +63,7 @@ export default function ProjectMilestones({ project }) {
         }
     });
 
-    const createInvoice = (m) => navigate('/finance/billing/invoices/new', {
+    const createInvoice = (m) => navigate('/clients/billing/invoices/new', {
         state: {
             projectId: project.id, milestoneId: m.id, clientId: project.client_id,
             line: { description: `${project.name} · ${m.title}`, amount: Number(m.billing_amount) || 0 },

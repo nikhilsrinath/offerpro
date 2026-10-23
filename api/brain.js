@@ -24,7 +24,7 @@ import {
   neighbors, getMetrics, buildContext, libraryContext,
 } from './_lib/brainRetrieval.js';
 import { wbsContext, WBS_SYSTEM_PROMPT, parseSuggestion } from './_lib/wbsSuggest.js';
-import { openRouter, reasoningFor, hasAiKey, AI_MODEL as MODEL } from './_lib/llm.js';
+import { geminiChat, hasAiKey, AI_MODEL as MODEL } from './_lib/llm.js';
 
 // Mirrors AI_MESSAGE_LIMITS in api/nvidia.js and limits.aiMessages in
 // planConfig.js. A brain question costs the same upstream as a co-founder
@@ -318,7 +318,7 @@ async function ask(res, { orgId, user, perms, allowed, body }) {
   const history = conversationHistory(body.history);
 
   if (!hasAiKey()) {
-    console.error('[brain] Missing OPENROUTER_API_KEY');
+    console.error('[brain] Missing GEMINI_API_KEY');
     throw new HttpError(500, 'Server configuration error');
   }
 
@@ -352,7 +352,7 @@ async function ask(res, { orgId, user, perms, allowed, body }) {
     syncedAt: state.last_sync_at,
   });
 
-  const response = await openRouter({
+  const response = await geminiChat({
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
       // The thread, then the records, then the question. The context goes in
@@ -377,7 +377,7 @@ async function ask(res, { orgId, user, perms, allowed, body }) {
     top_p: 0.8,
     // Same reasoning as api/nvidia.js: with thinking billed against
     // max_tokens, a 3.x model can spend the whole budget before writing a word.
-    reasoning: reasoningFor('none', { hide: true }),
+    reasoning_effort: 'none',
   });
 
   if (!response.ok) {
@@ -446,7 +446,7 @@ async function wbsSuggest(res, { orgId, user, perms, body }) {
   }
 
   if (!hasAiKey()) {
-    console.error('[brain] Missing OPENROUTER_API_KEY');
+    console.error('[brain] Missing GEMINI_API_KEY');
     throw new HttpError(500, 'Server configuration error');
   }
   const used = await meterMessage(orgId);
@@ -458,14 +458,14 @@ async function wbsSuggest(res, { orgId, user, perms, body }) {
     });
   }
 
-  const response = await openRouter({
+  const response = await geminiChat({
     messages: [
       { role: 'system', content: WBS_SYSTEM_PROMPT },
       { role: 'user', content: `Context from the company's records:\n\n${ctx.text}` },
     ],
     max_tokens: 2000,
     temperature: 0.2,
-    reasoning: reasoningFor('none', { hide: true }),
+    reasoning_effort: 'none',
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => '');

@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { openRouter, reasoningFor, OPENROUTER_URL, DEFAULT_MODEL } from './llm.js';
+import { geminiChat, geminiGenerate, GEMINI_URL, DEFAULT_MODEL } from './llm.js';
 import { callModel } from './agent/model.js';
 
-/* Every AI call goes to OpenRouter through llm.js; these pin what it sends. */
+/* Every AI call goes to Gemini through llm.js; these pin what it sends. */
 
 const saved = { ...process.env };
-beforeEach(() => { process.env.OPENROUTER_API_KEY = 'sk-or-test'; delete process.env.OPENROUTER_MODEL; });
+beforeEach(() => { process.env.GEMINI_API_KEY = 'gm-test'; delete process.env.GEMINI_MODEL; });
 afterEach(() => { process.env = { ...saved }; });
 
 function spy(reply = { choices: [{ message: { role: 'assistant', content: 'hi' }, finish_reason: 'stop' }] }, status = 200) {
@@ -17,61 +17,60 @@ function spy(reply = { choices: [{ message: { role: 'assistant', content: 'hi' }
   return { calls, fetchImpl };
 }
 
-describe('openRouter()', () => {
-  it('posts to OpenRouter with the server key and the server-chosen model', async () => {
+describe('geminiChat()', () => {
+  it('posts to Gemini with the server key and the server-chosen model', async () => {
     const { calls, fetchImpl } = spy();
-    await openRouter({ model: 'openai/some-dear-model', messages: [{ role: 'user', content: 'x' }] }, { fetchImpl });
-    expect(calls[0].url).toBe(OPENROUTER_URL);
-    expect(calls[0].init.headers.Authorization).toBe('Bearer sk-or-test');
-    expect(calls[0].init.headers['X-Title']).toBe('EdgeOS');
+    await geminiChat({ model: 'some-dear-model', messages: [{ role: 'user', content: 'x' }] }, { fetchImpl });
+    expect(calls[0].url).toBe(GEMINI_URL);
+    expect(calls[0].init.headers.Authorization).toBe('Bearer gm-test');
     // Whatever the caller sent, the model is the server's.
     expect(calls[0].body.model).toBe(DEFAULT_MODEL);
     expect(calls[0].body.stream).toBe(false);
   });
 
-  it('OPENROUTER_MODEL picks another model, read at call time', async () => {
-    process.env.OPENROUTER_MODEL = 'anthropic/claude-sonnet-5.5';
+  it('GEMINI_MODEL picks another model, read at call time', async () => {
+    process.env.GEMINI_MODEL = 'gemini-3.6-pro';
     const { calls, fetchImpl } = spy();
-    await openRouter({ messages: [] }, { fetchImpl, stream: true });
-    expect(calls[0].body).toMatchObject({ model: 'anthropic/claude-sonnet-5.5', stream: true });
+    await geminiChat({ messages: [] }, { fetchImpl, stream: true });
+    expect(calls[0].body).toMatchObject({ model: 'gemini-3.6-pro', stream: true });
     expect(calls[0].init.headers.Accept).toBe('text/event-stream');
   });
 
   it('refuses to run without a key', () => {
-    delete process.env.OPENROUTER_API_KEY;
-    expect(() => openRouter({ messages: [] })).toThrow(/OPENROUTER_API_KEY/);
+    delete process.env.GEMINI_API_KEY;
+    expect(() => geminiChat({ messages: [] })).toThrow(/GEMINI_API_KEY/);
   });
 });
 
-describe('reasoningFor()', () => {
-  it('never sends "none", which Gemini 3 on OpenRouter refuses', () => {
-    expect(reasoningFor('none')).toEqual({ effort: 'minimal' });
-    expect(reasoningFor(undefined)).toEqual({ effort: 'minimal' });
-    expect(reasoningFor('low')).toEqual({ effort: 'low' });
-    expect(reasoningFor('none', { hide: true })).toEqual({ effort: 'minimal', exclude: true });
+describe('geminiGenerate()', () => {
+  it('posts the native request to the model\'s generateContent with the key header', async () => {
+    const { calls, fetchImpl } = spy({});
+    await geminiGenerate({ contents: [] }, { fetchImpl });
+    expect(calls[0].url).toBe(`https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_MODEL}:generateContent`);
+    expect(calls[0].init.headers['x-goog-api-key']).toBe('gm-test');
+    expect(calls[0].body).toEqual({ contents: [] });
   });
 });
 
 describe('the agent\'s model call', () => {
-  it('sends tools and keeps reasoning visible, so tool-call reasoning can be sent back', async () => {
+  it('sends tools with low thinking by default', async () => {
     const { calls, fetchImpl } = spy();
     const tools = [{ type: 'function', function: { name: 'search', parameters: { type: 'object', properties: {} } } }];
     const out = await callModel({ messages: [{ role: 'user', content: 'x' }], tools, fetchImpl });
     expect(out.message.content).toBe('hi');
-    expect(calls[0].body).toMatchObject({ tools, tool_choice: 'auto', reasoning: { effort: 'low' }, max_tokens: 4096 });
-    expect(calls[0].body.reasoning.exclude).toBeUndefined();
+    expect(calls[0].body).toMatchObject({ tools, tool_choice: 'auto', reasoning_effort: 'low', max_tokens: 4096 });
   });
 
-  it('returns the assistant message whole, reasoning_details included', async () => {
-    const message = { role: 'assistant', content: '', tool_calls: [{ id: 'c1', type: 'function', function: { name: 'search', arguments: '{}' } }], reasoning_details: [{ type: 'reasoning.encrypted', data: 'sig' }] };
+  it('returns the assistant message whole, thought signatures included', async () => {
+    const message = { role: 'assistant', content: '', tool_calls: [{ id: 'c1', type: 'function', function: { name: 'search', arguments: '{}' }, extra_content: { google: { thought_signature: 'sig' } } }] };
     const { fetchImpl } = spy({ choices: [{ message, finish_reason: 'tool_calls' }] });
     const out = await callModel({ messages: [], tools: [], fetchImpl });
     expect(out.message).toEqual(message);
   });
 
   it('turns an error reported inside a 200 into a failure, not an empty answer', async () => {
-    const { fetchImpl } = spy({ error: { code: 402, message: 'Insufficient credits' } });
-    await expect(callModel({ messages: [], fetchImpl })).rejects.toMatchObject({ status: 402 });
+    const { fetchImpl } = spy({ error: { code: 429, message: 'Quota exceeded' } });
+    await expect(callModel({ messages: [], fetchImpl })).rejects.toMatchObject({ status: 429 });
   });
 
   it('carries the HTTP status of a refused request', async () => {

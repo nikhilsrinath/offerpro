@@ -1,8 +1,10 @@
 // Small pieces shared by the Vendors, Purchase Invoices, Tax Summary and P&L
 // pages. They reuse the Products page's prod-* classes so the finance pages
 // look like the rest of the app rather than like a bolt-on.
-import { useRef, useState, useId } from 'react';
+import { useContext, useRef, useState, useId } from 'react';
 import { DialogSheet } from '../ui/edge';
+import { drawerWidth } from '../ui/edgeUtils';
+import { ModalSwap } from './modalSwap';
 import { X, Paperclip, Eye, Trash2 } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
 import { receiptService, RECEIPT_ACCEPT, validateReceipt } from '../../services/receiptService';
@@ -28,12 +30,15 @@ export function Stat({ icon, label, value, accent, sub, onClick }) {
   );
 }
 
-/* With `dirty`, leaving by a click outside, Escape or the × asks first, so a
-   half-entered form is not lost to a stray click. `minHeight` makes a sheet
-   that shows a list tall from the start. */
-export function Modal({ title, onClose, children, width, minHeight, dirty = false }) {
+/* The side panel the finance forms open in (drawer.css): full height from the
+   right edge, one field per row. With `dirty`, leaving by a click outside,
+   Escape or the × asks first, so a half-entered form is not lost to a stray
+   click. `width` of 900 or more keeps a wide panel for a list or ledger. */
+export function Modal({ title, onClose, children, width, dirty = false }) {
   const titleId = useId();
   const asking = useRef(false);
+  // Replacing another panel in place: no slide or fade in (modalSwap.js).
+  const swapped = useContext(ModalSwap);
   const close = async () => {
     if (asking.current) return;
     if (dirty) {
@@ -49,9 +54,9 @@ export function Modal({ title, onClose, children, width, minHeight, dirty = fals
   };
   return (
     // mousedown on the backdrop itself: a drag that starts in a field and ends outside is not a close
-    <div className="prod-modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
-      <DialogSheet className="prod-modal" labelledBy={titleId} onClose={close}
-        style={width || minHeight ? { maxWidth: width, minHeight } : undefined}>
+    <div className={swapped ? "prod-modal-backdrop no-enter" : "prod-modal-backdrop"} onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
+      <DialogSheet className={swapped ? "prod-modal no-enter" : "prod-modal"} labelledBy={titleId} onClose={close}
+        style={{ width: drawerWidth(width) }}>
         <div className="prod-modal-head">
           <h3 id={titleId}>{title}</h3>
           <button type="button" onClick={close} aria-label="Close" title="Close (Esc)"><X aria-hidden="true" size={16} /></button>

@@ -223,8 +223,9 @@ const SECTIONS = {
       budget_other: num(i.budget_other, 0),
       // 0081: only sent when there is one, so a database without it still saves.
       ...(Array.isArray(i.other_budgets) && i.other_budgets.length ? { other_budgets: i.other_budgets } : {}),
-      // 0083: likewise only when chosen.
-      ...(['waterfall', 'agile', 'hybrid'].includes(i.delivery_method) ? { delivery_method: i.delivery_method } : {}),
+      // 0083: likewise only when chosen, or '' when the form cleared it.
+      ...(['waterfall', 'agile', 'hybrid'].includes(i.delivery_method) ? { delivery_method: i.delivery_method }
+        : i.delivery_method === '' ? { delivery_method: null } : {}),
       start_date: date(i.start_date), target_end_date: date(i.target_end_date),
       actual_end_date: date(i.actual_end_date),
       source_quotation_id: nn(i.source_quotation_id),
@@ -796,6 +797,8 @@ const SECTIONS = {
       quantity: r.quantity == null ? null : Number(r.quantity), unit: r.unit || null,
       // 0095, present only when the database has the column.
       ...('receipt_number' in r ? { receipt_number: r.receipt_number || '' } : {}),
+      // 0098, money back from a vendor.
+      ...('vendor_id' in r ? { vendor_id: r.vendor_id || null } : {}),
       created_at: r.created_at, updated_at: r.updated_at,
     }),
     // As with expenses: `amount` is derived by the guard from original_amount ×
@@ -819,6 +822,9 @@ const SECTIONS = {
       receipt_path: nn(i.receipt_path), notes: nn(i.notes),
       // 0095, as on expenses.
       ...optional(i, { receipt_number: nn }),
+      // 0098. Sent only once the entry has one (picked on the form, or read
+      // from a database with the column), so a credit still saves before 0098.
+      ...optional(i, { vendor_id: nn }),
     }),
   },
 
@@ -870,6 +876,8 @@ const SECTIONS = {
       tax_amount: Number(r.tax_amount) || 0, total: Number(r.total) || 0,
       round_off: Number(r.round_off) || 0,
       other_amount: Number(r.other_amount) || 0, other_label: r.other_label || '', other_tax_rate: Number(r.other_tax_rate) || 0,
+      items: Array.isArray(r.items) ? r.items : [],
+      discount_type: r.discount_type || '', discount_value: Number(r.discount_value) || 0, discount_amount: Number(r.discount_amount) || 0,
       amount_paid: Number(r.amount_paid) || 0, status: r.status,
       paid_on: r.paid_on, receipt_path: r.receipt_path, notes: r.notes,
       created_at: r.created_at,
@@ -890,6 +898,12 @@ const SECTIONS = {
         round_off: (v) => num(v, 0),
         other_amount: (v) => num(v, 0), other_tax_rate: (v) => num(v, 0),
         other_label: (v) => nn(v),
+        // 0099. Items bought and the discount on them; subtotal is already net of it.
+        items: (v) => (Array.isArray(v) ? v : []).map((x) => ({
+          name: String(x.name || '').trim(), price: num(x.price, 0), quantity: num(x.quantity, 0), amount: num(x.amount, 0),
+        })),
+        discount_type: (v) => (v === 'percent' || v === 'amount' ? v : null),
+        discount_value: (v) => num(v, 0), discount_amount: (v) => num(v, 0),
       }),
     }),
   },

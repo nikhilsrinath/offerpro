@@ -13725,17 +13725,39 @@ label {
 
 .prod-rate-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 
-/* Purchase bill round off: a button that opens the rounded-total input. */
+/* Purchase bill totals: the figures and the rounded total on the left, the
+   Round Off button on the right. */
 .pi-round-btn { align-self: flex-start; margin-top: 0.375rem; }
-.pi-round-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.375rem; }
-.pi-round-row input { flex: 1; min-width: 0; }
-/* Other amount, its amount and its GST rate on one line. */
-.pi-other-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) auto; gap: 0.875rem; align-items: start; }
-@media (max-width: 640px) { .pi-other-grid { grid-template-columns: minmax(0, 1fr); } }
+.pi-total { display: flex; gap: 1rem; align-items: flex-start; justify-content: space-between; }
+.pi-total-figures { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; min-width: 0; }
+.pi-total-figures input { max-width: 260px; }
+.pi-total-line { margin: 0; font-size: 0.8125rem; line-height: 1.5; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.pi-total-line strong { color: var(--text-primary); font-weight: 600; }
+.pi-total > button { flex-shrink: 0; white-space: nowrap; }
 /* Money fields in the bill form: typed, not stepped. */
 .prod-field input.pi-no-spin[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .prod-field input.pi-no-spin[type="number"]::-webkit-outer-spin-button,
 .prod-field input.pi-no-spin[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
+/* Purchase bill items: name, price, quantity, amount, remove. */
+.pi-items { display: flex; flex-direction: column; gap: 0.375rem; }
+/* The name takes what the figures leave; they are kept to what a figure needs. */
+.pi-item-row { display: grid; grid-template-columns: minmax(140px, 1fr) 76px 56px 72px 24px; gap: 0.375rem; align-items: center; }
+.pi-item-row input { min-width: 0; }
+.prod-modal .pi-item-row input.pi-no-spin { padding-left: 8px; padding-right: 8px; }
+.pi-item-head { font-size: 0.7rem; color: var(--text-muted); }
+.pi-item-amount { text-align: right; font-variant-numeric: tabular-nums; font-size: 0.8125rem; color: var(--text-primary); }
+.pi-item-remove {
+  display: grid; place-items: center; width: 24px; height: 28px; padding: 0; border: none; border-radius: 6px;
+  background: transparent; color: var(--text-muted); cursor: pointer;
+}
+.pi-item-remove:hover { color: var(--text-primary); background: var(--bg-hover, rgba(0, 0, 0, 0.05)); }
+@media (max-width: 560px) {
+  .pi-item-row { grid-template-columns: minmax(0, 1fr) 72px 56px 24px; }
+  .pi-item-row > :nth-child(4) { display: none; }
+}
+/* Purchase bill discount: the figure, then % or the currency. */
+.pi-discount { display: flex; gap: 0.5rem; align-items: center; }
+.pi-discount input { flex: 1; min-width: 0; }
 
 /* ── Cash Book entry form: roomy, essentials first ─────────────────────── */
 

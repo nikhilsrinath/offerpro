@@ -185,7 +185,7 @@ export const KINDS = {
     mine: (r, ctx) => !!ctx.employeeId && r.assignee_id === ctx.employeeId,
   },
   client: {
-    table: 'clients', resource: 'clients', noun: 'client', href: () => '/business/client-directory',
+    table: 'clients', resource: 'clients', noun: 'client', href: () => '/clients/client-directory',
     select: 'id, name, person_name, email, phone, status, value, notes, source, archived_at, updated_at',
     label: (r) => r.name,
     aliases: (r) => [r.name, r.person_name, r.email].filter(Boolean),
@@ -216,7 +216,7 @@ export const KINDS = {
     inactive: (r) => ['cancelled', 'expired', 'converted'].includes(r.status),
   },
   vendor: {
-    table: 'vendors', resource: 'vendors', noun: 'vendor', href: () => '/business/vendor-directory',
+    table: 'vendors', resource: 'vendors', noun: 'vendor', href: () => '/vendors/vendor-directory',
     select: 'id, company_name, contact_name, email, archived_at, updated_at',
     label: (r) => r.company_name,
     aliases: (r) => [r.company_name, r.contact_name].filter(Boolean),

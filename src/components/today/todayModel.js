@@ -118,7 +118,7 @@ export function buildToday(src) {
         ...overdueInvoices.map((r) => ({
             id: 'inv-' + r.id, kind: 'invoice', tone: 'down',
             title: r.client, sub: `${r.number ? r.number + ' · ' : ''}${late(-r.days)}`,
-            value: inr(r.outstanding), to: '/finance/billing/invoices',
+            value: inr(r.outstanding), to: '/clients/billing/invoices',
         })),
         ...shakyProjects.map((r) => ({
             id: 'prj-' + r.project_id, kind: 'project', tone: r.health === 'off_track' ? 'down' : 'warn',
@@ -129,7 +129,7 @@ export function buildToday(src) {
         ...lateBills.map((b) => ({
             id: 'bill-' + b.id, kind: 'bill', tone: 'warn',
             title: b.vendor, sub: `${b.number ? 'Bill ' + b.number + ' · ' : ''}${daysBetween(b.due, today)} days past due`,
-            value: inr(b.left), to: '/finance/company-ledger',
+            value: inr(b.left), to: '/financials/company-ledger',
         })),
         ...lateMilestones.map((m) => ({
             id: 'ms-' + m.id, kind: 'milestone', tone: 'warn',
@@ -161,13 +161,13 @@ export function buildToday(src) {
             id: 'payments', kind: 'payment', count: paymentsIn.length,
             title: plural(paymentsIn.length, 'payment') + ' to confirm',
             sub: 'Clients say they have paid. Check the bank, then mark them paid',
-            to: '/finance/billing/invoices', action: 'Confirm',
+            to: '/clients/billing/invoices', action: 'Confirm',
         },
         revisions.length && {
             id: 'revisions', kind: 'quotation', count: revisions.length,
             title: plural(revisions.length, 'quotation') + ' to revise',
             sub: 'The client asked for changes',
-            to: '/finance/billing/quotations', action: 'Revise',
+            to: '/clients/billing/quotations', action: 'Revise',
         },
         submittedHours.length && {
             id: 'timesheets', kind: 'timesheet', count: submittedHours.length,
@@ -179,7 +179,7 @@ export function buildToday(src) {
             id: 'drafts', kind: 'draft', count: drafts.length,
             title: plural(drafts.length, 'draft invoice') + ' not issued',
             sub: inr(drafts.reduce((a, d) => a + num(d.grand_total || d.amount), 0)) + ' not billed yet',
-            to: '/finance/billing/invoices', action: 'Open',
+            to: '/clients/billing/invoices', action: 'Open',
         },
     ].filter(Boolean);
 
@@ -197,10 +197,10 @@ export function buildToday(src) {
     });
     (money?.open || []).forEach((r) => {
         const d = r.due ? localDay(r.due) : '';
-        if (inWeek(d)) ahead.push({ id: 'inv-' + r.id, day: d, kind: 'invoice', title: `${r.client} pays`, sub: r.number || 'Invoice', value: inr(r.outstanding), to: '/finance/billing/invoices' });
+        if (inWeek(d)) ahead.push({ id: 'inv-' + r.id, day: d, kind: 'invoice', title: `${r.client} pays`, sub: r.number || 'Invoice', value: inr(r.outstanding), to: '/clients/billing/invoices' });
     });
     bills.forEach((b) => {
-        if (inWeek(b.due)) ahead.push({ id: 'bill-' + b.id, day: b.due, kind: 'bill', title: `Pay ${b.vendor}`, sub: b.number ? 'Bill ' + b.number : 'Vendor bill', value: inr(b.left), to: '/finance/company-ledger' });
+        if (inWeek(b.due)) ahead.push({ id: 'bill-' + b.id, day: b.due, kind: 'bill', title: `Pay ${b.vendor}`, sub: b.number ? 'Bill ' + b.number : 'Vendor bill', value: inr(b.left), to: '/financials/company-ledger' });
     });
     leaveAhead.forEach((r) => {
         const d = day(r.start_date) < today ? today : day(r.start_date);
@@ -241,12 +241,12 @@ export function buildToday(src) {
     const priorities = [];
     const add = (p) => { if (p && priorities.length < 3) priorities.push(p); };
     const topInv = overdueInvoices[0];
-    if (topInv) add({ id: 'p-inv', title: `Chase ${topInv.client} for ${inr(topInv.outstanding)}`, why: `${late(-topInv.days)}${overdueInvoices.length > 1 ? `, the largest of ${overdueInvoices.length} overdue invoices` : ''}`, to: '/finance/billing/invoices' });
+    if (topInv) add({ id: 'p-inv', title: `Chase ${topInv.client} for ${inr(topInv.outstanding)}`, why: `${late(-topInv.days)}${overdueInvoices.length > 1 ? `, the largest of ${overdueInvoices.length} overdue invoices` : ''}`, to: '/clients/billing/invoices' });
     const off = shakyProjects[0];
     if (off) add({ id: 'p-prj', title: `Get ${off.name || off.code} back on track`, why: (off.health === 'off_track' ? 'Off track' : 'At risk') + (off.health_reasons?.length ? ': ' + off.health_reasons[0] : ''), to: `/projects/${off.project_id}` });
     if (decisions.length) add({ id: 'p-dec', title: `Clear ${plural(decisions.reduce((a, d) => a + d.count, 0), 'item')} waiting on you`, why: decisions.map((d) => d.title).join(' · '), to: decisions[0].to });
     const topBill = lateBills[0];
-    if (topBill) add({ id: 'p-bill', title: `Pay ${topBill.vendor} ${inr(topBill.left)}`, why: `${daysBetween(topBill.due, today)} days past the bill's due date`, to: '/finance/company-ledger' });
+    if (topBill) add({ id: 'p-bill', title: `Pay ${topBill.vendor} ${inr(topBill.left)}`, why: `${daysBetween(topBill.due, today)} days past the bill's due date`, to: '/financials/company-ledger' });
     if (lateTasks.length) add({ id: 'p-task', title: `Close ${plural(lateTasks.length, 'overdue task')}`, why: day(lateTasks[0].deadline) ? `The oldest was due ${fmtDay(day(lateTasks[0].deadline))}` : 'Marked overdue', to: '/projects/tasks' });
     if (todayTasks.length) add({ id: 'p-today', title: `Finish ${plural(todayTasks.length, 'task')} due today`, why: todayTasks.slice(0, 2).map((x) => x.title).join(', '), to: '/projects/tasks' });
 

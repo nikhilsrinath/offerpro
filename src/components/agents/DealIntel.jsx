@@ -49,7 +49,7 @@ const SEVERITY = {
     low: { label: 'Low', dot: '' },
 };
 
-const CRM = '/business/crm';
+const CRM = '/clients/crm';
 
 const DEAL_TOGGLES = [
     ['daily', 'Daily Run', 'Every morning on the server, even when nobody has EdgeOS open. The same as Run Automatically on the card.'],

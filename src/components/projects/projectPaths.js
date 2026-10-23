@@ -4,7 +4,7 @@
    switcher: the view chosen there.
 
      /projects/:id                                         opens /projects/:id/dashboard/overview
-     /projects/:id/finance/billing/proforma                Finance › Billing › Proforma
+     /projects/:id/client-management/billing/proforma      Client › Billing › Proforma
      /projects/:id/team-management/attendance              Team Management › Attendance
      /projects/:id/documents-management/project-documents/general-documents
 
@@ -17,7 +17,7 @@ import { projectRef } from './projectSlug';
 export const SECTION_PATHS = {
     finance: 'finance/status',
     cashbook: 'finance/general-ledger',
-    billing: 'finance/billing',
+    billing: 'client-management/billing',
     bills: 'finance/company-ledger',
     tax: 'finance/tax-summary',
     pl: 'finance/profit-loss',
@@ -34,7 +34,11 @@ export const SECTION_PATHS = {
     crm: 'client-management/crm',
     comms: 'client-management/client-communication',
     payments: 'client-management/payment-status',
+    'client-ledger': 'client-management/company-ledger',
+    'client-general': 'client-management/general-ledger',
     vendors: 'vendor-management/vendor-directory',
+    'vendor-ledger': 'vendor-management/company-ledger',
+    'vendor-general': 'vendor-management/general-ledger',
     documents: 'documents-management/project-documents',
     templates: 'documents-management/custom-templates',
     milestones: 'milestones',
@@ -47,7 +51,7 @@ export const BILLING_VIEWS = { quotation: 'quotations', proforma: 'proforma', in
 export const DOCUMENT_VIEWS = { business: 'business-documents', files: 'general-documents' };
 
 /**
- * A Billing form inside the project: Finance › Billing › Quotations › New, or
+ * A Billing form inside the project: Client › Billing › Quotations › New, or
  * (for an existing one) …/<id>/edit.
  */
 export function projectBillingFormPath(projectId, kind, docId) {
@@ -94,6 +98,9 @@ export function parseProjectPath(pathname) {
     if (rest === 'finance/cash-book') return { section: 'cashbook', view: null };
     // And the Company Ledger was Purchase Bills.
     if (rest === 'finance/purchase-bills') return { section: 'bills', view: null };
+    // Billing was a page of Finance before it moved to Client.
+    if (rest === 'finance/billing') return { section: 'billing', view: null };
+    if (rest.startsWith('finance/billing/')) return { section: 'billing', view: rest.slice('finance/billing/'.length) };
     for (const [section, path] of Object.entries(SECTION_PATHS)) {
         if (rest === path) return { section, view: null };
         if (rest.startsWith(path + '/')) return { section, view: rest.slice(path.length + 1) };

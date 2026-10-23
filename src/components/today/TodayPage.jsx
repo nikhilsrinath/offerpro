@@ -177,13 +177,13 @@ export default function TodayPage() {
             {/* ── snapshot ─────────────────────────────────────────────── */}
             <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
                 <Tile icon={Wallet} label="Net Cash" value={headline(s.netCash)} tone={s.netCash < 0 ? 'down' : undefined}
-                    foot={`${headline(s.cashIn)} in · ${headline(s.cashOut)} out, all time`} onClick={go('/finance/general-ledger')} />
+                    foot={`${headline(s.cashIn)} in · ${headline(s.cashOut)} out, all time`} onClick={go('/financials/general-ledger')} />
                 <Tile icon={HandCoins} label="Owed to You" value={headline(s.receivable)}
                     foot={s.overdueCount ? `${s.overdueCount} overdue · ${headline(s.overdueValue)}` : 'Nothing overdue'}
-                    tone={s.overdueCount ? 'down' : undefined} onClick={go('/finance/billing/invoices')} />
+                    tone={s.overdueCount ? 'down' : undefined} onClick={go('/clients/billing/invoices')} />
                 <Tile icon={Truck} label="You Owe Vendors" value={headline(s.payable)}
                     foot={s.billsThisWeek ? `${s.billsThisWeek} due this week · ${headline(s.billsThisWeekValue)}` : 'No bills due this week'}
-                    onClick={go('/finance/company-ledger')} />
+                    onClick={go('/financials/company-ledger')} />
                 <Tile icon={ListChecks} label="Open Tasks" value={String(s.openTasks)} tone={s.lateTasks ? 'down' : undefined}
                     foot={`${s.lateTasks} overdue · ${s.todayTasks} due today`} onClick={go('/projects/tasks')} />
             </div>

@@ -214,11 +214,11 @@ describe('the deal tools', () => {
     expect(result).not.toMatch(/₹/);
   });
 
-  it('a model (OpenRouter) failure surfaces as an error, with nothing written', async () => {
+  it('a model (Gemini) failure surfaces as an error, with nothing written', async () => {
     const { db, ctx } = world();
     const { events, emit } = collect();
-    const down = async () => { throw new Error('OpenRouter 502'); };
-    await expect(runChat(ctx, { message: 'Which deals are at risk?', chatId: 'c1', messageId: 'm1' }, emit, { callModelImpl: down })).rejects.toThrow('OpenRouter 502');
+    const down = async () => { throw new Error('Gemini 502'); };
+    await expect(runChat(ctx, { message: 'Which deals are at risk?', chatId: 'c1', messageId: 'm1' }, emit, { callModelImpl: down })).rejects.toThrow('Gemini 502');
     expect(events.some((e) => e.event === 'text')).toBe(false);
     expect(db.writes).toEqual([]);
   });

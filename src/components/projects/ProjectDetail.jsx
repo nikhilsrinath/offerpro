@@ -12,6 +12,7 @@ import ProjectFinanceStatus, { ProjectProfitLoss, ProjectLedger } from './Projec
 import ProjectBilling from './ProjectBilling';
 import CashBook from '../financial/CashBook';
 import PurchaseInvoices from '../financial/PurchaseInvoices';
+import PartyLedger from '../financial/PartyLedger';
 import TaxSummary from '../financial/TaxSummary';
 import ProjectTeam from './ProjectTeam';
 
@@ -50,22 +51,28 @@ import {
    its widget board. Dashboard's pages are their own routes
    (/projects/:id/dashboard/:view, ProjectDashboards) in the same rail;
    every other item is that section's full page, under the same heading, at
-   a path named after the rail (projectPaths: /projects/:id/finance/billing).
+   a path named after the rail (projectPaths: /projects/:id/client-management/billing).
    ══════════════════════════════════════════════════════════════════════════ */
 
 const TABS = [
     // Not a tab: its own pages (/dashboard/:view), folded under this item
     // in the rail like Finance (projectDashboardGroup).
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, away: true },
-    // Finance is six pages, folded under one Finance item in the rail
-    // (projectRail). Financial Status keeps the id 'finance', so older
-    // ?tab=finance links still land on it.
-    { id: 'finance', parent: 'finance', label: 'Status', icon: Gauge, fin: true },
-    { id: 'cashbook', parent: 'finance', label: 'General Ledger', icon: BookOpen, fin: true },
-    { id: 'billing', parent: 'finance', label: 'Billing', icon: Receipt, fin: true },
-    { id: 'bills', parent: 'finance', label: 'Company Ledger', icon: ShoppingCart, fin: true },
-    { id: 'tax', parent: 'finance', label: 'Tax Summary', icon: Scale, fin: true },
-    { id: 'pl', parent: 'finance', label: 'Profit & Loss', icon: TrendingUp, fin: true },
+    // Client and Vendor Management (0074), folded the same way, right after
+    // the Dashboard in the rail. Each side's two ledgers first, General then
+    // Company: the project's money with its clients, and with its vendors.
+    // Without project money, the directory is the group's first page.
+    { id: 'client-general', parent: 'cm', label: 'General Ledger', icon: BookOpen, fin: true },
+    { id: 'client-ledger', parent: 'cm', label: 'Company Ledger', icon: ShoppingCart, fin: true },
+    // Billing: what the project bills its clients, so a page of Client.
+    { id: 'billing', parent: 'cm', label: 'Billing', icon: Receipt, fin: true },
+    { id: 'clients', parent: 'cm', label: 'Client Directory', icon: Contact },
+    { id: 'crm', parent: 'cm', label: 'CRM', icon: Kanban },
+    { id: 'comms', parent: 'cm', label: "Client's Communication", icon: MessagesSquare },
+    { id: 'payments', parent: 'cm', label: 'Payment Status & Pendings', icon: BadgeIndianRupee, fin: true, pay: true },
+    { id: 'vendor-general', parent: 'vm', label: 'General Ledger', icon: BookOpen, fin: true },
+    { id: 'vendor-ledger', parent: 'vm', label: 'Company Ledger', icon: ShoppingCart, fin: true },
+    { id: 'vendors', parent: 'vm', label: 'Vendor Directory', icon: Truck },
     // Project Management is four pages over the project's tasks, folded the
     // same way. The Kanban board keeps the id 'tasks', so older ?tab=tasks
     // links (and EdgeAI's) still land on the board they used to.
@@ -83,14 +90,17 @@ const TABS = [
     { id: 'raci', parent: 'tm', label: 'Team Hierarchy', icon: Network },
     { id: 'attendance', parent: 'tm', label: 'Attendance', icon: CalendarCheck },
     { id: 'announcements', parent: 'tm', label: 'Announcements', icon: Megaphone },
-    // Client, Vendor and Documents Management (0074), folded the same way.
-    // Project Documents keeps the id 'documents', so older ?tab=documents
-    // links land on it; the links it used to be are its Linked records view.
-    { id: 'clients', parent: 'cm', label: 'Client Directory', icon: Contact },
-    { id: 'crm', parent: 'cm', label: 'CRM', icon: Kanban },
-    { id: 'comms', parent: 'cm', label: "Client's Communication", icon: MessagesSquare },
-    { id: 'payments', parent: 'cm', label: 'Payment Status & Pendings', icon: BadgeIndianRupee, fin: true, pay: true },
-    { id: 'vendors', parent: 'vm', label: 'Vendor Directory', icon: Truck },
+    // Financials is five pages, folded under one Financials item in the rail
+    // (projectRail), just above Documents. Financial Status keeps the id
+    // 'finance', so older ?tab=finance links still land on it.
+    { id: 'finance', parent: 'finance', label: 'Status', icon: Gauge, fin: true },
+    { id: 'cashbook', parent: 'finance', label: 'General Ledger', icon: BookOpen, fin: true },
+    { id: 'bills', parent: 'finance', label: 'Company Ledger', icon: ShoppingCart, fin: true },
+    { id: 'tax', parent: 'finance', label: 'Tax Summary', icon: Scale, fin: true },
+    { id: 'pl', parent: 'finance', label: 'Profit & Loss', icon: TrendingUp, fin: true },
+    // Documents Management (0074), folded the same way. Project Documents
+    // keeps the id 'documents', so older ?tab=documents links land on it; the
+    // links it used to be are its Linked records view.
     { id: 'documents', parent: 'dm', label: 'Project Documents', icon: FolderOpen },
     { id: 'templates', parent: 'dm', label: 'Custom Templates', icon: FilePen },
     // Reached from the dashboards' links, not listed in the rail.
@@ -112,7 +122,7 @@ export function activeSection(pathname, sections = projectSections()) {
 
 // The folded items of the rail, and what their pages are called as a group.
 const GROUPS = {
-    finance: { label: 'Finance', icon: Wallet },
+    finance: { label: 'Financials', icon: Wallet },
     pm: { label: 'Project', icon: FolderKanban },
     tm: { label: 'Team', icon: UsersRound },
     cm: { label: 'Client', icon: Handshake },
@@ -264,9 +274,10 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                     // page always sees the real width and re-flows.
                     gridTemplateColumns: 'minmax(0, 1fr)',
                 }}>
-                    {/*: heading: the project over the section, */}
-                    <div style={{ padding: '2px 2px 0', display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
+                    {/*: heading: the project over the section, with who and
+                        where (code, state, client, manager) at the top right, */}
+                    <div style={{ padding: '2px 2px 0', display: 'flex', alignItems: 'flex-start', gap: isMobile ? 10 : 16, flexWrap: 'wrap' }}>
+                        <div style={{ flex: '1 1 260px', minWidth: 0 }}>
                             <div style={{
                                 fontSize: 13.5, fontWeight: 500, color: t.dim, marginBottom: 6,
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -279,24 +290,26 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                             }}>{section.label}</h1>
                         </div>
+                        <Row gap={8} wrap style={{
+                            flex: '0 1 auto', minWidth: 0, maxWidth: '100%',
+                            justifyContent: isMobile ? 'flex-start' : 'flex-end',
+                            marginLeft: isMobile ? 0 : 'auto', paddingTop: 2,
+                        }}>
+                            {project.code && <span style={{ fontSize: 12, color: t.faint, letterSpacing: '0.04em' }}>{project.code}</span>}
+                            <Status tone={STATUS_TONE[project.status]}>{statusLabel(project.status)}</Status>
+                            {!closed && health && <HealthChip health={health.health} reasons={health.reasons} />}
+                            {project.archived_at && <Muted>Archived</Muted>}
+                            <Chip t={t}>
+                                {client
+                                    ? <>Client: <Link to={`/clients/client-directory?client=${client.id}`} style={{ color: 'inherit' }}>{clientName}</Link></>
+                                    : 'Internal Project'}
+                            </Chip>
+                            {project.delivery_method && <Chip t={t}>{deliveryLabel(project.delivery_method)} Method</Chip>}
+                            {manager && (
+                                <Chip t={t} lead><Avatar name={manager.name || ''} size={18} />{manager.name}</Chip>
+                            )}
+                        </Row>
                     </div>
-
-                    {/*: who and where: code, state, client, manager, */}
-                    <Row gap={10} wrap style={{ marginTop: -6, padding: '0 2px' }}>
-                        {project.code && <span style={{ fontSize: 12, color: t.faint, letterSpacing: '0.04em' }}>{project.code}</span>}
-                        <Status tone={STATUS_TONE[project.status]}>{statusLabel(project.status)}</Status>
-                        {!closed && health && <HealthChip health={health.health} reasons={health.reasons} />}
-                        {project.archived_at && <Muted>Archived</Muted>}
-                        <Chip t={t}>
-                            {client
-                                ? <>Client: <Link to={`/business/client-directory?client=${client.id}`} style={{ color: 'inherit' }}>{clientName}</Link></>
-                                : 'Internal Project'}
-                        </Chip>
-                        {project.delivery_method && <Chip t={t}>{deliveryLabel(project.delivery_method)} Method</Chip>}
-                        {manager && (
-                            <Chip t={t} lead><Avatar name={manager.name || ''} size={18} />{manager.name}</Chip>
-                        )}
-                    </Row>
 
                     {problems?.length > 0 && (
                         <div role="alert" style={{ fontSize: 12.5, color: t.down }}>
@@ -339,6 +352,20 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                         {tab === 'comms' && <ClientCommunication key={params.get('client') || 'all'} project={project} />}
                         {tab === 'payments' && fin && <PaymentStatus project={project} />}
                         {tab === 'vendors' && <VendorDirectory project={project} />}
+                        {tab === 'client-ledger' && fin && <PartyLedger key="client-company" party="client" book="company" projectId={project.id} onOpen={openTab} />}
+                        {tab === 'client-general' && fin && <PartyLedger key="client-general" party="client" book="general" projectId={project.id} onOpen={openTab} />}
+                        {/* The Vendor ledgers are the project's Company Ledger and General
+                            Ledger pages, kept to what is with a vendor. */}
+                        {tab === 'vendor-ledger' && fin && (
+                            <PurchaseInvoices key="vendor-company" projectId={project.id} party="vendor">
+                                {(list) => <ProjectLedger project={project} onOpen={openTab} only="purchases" here="bills" {...list} />}
+                            </PurchaseInvoices>
+                        )}
+                        {tab === 'vendor-general' && fin && (
+                            <CashBook key="vendor-general" projectId={project.id}>
+                                {({ onEdit, narrow, onTotals }) => <ProjectLedger project={project} onOpen={openTab} onEdit={onEdit} narrow={narrow} onTotals={onTotals} party="vendor" only="purchases" here="cashbook" readOnly />}
+                            </CashBook>
+                        )}
                         {tab === 'documents' && <ProjectFiles project={project} view={documentsViewOf(view)} onView={openView} />}
                         {tab === 'templates' && <ProjectTemplates project={project} onOpen={openTab} />}
                         {tab === 'activity' && <ProjectActivity project={project} />}

@@ -180,7 +180,7 @@ export function detectDeadlines(input, today, rawConfig) {
       action: submitted ? `Confirm the payment ${client || 'the client'} says they made.`
         : days < 0 ? `Send ${client || 'the client'} a payment reminder.`
           : `Make sure ${client || 'the client'} is set to pay by ${formatDateShort(d.due_date, today)}.`,
-      href: '/finance/billing/invoices',
+      href: '/clients/billing/invoices',
     });
   }
 
@@ -197,7 +197,7 @@ export function detectDeadlines(input, today, rawConfig) {
       due: b.due_date, days, when: whenText(days), status: b.status, severity, reason: whenText(days),
       project: projectOf(b.project_id), party: vendor, owner: null, amount: owed, currency: 'INR',
       action: days < 0 ? `Pay ${vendor || 'the vendor'} or agree a new date with them.` : `Schedule the payment to ${vendor || 'the vendor'}.`,
-      href: '/finance/company-ledger',
+      href: '/financials/company-ledger',
     });
   }
 

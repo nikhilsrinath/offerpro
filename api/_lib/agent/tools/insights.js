@@ -216,7 +216,7 @@ const business_overview = {
 
 /* ── what needs attention ─────────────────────────────────────────────────── */
 
-const LINK = { bill: '/finance/company-ledger' };
+const LINK = { bill: '/financials/company-ledger' };
 
 /** Insight sources as conversation entities (records the user can open). */
 function sourcesOf(list) {

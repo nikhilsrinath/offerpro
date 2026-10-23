@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { DialogSheet, RowMenu } from './ui/edge';
+import { RowMenu } from './ui/edge';
+import { Modal } from './financial/financeUi';
 import {
-  Plus, Search, Edit3, Trash2, X, UserPlus,
+  Plus, Search, Edit3, Trash2, UserPlus,
   Mail, MapPin, Phone, Hash, ArrowLeft, FileText, FolderKanban,
 } from 'lucide-react';
 import { customerService } from '../services/customerService';
@@ -496,27 +497,19 @@ export default function Customers() {
         />
         {/* Edit modal (reused) */}
         {modalOpen && (
-          <div className="customer-modal-overlay" onClick={() => setModalOpen(false)}>
-            <DialogSheet className="customer-modal" labelledBy="customer-edit-title" onClose={() => setModalOpen(false)}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                <h3 id="customer-edit-title" style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>Edit Client</h3>
-                <button type="button" aria-label="Close" title="Close (Esc)" onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '0.25rem' }}>
-                  <X aria-hidden="true" size={20} />
+          <Modal title="Edit Client" onClose={() => setModalOpen(false)}>
+            <form onSubmit={handleSave} className="prod-modal-body">
+              {formFields()}
+              <div className="prod-modal-foot">
+                <button type="button" onClick={() => setModalOpen(false)} className="prod-btn-ghost">
+                  Cancel
+                </button>
+                <button type="submit" disabled={saving} className="prod-btn-primary">
+                  {saving ? 'Saving...' : 'Update Client'}
                 </button>
               </div>
-              <form onSubmit={handleSave}>
-                {formFields()}
-                <div className="form-actions" style={{ marginTop: '1.5rem' }}>
-                  <button type="button" onClick={() => setModalOpen(false)} className="easy-submit-outline">
-                    Cancel
-                  </button>
-                  <button type="submit" disabled={saving} className="easy-submit">
-                    {saving ? 'Saving...' : 'Update Client'}
-                  </button>
-                </div>
-              </form>
-            </DialogSheet>
-          </div>
+            </form>
+          </Modal>
         )}
       </>
     );
@@ -639,29 +632,19 @@ export default function Customers() {
 
       {/* Add / Edit Modal */}
       {modalOpen && (
-        <div className="customer-modal-overlay" onClick={() => setModalOpen(false)}>
-          <DialogSheet className="customer-modal" labelledBy="customer-form-title" onClose={() => setModalOpen(false)}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-              <h3 id="customer-form-title" style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>
-                {editingCustomer ? 'Edit Client' : 'Add Client'}
-              </h3>
-              <button type="button" aria-label="Close" title="Close (Esc)" onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '0.25rem' }}>
-                <X aria-hidden="true" size={20} />
+        <Modal title={editingCustomer ? 'Edit Client' : 'Add Client'} onClose={() => setModalOpen(false)}>
+          <form onSubmit={handleSave} className="prod-modal-body">
+            {formFields()}
+            <div className="prod-modal-foot">
+              <button type="button" onClick={() => setModalOpen(false)} className="prod-btn-ghost">
+                Cancel
+              </button>
+              <button type="submit" disabled={saving} className="prod-btn-primary">
+                {saving ? 'Saving...' : editingCustomer ? 'Update Client' : 'Add Client'}
               </button>
             </div>
-            <form onSubmit={handleSave}>
-              {formFields()}
-              <div className="form-actions" style={{ marginTop: '1.5rem' }}>
-                <button type="button" onClick={() => setModalOpen(false)} className="easy-submit-outline">
-                  Cancel
-                </button>
-                <button type="submit" disabled={saving} className="easy-submit">
-                  {saving ? 'Saving...' : editingCustomer ? 'Update Client' : 'Add Client'}
-                </button>
-              </div>
-            </form>
-          </DialogSheet>
-        </div>
+          </form>
+        </Modal>
       )}
     </div>
   );

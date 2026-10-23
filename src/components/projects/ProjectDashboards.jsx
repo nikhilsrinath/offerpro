@@ -263,7 +263,7 @@ function SalesView({ board, open, navigate, t, status, cols, tileCols }) {
                     <ListRow key={d.id} label={`${d.doc_number || d.invoiceNumber || 'Invoice'}`}
                         sub={`${fmtDay(d.issue_date)} · ${stateLabel[d.state]}`}
                         value={fmtShort(d.grand_total)} tone={d.state === 'overdue' ? 'down' : null}
-                        onClick={() => navigate('/finance/billing/invoices')} />
+                        onClick={() => navigate('/clients/billing/invoices')} />
                 )) : <EmptyNote>No invoices linked yet.</EmptyNote>}
                 {invoices.length > 0 && (
                     <div style={{ marginTop: 12 }}>
@@ -280,7 +280,7 @@ function SalesView({ board, open, navigate, t, status, cols, tileCols }) {
                     <ListRow key={d.id} label={`${FIN_LABEL[d.type]} · ${d.doc_number || d.invoiceNumber || ''}`}
                         sub={`${fmtDay(d.issue_date)} · ${(d.status || '').replace(/_/g, ' ')}`}
                         value={fmtShort(d.grand_total)}
-                        onClick={() => navigate(d.type === 'quotation' ? `/finance/billing/quotations/${d.id}/edit` : '/finance/billing/proforma')} />
+                        onClick={() => navigate(d.type === 'quotation' ? `/clients/billing/quotations/${d.id}/edit` : '/clients/billing/proforma')} />
                 )) : <EmptyNote>No quotation linked. Link the one this project came from on Documents.</EmptyNote>}
             </Card>
 
@@ -294,7 +294,7 @@ function SalesView({ board, open, navigate, t, status, cols, tileCols }) {
                     {sibling.slice(0, 4).map((p) => (
                         <ListRow key={p.id} label={p.name || p.code} sub={p.code} onClick={() => navigate(`/projects/${projectRef(p.id)}`)} />
                     ))}
-                    <div style={{ marginTop: 10 }}><More label="Client" to={`/business/client-directory?client=${client.id}`} /></div>
+                    <div style={{ marginTop: 10 }}><More label="Client" to={`/clients/client-directory?client=${client.id}`} /></div>
                 </>) : <EmptyNote>This project has no client, so there is nothing to sell.</EmptyNote>}
             </Card>
         </CardGrid>
@@ -377,10 +377,10 @@ function DocumentsView({ board, open, navigate, cat, cols, tileCols }) {
             const r = l.record_id ? rec[l.record_id] : null;
             const d = l.financial_document_id ? fd[l.financial_document_id] : null;
             if (r) return { id: l.id, group: 'agreements', type: RECORD_LABEL[r.type] || r.type, title: r.title || r.doc_number, date: r.issue_date, to: '/documents/records' };
-            if (d) return { id: l.id, group: 'sales', type: FIN_LABEL[d.type] || 'Document', title: d.doc_number || d.invoiceNumber, date: d.issue_date, to: d.type === 'quotation' ? `/finance/billing/quotations/${d.id}/edit` : '/finance/billing/proforma' };
+            if (d) return { id: l.id, group: 'sales', type: FIN_LABEL[d.type] || 'Document', title: d.doc_number || d.invoiceNumber, date: d.issue_date, to: d.type === 'quotation' ? `/clients/billing/quotations/${d.id}/edit` : '/clients/billing/proforma' };
             return null;
         }).filter(Boolean);
-        const inv = fin ? invoices.map((d) => ({ id: `inv:${d.id}`, group: 'invoices', type: 'Invoice', title: d.doc_number || d.invoiceNumber, date: d.issue_date, to: '/finance/billing/invoices' })) : [];
+        const inv = fin ? invoices.map((d) => ({ id: `inv:${d.id}`, group: 'invoices', type: 'Invoice', title: d.doc_number || d.invoiceNumber, date: d.issue_date, to: '/clients/billing/invoices' })) : [];
         return [...linked, ...inv].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
     }, [links, records, docs, invoices, project.id, fin]);
 

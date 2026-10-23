@@ -320,7 +320,7 @@ const create_cash_entry = {
     return line;
   },
 
-  href: () => '/finance/general-ledger',
+  href: () => '/financials/general-ledger',
 };
 
 

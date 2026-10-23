@@ -6,9 +6,9 @@ import {
 } from '../../services/financeCategories';
 import { useToast } from '../shared/Toast';
 import CountrySelect from '../shared/CountrySelect';
-import { INDIAN_STATES } from '../../data/indianStates';
+import PlaceOfSupplyInput from './PlaceOfSupplyInput';
 import { Modal, ReceiptField } from './financeUi';
-import { LedgerSteps } from './LedgerTypePicker';
+import { ledgerTypes } from './ledgerTypes';
 import ProjectPicker from '../shared/ProjectPicker';
 import VendorSelect from '../shared/VendorSelect';
 import { pickerFromAllocations, saveSplitFromPicker, friendlyError } from '../../services/projectService';
@@ -28,8 +28,12 @@ const PAYROLL = { salaries: 'employee', Salaries: 'employee', intern_stipend: 'i
  * Bills (whose "Record payment" opens it in place). `fresh(direction)` gives
  * the blank entry when the direction is switched, on a project's page it is
  * already the project's. With `projectId` "Paid to" lists the project's vendors.
+ * With `onType` it is a Company Ledger Credit or Debit, its side already
+ * chosen: picking the purchase bill's or Vendor Payment's Type hands over to
+ * that form (`onType(label)`). On a Client or Vendor page (`party` 'client' or
+ * 'vendor') a credit is from that side only, with no Client | Vendor switch.
  */
-export default function CashEntryModal({ entry, fresh = blank, onClose, typeChosen = false, onStep, projectId = null }) {
+export default function CashEntryModal({ entry, fresh = blank, onClose, onType, projectId = null, party = null }) {
   const toast = useToast();
   const clients = useSection('customers');
   const vendors = useSection('vendors');
@@ -75,6 +79,19 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
       || (!p.exited_at && (payroll === 'intern') === (p.offerType === 'intern')))
     : [];
 
+  // A credit is from a client or from a vendor (a refund, 0098), never both.
+  // `vendor_id` is only put on the entry once a vendor is involved, so a
+  // credit from a client still saves on a database without the column.
+  // A fresh credit from the Vendor ledger starts with vendor_id '' (chosen next).
+  const [paidByVendor, setPaidByVendor] = useState(() => (party ? party === 'vendor'
+    : entry?.direction === 'in' && entry?.vendor_id != null));
+  const payFrom = (vendor) => {
+    setPaidByVendor(vendor);
+    setEditing((e) => (vendor
+      ? { ...e, client_id: '' }
+      : { ...e, ...('vendor_id' in e ? { vendor_id: '' } : {}) }));
+  };
+
   // A debit to a vendor (VendorPaymentModal): Against Pending or Advance,
   // switchable on an edit. Only the category says which.
   const vendorPay = editing?.direction === 'out' && VENDOR_PAY.has(editing.category);
@@ -118,9 +135,9 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
       date: e.date, payment_method: e.payment_method, reference: e.reference,
       country_code: e.country_code, place_of_supply: e.place_of_supply,
       is_inter_state: e.is_inter_state,
-      quantity: e.quantity, unit: e.unit,
       receipt_path: e.receipt_path, receipt_number: e.receipt_number, notes: e.notes,
     }));
+    setPaidByVendor(party === 'vendor');
     setFormError('');
   };
 
@@ -192,22 +209,55 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
     : null;
 
   // "Type" is the category's group and "Sub-Type" the category inside it;
-  // only the category is stored. Picking a Type moves to its first category.
+  // only the category is stored. Picking a Type moves to its first category,
+  // or, for a new Company Ledger entry, to the bill or Vendor Payment form.
   const typeGroups = editing ? groupedCategories(editing.direction) : [];
+  const types = editing ? ledgerTypes(editing.direction) : [];
   const typeLabel = picked?.group_label || typeGroups[0]?.label || '';
   const typeGroup = typeGroups.find((g) => g.label === typeLabel) || null;
   const setType = (label) => {
+    if (onType && !editing.id && types.find((x) => x.label === label)?.kind !== 'entry') { onType(label); return; }
     const first = typeGroups.find((g) => g.label === label)?.items[0];
     if (first) set('category', first.key);
   };
 
+  // A new Company Ledger Credit or Debit starts with its Type, as the bill
+  // and Vendor Payment forms it can hand over to do.
+  const typeFirst = !!onType && !editing.id && !payingBill;
+  const typeRows = (
+    <>
+      <div className="prod-field">
+        <label htmlFor="cb-type">Type</label>
+        <select id="cb-type" value={typeLabel} onChange={(e) => setType(e.target.value)}>
+          {types.map((x) => <option key={x.label} value={x.label}>{titleCase(x.name)}</option>)}
+          {/* The row's own group, when none of its categories is offered any more. */}
+          {typeLabel && !typeGroup && <option value={typeLabel}>{typeLabel}</option>}
+        </select>
+      </div>
+      <div className="prod-field">
+        <label htmlFor="cb-cat">Sub-Type</label>
+        <select id="cb-cat" value={editing.category}
+          onChange={(e) => set('category', e.target.value)}>
+          {(typeGroup?.items || []).map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+          {/* The row's own category, when it is one no longer offered. */}
+          {editing.category && !picked?.active && (
+            <option value={editing.category}>{categoryLabel(editing.category)}</option>
+          )}
+        </select>
+        {/* aria-live because the text changes under a control the user is operating. */}
+        <p className="prod-field-note" aria-live="polite" title={pickedTreatment?.note}>
+          {picked?.hint || pickedTreatment?.label}
+        </p>
+      </div>
+    </>
+  );
+
   return (
     <Modal
-      width={1180}
       title={editing.id
         ? `Edit ${editing.direction === 'in' ? 'credit' : editing.purchase_invoice_id ? 'bill payment' : 'debit'}`
         : editing.purchase_invoice_id ? 'Record a bill payment'
-          : typeChosen ? `Record a ${editing.direction === 'in' ? 'Credit' : 'Debit'}` : 'Record money'}
+          : onType ? `Record a ${editing.direction === 'in' ? 'Credit' : 'Debit'}` : 'Record money'}
       onClose={onClose}
     >
       <form onSubmit={handleSave} className="prod-modal-body cb-form">
@@ -225,17 +275,8 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
           </p>
         )}
 
-        {/* With `typeChosen` the Type and Sub-Type were picked a step before,
-            so the side and the kind are settled and only named here. */}
-        {typeChosen && !payingBill && onStep && <LedgerSteps step={3} onStep={onStep} />}
-        {typeChosen && !payingBill && (
-          <p className="prod-perf-note">
-            {editing.direction === 'in' ? 'Credit' : 'Debit'} · {titleCase(typeLabel)} · <strong>{titleCase(categoryLabel(editing.category))}</strong>
-            {(picked?.hint || pickedTreatment?.label) ? ` · ${picked?.hint || pickedTreatment?.label}` : ''}
-          </p>
-        )}
-
-        {!editing.id && !payingBill && !typeChosen && (
+        {/* With `onType` the side was chosen on Record Money. */}
+        {!editing.id && !payingBill && !onType && (
           <div className="cb-direction" role="group" aria-label="Direction">
             <button type="button" aria-pressed={editing.direction === 'in'}
               className={editing.direction === 'in' ? 'active' : ''}
@@ -252,6 +293,8 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
 
         {/*: the essentials: how much, when, what for, who, where it belongs, then the proof, */}
         <div className="prod-form-grid">
+          {typeFirst && typeRows}
+
           <div className="prod-field">
             <label className="req" htmlFor="cb-amount">Amount</label>
             <div className="cb-amount">
@@ -286,12 +329,32 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
               the group (Type) and the category inside it (Sub-Type). */}
           {editing.direction === 'in' ? (
             <div className="prod-field full">
-              <label htmlFor="cb-client">Who paid you</label>
-              <select id="cb-client" value={editing.client_id || ''}
-                onChange={(e) => set('client_id', e.target.value)}>
-                <option value="">Not recorded</option>
-                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <label htmlFor={paidByVendor ? 'cb-from-vendor' : 'cb-client'}>{party === 'vendor' ? 'Vendor' : party === 'client' ? 'Client' : 'Who paid you'}</label>
+              {/* A client, or a vendor paying money back (0098): one or the other.
+                  A Client or Vendor page already says which. */}
+              {!party && (
+              <div className="cb-direction" role="group" aria-label="Who paid you" style={{ marginBottom: 8 }}>
+                <button type="button" aria-pressed={!paidByVendor} className={!paidByVendor ? 'active' : ''}
+                  onClick={() => payFrom(false)}>
+                  Client
+                </button>
+                <button type="button" aria-pressed={paidByVendor} className={paidByVendor ? 'active' : ''}
+                  onClick={() => payFrom(true)}>
+                  Vendor
+                </button>
+              </div>
+              )}
+              {paidByVendor ? (
+                <VendorSelect id="cb-from-vendor" value={editing.vendor_id || ''} noneLabel="Not recorded"
+                  vendors={vendors.filter((v) => !v.archived_at || v.id === editing.vendor_id)}
+                  onChange={(v) => set('vendor_id', v)} projectId={projectId} />
+              ) : (
+                <select id="cb-client" value={editing.client_id || ''}
+                  onChange={(e) => set('client_id', e.target.value)}>
+                  <option value="">Not recorded</option>
+                  {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              )}
             </div>
           ) : payroll ? (
             <div className="prod-field full">
@@ -345,33 +408,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
               value={`${[payingBill.category, payingBill.description].filter(Boolean).join(' · ') || 'Purchase'} (bill payment)`} />
             <p className="prod-field-note">From the bill. It already counts the cost and its GST, so this is cash only.</p>
           </div>
-          ) : typeChosen || vendorPay ? null : (
-          <>
-            <div className="prod-field">
-              <label htmlFor="cb-type">Type</label>
-              <select id="cb-type" value={typeLabel} onChange={(e) => setType(e.target.value)}>
-                {typeGroups.map((g) => <option key={g.label} value={g.label}>{g.label}</option>)}
-                {/* The row's own group, when none of its categories is offered any more. */}
-                {typeLabel && !typeGroup && <option value={typeLabel}>{typeLabel}</option>}
-              </select>
-            </div>
-            <div className="prod-field">
-              <label htmlFor="cb-cat">Sub-Type</label>
-              <select id="cb-cat" value={editing.category}
-                onChange={(e) => set('category', e.target.value)}>
-                {(typeGroup?.items || []).map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-                {/* The row's own category, when it is one no longer offered. */}
-                {editing.category && !picked?.active && (
-                  <option value={editing.category}>{categoryLabel(editing.category)}</option>
-                )}
-              </select>
-              {/* aria-live because the text changes under a control the user is operating. */}
-              <p className="prod-field-note" aria-live="polite" title={pickedTreatment?.note}>
-                {picked?.hint || pickedTreatment?.label}
-              </p>
-            </div>
-          </>
-          )}
+          ) : vendorPay || typeFirst ? null : typeRows}
 
           {/* Project-specific or General: asked up front, because it is how
               the ledger is read, per project, and everything else. On a
@@ -564,28 +601,13 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, typeChos
 
             <div className="prod-field">
               <label htmlFor="cb-pos">Place of supply</label>
-              <select id="cb-pos" value={editing.place_of_supply || ''}
-                onChange={(e) => set('place_of_supply', e.target.value)}>
-                <option value="">Not recorded</option>
-                {INDIAN_STATES.map((st) => <option key={st} value={st}>{st}</option>)}
-              </select>
+              <PlaceOfSupplyInput id="cb-pos" country={editing.country_code}
+                value={editing.place_of_supply} onChange={(v) => set('place_of_supply', v)} />
               <label className="cb-check">
                 <input type="checkbox" checked={!!editing.is_inter_state}
                   onChange={(e) => set('is_inter_state', e.target.checked)} />
                 Inter-state (IGST)
               </label>
-            </div>
-
-            <div className="prod-field">
-              <label htmlFor="cb-qty">Quantity</label>
-              <input id="cb-qty" type="number" min="0" step="0.001" value={editing.quantity ?? ''}
-                placeholder="Optional" onChange={(e) => set('quantity', e.target.value)} />
-            </div>
-
-            <div className="prod-field">
-              <label htmlFor="cb-unit">Unit</label>
-              <input id="cb-unit" value={editing.unit || ''} placeholder="Nos, kg, hours, litres"
-                onChange={(e) => set('unit', e.target.value)} />
             </div>
 
             <div className="prod-field full">

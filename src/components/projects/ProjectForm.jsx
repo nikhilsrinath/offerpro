@@ -12,7 +12,7 @@ import {
 import { projectSectionPath } from './projectPaths';
 import AddClientDialog from '../shared/AddClientDialog';
 import { projectRef } from './projectSlug';
-import { currencySymbol, baseCurrency } from '../../shared/currency.js';
+import { currencySymbol, baseCurrency, CURRENCY_OPTIONS } from '../../shared/currency.js';
 
 /* ══════════════════════════════════════════════════════════════════════════
    New project: and, with `project` passed, the edit sheet for one.
@@ -124,6 +124,8 @@ export default function ProjectForm({ project = null, onDone }) {
             client_id: form.kind === 'client' ? form.client_id : null,
             other_budgets: others,
             budget_other: others.reduce((sum, b) => sum + b.amount, 0),
+            // '' clears a saved method on edit; a new project with none just leaves it out
+            delivery_method: form.delivery_method || (isEdit ? '' : undefined),
         };
         try {
             if (isEdit) {
@@ -203,7 +205,11 @@ export default function ProjectForm({ project = null, onDone }) {
                         <Input type="number" min="0" step="1" inputMode="decimal" value={form.contract_value} onChange={set('contract_value')} />
                     </Field>
                     <Field label="Currency">
-                        <Input value={form.currency} maxLength={3} onChange={(e) => set('currency')(e.target.value.toUpperCase())} />
+                        <Select value={form.currency} onChange={set('currency')}>
+                            {/* A saved code no longer in the list stays selectable. */}
+                            {!CURRENCY_OPTIONS.some((c) => c.code === form.currency) && <option value={form.currency}>{form.currency}</option>}
+                            {CURRENCY_OPTIONS.map((c) => <option key={c.code} value={c.code}>{`${c.symbol.trim()} ${c.code} · ${c.name}`}</option>)}
+                        </Select>
                     </Field>
                     <Field label={`Labour budget (${currencySymbol(form.currency)})`}>
                         <Input type="number" min="0" step="1" inputMode="decimal" value={form.budget_labour} onChange={set('budget_labour')} />
@@ -317,7 +323,9 @@ function MethodPicker({ value, onChange }) {
                             background: on ? t.panelAlt : t.panel,
                         }}>
                             <input type="radio" name="delivery_method" value={m.id} checked={on}
-                                onChange={() => onChange(m.id)} style={{ marginTop: 2, accentColor: t.text, width: 15, height: 15 }} />
+                                onChange={() => onChange(m.id)}
+                                // a radio never fires onChange when re-clicked: clicking the chosen one clears it
+                                onClick={() => { if (on) onChange(''); }} style={{ marginTop: 2, accentColor: t.text, width: 15, height: 15 }} />
                             <span style={{ minWidth: 0 }}>
                                 <span style={{ display: 'block', fontSize: 13.5, fontWeight: 600, color: t.text }}>{m.label} Method</span>
                                 <span style={{ display: 'block', fontSize: 12.5, color: t.dim, marginTop: 2 }}>{m.desc}</span>

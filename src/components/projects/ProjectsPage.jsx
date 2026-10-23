@@ -31,6 +31,11 @@ import { projectRef } from './projectSlug';
 
 const STATUS_TONE = { active: 'accent', on_hold: 'warn', planned: 'neutral', completed: 'up', cancelled: 'mute' };
 
+// Latest start first; a project with no start date by the day it was entered.
+const startOf = (p) => String(p.start_date || p.created_at || '').slice(0, 10);
+const latestFirst = (a, b) => startOf(b).localeCompare(startOf(a))
+    || String(b.created_at || '').localeCompare(String(a.created_at || ''));
+
 export default function ProjectsPage() {
     const t = useT();
     const navigate = useNavigate();
@@ -96,7 +101,7 @@ export default function ProjectsPage() {
             if (!onIt) return false;
         }
         return matchProject(p, query, clientName[p.client_id]);
-    }), pins), [projects, showArchived, status, client, manager, healthFilter, money_, mine, myEmployeeId, members, query, clientName, pins]);
+    }).sort(latestFirst), pins), [projects, showArchived, status, client, manager, healthFilter, money_, mine, myEmployeeId, members, query, clientName, pins]);
     const pinnedShown = filtered.filter((p) => pins.includes(p.id)).map((p) => p.id);
 
     const counts = useMemo(() => {
@@ -128,7 +133,7 @@ export default function ProjectsPage() {
     if (projects.length === 0) {
         return (
             <Page>
-                <Toolbar right={newProject} />
+                <Toolbar right={newProject} sticky={false} />
                 <Panel>
                     <Empty action={newProject}>
                         No projects yet. A project ties together the invoices, bills and expenses
@@ -143,7 +148,7 @@ export default function ProjectsPage() {
 
     return (
         <Page>
-            <Toolbar right={newProject}>
+            <Toolbar right={newProject} sticky={false}>
                 <Seg value={view} onChange={setView} label="View" options={[
                     { id: 'list', label: 'List' }, { id: 'board', label: 'Board' },
                 ]} />

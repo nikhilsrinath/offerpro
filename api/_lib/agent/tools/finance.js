@@ -1062,7 +1062,7 @@ const create_purchase_bill = {
     return r?.ok === false ? `Not recorded: ${r.error}` : `Recorded bill **${r.after.bill_number}**: ${money(r.after.total)} due ${formatDate(r.after.due_date)}.`;
   },
 
-  href: () => '/finance/company-ledger',
+  href: () => '/financials/company-ledger',
 };
 
 /* ── cancel and delete ────────────────────────────────────────────────────── */

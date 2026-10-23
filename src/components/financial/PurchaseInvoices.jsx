@@ -1,42 +1,27 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Search, X, FileInput, Pencil, Trash2, CheckCircle, Paperclip, IndianRupee, Ban, RotateCcw,
 } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
 import { receiptService } from '../../services/receiptService';
-import { TAX_RATES } from '../../services/catalogService';
-import { categoryLabel } from '../../services/financeCategories';
 import { useToast } from '../shared/Toast';
-import { Stat, Modal, ReceiptField } from './financeUi';
+import { Stat } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
-import ProjectPicker from '../shared/ProjectPicker';
-import { pickerFromAllocations, pickerFor, saveSplitFromPicker, friendlyError } from '../../services/projectService';
 import { useProjectScope } from '../projects/projectScope';
 import { confirmDialog } from '../../services/confirm';
-import CashEntryModal from './CashEntryModal';
-import { ADVANCE, blank as blankEntry, isVendorDebit } from './cashEntry';
+import { ADVANCE, isVendorDebit } from './cashEntry';
 import { deletePaymentParts, useSettledVendorBills } from './vendorAdvance';
-import VendorPaymentModal from './VendorPaymentModal';
-import LedgerTypePicker, { LedgerSteps } from './LedgerTypePicker';
+import { useRecordMoney } from './recordMoney';
 import { RecordMoneyCard } from './CashBook';
-import VendorSelect from '../shared/VendorSelect';
 import { RowMenu } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
 import { initialQuery } from '../../services/urlQuery';
 import { ProjectLedger } from '../projects/ProjectFinance';
-import { currencySymbol } from '../../shared/currency.js';
 
-const CATEGORIES = ['Operations', 'Inventory', 'Software', 'Hardware', 'Marketing', 'Travel', 'Utilities', 'Professional fees', 'Rent', 'Other'];
 // The ledger's two sides: Debit is every payment (money gone to a vendor),
 // Credit every bill.
 const FILTERS = [['all', 'All'], ['credit', 'Credit'], ['debit', 'Debit']];
-
-const blank = (vendorId = '') => ({
-  vendor_id: vendorId, bill_number: '', bill_date: '', due_date: '',
-  category: 'Operations', description: '', subtotal: '', tax_rate: 0, other_amount: '', other_label: '', other_tax_rate: 0,
-  amount_paid: 0, receipt_path: null, notes: '',
-});
 
 /**
  * The Company Ledger: a project's (Finance › Company Ledger inside it, with
@@ -46,11 +31,17 @@ const blank = (vendorId = '') => ({
  * the ledger under it carries the balance. Company-wide, every bill and entry
  * is listed whole, with the project(s) it is on, and the project filter
  * narrows it to one project (at that project's share), or to General.
+ *
+ * With `party="vendor"` it is the Vendor Company Ledger: the same page, the
+ * same Record Money and the same filters, its ledger and recent entries kept
+ * to what is with a vendor (ProjectLedger `party`). A credit starts as one
+ * from a vendor (0098).
  */
-export default function PurchaseInvoices({ projectId = null, children }) {
+export default function PurchaseInvoices({ projectId = null, party = null, children }) {
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const vendors = useSection('vendors');
+  const vendorLinks = useSection('project_vendors');
   const allBills = useSection('purchase_invoices');
   const expenses = useSection('expenses');
   const allocations = useSection('project_allocations');
@@ -68,79 +59,43 @@ export default function PurchaseInvoices({ projectId = null, children }) {
   const bills = useMemo(() => (scope
     ? scope.data.purchases.map((b) => ({ ...b._full, _share: b._share, _shareNet: b.subtotal }))
     : allBills), [scope, allBills]);
-  const fresh = useCallback((vendorId = '') => (startOn
-    ? { ...blank(vendorId), _picker: pickerFor(startOn) }
-    : blank(vendorId)), [startOn]);
-
   const [search, setSearch] = useState(initialQuery);
   const [filter, setFilter] = useState('all');
   const [vendorFilter, setVendorFilter] = useState(params.get('vendor') || 'all');
-  const [editing, setEditing] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState('');
-  // A vendor is paid, never a bill: the Debit form.
-  const [payingVendor, setPayingVendor] = useState(null);
   // Each bill's amount paid is worked out from its vendor's totals.
   useSettledVendorBills();
 
-  // Record Money: Credit or Debit asks the kind first. Sales & Services is a
-  // purchase bill, Vendor Payment pays a vendor, and any other kind is a
-  // General Ledger entry (on the project, when there is one), already of that kind.
+  // Record Money: Credit or Debit opens its form straight away, with the Type
+  // as its first row (recordMoney.jsx). On the Vendor Company Ledger it opens
+  // on the purchase bill or Vendor Payment.
   const t = useT();
   const income = useSection('income_entries');
-  // { direction: 'in' | 'out', group } while the kind is picked; group opens on its Sub-Types.
-  const [choosing, setChoosing] = useState(null);
-  const [entry, setEntry] = useState(null);
-  // The entry's Type and Sub-Type were picked a step before, so its form leaves them out.
-  const [entryTyped, setEntryTyped] = useState(false);
   const projectClient = (scope?.project || filterProject)?.client_id || '';
-  const freshEntry = useCallback((direction) => ({
-    ...blankEntry(direction),
-    ...(startOn ? { _picker: pickerFor(startOn) } : {}),
-    ...(direction === 'in' && projectClient ? { client_id: projectClient } : {}),
-  }), [startOn, projectClient]);
-  const recent = useMemo(() => [
-    ...(scope ? scope.data.income : income).map((e) => ({ ...e, direction: 'in', day: e.date || e.received_on })),
-    ...(scope ? scope.data.expenses : expenses).map((e) => ({ ...e, direction: 'out', day: e.date || e.incurred_on })),
-  ].sort((a, b) => String(b.day).localeCompare(String(a.day))).slice(0, 3), [scope, income, expenses]);
-  const openEntry = (r, direction) => {
-    const full = r._full || r;
-    setEntry({ ...full, direction, date: full.date || full.received_on || full.incurred_on });
-    setEntryTyped(false);
-  };
-  // The Type picked for the form that is open, so its steps can go back.
-  const [pickedFrom, setPickedFrom] = useState(null); // { direction, group } | null
-  const pickKind = (pick) => {
-    const direction = choosing.direction;
-    setChoosing(null);
-    setPickedFrom({ direction, group: pick.group?.label || null });
-    if (pick.kind === 'bill') { setEditing(fresh('')); setFormError(''); }
-    else if (pick.kind === 'vendor') setPayingVendor({ vendorId: '', category: pick.category });
-    else { setEntry({ ...freshEntry(direction), category: pick.category }); setEntryTyped(true); }
-  };
-  // A step clicked on a details form: back to the Type, or to its Sub-Types.
-  const backToStep = (n) => {
-    if (!pickedFrom) return;
-    setEditing(null); setEntry(null); setPayingVendor(null);
-    setChoosing({ direction: pickedFrom.direction, group: n === 2 ? pickedFrom.group : null });
-    setPickedFrom(null);
-  };
+  const money$ = useRecordMoney({ projectId, startOn, party, projectClient });
+  const recent = useMemo(() => {
+    // On the Vendor Company Ledger, only what is with a vendor.
+    const onSide = (e) => !party || !!(e._full || e).vendor_id;
+    return [
+      ...(scope ? scope.data.income : income).filter(onSide).map((e) => ({ ...e, direction: 'in', day: e.date || e.received_on })),
+      ...(scope ? scope.data.expenses : expenses).filter(onSide).map((e) => ({ ...e, direction: 'out', day: e.date || e.incurred_on })),
+    ].sort((a, b) => String(b.day).localeCompare(String(a.day))).slice(0, 3);
+  }, [scope, income, expenses, party]);
   // A row of the ledger that is a General Ledger entry opens its form here.
   const editEntry = (direction, id) => {
     const r = (direction === 'in' ? income : expenses).find((x) => x.id === id);
-    if (r) openEntry(r, direction);
+    if (r) money$.openEntry(r, direction);
   };
 
   // Vendors page links here with ?vendor=<id>&new=1 to open a bill for them.
   useEffect(() => {
     if (params.get('new') === '1') {
-      setPickedFrom(null);
-      setEditing(fresh(params.get('vendor') || ''));
+      money$.newBill(params.get('vendor') || '');
       const next = new URLSearchParams(params);
       next.delete('new');
       setParams(next, { replace: true });
     }
-  }, [params, setParams, fresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, setParams]);
 
   const vendorById = useMemo(() => Object.fromEntries(vendors.map((v) => [v.id, v])), [vendors]);
   // The project(s) each bill is split to, for the company-wide project filter.
@@ -190,13 +145,19 @@ export default function PurchaseInvoices({ projectId = null, children }) {
   // a payment is the vendor's, not a bill's.
   const keepAdvances = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return new Set(vendorDebits
+    // On the Vendor Company Ledger money back from the vendor stays with them too.
+    const refunds = party ? (scope ? scope.data.income : income).map((e) => e._full || e)
+      .filter((e) => e.vendor_id && (vendorFilter === 'all' || e.vendor_id === vendorFilter))
+      .filter((e) => !q || [e.description, e.reference, vendorById[e.vendor_id]?.company_name]
+        .some((f) => String(f || '').toLowerCase().includes(q)))
+      .map((e) => `income_entry:${e.id}`) : [];
+    return new Set([...refunds, ...vendorDebits
       .filter((e) => !e.purchase_invoice_id)
       .filter((e) => vendorFilter === 'all' || e.vendor_id === vendorFilter)
       .filter((e) => !q || [e.description, e.reference, vendorById[e.vendor_id]?.company_name, e.category === ADVANCE ? 'advance' : 'payment']
         .some((f) => String(f || '').toLowerCase().includes(q)))
-      .map((e) => `expense:${e.id}`));
-  }, [vendorDebits, search, vendorFilter, vendorById]);
+      .map((e) => `expense:${e.id}`)]);
+  }, [vendorDebits, search, vendorFilter, vendorById, party, scope, income]);
 
   const totals = useMemo(() => {
     const share = (b) => b._share ?? 1;
@@ -211,83 +172,8 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     };
   }, [scopedBills, vendorDebits]);
 
-  // Both dates are left for the user to pick; nothing is filled in for them.
-  // `_dirty` marks a form someone has typed in, so closing it asks first.
-  const set = (k, v) => setEditing((e) => ({ ...e, [k]: v, _dirty: true }));
-
-  // "Amount before tax" and "Other amount" are taxed at their own rates; the
-  // saved subtotal is the two together (0086).
-  const otherAmt = Number(editing?.other_amount) || 0;
-  const mainTax = editing ? Math.round((Number(editing.subtotal) || 0) * (Number(editing.tax_rate) || 0)) / 100 : 0;
-  const otherTax = editing ? Math.round(otherAmt * (Number(editing.other_tax_rate) || 0)) / 100 : 0;
-  const previewTax = Math.round((mainTax + otherTax) * 100) / 100;
-  const beforeTax = editing ? Math.round(((Number(editing.subtotal) || 0) + otherAmt) * 100) / 100 : 0;
-  // Round off: the user types the bill's final total and the difference from
-  // subtotal + GST is the round off (positive or negative).
-  const exactTotal = editing ? Math.round((beforeTax + previewTax) * 100) / 100 : 0;
-  const roundOff = editing?._roundOpen && editing._finalTotal !== ''
-    ? Math.round(((Number(editing._finalTotal) || 0) - exactTotal) * 100) / 100
-    : 0;
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    if (!editing.vendor_id) { setFormError('Choose a vendor.'); return; }
-    if (!editing.bill_date) { setFormError('Choose the bill date.'); return; }
-    if (editing.due_date && editing.due_date < editing.bill_date) { setFormError('The due date is before the bill date.'); return; }
-    if (exactTotal + roundOff < 0) { setFormError('The rounded total cannot be below zero.'); return; }
-    setSaving(true);
-    setFormError('');
-    try {
-      const {
-        _picker: picker, _share: _s, _shareNet: _n, _roundOpen: _o, _finalTotal: _f, _hadOther, _dirty: _d, round_off: prevRound, ...data
-      } = editing;
-      // The bill number is optional on the form but the database wants one,
-      // unique per vendor: a bill entered without it is numbered BILL-001, 002…
-      if (!(data.bill_number || '').trim()) {
-        const used = allBills.map((x) => /^BILL-(\d+)$/.exec(x.bill_number || '')).filter(Boolean).map((m) => Number(m[1]));
-        data.bill_number = `BILL-${String((used.length ? Math.max(...used) : 0) + 1).padStart(3, '0')}`;
-      }
-      // Only sent when there is one to set or clear (see orgStore, 0079).
-      if (roundOff || prevRound) data.round_off = roundOff;
-      data.subtotal = beforeTax;
-      // Only sent when there is one to set or clear, so a bill still saves on a
-      // database without 0086.
-      if (otherAmt || editing._hadOther) {
-        data.other_amount = otherAmt;
-        data.other_label = otherAmt ? (editing.other_label || '').trim() : '';
-        data.other_tax_rate = otherAmt ? Number(editing.other_tax_rate) || 0 : 0;
-      } else {
-        delete data.other_amount;
-        delete data.other_label;
-        delete data.other_tax_rate;
-      }
-      let id = editing.id;
-      let added = null;
-      if (id) await orgStore.updateItem('purchase_invoices', id, data);
-      else { added = await orgStore.addItem('purchase_invoices', data); id = added.id; }
-      // The project split is saved after the bill, in the same click. If it
-      // fails the bill stays saved: keep the sheet open on the saved bill so a
-      // retry edits it rather than recording it twice.
-      try {
-        await saveSplitFromPicker('purchase_invoice', id, picker);
-      } catch (allocErr) {
-        setEditing((x) => ({ ...x, id }));
-        setFormError(`Bill saved, but the project split was not: ${allocErr.message}`);
-        return;
-      }
-      toast(editing.id ? 'Bill updated' : 'Bill recorded', 'success');
-      setEditing(null);
-    } catch (err) {
-      setFormError(err.code === '23505'
-        ? 'This vendor already has a bill with that number.'
-        : (friendlyError(err).message || 'Could not save the bill.'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
   // Paying from a bill's row pays its vendor: one debit, not against the bill.
-  const handlePay = (b) => { setPickedFrom(null); setPayingVendor({ vendorId: b.vendor_id, category: '' }); };
+  const handlePay = (b) => money$.payVendor(b.vendor_id);
 
   const handleVoid = async (b) => {
     if (!(await confirmDialog({ title: 'Void bill', message: `Void bill ${b.bill_number}? It will be excluded from payables, P&L and tax.`, confirmLabel: 'Void' }))) return;
@@ -328,19 +214,21 @@ export default function PurchaseInvoices({ projectId = null, children }) {
     }
   };
 
-  const activeVendors = vendors.filter((v) => !v.archived_at);
+  // In a project the filter lists only its vendors: those linked to it, and
+  // any with a bill or debit on this ledger.
+  const filterVendors = useMemo(() => {
+    if (!projectId) return vendors;
+    const ids = new Set(vendorLinks.filter((l) => l.project_id === projectId).map((l) => l.vendor_id));
+    bills.forEach((b) => b.vendor_id && ids.add(b.vendor_id));
+    vendorDebits.forEach((e) => e.vendor_id && ids.add(e.vendor_id));
+    return vendors.filter((v) => ids.has(v.id));
+  }, [projectId, vendors, vendorLinks, bills, vendorDebits]);
 
   /** What can be done to one bill, from its row. */
   const billMenu = (b) => [
     b.receipt_path && { label: 'View receipt', icon: Paperclip, onClick: () => receiptService.open(b.receipt_path) },
     !projectId && b.status !== 'paid' && b.status !== 'void' && { label: 'Pay Vendor', icon: CheckCircle, tone: 'success', onClick: () => handlePay(b) },
-    { label: 'Edit', icon: Pencil, onClick: () => { setEditing({
-      ...b, _share: undefined, _shareNet: undefined,
-      // The form's "Amount before tax" is the bill without the other amount.
-      subtotal: Math.round((b.subtotal - (b.other_amount || 0)) * 100) / 100,
-      other_amount: b.other_amount || '', other_label: b.other_label || '', _hadOther: !!b.other_amount,
-      _roundOpen: !!b.round_off, _finalTotal: b.round_off ? String(b.total) : '',
-    }); setFormError(''); } },
+    { label: 'Edit', icon: Pencil, onClick: () => money$.editBill(b) },
     b.status !== 'void'
       ? { label: 'Void', icon: Ban, onClick: () => handleVoid(b) }
       : { label: 'Unvoid', icon: RotateCcw, onClick: () => handleUnvoid(b) },
@@ -406,6 +294,7 @@ export default function PurchaseInvoices({ projectId = null, children }) {
   const narrowed = !!search.trim() || vendorFilter !== 'all';
   const ledgerProps = {
     bills: filtered, billMenu, paymentMenu, onEdit: editEntry, filtered: narrowed, keep: keepAdvances,
+    ...(party ? { party } : {}),
     narrow: side === 'all' ? undefined : { view: side },
     emptyText: narrowed || side !== 'all' ? 'Nothing matches these filters.' : undefined,
   };
@@ -418,8 +307,8 @@ export default function PurchaseInvoices({ projectId = null, children }) {
 
   return (
     <div style={{ maxWidth: '100%' }}>
-      <RecordMoneyCard t={t} scoped recent={recent} onRecord={(direction) => setChoosing({ direction, group: null })} style={{ marginBottom: 12 }}
-        onOpen={(r) => openEntry(r, r.direction)} />
+      <RecordMoneyCard t={t} scoped recent={recent} onRecord={money$.record} style={{ marginBottom: 12 }}
+        onOpen={(r) => money$.openEntry(r, r.direction)} />
       <div className="prod-stats">
         <Stat icon={<FileInput size={15} />} label="Total billed" value={money(totals.billed)} onClick={() => setFilter('all')} />
         <Stat icon={<CheckCircle size={15} />} label="Paid" value={money(totals.paid)} accent="var(--text-primary)" onClick={() => setFilter('debit')} />
@@ -444,7 +333,7 @@ export default function PurchaseInvoices({ projectId = null, children }) {
         )}
         <select aria-label="Filter by vendor" value={vendorFilter} onChange={(e) => setVendorFilter(e.target.value)} className="prod-select">
           <option value="all">All vendors</option>
-          {vendors.map((v) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
+          {filterVendors.map((v) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
         </select>
         <div className="prod-seg" role="group" aria-label="Ledger side">
           {FILTERS.map(([f, label]) => (
@@ -463,134 +352,7 @@ export default function PurchaseInvoices({ projectId = null, children }) {
         : filterProject ? <ProjectLedger key={filterProject.id} project={filterProject} only="purchases" here="company" {...ledgerProps} />
         : <ProjectLedger only="purchases" here="company" general={projectFilter === 'general'} {...ledgerProps} />}
 
-      {editing && (
-        <Modal title={editing.id ? 'Edit bill' : 'Record a Credit (Purchase Bill)'} onClose={() => setEditing(null)} width={720} dirty={!!editing._dirty}>
-          <form onSubmit={handleSave} className="prod-modal-body">
-            {!editing.id && pickedFrom && <LedgerSteps step={3} noSubType onStep={backToStep} />}
-            {formError && <div className="prod-form-error">{formError}</div>}
-            <div className="prod-form-grid">
-              <div className="prod-field full">
-                <label className="req" htmlFor="pi-vendor">Vendor</label>
-                <VendorSelect id="pi-vendor" vendors={editing.id ? vendors : activeVendors} value={editing.vendor_id}
-                  onChange={(v) => set('vendor_id', v)} projectId={projectId} />
-              </div>
-              <div className="prod-field">
-                <label>Bill number</label>
-                <input aria-label="Bill number" value={editing.bill_number} onChange={(e) => set('bill_number', e.target.value)} placeholder="As printed on the bill" />
-              </div>
-              <div className="prod-field">
-                <label>Category</label>
-                <select aria-label="Category" value={editing.category} onChange={(e) => set('category', e.target.value)}>
-                  {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  {/* A bill from the old "New Purchase, Paid Now" keeps its Sub-Type. */}
-                  {editing.category && !CATEGORIES.includes(editing.category) && (
-                    <option value={editing.category}>{categoryLabel(editing.category)}</option>
-                  )}
-                </select>
-              </div>
-              <div className="prod-field">
-                <label className="req">Bill date</label>
-                <input aria-label="Bill date" type="date" value={editing.bill_date || ''} onChange={(e) => set('bill_date', e.target.value)} required />
-              </div>
-              <div className="prod-field">
-                <label>Due date</label>
-                <input aria-label="Due date" type="date" min={editing.bill_date || undefined} value={editing.due_date || ''} onChange={(e) => set('due_date', e.target.value)} />
-              </div>
-              <div className="prod-field">
-                <label className="req">Amount before tax ({currencySymbol()})</label>
-                <input aria-label={`Amount before tax (${currencySymbol()})`} className="pi-no-spin" type="number" min="0" step="0.01" value={editing.subtotal} onChange={(e) => set('subtotal', e.target.value)} required />
-              </div>
-              <div className="prod-field">
-                <label>GST rate</label>
-                <div className="prod-rate-chips">
-                  {TAX_RATES.map((r) => (
-                    <button key={r} type="button" aria-pressed={!!(Number(editing.tax_rate) === r)} className={`easy-chip ${Number(editing.tax_rate) === r ? 'active' : ''}`} onClick={() => set('tax_rate', r)}>{r}%</button>
-                  ))}
-                </div>
-              </div>
-              {/* Other amount, its amount and its GST rate, on one line. */}
-              <div className="prod-field full">
-                <div className="pi-other-grid">
-                  <div className="prod-field">
-                    <label>Other amount</label>
-                    <input aria-label="What the other amount is for" value={editing.other_label || ''} onChange={(e) => set('other_label', e.target.value)} placeholder="What it is, e.g. Freight" />
-                  </div>
-                  <div className="prod-field">
-                    <label>Amount ({currencySymbol()})</label>
-                    <input aria-label={`Other amount (${currencySymbol()})`} className="pi-no-spin" type="number" min="0" step="0.01" value={editing.other_amount} onChange={(e) => set('other_amount', e.target.value)} />
-                  </div>
-                  <div className="prod-field">
-                    <label>GST rate on other amount</label>
-                    <div className="prod-rate-chips" style={{ flexWrap: 'nowrap' }}>
-                      {TAX_RATES.map((r) => (
-                        <button key={r} type="button" aria-pressed={!!(Number(editing.other_tax_rate) === r)} className={`easy-chip ${Number(editing.other_tax_rate) === r ? 'active' : ''}`} onClick={() => set('other_tax_rate', r)}>{r}%</button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="prod-field full">
-                <p className="prod-field-note">
-                  Input GST {money(previewTax, 2)} · Total {money(exactTotal, 2)}
-                  {editing._roundOpen && (
-                    <> · Round off {roundOff > 0 ? '+' : ''}{money(roundOff, 2)} · <strong>Bill total {money(exactTotal + roundOff, 2)}</strong></>
-                  )}
-                </p>
-                {editing._roundOpen ? (
-                  <div className="pi-round-row">
-                    <input
-                      aria-label={`Rounded total (${currencySymbol()})`} className="pi-no-spin" type="number" min="0" step="0.01" autoFocus
-                      placeholder={`Rounded total, e.g. ${Math.round(exactTotal)}`}
-                      value={editing._finalTotal} onChange={(e) => set('_finalTotal', e.target.value)}
-                    />
-                    <button type="button" className="prod-btn-ghost" onClick={() => setEditing((x) => ({ ...x, _roundOpen: false, _finalTotal: '', _dirty: true }))}>
-                      Remove Round Off
-                    </button>
-                  </div>
-                ) : (
-                  <button type="button" className="prod-btn-ghost pi-round-btn" onClick={() => setEditing((x) => ({ ...x, _roundOpen: true, _finalTotal: String(Math.round(exactTotal)), _dirty: true }))}>
-                    Round Off
-                  </button>
-                )}
-              </div>
-              <div className="prod-field full">
-                <label>Description</label>
-                <input aria-label="Description" value={editing.description || ''} onChange={(e) => set('description', e.target.value)} placeholder="What was bought" />
-              </div>
-              {/* On a project's page the bill is that project's, and not asked. */}
-              {!projectId && (
-                <ProjectPicker
-                  value={editing._picker || pickerFromAllocations('purchase_invoice', editing.id)}
-                  onChange={(p) => set('_picker', p)}
-                  net={beforeTax}
-                />
-              )}
-              <div className="prod-field full">
-                <label>Receipt / bill copy</label>
-                <ReceiptField path={editing.receipt_path} kind="purchases" onChange={(p) => set('receipt_path', p)} />
-              </div>
-              <div className="prod-field full">
-                <label>Notes</label>
-                <textarea aria-label="Notes" rows={2} value={editing.notes || ''} onChange={(e) => set('notes', e.target.value)} />
-              </div>
-            </div>
-            <div className="prod-modal-foot">
-              <button type="button" onClick={() => setEditing(null)} className="prod-btn-ghost">Cancel</button>
-              <button type="submit" disabled={saving} className="prod-btn-primary">
-                {saving ? 'Saving...' : editing.id ? 'Save changes' : 'Record bill'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {choosing && <LedgerTypePicker direction={choosing.direction} startGroup={choosing.group} onPick={pickKind} onClose={() => setChoosing(null)} />}
-      {entry && <CashEntryModal key={entry.id || 'new'} entry={entry} fresh={freshEntry} typeChosen={entryTyped} projectId={projectId}
-        onStep={entryTyped && pickedFrom ? backToStep : undefined} onClose={() => setEntry(null)} />}
-      {payingVendor && (
-        <VendorPaymentModal vendorId={payingVendor.vendorId} category={payingVendor.category}
-          startOn={startOn} projectId={projectId} onStep={pickedFrom ? backToStep : undefined} onClose={() => setPayingVendor(null)} />
-      )}
+      {money$.forms}
     </div>
   );
 }

@@ -1,0 +1,374 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   The side panel every dialog opens in.
+
+   A sheet that slides in from the right edge and takes the full height, the
+   way Supabase's settings panels work: the title and × on top, one field per
+   row with its label on the left and the control on the right, a hairline
+   between rows, and the actions pinned to the foot.
+
+   Used by the kit's <Modal> (edge.jsx, class edge-drawer) and by the finance
+   pages' <Modal> and the Products form (financeUi.jsx, prod-modal). The rows
+   are drawn here rather than in each form, so the kit's <Field> and the older
+   prod-field / easy-field markup all read the same inside a panel.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:where(.edge-drawer, .prod-modal) {
+  --dr-bg: var(--edge-card, var(--bg-elevated));
+  --dr-field: var(--edge-panel-alt, var(--bg-base));
+  --dr-line: var(--edge-line, var(--border-default));
+  --dr-line-strong: var(--edge-line-strong, var(--border-strong));
+  --dr-text: var(--edge-text, var(--text-primary));
+  --dr-dim: var(--edge-dim, var(--text-secondary));
+  --dr-faint: var(--edge-faint, var(--text-muted));
+  --dr-down: var(--edge-down, var(--error));
+  --dr-shadow: var(--edge-shadow, var(--shadow-lg));
+  --dr-label-col: 190px;
+  --dr-control-col: minmax(0, 1fr);
+  --dr-pad: 20px;
+}
+
+/* ── frame ────────────────────────────────────────────────────────────────── */
+
+.edge-drawer-backdrop,
+.prod-modal-backdrop,
+.edge-shell main .prod-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 0;
+  background: var(--edge-overlay, var(--overlay-bg));
+  backdrop-filter: none;
+  animation: edgeDrawerFade .18s ease;
+}
+
+.edge-drawer,
+.prod-modal,
+.edge-shell main .prod-modal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 680px;
+  max-width: 100vw;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  background: var(--dr-bg);
+  border: 0;
+  border-left: 1px solid var(--dr-line-strong);
+  border-radius: 0;
+  box-shadow: var(--dr-shadow);
+  overflow: hidden;
+  font-family: var(--edge-mono, var(--font-main, inherit));
+  color: var(--dr-text);
+  animation: edgeDrawerIn .26s cubic-bezier(.16, 1, .3, 1);
+}
+
+@keyframes edgeDrawerIn { from { transform: translateX(32px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes edgeDrawerFade { from { opacity: 0; } to { opacity: 1; } }
+/* A panel replacing another in place (Record Money's Type switch) does not animate in again. */
+.prod-modal-backdrop.no-enter, .prod-modal.no-enter,
+.edge-shell main .prod-modal-backdrop.no-enter, .edge-shell main .prod-modal.no-enter { animation: none; }
+
+/* Title bar: the name on the left, × on the right, a hairline under it. */
+.edge-drawer-head,
+.prod-modal-head,
+.edge-shell main .prod-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 14px 10px var(--dr-pad);
+  border-bottom: 1px solid var(--dr-line);
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.edge-drawer-head h2,
+.prod-modal-head h3 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  color: var(--dr-text);
+}
+
+.edge-drawer-note {
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--dr-faint);
+}
+
+.edge-drawer-close,
+.prod-modal-head button,
+.edge-shell main .prod-modal-head button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dr-faint);
+  cursor: pointer;
+}
+
+.edge-drawer-close:hover,
+.prod-modal-head button:hover { background: var(--dr-field); color: var(--dr-text); }
+
+/* The body scrolls; the title and the actions stay put. A form inside the
+   panel (prod-modal-body) is a column so its actions can sit at the foot. */
+.edge-drawer-body,
+.prod-modal-body,
+.edge-shell main .prod-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0;
+  container-type: inline-size;
+}
+
+.prod-modal-body,
+.prod-modal > form,
+.edge-shell main .prod-modal-body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Actions: pinned to the foot, small buttons on the right. */
+.edge-drawer-foot,
+.prod-modal .prod-modal-foot,
+.prod-modal .form-actions,
+.prod-modal .cb-form .prod-modal-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: auto 0 0;
+  padding: 12px var(--dr-pad);
+  border-top: 1px solid var(--dr-line);
+  background: var(--dr-bg);
+  flex-shrink: 0;
+}
+
+.prod-modal .prod-modal-foot button,
+.prod-modal .form-actions button,
+.prod-modal .cb-form .prod-modal-foot button {
+  flex: 0 0 auto;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+/* ── rows ─────────────────────────────────────────────────────────────────── */
+
+/* Anything in the body that is not a field row keeps the row's side margins,
+   so notes, errors, switches and tables line up with the labels. */
+.edge-drawer-body > :not(.edge-field, .edge-drawer-foot):not(:has(.edge-field)),
+.prod-modal-body > :not(.prod-form-grid, .easy-row, .prod-modal-foot, .form-actions, .prod-field, .easy-field, .cb-more),
+.prod-modal > form > :not(.prod-form-grid, .easy-row, .prod-modal-foot, .form-actions, .prod-field, .easy-field, .cb-more) {
+  margin-left: var(--dr-pad);
+  margin-right: var(--dr-pad);
+}
+.edge-drawer-body > :not(.edge-field):not(:has(.edge-field)):first-child,
+.prod-modal-body > :not(.prod-form-grid, .easy-row, .prod-modal-foot, .form-actions, .prod-field, .easy-field, .cb-more):first-child,
+.prod-modal > form > :not(.prod-form-grid, .easy-row, .prod-modal-foot, .form-actions, .prod-field, .easy-field, .cb-more):first-child { margin-top: 16px; }
+.edge-drawer-body > :not(.edge-field):not(:has(.edge-field)):last-child { margin-bottom: 16px; }
+
+/* The blank spacer divs forms put between fields: the rows' hairlines space
+   them now. */
+.edge-drawer-body div:empty[style^="height:"]:not([style*="; "]):not([class]) { display: none; }
+
+/* Whatever held fields side by side (a Grid, a Row, a two-column form grid)
+   stacks them, one row each. */
+.edge-drawer-body div:has(> .edge-field),
+.prod-modal .prod-form-grid,
+.prod-modal .easy-row {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.edge-drawer-body div:has(> .edge-field) > :not(.edge-field):not(:has(.edge-field)) {
+  margin: 12px var(--dr-pad);
+}
+
+/* One field: label on the left, control and its note on the right. */
+.edge-drawer-body .edge-field {
+  display: grid !important;
+  grid-template-columns: var(--dr-label-col) var(--dr-control-col);
+  column-gap: 24px;
+  align-items: start;
+  padding: 16px var(--dr-pad);
+  border-bottom: 1px solid var(--dr-line);
+}
+.edge-drawer-body .edge-field-label {
+  margin: 0 !important;
+  padding-top: 8px;
+}
+
+.prod-modal .prod-field,
+.prod-modal .easy-field {
+  display: grid;
+  grid-template-columns: var(--dr-label-col) var(--dr-control-col);
+  column-gap: 24px;
+  row-gap: 0;
+  align-items: start;
+  padding: 16px var(--dr-pad);
+  border-bottom: 1px solid var(--dr-line);
+  min-width: 0;
+}
+.prod-modal :is(.prod-field, .easy-field) > * { grid-column: 2; min-width: 0; }
+.prod-modal :is(.prod-field, .easy-field) > :is(label, span, .easy-lbl):first-child {
+  grid-column: 1;
+  grid-row: 1 / span 12;
+  align-self: start;
+  padding-top: 8px;
+  margin: 0;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  line-height: 1.4;
+  color: var(--dr-text) !important;
+}
+.prod-modal :is(.prod-field, .easy-field) > :not(:first-child) + :not(:first-child) { margin-top: 8px; }
+.prod-modal :is(.prod-field, .easy-field)[aria-hidden="true"]:empty { display: none; }
+/* A row with no label of its own (a direction switch) spans the panel. */
+.prod-modal :is(.prod-field, .easy-field):not(:has(> :is(label, span, .easy-lbl):first-child)) > * { grid-column: 1 / -1; }
+/* A field inside a field's control (a small group laid out by its form)
+   stays a plain label-over-control stack, not another row. */
+.prod-modal :is(.prod-field, .easy-field) :is(.prod-field, .easy-field) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.prod-modal :is(.prod-field, .easy-field) :is(.prod-field, .easy-field) > :is(label, span, .easy-lbl):first-child {
+  padding-top: 0;
+  font-size: 12.5px !important;
+  color: var(--dr-dim) !important;
+}
+.prod-modal :is(.prod-field, .easy-field) :is(.prod-field, .easy-field) > :not(:first-child) + :not(:first-child) { margin-top: 0; }
+
+/* A set of chips with a legend: the legend floats into the label column. */
+.prod-modal fieldset.prod-field {
+  display: block;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--dr-line);
+  border-radius: 0;
+  padding: 16px var(--dr-pad) 16px calc(var(--dr-pad) + 190px + 24px);
+}
+.prod-modal fieldset.prod-field > legend {
+  float: left;
+  width: 190px;
+  margin: 0 0 0 calc(-190px - 24px);
+  padding: 8px 0 0;
+  text-align: left;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  color: var(--dr-text) !important;
+}
+.prod-modal fieldset.prod-field > :not(legend) + :not(legend) { margin-top: 8px; }
+
+/* Notes under a control read like the reference's helper text. */
+.prod-modal .prod-field-note,
+.edge-drawer-body .edge-field-hint {
+  font-size: 12.5px !important;
+  line-height: 1.5 !important;
+  color: var(--dr-faint) !important;
+}
+
+/* Folded "More Details": a row of its own, its fields as rows under it. */
+.prod-modal .cb-more {
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+  border-bottom: 1px solid var(--dr-line);
+}
+.prod-modal .cb-more > summary { padding: 14px var(--dr-pad); }
+.prod-modal .cb-more > .prod-form-grid { margin-top: 0 !important; border-top: 1px solid var(--dr-line); }
+.prod-modal .cb-more > .prod-form-grid > :last-child { border-bottom: 0; }
+
+.prod-modal .cb-form { padding: 0; }
+.prod-modal .cb-form .prod-field { gap: 0 24px; }
+.prod-modal .cb-direction { margin: 16px var(--dr-pad) 0; }
+.prod-modal .prod-field .cb-direction { margin: 0; }
+
+.prod-modal .prod-form-error { margin-top: 16px; margin-bottom: 0; }
+
+/* ── controls ─────────────────────────────────────────────────────────────── */
+
+.prod-modal :is(.prod-field, .easy-field) :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="file"]), select),
+.prod-modal .cb-form .prod-field :is(input:not([type="checkbox"], [type="radio"], [type="color"], [type="file"]), select),
+.prod-modal .easy-inp {
+  height: 34px;
+  min-height: 34px;
+  padding: 0 11px;
+  border-radius: 7px;
+  font-size: 13.5px;
+  box-sizing: border-box;
+  width: 100%;
+}
+.prod-modal :is(.prod-field, .easy-field) textarea,
+.prod-modal .cb-form .prod-field textarea,
+.prod-modal textarea.easy-inp {
+  min-height: 72px;
+  padding: 8px 11px;
+  border-radius: 7px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  height: auto;
+}
+.prod-modal :is(.prod-field, .easy-field) :is(input, select, textarea, .easy-inp) {
+  background: var(--dr-field);
+  border: 1px solid var(--dr-line-strong);
+  color: var(--dr-text);
+}
+.prod-modal .cb-amount { min-height: 40px; border-radius: 7px; background: var(--dr-field); border-color: var(--dr-line-strong); }
+.prod-modal .cb-form .cb-amount input { min-height: 38px; height: 38px; border: 0; background: transparent; font-size: 17px; padding: 0; }
+.prod-modal .cb-amount > span { font-size: 15px; }
+.prod-modal .cb-chips button { min-height: 30px; padding: 0 12px; font-size: 12.5px; }
+.prod-modal .cb-direction button { min-height: 34px; font-size: 13px; }
+
+/* ── narrow panels ────────────────────────────────────────────────────────── */
+
+/* On a phone, or in a narrow panel, the label goes back above its control. */
+@container (max-width: 520px) {
+  .edge-drawer-body .edge-field,
+  .prod-modal .prod-field,
+  .prod-modal .easy-field { grid-template-columns: minmax(0, 1fr); }
+  .edge-drawer-body .edge-field-label { padding-top: 0; margin-bottom: 8px !important; }
+  .prod-modal :is(.prod-field, .easy-field) > :is(label, span, .easy-lbl):first-child {
+    grid-column: 1; grid-row: auto; padding-top: 0; margin-bottom: 8px;
+  }
+  .prod-modal :is(.prod-field, .easy-field) > * { grid-column: 1; }
+  .prod-modal fieldset.prod-field { padding-left: var(--dr-pad); }
+  .prod-modal fieldset.prod-field > legend { float: none; width: auto; margin: 0 0 8px; padding: 0; }
+}
+
+@media (max-width: 640px) {
+  .edge-drawer, .prod-modal, .edge-shell main .prod-modal { width: 100vw !important; max-width: 100vw !important; border-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-drawer, .prod-modal, .edge-drawer-backdrop, .prod-modal-backdrop { animation: none; }
+}

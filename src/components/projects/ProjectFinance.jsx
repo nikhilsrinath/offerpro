@@ -38,7 +38,7 @@ const SOURCE_LABEL = { invoice: 'Invoice', income_entry: 'Income', expense: 'Exp
 // Inside the project, a link opens the project's own page for that kind.
 const SOURCE_TAB = { invoice: 'billing', income_entry: 'cashbook', expense: 'cashbook', purchase_invoice: 'bills' };
 const SOURCE_PATH = {
-    invoice: () => '/finance/billing/invoices', income_entry: () => '/finance/general-ledger', expense: () => '/finance/general-ledger', purchase_invoice: () => '/finance/company-ledger',
+    invoice: () => '/clients/billing/invoices', income_entry: () => '/financials/general-ledger', expense: () => '/financials/general-ledger', purchase_invoice: () => '/financials/company-ledger',
 };
 
 function periodChoices() {
@@ -75,15 +75,16 @@ function useSources() {
             })),
             ...income.map((e) => ({
                 type: 'income_entry', id: e.id, date: e.received_on, net: netOfTax(e), gross: Number(e.amount) || 0,
-                party: clientName[e.client_id] || e.description || '', kind: categoryLabel(e.category),
-                number: e.reference || '', client_id: e.client_id, description: e.description || '', created: e.created_at || '',
+                party: clientName[e.client_id] || vendorName[e.vendor_id] || e.description || '', kind: categoryLabel(e.category),
+                number: e.reference || '', client_id: e.client_id, vendor_id: e.vendor_id || null, description: e.description || '', created: e.created_at || '',
                 receipt: e.receipt_path || null, receiptNo: e.receipt_number || '',
                 settles: e.document_id ? `invoice:${e.document_id}` : null,
             })),
             ...expenses.map((e) => ({
                 type: 'expense', id: e.id, date: e.incurred_on, net: netOfTax(e), gross: Number(e.amount) || 0,
                 party: vendorName[e.vendor_id] || e.description || '', kind: categoryLabel(e.category),
-                number: e.reference || '', client_id: e.client_id, description: e.description || '', created: e.created_at || '',
+                number: e.reference || '', client_id: e.client_id, vendor_id: e.vendor_id || null, employee_id: e.employee_id || null,
+                description: e.description || '', created: e.created_at || '',
                 receipt: e.receipt_path || null, receiptNo: e.receipt_number || '',
                 // Paid to a vendor, before their bill (0093) or towards what they are owed.
                 advance: e.category === 'vendor_advance',
@@ -97,7 +98,7 @@ function useSources() {
                 type: 'purchase_invoice', id: b.id, date: b.bill_date, net: Number(b.subtotal) || 0,
                 gross: Number(b.total) || 0, void: b.status === 'void',
                 party: vendorName[b.vendor_id] || b.description || '', kind: (categoryOf(b.category)?.active ? categoryLabel(b.category) : b.category) || 'Purchase',
-                number: b.bill_number || '', client_id: null, description: b.description || '', created: b.created_at || '',
+                number: b.bill_number || '', client_id: null, vendor_id: b.vendor_id || null, description: b.description || '', created: b.created_at || '',
             })),
         ];
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -165,7 +166,7 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
             if (rows.length === 0) { toast('No approved, unbilled hours on this project.', 'info'); return; }
             const missing = rows.filter((r) => !(Number(r.bill_rate) > 0)).map((r) => r.full_name);
             if (missing.length) toast(`No bill rate for ${missing.join(', ')}. Set it on the Team tab; their lines start at ${currencySymbol()}0.`, 'error', 6000);
-            navigate('/finance/billing/invoices/new', {
+            navigate('/clients/billing/invoices/new', {
                 state: {
                     projectId: project.id, clientId: project.client_id,
                     lines: rows.map((r) => ({
@@ -292,8 +293,16 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
  * credit and debit over every bill and entry, whole, whichever projects they
  * are split to, with a Project column saying which. `general` keeps only what
  * is on no project.
+ *
+ * `party` ('client' or 'vendor', the Client and Vendor ledgers) keeps only that
+ * side's rows: a client's invoices, the money in from them and paid out to
+ * them; a vendor's bills, the money paid to them and back from them (0098).
+ * `partyId` narrows it to one client or vendor. Without `only` it is that
+ * side's General Ledger, money that moved and nothing else. With
+ * `only="sales"` (the Client Company Ledger) an invoice is the debit, what the
+ * client owes, a receipt the credit, and the balance is what is still owed.
  */
-export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bills, billMenu, paymentMenu, emptyText, readOnly, filtered, keep, narrow, general, onTotals }) {
+export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bills, billMenu, paymentMenu, emptyText, readOnly, filtered, keep, narrow, general, onTotals, party, partyId }) {
     const t = useT();
     const toast = useToast();
     const allocations = useSection('project_allocations');
@@ -330,19 +339,29 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
     // Where each bill stands, for its row; without `bills`, every bill.
     const billInfo = useMemo(() => billById || Object.fromEntries(allBills.map((b) => [b.id, b])), [billById, allBills]);
 
+    // The Client Company Ledger runs the other way: an invoice is owed to us, so
+    // its balance is the debit side over the credit, what is still to come in.
+    const sign = only === 'sales' ? -1 : 1;
     const rows = useMemo(() => {
         const sourceById = Object.fromEntries(sources.map((s) => [`${s.type}:${s.id}`, s]));
         // Company-wide every source is a row of its own, whole; in a project,
         // each of the project's links to one.
         const mine = company
             ? sources
-                .filter((s) => s.type !== 'invoice' && (!general || !projectsOf[`${s.type}:${s.id}`]))
+                .filter((s) => (s.type !== 'invoice' || only === 'sales') && (!general || !projectsOf[`${s.type}:${s.id}`]))
                 .map((s) => ({ id: `${s.type}:${s.id}`, source_type: s.type, source_id: s.id, mode: 'full' }))
             : allocations.filter((a) => a.project_id === project.id);
         const linked = new Set(mine.map((a) => `${a.source_type}:${a.source_id}`));
         return mine
             .map((a) => ({ a, s: sourceById[`${a.source_type}:${a.source_id}`] }))
             .filter(({ a, s }) => {
+                if (party) {
+                    if (!onSide(s, party) || (partyId && partyIdOf(s, party) !== partyId)) return false;
+                    // The Client Company Ledger: invoices and the money that moved.
+                    if (only === 'sales') return a.source_type !== 'purchase_invoice';
+                    // A side's General Ledger is money that moved, no invoice or bill.
+                    if (only !== 'purchases') return a.source_type === 'income_entry' || a.source_type === 'expense';
+                }
                 // The General Ledger is money that moved: a bill is only payable until it is paid.
                 if (only !== 'purchases') return a.source_type !== 'purchase_invoice';
                 // The bill a row is, or pays; with `bills`, only those the page's filters kept.
@@ -388,21 +407,23 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                 // every other cost are the debit.
                 const credit = only === 'purchases'
                     ? a.source_type === 'purchase_invoice' || a.source_type === 'income_entry'
-                    : CREDIT.has(a.source_type);
+                    : only === 'sales' ? a.source_type === 'income_entry'
+                        : CREDIT.has(a.source_type);
                 const pays = breakdown ? null : billOf({ s });
                 // The invoice is not on the Company Ledger, so a receipt against it counts there.
-                const settles = only !== 'purchases' && String(s?.settles || '').startsWith('invoice:') && linked.has(s.settles);
+                // On the Client ledgers a receipt always counts: it is what brings what is owed down.
+                const settles = !party && only !== 'purchases' && String(s?.settles || '').startsWith('invoice:') && linked.has(s.settles);
                 const before = out.length ? out[out.length - 1].balance : 0;
                 out.push({
                     a, s, value, credit, settles, pays, breakdown,
-                    balance: settles ? before : before + (credit ? value : -value),
+                    balance: settles ? before : before + (credit ? value : -value) * sign,
                     splitCount: company ? 0 : allocations.filter((x) => x.source_type === a.source_type && x.source_id === a.source_id).length,
                     projects: company ? projectsOf[`${a.source_type}:${a.source_id}`] || [] : null,
                 });
                 return out;
             }, [])
             .reverse();
-    }, [allocations, sources, project, company, general, projectsOf, only, billById, filtered, keep]);
+    }, [allocations, sources, project, company, general, projectsOf, only, billById, filtered, keep, party, partyId, sign]);
 
     // What the filter bar keeps, with the balance carried again over just those rows.
     const nView = narrow?.view || 'all';
@@ -420,11 +441,11 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                 ...(r.projects || []).flatMap((p) => [p.code, p.name])]
                 .some((v) => String(v || '').toLowerCase().includes(nSearch)))
             .map((r) => {
-                if (!r.settles) balance += r.credit ? r.value : -r.value;
+                if (!r.settles) balance += (r.credit ? r.value : -r.value) * sign;
                 return { ...r, balance };
             })
             .reverse();
-    }, [rows, nView, nSearch, nFrom, nTo]);
+    }, [rows, nView, nSearch, nFrom, nTo, sign]);
 
     // The closing balance, the way a ledger is ruled off: each side's total,
     // the balancing figure under the lighter side, and the two sides equal.
@@ -439,8 +460,8 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
     }, [shown]);
     // The tiles above the ledger show these same totals, so the two never disagree.
     useEffect(() => {
-        onTotals?.({ credit: closing.credit, debit: closing.debit, balance: closing.balance, inCount: closing.inCount, outCount: closing.outCount });
-    }, [onTotals, closing.credit, closing.debit, closing.balance, closing.inCount, closing.outCount]);
+        onTotals?.({ credit: closing.credit, debit: closing.debit, balance: closing.balance * sign, inCount: closing.inCount, outCount: closing.outCount });
+    }, [onTotals, closing.credit, closing.debit, closing.balance, sign, closing.inCount, closing.outCount]);
 
     // A project's ledger is a view of the company's entries, so deleting here
     // deletes the entry itself: it goes from the Company Ledger, the General
@@ -500,20 +521,30 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
         }));
     };
     const projectText = (r) => (r.projects?.length ? r.projects.map((p) => p.code || p.name).join(', ') : 'General');
+    const projectNameText = (r) => (r.projects?.length ? r.projects.map((p) => p.name || p.code).join(', ') : 'General');
 
+    // The Client and Vendor ledgers' own name, for the file and the column choices.
+    const sideName = party ? `${party}-${only ? 'company' : 'general'}-ledger` : null;
+    // Under the ledger, three lines: the total, what was paid against it, and
+    // the closing balance, the one less the other. The total is the side that
+    // runs the balance up (credit, or on the Client Company Ledger the invoices).
+    const foot = [
+        { label: 'Total', value: sign > 0 ? closing.credit : closing.debit },
+        { label: only === 'sales' ? 'Received' : 'Paid', value: sign > 0 ? closing.debit : closing.credit },
+        { label: 'Closing Balance', value: closing.balance * sign, last: true },
+    ];
     const exportCsv = () => downloadCsv(
-        company ? 'company-ledger.csv'
-            : `${only === 'purchases' ? 'company-ledger' : 'project-ledger'}-${project.code || project.name || 'project'}.csv`,
-        ['Date', 'Particular / Company Name', ...(company ? ['Project'] : []), 'Type', 'Invoice No', 'Receipt No', 'Credit', 'Debit', 'Balance', 'Note'],
+        company ? `${sideName || 'company-ledger'}.csv`
+            : `${sideName || (only === 'purchases' ? 'company-ledger' : 'project-ledger')}-${project.code || project.name || 'project'}.csv`,
+        ['Date', 'Particular / Company Name', ...(company ? ['Project', 'Project Name'] : []), 'Type', 'Invoice No', 'Receipt No', 'Credit', 'Debit', 'Balance', 'Note'],
         [
             ...shown.map((r) => [
-                r.s?.date || '', nameOf(r), ...(company ? [projectText(r)] : []), kindOf(r), r.s?.number || '', receiptOf(r),
+                r.s?.date || '', nameOf(r), ...(company ? [projectText(r), projectNameText(r)] : []), kindOf(r), r.s?.number || '', receiptOf(r),
                 r.credit ? r.value.toFixed(2) : '', r.credit ? '' : r.value.toFixed(2),
                 r.balance.toFixed(2),
                 r.settles ? 'Receipt against a linked invoice, not counted' : '',
             ]),
-            ['', 'Closing Balance', ...(company ? [''] : []), '', '', '', closing.credit.toFixed(2), closing.debit.toFixed(2),
-                closing.balance.toFixed(2), ''],
+            ...foot.map((f) => ['', f.label, ...(company ? ['', ''] : []), '', '', '', '', '', f.value.toFixed(2), '']),
         ],
     );
 
@@ -525,7 +556,8 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
         return (
             <Panel>
                 <Empty>
-                    {only === 'purchases'
+                    {party ? (emptyText || `No credit or debit with ${party === 'client' ? 'a client' : 'a vendor'} yet.`)
+                        : only === 'purchases'
                         ? (emptyText || (company ? 'No credit or debit recorded yet. Record a credit (a purchase bill, or money in) or a debit to start the ledger.' : 'No credit or debit on this project yet.'))
                         : 'Nothing linked yet. Anything raised from this project’s Billing, General Ledger or Company Ledger pages is linked to it on its own.'}
                 </Empty>
@@ -541,17 +573,15 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
     const at = Math.min(page, pageCount);
     const pageRows = shown.slice((at - 1) * LEDGER_PAGE, at * LEDGER_PAGE);
     const strong = { fontWeight: 600, fontVariantNumeric: 'tabular-nums' };
-    // Both sides are ruled off on the same three lines (side total, balancing
-    // figure, grand total), so the figures and double rules sit level across.
-    const stack = { display: 'grid', gridTemplateRows: 'repeat(3, 26px)', alignItems: 'center', justifyItems: 'end', fontVariantNumeric: 'tabular-nums' };
-    const ruled = { ...strong, borderTop: '1px solid ' + t.lineStrong, borderBottom: '3px double ' + t.lineStrong, padding: '2px 0 1px' };
-    const blank = <span aria-hidden="true" />;
+    // A dark rule over each of the three closing lines, setting them off from
+    // the entries and from each other.
+    const rule = { borderTop: '1px solid ' + t.lineStrong, borderBottom: '1px solid ' + t.lineStrong };
 
     return (
         <div>
-            <Table sticky actions={<Btn size="sm" onClick={exportCsv}><Download size={14} aria-hidden="true" /> Export CSV</Btn>} id={company ? 'company-ledger' : only === 'purchases' ? 'project-purchase-ledger' : 'project-ledger'} cols={[
+            <Table sticky actions={<Btn size="sm" onClick={exportCsv}><Download size={14} aria-hidden="true" /> Export CSV</Btn>} id={sideName || (company ? 'company-ledger' : only === 'purchases' ? 'project-purchase-ledger' : 'project-ledger')} cols={[
                 { key: 'd', label: 'Date', width: 110 }, { key: 'p', label: 'Particular / Company Name', always: true },
-                ...(company ? [{ key: 'pr', label: 'Project' }] : []),
+                ...(company ? [{ key: 'pr', label: 'Project' }, { key: 'pn', label: 'Project Name' }] : []),
                 { key: 't', label: 'Type' }, { key: 'n', label: 'Invoice No' }, { key: 'rn', label: 'Receipt No' },
                 { key: 'cr', label: 'Credit', align: 'right' }, { key: 'dr', label: 'Debit', align: 'right' },
                 { key: 'b', label: 'Balance', align: 'right' },
@@ -608,6 +638,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                             )}
                                         </Td>
                                     )}
+                                    {company && show('pn') && <Td muted>{projectNameText(r)}</Td>}
                                     {show('t') && <Td muted>{kindOf(r)}</Td>}
                                     {show('n') && <Td muted nowrap>{s?.number || '-'}</Td>}
                                     {show('rn') && <Td muted nowrap>{receiptOf(r) || '-'}</Td>}
@@ -632,38 +663,24 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                 </Tr>
                             );
                         })}
-                        <Tr>
-                            {show('d') && <Td />}
-                            <Td><strong style={{ fontWeight: 600 }}>Closing Balance</strong></Td>
-                            {company && show('pr') && <Td />}
-                            {show('t') && <Td />}
-                            {show('n') && <Td />}
-                            {show('rn') && <Td />}
-                            {show('cr') && (
-                                <Td align="right" nowrap>
-                                    <span style={stack}>
-                                        <span>{money(closing.credit, 2)}</span>
-                                        {closing.balance < 0 ? <span>{money(-closing.balance, 2)}</span> : blank}
-                                        <span style={ruled}>{money(closing.total, 2)}</span>
-                                    </span>
-                                </Td>
-                            )}
-                            {show('dr') && (
-                                <Td align="right" nowrap>
-                                    <span style={stack}>
-                                        <span>{money(closing.debit, 2)}</span>
-                                        {closing.balance > 0 ? <span>{money(closing.balance, 2)}</span> : blank}
-                                        <span style={ruled}>{money(closing.total, 2)}</span>
-                                    </span>
-                                </Td>
-                            )}
-                            {show('b') && (
-                                <Td align="right" nowrap>
-                                    <span style={stack}>{blank}{blank}<span style={ruled}>{side(closing.balance)}</span></span>
-                                </Td>
-                            )}
-                            {!readOnly && <Td />}
-                        </Tr>
+                        {foot.map((f) => (
+                            <Tr key={f.label}>
+                                {show('d') && <Td style={rule} />}
+                                <Td style={rule}>{f.last ? <strong style={{ fontWeight: 600 }}>{f.label}</strong> : <span style={{ color: t.dim }}>{f.label}</span>}</Td>
+                                {company && show('pr') && <Td style={rule} />}
+                                {company && show('pn') && <Td style={rule} />}
+                                {show('t') && <Td style={rule} />}
+                                {show('n') && <Td style={rule} />}
+                                {show('rn') && <Td style={rule} />}
+                                {['cr', 'dr', 'b'].filter(show).map((k) => (
+                                    <Td key={k} align="right" nowrap style={rule}>
+                                        {/* Under Balance, or the last amount column still shown. */}
+                                        {k === ['b', 'dr', 'cr'].find(show) && <span style={f.last ? strong : { fontVariantNumeric: 'tabular-nums' }}>{side(f.value)}</span>}
+                                    </Td>
+                                ))}
+                                {!readOnly && <Td style={rule} />}
+                            </Tr>
+                        ))}
                     </>
                 )}
             </Table>
@@ -693,6 +710,21 @@ const LEDGER_PAGE = 25;
 
 const CREDIT = new Set(['invoice', 'income_entry']);
 const ENTRY_DIRECTION = { income_entry: 'in', expense: 'out' };
+
+/**
+ * Whether a source is on the Client or the Vendor side. A vendor's: their
+ * bills and any entry naming them. A client's: their invoices, money in from
+ * them, and money out to them, an entry for a client that is paid to a vendor
+ * or a person being that vendor's or person's, not the client's.
+ */
+function onSide(s, party) {
+    if (!s) return false;
+    if (party === 'vendor') return s.type === 'purchase_invoice' || !!s.vendor_id;
+    if (s.type === 'invoice') return true;
+    if (s.type === 'income_entry') return !!s.client_id && !s.vendor_id;
+    return s.type === 'expense' && !!s.client_id && !s.vendor_id && !s.employee_id;
+}
+const partyIdOf = (s, party) => (party === 'vendor' ? s?.vendor_id : s?.client_id) || null;
 
 const BILLING_LABEL = { fixed_price: 'Fixed price', time_materials: 'Time & materials', retainer: 'Retainer', other: 'Others' };
 

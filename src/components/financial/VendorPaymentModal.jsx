@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { orgStore } from '../../services/orgStore';
-import { PAYMENT_METHODS, categoryLabel } from '../../services/financeCategories';
+import { PAYMENT_METHODS } from '../../services/financeCategories';
 import { todayIso } from '../../services/financeAnalytics';
 import {
   pickerFor, pickerFromAllocations, saveSplitFromPicker, friendlyError,
@@ -9,10 +9,10 @@ import { useToast } from '../shared/Toast';
 import ProjectPicker from '../shared/ProjectPicker';
 import VendorSelect from '../shared/VendorSelect';
 import CountrySelect from '../shared/CountrySelect';
-import { INDIAN_STATES } from '../../data/indianStates';
-import { titleCase } from '../../utils/titleCase';
+import PlaceOfSupplyInput from './PlaceOfSupplyInput';
 import { Modal, ReceiptField } from './financeUi';
-import { LedgerSteps } from './LedgerTypePicker';
+import LedgerTypeField from './LedgerTypeField';
+import { ledgerTypes } from './ledgerTypes';
 import { money, useSection } from './financeHooks';
 import {
   ADVANCE, billBalance, billPickerOf, blank, spreadVendorPayment, vendorCredit,
@@ -22,13 +22,15 @@ import { baseCurrency, currencySymbol } from '../../shared/currency.js';
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
 /**
- * The Company Ledger's Vendor Payment (the Debit side's Product & Delivery,
- * `category` being its Sub-Type). Either way it is one debit to the vendor,
- * never laid against a bill or split: Against Pending pays what they are owed,
- * Advance is paid before their bill (0093). What each bill counts as paid is
- * only worked out from the vendor's totals (vendorAdvance.js).
+ * The Company Ledger's Vendor Payment (the Debit side's Product & Delivery).
+ * Either way it is one debit to the vendor, never laid against a bill or
+ * split: Against Pending pays what they are owed, Advance is paid before their
+ * bill (0093), so it has no Sub-Type. What each bill counts as paid is only
+ * worked out from the vendor's totals (vendorAdvance.js). With `onType` it is
+ * a new Debit from Record Money, and its Type row hands over to another
+ * Type's form.
  */
-export default function VendorPaymentModal({ vendorId = '', category = '', startOn = null, projectId = null, onStep, onClose }) {
+export default function VendorPaymentModal({ vendorId = '', startOn = null, projectId = null, onType, onClose }) {
   const toast = useToast();
   const vendors = useSection('vendors');
   const expenses = useSection('expenses');
@@ -51,7 +53,7 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
     mode: (pendingBy[vendorId] || 0) > 0.009 ? 'pending' : 'advance',
     amount: '', date: todayIso(), payment_method: 'bank_transfer', reference: '', notes: '', description: '',
     receipt_path: null, receipt_number: '',
-    department_id: '', client_id: '', country_code: '', place_of_supply: '', is_inter_state: false, quantity: '', unit: '',
+    department_id: '', client_id: '', country_code: '', place_of_supply: '', is_inter_state: false,
     picker: startOn ? pickerFor(startOn) : pickerFromAllocations('purchase_invoice', null),
   }));
   const [saving, setSaving] = useState(false);
@@ -73,7 +75,8 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
   const pending = pendingBy[form.vendor_id] || 0;
   const amount = round2(form.amount);
   const isAdvance = form.mode === 'advance';
-  const subTypeLabel = category ? categoryLabel(category) : '';
+  // The Vendor Payment Type's own label, for the Type row.
+  const typeLabel = onType ? ledgerTypes('out').find((x) => x.kind === 'vendor')?.label || '' : '';
   // Paid to them beyond all their bills.
   const advance = form.vendor_id ? vendorCredit(bills, expenses, form.vendor_id) : 0;
 
@@ -115,7 +118,7 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
         category: isAdvance ? ADVANCE : 'vendor_bill_payment',
         original_amount: String(amount),
         description: form.description.trim()
-          || `${isAdvance ? 'Advance' : 'Payment'} to ${vendor.company_name}${isAdvance && subTypeLabel ? `, ${subTypeLabel}` : ''}`,
+          || `${isAdvance ? 'Advance' : 'Payment'} to ${vendor.company_name}`,
         date: form.date,
         payment_method: form.payment_method,
         reference: form.reference.trim(),
@@ -125,7 +128,6 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
         ...(form.receipt_number.trim() ? { receipt_number: form.receipt_number.trim() } : {}),
         department_id: form.department_id, client_id: form.client_id,
         country_code: form.country_code, place_of_supply: form.place_of_supply, is_inter_state: form.is_inter_state,
-        quantity: form.quantity, unit: form.unit.trim(),
         currency: baseCurrency(), fx_rate: 1, tax_amount: 0, tax_rate: 0, status: 'paid', billable: false,
       };
       const { id } = await orgStore.addItem('expenses', entry);
@@ -146,14 +148,12 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
   };
 
   return (
-    <Modal title="Record a Debit (Vendor Payment)" onClose={onClose} width={1180} dirty={dirty}>
+    <Modal title={onType ? 'Record a Debit' : 'Record a Debit (Vendor Payment)'} onClose={onClose} dirty={dirty}>
       <form onSubmit={save} className="prod-modal-body cb-form">
-        {onStep && <LedgerSteps step={3} onStep={onStep} />}
         {error && <div className="prod-form-error" role="alert">{error}</div>}
-        {subTypeLabel && (
-          <p className="prod-perf-note">Debit · Vendor Payment · <strong>{titleCase(subTypeLabel)}</strong></p>
-        )}
         <div className="prod-form-grid">
+          {onType && <LedgerTypeField direction="out" value={typeLabel} onChange={onType} />}
+
           <div className="prod-field full">
             <label className="req" htmlFor="vp-vendor">Vendor</label>
             <VendorSelect id="vp-vendor" vendors={activeVendors} value={form.vendor_id}
@@ -209,7 +209,7 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
           <div className="prod-field full">
             <label htmlFor="vp-desc">What is it for?</label>
             <input id="vp-desc" value={form.description}
-              placeholder={isAdvance ? (subTypeLabel ? `e.g. ${subTypeLabel}` : 'e.g. Steel for the second floor')
+              placeholder={isAdvance ? 'e.g. Steel for the second floor'
                 : vendor ? `Payment to ${vendor.company_name}` : 'e.g. Payment for September supplies'}
               onChange={(e) => set('description', e.target.value)} />
           </div>
@@ -283,25 +283,13 @@ export default function VendorPaymentModal({ vendorId = '', category = '', start
             </div>
             <div className="prod-field">
               <label htmlFor="vp-pos">Place of supply</label>
-              <select id="vp-pos" value={form.place_of_supply} onChange={(e) => set('place_of_supply', e.target.value)}>
-                <option value="">Not recorded</option>
-                {INDIAN_STATES.map((st) => <option key={st} value={st}>{st}</option>)}
-              </select>
+              <PlaceOfSupplyInput id="vp-pos" country={form.country_code}
+                value={form.place_of_supply} onChange={(v) => set('place_of_supply', v)} />
               <label className="cb-check">
                 <input type="checkbox" checked={form.is_inter_state}
                   onChange={(e) => set('is_inter_state', e.target.checked)} />
                 Inter-state (IGST)
               </label>
-            </div>
-            <div className="prod-field">
-              <label htmlFor="vp-qty">Quantity</label>
-              <input id="vp-qty" type="number" min="0" step="0.001" value={form.quantity}
-                placeholder="Optional" onChange={(e) => set('quantity', e.target.value)} />
-            </div>
-            <div className="prod-field">
-              <label htmlFor="vp-unit">Unit</label>
-              <input id="vp-unit" value={form.unit} placeholder="Nos, kg, hours, litres"
-                onChange={(e) => set('unit', e.target.value)} />
             </div>
             <div className="prod-field full">
               <label htmlFor="vp-notes">Notes</label>

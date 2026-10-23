@@ -6,8 +6,8 @@ describe('project paths', () => {
         // A project opens on its Overview dashboard; there is no separate hub.
         expect(projectSectionPath('p1')).toBe('/projects/p1/dashboard/overview');
         expect(projectSectionPath('p1', 'home')).toBe('/projects/p1/dashboard/overview');
-        expect(projectSectionPath('p1', 'billing', 'proforma')).toBe('/projects/p1/finance/billing/proforma');
-        expect(projectSectionPath('p1', 'billing')).toBe('/projects/p1/finance/billing/quotations');
+        expect(projectSectionPath('p1', 'billing', 'proforma')).toBe('/projects/p1/client-management/billing/proforma');
+        expect(projectSectionPath('p1', 'billing')).toBe('/projects/p1/client-management/billing/quotations');
         expect(projectSectionPath('p1', 'raci')).toBe('/projects/p1/team-management/team-hierarchy');
         expect(projectSectionPath('p1', 'dashboard')).toBe('/projects/p1/dashboard/overview');
         expect(projectSectionPath('p1', 'wbs', null, { task: 't9' })).toBe('/projects/p1/project-management/tasks-wbs?task=t9');
@@ -15,26 +15,28 @@ describe('project paths', () => {
 
     it('reads the section and view back from a path', () => {
         expect(parseProjectPath('/projects/p1')).toEqual({ section: 'home', view: null });
-        expect(parseProjectPath('/projects/p1/finance/billing/invoices')).toEqual({ section: 'billing', view: 'invoices' });
+        expect(parseProjectPath('/projects/p1/client-management/billing/invoices')).toEqual({ section: 'billing', view: 'invoices' });
+        // Billing used to live under Finance; those links still open it.
+        expect(parseProjectPath('/projects/p1/finance/billing/proforma')).toEqual({ section: 'billing', view: 'proforma' });
         expect(parseProjectPath('/projects/p1/finance/status')).toEqual({ section: 'finance', view: null });
         expect(billingKindOf('invoices')).toBe('invoice');
         expect(documentsViewOf('general-documents')).toBe('files');
     });
 
     it('turns an older ?tab= link into its path', () => {
-        expect(legacyProjectPath('p1', '?tab=billing&doc=proforma')).toBe('/projects/p1/finance/billing/proforma');
+        expect(legacyProjectPath('p1', '?tab=billing&doc=proforma')).toBe('/projects/p1/client-management/billing/proforma');
         expect(legacyProjectPath('p1', '?tab=documents&view=files')).toBe('/projects/p1/documents-management/project-documents/general-documents');
         expect(legacyProjectPath('p1', '?tab=bills&new=1')).toBe('/projects/p1/finance/company-ledger?new=1');
         expect(legacyProjectPath('p1', '')).toBeNull();
     });
 
     it('keeps a Billing form inside the project', () => {
-        expect(projectBillingFormPath('p1', 'quotation')).toBe('/projects/p1/finance/billing/quotations/new');
-        expect(projectBillingFormPath('p1', 'quotation', 'd9')).toBe('/projects/p1/finance/billing/quotations/d9/edit');
-        expect(projectBillingFormPath('p1', 'recurring')).toBe('/projects/p1/finance/billing/recurring/new');
-        const { view } = parseProjectPath('/projects/p1/finance/billing/proforma/new');
+        expect(projectBillingFormPath('p1', 'quotation')).toBe('/projects/p1/client-management/billing/quotations/new');
+        expect(projectBillingFormPath('p1', 'quotation', 'd9')).toBe('/projects/p1/client-management/billing/quotations/d9/edit');
+        expect(projectBillingFormPath('p1', 'recurring')).toBe('/projects/p1/client-management/billing/recurring/new');
+        const { view } = parseProjectPath('/projects/p1/client-management/billing/proforma/new');
         expect(billingFormOf(view)).toEqual({ kind: 'proforma', docId: null });
-        expect(billingFormOf(parseProjectPath('/projects/p1/finance/billing/quotations/d9/edit').view)).toEqual({ kind: 'quotation', docId: 'd9' });
+        expect(billingFormOf(parseProjectPath('/projects/p1/client-management/billing/quotations/d9/edit').view)).toEqual({ kind: 'quotation', docId: 'd9' });
         expect(billingFormOf('invoices')).toBeNull();
         expect(billingKindOf('invoices/new')).toBe('invoice');
     });

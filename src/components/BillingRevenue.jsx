@@ -334,7 +334,7 @@ export default function BillingRevenue() {
             </div>
             <button
               type="button"
-              onClick={() => navigate('/business/products-directory')}
+              onClick={() => navigate('/clients/business-directory')}
               style={{
                 border: 'none', background: 'transparent', cursor: 'pointer',
                 fontSize: '0.75rem', fontWeight: 650, color: 'var(--text-muted)',
@@ -485,7 +485,7 @@ export default function BillingRevenue() {
             <Banknote size={18} style={{ color: 'var(--success)' }} />
             <h3>Credit (No Invoice)</h3>
           </div>
-          <button className="billing-add-btn" onClick={() => navigate('/finance/general-ledger?new=in')}>
+          <button className="billing-add-btn" onClick={() => navigate('/financials/general-ledger?new=in')}>
             <Plus size={16} aria-hidden="true" /> Add Revenue
           </button>
         </div>
@@ -527,7 +527,7 @@ export default function BillingRevenue() {
             <TrendingDown size={18} style={{ color: '#ef4444' }} />
             <h3>Expenses</h3>
           </div>
-          <button className="billing-add-btn" onClick={() => navigate('/finance/general-ledger?new=out')}>
+          <button className="billing-add-btn" onClick={() => navigate('/financials/general-ledger?new=out')}>
             <Plus size={16} aria-hidden="true" /> Add Expense
           </button>
         </div>

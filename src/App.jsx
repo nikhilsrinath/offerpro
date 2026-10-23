@@ -7,7 +7,7 @@ import {
   Activity, Receipt, FilePlus, RotateCcw,
   GitBranch, Package,
   Truck, FileInput, TrendingUp, CalendarCheck, Megaphone,
-  Banknote, FolderKanban, SquareKanban, PieChart, FolderOpen,
+  Banknote, FolderKanban, SquareKanban, Kanban, PieChart, FolderOpen,
   Wallet, BarChart3, UsersRound, FileStack, Gauge, CalendarDays, MessageSquareText, LayoutDashboard
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
@@ -88,6 +88,7 @@ import FinanceStatus from './components/financial/FinanceStatus';
 import Vendors from './components/financial/Vendors';
 import PurchaseInvoices from './components/financial/PurchaseInvoices';
 import CashBook from './components/financial/CashBook';
+import PartyLedger from './components/financial/PartyLedger';
 import { ProjectLedger } from './components/projects/ProjectFinance';
 import TaxSummary from './components/financial/TaxSummary';
 import ProfitLoss from './components/financial/ProfitLoss';
@@ -111,9 +112,13 @@ const MODULE_FILTER = {
   // keep their routes but are no longer rail items (MODULE_EXTRA_PAGES).
   projects: ['projects', 'kanban-chart', 'portfolio'],
   documents: ['document-library', 'offer-letters', 'certificates', 'templates'],
-  finance: ['finance-status', 'general-ledger', 'invoices', 'quotations', 'proforma', 'company-ledger', 'tax-summary', 'profit-loss'],
-  // Vendors sit with clients: both are the parties the company deals with.
-  business: ['client-directory', 'vendor-directory', 'products-directory'],
+  finance: ['finance-status', 'general-ledger', 'company-ledger', 'tax-summary', 'profit-loss'],
+  // Clients and Vendors are a project's Client and Vendor groups over the
+  // whole company: the two ledgers first, General then Company, then the rest.
+  // Billing is what the company bills its clients, so a page of Clients.
+  clients: ['client-general-ledger', 'client-company-ledger', 'quotations', 'proforma', 'invoices',
+            'client-directory', 'crm', 'products-directory'],
+  vendors: ['vendor-general-ledger', 'vendor-company-ledger', 'vendor-directory'],
 };
 
 // Pages that belong to a module without having a place in its rail, the
@@ -121,18 +126,15 @@ const MODULE_FILTER = {
 const MODULE_EXTRA_PAGES = {
   // Recurring invoices live in each project's Billing; the company list keeps
   // its route for the forms that return to it, but has no rail item.
-  finance: ['new-invoice', 'new-quotation', 'new-proforma', 'recurring'],
+  clients: ['new-invoice', 'new-quotation', 'new-proforma', 'recurring'],
   projects: ['project-detail', 'new-project', 'tasks', 'timesheets'],
   // Records is no longer a rail item; /records keeps its route for the
   // dashboard widgets and the old bulk-history redirect.
   documents: ['records', 'templates/nda', 'templates/mou', 'templates/partnership', 'templates/custom'],
-  // CRM lives in each project's Client Management; /crm keeps its route for
-  // the widgets and EdgeAI links that open it, but has no rail item.
-  business: ['crm'],
 };
 
-// The Finance rail shows the sales documents as one Billing item; the page
-// switches between them with tabs (CompanyBilling), each at /billing/<kind>.
+// The Clients rail shows the sales documents as one Billing item; the page
+// switches between them with tabs (CompanyBilling), each at /clients/billing/<kind>.
 // Each list, its editor and the recurring list (reached from a project) light
 // the item up.
 const BILLING_GROUP = {
@@ -142,19 +144,26 @@ const BILLING_GROUP = {
 };
 
 // Like the dashboards (/dashboard/finance), every module page's path starts
-// with its module: /finance/general-ledger, /company/employees. The page ids
+// with its module: /financials/general-ledger, /company/employees. The page ids
 // below stay unprefixed; pageOf() strips the module back off.
-const MODULE_PREFIX = { team: 'company', documents: 'documents', finance: 'finance', business: 'business', projects: 'projects' };
-const PREFIXES = new Set(['company', 'documents', 'finance', 'business']);
+const MODULE_PREFIX = { team: 'company', documents: 'documents', finance: 'financials', clients: 'clients', vendors: 'vendors', projects: 'projects' };
+const PREFIXES = new Set(['company', 'documents', 'financials', 'clients', 'vendors']);
 // Projects' own pages; anything else under /projects/ is a project.
 const PROJECTS_PAGES = new Set(['kanban-chart', 'portfolio', 'tasks', 'timesheets']);
+// Pages whose path is not their id, by module: Clients' and Vendors' ledgers
+// are /clients/general-ledger and /vendors/company-ledger, as in a project.
+const SLUG_PAGE = {
+  clients: { 'general-ledger': 'client-general-ledger', 'company-ledger': 'client-company-ledger', 'business-directory': 'products-directory' },
+  vendors: { 'general-ledger': 'vendor-general-ledger', 'company-ledger': 'vendor-company-ledger' },
+};
+const PAGE_SLUG = Object.fromEntries(Object.values(SLUG_PAGE).flatMap((m) => Object.entries(m).map(([slug, id]) => [id, slug])));
 
-// The path of a rail page: '/finance/general-ledger'. The projects list is
+// The path of a rail page: '/financials/general-ledger'. The projects list is
 // the module's root, /projects.
 function pagePath(mod, id) {
   const prefix = MODULE_PREFIX[mod];
   if (!prefix || id === prefix) return '/' + id;
-  return '/' + prefix + '/' + id;
+  return '/' + prefix + '/' + (PAGE_SLUG[id] || id);
 }
 
 function foldBilling(items, activePage) {
@@ -162,7 +171,7 @@ function foldBilling(items, activePage) {
   if (at < 0) return items;
   const item = {
     id: BILLING_GROUP.id, label: BILLING_GROUP.label, icon: BILLING_GROUP.icon,
-    to: '/finance/billing/' + BILLING_GROUP.pages[0], active: BILLING_GROUP.inside.includes(activePage),
+    to: '/clients/billing/' + BILLING_GROUP.pages[0], active: BILLING_GROUP.inside.includes(activePage),
   };
   const rest = items.filter((i) => !BILLING_GROUP.pages.includes(i.id));
   rest.splice(at, 0, item);
@@ -196,8 +205,9 @@ const MODULE_META = {
   ai:        { id: 'ai', label: 'AI' },
   team:      { id: 'team', label: 'Company' },
   documents: { id: 'documents', label: 'Documents' },
-  finance:   { id: 'finance', label: 'Finance' },
-  business:  { id: 'business', label: 'Business' },
+  finance:   { id: 'finance', label: 'Financials' },
+  clients:   { id: 'clients', label: 'Clients' },
+  vendors:   { id: 'vendors', label: 'Vendors' },
   projects:  { id: 'projects', label: 'Projects' },
   overall:   { id: 'overall', label: 'Dashboard' },
 };
@@ -213,7 +223,7 @@ const NAV_ITEMS = [
   { id: 'dashboard/documents', label: 'Documents', icon: FileStack },
   { id: 'dashboard/usage', label: 'Usage', icon: Gauge },
   { section: 'TEAM' },
-  { id: 'company-hierarchy', label: 'Company Hierarchy', icon: GitBranch },
+  { id: 'company-hierarchy', label: 'Hierarchy', icon: GitBranch },
   { id: 'employees', label: 'Employees', icon: Users },
   { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
   { id: 'recruitment-tracker', label: 'Recruitment Tracker', icon: Activity },
@@ -223,20 +233,26 @@ const NAV_ITEMS = [
   { id: 'offer-letters', label: 'Offer Letters', icon: Briefcase },
   { id: 'certificates', label: 'Certificates', icon: Award },
   { id: 'templates', label: 'Templates', icon: LayoutTemplate },
-  { section: 'FINANCE' },
+  { section: 'FINANCIALS' },
   { id: 'finance-status', label: 'Finance Status', icon: Activity },
   { id: 'general-ledger', label: 'General Ledger', icon: Banknote },
-  { id: 'invoices', label: 'Invoices', icon: Receipt },
-  { id: 'quotations', label: 'Quotations', icon: FilePlus },
-  { id: 'proforma', label: 'Proforma Invoice', icon: FileCheck },
-  { id: 'recurring', label: 'Recurring', icon: RotateCcw },
   { id: 'company-ledger', label: 'Company Ledger', icon: FileInput },
   { id: 'tax-summary', label: 'Tax Summary', icon: Scale },
   { id: 'profit-loss', label: 'Profit & Loss', icon: TrendingUp },
-  { section: 'BUSINESS' },
+  { section: 'CLIENTS' },
+  { id: 'client-general-ledger', label: 'General Ledger', icon: Banknote },
+  { id: 'client-company-ledger', label: 'Company Ledger', icon: FileInput },
+  { id: 'quotations', label: 'Quotations', icon: FilePlus },
+  { id: 'proforma', label: 'Proforma Invoice', icon: FileCheck },
+  { id: 'invoices', label: 'Invoices', icon: Receipt },
+  { id: 'recurring', label: 'Recurring', icon: RotateCcw },
   { id: 'client-directory', label: 'Client Directory', icon: Users },
-  { id: 'vendor-directory', label: 'Vendor Directory', icon: Truck },
+  { id: 'crm', label: 'CRM', icon: Kanban },
   { id: 'products-directory', label: 'Business Directory', icon: Package },
+  { section: 'VENDORS' },
+  { id: 'vendor-general-ledger', label: 'General Ledger', icon: Banknote },
+  { id: 'vendor-company-ledger', label: 'Company Ledger', icon: FileInput },
+  { id: 'vendor-directory', label: 'Vendor Directory', icon: Truck },
   { section: 'PROJECTS' },
   { id: 'projects', label: 'Projects', icon: FolderKanban },
   { id: 'kanban-chart', label: 'Kanban Chart', icon: SquareKanban },
@@ -277,6 +293,10 @@ const PAGE_META = {
   'new-proforma': { title: 'New Proforma Invoice', subtitle: 'Create proforma invoices with advance payment tracking' },
   crm: { title: 'CRM', subtitle: 'Manage your sales pipeline' },
   'client-directory': { title: 'Client Directory', subtitle: 'Manage your client database' },
+  'client-company-ledger': { title: 'Client Company Ledger', subtitle: 'Invoices to clients, the money in from them and what is still outstanding' },
+  'client-general-ledger': { title: 'Client General Ledger', subtitle: 'Every credit from a client and every debit to one' },
+  'vendor-company-ledger': { title: 'Vendor Company Ledger', subtitle: 'Vendor bills, payments to vendors and what is still payable' },
+  'vendor-general-ledger': { title: 'Vendor General Ledger', subtitle: 'Every debit to a vendor and every credit back from one' },
   'products-directory': { title: 'Business Directory', subtitle: 'Product and service catalogue, and what each one has sold' },
   revenue: { title: 'Billing & Revenue', subtitle: 'Track revenue, expenses, and profitability' },
   records: { title: 'Records', subtitle: 'Manage and download issued documents' },
@@ -287,7 +307,7 @@ const PAGE_META = {
   attendance: { title: 'Attendance', subtitle: 'Daily sheet, monthly calendar, export and leave' },
   leave: { title: 'Leave', subtitle: 'Approve requests, track balances and set quotas' },
   announcements: { title: 'Announcements', subtitle: 'Broadcast to the whole team or one department' },
-  'company-hierarchy': { title: 'Company Hierarchy', subtitle: 'Visual org chart: drag nodes and connect reporting lines' },
+  'company-hierarchy': { title: 'Hierarchy', subtitle: 'Visual org chart: drag nodes and connect reporting lines' },
   'recruitment-tracker': { title: 'Recruitment Tracker', subtitle: 'Real-time acceptance status for all sent offer letters' },
   tasks: { title: 'Tasks', subtitle: 'Assign and track work by project, or General' },
   projects: { title: 'Projects', subtitle: 'What the company is delivering, for whom, and whether it pays' },
@@ -329,7 +349,7 @@ const AttendanceSection = () => (
   ]} />
 );
 
-// The editor each Billing list opens: /finance/billing/<kind>/new, /finance/billing/quotations/:id/edit.
+// The editor each Billing list opens: /clients/billing/<kind>/new, /clients/billing/quotations/:id/edit.
 const BILLING_FORM = { invoices: 'new-invoice', quotations: 'new-quotation', proforma: 'new-proforma', recurring: 'recurring' };
 
 // The PAGE_META / MODULE_FILTER key a path belongs to.
@@ -338,6 +358,8 @@ function pageOf(pathname) {
   if (page === '') return 'dashboard/overview';
   let parts = page.split('/');
   if (PREFIXES.has(parts[0]) && parts.length > 1) {
+    const slugged = SLUG_PAGE[parts[0]]?.[parts[1]];
+    if (slugged) return slugged;
     parts = parts.slice(1);
     page = parts.join('/');
   }
@@ -359,7 +381,7 @@ function AppContent() {
   useTaskDeadlineMonitor();
 
   const activePage = pageOf(location.pathname);
-  // /finance/billing/quotations/:docId/edit
+  // /clients/billing/quotations/:docId/edit
   const editingDocId = activePage === 'new-quotation' && location.pathname.endsWith('/edit')
     ? location.pathname.split('/')[4] || null : null;
 
@@ -513,7 +535,15 @@ function AppContent() {
     ? NAV_ITEMS.filter((i) => i.id && MODULE_FILTER[activeModule]?.includes(i.id))
       .map((i) => ({ ...i, to: pagePath(activeModule, i.id) }))
     : [];
-  if (activeModule === 'finance') moduleItems = foldBilling(moduleItems, activePage);
+  // A tab named after its module (Projects at /projects) prefixes every other
+  // tab's URL, so the router would light it on them all. It is on only when
+  // no other tab is the page.
+  const rootItem = moduleItems.find((i) => i.to === '/' + MODULE_PREFIX[activeModule]);
+  if (rootItem) {
+    const onSibling = moduleItems.some((i) => i !== rootItem && i.id === activePage);
+    moduleItems = moduleItems.map((i) => (i === rootItem ? { ...i, active: !onSibling } : i));
+  }
+  if (activeModule === 'clients') moduleItems = foldBilling(moduleItems, activePage);
   let moduleMeta = onProfile ? { label: 'Settings' } : MODULE_META[activeModule];
   if (openProject) {
     const sections = projectSections();
@@ -527,12 +557,12 @@ function AppContent() {
   // scrolls itself and carries the heading and footer (ProjectDetail).
   // A document form opened from a project's Billing page (?project=) is
   // still inside the project, so its arrow leads to the projects too.
-  const onBillingForm = /^\/finance\/billing\/[^/]+\/(new|[^/]+\/edit)$/.test(location.pathname);
+  const onBillingForm = /^\/clients\/billing\/[^/]+\/(new|[^/]+\/edit)$/.test(location.pathname);
   const formProjectId = onBillingForm ? new URLSearchParams(location.search).get('project') : null;
   const formProject = formProjectId && allProjects.find((p) => p.id === formProjectId);
   const back = openProject || formProject || activePage === 'new-project' ? PROJECTS_BACK : HOME_BACK;
   const flush = FLUSH_PAGES.has(activePage) || isTabbed(location.pathname)
-    || /^\/finance\/billing\/recurring\/(new|[^/]+\/edit)$/.test(location.pathname) || !!openProject;
+    || /^\/clients\/billing\/recurring\/(new|[^/]+\/edit)$/.test(location.pathname) || !!openProject;
 
   // Until the first build completes, or when there is no active org. Shaped
   // identically so the assistant never reads undefined.
@@ -582,7 +612,7 @@ function AppContent() {
             <Route path="ai" element={<AskPage theme={theme} />} />
             <Route path="profile" element={<CompanyProfile />} />
             {/* Every path is named after its place in the sidebar: the page,
-                then the tab inside it, under its module (/finance/billing/proforma,
+                then the tab inside it, under its module (/clients/billing/proforma,
                 /company/employees/ex-employees), as the dashboards are. */}
             {/* Documents */}
             <Route path="documents/offer-letters" element={<OffersSection />} />
@@ -597,33 +627,42 @@ function AppContent() {
             <Route path="documents/records" element={<InternRecords />} />
             <Route path="documents/document-library" element={<DocumentLibrary />} />
             <Route path="documents/document-library/:register" element={<DocumentLibrary />} />
-            {/* Finance */}
-            <Route path="finance/finance-status" element={<FinanceStatus />} />
-            <Route path="finance/general-ledger" element={(
+            {/* Financials */}
+            <Route path="financials/finance-status" element={<FinanceStatus />} />
+            <Route path="financials/general-ledger" element={(
               // The same page as a project's General Ledger, over the whole company: its ledger has a Project column.
               <CashBook>
                 {({ onEdit, narrow, onTotals }) => <ProjectLedger onEdit={onEdit} narrow={narrow} onTotals={onTotals} only="purchases" here="cashbook" readOnly />}
               </CashBook>
             )} />
-            <Route path="finance/billing" element={<Navigate to="/finance/billing/quotations" replace />} />
-            <Route path="finance/billing/quotations" element={<CompanyBilling kind="quotation" />} />
-            <Route path="finance/billing/proforma" element={<CompanyBilling kind="proforma" />} />
-            <Route path="finance/billing/invoices" element={<CompanyBilling kind="invoice" />} />
-            <Route path="finance/billing/recurring" element={<RecurringInvoiceList />} />
-            <Route path="finance/billing/quotations/new" element={<QuotationForm editDocId={null} />} />
-            <Route path="finance/billing/quotations/:docId/edit" element={<QuotationFormWrapper />} />
-            <Route path="finance/billing/proforma/new" element={<ProformaInvoiceForm />} />
-            <Route path="finance/billing/invoices/new" element={<InvoiceForm />} />
-            <Route path="finance/billing/recurring/new" element={<RecurringInvoiceForm />} />
-            <Route path="finance/billing/recurring/:id/edit" element={<RecurringInvoiceFormWrapper />} />
-            <Route path="finance/company-ledger" element={<PurchaseInvoices />} />
-            <Route path="finance/tax-summary" element={<TaxSummary />} />
-            <Route path="finance/profit-loss" element={<ProfitLoss />} />
-            {/* Business */}
-            <Route path="business/crm" element={<CRM />} />
-            <Route path="business/client-directory" element={<Customers />} />
-            <Route path="business/vendor-directory" element={<Vendors />} />
-            <Route path="business/products-directory" element={<Products />} />
+            <Route path="financials/company-ledger" element={<PurchaseInvoices />} />
+            <Route path="financials/tax-summary" element={<TaxSummary />} />
+            <Route path="financials/profit-loss" element={<ProfitLoss />} />
+            {/* Clients */}
+            <Route path="clients/general-ledger" element={<PartyLedger key="client-general" party="client" book="general" />} />
+            <Route path="clients/company-ledger" element={<PartyLedger key="client-company" party="client" book="company" />} />
+            <Route path="clients/billing" element={<Navigate to="/clients/billing/quotations" replace />} />
+            <Route path="clients/billing/quotations" element={<CompanyBilling kind="quotation" />} />
+            <Route path="clients/billing/proforma" element={<CompanyBilling kind="proforma" />} />
+            <Route path="clients/billing/invoices" element={<CompanyBilling kind="invoice" />} />
+            <Route path="clients/billing/recurring" element={<RecurringInvoiceList />} />
+            <Route path="clients/billing/quotations/new" element={<QuotationForm editDocId={null} />} />
+            <Route path="clients/billing/quotations/:docId/edit" element={<QuotationFormWrapper />} />
+            <Route path="clients/billing/proforma/new" element={<ProformaInvoiceForm />} />
+            <Route path="clients/billing/invoices/new" element={<InvoiceForm />} />
+            <Route path="clients/billing/recurring/new" element={<RecurringInvoiceForm />} />
+            <Route path="clients/billing/recurring/:id/edit" element={<RecurringInvoiceFormWrapper />} />
+            <Route path="clients/client-directory" element={<Customers />} />
+            <Route path="clients/crm" element={<CRM />} />
+            <Route path="clients/business-directory" element={<Products />} />
+            {/* Vendors: Financials' General Ledger and Company Ledger pages, kept to what is with a vendor. */}
+            <Route path="vendors/general-ledger" element={(
+              <CashBook key="vendor-general">
+                {({ onEdit, narrow, onTotals }) => <ProjectLedger onEdit={onEdit} narrow={narrow} onTotals={onTotals} party="vendor" only="purchases" here="cashbook" readOnly />}
+              </CashBook>
+            )} />
+            <Route path="vendors/company-ledger" element={<PurchaseInvoices key="vendor-company" party="vendor" />} />
+            <Route path="vendors/vendor-directory" element={<Vendors />} />
             <Route path="revenue" element={<BillingRevenue />} />
             {/* Company */}
             <Route path="company/employees" element={<EmployeesSection />} />
@@ -647,8 +686,9 @@ function AppContent() {
             <Route path="projects/:projectId/*" element={<ProjectDetail />} />
             {/* A module's own path lands on its first page. */}
             <Route path="documents" element={<Navigate to="/documents/document-library" replace />} />
-            <Route path="finance" element={<Navigate to="/finance/finance-status" replace />} />
-            <Route path="business" element={<Navigate to="/business/client-directory" replace />} />
+            <Route path="financials" element={<Navigate to="/financials/finance-status" replace />} />
+            <Route path="clients" element={<Navigate to="/clients/general-ledger" replace />} />
+            <Route path="vendors" element={<Navigate to="/vendors/general-ledger" replace />} />
             <Route path="company" element={<Navigate to="/company/company-hierarchy" replace />} />
             {/* Where pages used to live; bookmarks, notifications and older
                 links land on the page's current path. */}
@@ -677,29 +717,43 @@ const MOVED = {
   // The hub became the Dashboard's Overview; Ask became AI.
   'hub': HOME,
   'ask': '/ai',
+  // Finance became Financials, and Billing moved to Clients; the Business
+  // module was split into Clients and Vendors (2026-10-23).
+  'finance': '/financials/finance-status',
+  'finance/billing/*': ({ '*': rest }) => `/clients/billing/${rest}`,
+  'finance/*': ({ '*': rest }) => `/financials/${rest}`,
+  'business': '/clients/client-directory',
+  'business/crm': '/clients/crm',
+  'business/client-directory': '/clients/client-directory',
+  'business/client-general-ledger': '/clients/general-ledger',
+  'business/client-company-ledger': '/clients/company-ledger',
+  'business/products-directory': '/clients/business-directory',
+  'business/vendor-directory': '/vendors/vendor-directory',
+  'business/vendor-general-ledger': '/vendors/general-ledger',
+  'business/vendor-company-ledger': '/vendors/company-ledger',
   // Before every page sat under its module (/general-ledger → /finance/general-ledger).
-  'finance-status': '/finance/finance-status',
-  'general-ledger': '/finance/general-ledger',
-  'billing': '/finance/billing/quotations',
-  'billing/quotations': '/finance/billing/quotations',
-  'billing/proforma': '/finance/billing/proforma',
-  'billing/invoices': '/finance/billing/invoices',
-  'billing/recurring': '/finance/billing/recurring',
-  'billing/quotations/new': '/finance/billing/quotations/new',
-  'billing/quotations/:docId/edit': ({ docId }) => `/finance/billing/quotations/${docId}/edit`,
-  'billing/proforma/new': '/finance/billing/proforma/new',
-  'billing/invoices/new': '/finance/billing/invoices/new',
-  'billing/recurring/new': '/finance/billing/recurring/new',
-  'billing/recurring/:id/edit': ({ id }) => `/finance/billing/recurring/${id}/edit`,
-  'purchase-bills': '/finance/company-ledger',
+  'finance-status': '/financials/finance-status',
+  'general-ledger': '/financials/general-ledger',
+  'billing': '/clients/billing/quotations',
+  'billing/quotations': '/clients/billing/quotations',
+  'billing/proforma': '/clients/billing/proforma',
+  'billing/invoices': '/clients/billing/invoices',
+  'billing/recurring': '/clients/billing/recurring',
+  'billing/quotations/new': '/clients/billing/quotations/new',
+  'billing/quotations/:docId/edit': ({ docId }) => `/clients/billing/quotations/${docId}/edit`,
+  'billing/proforma/new': '/clients/billing/proforma/new',
+  'billing/invoices/new': '/clients/billing/invoices/new',
+  'billing/recurring/new': '/clients/billing/recurring/new',
+  'billing/recurring/:id/edit': ({ id }) => `/clients/billing/recurring/${id}/edit`,
+  'purchase-bills': '/financials/company-ledger',
   // Purchase Bills became the Company Ledger.
-  'finance/purchase-bills': '/finance/company-ledger',
-  'tax-summary': '/finance/tax-summary',
-  'profit-loss': '/finance/profit-loss',
-  'crm': '/business/crm',
-  'client-directory': '/business/client-directory',
-  'vendor-directory': '/business/vendor-directory',
-  'products-directory': '/business/products-directory',
+  'finance/purchase-bills': '/financials/company-ledger',
+  'tax-summary': '/financials/tax-summary',
+  'profit-loss': '/financials/profit-loss',
+  'crm': '/clients/crm',
+  'client-directory': '/clients/client-directory',
+  'vendor-directory': '/vendors/vendor-directory',
+  'products-directory': '/clients/business-directory',
   'company-hierarchy': '/company/company-hierarchy',
   'employees': '/company/employees',
   'employees/new': '/company/employees/new',
@@ -722,21 +776,20 @@ const MOVED = {
   'tasks': '/projects/tasks',
   'timesheets': '/projects/timesheets',
   // Older names still.
-  'cashbook': '/finance/general-ledger',
-  'invoices': '/finance/billing/invoices',
-  'quotations': '/finance/billing/quotations',
-  'proforma': '/finance/billing/proforma',
-  'recurring': '/finance/billing/recurring',
-  'recurring/new': '/finance/billing/recurring/new',
-  'recurring/edit/:id': ({ id }) => `/finance/billing/recurring/${id}/edit`,
-  'new-invoice': '/finance/billing/invoices/new',
-  'new-quotation': '/finance/billing/quotations/new',
-  'new-quotation/:docId': ({ docId }) => `/finance/billing/quotations/${docId}/edit`,
-  'new-proforma': '/finance/billing/proforma/new',
-  'purchases': '/finance/company-ledger',
-  'vendors': '/business/vendor-directory',
-  'customers': '/business/client-directory',
-  'products': '/business/products-directory',
+  'cashbook': '/financials/general-ledger',
+  'invoices': '/clients/billing/invoices',
+  'quotations': '/clients/billing/quotations',
+  'proforma': '/clients/billing/proforma',
+  'recurring': '/clients/billing/recurring',
+  'recurring/new': '/clients/billing/recurring/new',
+  'recurring/edit/:id': ({ id }) => `/clients/billing/recurring/${id}/edit`,
+  'new-invoice': '/clients/billing/invoices/new',
+  'new-quotation': '/clients/billing/quotations/new',
+  'new-quotation/:docId': ({ docId }) => `/clients/billing/quotations/${docId}/edit`,
+  'new-proforma': '/clients/billing/proforma/new',
+  'purchases': '/financials/company-ledger',
+  'customers': '/clients/client-directory',
+  'products': '/clients/business-directory',
   'team-hierarchy': '/company/company-hierarchy',
   'offer-tracker': '/company/recruitment-tracker',
   'library': '/documents/document-library',

@@ -825,7 +825,9 @@ function History({ a, phone, onPicked, hide }) {
     }, [clear]);
 
     const needle = q.trim().toLowerCase();
-    const used = a.chats.filter((c) => c.messages.length || c.titled);
+    // Opening an agent makes its (titled) chat; it joins the history only once
+    // something is said in it.
+    const used = a.chats.filter((c) => c.messages.length || (c.titled && !c.agent));
     const matches = needle
         ? used.filter((c) => c.title.toLowerCase().includes(needle)
             || c.messages.some((m) => String(m.content || '').toLowerCase().includes(needle)))

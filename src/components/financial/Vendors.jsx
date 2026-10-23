@@ -334,7 +334,7 @@ export default function Vendors() {
       )}
 
       {viewing && (
-        <Modal title={viewing.company_name} onClose={() => setViewing(null)} width="1120px" minHeight="min(820px, 90vh)">
+        <Modal title={viewing.company_name} onClose={() => setViewing(null)} width="1120px">
           <div className="prod-modal-body" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
               {viewing.contact_name && <span>{viewing.contact_name}</span>}
@@ -374,7 +374,7 @@ export default function Vendors() {
             <div style={{ flex: 1 }} />
             <div className="prod-modal-foot">
               <button type="button" className="prod-btn-ghost" onClick={() => setViewing(null)}>Close</button>
-              <button type="button" className="prod-btn-primary" onClick={() => navigate(`/finance/company-ledger?vendor=${viewing.id}&new=1`)}>
+              <button type="button" className="prod-btn-primary" onClick={() => navigate(`/financials/company-ledger?vendor=${viewing.id}&new=1`)}>
                 <Plus size={13} /> Record a Bill
               </button>
             </div>

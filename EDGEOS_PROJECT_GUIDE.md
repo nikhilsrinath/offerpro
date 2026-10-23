@@ -50,7 +50,7 @@ EdgeOS is a **multi-tenant, all-in-one back office for small Indian companies**.
 
 Plans are tiered **Free / Pro / Max** with quotas on documents, AI messages, active projects and some features.
 
-**Naming leftovers:** the npm package is still `qbitointern` and `README.md` still says "OfferPro". Both predate the EdgeOS name. `/api/nvidia` is actually OpenRouter.
+**Naming leftovers:** the npm package is still `qbitointern` and `README.md` still says "OfferPro". Both predate the EdgeOS name. `/api/nvidia` is actually Gemini.
 
 ---
 
@@ -73,7 +73,7 @@ Plans are tiered **Free / Pro / Max** with quotas on documents, AI messages, act
 | Backend | **Supabase**: Postgres + Row-Level Security, Auth, Storage, Realtime | `supabase/`, `src/lib/supabase.js` |
 | Serverless | **Vercel functions** (Node) | `api/*.js` |
 | Email | **Nodemailer** over each org's own Gmail SMTP (app password, AES-256-GCM encrypted) | `api/email.js` |
-| AI model | **OpenRouter**, model `google/gemini-3.6-flash` by default (override with `OPENROUTER_MODEL`). Every call goes through `api/_lib/llm.js`; the browser cannot choose the model | `api/_lib/llm.js`, used by `api/_lib/agent/model.js`, `api/brain.js`, `api/library.js`, `api/nvidia.js` |
+| AI model | **Google Gemini** (`GEMINI_API_KEY`), model `gemini-3.6-flash` by default (override with `GEMINI_MODEL`). Every call goes through `api/_lib/llm.js`; the browser cannot choose the model | `api/_lib/llm.js`, used by `api/_lib/agent/model.js`, `api/brain.js`, `api/library.js`, `api/nvidia.js` |
 | Unit tests | **Vitest** | `vitest.config.js` |
 | DB tests | Plain-Postgres SQL tests in Docker | `supabase/tests/`, `scripts/run-db-tests.sh` |
 | Lint | ESLint 9 (react, react-hooks, react-refresh) | `eslint.config.js` |
@@ -96,7 +96,7 @@ EdgeOs/
 │   ├── portal-token.js         Mint signed portal links
 │   ├── export.js               Full tenant JSON export
 │   ├── admin.js                Platform console actions
-│   ├── nvidia.js               Co-founder chat proxy to OpenRouter (name is historical)
+│   ├── nvidia.js               Co-founder chat proxy to Gemini (name is historical)
 │   └── _lib/                   auth, crypto, portal tokens, AI usage, brain retrieval,
 │       └── agent/              the agent runtime (registry, tools/, loop, pipeline, executor…)
 ├── src/
@@ -173,7 +173,7 @@ EdgeOs/
 │    + member_permissions           │   │   where unavoidable)                  │
 │  • schema `app`: guards, triggers,│   │ Agent writes run AS THE USER (their   │
 │    numbering, totals, EdgeBrain   │   │   JWT) so RLS still applies           │
-│ Auth · Storage buckets · Realtime │   │ Gmail SMTP · OpenRouter · HMAC tokens ·   │
+│ Auth · Storage buckets · Realtime │   │ Gmail SMTP · Gemini · HMAC tokens ·   │
 └───────────────────────────────────┘   │ AES-GCM secrets                       │
                                         └───────────────────────────────────────┘
 ```
@@ -181,7 +181,7 @@ EdgeOs/
 ### Design principles (stated throughout the code)
 
 1. **The database is the authority.** RLS policies and `app.*` triggers decide who may do what and keep derived values right: document numbers, totals, `amount_paid`, project codes, allocation caps, closed-project locks. The UI only mirrors those rules so its controls don't lie. `orgStore.can()` is for showing and hiding controls only.
-2. **No secrets in the browser.** The Gmail password, portal HMAC key, OpenRouter key and service role live server-side. `anon` has no table grants, so the public recipient portal goes through `/api/portal`.
+2. **No secrets in the browser.** The Gmail password, portal HMAC key, Gemini key and service role live server-side. `anon` has no table grants, so the public recipient portal goes through `/api/portal`.
 3. **Derived, not duplicated.** Finance and dashboard figures are pure functions over recorded rows (`financeAnalytics.js`, `overviewModel.js`, `todayModel.js`). EdgeBrain is a SQL projection of the tables. Revenue by country is aggregated in Postgres.
 4. **The AI must not bluff.** Answers come from real data with counts and provenance. The model understands the request, and code only parses values or fills blanks, with no trigger-word routing. Every AI write is **proposed** as a card and runs only when the user confirms it, as that user.
 5. **Idempotent, additive migrations.** New columns are optional, and the app sends them only when filled, so a database that lags the repo keeps working for everything else.
@@ -214,14 +214,14 @@ The Company Ledger (`/finance/company-ledger`) holds a bill with subtotal, GST, 
 
 1. The user types "Invoice Acme ₹50,000 for the website, due next Friday" in the copilot (dock, full-screen, or `/ask`).
 2. `AssistantContext` → `agentService.streamAgent` → `POST /api/agent` (`mode:'chat'`, SSE).
-3. The server builds context: user, role, `my_permissions`, plan, today in the org's timezone, current page, recent entities, and EdgeBrain facts as `<data>`. It runs the model (OpenRouter) with **function calling** over only the tools this user may use, for up to 8 steps.
+3. The server builds context: user, role, `my_permissions`, plan, today in the org's timezone, current page, recent entities, and EdgeBrain facts as `<data>`. It runs the model (Gemini) with **function calling** over only the tools this user may use, for up to 8 steps.
 4. Read tools (`search`, `list_invoices`, `finance_summary`, `ask_brain`…) run immediately. A write tool (`create_invoice_draft`) **resolves names to records, never guessing** (`resolvers.js`). It then stores a proposal in `ai_actions` and streams an **action card**.
 5. The user taps **Confirm** (or Ctrl/⌘+Enter). `executor.js` applies the plan **with the user's own JWT**, with optimistic concurrency, so RLS and every SQL guard apply. `audit_log` rows are stamped `via = 'edgeai'` with the `ai_action_id`.
 6. The receipt card offers **Undo** for 10 minutes and **Open**. AI usage is metered once per user message (`bump_ai_usage`, `ai_usage_events`).
 
 ### 5.5 Uploading to the Document Library
 
-`/documents/document-library` → `POST /api/library`. The server reads the file into one Markdown document (PDF via `unpdf`, Office/ODF via `fflate`, sheets via `xlsx`, images and scanned PDFs via the AI model on OpenRouter, metered). It cuts that into passages in `library_chunks` (full-text indexed) and files it under a register: General, Process assets or Lessons learned (0069). EdgeBrain turns each file into a `library_document` node, and the copilot's context gets ranked passages via `library_search`.
+`/documents/document-library` → `POST /api/library`. The server reads the file into one Markdown document (PDF via `unpdf`, Office/ODF via `fflate`, sheets via `xlsx`, images and scanned PDFs via the Gemini model, metered). It cuts that into passages in `library_chunks` (full-text indexed) and files it under a register: General, Process assets or Lessons learned (0069). EdgeBrain turns each file into a `library_document` node, and the copilot's context gets ranked passages via `library_search`.
 
 ---
 
@@ -497,7 +497,7 @@ Access needs both the `app_metadata.platform_admin` claim (granted by `scripts/s
 | UI | `Copilot.jsx` (variants: `dock` in the hub, `full` full-screen, page for `/ask`), `ActionCard.jsx`, `DisambiguationCard.jsx`, `FollowUpChips.jsx`, `DocPaper.jsx`, `Markdown.jsx` (safe renderer), `Orb.jsx`, `VoiceCall.jsx` (voice mode via `hooks/useSpeechRecognition.js`), `AIAssistant.jsx` (global launcher) |
 | Transport | `services/agentService.js`: SSE events `text`, `card`, `choice`, `input`, `notice`, `navigate`, `entities`, `status`; card actions confirm / cancel / undo / status |
 | Server entry | `api/agent.js` |
-| Runtime | `api/_lib/agent/`: `registry.js` (tool catalogue, risk level, permission filter), `loop.js` (≤ 8 model steps), `model.js` (OpenRouter call), `prompt.js` (`AGENT_PROMPT_VERSION`), `context.js`, `resolvers.js` (names → records, never a guess), `pipeline.js` (propose / confirm / undo), `executor.js` (apply as the user, optimistic concurrency), `actions.js`, `db.js` (user-token client, friendly errors) |
+| Runtime | `api/_lib/agent/`: `registry.js` (tool catalogue, risk level, permission filter), `loop.js` (≤ 8 model steps), `model.js` (Gemini call), `prompt.js` (`AGENT_PROMPT_VERSION`), `context.js`, `resolvers.js` (names → records, never a guess), `pipeline.js` (propose / confirm / undo), `executor.js` (apply as the user, optimistic concurrency), `actions.js`, `db.js` (user-token client, friendly errors) |
 | Tools | **read:** `search`, `get_record`, `list_tasks`, `list_invoices`, `list_leave`, `get_attendance`, `finance_summary`, `ask_brain`, `list_bills` · **navigate:** `open_page`, `open_record` · **tasks:** `create_task`, `update_task`, `complete_task`, `reopen_task`, `delete_task` · **clients:** `create_client`, `update_client`, `move_client_stage`, `add_client_note`, `delete_client` · **finance:** `create_{quotation,proforma,invoice}_draft`, `convert_quotation`, `issue_document`, `record_payment`, `mark_invoice_paid`, `create_vendor`, `create_purchase_bill`, `cancel_financial_document`, `delete_financial_document` · **cash:** `create_cash_entry` · **agents:** `deadline_watch`, `business_overview`, `business_insights`, `business_breakdown` (read) |
 | Storage | `ai_actions` (0068): proposals → executed / undone. Users see their own rows; owner/admin see all; only the service role writes. `audit_log.via` / `ai_action_id`. |
 | Evals | `scripts/eval-agent.js` (+ `.cases.js`, `.world.js`) |
@@ -577,7 +577,7 @@ All handlers are Vercel functions. Auth is `Authorization: Bearer <Supabase acce
 | `/api/portal` | GET/POST | portal token | Recipient portal load + actions (service role, one document) |
 | `/api/export` | GET | owner/admin | Full tenant JSON export |
 | `/api/admin` | POST | platform admin | Console actions |
-| `/api/nvidia` | POST | member | Co-founder chat proxy to OpenRouter, metered |
+| `/api/nvidia` | POST | member | Co-founder chat proxy to Gemini, metered |
 | `/api/agents` | POST / GET | member (scan, BI snapshot) · admin (settings, run) · cron secret (GET) | Agents: Compliance and Deadline Agent scan, settings, run now; Business Intelligence snapshot; GET is the scheduled run |
 
 **`api/_lib/`:** `auth.js`, `supabaseAdmin.js` (lazy service-role client, never imported from `src/`), `crypto.js`, `portalToken.js`, `aiUsage.js`, `docShape.js`, `brainRetrieval.js`, `libraryExtract.js`, `wbsSuggest.js` (WBS suggestions), `agent/`.
@@ -590,9 +590,8 @@ All handlers are Vercel functions. Auth is `Authorization: Bearer <Supabase acce
 | `SUPABASE_SERVICE_ROLE_KEY` | server | Service-role client |
 | `SECRETS_ENCRYPTION_KEY` | server | AES key for Gmail passwords (`openssl rand -hex 32`) |
 | `PORTAL_TOKEN_SECRET` | server | HMAC key for portal links (32+ chars) |
-| `OPENROUTER_API_KEY` | server | OpenRouter (all AI routes) |
-| `OPENROUTER_MODEL` | server, optional | OpenRouter model id; default `google/gemini-3.6-flash` |
-| `OPENROUTER_SITE_URL` | server, optional | Sent as `HTTP-Referer` for OpenRouter's dashboard |
+| `GEMINI_API_KEY` | server | Gemini (all AI routes) |
+| `GEMINI_MODEL` | server, optional | Gemini model id; default `gemini-3.6-flash` |
 | `AGENT_MODEL` | server | Optional model override |
 | `PORTAL_ALLOWED_ORIGINS` | server | Allowed origins for portal links |
 | `PLATFORM_ADMIN_EMAIL`, `PLATFORM_SMTP_USER`, `PLATFORM_SMTP_PASSWORD`, `PLATFORM_MAIL_FROM` | server | Platform console |
@@ -687,7 +686,7 @@ All handlers are Vercel functions. Auth is `Authorization: Bearer <Supabase acce
   - Salary never reaches non-financial users.
 - **New tenant tables** go through `app.secure_tenant_table` and **must get `role_permissions` rows seeded**, or every request 403s. The cause is the policy, not grants.
 - **The service role** is used only server-side, only where unavoidable (portal, metering, `ai_actions`, export, admin). Agent writes run with the user's JWT.
-- **Secrets:** Gmail passwords are AES-256-GCM encrypted in `org_secrets`; portal links are HMAC-signed and revocable; the OpenRouter key is server-only.
+- **Secrets:** Gmail passwords are AES-256-GCM encrypted in `org_secrets`; portal links are HMAC-signed and revocable; the Gemini key is server-only.
 - **Email:** header-injection guards, 50-recipient cap, per-org rate limit.
 - **Audit:** `audit_log` is append-only, project-aware, and marks AI-originated writes.
 

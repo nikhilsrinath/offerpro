@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { DialogSheet, RowMenu } from './ui/edge';
+import { RowMenu } from './ui/edge';
+import { Modal } from './financial/financeUi';
 import {
-  Plus, X, Edit3, Trash2, Search, GripVertical,
+  Plus, Edit3, Trash2, Search, GripVertical,
   User, Phone, Mail, Building2, StickyNote, ChevronRight, FolderKanban,
 } from 'lucide-react';
 import { orgStore } from '../services/orgStore';
@@ -418,75 +419,65 @@ export default function CRM({ project = null }) {
 
   function renderModal() {
     return (
-      <div className="customer-modal-overlay" onClick={() => setModalOpen(false)}>
-        <DialogSheet className="customer-modal" labelledBy="lead-form-title" onClose={() => setModalOpen(false)}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-            <h3 id="lead-form-title" style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>
-              {editingLead ? 'Edit Lead' : 'Add Lead'}
-            </h3>
-            <button type="button" aria-label="Close" title="Close (Esc)" onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '0.25rem' }}>
-              <X aria-hidden="true" size={20} />
+      <Modal title={editingLead ? 'Edit Lead' : 'Add Lead'} onClose={() => setModalOpen(false)}>
+        <form onSubmit={handleSave} className="prod-modal-body">
+          <div className="easy-row" style={{ gap: '1rem' }}>
+            <div className="easy-field full">
+              <label className="easy-lbl req">Contact Person</label>
+              <input aria-label="Contact Person" required type="text" placeholder="e.g. John Doe" value={formData.person_name}
+                onChange={e => setFormData({ ...formData, person_name: e.target.value })} className="easy-inp" autoFocus />
+            </div>
+            <div className="easy-field full">
+              <label className="easy-lbl req">Company Name</label>
+              <input aria-label="Company Name" required type="text" placeholder="e.g. Acme Corp" value={formData.company_name}
+                onChange={e => setFormData({ ...formData, company_name: e.target.value })} className="easy-inp" />
+            </div>
+            <div className="easy-field full">
+              <label className="easy-lbl" htmlFor="lead-project">Project</label>
+              <ClientProjectSelect id="lead-project" cp={cp} value={formData.project}
+                onChange={p => setFormData({ ...formData, project: p })} />
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem', display: 'block' }}>
+                Choose Others when they are not on a project yet. You can move them onto one any time.
+              </span>
+            </div>
+            <div className="easy-field">
+              <label className="easy-lbl">Email</label>
+              <input aria-label="Email" type="email" placeholder="john@acme.com" value={formData.email}
+                onChange={e => setFormData({ ...formData, email: e.target.value })} className="easy-inp" />
+            </div>
+            <div className="easy-field">
+              <label className="easy-lbl">Phone</label>
+              <input aria-label="Phone" type="text" placeholder="+91 ..." value={formData.phone}
+                onChange={e => setFormData({ ...formData, phone: e.target.value })} className="easy-inp" />
+            </div>
+            <div className="easy-field full">
+              <label className="easy-lbl">Notes</label>
+              <textarea aria-label="Notes"
+                placeholder="Any notes about this lead..."
+                value={formData.notes}
+                onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                className="easy-inp"
+                rows={3}
+                style={{ resize: 'vertical', minHeight: '70px' }}
+              />
+            </div>
+          </div>
+          <div className="prod-modal-foot">
+            <button type="button" onClick={() => setModalOpen(false)} className="prod-btn-ghost">
+              Cancel
+            </button>
+            {editingLead && canCreateProjects() && (
+              <button type="button" onClick={() => { setModalOpen(false); startProject(editingLead); }}
+                className="prod-btn-ghost">
+                Start Project
+              </button>
+            )}
+            <button type="submit" disabled={saving} className="prod-btn-primary">
+              {saving ? 'Saving...' : editingLead ? 'Update Lead' : 'Add Lead'}
             </button>
           </div>
-          <form onSubmit={handleSave}>
-            <div className="easy-row" style={{ gap: '1rem' }}>
-              <div className="easy-field full">
-                <label className="easy-lbl req">Contact Person</label>
-                <input aria-label="Contact Person" required type="text" placeholder="e.g. John Doe" value={formData.person_name}
-                  onChange={e => setFormData({ ...formData, person_name: e.target.value })} className="easy-inp" autoFocus />
-              </div>
-              <div className="easy-field full">
-                <label className="easy-lbl req">Company Name</label>
-                <input aria-label="Company Name" required type="text" placeholder="e.g. Acme Corp" value={formData.company_name}
-                  onChange={e => setFormData({ ...formData, company_name: e.target.value })} className="easy-inp" />
-              </div>
-              <div className="easy-field full">
-                <label className="easy-lbl" htmlFor="lead-project">Project</label>
-                <ClientProjectSelect id="lead-project" cp={cp} value={formData.project}
-                  onChange={p => setFormData({ ...formData, project: p })} />
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem', display: 'block' }}>
-                  Choose Others when they are not on a project yet. You can move them onto one any time.
-                </span>
-              </div>
-              <div className="easy-field">
-                <label className="easy-lbl">Email</label>
-                <input aria-label="Email" type="email" placeholder="john@acme.com" value={formData.email}
-                  onChange={e => setFormData({ ...formData, email: e.target.value })} className="easy-inp" />
-              </div>
-              <div className="easy-field">
-                <label className="easy-lbl">Phone</label>
-                <input aria-label="Phone" type="text" placeholder="+91 ..." value={formData.phone}
-                  onChange={e => setFormData({ ...formData, phone: e.target.value })} className="easy-inp" />
-              </div>
-              <div className="easy-field full">
-                <label className="easy-lbl">Notes</label>
-                <textarea aria-label="Notes"
-                  placeholder="Any notes about this lead..."
-                  value={formData.notes}
-                  onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                  className="easy-inp"
-                  rows={3}
-                  style={{ resize: 'vertical', minHeight: '70px' }}
-                />
-              </div>
-            </div>
-            <div className="form-actions" style={{ marginTop: '1.5rem' }}>
-              <button type="button" onClick={() => setModalOpen(false)} className="easy-submit-outline">
-                Cancel
-              </button>
-              {editingLead && canCreateProjects() && (
-                <button type="button" onClick={() => { setModalOpen(false); startProject(editingLead); }}
-                  className="easy-submit-outline">
-                  Start Project
-                </button>
-              )}
-              <button type="submit" disabled={saving} className="easy-submit">
-                {saving ? 'Saving...' : editingLead ? 'Update Lead' : 'Add Lead'}
-              </button>
-            </div>
-          </form>
-        </DialogSheet>
-      </div>
+        </form>
+      </Modal>
     );
   }
 

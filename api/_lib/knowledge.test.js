@@ -437,7 +437,7 @@ describe('timeouts and failures', () => {
     expect(JSON.stringify(res)).not.toMatch(/relation|permission denied/);
   });
 
-  it('an OpenRouter failure fails the turn instead of producing an answer', async () => {
+  it('a Gemini failure fails the turn instead of producing an answer', async () => {
     const { ctx } = world();
     const events = [];
     const err = Object.assign(new Error('AI provider error 402'), { status: 402 });

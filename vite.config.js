@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
     if (process.env[key] === undefined) process.env[key] = value
   }
 
-  const SERVER_ONLY = ['SUPABASE_SERVICE_ROLE_KEY', 'SECRETS_ENCRYPTION_KEY', 'PORTAL_TOKEN_SECRET', 'OPENROUTER_API_KEY']
+  const SERVER_ONLY = ['SUPABASE_SERVICE_ROLE_KEY', 'SECRETS_ENCRYPTION_KEY', 'PORTAL_TOKEN_SECRET', 'GEMINI_API_KEY']
   const missing = SERVER_ONLY.filter((k) => !process.env[k])
   if (missing.length) {
     console.warn(`[vite] missing server-only env: ${missing.join(', ')} — /api routes will fail on localhost`)

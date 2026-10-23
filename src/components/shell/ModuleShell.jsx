@@ -635,12 +635,12 @@ function notifTarget(n) {
         case 'quotation_accepted':
         case 'quotation_sent':
         case 'revision_requested':
-            return '/finance/billing/quotations';
+            return '/clients/billing/quotations';
         case 'payment_submitted':
-            return '/finance/billing/invoices';
+            return '/clients/billing/invoices';
         case 'order_confirmed':
         case 'advance_submitted':
-            return '/finance/billing/proforma';
+            return '/clients/billing/proforma';
         default:
             return null;
     }

@@ -1,9 +1,15 @@
-import React, { useRef, useId, useState, useEffect, useLayoutEffect } from 'react';
+import React, { useRef, useId, useState, useEffect, useLayoutEffect, createContext, useContext } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, MoreHorizontal, Pencil, Search as SearchIcon } from 'lucide-react';
-import { MONO, useT, useDialog, tableFrame, thStyle, tdStyle } from './edgeUtils';
+import { Check, ChevronDown, MoreHorizontal, Pencil, Search as SearchIcon, X } from 'lucide-react';
+import { MONO, useT, useDialog, drawerWidth, tableFrame, thStyle, tdStyle } from './edgeUtils';
 import { confirmDialog } from '../../services/confirm';
 import { titleCase, titleCaseNode } from '../../utils/titleCase';
+import './drawer.css';
+
+/* Set by <Modal>: controls inside the side panel take its tighter sizes, and
+   buttons in its foot are the small ones. */
+const InDrawer = createContext(false);
+const InDrawerFoot = createContext(false);
 
 /* ══════════════════════════════════════════════════════════════════════════
    The kit every converted page is built from.
@@ -117,8 +123,9 @@ export function Muted({ children, size = 12 }) {
 
 /* ── controls ─────────────────────────────────────────────────────────────── */
 
-export function Btn({ children, onClick, primary, danger, disabled, title, size = 'md', type = 'button', full, style, ...rest }) {
+export function Btn({ children, onClick, primary, danger, disabled, title, size: sizeProp = 'md', type = 'button', full, style, ...rest }) {
     const t = useT();
+    const size = useContext(InDrawerFoot) ? 'sm' : sizeProp;
     const h = size === 'sm' ? 30 : 36;
     return (
         <button
@@ -233,28 +240,39 @@ function childRequired(children) {
 
 export function Field({ label, children, hint, wide, required }) {
     const t = useT();
+    const drawer = useContext(InDrawer);
     const req = required ?? childRequired(children);
+    // In the side panel, drawer.css lays this out as a row: the label on the
+    // left, the control and its hint on the right.
     return (
-        <label style={{ display: 'block', minWidth: 0, gridColumn: wide ? '1 / -1' : undefined }}>
-            <span style={{
-                display: 'block', fontSize: 12.5, fontWeight: 500,
-                color: t.dim, marginBottom: 6,
+        <label className="edge-field" style={{ display: 'block', minWidth: 0, gridColumn: wide ? '1 / -1' : undefined }}>
+            <span className="edge-field-label" style={{
+                display: 'block', fontSize: drawer ? 13.5 : 12.5, fontWeight: 500, lineHeight: drawer ? 1.4 : undefined,
+                color: drawer ? t.text : t.dim, marginBottom: 6,
             }}>{titleCaseNode(label)}{req && <ReqStar />}</span>
-            {children}
-            {hint && <span style={{ display: 'block', fontSize: 11.5, color: t.faint, marginTop: 5 }}>{hint}</span>}
+            <span className="edge-field-control" style={{ display: 'block', minWidth: 0 }}>
+                {children}
+                {hint && <span className="edge-field-hint" style={{ display: 'block', fontSize: 11.5, color: t.faint, marginTop: drawer ? 8 : 5 }}>{hint}</span>}
+            </span>
         </label>
     );
 }
 
+/* The panel's controls are a little shorter and squarer than the page's. */
+const ctl = (drawer) => (drawer
+    ? { height: 34, borderRadius: 7, fontSize: 13.5 }
+    : { height: 36, borderRadius: 10, fontSize: 13.5 });
+
 export function Input(props) {
     const t = useT();
+    const drawer = useContext(InDrawer);
     return (
         <input
             {...props} className="edge-input"
             style={{
-                verticalAlign: 'top', width: '100%', boxSizing: 'border-box', height: 36, padding: '0 12px',
-                background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 10,
-                color: t.text, fontFamily: MONO, fontSize: 13.5, outline: 'none', ...props.style,
+                verticalAlign: 'top', width: '100%', boxSizing: 'border-box', padding: drawer ? '0 11px' : '0 12px',
+                background: t.panelAlt, border: '1px solid ' + (drawer ? t.lineStrong : t.line),
+                color: t.text, fontFamily: MONO, outline: 'none', ...ctl(drawer), ...props.style,
             }}
         />
     );
@@ -262,14 +280,15 @@ export function Input(props) {
 
 export function Select({ children, ...props }) {
     const t = useT();
+    const drawer = useContext(InDrawer);
     return (
         <select
             {...props} className="edge-input"
             style={{
-                verticalAlign: 'top', width: '100%', boxSizing: 'border-box', height: 36,
-                padding: '0 28px 0 12px', cursor: 'pointer',
-                background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 10,
-                color: t.text, fontFamily: MONO, fontSize: 13.5, outline: 'none',
+                verticalAlign: 'top', width: '100%', boxSizing: 'border-box',
+                padding: drawer ? '0 28px 0 11px' : '0 28px 0 12px', cursor: 'pointer',
+                background: t.panelAlt, border: '1px solid ' + (drawer ? t.lineStrong : t.line),
+                color: t.text, fontFamily: MONO, outline: 'none', ...ctl(drawer),
                 // The native control paints its own light chrome, which reads as a
                 // hole in a dark panel. Draw the caret ourselves instead.
                 appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
@@ -285,12 +304,13 @@ export function Select({ children, ...props }) {
 
 export function Textarea(props) {
     const t = useT();
+    const drawer = useContext(InDrawer);
     return (
         <textarea
             {...props} className="edge-input"
             style={{
-                width: '100%', boxSizing: 'border-box', padding: '9px 12px', minHeight: 74,
-                background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 10,
+                width: '100%', boxSizing: 'border-box', padding: drawer ? '8px 11px' : '9px 12px', minHeight: drawer ? 72 : 74,
+                background: t.panelAlt, border: '1px solid ' + (drawer ? t.lineStrong : t.line), borderRadius: drawer ? 7 : 10,
                 color: t.text, fontFamily: MONO, fontSize: 13.5, outline: 'none',
                 resize: 'vertical', lineHeight: 1.6, ...props.style,
             }}
@@ -410,7 +430,7 @@ export function StatBand({ items }) {
                 <div key={s.label} style={{
                     position: 'relative', padding: '16px 18px', minWidth: 0, overflow: 'hidden',
                     background: t.card, border: '1px solid ' + t.line, borderRadius: 16, boxShadow: t.highlight,
-                    ...(i === 0 ? { backgroundImage: `radial-gradient(120% 100% at 100% 0%, ${t.accentSoft}, transparent 60%)` } : null),
+                    backgroundImage: `radial-gradient(120% 100% at 100% 0%, ${t.accentSoft}, transparent 60%)`,
                 }}>
                     <span aria-hidden="true" style={{
                         position: 'absolute', left: 0, top: 16, bottom: 16, width: 3, borderRadius: '0 3px 3px 0',
@@ -539,6 +559,42 @@ export function Table({ id, cols: allCols, children, empty, actions, sticky }) {
         setPrefs(next); writeColPrefs(id, next);
     };
     const body = typeof children === 'function' ? children((k) => shown.has(k), cols) : children;
+
+    /* `sticky` keeps the column titles in view while the page scrolls. CSS
+       sticky would only hold them inside the table's own sideways-scrolling
+       box, so the header is moved down by hand to the top of the page's
+       scrolling area, and no further than the table's last row. */
+    const boxRef = useRef(null);
+    const headRef = useRef(null);
+    const placeRef = useRef(() => {});
+    useEffect(() => {
+        const box = boxRef.current;
+        if (!sticky || !box) return undefined;
+        let scroller = box.parentElement;
+        while (scroller && scroller !== document.body && !/(auto|scroll)/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+        if (scroller === document.body) scroller = null;
+        const place = () => {
+            const head = headRef.current;
+            if (!head) return;
+            const top = scroller ? scroller.getBoundingClientRect().top : 0;
+            const r = box.getBoundingClientRect();
+            const y = Math.max(0, Math.min(top - r.top, r.height - head.offsetHeight * 2));
+            head.style.transform = y > 0 ? `translateY(${y}px)` : '';
+        };
+        placeRef.current = place;
+        place();
+        const target = scroller || window;
+        target.addEventListener('scroll', place, { passive: true });
+        window.addEventListener('resize', place);
+        return () => {
+            target.removeEventListener('scroll', place);
+            window.removeEventListener('resize', place);
+            placeRef.current = () => {};
+        };
+    }, [sticky]);
+    // Rows added, removed or paged: the header's place is worked out again.
+    useLayoutEffect(() => { placeRef.current(); });
+
     return (
         <div>
             {(pickable || actions) && (
@@ -549,16 +605,15 @@ export function Table({ id, cols: allCols, children, empty, actions, sticky }) {
                 </div>
             )}
         <div style={tableFrame(t)}>
-            {/* `sticky` keeps the column titles in view: the rows scroll under them inside a screen-high frame. */}
-            <div className="edge-scroll" style={sticky ? { overflow: 'auto', maxHeight: 'calc(100vh - 140px)' } : { overflowX: 'auto' }}>
+            <div ref={boxRef} className="edge-scroll" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO }}>
-                    <thead>
+                    <thead ref={headRef} style={sticky ? { position: 'relative', zIndex: 2 } : undefined}>
                         <tr>
                             {cols.map((c) => (
                                 <th key={c.key} scope="col" style={{
                                     ...thStyle(t, c.align), width: c.width,
-                                    // A collapsed border scrolls away with the rows; an inset line stays on the title.
-                                    ...(sticky && { position: 'sticky', top: 0, zIndex: 1, borderBottom: 0, boxShadow: `inset 0 -1px 0 ${t.line}` }),
+                                    // A collapsed border stays behind with the rows; an inset line moves with the title.
+                                    ...(sticky && { borderBottom: 0, boxShadow: `inset 0 -1px 0 ${t.line}` }),
                                 }}>{titleCaseNode(c.label)}</th>
                             ))}
                         </tr>
@@ -572,13 +627,14 @@ export function Table({ id, cols: allCols, children, empty, actions, sticky }) {
     );
 }
 
-export function Td({ children, align, nowrap, muted, width }) {
+export function Td({ children, align, nowrap, muted, width, style }) {
     const t = useT();
     return (
         <td style={{
             ...tdStyle(t, align), width,
             color: muted ? t.dim : t.text,
             whiteSpace: nowrap ? 'nowrap' : undefined,
+            ...style,
         }}>{children}</td>
     );
 }
@@ -622,8 +678,12 @@ export function Loading({ children = 'Loading…' }) {
     return <div role="status" aria-live="polite" style={{ padding: '48px 20px', textAlign: 'center', fontSize: 12.5, color: t.faint }}>{children}</div>;
 }
 
-/** A centred sheet. One at a time, dismissed on Escape or a click outside,
-    with its actions at the foot where the reader finishes. */
+/** A side panel. Slides in from the right edge at full height, one at a
+    time, dismissed on Escape or a click outside, with its actions pinned to
+    the foot where the reader finishes. Fields inside it are rows, label on
+    the left and control on the right (drawer.css). Every form opens at the
+    one 680px width; a `width` of 900 or more keeps a wide panel for the
+    ones that show a table, a preview or a profile. */
 export function Modal({ open, onClose, title, note, children, footer, width = 520 }) {
     const t = useT();
     const ref = useRef(null);
@@ -634,44 +694,39 @@ export function Modal({ open, onClose, title, note, children, footer, width = 52
     if (!open) return null;
     return (
         <div
+            className="edge-drawer-backdrop"
             onMouseDown={(e) => { if (e.target === ref.current) onClose?.(); }}
             ref={ref}
-            style={{
-                position: 'fixed', inset: 0, zIndex: 300, display: 'grid', placeItems: 'center',
-                background: t.isDark ? 'rgba(0,0,0,.62)' : 'rgba(20,28,32,.34)',
-                padding: 18, fontFamily: MONO,
-            }}
+            style={{ fontFamily: MONO, background: t.isDark ? 'rgba(0,0,0,.62)' : 'rgba(20,28,32,.34)' }}
         >
-            <div ref={sheetRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} style={{
-                outline: 'none',
-                width: '100%', maxWidth: width, maxHeight: '88vh', display: 'flex', flexDirection: 'column',
-                background: t.card, border: '1px solid ' + t.lineStrong,
-                borderRadius: 16, boxShadow: t.highlight + ', ' + t.shadow, overflow: 'hidden',
-                animation: 'edgePop .16s cubic-bezier(.16,1,.3,1)',
-            }}>
-                <header style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '14px 18px', borderBottom: '1px solid ' + t.line, flexShrink: 0,
+            {/* The palette rides along as variables, so the panel paints the
+                same outside the shell too. */}
+            <div ref={sheetRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId}
+                className="edge-drawer"
+                style={{
+                    outline: 'none', width: drawerWidth(width),
+                    '--dr-bg': t.card, '--dr-field': t.panelAlt, '--dr-line': t.line, '--dr-line-strong': t.lineStrong,
+                    '--dr-text': t.text, '--dr-dim': t.dim, '--dr-faint': t.faint, '--dr-down': t.down, '--dr-shadow': t.shadow,
                 }}>
+                <header className="edge-drawer-head">
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <h2 id={titleId} style={{ margin: 0, fontSize: 15.5, fontWeight: 600, letterSpacing: '-0.015em', color: t.text }}>{titleCaseNode(title)}</h2>
-                        {note && <div style={{ fontSize: 12, color: t.faint, marginTop: 3 }}>{note}</div>}
+                        <h2 id={titleId}>{titleCaseNode(title)}</h2>
+                        {note && <div className="edge-drawer-note">{note}</div>}
                     </div>
-                    <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" className="edge-btn" style={{
-                        width: 30, height: 30, borderRadius: 9, cursor: 'pointer',
-                        background: 'transparent', border: '1px solid transparent',
-                        color: t.faint, fontFamily: MONO, fontSize: 15.5, lineHeight: 1,
-                    }}>×</button>
+                    <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" className="edge-drawer-close">
+                        <X size={16} aria-hidden="true" />
+                    </button>
                 </header>
-                <div className="edge-scroll" style={{ padding: 18, overflowY: 'auto', flex: 1, minHeight: 0 }}>
-                    {children}
-                </div>
-                {footer && (
-                    <footer style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8,
-                        padding: '12px 18px', borderTop: '1px solid ' + t.line, flexShrink: 0,
-                    }}>{footer}</footer>
-                )}
+                <InDrawer.Provider value>
+                    <div className="edge-drawer-body edge-scroll">
+                        {children}
+                    </div>
+                    {footer && (
+                        <InDrawerFoot.Provider value>
+                            <footer className="edge-drawer-foot">{footer}</footer>
+                        </InDrawerFoot.Provider>
+                    )}
+                </InDrawer.Provider>
             </div>
         </div>
     );

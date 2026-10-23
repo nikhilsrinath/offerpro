@@ -1,4 +1,4 @@
-import { Users, FileText, Receipt, BarChart3, PieChart, FolderKanban, CalendarDays, MessageSquareText } from 'lucide-react';
+import { Users, FileText, Wallet, PieChart, FolderKanban, CalendarDays, MessageSquareText, Handshake, Building2 } from 'lucide-react';
 
 /* The workspace's first page: the Dashboard's Overview. There is no hub; the
    brand mark, the phone's first tab and every "back" outside a project lead
@@ -11,8 +11,12 @@ export const HOME = '/dashboard/overview';
 export const MODULES = [
     { id: 'overall',   code: 'DSH', label: 'Dashboard', desc: 'Overview · analytics',  icon: PieChart,  defaultPage: 'dashboard/overview' },
     { id: 'projects',  code: 'PRJ', label: 'Projects',  desc: 'Delivery · tasks',      icon: FolderKanban, defaultPage: 'projects' },
-    { id: 'finance',   code: 'FIN', label: 'Finance',   desc: 'Invoices · quotes',     icon: Receipt,   defaultPage: 'finance/finance-status' },
-    { id: 'business',  code: 'CLM', label: 'Business',  desc: 'Clients · vendors',  icon: BarChart3, defaultPage: 'business/client-directory' },
+    // Clients and Vendors are the company-wide versions of a project's Client
+    // and Vendor groups, with the same pages; Financials sits above Documents
+    // as it does inside a project.
+    { id: 'clients',   code: 'CLI', label: 'Clients',   desc: 'Ledgers · billing · CRM', icon: Handshake, defaultPage: 'clients/general-ledger' },
+    { id: 'vendors',   code: 'VEN', label: 'Vendors',   desc: 'Ledgers · directory',   icon: Building2, defaultPage: 'vendors/general-ledger' },
+    { id: 'finance',   code: 'FIN', label: 'Financials', desc: 'Status · ledgers · tax', icon: Wallet,   defaultPage: 'financials/finance-status' },
     { id: 'team',      code: 'CMP', label: 'Company',   desc: 'Registry · hierarchy',  icon: Users,     defaultPage: 'company/company-hierarchy' },
     { id: 'documents', code: 'DOC', label: 'Documents', desc: 'Library · letters · NDAs', icon: FileText,  defaultPage: 'documents/document-library' },
     { id: 'today',     code: 'TDY', label: 'Today',     desc: 'What needs you today', icon: CalendarDays, defaultPage: 'today' },
@@ -21,4 +25,4 @@ export const MODULES = [
 
 // The rail's modules, in order, as one plain list. A module's pages wear the
 // same rail (ModuleShell `topNav`), so the two read as one menu.
-export const RAIL_IDS = ['overall', 'today', 'ai', 'projects', 'finance', 'business', 'team', 'documents'];
+export const RAIL_IDS = ['overall', 'today', 'ai', 'projects', 'clients', 'vendors', 'team', 'finance', 'documents'];

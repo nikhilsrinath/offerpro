@@ -26,7 +26,7 @@ export default function ProformaInvoiceForm() {
   // Opened from a project's Billing page (?project=): the proforma starts on
   // the project's client and its latest quotation, is linked to the project
   // when saved, and every way out returns there.
-  const fromProject = useFormProject('proforma', '/finance/billing/proforma');
+  const fromProject = useFormProject('proforma', '/clients/billing/proforma');
 
   // Build company info from activeOrg (dynamic, not stale localStorage)
   const company = {

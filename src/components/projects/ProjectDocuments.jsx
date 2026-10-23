@@ -55,10 +55,10 @@ function newDocumentOptions(projectId, { fin, can }) {
             id: 'sales', label: 'Sales & billing', note: 'Quote → proforma → invoice. Each starts with the client and the contract.',
             show: fin && can('financial_documents', 'create'),
             items: [
-                { id: 'quotation', tag: 'QUO', label: 'Quotation', desc: 'Price the work for the client. Starts from the contract value.', to: form('/finance/billing/quotations/new') },
-                { id: 'proforma', tag: 'PRO', label: 'Proforma invoice', desc: 'Ask for an advance before billing. Repeats the latest quotation.', to: form('/finance/billing/proforma/new') },
-                { id: 'invoice', tag: 'INV', label: 'Tax invoice', desc: 'Bill the client. Starts with what of the contract is not billed yet.', to: form('/finance/billing/invoices/new') },
-                { id: 'recurring', tag: 'REC', label: 'Recurring invoice', desc: 'Retainers and maintenance, billed on a schedule.', to: form('/finance/billing/recurring/new') },
+                { id: 'quotation', tag: 'QUO', label: 'Quotation', desc: 'Price the work for the client. Starts from the contract value.', to: form('/clients/billing/quotations/new') },
+                { id: 'proforma', tag: 'PRO', label: 'Proforma invoice', desc: 'Ask for an advance before billing. Repeats the latest quotation.', to: form('/clients/billing/proforma/new') },
+                { id: 'invoice', tag: 'INV', label: 'Tax invoice', desc: 'Bill the client. Starts with what of the contract is not billed yet.', to: form('/clients/billing/invoices/new') },
+                { id: 'recurring', tag: 'REC', label: 'Recurring invoice', desc: 'Retainers and maintenance, billed on a schedule.', to: form('/clients/billing/recurring/new') },
             ],
         },
         {

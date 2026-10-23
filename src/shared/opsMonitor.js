@@ -168,8 +168,8 @@ const usable = (status) => status === undefined || status === 'ok' || status ===
 export const HREF = {
   task: (id) => `/projects/tasks?task=${id}`,
   project: (id) => `/projects/${id}`,
-  invoices: () => '/finance/billing/invoices',
-  bills: () => '/finance/company-ledger',
+  invoices: () => '/clients/billing/invoices',
+  bills: () => '/financials/company-ledger',
   leave: () => '/company/attendance/leave',
   timesheets: () => '/projects/timesheets',
 };

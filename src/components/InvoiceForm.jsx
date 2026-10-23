@@ -45,7 +45,7 @@ export default function InvoiceForm() {
   // Opened from a project (its Billing page, a milestone, unbilled hours):
   // the project's client, what of the contract is still unbilled when no
   // lines were handed over, and saving returns to the project.
-  const fromProject = useFormProject('invoice', '/finance/billing/invoices');
+  const fromProject = useFormProject('invoice', '/clients/billing/invoices');
   const [projectLines] = useState(() => (location.state?.lines?.length || location.state?.line
     ? null : projectStartLines(fromProject.project, 'invoice')));
   const { activeOrg } = useOrg();
@@ -331,7 +331,7 @@ export default function InvoiceForm() {
     const problem = catalogueProblem();
     if (problem) {
       if (await confirmDialog({ ...problem, confirmLabel: 'Open Catalogue', cancelLabel: 'Close', tone: 'default' })) {
-        window.open('/business/products-directory', '_blank', 'noopener');
+        window.open('/clients/business-directory', '_blank', 'noopener');
       }
       return;
     }

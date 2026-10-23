@@ -5,7 +5,7 @@
 --   · each year numbers from 001, in the order projects are added
 --   · with no start date, the year it was entered
 --   · a start date filled in later, in another year, moves the code to that year
---   · a start date changed once the project has one leaves the code alone
+--   · a start date changed to another year moves the code to that year (0097)
 --
 -- Everything runs in one transaction and rolls back at the end.
 -- ============================================================================
@@ -64,9 +64,26 @@ select pg_temp.check(
   (select code from projects where id = 'f9500000-0000-0000-0000-000000000004') = 'PRJ-2023-001',
   'a start date filled in later, in another year, moves the code to that year');
 
-update projects set start_date = '2025-06-01' where id = 'f9500000-0000-0000-0000-000000000001';
+-- ─── A start date changed (0097) ────────────────────────────────────────────
+
+update projects set start_date = '2024-12-31' where id = 'f9500000-0000-0000-0000-000000000001';
 select pg_temp.check(
   (select code from projects where id = 'f9500000-0000-0000-0000-000000000001') = 'PRJ-2024-001',
-  'changing a start date the project already had leaves its code alone');
+  'a start date changed within the same year leaves the code alone');
+
+update projects set start_date = '2025-06-01' where id = 'f9500000-0000-0000-0000-000000000001';
+select pg_temp.check(
+  (select code from projects where id = 'f9500000-0000-0000-0000-000000000001') = 'PRJ-2025-001',
+  'a start date changed to another year moves the code to that year''s next number');
+
+update projects set start_date = '2024-04-01' where id = 'f9500000-0000-0000-0000-000000000002';
+select pg_temp.check(
+  (select code from projects where id = 'f9500000-0000-0000-0000-000000000002') = 'PRJ-2024-003',
+  'moved back into a year that has projects, it takes the next free number');
+
+update projects set start_date = null where id = 'f9500000-0000-0000-0000-000000000002';
+select pg_temp.check(
+  (select code from projects where id = 'f9500000-0000-0000-0000-000000000002') = 'PRJ-2024-003',
+  'clearing the start date leaves the code alone');
 
 rollback;

@@ -60,7 +60,7 @@ export default function QuotationForm({ editDocId }) {
   // Opened from a project's Billing page (?project=): the quotation starts on
   // the project's client and contract, is linked to the project when saved,
   // and every way out returns there.
-  const fromProject = useFormProject('quotation', '/finance/billing/quotations');
+  const fromProject = useFormProject('quotation', '/clients/billing/quotations');
 
   // Build company info from activeOrg (dynamic, not stale localStorage)
   const company = {

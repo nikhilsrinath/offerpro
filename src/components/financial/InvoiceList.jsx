@@ -1,13 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, Edit3, Copy, CheckCircle, Bell, Search, Filter, Plus, X, Download, Trash2, Ban, RotateCcw } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { documentStore, docNumber as docNo } from '../../services/documentStore';
 import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
-import { DialogSheet, Btn, Status, Modal, Field, Textarea, RowMenu } from '../ui/edge';
+import { Btn, Status, Modal, Field, Textarea, RowMenu } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
 import { ShareLinkModal } from '../shared/PortalLinkGenerator';
 import { useToast } from '../shared/Toast';
@@ -61,7 +60,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
   const scope = useProjectScope(projectId);
   // A form opened from a project's Billing stays inside the project.
   const formPath = (kind, docId) => (projectId ? projectBillingForm(projectId, kind, docId)
-    : docId ? `/finance/billing/${kind}s/${docId}/edit` : `/finance/billing/${kind === 'proforma' ? kind : kind + 's'}/new`);
+    : docId ? `/clients/billing/${kind}s/${docId}/edit` : `/clients/billing/${kind === 'proforma' ? kind : kind + 's'}/new`);
   const [showPortalLink, setShowPortalLink] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(null);
@@ -485,7 +484,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
       'success');
       setConvertSource(null);
       loadDocuments();
-      navigate(projectId ? projectBillingPath(projectId, built.type) : built.type === 'proforma' ? '/finance/billing/proforma' : '/finance/billing/invoices');
+      navigate(projectId ? projectBillingPath(projectId, built.type) : built.type === 'proforma' ? '/clients/billing/proforma' : '/clients/billing/invoices');
     } catch (err) {
       const msg = /SOURCE_NOT_LOCKED/.test(err.message || '')
         ? 'The client has not accepted this version yet, so it cannot be converted.'
@@ -879,36 +878,21 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
       />
 
       {/* Reject Modal */}
-      <AnimatePresence>
-        {showRejectModal && (
-          <div className="fin-modal-overlay" onClick={() => setShowRejectModal(null)}>
-            <DialogSheet
-              as={motion.div}
-              labelledBy="reject-payment-title"
-              onClose={() => setShowRejectModal(null)}
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="fin-modal"
-            >
-              <h3 id="reject-payment-title" style={{ margin: '0 0 1rem' }}>Reject Payment Confirmation</h3>
-              <textarea
-                aria-label="Reason for rejection"
-                placeholder="Reason for rejection..."
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                className="easy-inp"
-                rows={4}
-                style={{ width: '100%', resize: 'none' }}
-              />
-              <div className="form-actions" style={{ marginTop: '1rem' }}>
-                <button className="easy-submit-outline" onClick={() => setShowRejectModal(null)} style={{ flex: 1 }}>Cancel</button>
-                <button className="easy-submit" onClick={() => handleRejectPayment(showRejectModal)} style={{ flex: 1, background: 'var(--error)', borderColor: 'var(--error)' }}>Reject</button>
-              </div>
-            </DialogSheet>
-          </div>
-        )}
-      </AnimatePresence>
+      <Modal open={!!showRejectModal} onClose={() => setShowRejectModal(null)} title="Reject Payment Confirmation"
+        footer={<>
+          <Btn onClick={() => setShowRejectModal(null)}>Cancel</Btn>
+          <Btn primary onClick={() => handleRejectPayment(showRejectModal)} style={{ background: 'var(--error)' }}>Reject</Btn>
+        </>}>
+        <Field label="Reason">
+          <Textarea
+            placeholder="Reason for rejection..."
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            rows={4}
+            style={{ resize: 'none' }}
+          />
+        </Field>
+      </Modal>
     </div>
   );
 }

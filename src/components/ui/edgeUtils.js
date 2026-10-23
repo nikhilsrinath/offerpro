@@ -56,6 +56,14 @@ export function useDialog(ref, onClose, open = true) {
     }, [open, ref]);
 }
 
+/** A side panel's width: the one 680px for a form, the asked-for width for a
+    panel that shows something wide (a table, a preview, a profile). Takes
+    720 or '720px'. */
+export function drawerWidth(width) {
+    const w = parseInt(width, 10) || 0;
+    return w >= 900 ? w : 680;
+}
+
 export const fmtDate = (d) => (d
     ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
     : '-');

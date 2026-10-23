@@ -69,8 +69,8 @@ const SEVERITY = {
 };
 
 const HREF = {
-    invoice: () => '/finance/billing/invoices',
-    bill: () => '/finance/company-ledger',
+    invoice: () => '/clients/billing/invoices',
+    bill: () => '/financials/company-ledger',
     task: (id) => `/projects/tasks?task=${id}`,
     project: (id) => `/projects/${projectRef(id)}`,
 };

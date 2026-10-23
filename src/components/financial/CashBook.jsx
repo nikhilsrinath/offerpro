@@ -225,8 +225,6 @@ export default function CashBook({ projectId = null, children }) {
       recordCurrency(r.currency),
       Number(r.original_amount ?? r.amount ?? 0).toFixed(2),
       Number(r.fx_rate || 1).toFixed(6),
-      r.quantity == null ? '' : String(r.quantity),
-      r.unit || '',
       r.direction === 'out' ? nameOf(departments, r.department_id) : '',
       r.direction === 'out' ? (r.billable ? 'Billable' : '') : '',
       r.direction === 'in' ? nameOf(catalog, r.catalog_item_id) : '',
@@ -236,7 +234,7 @@ export default function CashBook({ projectId = null, children }) {
       `general-ledger-${range.from || 'start'}-to-${range.to || 'today'}.csv`,
       ['Date', 'Direction', 'Category', 'Treatment', 'Description', 'Party', 'Method', 'Reference',
         `Amount (${baseCurrency()})`, `GST (${baseCurrency()})`, 'GST rate %', 'GST kind', 'Place of supply', 'Country',
-        'Currency', 'Original amount', 'FX rate', 'Quantity', 'Unit', 'Department', 'Billable', 'Product',
+        'Currency', 'Original amount', 'FX rate', 'Department', 'Billable', 'Product',
         ...(splitting ? ['Project'] : [])],
       body,
     );
@@ -306,7 +304,7 @@ export default function CashBook({ projectId = null, children }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
             <span aria-hidden="true" style={{ width: 28, height: 28, borderRadius: 9, display: 'grid', placeItems: 'center', background: t.accentSoft, color: t.accent }}><Wallet size={14} /></span>
-            <span style={{ fontSize: 12.5, fontWeight: 500, color: t.dim, flex: 1 }}>{tiles ? 'Balance' : flow.net >= 0 ? 'Net cash in' : 'Net cash out'}</span>
+            <span style={{ fontSize: 12.5, fontWeight: 500, color: t.dim, flex: 1 }}>{tiles ? 'Outstanding' : flow.net >= 0 ? 'Net cash in' : 'Net cash out'}</span>
             {splitting && where !== 'all' && <Status tone="accent">{whereLabel}</Status>}
           </div>
           {tiles ? (
@@ -388,7 +386,6 @@ export default function CashBook({ projectId = null, children }) {
               ready ? categoryLabel(r.category) : r.category,
               Number(r.tax_amount) > 0 ? `${r.is_inter_state ? 'IGST' : 'GST'} ${money(r.tax_amount)}${Number(r.tax_rate) > 0 ? ` @ ${Number(r.tax_rate)}%` : ''}` : '',
               r.currency && isForeign(r.currency) ? `${r.currency} ${Number(r.original_amount).toLocaleString(currencyLocale(r.currency))} @ ${Number(r.fx_rate)}` : '',
-              r.quantity ? `${Number(r.quantity).toLocaleString('en-IN')} ${r.unit || ''}`.trimEnd() : '',
               !isIn && r.department_id ? nameOf(departments, r.department_id) : '',
               !isIn && r.billable ? 're-billable' : '',
               isIn && r.catalog_item_id ? nameOf(catalog, r.catalog_item_id) : '',

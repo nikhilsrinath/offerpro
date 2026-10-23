@@ -155,8 +155,8 @@ const QUOTE_OPEN = new Set(['awaiting', 'changes_requested']);
 const withQ = (path, q) => `${path}?q=${encodeURIComponent(q || '')}`;
 export const HREF = {
   // An open or lost deal is on the CRM board; a won one is a customer.
-  deal: (d) => withQ(d.stage === 'active' ? '/business/client-directory' : '/business/crm', d.name),
-  quotation: (q) => withQ('/finance/billing/quotations', q.number || ''),
+  deal: (d) => withQ(d.stage === 'active' ? '/clients/client-directory' : '/clients/crm', d.name),
+  quotation: (q) => withQ('/clients/billing/quotations', q.number || ''),
   task: (t) => `/projects/tasks?task=${t.id}`,
   project: (p) => `/projects/${p.id}`,
 };
