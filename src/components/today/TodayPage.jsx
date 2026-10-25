@@ -183,7 +183,7 @@ export default function TodayPage() {
                     tone={s.overdueCount ? 'down' : undefined} onClick={go('/clients/billing/invoices')} />
                 <Tile icon={Truck} label="You Owe Vendors" value={headline(s.payable)}
                     foot={s.billsThisWeek ? `${s.billsThisWeek} due this week · ${headline(s.billsThisWeekValue)}` : 'No bills due this week'}
-                    onClick={go('/financials/company-ledger')} />
+                    onClick={go('/financials/general-ledger')} />
                 <Tile icon={ListChecks} label="Open Tasks" value={String(s.openTasks)} tone={s.lateTasks ? 'down' : undefined}
                     foot={`${s.lateTasks} overdue · ${s.todayTasks} due today`} onClick={go('/projects/tasks')} />
             </div>

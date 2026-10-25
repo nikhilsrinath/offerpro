@@ -70,7 +70,7 @@ const SEVERITY = {
 
 const HREF = {
     invoice: () => '/clients/billing/invoices',
-    bill: () => '/financials/company-ledger',
+    bill: () => '/financials/general-ledger',
     task: (id) => `/projects/tasks?task=${id}`,
     project: (id) => `/projects/${projectRef(id)}`,
 };

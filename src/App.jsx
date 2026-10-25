@@ -6,7 +6,7 @@ import {
   FileCheck, LayoutTemplate,
   Activity, Receipt, FilePlus, RotateCcw,
   GitBranch, Package,
-  Truck, FileInput, TrendingUp, CalendarCheck, Megaphone,
+  Truck, TrendingUp, CalendarCheck, Megaphone,
   Banknote, FolderKanban, SquareKanban, Kanban, PieChart, FolderOpen,
   Wallet, BarChart3, UsersRound, FileStack, Gauge, CalendarDays, MessageSquareText, LayoutDashboard
 } from 'lucide-react';
@@ -87,9 +87,7 @@ import ProformaInvoiceForm from './components/financial/ProformaInvoiceForm';
 import FinanceStatus from './components/financial/FinanceStatus';
 import Vendors from './components/financial/Vendors';
 import PurchaseInvoices from './components/financial/PurchaseInvoices';
-import CashBook from './components/financial/CashBook';
 import PartyLedger from './components/financial/PartyLedger';
-import { ProjectLedger } from './components/projects/ProjectFinance';
 import TaxSummary from './components/financial/TaxSummary';
 import ProfitLoss from './components/financial/ProfitLoss';
 import CompanyBilling from './components/financial/CompanyBilling';
@@ -112,13 +110,14 @@ const MODULE_FILTER = {
   // keep their routes but are no longer rail items (MODULE_EXTRA_PAGES).
   projects: ['projects', 'kanban-chart', 'portfolio'],
   documents: ['document-library', 'offer-letters', 'certificates', 'templates'],
-  finance: ['finance-status', 'general-ledger', 'company-ledger', 'tax-summary', 'profit-loss'],
+  finance: ['finance-status', 'general-ledger', 'tax-summary', 'profit-loss'],
   // Clients and Vendors are a project's Client and Vendor groups over the
-  // whole company: the two ledgers first, General then Company, then the rest.
+  // whole company: the General Ledger first (the Company Ledger was folded
+  // into it, 2026-10-25), then the rest.
   // Billing is what the company bills its clients, so a page of Clients.
-  clients: ['client-general-ledger', 'client-company-ledger', 'quotations', 'proforma', 'invoices',
+  clients: ['client-general-ledger', 'quotations', 'proforma', 'invoices',
             'client-directory', 'crm', 'products-directory'],
-  vendors: ['vendor-general-ledger', 'vendor-company-ledger', 'vendor-directory'],
+  vendors: ['vendor-general-ledger', 'vendor-directory'],
 };
 
 // Pages that belong to a module without having a place in its rail, the
@@ -151,10 +150,10 @@ const PREFIXES = new Set(['company', 'documents', 'financials', 'clients', 'vend
 // Projects' own pages; anything else under /projects/ is a project.
 const PROJECTS_PAGES = new Set(['kanban-chart', 'portfolio', 'tasks', 'timesheets']);
 // Pages whose path is not their id, by module: Clients' and Vendors' ledgers
-// are /clients/general-ledger and /vendors/company-ledger, as in a project.
+// are /clients/general-ledger and /vendors/general-ledger, as in a project.
 const SLUG_PAGE = {
-  clients: { 'general-ledger': 'client-general-ledger', 'company-ledger': 'client-company-ledger', 'business-directory': 'products-directory' },
-  vendors: { 'general-ledger': 'vendor-general-ledger', 'company-ledger': 'vendor-company-ledger' },
+  clients: { 'general-ledger': 'client-general-ledger', 'business-directory': 'products-directory' },
+  vendors: { 'general-ledger': 'vendor-general-ledger' },
 };
 const PAGE_SLUG = Object.fromEntries(Object.values(SLUG_PAGE).flatMap((m) => Object.entries(m).map(([slug, id]) => [id, slug])));
 
@@ -236,12 +235,10 @@ const NAV_ITEMS = [
   { section: 'FINANCIALS' },
   { id: 'finance-status', label: 'Finance Status', icon: Activity },
   { id: 'general-ledger', label: 'General Ledger', icon: Banknote },
-  { id: 'company-ledger', label: 'Company Ledger', icon: FileInput },
   { id: 'tax-summary', label: 'Tax Summary', icon: Scale },
   { id: 'profit-loss', label: 'Profit & Loss', icon: TrendingUp },
   { section: 'CLIENTS' },
   { id: 'client-general-ledger', label: 'General Ledger', icon: Banknote },
-  { id: 'client-company-ledger', label: 'Company Ledger', icon: FileInput },
   { id: 'quotations', label: 'Quotations', icon: FilePlus },
   { id: 'proforma', label: 'Proforma Invoice', icon: FileCheck },
   { id: 'invoices', label: 'Invoices', icon: Receipt },
@@ -251,7 +248,6 @@ const NAV_ITEMS = [
   { id: 'products-directory', label: 'Business Directory', icon: Package },
   { section: 'VENDORS' },
   { id: 'vendor-general-ledger', label: 'General Ledger', icon: Banknote },
-  { id: 'vendor-company-ledger', label: 'Company Ledger', icon: FileInput },
   { id: 'vendor-directory', label: 'Vendor Directory', icon: Truck },
   { section: 'PROJECTS' },
   { id: 'projects', label: 'Projects', icon: FolderKanban },
@@ -279,13 +275,12 @@ const PAGE_META = {
   'templates/partnership': { title: 'Partnership Agreement', subtitle: 'Contributions, profit sharing and terms between partners' },
   'templates/custom': { title: 'Custom Template', subtitle: 'Your own title and clauses on the company letterhead' },
   'finance-status': { title: 'Finance Status', subtitle: 'Track all financial documents through their lifecycle' },
-  'general-ledger': { title: 'General Ledger', subtitle: 'Credit and debit by project, and everything general that no invoice or vendor bill already covers' },
+  'general-ledger': { title: 'General Ledger', subtitle: 'Every credit and debit across the company and all its projects: vendor bills, money in, payments and costs' },
   invoices: { title: 'Billing', subtitle: 'Quotations, proformas and invoices' },
   quotations: { title: 'Billing', subtitle: 'Quotations, proformas and invoices' },
   proforma: { title: 'Billing', subtitle: 'Quotations, proformas and invoices' },
   recurring: { title: 'Recurring Invoices', subtitle: 'Set up and manage recurring invoices' },
   'vendor-directory': { title: 'Vendor Directory', subtitle: 'Suppliers, payment terms and what you owe each of them' },
-  'company-ledger': { title: 'Company Ledger', subtitle: 'Every credit and debit across the company and all its projects: vendor bills, money in, payments and costs' },
   'tax-summary': { title: 'Tax Summary', subtitle: 'Output GST against input GST. A preparation aid, not a filing tool' },
   'profit-loss': { title: 'Profit & Loss', subtitle: 'Income, expenses and net profit for any period' },
   'new-invoice': { title: 'New Invoice', subtitle: 'Generate professional business invoices' },
@@ -293,10 +288,8 @@ const PAGE_META = {
   'new-proforma': { title: 'New Proforma Invoice', subtitle: 'Create proforma invoices with advance payment tracking' },
   crm: { title: 'CRM', subtitle: 'Manage your sales pipeline' },
   'client-directory': { title: 'Client Directory', subtitle: 'Manage your client database' },
-  'client-company-ledger': { title: 'Client Company Ledger', subtitle: 'Invoices to clients, the money in from them and what is still outstanding' },
-  'client-general-ledger': { title: 'Client General Ledger', subtitle: 'Every credit from a client and every debit to one' },
-  'vendor-company-ledger': { title: 'Vendor Company Ledger', subtitle: 'Vendor bills, payments to vendors and what is still payable' },
-  'vendor-general-ledger': { title: 'Vendor General Ledger', subtitle: 'Every debit to a vendor and every credit back from one' },
+  'client-general-ledger': { title: 'Client General Ledger', subtitle: 'Invoices to clients, the money received from them and what is still outstanding' },
+  'vendor-general-ledger': { title: 'Vendor General Ledger', subtitle: 'Vendor invoices, payments to vendors and what is still payable' },
   'products-directory': { title: 'Business Directory', subtitle: 'Product and service catalogue, and what each one has sold' },
   revenue: { title: 'Billing & Revenue', subtitle: 'Track revenue, expenses, and profitability' },
   records: { title: 'Records', subtitle: 'Manage and download issued documents' },
@@ -630,18 +623,12 @@ function AppContent() {
             <Route path="documents/document-library/:register" element={<DocumentLibrary />} />
             {/* Financials */}
             <Route path="financials/finance-status" element={<FinanceStatus />} />
-            <Route path="financials/general-ledger" element={(
-              // The same page as a project's General Ledger, over the whole company: its ledger has a Project column.
-              <CashBook>
-                {({ onEdit, narrow, onTotals }) => <ProjectLedger onEdit={onEdit} narrow={narrow} onTotals={onTotals} only="purchases" here="cashbook" readOnly />}
-              </CashBook>
-            )} />
-            <Route path="financials/company-ledger" element={<PurchaseInvoices />} />
+            {/* The one ledger (the Company Ledger was folded into it): the same page as a project's, with a Project column. */}
+            <Route path="financials/general-ledger" element={<PurchaseInvoices key="general" />} />
             <Route path="financials/tax-summary" element={<TaxSummary />} />
             <Route path="financials/profit-loss" element={<ProfitLoss />} />
             {/* Clients */}
-            <Route path="clients/general-ledger" element={<PartyLedger key="client-general" party="client" book="general" />} />
-            <Route path="clients/company-ledger" element={<PartyLedger key="client-company" party="client" book="company" />} />
+            <Route path="clients/general-ledger" element={<PartyLedger key="client" party="client" />} />
             <Route path="clients/billing" element={<Navigate to="/clients/billing/quotations" replace />} />
             <Route path="clients/billing/quotations" element={<CompanyBilling kind="quotation" />} />
             <Route path="clients/billing/proforma" element={<CompanyBilling kind="proforma" />} />
@@ -656,13 +643,8 @@ function AppContent() {
             <Route path="clients/client-directory" element={<Customers />} />
             <Route path="clients/crm" element={<CRM />} />
             <Route path="clients/business-directory" element={<Products />} />
-            {/* Vendors: Financials' General Ledger and Company Ledger pages, kept to what is with a vendor. */}
-            <Route path="vendors/general-ledger" element={(
-              <CashBook key="vendor-general">
-                {({ onEdit, narrow, onTotals }) => <ProjectLedger onEdit={onEdit} narrow={narrow} onTotals={onTotals} party="vendor" only="purchases" here="cashbook" readOnly />}
-              </CashBook>
-            )} />
-            <Route path="vendors/company-ledger" element={<PurchaseInvoices key="vendor-company" party="vendor" />} />
+            {/* Vendors: Financials' General Ledger, kept to what is with a vendor. */}
+            <Route path="vendors/general-ledger" element={<PurchaseInvoices key="vendor" party="vendor" />} />
             <Route path="vendors/vendor-directory" element={<Vendors />} />
             <Route path="revenue" element={<BillingRevenue />} />
             {/* Company */}
@@ -727,11 +709,15 @@ const MOVED = {
   'business/crm': '/clients/crm',
   'business/client-directory': '/clients/client-directory',
   'business/client-general-ledger': '/clients/general-ledger',
-  'business/client-company-ledger': '/clients/company-ledger',
+  'business/client-company-ledger': '/clients/general-ledger',
   'business/products-directory': '/clients/business-directory',
   'business/vendor-directory': '/vendors/vendor-directory',
   'business/vendor-general-ledger': '/vendors/general-ledger',
-  'business/vendor-company-ledger': '/vendors/company-ledger',
+  'business/vendor-company-ledger': '/vendors/general-ledger',
+  // The Company Ledgers were folded into the General Ledgers (2026-10-25).
+  'financials/company-ledger': '/financials/general-ledger',
+  'clients/company-ledger': '/clients/general-ledger',
+  'vendors/company-ledger': '/vendors/general-ledger',
   // Before every page sat under its module (/general-ledger → /finance/general-ledger).
   'finance-status': '/financials/finance-status',
   'general-ledger': '/financials/general-ledger',
@@ -746,9 +732,9 @@ const MOVED = {
   'billing/invoices/new': '/clients/billing/invoices/new',
   'billing/recurring/new': '/clients/billing/recurring/new',
   'billing/recurring/:id/edit': ({ id }) => `/clients/billing/recurring/${id}/edit`,
-  'purchase-bills': '/financials/company-ledger',
+  'purchase-bills': '/financials/general-ledger',
   // Purchase Bills became the Company Ledger.
-  'finance/purchase-bills': '/financials/company-ledger',
+  'finance/purchase-bills': '/financials/general-ledger',
   'tax-summary': '/financials/tax-summary',
   'profit-loss': '/financials/profit-loss',
   'crm': '/clients/crm',
@@ -788,7 +774,7 @@ const MOVED = {
   'new-quotation': '/clients/billing/quotations/new',
   'new-quotation/:docId': ({ docId }) => `/clients/billing/quotations/${docId}/edit`,
   'new-proforma': '/clients/billing/proforma/new',
-  'purchases': '/financials/company-ledger',
+  'purchases': '/financials/general-ledger',
   'customers': '/clients/client-directory',
   'products': '/clients/business-directory',
   'team-hierarchy': '/company/company-hierarchy',

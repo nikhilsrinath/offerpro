@@ -197,7 +197,7 @@ export function detectDeadlines(input, today, rawConfig) {
       due: b.due_date, days, when: whenText(days), status: b.status, severity, reason: whenText(days),
       project: projectOf(b.project_id), party: vendor, owner: null, amount: owed, currency: 'INR',
       action: days < 0 ? `Pay ${vendor || 'the vendor'} or agree a new date with them.` : `Schedule the payment to ${vendor || 'the vendor'}.`,
-      href: '/financials/company-ledger',
+      href: '/financials/general-ledger',
     });
   }
 

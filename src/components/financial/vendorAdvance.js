@@ -15,9 +15,11 @@ let again = false;
 async function settleAll() {
   const bills = orgStore.getSectionAsList('purchase_invoices');
   const expenses = orgStore.getSectionAsList('expenses');
+  const income = orgStore.getSectionAsList('income_entries');
   for (const vendorId of new Set(bills.map((b) => b.vendor_id).filter(Boolean))) {
     const mine = bills.filter((b) => b.vendor_id === vendorId);
-    const want = settleVendor(mine, vendorPaid(expenses, vendorId));
+    // Net of what the vendor paid back, as the ledger balances it.
+    const want = settleVendor(mine, vendorPaid(expenses, vendorId, income));
     for (const b of mine) {
       if (Math.abs((Number(b.amount_paid) || 0) - want[b.id]) > 0.009) {
         await orgStore.updateItem('purchase_invoices', b.id, { amount_paid: want[b.id] });
@@ -43,10 +45,11 @@ export function settleVendorBills() {
 export function useSettledVendorBills() {
   const bills = useSection('purchase_invoices');
   const expenses = useSection('expenses');
+  const income = useSection('income_entries');
   useEffect(() => {
     if (!orgStore.isLoaded()) return;
     settleVendorBills().catch((err) => console.warn('[vendorAdvance] could not settle bills:', err.message));
-  }, [bills, expenses]);
+  }, [bills, expenses, income]);
 }
 
 /**

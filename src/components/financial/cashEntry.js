@@ -105,10 +105,16 @@ const oldestFirst = (a, b) => String(a.bill_date || '').localeCompare(String(b.b
  */
 export const isVendorDebit = (e, vendorId) => !!e.vendor_id && (vendorId === undefined || e.vendor_id === vendorId);
 
-/** Everything paid to a vendor: every debit with the vendor on it. */
-export const vendorPaid = (expenses, vendorId) => r2(expenses
+/**
+ * Everything paid to a vendor: every debit with the vendor on it, less what
+ * they paid back (a credit with the vendor on it, 0098). The ledger adds a
+ * refund back onto the balance, so the bills must count that much as unpaid
+ * again, or the two disagree. `income` is optional.
+ */
+export const vendorPaid = (expenses, vendorId, income = []) => r2(expenses
   .filter((e) => isVendorDebit(e, vendorId))
-  .reduce((n, e) => n + (Number(e.amount) || 0), 0));
+  .reduce((n, e) => n + (Number(e.amount) || 0), 0)
+  - income.filter((e) => isVendorDebit(e, vendorId)).reduce((n, e) => n + (Number(e.amount) || 0), 0));
 
 /**
  * What each of a vendor's bills counts as paid: `paid` (the vendor's total)
@@ -127,7 +133,7 @@ export function settleVendor(bills, paid) {
 }
 
 /** Paid to a vendor beyond all their live bills: an advance with them. */
-export const vendorCredit = (bills, expenses, vendorId) => Math.max(0, r2(vendorPaid(expenses, vendorId)
+export const vendorCredit = (bills, expenses, vendorId, income = []) => Math.max(0, r2(vendorPaid(expenses, vendorId, income)
   - bills.filter((b) => b.vendor_id === vendorId && b.status !== 'void').reduce((n, b) => n + (Number(b.total) || 0), 0)));
 
 /**

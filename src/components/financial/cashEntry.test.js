@@ -37,6 +37,15 @@ describe('vendor totals', () => {
         ], 'v1')).toBe(24);
     });
 
+    it('takes what the vendor paid back off what they were paid', () => {
+        // Bill 100, paid 100, 20 refunded: the ledger owes them 20 again, so the bill is 80 paid.
+        const bills = [{ ...bill('B1', '2026-08-01', 100), id: 'b1', vendor_id: 'v1' }];
+        const paid = vendorPaid([pay('p1', 100)], 'v1', [{ id: 'r1', amount: 20, vendor_id: 'v1' }, { id: 'r2', amount: 5, vendor_id: 'v2' }]);
+        expect(paid).toBe(80);
+        expect(settleVendor(bills, paid)).toEqual({ b1: 80 });
+        expect(vendorCredit(bills, [pay('p1', 130)], 'v1', [{ id: 'r1', amount: 20, vendor_id: 'v1' }])).toBe(10);
+    });
+
     it('settles a bill paid by a debit typed as a cost, as the ledger balances it', () => {
         const bills = [{ ...bill('BILL-001', '2026-10-08', 1500), id: 'b1', vendor_id: 'v1' }];
         const paid = vendorPaid([pay('fees', 1500, { category: 'contractor_fees' })], 'v1');

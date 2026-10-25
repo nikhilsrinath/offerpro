@@ -8,9 +8,8 @@ import { canSeeFinancials, health as fetchHealth } from '../../services/projectS
 import HealthChip from './HealthChip';
 import ProjectMilestones from './ProjectMilestones';
 import PageTabs from './PageTabs';
-import ProjectFinanceStatus, { ProjectProfitLoss, ProjectLedger } from './ProjectFinance';
+import ProjectFinanceStatus, { ProjectProfitLoss } from './ProjectFinance';
 import ProjectBilling from './ProjectBilling';
-import CashBook from '../financial/CashBook';
 import PurchaseInvoices from '../financial/PurchaseInvoices';
 import PartyLedger from '../financial/PartyLedger';
 import TaxSummary from '../financial/TaxSummary';
@@ -37,7 +36,7 @@ import { projectSectionPath, parseProjectPath, legacyProjectPath, billingKindOf,
 import { findProject, projectSlug, withProjectRef } from './projectSlug';
 import {
     LayoutDashboard, Wallet, Users, Flag, FileText, History,
-    Gauge, BookOpen, Receipt, ShoppingCart, Scale, TrendingUp,
+    Gauge, BookOpen, Receipt, Scale, TrendingUp,
     FolderKanban, Briefcase, ListTree, SquareKanban, ChartGantt,
     UsersRound, Network, CalendarCheck, Megaphone,
     Package, Handshake, Building2, MessagesSquare, BadgeIndianRupee, Truck, FolderOpen, FilePen, Contact, Kanban,
@@ -59,11 +58,11 @@ const TABS = [
     // in the rail like Finance (projectDashboardGroup).
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, away: true },
     // Client and Vendor Management (0074), folded the same way, right after
-    // the Dashboard in the rail. Each side's two ledgers first, General then
-    // Company: the project's money with its clients, and with its vendors.
+    // the Dashboard in the rail. Each side's General Ledger first (the Company
+    // Ledger was folded into it): the project's money with its clients, and
+    // with its vendors.
     // Without project money, the directory is the group's first page.
     { id: 'client-general', parent: 'cm', label: 'General Ledger', icon: BookOpen, fin: true },
-    { id: 'client-ledger', parent: 'cm', label: 'Company Ledger', icon: ShoppingCart, fin: true },
     // Billing: what the project bills its clients, so a page of Client.
     { id: 'billing', parent: 'cm', label: 'Billing', icon: Receipt, fin: true },
     { id: 'clients', parent: 'cm', label: 'Client Directory', icon: Contact },
@@ -71,7 +70,6 @@ const TABS = [
     { id: 'comms', parent: 'cm', label: "Client's Communication", icon: MessagesSquare },
     { id: 'payments', parent: 'cm', label: 'Payment Status & Pendings', icon: BadgeIndianRupee, fin: true, pay: true },
     { id: 'vendor-general', parent: 'vm', label: 'General Ledger', icon: BookOpen, fin: true },
-    { id: 'vendor-ledger', parent: 'vm', label: 'Company Ledger', icon: ShoppingCart, fin: true },
     { id: 'vendors', parent: 'vm', label: 'Vendor Directory', icon: Truck },
     // Project Management is four pages over the project's tasks, folded the
     // same way. The Kanban board keeps the id 'tasks', so older ?tab=tasks
@@ -95,7 +93,6 @@ const TABS = [
     // 'finance', so older ?tab=finance links still land on it.
     { id: 'finance', parent: 'finance', label: 'Status', icon: Gauge, fin: true },
     { id: 'cashbook', parent: 'finance', label: 'General Ledger', icon: BookOpen, fin: true },
-    { id: 'bills', parent: 'finance', label: 'Company Ledger', icon: ShoppingCart, fin: true },
     { id: 'tax', parent: 'finance', label: 'Tax Summary', icon: Scale, fin: true },
     { id: 'pl', parent: 'finance', label: 'Profit & Loss', icon: TrendingUp, fin: true },
     // Documents Management (0074), folded the same way. Project Documents
@@ -323,18 +320,8 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                                 pages={sections.filter((x) => x.parent === section.parent)} />
                         )}
                         {tab === 'finance' && fin && <ProjectFinanceStatus project={project} onOpen={openTab} />}
-                        {tab === 'cashbook' && fin && (
-                            <CashBook projectId={project.id}>
-                                {/* The Company Ledger's table, without its row actions. */}
-                                {({ onEdit, narrow, onTotals }) => <ProjectLedger project={project} onOpen={openTab} onEdit={onEdit} narrow={narrow} onTotals={onTotals} only="purchases" here="cashbook" readOnly />}
-                            </CashBook>
-                        )}
+                        {tab === 'cashbook' && fin && <PurchaseInvoices key="general" project={project} onOpen={openTab} />}
                         {tab === 'billing' && fin && <ProjectBilling project={project} kind={billingKindOf(view)} onKind={openView} view={view} />}
-                        {tab === 'bills' && fin && (
-                            <PurchaseInvoices projectId={project.id}>
-                                {(list) => <ProjectLedger project={project} onOpen={openTab} only="purchases" here="bills" {...list} />}
-                            </PurchaseInvoices>
-                        )}
                         {tab === 'tax' && fin && <TaxSummary projectId={project.id} />}
                         {tab === 'pl' && fin && <ProjectProfitLoss project={project} />}
                         {tab === 'products' && <Products projectId={project.id} />}
@@ -352,20 +339,9 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                         {tab === 'comms' && <ClientCommunication key={params.get('client') || 'all'} project={project} />}
                         {tab === 'payments' && fin && <PaymentStatus project={project} />}
                         {tab === 'vendors' && <VendorDirectory project={project} />}
-                        {tab === 'client-ledger' && fin && <PartyLedger key="client-company" party="client" book="company" projectId={project.id} onOpen={openTab} />}
-                        {tab === 'client-general' && fin && <PartyLedger key="client-general" party="client" book="general" projectId={project.id} onOpen={openTab} />}
-                        {/* The Vendor ledgers are the project's Company Ledger and General
-                            Ledger pages, kept to what is with a vendor. */}
-                        {tab === 'vendor-ledger' && fin && (
-                            <PurchaseInvoices key="vendor-company" projectId={project.id} party="vendor">
-                                {(list) => <ProjectLedger project={project} onOpen={openTab} only="purchases" here="bills" {...list} />}
-                            </PurchaseInvoices>
-                        )}
-                        {tab === 'vendor-general' && fin && (
-                            <CashBook key="vendor-general" projectId={project.id}>
-                                {({ onEdit, narrow, onTotals }) => <ProjectLedger project={project} onOpen={openTab} onEdit={onEdit} narrow={narrow} onTotals={onTotals} party="vendor" only="purchases" here="cashbook" readOnly />}
-                            </CashBook>
-                        )}
+                        {tab === 'client-general' && fin && <PartyLedger key="client" party="client" projectId={project.id} onOpen={openTab} />}
+                        {/* The Vendor ledger is the project's General Ledger, kept to what is with a vendor. */}
+                        {tab === 'vendor-general' && fin && <PurchaseInvoices key="vendor" project={project} party="vendor" onOpen={openTab} />}
                         {tab === 'documents' && <ProjectFiles project={project} view={documentsViewOf(view)} onView={openView} />}
                         {tab === 'templates' && <ProjectTemplates project={project} onOpen={openTab} />}
                         {tab === 'activity' && <ProjectActivity project={project} />}

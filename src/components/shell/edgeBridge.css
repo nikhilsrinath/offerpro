@@ -1151,8 +1151,53 @@
   font-size: 13px;
 }
 
+/* The bar over a kit <Table> (its `lead`): one compact line of 32px controls,
+   the search and the pickers giving up width before anything wraps. */
+.edge-shell main .prod-toolbar.edge-table-bar {
+  flex-wrap: nowrap;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 12px;
+}
+.edge-shell main .edge-table-bar > * { flex-shrink: 1; min-width: 0; }
+.edge-shell main .edge-table-bar :is(.edge-btn, select, input, .prod-search) {
+  height: 32px !important;
+  font-size: 12.5px !important;
+  border-radius: 8px !important;
+}
+.edge-shell main .edge-table-bar > .edge-btn { flex-shrink: 0; padding: 0 10px !important; gap: 5px !important; }
+.edge-shell main .edge-table-bar > .prod-search { flex: 1 1 200px; max-width: 260px !important; min-width: 120px; padding: 0 10px; gap: 6px; }
+.edge-shell main .edge-table-bar > .prod-search input { height: 100% !important; font-size: 12.5px !important; }
+.edge-shell main .edge-table-bar select {
+  flex: 0 1 auto;
+  min-width: 96px;
+  max-width: 160px !important;
+  padding: 0 24px 0 10px;
+  text-overflow: ellipsis;
+  background-position: calc(100% - 12px) center, calc(100% - 7px) center;
+}
+@media (max-width: 900px) {
+  .edge-shell main .prod-toolbar.edge-table-bar { flex-wrap: wrap; }
+}
+
 /* A kit <Table> on a page that is not a kit <Page> still tints its rows. */
 .edge-shell main .edge-tr:hover { background: var(--edge-panel-alt); }
+/* A table's last column (a row's actions) held at the right edge while the rest scrolls. */
+.edge-shell main .edge-table-pin-end tr > :last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: var(--edge-card);
+  box-shadow: inset 1px 0 0 var(--edge-line);
+}
+.edge-shell main .edge-table-pin-end thead tr > :last-child { background: var(--edge-panel-alt); }
+.edge-shell main .edge-table-pin-end .edge-tr:hover > :last-child { background: var(--edge-panel-alt); }
+/* A column title's "⋯" shows when the title is hovered or reached by keyboard. */
+.edge-shell main .edge-th-menu { opacity: 0; transition: opacity .12s; }
+.edge-shell main th:hover .edge-th-menu,
+.edge-shell main th:focus-within .edge-th-menu,
+.edge-shell main .edge-th-menu:has([aria-expanded="true"]) { opacity: 1; }
+@media (hover: none) { .edge-shell main .edge-th-menu { opacity: 1; } }
 /* A debit row on a ledger: a soft blue wash fading out to the right. */
 .edge-shell main .edge-tr-debit {
   background: linear-gradient(100deg, color-mix(in srgb, var(--edge-accent) 9%, transparent), color-mix(in srgb, var(--edge-accent) 2%, transparent));
@@ -1171,7 +1216,7 @@
   overflow-x: auto;
   background: var(--edge-card);
   border: 1px solid var(--edge-line);
-  border-radius: 16px;
+  border-radius: 12px;
   box-shadow: var(--edge-hi);
 }
 
@@ -1179,15 +1224,16 @@
   width: 100%;
   border-collapse: collapse;
   font-family: var(--edge-mono);
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .edge-shell main :where(.prod-perf-table, .fin-list-table, .desktop-table) th {
-  padding: 10px 14px;
+  padding: 7px 12px;
+  height: 34px;
   background: var(--edge-panel-alt) !important;
   border-bottom: 1px solid var(--edge-line);
   color: var(--edge-faint);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
@@ -1195,7 +1241,9 @@
 }
 
 .edge-shell main :where(.prod-perf-table, .fin-list-table, .desktop-table) td {
-  padding: 11px 14px;
+  padding: 7px 12px;
+  height: 38px;
+  line-height: 1.4;
   border-bottom: 1px solid var(--edge-line) !important;
   color: var(--edge-text);
   font-variant-numeric: tabular-nums;

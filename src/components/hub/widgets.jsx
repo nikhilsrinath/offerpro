@@ -1048,7 +1048,7 @@ function Payables({ d, nav, size }) {
                 <div><i style={{ background: 'var(--chart-a)' }} />Owed to you<b>{inrShort(m.receivable)}</b></div>
                 <div><i style={{ background: 'var(--chart-b)' }} />You owe<b>{inrShort(m.payable)}</b></div>
             </div>
-            <LinkBtn onClick={() => nav('/financials/company-ledger')}>Bills</LinkBtn>
+            <LinkBtn onClick={() => nav('/financials/general-ledger')}>Bills</LinkBtn>
         </Duo>
     );
 }

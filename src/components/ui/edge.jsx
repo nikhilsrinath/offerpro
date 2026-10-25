@@ -1,6 +1,6 @@
 import React, { useRef, useId, useState, useEffect, useLayoutEffect, createContext, useContext } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, MoreHorizontal, Pencil, Search as SearchIcon, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, ChevronDown, EyeOff, MoreHorizontal, Pencil, Search as SearchIcon, X } from 'lucide-react';
 import { MONO, useT, useDialog, drawerWidth, tableFrame, thStyle, tdStyle } from './edgeUtils';
 import { confirmDialog } from '../../services/confirm';
 import { titleCase, titleCaseNode } from '../../utils/titleCase';
@@ -462,7 +462,7 @@ function writeColPrefs(id, prefs) {
 /** The pencil above a table. Opens a dialog in the centre of the screen listing
     every column the table can show, as toggle tiles. A column with `always`
     (the row's name, its actions) is shown as locked. */
-function ColumnPicker({ cols, isOn, onToggle, onReset, onAll, changed }) {
+function ColumnPicker({ cols, isOn, onToggle, onReset, onAll, changed, height = 30 }) {
     const t = useT();
     const [open, setOpen] = useState(false);
     const list = cols.filter((c) => c.pickLabel || c.label);
@@ -475,13 +475,14 @@ function ColumnPicker({ cols, isOn, onToggle, onReset, onAll, changed }) {
                 aria-haspopup="dialog" onClick={() => setOpen(true)}
                 style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
-                    height: 30, padding: '0 11px', borderRadius: 9, cursor: 'pointer',
+                    height, padding: '0 11px', borderRadius: 9, cursor: 'pointer',
                     fontFamily: MONO, fontSize: 12.5, fontWeight: 500,
                     border: '1px solid ' + (changed ? t.accent : t.lineStrong),
                     background: t.panelAlt, boxShadow: t.highlight, color: t.text,
                 }}
             ><Pencil size={13} aria-hidden="true" />Columns</button>
-            <Modal
+            {/* On the page's body, so no box around the table can clip the panel. */}
+            {open && createPortal(<Modal
                 open={open} onClose={() => setOpen(false)} width={560}
                 title="Edit columns"
                 note="Tick the columns you want in this table and untick the ones you don't. Saved on this device."
@@ -526,7 +527,7 @@ function ColumnPicker({ cols, isOn, onToggle, onReset, onAll, changed }) {
                         );
                     })}
                 </div>
-            </Modal>
+            </Modal>, document.body)}
         </>
     );
 }
@@ -539,8 +540,14 @@ function ColumnPicker({ cols, isOn, onToggle, onReset, onAll, changed }) {
             <Tr>{show('code') && <Td>…</Td>}…</Tr>)}</Table>
     `show(key)` says whether to draw a column. A second argument is the list of
     visible columns, for rows that loop over them. Without an `id`, or with
-    plain children, nothing changes and every column in `cols` is shown. */
-export function Table({ id, cols: allCols, children, empty, actions, sticky }) {
+    plain children, nothing changes and every column in `cols` is shown.
+
+    `lead` puts the page's own filters on the same bar as `actions` and the
+    Columns button: one toolbar over the table. With `onSort`, every titled
+    column has a "⋯" menu (Sort Ascending, Sort Descending, Hide Column) and
+    its title sorts on click; `sort` is { key, dir: 'asc' | 'desc' } or null.
+    A column with `sortable: false` keeps only Hide. */
+export function Table({ id, cols: allCols, children, empty, actions, sticky, lead, sort, onSort, pinEnd }) {
     const t = useT();
     const [prefs, setPrefs] = useState(() => (id ? readColPrefs(id) : {}));
     const pickable = !!id && typeof children === 'function' && allCols.length > 1;
@@ -595,27 +602,72 @@ export function Table({ id, cols: allCols, children, empty, actions, sticky }) {
     // Rows added, removed or paged: the header's place is worked out again.
     useLayoutEffect(() => { placeRef.current(); });
 
+    const picker = pickable && <ColumnPicker cols={allCols} isOn={isOn} onToggle={toggle} onReset={reset} onAll={showAll}
+        changed={Object.keys(prefs).length > 0} height={lead ? 32 : 30} />;
+    // What a column's "⋯" offers: its sort, and hiding it (not a column that is always shown).
+    const colItems = (c) => [
+        onSort && c.sortable !== false && { label: 'Sort Ascending', icon: ArrowUp, onClick: () => onSort({ key: c.key, dir: 'asc' }) },
+        onSort && c.sortable !== false && { label: 'Sort Descending', icon: ArrowDown, onClick: () => onSort({ key: c.key, dir: 'desc' }) },
+        onSort && sort?.key === c.key && { label: 'Clear Sort', icon: X, onClick: () => onSort(null) },
+        pickable && !c.always && { label: 'Hide Column', icon: EyeOff, onClick: () => toggle(c) },
+    ].filter(Boolean);
+    const flip = (c) => onSort(sort?.key === c.key && sort.dir === 'asc' ? { key: c.key, dir: 'desc' } : { key: c.key, dir: 'asc' });
+
     return (
         <div>
-            {(pickable || actions) && (
+            {lead ? (
+                <div className="prod-toolbar edge-table-bar">
+                    {lead}
+                    <div style={{ flex: '1 0 0' }} />
+                    {actions}
+                    {picker}
+                </div>
+            ) : (pickable || actions) && (
                 <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
                     {actions}
-                    {pickable && <ColumnPicker cols={allCols} isOn={isOn} onToggle={toggle} onReset={reset} onAll={showAll}
-                        changed={Object.keys(prefs).length > 0} />}
+                    {picker}
                 </div>
             )}
         <div style={tableFrame(t)}>
             <div ref={boxRef} className="edge-scroll" style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO }}>
+                {/* `pinEnd` holds the last column (a row's actions) at the right edge while the rest scrolls. */}
+                <table className={pinEnd ? 'edge-table-pin-end' : undefined} style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO }}>
                     <thead ref={headRef} style={sticky ? { position: 'relative', zIndex: 2 } : undefined}>
                         <tr>
-                            {cols.map((c) => (
-                                <th key={c.key} scope="col" style={{
-                                    ...thStyle(t, c.align), width: c.width,
-                                    // A collapsed border stays behind with the rows; an inset line moves with the title.
-                                    ...(sticky && { borderBottom: 0, boxShadow: `inset 0 -1px 0 ${t.line}` }),
-                                }}>{titleCaseNode(c.label)}</th>
-                            ))}
+                            {cols.map((c) => {
+                                const menu = (onSort || pickable) && c.label ? colItems(c) : [];
+                                const sorted = sort?.key === c.key ? sort.dir : null;
+                                const canSort = onSort && c.sortable !== false;
+                                return (
+                                    <th key={c.key} scope="col" aria-sort={sorted ? (sorted === 'asc' ? 'ascending' : 'descending') : undefined} style={{
+                                        ...thStyle(t, c.align), width: c.width,
+                                        // A collapsed border stays behind with the rows; an inset line moves with the title.
+                                        ...(sticky && { borderBottom: 0, boxShadow: `inset 0 -1px 0 ${t.line}` }),
+                                        ...(menu.length > 0 && { paddingRight: 6 }),
+                                    }}>
+                                        {menu.length > 0 ? (
+                                            <span style={{
+                                                display: 'flex', alignItems: 'center', gap: 4,
+                                                justifyContent: c.align === 'right' ? 'flex-end' : 'flex-start',
+                                            }}>
+                                                {canSort ? (
+                                                    <button type="button" onClick={() => flip(c)} title={`Sort by ${titleCase(String(c.label))}`} style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: 4, padding: 0, border: 0,
+                                                        background: 'none', font: 'inherit', color: sorted ? t.text : 'inherit', cursor: 'pointer',
+                                                    }}>
+                                                        {titleCaseNode(c.label)}
+                                                        {sorted === 'asc' && <ArrowUp size={12} aria-hidden="true" />}
+                                                        {sorted === 'desc' && <ArrowDown size={12} aria-hidden="true" />}
+                                                    </button>
+                                                ) : titleCaseNode(c.label)}
+                                                <span className="edge-th-menu" style={{ display: 'inline-flex' }}>
+                                                    <RowMenu size="xs" label={`Options for ${titleCase(String(c.label))}`} items={menu} />
+                                                </span>
+                                            </span>
+                                        ) : titleCaseNode(c.label)}
+                                    </th>
+                                );
+                            })}
                         </tr>
                     </thead>
                     <tbody>{body}</tbody>
@@ -765,6 +817,15 @@ function PageStyle({ t }) {
                 background: ${t.accentSoft} !important; border-color: color-mix(in srgb, ${t.accent} 45%, transparent) !important; color: ${t.accent} !important;
             }
             .edge-page .edge-tr:hover { background: ${t.panelAlt}; }
+            .edge-page .edge-table-pin-end tr > :last-child {
+                position: sticky; right: 0; z-index: 1; background: ${t.card}; box-shadow: inset 1px 0 0 ${t.line};
+            }
+            .edge-page .edge-table-pin-end thead tr > :last-child { background: ${t.panelAlt}; }
+            .edge-page .edge-table-pin-end .edge-tr:hover > :last-child { background: ${t.panelAlt}; }
+            .edge-page .edge-th-menu { opacity: 0; transition: opacity .12s; }
+            .edge-page th:hover .edge-th-menu, .edge-page th:focus-within .edge-th-menu,
+            .edge-page .edge-th-menu:has([aria-expanded="true"]) { opacity: 1; }
+            @media (hover: none) { .edge-page .edge-th-menu { opacity: 1; } }
             .edge-page .edge-tr:focus-visible { outline-offset: -2px; background: ${t.panelAlt}; }
             .edge-page tbody tr:last-child td { border-bottom: none; }
             .edge-page .edge-scroll::-webkit-scrollbar-thumb {
@@ -903,7 +964,10 @@ export function RowMenu({ items, label = 'Actions', size = 'sm' }) {
         );
     };
 
-    const h = size === 'sm' ? 30 : 36;
+    const h = size === 'xs' ? 22 : size === 'sm' ? 30 : 36;
+    // A column header's "⋯" is a quiet one: no frame until it is pointed at or open.
+    const ghost = size === 'xs';
+    const lit = open || hover;
     return (
         <>
             <button
@@ -915,13 +979,14 @@ export function RowMenu({ items, label = 'Actions', size = 'sm' }) {
                 onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
                 style={{
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    width: h, height: h, padding: 0, borderRadius: 9, cursor: 'pointer',
-                    border: '1px solid ' + (open || hover ? t.lineStrong : t.line),
-                    background: open || hover ? t.raised : t.panelAlt, boxShadow: t.highlight, color: t.text,
+                    width: h, height: h, padding: 0, borderRadius: ghost ? 6 : 9, cursor: 'pointer', flexShrink: 0,
+                    border: '1px solid ' + (lit ? t.lineStrong : ghost ? 'transparent' : t.line),
+                    background: lit ? t.raised : ghost ? 'transparent' : t.panelAlt,
+                    boxShadow: ghost && !lit ? 'none' : t.highlight, color: ghost && !lit ? t.faint : t.text,
                     transition: 'border-color .15s, background .15s',
                 }}
             >
-                <MoreHorizontal size={15} aria-hidden="true" />
+                <MoreHorizontal size={ghost ? 14 : 15} aria-hidden="true" />
             </button>
             {open && createPortal(
                 <div

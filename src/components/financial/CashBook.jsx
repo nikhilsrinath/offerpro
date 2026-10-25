@@ -517,11 +517,21 @@ export default function CashBook({ projectId = null, children }) {
   );
 }
 
+// What the two buttons say. A Vendor or Client General Ledger names them for
+// what they do there (`labels`): Upload Invoice and Record Payment for a
+// vendor, Create Invoice and Record Receipt for a client.
+const RECORD_LABELS = {
+  in: { label: 'Credit', note: 'Sales & Services, Other Income, Funding, Retainers, Recoveries' },
+  out: { label: 'Debit', note: 'Deliveries, People & Labour, Operations, Assets & Capital, Financing & Tax' },
+};
+
 /**
- * "Record money": Credit and Debit, and what was recorded last. Also on a
- * project's Company Ledger page (`scoped`), where it has no heading.
+ * "Record money": Credit and Debit, and what was recorded last. Also on the
+ * General Ledger pages (`scoped`), where it has no heading. `labels` ({ in,
+ * out } of { label, note, icon }) renames a side; `onRecord` gets 'in' or 'out'.
  */
-export function RecordMoneyCard({ t, scoped, recent, onRecord, onOpen, style }) {
+export function RecordMoneyCard({ t, scoped, recent, onRecord, onOpen, style, labels, emptyText }) {
+  const side = (k) => ({ ...RECORD_LABELS[k], ...(labels?.[k] || {}) });
   return (
     <section {...(scoped ? { 'aria-label': 'Record Money' } : { 'aria-labelledby': 'gl-record' })} className="gl-record" style={{
       position: 'relative', overflow: 'hidden', padding: 20, borderRadius: 20,
@@ -539,8 +549,8 @@ export function RecordMoneyCard({ t, scoped, recent, onRecord, onOpen, style }) 
         </div>
       )}
       <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
-        <RecordBtn t={t} tone={t.up} icon={ArrowDownLeft} label="Credit" note="Sales & Services, Other Income, Funding, Retainers, Recoveries" onClick={() => onRecord('in')} />
-        <RecordBtn t={t} tone={t.down} icon={ArrowUpRight} label="Debit" note="Deliveries, People & Labour, Operations, Assets & Capital, Financing & Tax" onClick={() => onRecord('out')} />
+        <RecordBtn t={t} tone={t.up} icon={side('in').icon || ArrowDownLeft} label={side('in').label} note={side('in').note} onClick={() => onRecord('in')} />
+        <RecordBtn t={t} tone={t.down} icon={side('out').icon || ArrowUpRight} label={side('out').label} note={side('out').note} onClick={() => onRecord('out')} />
       </div>
       <div style={{ marginTop: 'auto', minWidth: 0 }}>
         <div style={{ fontSize: 12, fontWeight: 500, color: t.faint, marginBottom: 4 }}>Recently recorded</div>
@@ -562,7 +572,7 @@ export function RecordMoneyCard({ t, scoped, recent, onRecord, onOpen, style }) 
             </button>
           );
         }) : (
-          <div style={{ fontSize: 12.5, color: t.faint }}>Nothing yet. Both sides land in Profit &amp; Loss and the Tax Summary straight away.</div>
+          <div style={{ fontSize: 12.5, color: t.faint }}>{emptyText || 'Nothing yet. Both sides land in Profit & Loss and the Tax Summary straight away.'}</div>
         )}
       </div>
       <style>{`

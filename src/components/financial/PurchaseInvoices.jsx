@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Search, X, FileInput, Pencil, Trash2, CheckCircle, Paperclip, IndianRupee, Ban, RotateCcw,
+  ArrowDownLeft, ArrowUpRight, Pencil, Trash2, CheckCircle, Paperclip, Ban, RotateCcw, Scale, Receipt, FileUp, Banknote,
 } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
 import { receiptService } from '../../services/receiptService';
@@ -14,36 +14,43 @@ import { ADVANCE, isVendorDebit } from './cashEntry';
 import { deletePaymentParts, useSettledVendorBills } from './vendorAdvance';
 import { useRecordMoney } from './recordMoney';
 import { RecordMoneyCard } from './CashBook';
-import { RowMenu } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
 import { initialQuery } from '../../services/urlQuery';
 import { ProjectLedger } from '../projects/ProjectFinance';
+import { LedgerBar } from './ledgerBar';
+import { projectChoices, useLedgerPeriod } from './ledgerPeriod';
 
-// The ledger's two sides: Debit is every payment (money gone to a vendor),
-// Credit every bill.
-const FILTERS = [['all', 'All'], ['credit', 'Credit'], ['debit', 'Debit']];
+// On the Vendor General Ledger the two sides are named for what they do.
+const VENDOR_LABELS = {
+  in: { label: 'Upload Invoice', note: 'A bill from a vendor, with its items, discount and GST', icon: FileUp },
+  out: { label: 'Record Payment', note: 'Money paid to a vendor, against what is pending or as an advance', icon: Banknote },
+};
 
 /**
- * The Company Ledger: a project's (Finance › Company Ledger inside it, with
- * `projectId`) or the whole company's (Finance › Company Ledger). Both work
- * the same way: Record Money's Credit and Debit, a purchase bill is a credit,
+ * The General Ledger: the company's (Financials), a project's (with
+ * `project`), and with `party="vendor"` the Vendors' and a project's Vendor
+ * group's. The Company Ledger was folded into it (2026-10-25), so it is the
+ * one ledger: Record Money's Credit and Debit, a purchase bill is a credit,
  * money in is a credit, paying a vendor and every other cost is a debit, and
  * the ledger under it carries the balance. Company-wide, every bill and entry
  * is listed whole, with the project(s) it is on, and the project filter
  * narrows it to one project (at that project's share), or to General.
  *
- * With `party="vendor"` it is the Vendor Company Ledger: the same page, the
- * same Record Money and the same filters, its ledger and recent entries kept
- * to what is with a vendor (ProjectLedger `party`). A credit starts as one
- * from a vendor (0098).
+ * The tiles over it are the ledger's own totals (ProjectLedger `onTotals`),
+ * so whatever the filters, the two never disagree.
+ *
+ * With `party="vendor"` the ledger and recent entries are kept to what is with
+ * a vendor, and Credit and Debit are Upload Invoice and Record Payment.
  */
-export default function PurchaseInvoices({ projectId = null, party = null, children }) {
+export default function PurchaseInvoices({ project = null, party = null, onOpen }) {
+  const projectId = project?.id || null;
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const vendors = useSection('vendors');
   const vendorLinks = useSection('project_vendors');
   const allBills = useSection('purchase_invoices');
   const expenses = useSection('expenses');
+  const income = useSection('income_entries');
   const allocations = useSection('project_allocations');
   const projects = useSection('projects');
   // Company-wide: 'all', 'general' (on no project) or one project's id.
@@ -60,33 +67,34 @@ export default function PurchaseInvoices({ projectId = null, party = null, child
     ? scope.data.purchases.map((b) => ({ ...b._full, _share: b._share, _shareNet: b.subtotal }))
     : allBills), [scope, allBills]);
   const [search, setSearch] = useState(initialQuery);
-  const [filter, setFilter] = useState('all');
+  const [view, setView] = useState('all');
+  const period = useLedgerPeriod();
   const [vendorFilter, setVendorFilter] = useState(params.get('vendor') || 'all');
+  const [totals, setTotals] = useState(null);
   // Each bill's amount paid is worked out from its vendor's totals.
   useSettledVendorBills();
 
   // Record Money: Credit or Debit opens its form straight away, with the Type
-  // as its first row (recordMoney.jsx). On the Vendor Company Ledger it opens
-  // on the purchase bill or Vendor Payment.
+  // as its first row (recordMoney.jsx). On the Vendor ledger it opens on the
+  // purchase bill (Upload Invoice) or Vendor Payment (Record Payment).
   const t = useT();
-  const income = useSection('income_entries');
   const projectClient = (scope?.project || filterProject)?.client_id || '';
   const money$ = useRecordMoney({ projectId, startOn, party, projectClient });
   const recent = useMemo(() => {
-    // On the Vendor Company Ledger, only what is with a vendor.
+    // On the Vendor ledger, only what is with a vendor.
     const onSide = (e) => !party || !!(e._full || e).vendor_id;
     return [
       ...(scope ? scope.data.income : income).filter(onSide).map((e) => ({ ...e, direction: 'in', day: e.date || e.received_on })),
       ...(scope ? scope.data.expenses : expenses).filter(onSide).map((e) => ({ ...e, direction: 'out', day: e.date || e.incurred_on })),
     ].sort((a, b) => String(b.day).localeCompare(String(a.day))).slice(0, 3);
   }, [scope, income, expenses, party]);
-  // A row of the ledger that is a General Ledger entry opens its form here.
+  // A row of the ledger that is a cash entry opens its form here.
   const editEntry = (direction, id) => {
     const r = (direction === 'in' ? income : expenses).find((x) => x.id === id);
     if (r) money$.openEntry(r, direction);
   };
 
-  // Vendors page links here with ?vendor=<id>&new=1 to open a bill for them.
+  // The Vendors page links here with ?vendor=<id>&new=1 to open a bill for them.
   useEffect(() => {
     if (params.get('new') === '1') {
       money$.newBill(params.get('vendor') || '');
@@ -97,7 +105,6 @@ export default function PurchaseInvoices({ projectId = null, party = null, child
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, setParams]);
 
-  const vendorById = useMemo(() => Object.fromEntries(vendors.map((v) => [v.id, v])), [vendors]);
   // The project(s) each bill is split to, for the company-wide project filter.
   // A project's own list doesn't need it: every bill there is on it.
   const projectsByBill = useMemo(() => {
@@ -109,10 +116,6 @@ export default function PurchaseInvoices({ projectId = null, party = null, child
     });
     return out;
   }, [projectId, projects, allocations]);
-  const balance = (b) => Math.max(0, b.total - b.amount_paid);
-  // Credit and Debit are the ledger's two sides, not where a bill stands.
-  const matches = (b) => filter === 'all' || b.status !== 'void';
-  const side = filter === 'debit' ? 'out' : filter === 'credit' ? 'in' : 'all';
 
   // Company-wide, the bills of the project (or General) the page is filtered to.
   const scopedBills = useMemo(() => {
@@ -121,17 +124,10 @@ export default function PurchaseInvoices({ projectId = null, party = null, child
     return bills.filter((b) => (projectsByBill[b.id] || []).some((p) => p.id === projectFilter));
   }, [projectId, projectFilter, bills, projectsByBill]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return scopedBills
-      .filter((b) => vendorFilter === 'all' || b.vendor_id === vendorFilter)
-      .filter(matches)
-      .filter((b) => !q || [b.bill_number, b.description, b.category, vendorById[b.vendor_id]?.company_name]
-        .concat((projectsByBill[b.id] || []).flatMap((p) => [p.code, p.name]))
-        .some((f) => String(f || '').toLowerCase().includes(q)))
-      .sort((a, b) => String(b.bill_date).localeCompare(String(a.bill_date)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopedBills, search, filter, vendorFilter, vendorById, projectsByBill]);
+  // The vendor filter keeps that vendor's bills; the search, side and period
+  // are the ledger's own (`narrow`), so they reach every row, not just bills.
+  const filtered = useMemo(() => scopedBills
+    .filter((b) => vendorFilter === 'all' || b.vendor_id === vendorFilter), [scopedBills, vendorFilter]);
 
   // Every debit to a vendor under the page's project, whatever its type.
   const vendorDebits = useMemo(() => {
@@ -141,36 +137,16 @@ export default function PurchaseInvoices({ projectId = null, party = null, child
       .filter((e) => projectId || projectFilter === 'all'
         || (projectFilter === 'general' ? projectsOf(e.id).length === 0 : projectsOf(e.id).includes(projectFilter)));
   }, [scope, expenses, allocations, projectId, projectFilter]);
-  // The debit rows the ledger keeps when it is narrowed by vendor or search:
-  // a payment is the vendor's, not a bill's.
-  const keepAdvances = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    // On the Vendor Company Ledger money back from the vendor stays with them too.
-    const refunds = party ? (scope ? scope.data.income : income).map((e) => e._full || e)
-      .filter((e) => e.vendor_id && (vendorFilter === 'all' || e.vendor_id === vendorFilter))
-      .filter((e) => !q || [e.description, e.reference, vendorById[e.vendor_id]?.company_name]
-        .some((f) => String(f || '').toLowerCase().includes(q)))
-      .map((e) => `income_entry:${e.id}`) : [];
+  // The rows the ledger keeps when it is narrowed to one vendor: a payment is
+  // the vendor's, not a bill's, and so is money back from them.
+  const keepVendor = useMemo(() => {
+    if (vendorFilter === 'all') return new Set();
+    const refunds = (scope ? scope.data.income : income).map((e) => e._full || e)
+      .filter((e) => e.vendor_id === vendorFilter).map((e) => `income_entry:${e.id}`);
     return new Set([...refunds, ...vendorDebits
-      .filter((e) => !e.purchase_invoice_id)
-      .filter((e) => vendorFilter === 'all' || e.vendor_id === vendorFilter)
-      .filter((e) => !q || [e.description, e.reference, vendorById[e.vendor_id]?.company_name, e.category === ADVANCE ? 'advance' : 'payment']
-        .some((f) => String(f || '').toLowerCase().includes(q)))
+      .filter((e) => !e.purchase_invoice_id && e.vendor_id === vendorFilter)
       .map((e) => `expense:${e.id}`)]);
-  }, [vendorDebits, search, vendorFilter, vendorById, party, scope, income]);
-
-  const totals = useMemo(() => {
-    const share = (b) => b._share ?? 1;
-    const live = scopedBills.filter((b) => b.status !== 'void').map((b) => (share(b) === 1 ? b : {
-      ...b, total: b.total * share(b), amount_paid: b.amount_paid * share(b), tax_amount: b.tax_amount * share(b),
-    }));
-    return {
-      billed: live.reduce((s, b) => s + b.total, 0),
-      payable: live.reduce((s, b) => s + balance(b), 0),
-      paid: vendorDebits.reduce((s, e) => s + (Number(e.amount) || 0), 0),
-      inputGst: live.reduce((s, b) => s + b.tax_amount, 0),
-    };
-  }, [scopedBills, vendorDebits]);
+  }, [vendorDebits, vendorFilter, scope, income]);
 
   // Paying from a bill's row pays its vendor: one debit, not against the bill.
   const handlePay = (b) => money$.payVendor(b.vendor_id);
@@ -290,14 +266,6 @@ export default function PurchaseInvoices({ projectId = null, party = null, child
     ];
   };
 
-  // Credit and Debit keep one side of the ledger rather than narrowing it to some bills.
-  const narrowed = !!search.trim() || vendorFilter !== 'all';
-  const ledgerProps = {
-    bills: filtered, billMenu, paymentMenu, onEdit: editEntry, filtered: narrowed, keep: keepAdvances,
-    ...(party ? { party } : {}),
-    narrow: side === 'all' ? undefined : { view: side },
-    emptyText: narrowed || side !== 'all' ? 'Nothing matches these filters.' : undefined,
-  };
   const pickProject = (v) => {
     setProjectFilter(v);
     const next = new URLSearchParams(params);
@@ -305,52 +273,52 @@ export default function PurchaseInvoices({ projectId = null, party = null, child
     setParams(next, { replace: true });
   };
 
+  const isVendor = party === 'vendor';
+  const narrowed = vendorFilter !== 'all';
+  const toolbar = (
+    <LedgerBar search={search} onSearch={setSearch} view={view} onView={setView} period={period}
+      placeholder={isVendor ? 'Search vendor, invoice no., receipt no...' : 'Search party, invoice no., project, type...'}
+      selects={[
+        !projectId && { label: 'Filter by project', value: projectFilter, onChange: pickProject, options: projectChoices(projects, projectFilter) },
+        { label: 'Filter by vendor', value: vendorFilter, onChange: setVendorFilter, options: [['all', 'All vendors'], ...filterVendors.map((v) => [v.id, v.company_name])] },
+      ].filter(Boolean)} />
+  );
+  const ledgerProps = {
+    bills: filtered, billMenu, paymentMenu, onEdit: editEntry, onOpen, onTotals: setTotals, toolbar,
+    filtered: narrowed, keep: keepVendor,
+    ...(party ? { party } : {}),
+    narrow: { view, search, from: period.range.from, to: period.range.to },
+    emptyText: narrowed || search.trim() || view !== 'all' || period.preset !== 'all' ? 'Nothing matches these filters.' : undefined,
+  };
+
+  // The ledger's own totals. On the Vendor ledger the balance is what is still
+  // payable; below zero it is an advance with the vendors.
+  const credit = totals?.credit || 0;
+  const debit = totals?.debit || 0;
+  const balance = totals?.balance || 0;
+  const flip = (side) => setView(view === side ? 'all' : side);
+
   return (
     <div style={{ maxWidth: '100%' }}>
       <RecordMoneyCard t={t} scoped recent={recent} onRecord={money$.record} style={{ marginBottom: 12 }}
+        labels={isVendor ? VENDOR_LABELS : undefined}
+        emptyText={isVendor ? 'Nothing yet. Upload a vendor invoice or record a payment to start the ledger.' : undefined}
         onOpen={(r) => money$.openEntry(r, r.direction)} />
       <div className="prod-stats">
-        <Stat icon={<FileInput size={15} />} label="Total billed" value={money(totals.billed)} onClick={() => setFilter('all')} />
-        <Stat icon={<CheckCircle size={15} />} label="Paid" value={money(totals.paid)} accent="var(--text-primary)" onClick={() => setFilter('debit')} />
-        <Stat icon={<IndianRupee size={15} />} label="Payable" value={money(totals.payable)} accent="var(--text-primary)" onClick={() => setFilter('credit')} />
-        <Stat icon={<FileInput size={15} />} label="GST" value={money(totals.inputGst)} />
+        <Stat icon={<ArrowDownLeft size={15} />} label={isVendor ? 'Total Billed' : 'Total Credit'} value={money(credit, 2)}
+          sub={view === 'in' ? 'Showing credit only' : undefined} onClick={() => flip('in')} />
+        <Stat icon={<ArrowUpRight size={15} />} label={isVendor ? 'Paid' : 'Total Debit'} value={money(debit, 2)}
+          sub={view === 'out' ? 'Showing debit only' : undefined} onClick={() => flip('out')} />
+        <Stat icon={<Scale size={15} />} label={isVendor ? (balance < 0 ? 'Advance With Vendors' : 'Payable') : 'Closing Balance'}
+          value={money(isVendor ? Math.abs(balance) : balance, 2)} accent="var(--text-primary)" />
+        <Stat icon={<Receipt size={15} />} label="GST on Bills" value={money(totals?.tax || 0, 2)} />
       </div>
 
-      <div className="prod-toolbar">
-        <div className="prod-search">
-          <Search size={14} />
-          <input aria-label="Search the ledger" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={projectId ? 'Search bill no., vendor, category...' : 'Search bill no., vendor, project, category...'} />
-          {search && <button type="button" onClick={() => setSearch('')} className="prod-search-clear" aria-label="Clear search" title="Clear search"><X size={13} /></button>}
-        </div>
-        {!projectId && (
-          <select aria-label="Filter by project" value={projectFilter} onChange={(e) => pickProject(e.target.value)} className="prod-select">
-            <option value="all">All projects</option>
-            <option value="general">General (no project)</option>
-            {projects.filter((p) => !p.archived_at || p.id === projectFilter).map((p) => (
-              <option key={p.id} value={p.id}>{[p.code, p.name].filter(Boolean).join(' · ')}</option>
-            ))}
-          </select>
-        )}
-        <select aria-label="Filter by vendor" value={vendorFilter} onChange={(e) => setVendorFilter(e.target.value)} className="prod-select">
-          <option value="all">All vendors</option>
-          {filterVendors.map((v) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
-        </select>
-        <div className="prod-seg" role="group" aria-label="Ledger side">
-          {FILTERS.map(([f, label]) => (
-            <button key={f} aria-pressed={filter === f} className={`pro-chip ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
-              {label}
-            </button>
-          ))}
-        </div>
-        {/* Credit and Debit are recorded from the Record Money card above. */}
-      </div>
-
-      {/* The ledger: a project's page passes its own (`children`); company-wide
-          it is every bill and entry, or one project's, or General's. The same
-          search and filters, the same actions on a bill. */}
-      {children ? children(ledgerProps)
+      {/* The ledger: a project's, or company-wide every bill and entry, or one
+          project's, or General's. The same filters, the same actions on a bill. */}
+      {projectId ? <ProjectLedger key={projectId} project={project} only="purchases" here="cashbook" {...ledgerProps} />
         : filterProject ? <ProjectLedger key={filterProject.id} project={filterProject} only="purchases" here="company" {...ledgerProps} />
-        : <ProjectLedger only="purchases" here="company" general={projectFilter === 'general'} {...ledgerProps} />}
+          : <ProjectLedger only="purchases" here="company" general={projectFilter === 'general'} {...ledgerProps} />}
 
       {money$.forms}
     </div>

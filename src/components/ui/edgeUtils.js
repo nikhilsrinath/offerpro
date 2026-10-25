@@ -77,18 +77,18 @@ export const fmtDay = (d) => (d
    draw itself: a card on a hairline, a tinted header row in sentence case,
    hairline rows. edgeBridge.css gives the legacy table classes the same. */
 export const tableFrame = (t) => ({
-    border: '1px solid ' + t.line, borderRadius: 16, overflow: 'hidden',
+    border: '1px solid ' + t.line, borderRadius: 12, overflow: 'hidden',
     background: t.card, boxShadow: t.highlight,
 });
 
 export const thStyle = (t, align) => ({
-    textAlign: align || 'left', padding: '10px 14px',
-    fontSize: 12, fontWeight: 500, letterSpacing: 0, textTransform: 'none', color: t.faint,
+    textAlign: align || 'left', padding: '7px 12px', height: 34,
+    fontSize: 11.5, fontWeight: 500, letterSpacing: 0, textTransform: 'none', color: t.faint,
     background: t.panelAlt, borderBottom: '1px solid ' + t.line, whiteSpace: 'nowrap',
 });
 
 export const tdStyle = (t, align) => ({
-    padding: '11px 14px', textAlign: align || 'left',
-    fontSize: 13, color: t.text, borderBottom: '1px solid ' + t.line,
+    padding: '7px 12px', height: 38, textAlign: align || 'left', verticalAlign: 'middle',
+    fontSize: 12.5, lineHeight: 1.4, color: t.text, borderBottom: '1px solid ' + t.line,
     fontVariantNumeric: 'tabular-nums',
 });

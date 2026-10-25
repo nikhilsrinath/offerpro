@@ -18,7 +18,9 @@ export const SECTION_PATHS = {
     finance: 'finance/status',
     cashbook: 'finance/general-ledger',
     billing: 'client-management/billing',
-    bills: 'finance/company-ledger',
+    // The Company Ledger was folded into the General Ledger (2026-10-25): its
+    // id still opens the one ledger, and the path reads back as 'cashbook'.
+    bills: 'finance/general-ledger',
     tax: 'finance/tax-summary',
     pl: 'finance/profit-loss',
     pm: 'project-management/portfolio-overview',
@@ -34,11 +36,11 @@ export const SECTION_PATHS = {
     crm: 'client-management/crm',
     comms: 'client-management/client-communication',
     payments: 'client-management/payment-status',
-    'client-ledger': 'client-management/company-ledger',
     'client-general': 'client-management/general-ledger',
+    'client-ledger': 'client-management/general-ledger',
     vendors: 'vendor-management/vendor-directory',
-    'vendor-ledger': 'vendor-management/company-ledger',
     'vendor-general': 'vendor-management/general-ledger',
+    'vendor-ledger': 'vendor-management/general-ledger',
     documents: 'documents-management/project-documents',
     templates: 'documents-management/custom-templates',
     milestones: 'milestones',
@@ -96,8 +98,10 @@ export function parseProjectPath(pathname) {
     if (!rest) return { section: 'home', view: null };
     // The General Ledger was the Cash Book; a link saved back then still opens it.
     if (rest === 'finance/cash-book') return { section: 'cashbook', view: null };
-    // And the Company Ledger was Purchase Bills.
-    if (rest === 'finance/purchase-bills') return { section: 'bills', view: null };
+    // And the Company Ledger was Purchase Bills; both now are the General Ledger.
+    if (rest === 'finance/purchase-bills' || rest === 'finance/company-ledger') return { section: 'cashbook', view: null };
+    if (rest === 'client-management/company-ledger') return { section: 'client-general', view: null };
+    if (rest === 'vendor-management/company-ledger') return { section: 'vendor-general', view: null };
     // Billing was a page of Finance before it moved to Client.
     if (rest === 'finance/billing') return { section: 'billing', view: null };
     if (rest.startsWith('finance/billing/')) return { section: 'billing', view: rest.slice('finance/billing/'.length) };

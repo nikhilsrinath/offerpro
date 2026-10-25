@@ -34,6 +34,7 @@ export default function VendorPaymentModal({ vendorId = '', startOn = null, proj
   const toast = useToast();
   const vendors = useSection('vendors');
   const expenses = useSection('expenses');
+  const income = useSection('income_entries');
   const allocations = useSection('project_allocations');
   const bills = useSection('purchase_invoices');
   const departments = useSection('departments');
@@ -78,7 +79,7 @@ export default function VendorPaymentModal({ vendorId = '', startOn = null, proj
   // The Vendor Payment Type's own label, for the Type row.
   const typeLabel = onType ? ledgerTypes('out').find((x) => x.kind === 'vendor')?.label || '' : '';
   // Paid to them beyond all their bills.
-  const advance = form.vendor_id ? vendorCredit(bills, expenses, form.vendor_id) : 0;
+  const advance = form.vendor_id ? vendorCredit(bills, expenses, form.vendor_id, income) : 0;
 
   /**
    * Against Pending is on the projects of the bills it would cover, oldest

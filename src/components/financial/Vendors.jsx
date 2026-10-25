@@ -374,7 +374,7 @@ export default function Vendors() {
             <div style={{ flex: 1 }} />
             <div className="prod-modal-foot">
               <button type="button" className="prod-btn-ghost" onClick={() => setViewing(null)}>Close</button>
-              <button type="button" className="prod-btn-primary" onClick={() => navigate(`/financials/company-ledger?vendor=${viewing.id}&new=1`)}>
+              <button type="button" className="prod-btn-primary" onClick={() => navigate(`/financials/general-ledger?vendor=${viewing.id}&new=1`)}>
                 <Plus size={13} /> Record a Bill
               </button>
             </div>

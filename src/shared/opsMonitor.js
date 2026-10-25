@@ -169,7 +169,7 @@ export const HREF = {
   task: (id) => `/projects/tasks?task=${id}`,
   project: (id) => `/projects/${id}`,
   invoices: () => '/clients/billing/invoices',
-  bills: () => '/financials/company-ledger',
+  bills: () => '/financials/general-ledger',
   leave: () => '/company/attendance/leave',
   timesheets: () => '/projects/timesheets',
 };
