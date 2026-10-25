@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-    Page, Panel, Row, Btn, Seg, Field, Input, Select, Textarea, Grid, Muted,
+    Page, Panel, Row, Btn, Seg, Field, Input, Select, Textarea, Grid, Muted, Modal,
 } from '../ui/edge';
+import ProjectsPage from './ProjectsPage';
 import { useT } from '../ui/edgeUtils';
 import { useSection, money } from '../financial/financeHooks';
 import { BILLING_TYPES, MEMBER_ROLES, DELIVERY_METHODS } from '../../services/projectAnalytics';
@@ -15,7 +16,8 @@ import { projectRef } from './projectSlug';
 import { currencySymbol, baseCurrency, CURRENCY_OPTIONS } from '../../shared/currency.js';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   New project: and, with `project` passed, the edit sheet for one.
+   New project: and, with `project` passed, the edit sheet for one. Both
+   open in the right side panel (NewProjectPanel for /projects/new).
 
    Opened three ways: blank, from a quotation (?fromQuotation=<id>: client,
    name, net value and one milestone per line), or from a client
@@ -287,7 +289,7 @@ export default function ProjectForm({ project = null, onDone }) {
 
             {error && <div role="alert" style={{ margin: '0 0 12px', fontSize: 12.5, color: t.down }}>{error}</div>}
             <Row gap={8} style={{ justifyContent: 'flex-end' }}>
-                <Btn onClick={() => (isEdit ? onDone?.() : navigate(-1))}>Cancel</Btn>
+                <Btn onClick={() => (onDone ? onDone() : navigate(-1))}>Cancel</Btn>
                 <Btn primary type="submit" disabled={saving}>
                     {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create project'}
                 </Btn>
@@ -299,7 +301,24 @@ export default function ProjectForm({ project = null, onDone }) {
         </form>
     );
 
-    return isEdit ? body : <Page>{body}</Page>;
+    return isEdit || onDone ? body : <Page>{body}</Page>;
+}
+
+/** /projects/new: the form in the right side panel, over the projects list.
+    Closing goes back where it was opened from, or to the list when the page
+    was opened directly. */
+export function NewProjectPanel() {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const close = () => (location.key !== 'default' ? navigate(-1) : navigate('/projects', { replace: true }));
+    return (
+        <>
+            <ProjectsPage />
+            <Modal open onClose={close} title="New project" width={760}>
+                <ProjectForm onDone={close} />
+            </Modal>
+        </>
+    );
 }
 
 /** Type of project: Waterfall, Agile or Hybrid, each with what it suits. Optional. Native radios, drawn as cards. */

@@ -45,7 +45,7 @@ import ExEmployees from './components/ExEmployees';
 import TeamHierarchy from './components/TeamHierarchy';
 import TasksPage from './components/tasks/TasksPage';
 import ProjectsPage from './components/projects/ProjectsPage';
-import ProjectForm from './components/projects/ProjectForm';
+import { NewProjectPanel } from './components/projects/ProjectForm';
 import ProjectDetail, { projectSections, activeSection, projectRail } from './components/projects/ProjectDetail';
 import ProjectDashboardPage from './components/projects/ProjectDashboards';
 import { projectDashboardGroup } from './components/projects/projectDashboardNav';
@@ -368,7 +368,8 @@ function pageOf(pathname) {
     if (parts.length > 2) return BILLING_FORM[parts[1]] || 'quotations';
     return parts[1] || 'quotations';
   }
-  if (page === 'projects/new') return 'new-project';
+  // The new-project panel opens over the projects list, which keeps its header.
+  if (page === 'projects/new') return 'projects';
   if (parts[0] === 'dashboard' || parts[0] === 'templates') return page;
   if (parts[0] === 'projects' && parts.length > 1) return 'project-detail';
   return parts[0];
@@ -676,7 +677,7 @@ function AppContent() {
             <Route path="company/recruitment-tracker" element={<OfferTracker onNavigate={routerNavigate} />} />
             {/* Projects */}
             <Route path="projects" element={<ProjectsPage />} />
-            <Route path="projects/new" element={<ProjectForm />} />
+            <Route path="projects/new" element={<NewProjectPanel />} />
             <Route path="projects/tasks" element={<TasksPage />} />
             <Route path="projects/kanban-chart" element={<KanbanChart />} />
             <Route path="projects/portfolio" element={<Portfolio />} />

@@ -116,6 +116,52 @@ export async function uploadProjectFile(projectId, file, {
   }
 }
 
+/**
+ * The folder at `segments` under `parentId`, made where it does not exist yet.
+ * A folder with the same name (any case) is reused, as the database allows only
+ * one. `made` remembers folders created during one upload so a second file in
+ * the same new folder does not race the store refresh.
+ */
+export async function ensureFolderPath(projectId, parentId, segments, made = new Map()) {
+  let at = parentId || null;
+  for (const raw of segments) {
+    const name = raw.trim();
+    if (!name) continue;
+    const key = `${at || ''}/${name.toLowerCase()}`;
+    let id = made.get(key) || orgStore.getSectionAsList('project_folders').find((f) => f.project_id === projectId
+      && (f.parent_id || null) === at && sameName(f.name, name))?.id;
+    if (!id) {
+      const row = await orgStore.addItem('project_folders', { project_id: projectId, parent_id: at, name: name.slice(0, 120) });
+      id = row.id;
+    }
+    made.set(key, id);
+    at = id;
+  }
+  return at;
+}
+
+/**
+ * Files out of a drop, folders included: each comes back as { file, dirs }, where
+ * `dirs` is the folder path inside what was dropped. Browsers without the entry
+ * API get the plain file list (folders cannot be read there).
+ */
+export async function filesFromDrop(dataTransfer) {
+  const entries = [...(dataTransfer.items || [])].map((i) => i.webkitGetAsEntry?.()).filter(Boolean);
+  if (!entries.length) return [...(dataTransfer.files || [])].map((file) => ({ file, dirs: [] }));
+  const out = [];
+  const readAll = (reader) => new Promise((resolve, reject) => {
+    const all = [];
+    const next = () => reader.readEntries((batch) => { if (!batch.length) resolve(all); else { all.push(...batch); next(); } }, reject);
+    next();
+  });
+  const walk = async (entry, dirs) => {
+    if (entry.isFile) out.push({ file: await new Promise((res, rej) => entry.file(res, rej)), dirs });
+    else if (entry.isDirectory) for (const child of await readAll(entry.createReader())) await walk(child, [...dirs, entry.name]);
+  };
+  for (const e of entries) await walk(e, []);
+  return out;
+}
+
 /** Makes an old version current again, as a new version (history is never rewritten). */
 export async function restoreVersion(file, old) {
   const version = (file.version || 1) + 1;

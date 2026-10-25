@@ -8,7 +8,7 @@ import { useSection } from '../../financial/financeHooks';
 import { orgStore } from '../../../services/orgStore';
 import { confirmDialog } from '../../../services/confirm';
 import {
-    uploadProjectFile, restoreVersion, deleteProjectFiles, deleteFolder, signedUrl, openObject, fileError,
+    uploadProjectFile, ensureFolderPath, filesFromDrop, restoreVersion, deleteProjectFiles, deleteFolder, signedUrl, openObject, fileError,
 } from '../../../services/projectFiles';
 import {
     FILE_KINDS, fileKind, canPreview, fmtBytes, folderPath, folderSubtree,
@@ -24,8 +24,9 @@ import {
 /* ══════════════════════════════════════════════════════════════════════════
    Documents Management › Project Documents. Every file the project holds.
 
-   Folders nest as deep as needed. Dropping or choosing files uploads them
-   into the folder you are in; a file with a name that is already there
+   Folders nest as deep as needed and can be moved inside one another.
+   Dropping or choosing files, or whole folders, uploads them into the folder
+   you are in (an uploaded folder keeps its tree); a file with a name that is already there
    becomes its next version, and every earlier version can be opened or made
    current again. Files attached elsewhere on the project (communications,
    approvals, invoices, vendors, generated documents) sit in "Attached
@@ -77,6 +78,7 @@ function FilesView({ project }) {
     const allFiles = useSection('project_files');
     const nameOf = useUserNames();
     const input = useRef(null);
+    const dirInput = useRef(null);
 
     const [at, setAt] = useState(null);         // folder id, LINKED, or null (the top)
     const [view, setView] = useState(() => { try { return localStorage.getItem('eo-docs-view') || 'list'; } catch { return 'list'; } });
@@ -125,14 +127,19 @@ function FilesView({ project }) {
     const linkedCount = files.filter((f) => f.link_type).length;
     const crumbs = inFolder ? folderPath(folders, inFolder) : [];
 
+    // Each item is a File (the folder picker's webkitRelativePath gives the
+    // folders to make) or { file, dirs } from a drop.
     const upload = async (list) => {
         if (!list.length || !can.create) return;
         if (at === LINKED) { toast('Open a folder (or the top) to upload into it.', 'error'); return; }
+        const items = list.map((x) => (x instanceof File ? { file: x, dirs: (x.webkitRelativePath || '').split('/').slice(0, -1) } : x));
         setBusy('upload');
         let added = 0; let versions = 0;
+        const made = new Map();
         try {
-            for (const f of list) {
-                const row = await uploadProjectFile(project.id, f, { folderId: inFolder });
+            for (const { file, dirs } of items) {
+                const folderId = dirs.length ? await ensureFolderPath(project.id, inFolder, dirs, made) : inFolder;
+                const row = await uploadProjectFile(project.id, file, { folderId });
                 if (row._newVersion) versions += 1; else added += 1;
             }
             toast([added && `${added} uploaded`, versions && `${versions} saved as a new version`].filter(Boolean).join(', '), 'success');
@@ -141,12 +148,14 @@ function FilesView({ project }) {
         } finally {
             setBusy('');
             if (input.current) input.current.value = '';
+            if (dirInput.current) dirInput.current.value = '';
         }
     };
 
-    const onDrop = (e) => {
+    const onDrop = async (e) => {
         e.preventDefault(); setDrag(false);
-        if (e.dataTransfer?.files?.length) upload([...e.dataTransfer.files]);
+        if (!e.dataTransfer?.items?.length && !e.dataTransfer?.files?.length) return;
+        try { upload(await filesFromDrop(e.dataTransfer)); } catch (err) { toast(fileError(err), 'error'); }
     };
 
     const removeFolder = async (folder) => {
@@ -173,6 +182,7 @@ function FilesView({ project }) {
     const folderMenu = (f) => [
         { label: 'Open', onSelect: () => setAt(f.id) },
         can.edit && { label: 'Rename', onSelect: () => setDialog({ kind: 'folder', target: f }) },
+        can.edit && { label: 'Move to…', onSelect: () => setDialog({ kind: 'move', target: f, folder: true }) },
         can.edit && { label: 'Who can see it', onSelect: () => setDialog({ kind: 'access', target: f, section: 'project_folders' }) },
         can.remove && { label: 'Delete', danger: true, onSelect: () => removeFolder(f) },
     ];
@@ -214,6 +224,9 @@ function FilesView({ project }) {
                     {can.create && at !== LINKED && (
                         <>
                             <input ref={input} type="file" multiple hidden aria-label="Upload files" onChange={(e) => upload([...(e.target.files || [])])} />
+                            <input ref={dirInput} type="file" multiple hidden aria-label="Upload folder" webkitdirectory="" directory=""
+                                onChange={(e) => upload([...(e.target.files || [])])} />
+                            <Btn size="sm" disabled={busy === 'upload'} onClick={() => dirInput.current?.click()}>Upload folder</Btn>
                             <Btn size="sm" primary disabled={busy === 'upload'} onClick={() => input.current?.click()}>{busy === 'upload' ? 'Uploading…' : 'Upload'}</Btn>
                         </>
                     )}
@@ -255,11 +268,12 @@ function FilesView({ project }) {
                     <Empty action={!searching && can.create && at !== LINKED && (
                         <Row gap={8} style={{ justifyContent: 'center' }} wrap>
                             <Btn primary onClick={() => input.current?.click()}>Upload files</Btn>
+                            <Btn onClick={() => dirInput.current?.click()}>Upload folder</Btn>
                             <Btn onClick={() => setDialog({ kind: 'folder', target: null })}>New folder</Btn>
                         </Row>
                     )}>
-                        {searching ? 'No file matches.' : at ? 'This folder is empty. Drop files here or upload them.'
-                            : 'No documents yet. Drop files anywhere on this panel, or upload them, and organise them into folders.'}
+                        {searching ? 'No file matches.' : at ? 'This folder is empty. Drop files or folders here, or upload them.'
+                            : 'No documents yet. Drop files or folders anywhere on this panel, or upload them, and organise them into folders.'}
                     </Empty>
                 ) : view === 'grid' ? (
                     <div style={{ display: 'grid', gap: 10, padding: 13, gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))' }}>
@@ -326,14 +340,14 @@ function FilesView({ project }) {
                 )}
                 {can.create && at !== LINKED && !empty && (
                     <div style={{ padding: '0 13px 12px', fontSize: 11.5, color: t.faint }}>
-                        Drop files anywhere here to upload. A file with the same name becomes a new version.
+                        Drop files or folders anywhere here to upload. A file with the same name becomes a new version.
                     </div>
                 )}
             </section>
 
             {dialog?.kind === 'folder' && <FolderDialog project={project} parentId={inFolder} folder={dialog.target} onClose={() => setDialog(null)} />}
             {dialog?.kind === 'file' && <FileDialog file={dialog.target} tags={tags} onClose={() => setDialog(null)} />}
-            {dialog?.kind === 'move' && <MoveDialog file={dialog.target} folders={folders} onClose={() => setDialog(null)} />}
+            {dialog?.kind === 'move' && <MoveDialog item={dialog.target} isFolder={!!dialog.folder} folders={folders} onClose={() => setDialog(null)} />}
             {dialog?.kind === 'access' && <AccessDialog target={dialog.target} section={dialog.section} onClose={() => setDialog(null)} />}
             {dialog?.kind === 'versions' && <VersionsDialog file={dialog.target} nameOf={nameOf} canRestore={can.edit} onClose={() => setDialog(null)} />}
             {dialog?.kind === 'preview' && <PreviewDialog file={dialog.target} onDownload={() => download(dialog.target)} onClose={() => setDialog(null)} />}
@@ -482,27 +496,45 @@ function FileDialog({ file, tags: known, onClose }) {
     );
 }
 
-function MoveDialog({ file, folders, onClose }) {
+// Moves a file, or a folder with everything inside it. A folder cannot go
+// inside itself or one of its own subfolders, so those are not offered.
+function MoveDialog({ item, isFolder, folders, onClose }) {
+    const t = useT();
     const toast = useToast();
-    const [to, setTo] = useState(file.folder_id || '');
-    const options = folders.map((f) => ({ id: f.id, path: folderPath(folders, f.id).map((x) => x.name).join(' / ') }))
+    const current = (isFolder ? item.parent_id : item.folder_id) || '';
+    const [to, setTo] = useState(current);
+    const [error, setError] = useState('');
+    const [saving, setSaving] = useState(false);
+    const blocked = isFolder ? folderSubtree(folders, item.id) : new Set();
+    const options = folders.filter((f) => !blocked.has(f.id))
+        .map((f) => ({ id: f.id, path: folderPath(folders, f.id).map((x) => x.name).join(' / ') }))
         .sort((a, b) => a.path.localeCompare(b.path));
     const save = async () => {
+        if (to === current) { onClose(); return; }
+        if (isFolder && folders.some((f) => f.id !== item.id && (f.parent_id || '') === to
+            && f.name.trim().toLowerCase() === item.name.trim().toLowerCase())) {
+            setError(`There is already a folder called “${item.name}” there. Rename one of them first.`);
+            return;
+        }
+        setSaving(true);
         try {
-            await orgStore.updateItem('project_files', file.id, { folder_id: to || null });
+            if (isFolder) await orgStore.updateItem('project_folders', item.id, { parent_id: to || null });
+            else await orgStore.updateItem('project_files', item.id, { folder_id: to || null });
             toast('Moved', 'success');
             onClose();
-        } catch (e) { toast(fileError(e), 'error'); }
+        } catch (e) { setError(fileError(e)); } finally { setSaving(false); }
     };
     return (
-        <Modal open onClose={onClose} width={440} title={`Move “${file.name}”`}
-            footer={<><Btn onClick={onClose}>Cancel</Btn><Btn primary onClick={save}>Move</Btn></>}>
+        <Modal open onClose={onClose} width={440} title={`Move “${item.name}”`}
+            note={isFolder ? 'Everything inside it moves too' : undefined}
+            footer={<><Btn onClick={onClose}>Cancel</Btn><Btn primary disabled={saving} onClick={save}>Move</Btn></>}>
             <Field label="To">
-                <Select value={to} onChange={(e) => setTo(e.target.value)}>
+                <Select value={to} onChange={(e) => { setTo(e.target.value); setError(''); }}>
                     <option value="">Top level</option>
                     {options.map((o) => <option key={o.id} value={o.id}>{o.path}</option>)}
                 </Select>
             </Field>
+            {error && <div role="alert" style={{ marginTop: 8, fontSize: 12.5, color: t.down }}>{error}</div>}
         </Modal>
     );
 }
