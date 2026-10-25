@@ -206,7 +206,9 @@
   padding: 0 !important;
   margin: 0 !important;
 }
-.edge-drawer-body div:has(> .edge-field) > :not(.edge-field):not(:has(.edge-field)) {
+.edge-drawer-body div:has(> .edge-field) > :not(.edge-field):not(:has(.edge-field)),
+.edge-drawer-body .edge-panel-body > :not(.edge-field):not(:has(.edge-field)),
+.edge-drawer-body .edge-panel-body div:has(.edge-field) > :not(.edge-field):not(:has(.edge-field)) {
   margin: 12px var(--dr-pad);
 }
 

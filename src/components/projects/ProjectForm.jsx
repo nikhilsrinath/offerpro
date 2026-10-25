@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Page, Panel, Row, Btn, Seg, Field, Input, Select, Textarea, Grid, Muted, Modal,
 } from '../ui/edge';
 import ProjectsPage from './ProjectsPage';
-import { useT } from '../ui/edgeUtils';
+import { useT, useInDrawer } from '../ui/edgeUtils';
 import { useSection, money } from '../financial/financeHooks';
 import { BILLING_TYPES, MEMBER_ROLES, DELIVERY_METHODS } from '../../services/projectAnalytics';
 import {
@@ -57,6 +57,7 @@ export default function ProjectForm({ project = null, onDone }) {
     const clients = useSection('customers');
     const employees = useSection('employees');
     const isEdit = !!project;
+    const drawer = useInDrawer();
     const fin = canSeeFinancials();
 
     const prefill = useMemo(() => {
@@ -287,8 +288,8 @@ export default function ProjectForm({ project = null, onDone }) {
                 </Panel>
             )}
 
-            {error && <div role="alert" style={{ margin: '0 0 12px', fontSize: 12.5, color: t.down }}>{error}</div>}
-            <Row gap={8} style={{ justifyContent: 'flex-end' }}>
+            {error && <div role="alert" style={{ margin: drawer ? '16px 20px 0' : '0 0 12px', fontSize: 12.5, color: t.down }}>{error}</div>}
+            <Row gap={8} style={{ justifyContent: 'flex-end', ...(drawer && { padding: '16px 20px' }) }}>
                 <Btn onClick={() => (onDone ? onDone() : navigate(-1))}>Cancel</Btn>
                 <Btn primary type="submit" disabled={saving}>
                     {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create project'}
@@ -324,21 +325,28 @@ export function NewProjectPanel() {
 /** Type of project: Waterfall, Agile or Hybrid, each with what it suits. Optional. Native radios, drawn as cards. */
 function MethodPicker({ value, onChange }) {
     const t = useT();
+    const drawer = useInDrawer();
+    const captionId = useId();
+    // In the side panel it is one of the sheet's rows (drawer.css .edge-field):
+    // the caption on the left, the cards stacked on the right.
     return (
-        <fieldset style={{ border: 'none', margin: 0, padding: 0, minWidth: 0 }}>
+        <div role="radiogroup" aria-labelledby={captionId} className="edge-field" style={{ minWidth: 0 }}>
             {/* the same caption every other field on the form wears (Field) */}
-            <legend style={{ padding: 0, fontSize: 12.5, fontWeight: 500, color: t.dim, marginBottom: 6 }}>
+            <span id={captionId} className="edge-field-label" style={{
+                display: 'block', fontSize: drawer ? 13.5 : 12.5, fontWeight: 500, lineHeight: drawer ? 1.4 : undefined,
+                color: drawer ? t.text : t.dim, marginBottom: 6,
+            }}>
                 Type of Project
-            </legend>
-            <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+            </span>
+            <div style={{ display: 'grid', gap: 8, gridTemplateColumns: drawer ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(200px, 1fr))' }}>
                 {DELIVERY_METHODS.map((m) => {
                     const on = value === m.id;
                     return (
                         <label key={m.id} style={{
-                            display: 'flex', gap: 9, alignItems: 'flex-start', padding: '10px 11px', cursor: 'pointer', margin: 0,
+                            display: 'flex', gap: 10, alignItems: 'flex-start', padding: drawer ? '10px 12px' : '10px 11px', cursor: 'pointer', margin: 0,
                             // a card, not a field caption, opt out of the global uppercase label style
                             textTransform: 'none', letterSpacing: 'normal', fontWeight: 400, lineHeight: 1.45,
-                            border: '1px solid ' + (on ? t.text : t.line), borderRadius: 8,
+                            border: '1px solid ' + (on ? t.text : drawer ? t.lineStrong : t.line), borderRadius: drawer ? 7 : 8,
                             background: on ? t.panelAlt : t.panel,
                         }}>
                             <input type="radio" name="delivery_method" value={m.id} checked={on}
@@ -356,6 +364,6 @@ function MethodPicker({ value, onChange }) {
                     );
                 })}
             </div>
-        </fieldset>
+        </div>
     );
 }

@@ -1,12 +1,17 @@
 /* Non-component helpers for the edge kit. Kept out of edge.jsx so that file
    only exports components and fast refresh keeps working. */
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef, createContext, useContext } from 'react';
 import { useEdgeTheme } from '../../theme/EdgeTheme';
 
 export { MONO } from '../../theme/edge';
 
 /** The active palette. Every converted page reads its colours through this. */
 export const useT = () => useEdgeTheme().t;
+
+/* Set by <Modal>: controls inside the side panel take its tighter sizes, and
+   forms that lay out their own rows ask for it with useInDrawer. */
+export const InDrawer = createContext(false);
+export const useInDrawer = () => useContext(InDrawer);
 
 export function useSearch(items, keys, query) {
     return useMemo(() => {

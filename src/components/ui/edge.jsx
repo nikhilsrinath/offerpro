@@ -1,14 +1,13 @@
 import React, { useRef, useId, useState, useEffect, useLayoutEffect, createContext, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowDown, ArrowUp, Check, ChevronDown, EyeOff, MoreHorizontal, Pencil, Search as SearchIcon, X } from 'lucide-react';
-import { MONO, useT, useDialog, drawerWidth, tableFrame, thStyle, tdStyle } from './edgeUtils';
+import { MONO, useT, useDialog, InDrawer, drawerWidth, tableFrame, thStyle, tdStyle } from './edgeUtils';
 import { confirmDialog } from '../../services/confirm';
 import { titleCase, titleCaseNode } from '../../utils/titleCase';
 import './drawer.css';
 
-/* Set by <Modal>: controls inside the side panel take its tighter sizes, and
-   buttons in its foot are the small ones. */
-const InDrawer = createContext(false);
+/* Set by <Modal>: buttons in the side panel's foot are the small ones
+   (InDrawer, in edgeUtils, gives its controls their tighter sizes). */
 const InDrawerFoot = createContext(false);
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -79,23 +78,26 @@ export function Row({ children, gap = 10, wrap, align = 'center', style }) {
 
 export function Panel({ children, title, note, actions, pad = 0, style }) {
     const t = useT();
+    const drawer = useContext(InDrawer);
+    // In the side panel a Panel is a section of the sheet, not a card on it:
+    // no frame of its own, its title a band, its fields the sheet's rows.
     return (
-        <section style={{
+        <section style={drawer ? { minWidth: 0, ...style, margin: 0, border: 0, borderRadius: 0, background: 'transparent' } : {
             border: '1px solid ' + t.line, borderRadius: 16, boxShadow: t.highlight,
             background: t.card, overflow: 'hidden', minWidth: 0, ...style,
         }}>
             {(title || actions) && (
                 <header style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '12px 16px', borderBottom: '1px solid ' + t.line,
+                    display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid ' + t.line,
+                    ...(drawer ? { padding: '12px 20px', background: t.panelAlt } : { padding: '12px 16px' }),
                 }}>
-                    <span style={{ fontSize: 14.5, color: t.text, fontWeight: 500, letterSpacing: '-0.01em' }}>{titleCaseNode(title)}</span>
+                    <span style={{ fontSize: drawer ? 13.5 : 14.5, color: t.text, fontWeight: drawer ? 600 : 500, letterSpacing: '-0.01em' }}>{titleCaseNode(title)}</span>
                     {note && <span style={{ fontSize: 11.5, color: t.faint }}>{note}</span>}
                     <div style={{ flex: 1 }} />
                     {actions}
                 </header>
             )}
-            <div style={{ padding: pad }}>{children}</div>
+            <div className="edge-panel-body" style={{ padding: drawer ? 0 : pad }}>{children}</div>
         </section>
     );
 }
