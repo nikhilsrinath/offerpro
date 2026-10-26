@@ -21,6 +21,7 @@ import { conversionTargets, buildConversion, carriedAdvance, existingConversion 
 import ConvertDialog from './ConvertDialog';
 import { lifecycleOf, revertedStatusOf, isCarriedAdvance, reactivationOf } from '../../services/documentLifecycle';
 import { orgStore } from '../../services/orgStore';
+import { receiptService } from '../../services/receiptService';
 import { confirmDialog } from '../../services/confirm';
 import { useProjectScope, projectBillingPath, projectBillingForm } from '../projects/projectScope';
 import { initialQuery } from '../../services/urlQuery';
@@ -786,7 +787,11 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                           icon: Edit3, onClick: () => navigate(formPath('quotation', doc.id)),
                         },
                         { label: 'Copy portal link', icon: Copy, onClick: () => handleCopyLink(doc) },
-                        {
+                        // An uploaded invoice (ClientInvoicePanel) is its file, not a layout to draw.
+                        doc.upload_path ? {
+                          label: 'View Uploaded Invoice', icon: Eye,
+                          onClick: async () => { if (!(await receiptService.open(doc.upload_path))) toast('The file could not be opened.', 'error'); },
+                        } : {
                           label: 'Download PDF', busyLabel: 'Downloading…', icon: Download,
                           busy: downloadingId === doc.id, disabled: downloadingId === doc.id,
                           onClick: () => handleDownloadPDF(doc),

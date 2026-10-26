@@ -257,7 +257,9 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
       title={editing.id
         ? `Edit ${editing.direction === 'in' ? 'credit' : editing.purchase_invoice_id ? 'bill payment' : 'debit'}`
         : editing.purchase_invoice_id ? 'Record a bill payment'
-          : onType ? `Record a ${editing.direction === 'in' ? 'Credit' : 'Debit'}` : 'Record money'}
+          : onType && party === 'vendor' ? (editing.direction === 'in' ? 'Vendor Bills' : 'Money Going Out')
+          : onType ? `Record a ${editing.direction === 'in' ? 'Credit' : 'Debit'}`
+            : party === 'client' ? 'Money Coming In' : 'Record money'}
       onClose={onClose}
     >
       <form onSubmit={handleSave} className="prod-modal-body cb-form">
@@ -275,8 +277,9 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
           </p>
         )}
 
-        {/* With `onType` the side was chosen on Record Money. */}
-        {!editing.id && !payingBill && !onType && (
+        {/* With `onType` the side was chosen on Record Money; a client's
+            Record Receipt is always money in. */}
+        {!editing.id && !payingBill && !onType && party !== 'client' && (
           <div className="cb-direction" role="group" aria-label="Direction">
             <button type="button" aria-pressed={editing.direction === 'in'}
               className={editing.direction === 'in' ? 'active' : ''}

@@ -280,14 +280,23 @@ const PAGE_META = {
   quotations: { title: 'Billing', subtitle: 'Quotations, proformas and invoices' },
   proforma: { title: 'Billing', subtitle: 'Quotations, proformas and invoices' },
   recurring: { title: 'Recurring Invoices', subtitle: 'Set up and manage recurring invoices' },
-  'vendor-directory': { title: 'Vendor Directory', subtitle: 'Suppliers, payment terms and what you owe each of them' },
+  // `note`: shown under the title, where a tabbed module page has no subtitle.
+  'vendor-directory': {
+    title: 'Vendor Directory',
+    subtitle: 'Vendor master data. Store legal name, vendor ID, tax details, payment terms, currency, bank details, contacts, and active/inactive status.',
+    note: 'Vendor master data. Store legal name, vendor ID, tax details, payment terms, currency, bank details, contacts, and active/inactive status.',
+  },
   'tax-summary': { title: 'Tax Summary', subtitle: 'Output GST against input GST. A preparation aid, not a filing tool' },
   'profit-loss': { title: 'Profit & Loss', subtitle: 'Income, expenses and net profit for any period' },
   'new-invoice': { title: 'New Invoice', subtitle: 'Generate professional business invoices' },
   'new-quotation': { title: 'New Quotation', subtitle: 'Create a quotation for your client' },
   'new-proforma': { title: 'New Proforma Invoice', subtitle: 'Create proforma invoices with advance payment tracking' },
   crm: { title: 'CRM', subtitle: 'Manage your sales pipeline' },
-  'client-directory': { title: 'Client Directory', subtitle: 'Manage your client database' },
+  'client-directory': {
+    title: 'Client Directory',
+    subtitle: 'Maintain customer profiles, billing details, tax IDs, credit limits, payment terms, and contacts.',
+    note: 'Maintain customer profiles, billing details, tax IDs, credit limits, payment terms, and contacts.',
+  },
   'client-general-ledger': { title: 'Client General Ledger', subtitle: 'Invoices to clients, the money received from them and what is still outstanding' },
   'vendor-general-ledger': { title: 'Vendor General Ledger', subtitle: 'Vendor invoices, payments to vendors and what is still payable' },
   'products-directory': { title: 'Business Directory', subtitle: 'Product and service catalogue, and what each one has sold' },
@@ -579,7 +588,7 @@ function AppContent() {
             theme={theme} user={user}
             module={moduleMeta}
             items={moduleItems}
-            title={meta.title} subtitle={meta.subtitle}
+            title={meta.title} subtitle={meta.subtitle} note={meta.note}
             flush={flush}
             noRail={onProfile}
             workspace={!!openProject}

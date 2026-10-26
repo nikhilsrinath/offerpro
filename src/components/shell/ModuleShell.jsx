@@ -86,7 +86,7 @@ function PopRow({ t, icon, label, note, onClick, danger, dot }) {
    foot of the rail, and EdgeAI docked on the right. A project uses it, so
    opening one feels like entering its own hub. */
 export default function ModuleShell({
-    theme, user, module: mod, items, title, subtitle, actions,
+    theme, user, module: mod, items, title, subtitle, note, actions,
     onToggleTheme, onLogout, flush = false, railSlot = false, noRail = false, workspace = false,
     topNav = false, back = HUB_BACK, children,
 }) {
@@ -447,13 +447,20 @@ export default function ModuleShell({
                         </Link>
                     )}
 
-                    <div style={{ minWidth: 0 }}>
+                    <div style={{ minWidth: 0, ...(note && !isMobile ? { flex: '1 1 auto', maxWidth: 760 } : {}) }}>
                         <h1 style={{
                             margin: 0, fontSize: isMobile ? 15.5 : 18, fontWeight: 600,
                             letterSpacing: '-0.025em', color: t.text, lineHeight: 1.2,
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>{titleCaseNode(title)}</h1>
-                        {subtitle && !isMobile && !tabs && (
+                        {/* A tabbed page has no subtitle; one that must say what
+                            it is for has a `note`, up to two lines. */}
+                        {note && !isMobile ? (
+                            <div style={{
+                                fontSize: 12, lineHeight: 1.35, color: t.faint, marginTop: 2, overflow: 'hidden',
+                                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                            }}>{note}</div>
+                        ) : subtitle && !isMobile && !tabs && (
                             <div style={{ fontSize: 12, color: t.faint, marginTop: 2, whiteSpace: 'nowrap' }}>{subtitle}</div>
                         )}
                     </div>

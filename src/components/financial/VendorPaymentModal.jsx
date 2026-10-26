@@ -30,7 +30,7 @@ const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
  * a new Debit from Record Money, and its Type row hands over to another
  * Type's form.
  */
-export default function VendorPaymentModal({ vendorId = '', startOn = null, projectId = null, onType, onClose }) {
+export default function VendorPaymentModal({ vendorId = '', startOn = null, projectId = null, party = null, onType, onClose }) {
   const toast = useToast();
   const vendors = useSection('vendors');
   const expenses = useSection('expenses');
@@ -149,7 +149,7 @@ export default function VendorPaymentModal({ vendorId = '', startOn = null, proj
   };
 
   return (
-    <Modal title={onType ? 'Record a Debit' : 'Record a Debit (Vendor Payment)'} onClose={onClose} dirty={dirty}>
+    <Modal title={party === 'vendor' ? 'Money Going Out' : onType ? 'Record a Debit' : 'Record a Debit (Vendor Payment)'} onClose={onClose} dirty={dirty}>
       <form onSubmit={save} className="prod-modal-body cb-form">
         {error && <div className="prod-form-error" role="alert">{error}</div>}
         <div className="prod-form-grid">

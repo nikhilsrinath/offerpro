@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { ArrowDownLeft, ArrowUpRight, Scale, FilePlus, Receipt, HandCoins } from 'lucide-react';
 import { Stat } from './financeUi';
 import { useSection, money } from './financeHooks';
 import CashEntryModal from './CashEntryModal';
+import ClientInvoicePanel from './ClientInvoicePanel';
 import { RecordMoneyCard } from './CashBook';
 import { blank } from './cashEntry';
 import { useT } from '../ui/edgeUtils';
@@ -15,8 +15,14 @@ import { projectChoices, useLedgerPeriod } from './ledgerPeriod';
 
 // The Client General Ledger's two buttons, named for what they do there.
 const CLIENT_LABELS = {
-  in: { label: 'Create Invoice', note: 'Bill a client: the invoice is what they owe', icon: FilePlus },
-  out: { label: 'Record Receipt', note: 'Money received from a client, against what they owe', icon: HandCoins },
+  in: {
+    label: 'Create/Upload Client Invoice', icon: FilePlus,
+    note: 'Create a sales invoice or upload an externally generated invoice. Capture client, invoice number, dates, line items, revenue account, tax, currency, and payment terms.',
+  },
+  out: {
+    label: 'Record Receipt', icon: HandCoins,
+    note: 'Match money received against one or more invoices. Support partial receipts, multiple-invoice allocations, bank references, and unapplied customer advances.',
+  },
 };
 
 /**
@@ -32,7 +38,6 @@ const CLIENT_LABELS = {
  */
 export default function PartyLedger({ party = 'client', projectId = null, onOpen }) {
   const t = useT();
-  const navigate = useNavigate();
   const clients = useSection('customers');
   const projects = useSection('projects');
   const clientLinks = useSection('project_clients');
@@ -52,6 +57,7 @@ export default function PartyLedger({ party = 'client', projectId = null, onOpen
   const startOn = projectId || filterProject?.id || null;
   const [totals, setTotals] = useState(null);
   const [entry, setEntry] = useState(null);
+  const [invoicing, setInvoicing] = useState(false);
 
   // Inside a project the filter lists only its clients.
   const choices = useMemo(() => {
@@ -70,9 +76,10 @@ export default function PartyLedger({ party = 'client', projectId = null, onOpen
     client_id: forClient,
   }), [startOn, forClient]);
 
-  // Create Invoice raises one in Billing; Record Receipt is money in from the client.
+  // Create/Upload Client Invoice asks which (ClientInvoicePanel); Record
+  // Receipt is money in from the client.
   const record = (side) => {
-    if (side === 'in') navigate('/clients/billing/invoices/new', { state: { projectId: startOn, clientId: forClient || undefined } });
+    if (side === 'in') setInvoicing(true);
     else setEntry(freshEntry('in'));
   };
   const editEntry = (direction, id) => {
@@ -136,6 +143,8 @@ export default function PartyLedger({ party = 'client', projectId = null, onOpen
 
       {entry && <CashEntryModal key={entry.id || `new-${entry.direction}`} entry={entry} fresh={freshEntry} projectId={projectId} party={party}
         onClose={() => setEntry(null)} />}
+      {invoicing && <ClientInvoicePanel clients={choices} clientId={forClient} projectId={projectId} startOn={startOn}
+        onClose={() => setInvoicing(false)} />}
     </div>
   );
 }

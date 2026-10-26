@@ -74,14 +74,14 @@ export function useRecordMoney({ projectId = null, startOn = null, party = null,
   const forms = (
     <ModalSwap.Provider value={swapped}>
       {bill && (
-        <PurchaseBillModal key={bill._seq} bill={bill} projectId={projectId}
+        <PurchaseBillModal key={bill._seq} bill={bill} projectId={projectId} party={party}
           onType={recording === 'in' && !bill.id ? (label) => openType('in', label) : undefined}
           onClose={() => setBill(null)} />
       )}
       {entry && <CashEntryModal key={entry.id || `new-${entry.direction}-${entry.category}`} entry={entry} fresh={freshEntry} projectId={projectId} party={party}
         onType={recording && !entry.id ? (label) => openType(recording, label) : undefined} onClose={() => setEntry(null)} />}
       {payingVendor && (
-        <VendorPaymentModal vendorId={payingVendor.vendorId} startOn={startOn} projectId={projectId}
+        <VendorPaymentModal vendorId={payingVendor.vendorId} startOn={startOn} projectId={projectId} party={party}
           onType={recording === 'out' ? (label) => openType('out', label) : undefined} onClose={() => setPayingVendor(null)} />
       )}
     </ModalSwap.Provider>

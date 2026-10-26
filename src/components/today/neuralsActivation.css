@@ -66,6 +66,16 @@
 .na-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 14px 30px -12px var(--accent); }
 .na-btn:disabled { opacity: .5; cursor: not-allowed; }
 
+/* ── side by side: the constellation left, the words right ─────────────── */
+/* Measured on the pane, not the window: the rail and EdgeAI dock take width. */
+.na { container-type: inline-size; }
+@container (min-width: 760px) {
+  .na-inner { max-width: 1040px; flex-direction: row; align-items: center; gap: 48px; text-align: left; padding: 28px 36px 40px; }
+  .na-stage { flex: 1 1 0; min-width: 0; max-width: 480px; }
+  .na-copy { flex: 1 1 0; min-width: 0; align-items: flex-start; margin-top: 0; }
+  .na-title { font-size: 28px; }
+}
+
 @keyframes naBreathe { 50% { transform: scale(1.06); } }
 @keyframes naThink { 50% { transform: scale(1.12); filter: drop-shadow(0 0 26px var(--accent)); } }
 @keyframes naSpin { to { transform: rotate(360deg); } }

@@ -22,8 +22,14 @@ import { projectChoices, useLedgerPeriod } from './ledgerPeriod';
 
 // On the Vendor General Ledger the two sides are named for what they do.
 const VENDOR_LABELS = {
-  in: { label: 'Upload Invoice', note: 'A bill from a vendor, with its items, discount and GST', icon: FileUp },
-  out: { label: 'Record Payment', note: 'Money paid to a vendor, against what is pending or as an advance', icon: Banknote },
+  in: {
+    label: 'Upload Vendor Invoice', icon: FileUp,
+    note: 'Upload PDF, image, or invoice document. Capture vendor, invoice number, invoice date, due date, currency, line items, tax, total, cost category, department/project, and payment terms.',
+  },
+  out: {
+    label: 'Record Payment', icon: Banknote,
+    note: 'Settle an outstanding invoice. Select the vendor and invoice, enter payment date, amount, bank/cash account, payment reference, and any applicable bank fees.',
+  },
 };
 
 /**
@@ -40,7 +46,7 @@ const VENDOR_LABELS = {
  * so whatever the filters, the two never disagree.
  *
  * With `party="vendor"` the ledger and recent entries are kept to what is with
- * a vendor, and Credit and Debit are Upload Invoice and Record Payment.
+ * a vendor, and Credit and Debit are Upload Vendor Invoice and Record Payment.
  */
 export default function PurchaseInvoices({ project = null, party = null, onOpen }) {
   const projectId = project?.id || null;
@@ -76,7 +82,7 @@ export default function PurchaseInvoices({ project = null, party = null, onOpen 
 
   // Record Money: Credit or Debit opens its form straight away, with the Type
   // as its first row (recordMoney.jsx). On the Vendor ledger it opens on the
-  // purchase bill (Upload Invoice) or Vendor Payment (Record Payment).
+  // purchase bill (Upload Vendor Invoice) or Vendor Payment (Record Payment).
   const t = useT();
   const projectClient = (scope?.project || filterProject)?.client_id || '';
   const money$ = useRecordMoney({ projectId, startOn, party, projectClient });

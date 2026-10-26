@@ -28,7 +28,7 @@ const blankItem = () => ({ name: '', price: '', quantity: '1' });
  * then the amount before tax, and a discount, a percentage or an amount, comes
  * off that before GST. The saved subtotal is net of the discount (0099).
  */
-export default function PurchaseBillModal({ bill, projectId = null, onType, onClose }) {
+export default function PurchaseBillModal({ bill, projectId = null, party = null, onType, onClose }) {
   const toast = useToast();
   const vendors = useSection('vendors');
   const allBills = useSection('purchase_invoices');
@@ -128,7 +128,7 @@ export default function PurchaseBillModal({ bill, projectId = null, onType, onCl
   const cur = currencySymbol();
 
   return (
-    <Modal title={editing.id ? 'Edit bill' : onType ? 'Record a Credit' : 'Record a Credit (Purchase Bill)'} onClose={onClose} dirty={!!editing._dirty}>
+    <Modal title={editing.id ? 'Edit bill' : party === 'vendor' ? 'Vendor Bills' : onType ? 'Record a Credit' : 'Record a Credit (Purchase Bill)'} onClose={onClose} dirty={!!editing._dirty}>
       <form onSubmit={handleSave} className="prod-modal-body">
         {formError && <div className="prod-form-error">{formError}</div>}
         <div className="prod-form-grid">

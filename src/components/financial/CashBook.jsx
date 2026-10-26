@@ -518,8 +518,8 @@ export default function CashBook({ projectId = null, children }) {
 }
 
 // What the two buttons say. A Vendor or Client General Ledger names them for
-// what they do there (`labels`): Upload Invoice and Record Payment for a
-// vendor, Create Invoice and Record Receipt for a client.
+// what they do there (`labels`): Upload Vendor Invoice and Record Payment for a
+// vendor, Create/Upload Client Invoice and Record Receipt for a client.
 const RECORD_LABELS = {
   in: { label: 'Credit', note: 'Sales & Services, Other Income, Funding, Retainers, Recoveries' },
   out: { label: 'Debit', note: 'Deliveries, People & Labour, Operations, Assets & Capital, Financing & Tax' },
