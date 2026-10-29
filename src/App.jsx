@@ -384,8 +384,8 @@ function AppContent() {
   useTaskDeadlineMonitor();
 
   const activePage = pageOf(location.pathname);
-  // /clients/billing/quotations/:docId/edit
-  const editingDocId = activePage === 'new-quotation' && location.pathname.endsWith('/edit')
+  // /clients/billing/quotations/:docId/edit, /clients/billing/invoices/:docId/edit
+  const editingDocId = (activePage === 'new-quotation' || activePage === 'new-invoice') && location.pathname.endsWith('/edit')
     ? location.pathname.split('/')[4] || null : null;
 
   let activeModule = null;
@@ -523,7 +523,9 @@ function AppContent() {
 
   const meta = activePage === 'new-quotation' && editingDocId
     ? { title: 'Edit Quotation', subtitle: `Revising ${docNumber(documentStore.getById(editingDocId)) || 'quotation'}` }
-    : (PAGE_META[activePage] || PAGE_META.dashboard);
+    : activePage === 'new-invoice' && editingDocId
+      ? { title: 'Edit Invoice', subtitle: `Editing ${docNumber(documentStore.getById(editingDocId)) || 'invoice'}` }
+      : (PAGE_META[activePage] || PAGE_META.dashboard);
 
   // The company profile belongs to no module but is reached from the hub's
   // account menu, so it wears the same frame with its sections as the rail.
@@ -647,6 +649,7 @@ function AppContent() {
             <Route path="clients/billing/quotations/:docId/edit" element={<QuotationFormWrapper />} />
             <Route path="clients/billing/proforma/new" element={<ProformaInvoiceForm />} />
             <Route path="clients/billing/invoices/new" element={<InvoiceForm />} />
+            <Route path="clients/billing/invoices/:docId/edit" element={<InvoiceFormWrapper />} />
             <Route path="clients/billing/recurring/new" element={<RecurringInvoiceForm />} />
             <Route path="clients/billing/recurring/:id/edit" element={<RecurringInvoiceFormWrapper />} />
             <Route path="clients/client-directory" element={<Customers />} />
@@ -826,6 +829,11 @@ function ShellFrame({ on, children, ...props }) {
 function QuotationFormWrapper() {
   const { docId } = useParams();
   return <QuotationForm editDocId={docId} />;
+}
+
+function InvoiceFormWrapper() {
+  const { docId } = useParams();
+  return <InvoiceForm key={docId} editDocId={docId} />;
 }
 
 function RecurringInvoiceFormWrapper() {

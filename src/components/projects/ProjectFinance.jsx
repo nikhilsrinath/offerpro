@@ -4,7 +4,7 @@ import {
     Panel, Grid, Row, Btn, Select, Search, Table, Tr, Td, Empty, Muted, Status, StatBand, Modal, Field, Input,
     Loading, RowMenu,
 } from '../ui/edge';
-import { ChevronLeft, ChevronRight, Download, Paperclip, Pencil, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Eye, Paperclip, Pencil, Trash2 } from 'lucide-react';
 import { confirmDialog } from '../../services/confirm';
 import { orgStore } from '../../services/orgStore';
 import { receiptService } from '../../services/receiptService';
@@ -61,6 +61,7 @@ function useSources() {
     const bills = useSection('purchase_invoices');
     const vendors = useSection('vendors');
     const clients = useSection('customers');
+    const employees = useSection('employees');
     // The category names are loaded on first use; until then a row's Type would
     // read as its raw key (contractor_fees), so the rows are made again once in.
     const [categoriesIn, setCategoriesIn] = useState(false);
@@ -68,8 +69,12 @@ function useSources() {
     return useMemo(() => {
         const vendorName = Object.fromEntries(vendors.map((v) => [v.id, v.company_name]));
         const clientName = Object.fromEntries(clients.map((c) => [c.id, c.name]));
+        const employeeName = Object.fromEntries(employees.map((p) => [p.id, p.name]));
         // `settles` names the invoice or bill an entry pays, which already counts it.
-        const invoices = docs.filter((d) => d.type === 'invoice' && !DEAD.has(d.status));
+        // A cancelled invoice is kept, like a voided bill, so its row can still
+        // be reactivated; it counts for nothing.
+        const live = (d) => !DEAD.has(d.status);
+        const invoices = docs.filter((d) => d.type === 'invoice' && (live(d) || d.status === 'cancelled'));
         // What a client paid against an invoice is recorded on the invoice in
         // Billing (its payments, 0029), not as a General Ledger entry: only the
         // confirmed ones are money in.
@@ -77,12 +82,12 @@ function useSources() {
         return [
             ...invoices.map((d) => ({
                 type: 'invoice', id: d.id, date: d.issue_date, net: Number(d.taxable_amount) || 0, gross: Number(d.grand_total) || 0,
-                tax: Number(d.gst_amount) || 0,
+                tax: Number(d.gst_amount) || 0, void: d.status === 'cancelled',
                 party: d.clientName || clientName[d.customer_id] || '', kind: 'Sales',
                 number: d.doc_number || d.invoiceNumber || '', client_id: d.customer_id, created: d.created_at || d.createdAt || '',
                 payments: paidOn(d).map((p) => p.id),
             })),
-            ...invoices.flatMap((d) => paidOn(d).map((p) => ({
+            ...invoices.filter(live).flatMap((d) => paidOn(d).map((p) => ({
                 type: 'invoice_payment', id: p.id, invoiceId: d.id, date: p.paid_on, net: Number(p.amount), gross: Number(p.amount),
                 party: d.clientName || clientName[d.customer_id] || '', kind: 'Receipt',
                 number: d.doc_number || d.invoiceNumber || '', client_id: d.customer_id, created: p.created_at || '',
@@ -97,7 +102,7 @@ function useSources() {
             })),
             ...expenses.map((e) => ({
                 type: 'expense', id: e.id, date: e.incurred_on, net: netOfTax(e), gross: Number(e.amount) || 0,
-                party: vendorName[e.vendor_id] || e.description || '', kind: categoryLabel(e.category),
+                party: vendorName[e.vendor_id] || employeeName[e.employee_id] || e.description || '', kind: categoryLabel(e.category),
                 number: e.reference || '', client_id: e.client_id, vendor_id: e.vendor_id || null, employee_id: e.employee_id || null,
                 description: e.description || '', created: e.created_at || '',
                 receipt: e.receipt_path || null, receiptNo: e.receipt_number || '',
@@ -117,7 +122,7 @@ function useSources() {
             })),
         ];
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [docs, income, expenses, bills, vendors, clients, categoriesIn]);
+    }, [docs, income, expenses, bills, vendors, clients, employees, categoriesIn]);
 }
 
 /** project_financials for one period, reloaded whenever the project's links change. */
@@ -320,8 +325,12 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
  *
  * `toolbar` is the page's filter bar, drawn as one bar with the ledger's own
  * Export and Columns. Every column's "⋯" sorts it or hides it.
+ *
+ * `invoices` (useInvoiceActions, the Client General Ledger) gives an invoice
+ * row its own actions (View Invoice, Edit, Cancel Invoice, Delete), its name
+ * opens the invoice, and a receipt names the invoice it is against.
  */
-export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bills, billMenu, paymentMenu, emptyText, readOnly, filtered, keep, narrow, general, onTotals, party, partyId, toolbar }) {
+export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bills, billMenu, paymentMenu, invoices, emptyText, readOnly, filtered, keep, narrow, general, onTotals, party, partyId, toolbar }) {
     const t = useT();
     const toast = useToast();
     const allocations = useSection('project_allocations');
@@ -678,8 +687,13 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                             // A cash entry opens for editing right here; an invoice or bill opens its page.
                             const direction = ENTRY_DIRECTION[a.source_type];
                             const tab = SOURCE_TAB[a.source_type];
+                            // The invoice a row is, or is a receipt against (with `invoices`).
+                            const invoiceId = !invoices ? null : a.source_type === 'invoice' ? a.source_id
+                                : a.source_type === 'invoice_payment' ? s?.invoiceId
+                                    : String(s?.settles || '').startsWith('invoice:') ? s.settles.split(':')[1] : null;
                             // A payment saved as several entries is edited as one.
-                            const open = r.breakdown ? () => setGroupEdit(r.breakdown.map((p) => p.id))
+                            const open = invoiceId && !direction ? () => invoices.view(invoiceId)
+                                : r.breakdown ? () => setGroupEdit(r.breakdown.map((p) => p.id))
                                 : direction && onEdit ? () => onEdit(direction, a.source_id)
                                 : onOpen && tab !== here ? () => onOpen(tab) : null;
                             // Company-wide, a bill is on this very page: its name is not a link.
@@ -700,6 +714,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                         ) : onOpen || plain ? name : <Link to={SOURCE_PATH[a.source_type]()} style={{ color: t.text }}>{name}</Link>}
                                         {r.splitCount > 1 && <Muted> · split {r.splitCount} ways</Muted>}
                                         {r.settles && <Muted> · receipt against a linked invoice</Muted>}
+                                        {a.source_type === 'invoice' && s?.void && <Muted> · cancelled, not counted</Muted>}
                                         {bill && (
                                             <span style={{ display: 'block', fontSize: 11, marginTop: 1, color: t.faint }}>
                                                 {[
@@ -733,13 +748,19 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                         </Td>
                                     )}
                                     {!readOnly && <Td align="right">
-                                        {bill && billMenu
+                                        {invoiceId && a.source_type === 'invoice'
+                                            ? <RowMenu label={`Actions for invoice ${s?.number || name}`} items={invoices.menu(invoiceId)} />
+                                            : invoiceId && a.source_type === 'invoice_payment'
+                                                ? <RowMenu label={`Actions for this receipt`} items={invoices.receiptMenu(a.source_id, invoiceId)} />
+                                        : bill && billMenu
                                             ? <RowMenu label={`Actions for bill ${bill.bill_number}`} items={billMenu(bill)} />
                                             : (r.pays || s?.advance || s?.vendorPay || r.breakdown) && paymentMenu ? <RowMenu label={kindOf(r) === 'Advance' ? 'Actions for this advance' : 'Actions for this payment'}
                                                 items={[...receipts, ...(r.breakdown ? paymentMenu(r.breakdown.map((p) => p.id), open) : paymentMenu(a.source_id))]} />
                                             : (open || deletable || receipts.length > 0) && <RowMenu label={`Actions for ${name}`} items={[
                                                 ...receipts,
-                                                open &&{ label: 'Edit', icon: Pencil, onClick: open },
+                                                // A receipt recorded against an invoice: that invoice, too.
+                                                invoiceId && { label: 'View Invoice', icon: Eye, onClick: () => invoices.view(invoiceId) },
+                                                open && { label: 'Edit', icon: Pencil, onClick: open },
                                                 deletable && ENTRY_DIRECTION[a.source_type] && { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => askDelete(r) },
                                             ]} />}
                                     </Td>}
@@ -804,13 +825,15 @@ const ENTRY_DIRECTION = { income_entry: 'in', expense: 'out' };
 
 /**
  * Whether a source is on the Client or the Vendor side. A vendor's: their
- * bills and any entry naming them. A client's: their invoices, money in from
- * them, and money out to them, an entry for a client that is paid to a vendor
- * or a person being that vendor's or person's, not the client's.
+ * bills, any entry naming them, and money paid out to a person (salaries,
+ * stipends), which Money Going Out records there too. A client's: their
+ * invoices, money in from them, and money out to them, an entry for a client
+ * that is paid to a vendor or a person being that vendor's or person's, not
+ * the client's.
  */
 function onSide(s, party) {
     if (!s) return false;
-    if (party === 'vendor') return s.type === 'purchase_invoice' || !!s.vendor_id;
+    if (party === 'vendor') return s.type === 'purchase_invoice' || !!s.vendor_id || (s.type === 'expense' && !!s.employee_id);
     if (s.type === 'invoice' || s.type === 'invoice_payment') return true;
     if (s.type === 'income_entry') return !!s.client_id && !s.vendor_id;
     return s.type === 'expense' && !!s.client_id && !s.vendor_id && !s.employee_id;

@@ -19,13 +19,18 @@ import { canCreateProjects } from '../../services/projectService';
 import { advanceOf } from '../../services/proformaAdvance';
 import { conversionTargets, buildConversion, carriedAdvance, existingConversion } from '../../services/documentConversion';
 import ConvertDialog from './ConvertDialog';
-import { lifecycleOf, revertedStatusOf, isCarriedAdvance, reactivationOf } from '../../services/documentLifecycle';
+import ClientInvoicePanel from './ClientInvoicePanel';
+import CashEntryModal from './CashEntryModal';
+import { blank as blankEntry } from './cashEntry';
+import { lifecycleOf, reactivationOf } from '../../services/documentLifecycle';
+import { deleteDocument, cancelDocument, reactivateDocument } from '../../services/documentActions';
 import { orgStore } from '../../services/orgStore';
 import { receiptService } from '../../services/receiptService';
 import { confirmDialog } from '../../services/confirm';
 import { useProjectScope, projectBillingPath, projectBillingForm } from '../projects/projectScope';
 import { initialQuery } from '../../services/urlQuery';
 import { currencySymbol, currencyLocale } from '../../shared/currency.js';
+import { formatDateDMY } from '../../shared/dates.js';
 
 // With `projectId` (a project's Billing page) it lists only that project's
 // documents, and a new or revised one opens its form on the project.
@@ -71,6 +76,11 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [lifecycleBusy, setLifecycleBusy] = useState(null);
+  // An uploaded invoice open in Upload Invoice for editing.
+  const [editingUpload, setEditingUpload] = useState(null);
+  // The credit Mark Paid opens, filled in from the invoice.
+  const [receiving, setReceiving] = useState(null);
+  const clients = useSection('customers');
 
   const typeLabel = {
     invoice: 'Invoice',
@@ -145,28 +155,24 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
     })();
   }, [documents]);
 
-  // Marking an invoice paid means recording the money, not setting a flag: the
-  // paid / partially_paid status and amount_paid are derived by the database
-  // from confirmed payment rows. Writing the status directly (which is what
-  // this did) left amount_paid at 0 on every "paid" invoice.
-  const handleMarkPaid = async (id) => {
+  // Mark Paid is a credit: the Credit side panel opens filled in from the
+  // invoice (its client, project and balance) and saving it records the money
+  // on the ledger and the payment on the invoice, which is what makes it paid
+  // (the status and amount_paid are derived from confirmed payment rows).
+  const handleMarkPaid = (id) => {
     const doc = documents.find((d) => d.id === id);
     const outstanding = documentStore.outstandingOf(doc);
     if (outstanding <= 0) {
       toast('This invoice is already fully paid', 'info');
       return;
     }
-    try {
-      await documentStore.recordPayment(id, {
-        amount: outstanding,
-        method: 'Manual entry',
-        note: 'Marked paid from the invoice list',
-      });
-      toast('Payment recorded and invoice marked as paid', 'success');
-    } catch (err) {
-      toast(`Could not record the payment: ${err.message}`, 'error');
-    }
-    loadDocuments();
+    setReceiving({
+      ...blankEntry('in'),
+      document_id: doc.id,
+      client_id: doc.customer_id || '',
+      original_amount: String(outstanding),
+      description: `Payment for ${docNo(doc)}`,
+    });
   };
 
   const handleCopyLink = (doc) => {
@@ -503,30 +509,19 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
   const canDeleteDocs = orgStore.can('financial_documents', 'delete');
   const canEditDocs = orgStore.can('financial_documents', 'edit');
 
-  // The document this one was converted from goes back to where it was, so it
-  // can be converted again: deleting a wrong proforma draft, or cancelling a
-  // wrong invoice, must not strand the accepted quotation behind it.
-  const releaseParent = async (doc) => {
-    if (!doc.converted_from) return null;
-    const parent = documentStore.getById(doc.converted_from);
-    const status = revertedStatusOf(parent);
-    if (!status) return null;
-    await documentStore.updateStatus(parent.id, status, { converted_to: null });
-    return parent;
-  };
-
   const handleDelete = async (doc) => {
     const rule = lifecycleOf(doc, documentStore.getAll()).delete;
     if (!rule.allowed) { toast(rule.reason, 'info'); return; }
     const ok = await confirmDialog({
       title: `Delete ${docNo(doc) || typeLabel.toLowerCase()}`,
-      message: 'This draft was never sent, so it is removed completely. This cannot be undone.',
+      message: doc.uploaded
+        ? 'This uploaded invoice and its file are removed completely. This cannot be undone.'
+        : 'This draft was never sent, so it is removed completely. This cannot be undone.',
     });
     if (!ok) return;
     setLifecycleBusy(doc.id);
     try {
-      await documentStore.delete(doc.id);
-      const parent = await releaseParent(doc);
+      const parent = await deleteDocument(doc);
       toast(parent ? `Deleted. ${docNo(parent)} can be converted again` : `${docNo(doc)} deleted`, 'success');
     } catch (err) {
       toast(`Could not delete: ${err.message}`, 'error');
@@ -548,24 +543,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
     if (!doc || lifecycleBusy) return;
     setLifecycleBusy(doc.id);
     try {
-      // A proforma's advance copied onto its invoice goes with the invoice;
-      // the money itself stays recorded on the proforma.
-      const parent = doc.converted_from ? documentStore.getById(doc.converted_from) : null;
-      for (const p of (doc.payments || []).filter((row) => isCarriedAdvance(row, parent))) {
-        await documentStore.deletePayment(p.id, doc.id);
-      }
-      // Where it stood is kept, so reactivating it can put it back there.
-      await documentStore.updateStatus(doc.id, 'cancelled', { cancelled_from: doc.status });
-      const released = await releaseParent(doc);
-      // The reason is kept as a notification, not on the document: a sent
-      // quotation's content is frozen, and the reason is not part of it.
-      const reason = cancelReason.trim();
-      Promise.resolve(documentStore.addNotification({
-        type: 'document_cancelled',
-        title: `${typeLabel} Cancelled`,
-        message: `${docNo(doc)} for ${doc.issued_to || doc.clientName || 'client'} cancelled${reason ? `: ${reason}` : ''}`,
-        documentId: doc.id,
-      })).catch(() => {});
+      const released = await cancelDocument(doc, cancelReason);
       toast(released ? `${docNo(doc)} cancelled. ${docNo(released)} can be converted again` : `${docNo(doc)} cancelled`, 'success');
       setCancelTarget(null);
     } catch (err) {
@@ -576,10 +554,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
     }
   };
 
-  // A cancelled tax invoice brought back, under the same number. Cancelling is
-  // undone in reverse: its status first, then the source marked converted to
-  // it again, then the proforma's advance carried back onto it (the payments
-  // trigger moves it to part paid or paid from there).
+  // A cancelled tax invoice brought back, under the same number (documentActions.js).
   const handleReactivate = async (doc) => {
     const rule = reactivationOf(doc, documentStore.getAll());
     if (!rule.allowed) { toast(rule.reason, 'info'); return; }
@@ -592,21 +567,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
     if (!ok) return;
     setLifecycleBusy(doc.id);
     try {
-      await documentStore.updateStatus(doc.id, rule.status, { cancelled_from: null });
-      if (rule.parent) {
-        await documentStore.updateStatus(rule.parent.id, 'converted', { converted_to: doc.id });
-        const advance = rule.parent.type === 'proforma' ? carriedAdvance(rule.parent) : null;
-        const fresh = documentStore.getById(doc.id) || doc;
-        if (advance && !(fresh.payments || []).some((p) => p.method === advance.method && p.reference === advance.reference)) {
-          await documentStore.recordPayment(doc.id, advance);
-        }
-      }
-      Promise.resolve(documentStore.addNotification({
-        type: 'document_reactivated',
-        title: `${typeLabel} Reactivated`,
-        message: `${docNo(doc)} for ${doc.issued_to || doc.clientName || 'client'} reactivated`,
-        documentId: doc.id,
-      })).catch(() => {});
+      await reactivateDocument(doc);
       toast(`${docNo(doc)} reactivated`, 'success');
     } catch (err) {
       toast(`Could not reactivate: ${err.message}`, 'error');
@@ -735,9 +696,9 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                   <td>{doc.issued_to || doc.client?.name || '-'}</td>
                   <td className="fin-list-amount">{currencySymbol()}{(doc.grand_total || doc.amount || 0).toLocaleString(currencyLocale())}</td>
                   {type === 'invoice' && <td>{currencySymbol()}{(doc.gst || 0).toLocaleString(currencyLocale())}</td>}
-                  <td>{doc.issue_date || '-'}</td>
+                  <td>{formatDateDMY(doc.issue_date)}</td>
                   <td>
-                    {doc.valid_until || doc.due_date || '-'}
+                    {formatDateDMY(doc.valid_until || doc.due_date)}
                     {isOverdue(doc) && (
                       <div style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: 600 }}>
                         {daysOverdue(doc)}d overdue
@@ -786,6 +747,11 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                           hint: doc.status === 'draft' ? undefined : 'Sends the client a new version',
                           icon: Edit3, onClick: () => navigate(formPath('quotation', doc.id)),
                         },
+                        // An invoice is edited in place; an uploaded one in Upload Invoice.
+                        type === 'invoice' && doc.status !== 'cancelled' && canEditDocs && {
+                          label: 'Edit invoice', icon: Edit3,
+                          onClick: () => (doc.upload_path ? setEditingUpload(doc) : navigate(formPath('invoice', doc.id))),
+                        },
                         { label: 'Copy portal link', icon: Copy, onClick: () => handleCopyLink(doc) },
                         // An uploaded invoice (ClientInvoicePanel) is its file, not a layout to draw.
                         doc.upload_path ? {
@@ -806,21 +772,21 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                         },
                         doc.status === 'payment_submitted'
                           && { label: 'Reject payment', icon: X, tone: 'danger', onClick: () => setShowRejectModal(doc.id) },
-                        ...(doc.status !== 'cancelled' ? [(() => {
+                        ...(doc.status !== 'cancelled' ? (() => {
                           const rule = lifecycleOf(doc, documents);
-                          if (rule.delete.allowed) {
-                            return canDeleteDocs && {
-                              label: 'Delete draft', icon: Trash2, tone: 'danger',
-                              disabled: lifecycleBusy === doc.id, onClick: () => handleDelete(doc),
-                            };
-                          }
+                          // An uploaded invoice may be either; anything else one or the other.
+                          const del = rule.delete.allowed && canDeleteDocs && {
+                            label: doc.uploaded ? 'Delete invoice' : 'Delete draft', icon: Trash2, tone: 'danger',
+                            disabled: lifecycleBusy === doc.id, onClick: () => handleDelete(doc),
+                          };
+                          if (rule.delete.allowed && !doc.uploaded) return [del];
                           // Shown even when it cannot be used yet: clicking says why.
-                          return canEditDocs && {
+                          return [canEditDocs && {
                             label: `Cancel ${typeLabel.toLowerCase()}`, icon: Ban, tone: 'danger',
                             muted: !rule.cancel.allowed, hint: rule.cancel.allowed ? undefined : rule.cancel.reason, showHint: true,
                             disabled: lifecycleBusy === doc.id, onClick: () => openCancel(doc),
-                          };
-                        })()] : []),
+                          }, del];
+                        })() : []),
                         // Shown even when it cannot be used yet: clicking says why.
                         type === 'invoice' && doc.status === 'cancelled' && canEditDocs && (() => {
                           const rule = reactivationOf(doc, documents);
@@ -839,6 +805,16 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
           </tbody>
         </table>
       </div>
+
+      {receiving && (
+        <CashEntryModal entry={receiving} party="client" projectId={projectId}
+          onClose={() => { setReceiving(null); loadDocuments(); }} />
+      )}
+
+      {editingUpload && (
+        <ClientInvoicePanel invoice={editingUpload} clients={clients} projectId={projectId}
+          onClose={() => { setEditingUpload(null); loadDocuments(); }} />
+      )}
 
       <ConvertDialog
         source={convertSource}

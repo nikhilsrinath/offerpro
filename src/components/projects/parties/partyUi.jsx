@@ -106,7 +106,7 @@ export function LogoField({ kind, value, name, onChange }) {
         <Row gap={10}>
             <Logo path={value} name={name} size={44} />
             <input ref={input} type="file" accept="image/*" hidden onChange={(e) => pick(e.target.files?.[0])} aria-label="Logo image" />
-            <Btn size="sm" disabled={busy} onClick={() => input.current?.click()}>{busy ? 'Uploading…' : value ? 'Change logo' : 'Upload logo'}</Btn>
+            <Btn size="sm" disabled={busy} onClick={() => input.current?.click()}>{busy ? 'Uploading…' : value ? 'Change Logo' : 'Upload Logo'}</Btn>
             {value && <Btn size="sm" onClick={() => onChange(null)}>Remove</Btn>}
             <span style={{ fontSize: 11, color: t.faint }}>PNG or JPG, 2 MB at most</span>
         </Row>
@@ -126,7 +126,7 @@ export function ContactsEditor({ contacts, onChange }) {
     const add = () => onChange([...contacts, { name: '', role: '', email: '', phone: '', primary: contacts.length === 0 }]);
     return (
         <fieldset style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
-            <legend style={{ padding: 0, fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, marginBottom: 6 }}>CONTACT PERSONS</legend>
+            <legend style={{ padding: 0, fontSize: 12.5, fontWeight: 500, color: t.dim, marginBottom: 6 }}>Contact Persons</legend>
             <div style={{ display: 'grid', gap: 8 }}>
                 {contacts.map((c, i) => (
                     <div key={i} style={{ border: '1px solid ' + t.line, borderRadius: 8, padding: 8, display: 'grid', gap: 6 }}>
@@ -146,7 +146,7 @@ export function ContactsEditor({ contacts, onChange }) {
                         </Row>
                     </div>
                 ))}
-                <div><Btn size="sm" onClick={add}>Add a contact person</Btn></div>
+                <div><Btn size="sm" onClick={add}>Add Contact Person</Btn></div>
             </div>
         </fieldset>
     );

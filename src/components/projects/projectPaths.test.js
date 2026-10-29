@@ -26,7 +26,7 @@ describe('project paths', () => {
     it('turns an older ?tab= link into its path', () => {
         expect(legacyProjectPath('p1', '?tab=billing&doc=proforma')).toBe('/projects/p1/client-management/billing/proforma');
         expect(legacyProjectPath('p1', '?tab=documents&view=files')).toBe('/projects/p1/documents-management/project-documents/general-documents');
-        expect(legacyProjectPath('p1', '?tab=bills&new=1')).toBe('/projects/p1/finance/company-ledger?new=1');
+        expect(legacyProjectPath('p1', '?tab=bills&new=1')).toBe('/projects/p1/finance/general-ledger?new=1');
         expect(legacyProjectPath('p1', '')).toBeNull();
     });
 

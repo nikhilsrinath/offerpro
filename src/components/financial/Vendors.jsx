@@ -10,22 +10,11 @@ import { useT } from '../ui/edgeUtils';
 import { Stat, Modal } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
 import { confirmDialog } from '../../services/confirm';
-import BelongsToSelect, { BelongsToFilter, ProjectOnlySelect } from '../shared/BelongsToSelect';
-import {
-  GENERAL, splitChoice, vendorChoice, vendorProjectIds, inScope, choiceLabel, saveWithBelongsTo,
-  projectChoices, syncVendorProjects,
-} from '../../services/belongsTo';
+import { BelongsToFilter } from '../shared/BelongsToSelect';
+import VendorFormDialog from '../shared/VendorFormDialog';
+import { Logo } from '../projects/parties/partyUi';
+import { GENERAL, vendorChoice, vendorProjectIds, inScope, choiceLabel } from '../../services/belongsTo';
 import { initialQuery } from '../../services/urlQuery';
-
-const BLANK = {
-  company_name: '', contact_name: '', email: '', phone: '', address: '', state: '',
-  gstin: '', payment_terms_days: 0, category: '', notes: '',
-  // The Belongs to dropdown: GENERAL, INTERNAL or a project id; `more` are
-  // the further projects the vendor is on (the rows "Add" puts under it).
-  belongs: GENERAL,
-  more: [],
-};
-const TERMS = [0, 7, 15, 30, 45, 60, 90];
 
 // Every column the list can show; the Columns button picks among them, and
 // the choice is remembered on this device (ui/edge Table).
@@ -44,7 +33,6 @@ const COLS = [
   { key: 'last', label: 'Last activity' },
   { key: 'actions', label: '', always: true, width: 56 },
 ];
-const GSTIN_RE = /^[0-9A-Z]{15}$/;
 
 export default function Vendors() {
   const t = useT();
@@ -60,8 +48,6 @@ export default function Vendors() {
   const [scope, setScope] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState('');
   const [viewing, setViewing] = useState(null);
 
   // Per-vendor totals from the bills and expenses that name them.
@@ -102,40 +88,6 @@ export default function Vendors() {
   const totals = useMemo(() => Object.values(ledger).reduce((a, l) => ({
     outstanding: a.outstanding + l.outstanding, billed: a.billed + l.billed,
   }), { outstanding: 0, billed: 0 }), [ledger]);
-
-  const set = (k, v) => setEditing((e) => ({ ...e, [k]: v }));
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    const gstin = (editing.gstin || '').trim().toUpperCase();
-    if (!editing.company_name.trim()) { setFormError('Company name is required.'); return; }
-    if (gstin && !GSTIN_RE.test(gstin)) { setFormError('GSTIN must be 15 letters and digits.'); return; }
-    setSaving(true);
-    setFormError('');
-    try {
-      const { belongs, more, ...rest } = editing;
-      const data = { ...rest, gstin, belongs_to: splitChoice(belongs).belongs_to };
-      const save = (d) => (editing.id ? orgStore.updateItem('vendors', editing.id, d) : orgStore.addItem('vendors', d));
-      const { result, skipped } = await saveWithBelongsTo(save, data, ['belongs_to']);
-      const vendorId = editing.id || result?.id;
-      let linkFailed = false;
-      try {
-        // Every project chosen: the first row and each one added, is linked;
-        // projects taken out of the form are unlinked.
-        if (vendorId) await syncVendorProjects(vendorId, projectChoices([belongs, ...(more || [])]), links);
-      } catch {
-        linkFailed = true;
-      }
-      if (linkFailed) toast("Vendor saved, but it could not be added to the project. Try again from the project's Vendor Directory.", 'error');
-      else if (skipped) toast('Vendor saved. Internal / General needs database update 0078 before it is kept.', 'info');
-      else toast(editing.id ? 'Vendor updated' : 'Vendor added', 'success');
-      setEditing(null);
-    } catch (err) {
-      setFormError(err.message || 'Could not save the vendor.');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleArchive = async (v) => {
     await orgStore.updateItem('vendors', v.id, { archived_at: v.archived_at ? null : new Date().toISOString() });
@@ -181,7 +133,7 @@ export default function Vendors() {
           <Archive size={12} /> Archived
         </button>
         <BelongsToFilter value={scope} onChange={setScope} className="prod-select" />
-        <button className="prod-add-btn" onClick={() => { setEditing({ ...BLANK, belongs: scope || GENERAL }); setFormError(''); }}>
+        <button className="prod-add-btn" onClick={() => setEditing({})}>
           <Plus size={15} /> New Vendor
         </button>
       </div>
@@ -233,7 +185,7 @@ export default function Vendors() {
                   <Td align="right" nowrap>
                     <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} style={{ display: 'inline-flex' }}>
                       <RowMenu label={`Actions for ${v.company_name}`} items={[
-                        { label: 'Edit', icon: Pencil, onClick: () => { setEditing({ ...v, belongs: vendorChoice(v, links), more: vendorProjectIds(v.id, links).slice(1) }); setFormError(''); } },
+                        { label: 'Edit', icon: Pencil, onClick: () => setEditing(v) },
                         { label: v.archived_at ? 'Restore' : 'Archive', icon: v.archived_at ? ArchiveRestore : Archive, onClick: () => handleArchive(v) },
                         !l.count && { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => handleDelete(v) },
                       ]} />
@@ -247,96 +199,14 @@ export default function Vendors() {
       )}
 
       {editing && (
-        <Modal title={editing.id ? 'Edit vendor' : 'New vendor'} onClose={() => setEditing(null)} width="820px">
-          <form onSubmit={handleSave} className="prod-modal-body">
-            {formError && <div className="prod-form-error">{formError}</div>}
-            <div className="prod-form-grid">
-              <div className="prod-field full">
-                <label className="req">Company name</label>
-                <input aria-label="Company name" value={editing.company_name} onChange={(e) => set('company_name', e.target.value)} autoFocus required />
-              </div>
-              <div className="prod-field full">
-                <label htmlFor="vendor-belongs">Belongs to</label>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <BelongsToSelect id="vendor-belongs" value={editing.belongs} onChange={(v) => set('belongs', v)} />
-                  </div>
-                  <button type="button" className="prod-btn-ghost" onClick={() => set('more', [...(editing.more || []), ''])}
-                    aria-label="Add the vendor to another project">
-                    <Plus size={13} aria-hidden="true" /> Add
-                  </button>
-                </div>
-                {(editing.more || []).map((pid, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <ProjectOnlySelect value={pid} label={`Also on project ${i + 2}`}
-                        exclude={[editing.belongs, ...(editing.more || [])]}
-                        onChange={(v) => set('more', editing.more.map((x, j) => (j === i ? v : x)))} />
-                    </div>
-                    <button type="button" className="prod-btn-ghost" aria-label={`Take project ${i + 2} off`}
-                      onClick={() => set('more', editing.more.filter((_, j) => j !== i))}>
-                      <X size={13} aria-hidden="true" /> Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="prod-field">
-                <label>Contact person</label>
-                <input aria-label="Contact person" value={editing.contact_name || ''} onChange={(e) => set('contact_name', e.target.value)} />
-              </div>
-              <div className="prod-field">
-                <label>Category</label>
-                <input aria-label="Category" value={editing.category || ''} onChange={(e) => set('category', e.target.value)} placeholder="e.g. Hardware, Cloud, Logistics" />
-              </div>
-              <div className="prod-field">
-                <label>Email</label>
-                <input aria-label="Email" type="email" value={editing.email || ''} onChange={(e) => set('email', e.target.value)} />
-              </div>
-              <div className="prod-field">
-                <label>Phone</label>
-                <input aria-label="Phone" value={editing.phone || ''} onChange={(e) => set('phone', e.target.value)} />
-              </div>
-              <div className="prod-field">
-                <label>GSTIN</label>
-                <input aria-label="GSTIN" value={editing.gstin || ''} onChange={(e) => set('gstin', e.target.value.toUpperCase())} maxLength={15} placeholder="" />
-              </div>
-              <div className="prod-field">
-                <label>State</label>
-                <input aria-label="State" value={editing.state || ''} onChange={(e) => set('state', e.target.value)} />
-              </div>
-              <div className="prod-field full">
-                <label>Address</label>
-                <textarea aria-label="Address" rows={2} value={editing.address || ''} onChange={(e) => set('address', e.target.value)} />
-              </div>
-              <div className="prod-field full">
-                <label>Payment terms</label>
-                <div className="prod-rate-chips">
-                  {TERMS.map((d) => (
-                    <button key={d} type="button" aria-pressed={!!(Number(editing.payment_terms_days) === d)} className={`easy-chip ${Number(editing.payment_terms_days) === d ? 'active' : ''}`} onClick={() => set('payment_terms_days', d)}>
-                      {d === 0 ? 'On receipt' : `Net ${d}`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="prod-field full">
-                <label>Notes</label>
-                <textarea aria-label="Notes" rows={2} value={editing.notes || ''} onChange={(e) => set('notes', e.target.value)} />
-              </div>
-            </div>
-            <div className="prod-modal-foot">
-              <button type="button" onClick={() => setEditing(null)} className="prod-btn-ghost">Cancel</button>
-              <button type="submit" disabled={saving} className="prod-btn-primary">
-                {saving ? 'Saving...' : editing.id ? 'Save changes' : 'Add vendor'}
-              </button>
-            </div>
-          </form>
-        </Modal>
+        <VendorFormDialog vendor={editing.id ? editing : null} defaultBelongs={scope || GENERAL} onClose={() => setEditing(null)} />
       )}
 
       {viewing && (
         <Modal title={viewing.company_name} onClose={() => setViewing(null)} width="1120px">
           <div className="prod-modal-body" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              {viewing.logo_path && <Logo path={viewing.logo_path} name={viewing.company_name} size={36} />}
               {viewing.contact_name && <span>{viewing.contact_name}</span>}
               {viewing.email && <span><Mail size={12} /> {viewing.email}</span>}
               {viewing.phone && <span><Phone size={12} /> {viewing.phone}</span>}

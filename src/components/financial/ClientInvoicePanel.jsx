@@ -8,7 +8,7 @@ import ProjectPicker from '../shared/ProjectPicker';
 import { documentStore } from '../../services/documentStore';
 import { orgStore } from '../../services/orgStore';
 import { receiptService, validateReceipt, RECEIPT_ACCEPT } from '../../services/receiptService';
-import { pickerFor, saveSplitFromPicker } from '../../services/projectService';
+import { pickerFor, pickerFromAllocations, saveSplitFromPicker } from '../../services/projectService';
 import { documentTotals } from '../../shared/finDocs';
 import { useToast } from '../shared/Toast';
 
@@ -24,16 +24,28 @@ const today = () => new Date().toISOString().slice(0, 10);
  * its amount before GST, so the totals trigger, Billing, the portal and the
  * ledger read it like any other. The file sits in the private receipts bucket
  * and its path rides in the payload (`upload_path`, `uploaded`).
+ *
+ * With `invoice` (an uploaded invoice, from a ledger row's Edit) it opens on
+ * the details of that invoice: the same number, its file kept unless
+ * replaced, and saving updates it in place.
  */
-export default function ClientInvoicePanel({ clients, clientId = '', projectId = null, startOn = projectId, onClose }) {
+export default function ClientInvoicePanel({ clients, clientId = '', projectId = null, startOn = projectId, invoice = null, onClose }) {
   const navigate = useNavigate();
   const toast = useToast();
   const fileInput = useRef(null);
-  const [step, setStep] = useState('choose');
-  const [file, setFile] = useState(null);
+  const [step, setStep] = useState(invoice ? 'details' : 'choose');
+  // The file on hand; `kept` is the one the saved invoice already has, which
+  // closing without saving must not remove.
+  const [file, setFile] = useState(invoice?.upload_path ? { path: invoice.upload_path, name: invoice.upload_name || 'Invoice file', kept: true } : null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState(() => ({
+  const [form, setForm] = useState(() => (invoice ? {
+    doc_number: invoice.doc_number || '', customer_id: invoice.customer_id || '',
+    issue_date: invoice.issue_date || today(), due_date: invoice.due_date || '',
+    amount: String(Number(invoice.items?.[0]?.rate ?? invoice.subtotal) || ''),
+    gst_rate: invoice.gst_enabled === false ? 0 : Number(invoice.gstRate ?? invoice.gst_rate) || 0,
+    notes: invoice.notes || '', _picker: pickerFromAllocations('invoice', invoice.id),
+  } : {
     doc_number: '', customer_id: clientId || '', issue_date: today(), due_date: '',
     amount: '', gst_rate: 18, notes: '', _picker: pickerFor(startOn || ''),
   }));
@@ -55,7 +67,7 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
     setError('');
     try {
       const path = await receiptService.upload(orgStore.getOrgId(), 'invoices', chosen);
-      if (file?.path) receiptService.remove(file.path);
+      if (file?.path && !file.kept) receiptService.remove(file.path);
       setFile({ path, name: chosen.name });
       setStep('details');
     } catch (err) {
@@ -65,9 +77,9 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
     }
   };
 
-  // Closed without saving: the file goes too.
+  // Closed without saving: a file uploaded here goes too; the saved one stays.
   const close = () => {
-    if (file?.path) receiptService.remove(file.path);
+    if (file?.path && !file.kept) receiptService.remove(file.path);
     onClose();
   };
 
@@ -84,9 +96,12 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
     setBusy(true);
     setError('');
     try {
+      if (!file?.path) { setError('Upload the invoice file.'); setBusy(false); return; }
       const saved = await documentStore.save({
+        ...(invoice ? { id: invoice.id } : {}),
         type: 'invoice',
-        status: 'sent',
+        // Editing keeps where its payments put it.
+        status: invoice ? invoice.status : 'sent',
         title: 'Tax Invoice',
         doc_number: form.doc_number.trim() || undefined,
         customer_id: client.id,
@@ -100,7 +115,7 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
         items: [{ description: 'As per the uploaded invoice', quantity: 1, rate: Number(form.amount), unit: '' }],
         enableGst: rate > 0,
         gstRate: rate,
-        notes: form.notes.trim() || undefined,
+        notes: form.notes.trim() || (invoice ? '' : undefined),
         uploaded: true,
         upload_path: file.path,
         upload_name: file.name,
@@ -110,7 +125,9 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
       } catch (allocErr) {
         toast(`Invoice saved, but the project split was not: ${allocErr.message}`, 'error');
       }
-      toast('Invoice uploaded', 'success');
+      // The file it had before, now replaced.
+      if (invoice?.upload_path && invoice.upload_path !== file.path) receiptService.remove(invoice.upload_path);
+      toast(invoice ? 'Invoice updated' : 'Invoice uploaded', 'success');
       onClose();
     } catch (err) {
       setError(err?.code === '23505' || /unique|duplicate/i.test(err.message || '')
@@ -142,7 +159,7 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
   }
 
   return (
-    <Modal title="Upload Invoice" onClose={close} dirty>
+    <Modal title={invoice ? `Edit Invoice ${invoice.doc_number || ''}`.trim() : 'Upload Invoice'} onClose={close} dirty>
       <form onSubmit={save} className="prod-modal-body cb-form">
         {error && <div className="prod-form-error" role="alert">{error}</div>}
         <input ref={fileInput} type="file" accept={RECEIPT_ACCEPT} hidden aria-label="Invoice file" onChange={pick} />
@@ -162,9 +179,9 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
 
           <div className="prod-field">
             <label htmlFor="ui-no">Invoice No</label>
-            <input id="ui-no" value={form.doc_number} placeholder="As printed on the invoice"
+            <input id="ui-no" value={form.doc_number} placeholder="As printed on the invoice" readOnly={!!invoice}
               onChange={(e) => set('doc_number', e.target.value)} />
-            <p className="prod-field-note">Left blank, it takes the next number.</p>
+            <p className="prod-field-note">{invoice ? 'A saved invoice keeps its number.' : 'Left blank, it takes the next number.'}</p>
           </div>
 
           <div className="prod-field">
@@ -221,7 +238,7 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
 
         <div className="prod-modal-foot">
           <button type="button" className="prod-btn-ghost" onClick={close}>Cancel</button>
-          <button type="submit" className="prod-btn-primary" disabled={busy}>{busy ? 'Saving...' : 'Save Invoice'}</button>
+          <button type="submit" className="prod-btn-primary" disabled={busy}>{busy ? 'Saving...' : invoice ? 'Save Changes' : 'Save Invoice'}</button>
         </div>
       </form>
     </Modal>

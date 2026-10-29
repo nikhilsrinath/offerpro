@@ -7,7 +7,10 @@
 //     draft. Delete it.
 //   · A TAX INVOICE is never deleted. Its number is part of a GST series, and
 //     a gap in that series is something the business has to explain; a
-//     cancelled invoice keeps its number and is reported as cancelled.
+//     cancelled invoice keeps its number and is reported as cancelled. The
+//     exception is an uploaded invoice (made outside EdgeOS) with no money
+//     against it: it is a record of someone else's document, so a wrong or
+//     duplicate upload may be deleted.
 //   · Anything the client has received is cancelled, not deleted, so the
 //     record of what they were sent survives.
 //   · Nothing is cancelled out from under money or a later document: money
@@ -68,7 +71,12 @@ export function lifecycleOf(doc, docs) {
 
   // ── Delete ──
   let del;
-  if (doc.type === 'invoice') {
+  if (doc.type === 'invoice' && doc.uploaded) {
+    // An invoice made outside EdgeOS and uploaded is a record of that
+    // document, not a number in this series: a wrong or duplicate upload is
+    // removed, as long as no money stands against it.
+    del = received > 0 || pending ? no('A payment is recorded against it. Delete the payment first, or cancel the invoice.') : yes;
+  } else if (doc.type === 'invoice') {
     del = no('Tax invoices are cancelled, not deleted, so the invoice number series stays complete for GST.');
   } else if (!neverSent(doc)) {
     del = no(`This ${kind} has been sent to the client. Cancel it instead.`);
@@ -82,7 +90,8 @@ export function lifecycleOf(doc, docs) {
 
   // ── Cancel ──
   let cancel;
-  if (del.allowed) {
+  // An uploaded invoice may be deleted or cancelled, whichever the books need.
+  if (del.allowed && doc.type !== 'invoice') {
     cancel = no(`A draft that was never sent is deleted, not cancelled.`);
   } else if (child) {
     cancel = no(`Converted to ${docNumber(child)}. Cancel that first.`);

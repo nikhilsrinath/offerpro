@@ -15,7 +15,7 @@ import LedgerTypeField from './LedgerTypeField';
 import { ledgerTypes } from './ledgerTypes';
 import { money, useSection } from './financeHooks';
 import {
-  ADVANCE, billBalance, billPickerOf, blank, spreadVendorPayment, vendorCredit,
+  ADVANCE, billBalance, billPickerOf, blank, spreadVendorPayment,
 } from './cashEntry';
 import { baseCurrency, currencySymbol } from '../../shared/currency.js';
 
@@ -33,8 +33,6 @@ const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 export default function VendorPaymentModal({ vendorId = '', startOn = null, projectId = null, party = null, onType, onClose }) {
   const toast = useToast();
   const vendors = useSection('vendors');
-  const expenses = useSection('expenses');
-  const income = useSection('income_entries');
   const allocations = useSection('project_allocations');
   const bills = useSection('purchase_invoices');
   const departments = useSection('departments');
@@ -71,15 +69,12 @@ export default function VendorPaymentModal({ vendorId = '', startOn = null, proj
   };
 
   const activeVendors = vendors.filter((v) => !v.archived_at || v.id === form.vendor_id);
-  const owed = vendors.filter((v) => pendingBy[v.id] > 0.009);
   const vendor = vendors.find((v) => v.id === form.vendor_id) || null;
   const pending = pendingBy[form.vendor_id] || 0;
   const amount = round2(form.amount);
   const isAdvance = form.mode === 'advance';
   // The Vendor Payment Type's own label, for the Type row.
   const typeLabel = onType ? ledgerTypes('out').find((x) => x.kind === 'vendor')?.label || '' : '';
-  // Paid to them beyond all their bills.
-  const advance = form.vendor_id ? vendorCredit(bills, expenses, form.vendor_id, income) : 0;
 
   /**
    * Against Pending is on the projects of the bills it would cover, oldest
@@ -158,17 +153,10 @@ export default function VendorPaymentModal({ vendorId = '', startOn = null, proj
           <div className="prod-field full">
             <label className="req" htmlFor="vp-vendor">Vendor</label>
             <VendorSelect id="vp-vendor" vendors={activeVendors} value={form.vendor_id}
-              onChange={pickVendor} projectId={projectId} />
-            {vendor ? (
-              <p className="prod-field-note">
-                {pending > 0.009 ? <>Pending to {vendor.company_name}: <strong>{money(pending, 2)}</strong></> : `Nothing is pending to ${vendor.company_name}.`}
-                {advance > 0.009 && <> Advance with them: <strong>{money(advance, 2)}</strong>.</>}
-              </p>
-            ) : owed.length > 0 && (
-              <p className="prod-field-note">
-                Pending: {owed.map((v) => `${v.company_name} ${money(pendingBy[v.id], 2)}`).join(', ')}.
-              </p>
-            )}
+              onChange={pickVendor} projectId={projectId}
+              aside={(v) => (pendingBy[v.id] > 0.009
+                ? <span style={{ color: 'var(--error)' }}>{money(pendingBy[v.id], 2)}</span>
+                : <span className="prodpick-item-unit">Nil</span>)} />
           </div>
 
           <div className="prod-field full">

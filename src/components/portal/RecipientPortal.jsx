@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Download, Check, X, ShieldCheck, Building2, FileText, CheckCircle2,
-  AlertCircle, Calendar, Clock, Lock, User, ZoomIn, ZoomOut,
-  Copy, CreditCard, Banknote, MessageSquare, ExternalLink, Shield,
-  Sparkles, ArrowRight, Eye, Hash, Mail
+  AlertCircle, Calendar, Clock, Lock, ZoomIn, ZoomOut,
+  MessageSquare, Shield, Printer, RotateCcw,
+  Sparkles, Hash
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -12,8 +12,6 @@ import {
   fetchPortalDocument, submitPortalAction, portalTokenFromUrl,
 } from '../../services/portalService';
 import SignatureCapture from '../shared/SignatureCapture';
-import UPIQRGenerator from '../shared/UPIQRGenerator';
-import PaymentConfirmationForm from '../shared/PaymentConfirmationForm';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
 import { advanceOf } from '../../services/proformaAdvance';
 import { currencySymbol, currencySymbol as symbolOf, currencyLocale, recordCurrency, setBaseCurrency } from '../../shared/currency.js';
@@ -79,9 +77,6 @@ export default function RecipientPortal({ documentId }) {
   const [agreed, setAgreed] = useState(false);
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
-  const [showBankDetails, setShowBankDetails] = useState(false);
-  const [showPaymentForm, setShowPaymentForm] = useState(false);
-  const [paymentSubmitted, setPaymentSubmitted] = useState(false);
   const [revisionText, setRevisionText] = useState('');
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
@@ -90,7 +85,6 @@ export default function RecipientPortal({ documentId }) {
   const [candidateDate, setCandidateDate] = useState(new Date().toISOString().split('T')[0]);
   const [partyBSignature, setPartyBSignature] = useState(null);
   const [partyBAgreed, setPartyBAgreed] = useState(false);
-  const [copied, setCopied] = useState('');
   const [downloading, setDownloading] = useState(false);
   // The live company profile now arrives with the document from /api/portal,
   // the recipient has no database access to look it up with.
@@ -195,11 +189,6 @@ export default function RecipientPortal({ documentId }) {
     }, 'fully_signed');
   };
 
-  const handlePaymentConfirmation = async (data) => {
-    const ok = await respond('payment_confirmation', { payment: data }, 'payment_submitted');
-    if (ok) setPaymentSubmitted(true);
-  };
-
   const handleAcceptQuotation = async () => {
     if (!signature || !agreed) return;
     await respond('accept_quotation', {
@@ -219,15 +208,6 @@ export default function RecipientPortal({ documentId }) {
     if (ok) setOrderConfirmed(true);
   };
 
-  const handleProformaPayment = async (data) => {
-    const ok = await respond('proforma_payment', { payment: data }, 'payment_submitted');
-    if (ok) setPaymentSubmitted(true);
-  };
-  const handleCopy = async (text, label) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(label);
-    setTimeout(() => setCopied(''), 2000);
-  };
 
   const handleDownloadPDF = async () => {
     if (!a4Ref.current || downloading) return;
@@ -433,6 +413,17 @@ export default function RecipientPortal({ documentId }) {
   // A cancelled quotation, proforma or invoice is shown, marked, with nothing to
   // act on. The server refuses every action on it anyway (api/portal.js).
   const isCancelled = status === 'cancelled' && ['invoice', 'quotation', 'proforma'].includes(docData?.type);
+  const total = docData ? grandTotalOf(docData) : 0;
+  const balance = Math.max(0, total - (Number(docData?.amount_paid) || 0));
+  const amountShown = !docData ? null
+    : docData.type === 'invoice' ? (status === 'paid' ? { label: 'Amount Paid', value: total } : { label: 'Amount Due', value: balance })
+      : docData.type === 'quotation' ? { label: 'Quoted Amount', value: total }
+        : docData.type === 'proforma' ? { label: 'Order Value', value: total } : null;
+  const dueLabel = docData?.type === 'quotation' || docData?.type === 'proforma' ? 'Valid Until'
+    : docData?.type === 'offer_letter' ? 'Respond By' : docData?.type === 'role_change' ? 'Effective Date'
+      : docData?.type === 'termination' ? 'Last Working Day' : 'Due Date';
+  const dueValue = docData ? (docData.valid_until || docData.due_date || docData.effective_date || docData.last_day || '') : '';
+  const canDownload = ['quotation', 'proforma', 'invoice', 'offer_letter', 'role_change', 'termination'].includes(docData?.type);
   const isActionTaken = ['signed', 'declined', 'paid', 'payment_submitted', 'accepted', 'fully_signed', 'advance_paid', 'revision_requested', 'acknowledged'].includes(status);
 
   // ── HR Notice acknowledge (role_change / termination) ──
@@ -468,7 +459,7 @@ export default function RecipientPortal({ documentId }) {
         </div>
       )}
 
-      {/* ── Top Navigation ── */}
+      {/* ── Header: who sent it, and what it is ── */}
       <header className="rp-header">
         <div className="rp-header-inner">
           <div className="rp-header-left">
@@ -481,27 +472,14 @@ export default function RecipientPortal({ documentId }) {
             )}
             <div className="rp-header-brand">
               <h1>{company.company_name || docData.issued_by || 'Company'}</h1>
-              <span>Secure Document Portal</span>
+              <span>{formatDocType(docData.type)}{docData.doc_number ? ` · ${docData.doc_number}` : ''}</span>
             </div>
           </div>
           <div className="rp-header-right">
-            <div className="rp-header-doctype">{formatDocType(docData.type)}</div>
-            <DocumentStatusBadge status={status} />
+            <span className="rp-header-secure"><Lock size={12} aria-hidden="true" /> Secure Link</span>
           </div>
         </div>
       </header>
-
-      {/* ── Security Bar ── */}
-      <div className="rp-security-bar">
-        <div className="rp-security-inner">
-          <Lock size={11} />
-          <span>End-to-end encrypted</span>
-          <span className="rp-security-sep">|</span>
-          <span>Document ID: {docData.id}</span>
-          <span className="rp-security-sep">|</span>
-          <span>Powered by EdgeOS</span>
-        </div>
-      </div>
 
       {/* ── Main Content ── */}
       <div className="rp-main">
@@ -509,61 +487,12 @@ export default function RecipientPortal({ documentId }) {
 
           {/* Left: Document Viewer */}
           <motion.div className="rp-viewer" variants={fadeUp}>
-            {/* Document Info Card */}
-            <div className="rp-doc-info-card">
-              <div className="rp-doc-info-grid">
-                <div className="rp-doc-info-item">
-                  <FileText size={14} />
-                  <div>
-                    <span className="rp-doc-info-label">Document</span>
-                    <span className="rp-doc-info-value">{docData.title || formatDocType(docData.type)}</span>
-                  </div>
-                </div>
-                <div className="rp-doc-info-item">
-                  <User size={14} />
-                  <div>
-                    <span className="rp-doc-info-label">Recipient</span>
-                    <span className="rp-doc-info-value">{docData.issued_to || docData.party_b?.company || 'Recipient'}</span>
-                  </div>
-                </div>
-                <div className="rp-doc-info-item">
-                  <Calendar size={14} />
-                  <div>
-                    <span className="rp-doc-info-label">Issued</span>
-                    <span className="rp-doc-info-value">{docData.issue_date || '-'}</span>
-                  </div>
-                </div>
-                <div className="rp-doc-info-item">
-                  <Clock size={14} />
-                  <div>
-                    <span className="rp-doc-info-label">
-                      {docData.type === 'quotation' ? 'Valid Until' : docData.type === 'offer_letter' ? 'Respond By' : docData.type === 'role_change' ? 'Effective Date' : docData.type === 'termination' ? 'Last Working Day' : 'Due Date'}
-                    </span>
-                    <span className="rp-doc-info-value">{docData.valid_until || docData.due_date || docData.effective_date || docData.last_day || '-'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Zoom Controls */}
-            <div className="rp-zoom-bar">
-              <button onClick={() => setZoom(Math.max(50, zoom - 10))}><ZoomOut size={14} /></button>
-              <span>{zoom}%</span>
-              <button onClick={() => setZoom(Math.min(150, zoom + 10))}><ZoomIn size={14} /></button>
-              <button onClick={() => setZoom(100)} className="rp-zoom-reset">Reset</button>
-              {['quotation', 'proforma', 'invoice', 'offer_letter', 'role_change', 'termination'].includes(docData.type) && (
-                <button className="rp-download-pdf-btn" onClick={handleDownloadPDF} disabled={downloading}>
-                  <Download size={13} /> {downloading ? 'Generating...' : 'Download PDF'}
-                </button>
-              )}
-            </div>
-
             {/* A4 Document Preview */}
             <div className="rp-a4-wrapper">
               <div ref={a4Ref} className="rp-a4" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}>
                 {isCancelled
                   ? <div className="rp-watermark" style={{ color: 'rgba(239,68,68,0.16)' }}>CANCELLED</div>
-                  : !isActionTaken && <div className="rp-watermark">PREVIEW</div>}
+                  : !isActionTaken && docData.type !== 'invoice' && <div className="rp-watermark">PREVIEW</div>}
 
                 <div className="rp-doc-content">
                   {/* Letterhead */}
@@ -983,6 +912,41 @@ export default function RecipientPortal({ documentId }) {
           {/* Right: Action Panel */}
           <motion.div className="rp-actions" variants={fadeUp}>
 
+            {/* ════════ SUMMARY & DOCUMENT ACTIONS (every type) ════════ */}
+            <div className="rp-card rp-summary">
+              <p className="rp-summary-type">{formatDocType(docData.type)}</p>
+              <h2 className="rp-summary-title">{docData.doc_number || docData.title || formatDocType(docData.type)}</h2>
+              {amountShown && (
+                <div className="rp-summary-amount">
+                  <span>{amountShown.label}</span>
+                  <strong>{inr(amountShown.value)}</strong>
+                </div>
+              )}
+              <dl className="rp-summary-rows">
+                <div><dt>Issued To</dt><dd>{docData.issued_to || docData.party_b?.company || 'Recipient'}</dd></div>
+                <div><dt>Issued By</dt><dd>{company.company_name || docData.issued_by || '-'}</dd></div>
+                <div><dt>Issued On</dt><dd>{docData.issue_date || '-'}</dd></div>
+                {dueValue && <div><dt>{dueLabel}</dt><dd>{dueValue}</dd></div>}
+                <div><dt>Status</dt><dd><DocumentStatusBadge status={status} size="small" /></dd></div>
+              </dl>
+              <div className="rp-summary-actions">
+                {canDownload && (
+                  <button type="button" className="rp-btn rp-btn-primary" onClick={handleDownloadPDF} disabled={downloading}>
+                    <Download size={15} aria-hidden="true" /> {downloading ? 'Preparing PDF…' : 'Download PDF'}
+                  </button>
+                )}
+                <button type="button" className="rp-btn rp-btn-outline" onClick={() => window.print()}>
+                  <Printer size={15} aria-hidden="true" /> Print
+                </button>
+                <div className="rp-zoom" role="group" aria-label="Zoom">
+                  <button type="button" aria-label="Zoom out" disabled={zoom <= 50} onClick={() => setZoom(Math.max(50, zoom - 10))}><ZoomOut size={15} /></button>
+                  <span aria-live="polite">{zoom}%</span>
+                  <button type="button" aria-label="Zoom in" disabled={zoom >= 150} onClick={() => setZoom(Math.min(150, zoom + 10))}><ZoomIn size={15} /></button>
+                  <button type="button" aria-label="Reset zoom" disabled={zoom === 100} onClick={() => setZoom(100)}><RotateCcw size={14} /></button>
+                </div>
+              </div>
+            </div>
+
             {/* ════════ OFFER LETTER ════════ */}
             {/* Opening the link flips 'pending' to 'viewed', and a letter saved
                 from the documents page starts as 'draft' · gate on whether a
@@ -1110,75 +1074,15 @@ export default function RecipientPortal({ documentId }) {
             )}
 
             {/* ════════ INVOICE ════════ */}
-            {docData.type === 'invoice' && !isCancelled && !paymentSubmitted && status !== 'paid' && status !== 'payment_submitted' && (
-              <div className="rp-card">
-                <div className="rp-card-header">
-                  <CreditCard size={18} />
-                  <h3>Pay Invoice</h3>
-                </div>
-
-                <div className="rp-amount-hero">
-                  <span className="rp-amount-label">Amount Due</span>
-                  <span className="rp-amount-value">{inr(grandTotalOf(docData))}</span>
-                  <div className="rp-amount-meta-row">
-                    <span><Calendar size={12} /> Due: {docData.due_date}</span>
-                    <span><Hash size={12} /> {docData.doc_number || docData.id}</span>
-                  </div>
-                </div>
-
-                <div className="rp-payment-method">
-                  <h4>UPI Payment</h4>
-                  <UPIQRGenerator
-                    upiId={docData.upi_id || company.upi_id}
-                    payeeName={company.company_name || docData.issued_by}
-                    amount={docData.grand_total || docData.amount}
-                    transactionNote={docData.id}
-                  />
-                </div>
-
-                <div className="rp-payment-method">
-                  <button className="rp-bank-toggle" onClick={() => setShowBankDetails(!showBankDetails)}>
-                    <Banknote size={15} />
-                    <span>Bank Transfer Details</span>
-                    <span className="rp-bank-arrow">{showBankDetails ? '−' : '+'}</span>
-                  </button>
-                  <AnimatePresence>
-                    {showBankDetails && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="rp-bank-details"
-                      >
-                        <BankRow label="Bank Name" value={docData.bank?.name || company.bank_name} />
-                        <BankRow label="Account No." value={docData.bank?.account || company.bank_account_number} copyable onCopy={(v) => handleCopy(v, 'account')} copied={copied === 'account'} />
-                        <BankRow label="IFSC Code" value={docData.bank?.ifsc || company.bank_ifsc} copyable onCopy={(v) => handleCopy(v, 'ifsc')} copied={copied === 'ifsc'} />
-                        <BankRow label="Account Type" value={docData.bank?.type || company.bank_account_type} />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {!showPaymentForm ? (
-                  <button className="rp-btn rp-btn-primary" onClick={() => setShowPaymentForm(true)}>
-                    <Check size={16} /> I Have Made the Payment
-                  </button>
-                ) : (
-                  <PaymentConfirmationForm
-                    amount={docData.grand_total || docData.amount}
-                    invoiceId={docData.id}
-                    onSubmit={handlePaymentConfirmation}
-                  />
-                )}
-              </div>
-            )}
-
-            {docData.type === 'invoice' && (paymentSubmitted || status === 'payment_submitted') && (
-              <SuccessCard title="Payment Submitted" subtitle="Your payment confirmation is under review. You'll receive a receipt once verified." />
+            {/* The invoice is shown, not paid from here: payment is between the
+                client and the issuer, who marks it paid when it arrives. */}
+            {docData.type === 'invoice' && status === 'payment_submitted' && (
+              <StatusCard icon={<Clock size={28} />} color="#b45309" title="Payment Being Verified"
+                subtitle={`${company.company_name || 'The issuer'} is checking the payment you reported.`} />
             )}
 
             {docData.type === 'invoice' && status === 'paid' && (
-              <SuccessCard title="Invoice Paid" subtitle="Payment verified successfully. Thank you!" />
+              <SuccessCard title="Invoice Paid" subtitle="Payment received. Thank you!" />
             )}
 
             {/* ════════ QUOTATION ════════ */}
@@ -1254,18 +1158,13 @@ export default function RecipientPortal({ documentId }) {
               <ProformaActions
                 doc={docData}
                 company={company}
-                status={paymentSubmitted ? 'payment_submitted' : status}
+                status={status}
                 orderConfirmed={orderConfirmed}
                 agreed={agreed}
                 setAgreed={setAgreed}
                 readOnly={readOnly}
                 submitting={submitting}
                 onConfirm={handleConfirmOrder}
-                onPay={handleProformaPayment}
-                showPaymentForm={showPaymentForm}
-                setShowPaymentForm={setShowPaymentForm}
-                showBankDetails={showBankDetails}
-                setShowBankDetails={setShowBankDetails}
               />
             )}
 
@@ -1507,21 +1406,6 @@ function StatusCard({ icon, color, title, subtitle }) {
   );
 }
 
-function BankRow({ label, value, copyable, onCopy, copied }) {
-  return (
-    <div className="rp-bank-row">
-      <span>{label}</span>
-      <div className="rp-bank-val">
-        <strong>{value || '-'}</strong>
-        {copyable && value && (
-          <button onClick={() => onCopy(value)} className="rp-copy-btn" title="Copy">
-            {copied ? <Check size={11} /> : <Copy size={11} />}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 const inr = (n) => currencySymbol() + (Number(n) || 0).toLocaleString(currencyLocale(), { maximumFractionDigits: 2 });
 
@@ -1643,7 +1527,7 @@ function ProformaDocument({ doc }) {
 
 function ProformaActions({
   doc, company, status, orderConfirmed, agreed, setAgreed, readOnly, submitting,
-  onConfirm, onPay, showPaymentForm, setShowPaymentForm, showBankDetails, setShowBankDetails,
+  onConfirm,
 }) {
   const a = advanceOf(doc);
   const number = doc.doc_number || doc.id;
@@ -1677,8 +1561,8 @@ function ProformaActions({
   return (
     <div className="rp-card">
       <div className="rp-card-header">
-        <CreditCard size={18} />
-        <h3>{needsAdvance ? 'Confirm order & pay advance' : 'Confirm order'}</h3>
+        <FileText size={18} />
+        <h3>Confirm Order</h3>
       </div>
 
       <div className="rp-amount-breakdown">
@@ -1739,37 +1623,11 @@ function ProformaActions({
           <div className="rp-step-num">2</div>
           <div className="rp-step-body">
             <h4 className="rp-step-title">Pay the advance · {inr(a.advanceDue)}</h4>
-            {!confirmed ? (
-              <p style={{ margin: 0, fontSize: '0.8125rem', color: '#71717a' }}>Payment details appear once the order is confirmed.</p>
-            ) : (
-              <>
-                <UPIQRGenerator
-                  upiId={doc.upi_id || company.upi_id}
-                  payeeName={company.company_name || doc.issued_by}
-                  amount={a.advanceDue}
-                  transactionNote={`${number} advance`}
-                />
-                <button className="rp-bank-toggle" onClick={() => setShowBankDetails(!showBankDetails)}>
-                  <Banknote size={15} />
-                  <span>Bank transfer</span>
-                  <span className="rp-bank-arrow">{showBankDetails ? '−' : '+'}</span>
-                </button>
-                {showBankDetails && (
-                  <div className="rp-bank-details" style={{ marginTop: '0.5rem' }}>
-                    <BankRow label="Bank" value={company.bank_name} />
-                    <BankRow label="A/C" value={company.bank_account_number} />
-                    <BankRow label="IFSC" value={company.bank_ifsc} />
-                  </div>
-                )}
-                {!showPaymentForm ? (
-                  <button className="rp-btn rp-btn-primary" disabled={readOnly} onClick={() => setShowPaymentForm(true)}>
-                    <Check size={16} /> I Have Paid the Advance
-                  </button>
-                ) : (
-                  <PaymentConfirmationForm amount={a.advanceDue} invoiceId={number} onSubmit={onPay} />
-                )}
-              </>
-            )}
+            <p style={{ margin: 0, fontSize: '0.8125rem', color: '#71717a', lineHeight: 1.55 }}>
+              {confirmed
+                ? `Pay the advance to ${company.company_name || doc.issued_by || 'the issuer'} as agreed. It shows here once they record it.`
+                : 'Due once the order is confirmed.'}
+            </p>
           </div>
         </div>
       )}

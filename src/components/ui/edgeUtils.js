@@ -31,6 +31,8 @@ const FOCUSABLE = 'a[href], button, input:not([type="hidden"]), select, textarea
  * returns to whatever opened it. Pass the sheet's ref; `open` defaults to true
  * for dialogs that are mounted only while shown.
  */
+const openSheets = [];
+
 export function useDialog(ref, onClose, open = true) {
     const closeRef = useRef(onClose);
     useEffect(() => { closeRef.current = onClose; });
@@ -44,7 +46,11 @@ export function useDialog(ref, onClose, open = true) {
         const first = focusables().find((el) => !/close/i.test(el.getAttribute('aria-label') || '')) || focusables()[0];
         (first || sheet)?.focus({ preventScroll: true });
 
+        // A panel opened from inside another (Add Vendor from a bill) is the
+        // only one that answers Esc and traps Tab until it closes.
+        openSheets.push(ref);
         const onKey = (e) => {
+            if (openSheets[openSheets.length - 1] !== ref) return;
             if (e.key === 'Escape') { e.stopPropagation(); closeRef.current?.(); return; }
             if (e.key !== 'Tab') return;
             const els = focusables();
@@ -55,6 +61,8 @@ export function useDialog(ref, onClose, open = true) {
         };
         document.addEventListener('keydown', onKey);
         return () => {
+            const at = openSheets.lastIndexOf(ref);
+            if (at >= 0) openSheets.splice(at, 1);
             document.removeEventListener('keydown', onKey);
             if (opener && typeof opener.focus === 'function' && document.contains(opener)) opener.focus({ preventScroll: true });
         };

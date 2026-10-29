@@ -32,7 +32,13 @@ export default function PurchaseBillModal({ bill, projectId = null, party = null
   const toast = useToast();
   const vendors = useSection('vendors');
   const allBills = useSection('purchase_invoices');
-  const [editing, setEditing] = useState(bill);
+  // Other amount and discount are folded away until ticked; a saved bill that
+  // has one opens with it ticked.
+  const [editing, setEditing] = useState(() => ({
+    ...bill,
+    _showOther: !!(Number(bill.other_amount) || (bill.other_label || '').trim()),
+    _showDiscount: !!Number(bill.discount_value),
+  }));
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -44,6 +50,13 @@ export default function PurchaseBillModal({ bill, projectId = null, party = null
   }));
   const addItem = () => setEditing((e) => ({ ...e, _dirty: true, items: [...(e.items || []), blankItem()] }));
   const removeItem = (i) => setEditing((e) => ({ ...e, _dirty: true, items: e.items.filter((_, n) => n !== i) }));
+  // Unticking clears what was typed, so nothing hidden counts in the total.
+  const toggleOther = (on) => setEditing((e) => ({
+    ...e, _dirty: true, _showOther: on, ...(on ? {} : { other_amount: '', other_label: '', other_tax_rate: 0 }),
+  }));
+  const toggleDiscount = (on) => setEditing((e) => ({
+    ...e, _dirty: true, _showDiscount: on, ...(on ? {} : { discount_value: '' }),
+  }));
 
   const f = billFigures(editing);
   // Round off: the user types the bill's final total and the difference from
@@ -69,7 +82,7 @@ export default function PurchaseBillModal({ bill, projectId = null, party = null
     setFormError('');
     try {
       const {
-        _picker: picker, _seq: _q, _share: _s, _shareNet: _n, _roundOpen: _o, _finalTotal: _ft, _hadOther, _hadExtras, _dirty: _d, round_off: prevRound,
+        _picker: picker, _seq: _q, _share: _s, _shareNet: _n, _roundOpen: _o, _finalTotal: _ft, _hadOther, _hadExtras, _dirty: _d, _showOther: _so, _showDiscount: _sd, round_off: prevRound,
         items: _items, discount_type: _dt, discount_value: _dv, discount_amount: _da, ...data
       } = editing;
       // The bill number is optional on the form but the database wants one,
@@ -211,25 +224,6 @@ export default function PurchaseBillModal({ bill, projectId = null, party = null
               <input aria-label={`Amount before tax (${cur})`} className="pi-no-spin" type="number" min="0" step="0.01" value={editing.subtotal} onChange={(e) => set('subtotal', e.target.value)} required />
             )}
           </div>
-          <div className="prod-field">
-            <label htmlFor="pi-discount">Discount</label>
-            <div className="pi-discount">
-              <input id="pi-discount" className="pi-no-spin" type="number" min="0" step="0.01" inputMode="decimal"
-                max={editing.discount_type === 'percent' ? 100 : undefined}
-                value={editing.discount_value} placeholder="0" onChange={(e) => set('discount_value', e.target.value)} />
-              <div className="prod-seg" role="group" aria-label="Discount as">
-                <button type="button" aria-pressed={editing.discount_type === 'amount'}
-                  className={`pro-chip ${editing.discount_type === 'amount' ? 'active' : ''}`}
-                  onClick={() => set('discount_type', 'amount')}>{cur}</button>
-                <button type="button" aria-pressed={editing.discount_type === 'percent'}
-                  className={`pro-chip ${editing.discount_type === 'percent' ? 'active' : ''}`}
-                  onClick={() => set('discount_type', 'percent')}>%</button>
-              </div>
-            </div>
-            {f.discount > 0 && (
-              <p className="prod-field-note">{money(f.discount, 2)} off · {money(f.net, 2)} after the discount, before GST.</p>
-            )}
-          </div>
           <div className="prod-field full">
             <label>GST rate</label>
             <div className="prod-rate-chips">
@@ -238,23 +232,60 @@ export default function PurchaseBillModal({ bill, projectId = null, party = null
               ))}
             </div>
           </div>
-          {/* Other amount, its amount and its GST rate: a row each. */}
-          <div className="prod-field">
-            <label>Other amount</label>
-            <input aria-label="What the other amount is for" value={editing.other_label || ''} onChange={(e) => set('other_label', e.target.value)} placeholder="What it is, e.g. Freight" />
+          {/* Other amount, its amount and its GST rate: a row each, once ticked. */}
+          <div className="prod-field full">
+            <label className="cb-check pi-toggle">
+              <input type="checkbox" checked={editing._showOther} onChange={(e) => toggleOther(e.target.checked)} />
+              Other Amount
+            </label>
           </div>
-          <div className="prod-field">
-            <label>Other amount ({cur})</label>
-            <input aria-label={`Other amount (${cur})`} className="pi-no-spin" type="number" min="0" step="0.01" value={editing.other_amount} onChange={(e) => set('other_amount', e.target.value)} />
+          {editing._showOther && (
+            <>
+              <div className="prod-field">
+                <label>Other amount</label>
+                <input aria-label="What the other amount is for" value={editing.other_label || ''} onChange={(e) => set('other_label', e.target.value)} placeholder="What it is, e.g. Freight" />
+              </div>
+              <div className="prod-field">
+                <label>Other amount ({cur})</label>
+                <input aria-label={`Other amount (${cur})`} className="pi-no-spin" type="number" min="0" step="0.01" value={editing.other_amount} onChange={(e) => set('other_amount', e.target.value)} />
+              </div>
+              <div className="prod-field">
+                <label>GST rate on other amount</label>
+                <div className="prod-rate-chips">
+                  {TAX_RATES.map((r) => (
+                    <button key={r} type="button" aria-pressed={!!(Number(editing.other_tax_rate) === r)} className={`easy-chip ${Number(editing.other_tax_rate) === r ? 'active' : ''}`} onClick={() => set('other_tax_rate', r)}>{r}%</button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+          <div className="prod-field full">
+            <label className="cb-check pi-toggle">
+              <input type="checkbox" checked={editing._showDiscount} onChange={(e) => toggleDiscount(e.target.checked)} />
+              Discount
+            </label>
           </div>
-          <div className="prod-field">
-            <label>GST rate on other amount</label>
-            <div className="prod-rate-chips">
-              {TAX_RATES.map((r) => (
-                <button key={r} type="button" aria-pressed={!!(Number(editing.other_tax_rate) === r)} className={`easy-chip ${Number(editing.other_tax_rate) === r ? 'active' : ''}`} onClick={() => set('other_tax_rate', r)}>{r}%</button>
-              ))}
+          {editing._showDiscount && (
+            <div className="prod-field">
+              <label htmlFor="pi-discount">Discount</label>
+              <div className="pi-discount">
+                <input id="pi-discount" className="pi-no-spin" type="number" min="0" step="0.01" inputMode="decimal"
+                  max={editing.discount_type === 'percent' ? 100 : undefined}
+                  value={editing.discount_value} placeholder="0" onChange={(e) => set('discount_value', e.target.value)} />
+                <div className="prod-seg" role="group" aria-label="Discount as">
+                  <button type="button" aria-pressed={editing.discount_type === 'amount'}
+                    className={`pro-chip ${editing.discount_type === 'amount' ? 'active' : ''}`}
+                    onClick={() => set('discount_type', 'amount')}>{cur}</button>
+                  <button type="button" aria-pressed={editing.discount_type === 'percent'}
+                    className={`pro-chip ${editing.discount_type === 'percent' ? 'active' : ''}`}
+                    onClick={() => set('discount_type', 'percent')}>%</button>
+                </div>
+              </div>
+              {f.discount > 0 && (
+                <p className="prod-field-note">{money(f.discount, 2)} off · {money(f.net, 2)} after the discount, before GST.</p>
+              )}
             </div>
-          </div>
+          )}
           {/* The bill's figures and its round off: the figures and the rounded
               total on the left, the button that opens or removes it on the right. */}
           <div className="prod-field full">

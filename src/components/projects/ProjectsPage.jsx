@@ -204,7 +204,7 @@ export default function ProjectsPage() {
             )}
 
             {view === 'board' ? (
-                <Board projects={filtered} clientName={clientName} empById={empById}
+                <Board projects={filtered} empById={empById}
                     progressOf={progressOf} onOpen={open} />
             ) : filtered.length === 0 ? (
                 <Panel><Empty>Nothing matches those filters.</Empty></Panel>
@@ -258,7 +258,7 @@ export default function ProjectsPage() {
                                     <Td nowrap>
                                         <span style={{ display: 'block', fontWeight: 500 }}>{p.name}</span>
                                         <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 2 }}>
-                                            {p.client_id ? clientName[p.client_id] || 'Client' : 'Internal'}
+                                            {p.client_id ? 'Client' : 'Internal'}
                                             {p.archived_at ? ' · archived' : ''}
                                         </span>
                                     </Td>
@@ -349,7 +349,7 @@ function PinControls({ name, pinned, first, last, onToggle, onMove }) {
     );
 }
 
-function Board({ projects, clientName, empById, progressOf, onOpen }) {
+function Board({ projects, empById, progressOf, onOpen }) {
     const t = useT();
     const groups = groupByStatus(projects);
     return (
@@ -376,7 +376,7 @@ function Board({ projects, clientName, empById, progressOf, onOpen }) {
                                         <span style={{ display: 'block', fontSize: 11, color: t.faint }}>{p.code}</span>
                                         <span style={{ display: 'block', fontSize: 13.5, fontWeight: 600, margin: '3px 0 6px' }}>{p.name}</span>
                                         <span style={{ display: 'block', fontSize: 11.5, color: t.faint, marginBottom: 8 }}>
-                                            {p.client_id ? clientName[p.client_id] || 'Client' : 'Internal'}
+                                            {p.client_id ? 'Client' : 'Internal'}
                                             {mgr ? ` · ${mgr.name || mgr.full_name || ''}` : ''}
                                         </span>
                                         {prog != null && <Row gap={8}><span style={{ flex: 1 }}><Bar value={prog} max={1} height={5} /></span><Muted>{Math.round(prog * 100)}%</Muted></Row>}

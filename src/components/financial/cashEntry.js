@@ -50,9 +50,17 @@ export const billAllocationsOf = (allocations, billId) => allocations
  * the same proportions of what is being paid now.
  */
 export function billPickerOf(allocations, bill, amount) {
-  const allocs = billAllocationsOf(allocations, bill.id);
+  return pickerOfSplit(billAllocationsOf(allocations, bill.id), Number(bill.subtotal) || 0, amount);
+}
+
+/** The same for a receipt against a client invoice (Mark Paid): split the way the invoice is. */
+export function invoicePickerOf(allocations, doc, amount) {
+  const allocs = allocations.filter((a) => a.source_type === 'invoice' && a.source_id === doc.id);
+  return pickerOfSplit(allocs, Number(doc.taxable_amount) || 0, amount);
+}
+
+function pickerOfSplit(allocs, base, amount) {
   if (allocs.length === 0) return null;
-  const base = Number(bill.subtotal) || 0;
   if ((allocs.length === 1 && allocs[0].mode === 'full') || !(base > 0)) {
     return { mode: 'single', rows: [{ project_id: allocs[0].project_id, amount: '' }], touched: true };
   }

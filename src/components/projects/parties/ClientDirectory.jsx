@@ -1,15 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import {
-    Panel, Row, Btn, Seg, Search, Select, Field, Input, Textarea, Empty, Modal, ConfirmBtn, Grid, Muted,
+    Panel, Row, Btn, Seg, Search, Select, Field, Empty, Modal, ConfirmBtn, Grid, Muted,
 } from '../../ui/edge';
 import { useT, fmtDate } from '../../ui/edgeUtils';
 import { useToast } from '../../shared/Toast';
 import { orgStore } from '../../../services/orgStore';
 import { updateProject, canEditProjects } from '../../../services/projectService';
-import { saveClient, fileError } from '../../../services/projectFiles';
-import { validate, isEmail, isPhone, isUrl, isGstin, contactErrors } from '../../../services/projectWorkspace';
-import { useProjectClients, useSetup, CLIENT_STATUSES, clientActive, todayIso } from './partyData';
-import { SetupGate, Badge, Logo, LogoField, ContactsEditor, Detail, FieldError, Bar } from './partyUi';
+import { fileError } from '../../../services/projectFiles';
+import { useProjectClients, useSetup, CLIENT_STATUSES, clientActive } from './partyData';
+import { SetupGate, Badge, Logo, Detail, Bar } from './partyUi';
+import ClientFormDialog from '../../shared/ClientFormDialog';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Client Management › Client Directory, who the project is for.
@@ -109,7 +109,7 @@ export default function ClientDirectory({ project, onOpen }) {
                     link={links.find((l) => l.client_id === current.id)} canEdit={canEdit} canRemove={canRemove}
                     onEdit={() => setEditing(current)} onClose={() => setOpen(null)} onOpen={onOpen} />
             )}
-            {editing && <ClientForm client={editing.id ? editing : null} project={project} onClose={() => setEditing(null)} />}
+            {editing && <ClientFormDialog client={editing.id ? editing : null} project={project} onClose={() => setEditing(null)} />}
             {adding && (
                 <AddClient project={project} all={all} linked={new Set(clients.map((c) => c.id))}
                     onNew={() => { setAdding(false); setEditing({}); }} onClose={() => setAdding(false)} />
@@ -262,89 +262,6 @@ function AddClient({ project, all, linked, onNew, onClose }) {
                     </Select>
                 </Field>
             )}
-        </Modal>
-    );
-}
-
-const RULES = {
-    name: [{ required: true, message: 'Give the client a name.' }],
-    email: [{ test: isEmail, message: 'That email does not look right.' }],
-    phone: [{ test: isPhone, message: 'Use 7–15 digits, with + ( ) - allowed.' }],
-    alt_contact: [{ test: (v) => isEmail(v) || isPhone(v), message: 'An email or a phone number.' }],
-    website: [{ test: isUrl, message: 'That website does not look right.' }],
-    gstin: [{ test: isGstin, message: 'A GSTIN is 15 characters, like 29ABCDE1234F1Z5.' }],
-    client_since: [{ test: (v) => v <= todayIso(), message: 'That date is in the future.' }],
-};
-
-function ClientForm({ client, project, onClose }) {
-    const t = useT();
-    const toast = useToast();
-    const [form, setForm] = useState(() => ({
-        name: client?.name || '', industry: client?.industry || '', logo_path: client?.logo_path || null,
-        person_name: client?.person_name || '', contact_designation: client?.contact_designation || '',
-        email: client?.email || '', phone: client?.phone || '', alt_contact: client?.alt_contact || '',
-        address: client?.address || '', gstin: client?.gstin || '', website: client?.website || '',
-        client_since: client?.client_since || '', status: client?.status || 'active',
-        contacts: client?.contacts || [],
-    }));
-    const [errors, setErrors] = useState({});
-    const [problems, setProblems] = useState([]);
-    const [saving, setSaving] = useState(false);
-    const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e?.target ? e.target.value : e }));
-
-    const save = async () => {
-        const errs = validate(form, RULES);
-        const cp = contactErrors(form.contacts);
-        setErrors(errs); setProblems(cp);
-        if (Object.keys(errs).length || cp.length) return;
-        setSaving(true);
-        try {
-            const id = await saveClient(client?.id || null, { ...form, name: form.name.trim() });
-            if (!client) {
-                if (!project.client_id && canEditProjects()) await updateProject(project.id, { client_id: id });
-                else await orgStore.addItem('project_clients', { project_id: project.id, client_id: id });
-            }
-            toast(client ? 'Client updated' : 'Client added to the project', 'success');
-            onClose();
-        } catch (e) {
-            toast(fileError(e), 'error');
-        } finally { setSaving(false); }
-    };
-
-    const F = ({ k, label, children, hint }) => (
-        <Field label={label} hint={hint} required={!!RULES[k]?.some((r) => r.required)}>{children}<FieldError>{errors[k]}</FieldError></Field>
-    );
-
-    return (
-        <Modal open onClose={onClose} width={720} title={client ? `Edit ${client.name}` : 'New client'}
-            note={client ? 'Changes show everywhere this client appears' : 'Added to your clients and to this project'}
-            footer={<>
-                <Btn onClick={onClose}>Cancel</Btn>
-                <Btn primary disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</Btn>
-            </>}>
-            <div style={{ display: 'grid', gap: 14 }}>
-                <LogoField kind="clients" value={form.logo_path} name={form.name} onChange={set('logo_path')} />
-                <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                    {F({ k: 'name', label: 'Client / company name *', children: <Input value={form.name} onChange={set('name')} maxLength={200} /> })}
-                    {F({ k: 'industry', label: 'Industry', children: <Input value={form.industry} onChange={set('industry')} placeholder="Retail, Healthcare…" /> })}
-                    {F({ k: 'status', label: 'Status', children: (
-                        <Select value={form.status} onChange={set('status')}>
-                            {CLIENT_STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}{s.id === 'active' ? '' : ' (inactive)'}</option>)}
-                        </Select>
-                    ) })}
-                    {F({ k: 'person_name', label: 'Primary contact person', children: <Input value={form.person_name} onChange={set('person_name')} /> })}
-                    {F({ k: 'contact_designation', label: 'Designation', children: <Input value={form.contact_designation} onChange={set('contact_designation')} /> })}
-                    {F({ k: 'email', label: 'Email', children: <Input type="email" value={form.email} onChange={set('email')} /> })}
-                    {F({ k: 'phone', label: 'Phone', children: <Input type="tel" value={form.phone} onChange={set('phone')} /> })}
-                    {F({ k: 'alt_contact', label: 'Alternate contact', hint: 'Email or phone', children: <Input value={form.alt_contact} onChange={set('alt_contact')} /> })}
-                    {F({ k: 'website', label: 'Website', children: <Input value={form.website} onChange={set('website')} placeholder="example.com" /> })}
-                    {F({ k: 'gstin', label: 'GST / Tax ID', children: <Input value={form.gstin} onChange={set('gstin')} style={{ textTransform: 'uppercase' }} /> })}
-                    {F({ k: 'client_since', label: 'Client since', children: <Input type="date" value={form.client_since} max={todayIso()} onChange={set('client_since')} /> })}
-                </div>
-                {F({ k: 'address', label: 'Billing address', children: <Textarea rows={2} value={form.address} onChange={set('address')} style={{ minHeight: 56 }} /> })}
-                <ContactsEditor contacts={form.contacts} onChange={(contacts) => setForm((f) => ({ ...f, contacts }))} />
-                {problems.map((p) => <div key={p} role="alert" style={{ fontSize: 12, color: t.down }}>{p}</div>)}
-            </div>
         </Modal>
     );
 }

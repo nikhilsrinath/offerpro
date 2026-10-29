@@ -11,7 +11,7 @@ import {
     createProject, updateProject, prefillFromQuotation, prefillFromClient, canSeeFinancials,
 } from '../../services/projectService';
 import { projectSectionPath } from './projectPaths';
-import AddClientDialog from '../shared/AddClientDialog';
+import ClientFormDialog from '../shared/ClientFormDialog';
 import { projectRef } from './projectSlug';
 import { currencySymbol, baseCurrency, CURRENCY_OPTIONS } from '../../shared/currency.js';
 
@@ -296,8 +296,8 @@ export default function ProjectForm({ project = null, onDone }) {
                 </Btn>
             </Row>
             {addingClient && (
-                <AddClientDialog onClose={() => setAddingClient(false)}
-                    onCreated={(c) => c?.id && setForm((f) => ({ ...f, client_id: c.id }))} />
+                <ClientFormDialog onClose={() => setAddingClient(false)}
+                    onSaved={(c) => c?.id && setForm((f) => ({ ...f, client_id: c.id }))} />
             )}
         </form>
     );

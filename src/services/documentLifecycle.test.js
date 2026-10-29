@@ -18,6 +18,20 @@ describe('lifecycleOf: delete', () => {
     expect(l.cancel.allowed).toBe(true);
   });
 
+  it('deletes an uploaded invoice with no money against it, and can still cancel it', () => {
+    const up = doc({ type: 'invoice', status: 'sent', uploaded: true });
+    expect(lifecycleOf(up, []).delete.allowed).toBe(true);
+    expect(lifecycleOf(up, []).cancel.allowed).toBe(true);
+  });
+
+  it('keeps an uploaded invoice with money against it', () => {
+    const paid = doc({ type: 'invoice', status: 'partially_paid', uploaded: true, amount_paid: 200 });
+    expect(lifecycleOf(paid, []).delete.allowed).toBe(false);
+    expect(lifecycleOf(paid, []).delete.reason).toMatch(/payment/);
+    const claimed = doc({ type: 'invoice', status: 'payment_submitted', uploaded: true });
+    expect(lifecycleOf(claimed, []).delete.allowed).toBe(false);
+  });
+
   it('cancels, rather than deletes, anything the client has received', () => {
     for (const d of [doc({ status: 'sent' }), doc({ status: 'draft', current_version_id: 'v1' }), doc({ status: 'accepted' })]) {
       const l = lifecycleOf(d, []);

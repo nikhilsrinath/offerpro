@@ -35,6 +35,7 @@ export const PAYMENT_METHODS = [
   { key: 'upi',           label: 'UPI' },
   { key: 'cash',          label: 'Cash' },
   { key: 'card',          label: 'Card' },
+  { key: 'emi',           label: 'EMI' },
   { key: 'cheque',        label: 'Cheque' },
   { key: 'wallet',        label: 'Wallet' },
   { key: 'other',         label: 'Other' },

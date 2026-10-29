@@ -1,20 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Panel, Row, Btn, Seg, Search, Select, Field, Input, Textarea, Empty, Modal, ConfirmBtn, Grid, Muted,
+    Panel, Row, Btn, Seg, Search, Select, Field, Input, Empty, Modal, ConfirmBtn, Grid, Muted,
     Table, Tr, Td,
 } from '../../ui/edge';
 import { useT, fmtDate } from '../../ui/edgeUtils';
 import { useToast } from '../../shared/Toast';
 import { useSection } from '../../financial/financeHooks';
 import { orgStore } from '../../../services/orgStore';
-import { saveVendor, uploadProjectFile, fileError } from '../../../services/projectFiles';
-import {
-    validate, isEmail, isPhone, isUrl, isGstin, isIfsc, isSwift, contactErrors, fmtMoney,
-} from '../../../services/projectWorkspace';
+import { uploadProjectFile, fileError } from '../../../services/projectFiles';
+import { fmtMoney } from '../../../services/projectWorkspace';
 import { useProjectVendors, useSetup, todayIso } from './partyData';
 import { projectLabel } from '../../../services/projectAnalytics';
-import { SetupGate, Badge, Logo, LogoField, ContactsEditor, Detail, FieldError, AttachedFiles, Bar } from './partyUi';
-import { recordCurrency } from '../../../shared/currency.js';
+import { SetupGate, Badge, Logo, Detail, AttachedFiles, Bar } from './partyUi';
+import VendorFormDialog from '../../shared/VendorFormDialog';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Vendor Management › Vendor Directory, who the project buys from.
@@ -135,7 +133,7 @@ export default function VendorDirectory({ project }) {
                 <VendorSheet vendor={current} project={project} canEdit={canEdit} canRemove={canRemove}
                     onEdit={() => setEditing(current)} onClose={() => setOpen(null)} />
             )}
-            {editing && <VendorForm vendor={editing.id ? editing : null} project={project} onClose={() => setEditing(null)} />}
+            {editing && <VendorFormDialog vendor={editing.id ? editing : null} project={project} onClose={() => setEditing(null)} />}
             {adding && (
                 <AddVendor project={project} all={all} linked={new Set(vendors.map((v) => v.id))}
                     onNew={() => { setAdding(false); setEditing({}); }} onClose={() => setAdding(false)} />
@@ -391,111 +389,6 @@ function AddVendor({ project, all, linked, onNew, onClose }) {
                     <Field label="Scope on this project" hint="Optional"><Input value={scope} maxLength={500} onChange={(e) => setScope(e.target.value)} placeholder="Printing, hosting, site work…" /></Field>
                 </div>
             )}
-        </Modal>
-    );
-}
-
-const RULES = {
-    company_name: [{ required: true, message: 'Give the vendor a name.' }],
-    email: [{ test: isEmail, message: 'That email does not look right.' }],
-    phone: [{ test: isPhone, message: 'Use 7–15 digits, with + ( ) - allowed.' }],
-    website: [{ test: isUrl, message: 'That website does not look right.' }],
-    gstin: [{ test: isGstin, message: 'A GSTIN is 15 characters, like 29ABCDE1234F1Z5.' }],
-    contract_value: [{ test: (v) => Number(v) >= 0 && Number.isFinite(Number(v)), message: 'A positive amount.' }],
-    contract_end: [{ test: (v, f) => !f.contract_start || v >= f.contract_start, message: 'The end is before the start.' }],
-    account_number: [{ test: (v) => /^[0-9A-Za-z]{6,34}$/.test(String(v).replace(/\s/g, '')), message: '6–34 letters or digits.' }],
-    ifsc: [{ test: isIfsc, message: 'An IFSC looks like HDFC0001234.' }],
-    swift: [{ test: isSwift, message: 'A SWIFT code is 8 or 11 characters.' }],
-};
-
-function VendorForm({ vendor, project, onClose }) {
-    const t = useT();
-    const toast = useToast();
-    const banks = useSection('vendor_bank_accounts');
-    const bank = vendor ? banks.find((b) => b.vendor_id === vendor.id) : null;
-    const canBank = orgStore.can('vendor_banking', bank ? 'edit' : 'create');
-    const [form, setForm] = useState(() => ({
-        company_name: vendor?.company_name || '', category: vendor?.category || '', logo_path: vendor?.logo_path || null,
-        contact_name: vendor?.contact_name || '', email: vendor?.email || '', phone: vendor?.phone || '',
-        address: vendor?.address || '', gstin: vendor?.gstin || '', website: vendor?.website || '',
-        contract_start: vendor?.contract_start || '', contract_end: vendor?.contract_end || '',
-        contract_value: vendor?.contract_value ?? '', status: vendor?.status || 'active', contacts: vendor?.contacts || [],
-        scope: vendor?._link?.scope || '',
-        account_name: bank?.account_name || '', account_number: bank?.account_number || '', bank_name: bank?.bank_name || '',
-        ifsc: bank?.ifsc || '', swift: bank?.swift || '',
-    }));
-    const [errors, setErrors] = useState({});
-    const [problems, setProblems] = useState([]);
-    const [saving, setSaving] = useState(false);
-    const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e?.target ? e.target.value : e }));
-
-    const save = async () => {
-        const errs = validate(form, RULES);
-        const cp = contactErrors(form.contacts);
-        setErrors(errs); setProblems(cp);
-        if (Object.keys(errs).length || cp.length) return;
-        setSaving(true);
-        try {
-            const id = await saveVendor(vendor?.id || null, {
-                ...form, company_name: form.company_name.trim(),
-                contract_value: form.contract_value === '' ? null : Number(form.contract_value),
-            });
-            if (!vendor) await orgStore.addItem('project_vendors', { project_id: project.id, vendor_id: id, scope: form.scope });
-            else if (vendor._link && form.scope !== (vendor._link.scope || '')) {
-                await orgStore.updateItem('project_vendors', vendor._link.id, { scope: form.scope });
-            }
-            const hasBank = form.account_name || form.account_number || form.bank_name || form.ifsc || form.swift;
-            if (canBank && (hasBank || bank)) {
-                const data = { vendor_id: id, account_name: form.account_name, account_number: form.account_number.replace(/\s/g, ''), bank_name: form.bank_name, ifsc: form.ifsc, swift: form.swift };
-                if (bank) await orgStore.updateItem('vendor_bank_accounts', bank.id, data);
-                else await orgStore.addItem('vendor_bank_accounts', data);
-            }
-            toast(vendor ? 'Vendor updated' : 'Vendor added to the project', 'success');
-            onClose();
-        } catch (e) { toast(fileError(e), 'error'); } finally { setSaving(false); }
-    };
-
-    const F = ({ k, label, hint, children }) => <Field label={label} hint={hint} required={!!RULES[k]?.some((r) => r.required)}>{children}<FieldError>{errors[k]}</FieldError></Field>;
-    const grid = { display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' };
-
-    return (
-        <Modal open onClose={onClose} width={740} title={vendor ? `Edit ${vendor.company_name}` : 'New vendor'}
-            note={vendor ? 'Changes show everywhere this vendor appears' : 'Added to your vendors and to this project'}
-            footer={<><Btn onClick={onClose}>Cancel</Btn><Btn primary disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</Btn></>}>
-            <div style={{ display: 'grid', gap: 14 }}>
-                <LogoField kind="vendors" value={form.logo_path} name={form.company_name} onChange={set('logo_path')} />
-                <div style={grid}>
-                    {F({ k: 'company_name', label: 'Vendor / company name *', children: <Input value={form.company_name} maxLength={200} onChange={set('company_name')} /> })}
-                    {F({ k: 'category', label: 'Category / service', children: <Input value={form.category} onChange={set('category')} placeholder="Printing, IT services…" /> })}
-                    {F({ k: 'status', label: 'Status', children: <Select value={form.status} onChange={set('status')}><option value="active">Active</option><option value="inactive">Inactive</option></Select> })}
-                    {F({ k: 'contact_name', label: 'Contact person', children: <Input value={form.contact_name} onChange={set('contact_name')} /> })}
-                    {F({ k: 'email', label: 'Email', children: <Input type="email" value={form.email} onChange={set('email')} /> })}
-                    {F({ k: 'phone', label: 'Phone', children: <Input type="tel" value={form.phone} onChange={set('phone')} /> })}
-                    {F({ k: 'gstin', label: 'GST / Tax ID', children: <Input value={form.gstin} onChange={set('gstin')} style={{ textTransform: 'uppercase' }} /> })}
-                    {F({ k: 'website', label: 'Website', children: <Input value={form.website} onChange={set('website')} /> })}
-                </div>
-                {F({ k: 'address', label: 'Address', children: <Textarea rows={2} value={form.address} onChange={set('address')} style={{ minHeight: 56 }} /> })}
-                <div style={grid}>
-                    {F({ k: 'contract_start', label: 'Contract start', children: <Input type="date" value={form.contract_start} onChange={set('contract_start')} /> })}
-                    {F({ k: 'contract_end', label: 'Contract end', children: <Input type="date" value={form.contract_end} min={form.contract_start || undefined} onChange={set('contract_end')} /> })}
-                    {F({ k: 'contract_value', label: `Contract value (${recordCurrency(project.currency)})`, children: <Input type="number" min="0" step="0.01" value={form.contract_value} onChange={set('contract_value')} /> })}
-                    {F({ k: 'scope', label: 'Scope on this project', children: <Input value={form.scope} maxLength={500} onChange={set('scope')} /> })}
-                </div>
-                {canBank && (
-                    <fieldset style={{ border: '1px solid ' + t.line, borderRadius: 9, padding: 12, margin: 0 }}>
-                        <legend style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, padding: '0 6px' }}>BANK DETAILS (VISIBLE ONLY WITH THE BANK DETAILS PERMISSION)</legend>
-                        <div style={grid}>
-                            {F({ k: 'account_name', label: 'Account name', children: <Input value={form.account_name} onChange={set('account_name')} autoComplete="off" /> })}
-                            {F({ k: 'account_number', label: 'Account number', children: <Input value={form.account_number} onChange={set('account_number')} autoComplete="off" inputMode="numeric" /> })}
-                            {F({ k: 'bank_name', label: 'Bank', children: <Input value={form.bank_name} onChange={set('bank_name')} /> })}
-                            {F({ k: 'ifsc', label: 'IFSC', children: <Input value={form.ifsc} onChange={set('ifsc')} style={{ textTransform: 'uppercase' }} /> })}
-                            {F({ k: 'swift', label: 'SWIFT', hint: 'For payments abroad', children: <Input value={form.swift} onChange={set('swift')} style={{ textTransform: 'uppercase' }} /> })}
-                        </div>
-                    </fieldset>
-                )}
-                <ContactsEditor contacts={form.contacts} onChange={(contacts) => setForm((f) => ({ ...f, contacts }))} />
-                {problems.map((p) => <div key={p} role="alert" style={{ fontSize: 12, color: t.down }}>{p}</div>)}
-            </div>
         </Modal>
     );
 }

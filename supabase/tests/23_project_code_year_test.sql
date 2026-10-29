@@ -2,10 +2,11 @@
 -- EdgeOS · A project's code carries the year it started (0096)
 --
 --   · a project numbers in the year of its start date, not the day it was entered
---   · each year numbers from 001, in the order projects are added
+--   · each year numbers from 001
 --   · with no start date, the year it was entered
 --   · a start date filled in later, in another year, moves the code to that year
 --   · a start date changed to another year moves the code to that year (0097)
+--   · within a year, codes run in start-date order; deletes close gaps (0100)
 --
 -- Everything runs in one transaction and rolls back at the end.
 -- ============================================================================
@@ -64,26 +65,49 @@ select pg_temp.check(
   (select code from projects where id = 'f9500000-0000-0000-0000-000000000004') = 'PRJ-2023-001',
   'a start date filled in later, in another year, moves the code to that year');
 
--- ─── A start date changed (0097) ────────────────────────────────────────────
+-- ─── Codes follow start-date order within a year (0100) ─────────────────────
+
+insert into projects (id, org_id, name, start_date, status) values
+  ('f9500000-0000-0000-0000-000000000005', 'f9a00000-0000-0000-0000-00000000000a', 'Earlier, added last', '2026-02-14', 'completed');
+select pg_temp.check(
+  (select code from projects where id = 'f9500000-0000-0000-0000-000000000005') = 'PRJ-2026-001',
+  'a project added last but started first in the year is 001');
+select pg_temp.check(
+  (select code from projects where id = 'f9500000-0000-0000-0000-000000000002') = 'PRJ-2026-002',
+  'the later-starting project moves to 002');
 
 update projects set start_date = '2024-12-31' where id = 'f9500000-0000-0000-0000-000000000001';
 select pg_temp.check(
-  (select code from projects where id = 'f9500000-0000-0000-0000-000000000001') = 'PRJ-2024-001',
-  'a start date changed within the same year leaves the code alone');
+  (select code from projects where id = 'f9500000-0000-0000-0000-000000000001') = 'PRJ-2024-002'
+  and (select code from projects where id = 'f9500000-0000-0000-0000-000000000003') = 'PRJ-2024-001',
+  'a start date moved later within the year swaps the order');
 
 update projects set start_date = '2025-06-01' where id = 'f9500000-0000-0000-0000-000000000001';
 select pg_temp.check(
-  (select code from projects where id = 'f9500000-0000-0000-0000-000000000001') = 'PRJ-2025-001',
-  'a start date changed to another year moves the code to that year''s next number');
+  (select code from projects where id = 'f9500000-0000-0000-0000-000000000001') = 'PRJ-2025-001'
+  and (select code from projects where id = 'f9500000-0000-0000-0000-000000000003') = 'PRJ-2024-001',
+  'a start date changed to another year moves the code into that year''s order');
 
 update projects set start_date = '2024-04-01' where id = 'f9500000-0000-0000-0000-000000000002';
 select pg_temp.check(
-  (select code from projects where id = 'f9500000-0000-0000-0000-000000000002') = 'PRJ-2024-003',
-  'moved back into a year that has projects, it takes the next free number');
+  (select code from projects where id = 'f9500000-0000-0000-0000-000000000002') = 'PRJ-2024-001'
+  and (select code from projects where id = 'f9500000-0000-0000-0000-000000000003') = 'PRJ-2024-002',
+  'moved into an earlier spot of another year, it takes that place');
 
-update projects set start_date = null where id = 'f9500000-0000-0000-0000-000000000002';
+delete from projects where id = 'f9500000-0000-0000-0000-000000000002';
 select pg_temp.check(
-  (select code from projects where id = 'f9500000-0000-0000-0000-000000000002') = 'PRJ-2024-003',
-  'clearing the start date leaves the code alone');
+  (select code from projects where id = 'f9500000-0000-0000-0000-000000000003') = 'PRJ-2024-001',
+  'deleting a project closes the gap');
+
+select pg_temp.check(
+  (select last_num from project_code_counters
+    where org_id = 'f9a00000-0000-0000-0000-00000000000a' and year = 2024) = 1,
+  'the year''s counter matches its last code');
+
+do $$ begin
+  update projects set code = 'PRJ-2024-099' where id = 'f9500000-0000-0000-0000-000000000003';
+  raise exception 'FAIL  a code typed in by hand was accepted';
+exception when check_violation then raise notice '  PASS  a code cannot be set by hand';
+end $$;
 
 rollback;

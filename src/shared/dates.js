@@ -72,6 +72,14 @@ export function formatDate(isoDate) {
   return `${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
+/** "02-10-2026" · day-month-year, as the billing lists show dates. */
+export function formatDateDMY(value) {
+  const iso = String(value || '').slice(0, 10);
+  if (!isIsoDate(iso)) return value ? String(value) : '-';
+  const [y, m, d] = iso.split('-');
+  return `${d}-${m}-${y}`;
+}
+
 /** "25 Sep" when the year is the one in `today`, "25 Sep 2025" otherwise. */
 export function formatDateShort(isoDate, today) {
   if (!isIsoDate(isoDate)) return isoDate ? String(isoDate) : '-';

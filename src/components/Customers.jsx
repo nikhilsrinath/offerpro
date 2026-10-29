@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
 import { RowMenu } from './ui/edge';
-import { Modal } from './financial/financeUi';
 import {
   Plus, Search, Edit3, Trash2, UserPlus,
   Mail, MapPin, Phone, Hash, ArrowLeft, FileText, FolderKanban,
@@ -9,30 +8,16 @@ import { customerService } from '../services/customerService';
 import { documentStore, docNumber as docNo } from '../services/documentStore';
 import { useOrg } from '../context/OrgContext';
 import DocumentStatusBadge from './shared/DocumentStatusBadge';
-import CountrySelect from './shared/CountrySelect';
-import { withDialCode } from '../data/dialCodes';
 import RelatedProjects from './projects/RelatedProjects';
 import { confirmDialog } from '../services/confirm';
 import { useToast } from './shared/Toast';
-import ClientProjectSelect, { ProjectScopeFilter } from './shared/ClientProjectSelect';
+import { ProjectScopeFilter } from './shared/ClientProjectSelect';
 import { useClientProjects } from './shared/useClientProjects';
-import { OTHERS, initialProject, assignProject, filterByProject } from '../services/clientProjects';
+import { OTHERS, filterByProject } from '../services/clientProjects';
 import { initialQuery } from '../services/urlQuery';
 import { currencySymbol, currencyLocale } from '../shared/currency.js';
-
-const EMPTY_CUSTOMER = {
-  // clientName is the billing name. The company, or the person when the
-  // client is an individual. person_name is who you deal with there.
-  clientName: '', person_name: '', clientEmail: '', clientAddress: '',
-  buyerGSTIN: '', buyerState: '', contactPhone: '', notes: '',
-  // Optional. Left blank, a document billed to this customer falls back to the
-  // GST state (an Indian state implies India) and then to your organisation's
-  // own country: so Sales by Countries works without anyone filling this in.
-  // It is here for the cases inference gets wrong.
-  country_code: '',
-  // Which project they belong to; OTHERS until they are on one.
-  project: OTHERS,
-};
+import ClientFormDialog from './shared/ClientFormDialog';
+import { Logo } from './projects/parties/partyUi';
 
 // A contact worth showing under the billing name: an individual client has
 // their own name in both places, and repeating it adds nothing.
@@ -115,9 +100,11 @@ function CustomerDetail({ customer, orgId, onBack, onEdit }) {
         </button>
         <span style={{ color: 'var(--border-default)', userSelect: 'none' }}>/</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
-          <div style={{ width: 42, height: 42, borderRadius: '11px', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 800, color: '#818cf8', flexShrink: 0 }}>
-            {initials(customer.clientName)}
-          </div>
+          {customer.logo_path ? <Logo path={customer.logo_path} name={customer.clientName} size={42} /> : (
+            <div style={{ width: 42, height: 42, borderRadius: '11px', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 800, color: '#818cf8', flexShrink: 0 }}>
+              {initials(customer.clientName)}
+            </div>
+          )}
           <div style={{ minWidth: 0 }}>
             <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {customer.clientName}
@@ -291,13 +278,9 @@ export default function Customers() {
   const statusFilter = 'billable';
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
-  const [formData, setFormData] = useState(EMPTY_CUSTOMER);
-  const [saving, setSaving] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const cp = useClientProjects();
   const [projectScope, setProjectScope] = useState('');
-  // What the project dropdown opened on, so an edit that changes it moves them.
-  const [fromProject, setFromProject] = useState(OTHERS);
 
   useEffect(() => {
     if (activeOrg?.id) loadCustomers();
@@ -327,76 +310,24 @@ export default function Customers() {
 
   const openAdd = () => {
     setEditingCustomer(null);
-    // Adding while the list is narrowed to a project puts them on it.
-    const project = projectScope && projectScope !== OTHERS ? projectScope : OTHERS;
-    setFormData({ ...EMPTY_CUSTOMER, project });
-    setFromProject(OTHERS);
     setModalOpen(true);
   };
 
   const openEdit = (customer, e) => {
     if (e) e.stopPropagation();
     setEditingCustomer(customer);
-    setFormData({
-      // An individual is stored with their own name in both columns; the form
-      // shows them as a contact with no company rather than repeating it.
-      clientName:    customer.clientName && customer.clientName !== customer.person_name ? customer.clientName : '',
-      person_name:   customer.person_name   || '',
-      clientEmail:   customer.clientEmail   || '',
-      clientAddress: customer.clientAddress || '',
-      buyerGSTIN:    customer.buyerGSTIN    || '',
-      buyerState:    customer.buyerState    || '',
-      country_code:  customer.country_code  || '',
-      contactPhone:  customer.contactPhone  || '',
-      notes:         customer.notes         || '',
-      project:       initialProject(customer.id, cp.projects, cp.links),
-    });
-    setFromProject(initialProject(customer.id, cp.projects, cp.links));
     setModalOpen(true);
   };
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    const company = formData.clientName.trim();
-    const contact = formData.person_name.trim();
-    if (!company && !contact) {
-      toast('Enter a company name or a contact person', 'error');
-      return;
+  const handleSaved = async (saved) => {
+    // If we're in detail view, refresh selectedCustomer data
+    if (selectedCustomer?.id === saved.id) setSelectedCustomer(saved);
+    // This list is active clients; a lead, a lost or an archived one leaves it.
+    if ((saved.status || 'active') !== 'active') {
+      toast(`${saved.clientName} is saved as ${saved.status}, so it is not listed here. Set it back to Active to see it again`, 'info');
+      if (selectedCustomer?.id === saved.id) setSelectedCustomer(null);
     }
-    // Billed under the company; an individual is billed under their own name.
-    // `project` is not a client column; it is applied through the project links.
-    const { project, ...fields } = formData;
-    const data = { ...fields, clientName: company || contact, person_name: contact };
-    setSaving(true);
-    try {
-      let clientId = editingCustomer?.id;
-      if (editingCustomer) {
-        await customerService.update(activeOrg.id, editingCustomer.id, data);
-        // If we're in detail view, refresh selectedCustomer data
-        if (selectedCustomer?.id === editingCustomer.id) {
-          setSelectedCustomer({ ...editingCustomer, ...data, name: data.clientName });
-        }
-      } else {
-        clientId = (await customerService.create(activeOrg.id, data))?.id;
-      }
-      if (clientId) {
-        try {
-          const { keptPrimary } = await assignProject(clientId, project, fromProject, cp.projects, cp.links);
-          if (keptPrimary) {
-            const p = cp.projects.find(x => x.id === keptPrimary);
-            toast(`Still the main client of ${p?.name || 'their project'}. Change that from the project`, 'info');
-          }
-        } catch (err) {
-          toast('Client saved, but the project could not be set: ' + err.message, 'error');
-        }
-      }
-      setModalOpen(false);
-      await loadCustomers();
-    } catch (err) {
-      alert('Error saving customer: ' + err.message);
-    } finally {
-      setSaving(false);
-    }
+    await loadCustomers();
   };
 
   const handleDelete = async (customer, e) => {
@@ -410,69 +341,6 @@ export default function Customers() {
       alert('Error deleting customer: ' + err.message);
     }
   };
-
-  // One form for Add and Edit, in the list and in the detail view. Who you deal
-  // with comes first, then where they work, then which project they belong to.
-  const formFields = () => (
-    <div className="easy-row" style={{ gap: '1rem' }}>
-      <div className="easy-field">
-        <label className="easy-lbl">Contact person</label>
-        <input aria-label="Contact person" type="text" value={formData.person_name}
-          onChange={e => setFormData({ ...formData, person_name: e.target.value })} className="easy-inp" autoFocus />
-      </div>
-      <div className="easy-field">
-        <label className="easy-lbl">Company name</label>
-        <input aria-label="Company name" type="text" value={formData.clientName}
-          onChange={e => setFormData({ ...formData, clientName: e.target.value })} className="easy-inp" />
-      </div>
-      <div className="easy-field full">
-        <label className="easy-lbl" htmlFor="customer-project">Project</label>
-        <ClientProjectSelect id="customer-project" cp={cp} value={formData.project}
-          onChange={project => setFormData({ ...formData, project })} />
-      </div>
-      <div className="easy-field">
-        <label className="easy-lbl">Email</label>
-        <input aria-label="Email" type="email" value={formData.clientEmail}
-          onChange={e => setFormData({ ...formData, clientEmail: e.target.value })} className="easy-inp" />
-      </div>
-      <div className="easy-field">
-        <label className="easy-lbl">Phone</label>
-        <input aria-label="Phone" type="text" value={formData.contactPhone}
-          onChange={e => setFormData({ ...formData, contactPhone: e.target.value })} className="easy-inp" />
-      </div>
-      <div className="easy-field full">
-        <label className="easy-lbl">Address</label>
-        <input aria-label="Address" type="text" value={formData.clientAddress}
-          onChange={e => setFormData({ ...formData, clientAddress: e.target.value })} className="easy-inp" />
-      </div>
-      <div className="easy-field">
-        <label className="easy-lbl">GSTIN</label>
-        <input aria-label="GSTIN" type="text" value={formData.buyerGSTIN}
-          onChange={e => setFormData({ ...formData, buyerGSTIN: e.target.value.toUpperCase() })}
-          className="easy-inp" maxLength={15} style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }} />
-      </div>
-      <div className="easy-field">
-        <label className="easy-lbl">State</label>
-        <input aria-label="State" type="text" value={formData.buyerState}
-          onChange={e => setFormData({ ...formData, buyerState: e.target.value })} className="easy-inp" />
-      </div>
-      <div className="easy-field">
-        <label className="easy-lbl">Country</label>
-        <CountrySelect ariaLabel="Country"
-          value={formData.country_code}
-          placeholder=""
-          onChange={code => setFormData({ ...formData, country_code: code, contactPhone: withDialCode(formData.contactPhone, formData.country_code, code) })}
-        />
-      </div>
-      <div className="easy-field full">
-        <label className="easy-lbl">Note</label>
-        <textarea aria-label="Note" rows={3}
-          value={formData.notes}
-          onChange={e => setFormData({ ...formData, notes: e.target.value })}
-          className="easy-inp" style={{ resize: 'none' }} />
-      </div>
-    </div>
-  );
 
   if (loading) {
     return (
@@ -495,21 +363,8 @@ export default function Customers() {
           onBack={() => setSelectedCustomer(null)}
           onEdit={() => openEdit(selectedCustomer)}
         />
-        {/* Edit modal (reused) */}
         {modalOpen && (
-          <Modal title="Edit Client" onClose={() => setModalOpen(false)}>
-            <form onSubmit={handleSave} className="prod-modal-body">
-              {formFields()}
-              <div className="prod-modal-foot">
-                <button type="button" onClick={() => setModalOpen(false)} className="prod-btn-ghost">
-                  Cancel
-                </button>
-                <button type="submit" disabled={saving} className="prod-btn-primary">
-                  {saving ? 'Saving...' : 'Update Client'}
-                </button>
-              </div>
-            </form>
-          </Modal>
+          <ClientFormDialog client={editingCustomer} onClose={() => setModalOpen(false)} onSaved={handleSaved} />
         )}
       </>
     );
@@ -558,7 +413,7 @@ export default function Customers() {
             >
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <h4 title={customer.clientName} style={{ fontSize: '0.9375rem', fontWeight: 700, margin: 0, lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflowWrap: 'break-word' }}>
                     {customer.clientName}
                   </h4>
                   {hasContact(customer) && (
@@ -630,22 +485,14 @@ export default function Customers() {
         </div>
       )}
 
-      {/* Add / Edit Modal */}
+      {/* Add / Edit panel */}
       {modalOpen && (
-        <Modal title={editingCustomer ? 'Edit Client' : 'Add Client'} onClose={() => setModalOpen(false)}>
-          <form onSubmit={handleSave} className="prod-modal-body">
-            {formFields()}
-            <div className="prod-modal-foot">
-              <button type="button" onClick={() => setModalOpen(false)} className="prod-btn-ghost">
-                Cancel
-              </button>
-              <button type="submit" disabled={saving} className="prod-btn-primary">
-                {saving ? 'Saving...' : editingCustomer ? 'Update Client' : 'Add Client'}
-              </button>
-            </div>
-          </form>
-        </Modal>
+        <ClientFormDialog client={editingCustomer}
+          // Adding while the list is narrowed to a project puts them on it.
+          defaultProject={projectScope && projectScope !== OTHERS ? projectScope : OTHERS}
+          onClose={() => setModalOpen(false)} onSaved={handleSaved} />
       )}
     </div>
   );
 }
+

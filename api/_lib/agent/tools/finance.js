@@ -1085,7 +1085,7 @@ const delete_financial_document = {
   kind: 'write',
   risk: 'high',
   permission: { resource: 'financial_documents', action: 'delete' },
-  description: 'Delete a quotation or proforma draft that was never sent, and only when the user says delete. Tax invoices are never deleted (use cancel_financial_document).',
+  description: 'Delete a quotation or proforma draft that was never sent, and only when the user says delete. Tax invoices are never deleted (use cancel_financial_document), except an uploaded invoice with no payment against it.',
   params: { type: 'object', properties: { document: { type: 'string' } }, required: ['document'] },
   undoable: false,
 
@@ -1106,14 +1106,14 @@ const delete_financial_document = {
   },
 
   async preview(args, ctx) {
-    const { row, parent } = await lifecycleFor(args.document, ctx);
+    const { row, doc, parent } = await lifecycleFor(args.document, ctx);
     return {
       title: `Delete ${TYPE_NOUN[row.type]} ${row.doc_number}`,
       target: entityOf('invoice', row),
       preview: {
         kind: 'delete',
         rows: [['Document', `${row.doc_number} (${row.status})`], ['Client', row.bill_to_name], ['Total', money(row.grand_total, row.currency || 'INR')]],
-        note: parent && revertedStatusOf(parent) ? `${docNumber(parent)} goes back to ${revertedStatusOf(parent)}, so it can be converted again.` : 'It was never sent, so it is removed completely with its lines.',
+        note: parent && revertedStatusOf(parent) ? `${docNumber(parent)} goes back to ${revertedStatusOf(parent)}, so it can be converted again.` : doc.uploaded ? 'An uploaded invoice with no payment against it, so it is removed completely.' : 'It was never sent, so it is removed completely with its lines.',
       },
       confirmLabel: `Delete ${row.doc_number}`,
       irreversible: 'A deleted draft cannot be restored.',

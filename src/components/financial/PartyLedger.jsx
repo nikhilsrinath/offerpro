@@ -4,6 +4,7 @@ import { Stat } from './financeUi';
 import { useSection, money } from './financeHooks';
 import CashEntryModal from './CashEntryModal';
 import ClientInvoicePanel from './ClientInvoicePanel';
+import { useInvoiceActions } from './invoiceActions';
 import { RecordMoneyCard } from './CashBook';
 import { blank } from './cashEntry';
 import { useT } from '../ui/edgeUtils';
@@ -69,6 +70,8 @@ export default function PartyLedger({ party = 'client', projectId = null, onOpen
   const chosen = partyId === 'all' ? '' : partyId;
   // A new receipt is from the client filtered to; in a project, its client.
   const forClient = chosen || (project || filterProject)?.client_id || '';
+  // An invoice row's View Invoice, Edit, Cancel Invoice and Delete.
+  const invoiceActions = useInvoiceActions({ projectId, clients: choices });
 
   const freshEntry = useCallback((direction) => ({
     ...blank(direction),
@@ -109,7 +112,7 @@ export default function PartyLedger({ party = 'client', projectId = null, onOpen
       ].filter(Boolean)} />
   );
   const ledgerProps = {
-    party, partyId: chosen || null, onEdit: editEntry, onTotals: setTotals, onOpen, toolbar,
+    party, partyId: chosen || null, onEdit: editEntry, onTotals: setTotals, onOpen, toolbar, invoices: invoiceActions,
     only: 'sales', here: 'client-general',
     narrow: { view, search, from: period.range.from, to: period.range.to },
     emptyText: search.trim() || view !== 'all' || chosen || period.preset !== 'all' ? 'Nothing matches these filters.' : undefined,
@@ -143,6 +146,7 @@ export default function PartyLedger({ party = 'client', projectId = null, onOpen
 
       {entry && <CashEntryModal key={entry.id || `new-${entry.direction}`} entry={entry} fresh={freshEntry} projectId={projectId} party={party}
         onClose={() => setEntry(null)} />}
+      {invoiceActions.dialogs}
       {invoicing && <ClientInvoicePanel clients={choices} clientId={forClient} projectId={projectId} startOn={startOn}
         onClose={() => setInvoicing(false)} />}
     </div>

@@ -87,11 +87,12 @@ export default function PurchaseInvoices({ project = null, party = null, onOpen 
   const projectClient = (scope?.project || filterProject)?.client_id || '';
   const money$ = useRecordMoney({ projectId, startOn, party, projectClient });
   const recent = useMemo(() => {
-    // On the Vendor ledger, only what is with a vendor.
+    // On the Vendor ledger, only what is with a vendor, and money paid to a person.
     const onSide = (e) => !party || !!(e._full || e).vendor_id;
+    const paidOut = (e) => onSide(e) || !!(e._full || e).employee_id;
     return [
       ...(scope ? scope.data.income : income).filter(onSide).map((e) => ({ ...e, direction: 'in', day: e.date || e.received_on })),
-      ...(scope ? scope.data.expenses : expenses).filter(onSide).map((e) => ({ ...e, direction: 'out', day: e.date || e.incurred_on })),
+      ...(scope ? scope.data.expenses : expenses).filter(paidOut).map((e) => ({ ...e, direction: 'out', day: e.date || e.incurred_on })),
     ].sort((a, b) => String(b.day).localeCompare(String(a.day))).slice(0, 3);
   }, [scope, income, expenses, party]);
   // A row of the ledger that is a cash entry opens its form here.

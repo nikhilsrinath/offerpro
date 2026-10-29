@@ -21,6 +21,7 @@ import {
 import { IMAGE_KINDS, resolveImageUrl } from './imageUploadService';
 import { loadMyPermissions as loadEffectivePermissions } from './permissionService';
 import { baseCurrency } from '../shared/currency.js';
+import { linkedEntryOf, receiptNote } from '../shared/invoiceReceipt.js';
 
 let _orgId = null;
 let _cache = {};
@@ -726,6 +727,8 @@ const SECTIONS = {
       payment_group_id: r.payment_group_id || null,
       // 0095, present only when the database has the column.
       ...('receipt_number' in r ? { receipt_number: r.receipt_number || '' } : {}),
+      // 0103, present only when the database has the column.
+      ...('tds_amount' in r ? { tds_amount: Number(r.tds_amount) || 0 } : {}),
       created_at: r.created_at, updated_at: r.updated_at,
     }),
     // `amount` is deliberately NOT sent: app.expense_guard() derives it from
@@ -765,6 +768,8 @@ const SECTIONS = {
       // 0095. Sent only once the entry has one (typed, or read from a database
       // with the column), so an entry without it still saves before 0095.
       ...optional(i, { receipt_number: nn }),
+      // 0103. Same rule: only an entry that has TDS (or read it back) sends it.
+      ...optional(i, { tds_amount: (v) => num(v, 0) }),
     }),
   },
 
@@ -1639,6 +1644,14 @@ export const orgStore = {
       const { data: still } = await supabase.from(def.table).select('id').eq('id', id).maybeSingle();
       if (still) restore(Object.assign(new Error('Your role cannot delete this. Nothing was deleted.'), { code: '42501' }));
     }
+    // A credit saved from an invoice's Mark Paid is also the payment on the
+    // invoice: that goes with it, so the invoice is owed again.
+    if (section === 'income_entries' && before?.document_id) {
+      const { error: payErr } = await supabase.from('payments').delete()
+        .eq('document_id', before.document_id).eq('note', receiptNote(id));
+      if (payErr) throw payErr;
+      await refreshFinDoc(before.document_id).catch(() => {});
+    }
   },
 
   // Someone who left and is joining again keeps their record, same id, same
@@ -1930,6 +1943,17 @@ export const orgStore = {
     return data;
   },
 
+  /**
+   * The payment on an invoice that a ledger credit (Mark Paid) stands for,
+   * written again from the credit: whatever it was replaced by what it is now.
+   */
+  async syncReceiptPayment(entryId, documentId, { amount, paidOn, method, reference }) {
+    const { error } = await supabase.from('payments').delete()
+      .eq('document_id', documentId).eq('note', receiptNote(entryId));
+    if (error) throw error;
+    return orgStore.addPayment({ documentId, amount, paidOn, method, reference, note: receiptNote(entryId) });
+  },
+
   /** Turns a recipient's claim into money on the books. Admin-only under RLS. */
   async confirmPayment(paymentId, documentId) {
     const { data: { user } } = await supabase.auth.getUser();
@@ -1943,8 +1967,12 @@ export const orgStore = {
   },
 
   async deletePayment(paymentId, documentId) {
+    const payment = (_cache.fin_docs?.[documentId]?.payments || []).find((p) => p.id === paymentId);
     const { error } = await supabase.from('payments').delete().eq('id', paymentId);
     if (error) throw error;
+    // A receipt recorded from the ledger (Mark Paid) is that credit too.
+    const entryId = linkedEntryOf(payment);
+    if (entryId && _cache.income_entries?.[entryId]) await orgStore.removeItem('income_entries', entryId);
     return await refreshFinDoc(documentId);
   },
 

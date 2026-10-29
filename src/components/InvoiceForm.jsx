@@ -15,7 +15,8 @@ import { confirmDialog } from '../services/confirm';
 import { resolveFormImages, generateStampPng } from '../utils/imageUtils';
 import A4Stage from './shared/A4Stage';
 import ProjectPicker from './shared/ProjectPicker';
-import { pickerFor, saveSplitFromPicker } from '../services/projectService';
+import { pickerFor, pickerFromAllocations, saveSplitFromPicker } from '../services/projectService';
+import { invoiceFormDataOf } from './financial/invoiceView';
 import { orgStore } from '../services/orgStore';
 import { projectIdOf } from './projects/projectSlug';
 import { useFormProject, projectStartLines } from './projects/projectScope';
@@ -25,7 +26,9 @@ import { baseCurrency, currencyLocale } from '../shared/currency.js';
 
 const GST_RATES = [0, 5, 12, 18, 28];
 
-export default function InvoiceForm() {
+// With `editDocId` (/clients/billing/invoices/:docId/edit) it edits that
+// invoice in place: same number, same status, its lines and split as saved.
+export default function InvoiceForm({ editDocId = null }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [params] = useSearchParams();
@@ -130,8 +133,33 @@ export default function InvoiceForm() {
   // doc_number, and unique(org_id, doc_number) rejects a repeat. The previous
   // version used a random 3-digit suffix, which collides roughly once in a
   // few hundred invoices and, being random, was never actually sequential.
+  // Editing: the saved invoice, loaded into the form once the documents are in.
+  // `editing` is the invoice as saved; `editLoad` says why it could not be.
+  const [editing, setEditing] = useState(null);
+  const [editLoad, setEditLoad] = useState(editDocId ? 'loading' : '');
   useEffect(() => {
-    if (formData.invoiceNumber) return;
+    if (!editDocId) return undefined;
+    let cancelled = false;
+    (async () => {
+      if (activeOrg?.id) documentStore.setContext(activeOrg.id);
+      await documentStore.init();
+      if (cancelled) return;
+      const doc = documentStore.getById(editDocId);
+      if (!doc || doc.type !== 'invoice') { setEditLoad('This invoice no longer exists.'); return; }
+      setEditing(doc);
+      setFormData((prev) => ({ ...prev, ...invoiceFormDataOf(doc, activeOrg || {}) }));
+      setSelectedCustomerId(doc.customer_id || null);
+      setCustomerSearch('');
+      setProjectPicker(pickerFromAllocations('invoice', doc.id));
+      setEditLoad(doc.status === 'cancelled' ? 'This invoice is cancelled. Reactivate it in Billing before changing it.' : '');
+    })();
+    return () => { cancelled = true; };
+    // The org is read once it is in; a change of org is a change of activeOrg.id.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editDocId, activeOrg?.id]);
+
+  useEffect(() => {
+    if (formData.invoiceNumber || editDocId) return;
     let cancelled = false;
 
     (async () => {
@@ -213,10 +241,10 @@ export default function InvoiceForm() {
   // Opened from a project milestone: select the project's client once.
   const prefillClientId = location.state?.clientId || fromProject.project?.client_id || null;
   useEffect(() => {
-    if (!prefillClientId) return;
+    if (!prefillClientId || editDocId) return;
     const c = orgStore.getItem('customers', prefillClientId);
     if (c) handleSelectCustomer(c);
-  }, [prefillClientId]);
+  }, [prefillClientId, editDocId]);
 
   const handleCustomerSearchChange = (value) => {
     setCustomerSearch(value);
@@ -304,7 +332,9 @@ export default function InvoiceForm() {
   // written is still here once the item or its stock has been added.
   const catalogueProblem = () => {
     const byId = Object.fromEntries(catalogService.getActive().map((p) => [p.id, p]));
-    const lines = formData.items.filter((i) => (i.description || '').trim() || Number(i.price) > 0);
+    // Editing, the lines the invoice was issued with were sold already; only lines added now are checked.
+    const saved = new Set((editing?.items || []).map((i) => i.id));
+    const lines = formData.items.filter((i) => !saved.has(i.id) && ((i.description || '').trim() || Number(i.price) > 0));
     const loose = lines.find((i) => !byId[i.catalog_item_id]);
     if (loose) {
       return {
@@ -335,18 +365,23 @@ export default function InvoiceForm() {
       }
       return;
     }
-    if (!canCreate('invoices')) {
+    if (editDocId && (editLoad || !editing)) return;
+    if (!editDocId && !canCreate('invoices')) {
       alert(`You've reached your ${planConfig.name} plan limit of ${planConfig.limits.invoices} invoices. Please upgrade to continue.`);
       return;
     }
     setLoading(true);
     try {
-      const resolved = await resolveFormImages(formData, ['companyLogo', 'stampUrl']);
-      if (resolved.stampType === 'generated') {
-        resolved.stampPng = await generateStampPng(resolved.companyName, resolved.stampCity);
+      // A new invoice is downloaded as it is issued; an edit is only saved
+      // (View Invoice downloads it whenever it is wanted).
+      if (!editDocId) {
+        const resolved = await resolveFormImages(formData, ['companyLogo', 'stampUrl']);
+        if (resolved.stampType === 'generated') {
+          resolved.stampPng = await generateStampPng(resolved.companyName, resolved.stampCity);
+        }
+        const dataToSave = { ...resolved, totals, isInterState, makingCharges: totalMakingCost, orgName: formData.orgName || activeOrg?.company_name || activeOrg?.name };
+        await pdfService.generateInvoice(dataToSave);
       }
-      const dataToSave = { ...resolved, totals, isInterState, makingCharges: totalMakingCost, orgName: formData.orgName || activeOrg?.company_name || activeOrg?.name };
-      await pdfService.generateInvoice(dataToSave);
 
       // Save to documentStore (fin_docs), single source of truth for invoices
       if (activeOrg?.id) documentStore.setContext(activeOrg.id);
@@ -376,12 +411,18 @@ export default function InvoiceForm() {
       // became an unhandled promise rejection: the catch below never ran, no
       // error was shown, and navigate() left for the list as if it had worked.
       const saved = await documentStore.save({
+        // Editing: the same row. Its number is frozen after insert, and its
+        // status is where its payments put it, so neither is changed here.
+        ...(editDocId ? { id: editDocId } : {}),
         customer_id: customerId,
         // doc_number, not id. `id` is a uuid column; the invoice number is the
         // human number printed on the PDF above, and the two must agree.
         doc_number: formData.invoiceNumber,
         type: 'invoice',
-        status: formData.isPaid ? 'paid' : 'sent',
+        // An overdue invoice given a later due date is simply due again.
+        status: !editing ? (formData.isPaid ? 'paid' : 'sent')
+          : editing.status === 'overdue' && formData.dueDate && formData.dueDate >= new Date().toISOString().slice(0, 10) ? 'sent'
+            : editing.status,
         title: 'Tax Invoice',
         issued_by: formData.orgName || activeOrg?.company_name || '',
         issued_to: formData.clientName,
@@ -445,9 +486,15 @@ export default function InvoiceForm() {
         amount: totals.grandTotal,
         issue_date: formData.invoiceDate,
         due_date: formData.dueDate,
-        ...(fromMilestone ? { milestone_id: fromMilestone.milestoneId } : {}),
+        notes: formData.notes || '',
+        // Kept so the invoice is drawn again as it was issued (View Invoice, an edit).
+        sellerGSTIN: formData.sellerGSTIN,
+        sellerState: formData.sellerState,
+        templateId: formData.templateId,
+        showStamp: !!formData.showStamp,
+        ...(!editDocId && fromMilestone ? { milestone_id: fromMilestone.milestoneId } : {}),
         // Billed hours (0060): the database stamps these entries with this invoice.
-        ...(Array.isArray(location.state?.timesheetIds) ? { timesheet_ids: location.state.timesheetIds } : {}),
+        ...(!editDocId && Array.isArray(location.state?.timesheetIds) ? { timesheet_ids: location.state.timesheetIds } : {}),
       });
 
       // (The customer upsert moved above documentStore.save, see the note there.)
@@ -460,7 +507,8 @@ export default function InvoiceForm() {
         alert(`Invoice saved, but the project split was not: ${allocErr.message}`);
       }
       await refreshUsage();
-      navigate(fromProject.returnTo);
+      // Opened from a ledger's Edit, saving goes back to that ledger.
+      navigate(location.state?.returnTo || fromProject.returnTo);
     } catch (err) {
       alert("Error saving invoice: " + err.message);
     } finally {
@@ -475,8 +523,18 @@ export default function InvoiceForm() {
       <div className="mou-form-pane">
         <form onSubmit={handleSubmit} className="easy-form animate-in" style={{ maxWidth: '100%' }}>
 
+          {editDocId && (
+            <div role={editLoad && editLoad !== 'loading' ? 'alert' : 'status'} style={{
+              padding: '0.75rem 1rem', marginBottom: '1.5rem', borderRadius: '10px', fontSize: '0.8125rem',
+              background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)',
+            }}>
+              {editLoad === 'loading' ? 'Loading the invoice…'
+                : editLoad || `Editing ${formData.invoiceNumber}. It keeps its number; saving updates it everywhere it is shown, including the client's General Ledger.`}
+            </div>
+          )}
+
           {/* Plan Usage */}
-          {currentPlan !== 'max' && (
+          {!editDocId && currentPlan !== 'max' && (
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -505,7 +563,7 @@ export default function InvoiceForm() {
             </div>
           )}
 
-          {isAtLimit('invoices') && (
+          {!editDocId && isAtLimit('invoices') && (
             <div style={{
               textAlign: 'center',
               padding: '1.5rem',
@@ -536,6 +594,7 @@ export default function InvoiceForm() {
                 <label className="easy-lbl">Invoice number</label>
                 <input aria-label="Invoice number" type="text" value={formData.invoiceNumber}
                   onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
+                  readOnly={!!editDocId} title={editDocId ? 'An issued invoice keeps its number' : undefined}
                   className="easy-inp" style={{ fontWeight: 700 }} />
               </div>
               <div className="easy-field">
@@ -548,18 +607,28 @@ export default function InvoiceForm() {
                 <input aria-label="Due date" type="date" value={formData.dueDate}
                   onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })} className="easy-inp" />
               </div>
-              <div className="easy-field">
-                <label className="easy-lbl">Status</label>
-                <button
-                  type="button" role="switch" aria-checked={!!formData.isPaid} aria-label="Paid"
-                  className={`easy-switch-row ${formData.isPaid ? 'active' : ''}`}
-                  onClick={() => setFormData({ ...formData, isPaid: !formData.isPaid })}
-                  style={{ marginTop: '0.25rem' }}
-                >
-                  <span className="easy-switch-label">{formData.isPaid ? 'Paid' : 'Unpaid'}</span>
-                  <span className="easy-switch-dot" aria-hidden="true" />
-                </button>
-              </div>
+              {/* An issued invoice's status is where its payments put it: shown, not switched. */}
+              {editing ? (
+                <div className="easy-field">
+                  <label className="easy-lbl">Status</label>
+                  <div className="easy-inp" aria-readonly="true" style={{ display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}>
+                    {String(editing.status || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                  </div>
+                </div>
+              ) : (
+                <div className="easy-field">
+                  <label className="easy-lbl">Status</label>
+                  <button
+                    type="button" role="switch" aria-checked={!!formData.isPaid} aria-label="Paid"
+                    className={`easy-switch-row ${formData.isPaid ? 'active' : ''}`}
+                    onClick={() => setFormData({ ...formData, isPaid: !formData.isPaid })}
+                    style={{ marginTop: '0.25rem' }}
+                  >
+                    <span className="easy-switch-label">{formData.isPaid ? 'Paid' : 'Unpaid'}</span>
+                    <span className="easy-switch-dot" aria-hidden="true" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -859,10 +928,17 @@ export default function InvoiceForm() {
           </div>
 
           {/* Actions */}
-          <button type="submit" disabled={loading || isAtLimit('invoices')} className="easy-submit">
-            {loading ? 'Processing...' : isAtLimit('invoices') ? 'Limit Reached' : 'Save & Issue'}
-            {!loading && !isAtLimit('invoices') && <ChevronRight size={18} />}
-          </button>
+          {editDocId ? (
+            <button type="submit" disabled={loading || !!editLoad} className="easy-submit">
+              {loading ? 'Saving...' : 'Save Changes'}
+              {!loading && !editLoad && <ChevronRight size={18} />}
+            </button>
+          ) : (
+            <button type="submit" disabled={loading || isAtLimit('invoices')} className="easy-submit">
+              {loading ? 'Processing...' : isAtLimit('invoices') ? 'Limit Reached' : 'Save & Issue'}
+              {!loading && !isAtLimit('invoices') && <ChevronRight size={18} />}
+            </button>
+          )}
 
           {/* Mobile preview */}
           <button type="button" onClick={handlePreview} className="easy-submit-outline mou-mobile-preview-btn" style={{ marginTop: '0.75rem' }}>

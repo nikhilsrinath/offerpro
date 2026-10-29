@@ -62,6 +62,8 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
     const { activeOrg } = useOrg();
     const org = activeOrg || {};
     const isEdit = !!employee;
+    // 0102: an Employee ID is permanent; only an owner or admin may set or change it.
+    const canSetId = ['owner', 'admin'].includes(orgStore.getRole());
 
     const [saving, setSaving] = useState(false);
     const [done, setDone] = useState(false);
@@ -137,6 +139,15 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                 return;
             }
         }
+        const code = String(form.employee_code || '').trim().toLowerCase();
+        if (canSetId && code) {
+            const taken = [...orgStore.getSectionAsList('employees'), ...orgStore.getSectionAsList('ex_employees')]
+                .find((e) => e.id !== form.id && (e.employee_code || '').toLowerCase() === code);
+            if (taken) {
+                alert(`${taken.studentName || 'Someone'}${taken.exited_at ? ' (ex-employee)' : ''} already has the Employee ID ${taken.employee_code}.`);
+                return;
+            }
+        }
         setSaving(true);
         try {
             if (isEdit) {
@@ -164,7 +175,9 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
             }, 900);
         } catch (err) {
             console.error(err);
-            alert((isEdit ? 'Error updating employee: ' : 'Error adding employee: ') + err.message);
+            const message = err.code === '23505' && /employees_org_code_idx/.test(err.message || '')
+                ? 'Another person already has that Employee ID.' : err.message;
+            alert((isEdit ? 'Error updating employee: ' : 'Error adding employee: ') + message);
             setSaving(false);
         }
     };
@@ -217,7 +230,8 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                         <div style={{ flex: '1 1 320px', minWidth: 0 }}>
                             <Grid min={200} gap={13}>
                                 <Field label="Employee ID">
-                                    <Input value={form.employee_code || ''} disabled placeholder={isEdit ? '' : 'Generated when they are added'} aria-label="Employee ID" />
+                                    <Input value={form.employee_code || ''} onChange={set('employee_code')} disabled={!canSetId}
+                                        placeholder={isEdit ? '' : canSetId ? 'Leave blank to generate' : 'Generated when they are added'} aria-label="Employee ID" />
                                 </Field>
                                 <Field required label="Full name"><Input value={form.studentName} onChange={set('studentName')} /></Field>
                                 <Field required={!isEdit} label="Email">

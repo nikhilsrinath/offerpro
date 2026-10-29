@@ -1,9 +1,7 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Seg, Row, Muted } from '../ui/edge';
 import InvoiceList from '../financial/InvoiceList';
 import { RecurringInvoiceList } from '../financial/RecurringInvoiceForm';
-import { useSection } from '../financial/financeHooks';
-import { useProjectScope } from './projectScope';
 import { billingFormOf } from './projectPaths';
 import { documentStore } from '../../services/documentStore';
 import InvoiceForm from '../InvoiceForm';
@@ -37,7 +35,7 @@ function RecurringEditor({ id }) {
 function BillingForm({ kind, docId }) {
     if (kind === 'quotation') return <QuotationForm editDocId={docId} />;
     if (kind === 'proforma') return <ProformaInvoiceForm />;
-    if (kind === 'invoice') return <InvoiceForm />;
+    if (kind === 'invoice') return <InvoiceForm editDocId={docId} />;
     return docId ? <RecurringEditor id={docId} /> : <RecurringInvoiceForm />;
 }
 
@@ -49,22 +47,12 @@ export default function ProjectBilling({ project, kind, onKind, view }) {
 
 function BillingLists({ project, wanted, onKind }) {
     const kind = KINDS.some((k) => k.id === wanted) ? wanted : 'quotation';
-    const scope = useProjectScope(project.id);
-    const docs = useSection('fin_docs');
-    const recurring = useSection('fin_recurring');
-
-    const counts = useMemo(() => {
-        const c = { quotation: 0, proforma: 0, invoice: 0, recurring: 0 };
-        docs.forEach((d) => { if (scope?.docIds.has(d.id) && c[d.type] != null) c[d.type] += 1; });
-        c.recurring = recurring.filter((r) => r.project_id === project.id).length;
-        return c;
-    }, [docs, recurring, scope, project.id]);
 
     return (
         <div style={{ display: 'grid', gap: 14 }}>
             <Row gap={12} wrap>
                 <Seg label="Kind of document" value={kind} onChange={onKind}
-                    options={KINDS.map((k) => ({ id: k.id, label: counts[k.id] ? `${k.label} · ${counts[k.id]}` : k.label }))} />
+                    options={KINDS.map((k) => ({ id: k.id, label: k.label }))} />
             </Row>
             <div key={kind} style={{ minWidth: 0 }}>
                 {kind === 'recurring'

@@ -55,6 +55,11 @@ function getDisplayName(emp) {
     return '';
 }
 
+// Date of joining, then the order added.
+function byJoining(a, b) {
+    const day = (e) => new Date(e.startDate || String(e.created_at || '').slice(0, 10) || 0).getTime() || 0;
+    return day(a) - day(b) || new Date(a.created_at || 0) - new Date(b.created_at || 0);
+}
 
 /* ── portal access ────────────────────────────────────────────────────────── */
 
@@ -481,7 +486,8 @@ export default function Employees() {
     const [employees, setEmployees] = useState([]);
     const [departments, setDepartments] = useState([]);
     const [query, setQuery] = useState(initialQuery);
-    const [sortBy, setSortBy] = useState('name_asc');
+    // Latest to join first.
+    const [sortBy, setSortBy] = useState('date_desc');
     const [view, setView] = useState('table');
     const [type, setType] = useState('all');
     const [dept, setDept] = useState(null);
@@ -625,8 +631,8 @@ export default function Employees() {
             if (sortBy === 'name_desc') return getDisplayName(b).localeCompare(getDisplayName(a));
             if (sortBy === 'role') return (a.role || '').localeCompare(b.role || '');
             if (sortBy === 'dept') return (a.department || '').localeCompare(b.department || '');
-            if (sortBy === 'date_desc') return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-            if (sortBy === 'date_asc') return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+            if (sortBy === 'date_desc') return byJoining(b, a);
+            if (sortBy === 'date_asc') return byJoining(a, b);
             return 0;
         });
     }, [employees, query, sortBy, type, dept]);
@@ -665,12 +671,12 @@ export default function Employees() {
                 ]} />
                 <Search value={query} onChange={setQuery} placeholder="Search name, role, team, email…" />
                 <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ width: 132, height: 29 }}>
+                    <option value="date_desc">Latest Joined</option>
+                    <option value="date_asc">Earliest Joined</option>
                     <option value="name_asc">Name A–Z</option>
                     <option value="name_desc">Name Z–A</option>
                     <option value="role">Role</option>
                     <option value="dept">Department</option>
-                    <option value="date_desc">Newest first</option>
-                    <option value="date_asc">Oldest first</option>
                 </Select>
                 <Seg size="sm" value={view} onChange={setView} options={[
                     { id: 'table', label: 'Table' }, { id: 'cards', label: 'Cards' },
