@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Bell, Sun, Moon, LogOut, Building2, User as UserIcon,
-    Check, ChevronDown, Search,
+    Check, ChevronDown, Search, History,
 } from 'lucide-react';
 import { MONO, makeTokens } from '../../theme/edge';
 import { EdgeThemeContext } from '../../theme/EdgeTheme';
@@ -26,6 +26,10 @@ import '../assistant/copilot.css';
 import { confirmDialog } from '../../services/confirm';
 import { titleCaseNode } from '../../utils/titleCase';
 import { projectRef } from '../projects/projectSlug';
+import { canSeeFinancials } from '../../services/projectService';
+
+// The Logs panel (every credit and debit) only loads when it is opened.
+const CompanyLogs = lazy(() => import('../financial/RecordLogs').then((m) => ({ default: m.CompanyLogs })));
 
 // Shared with the hub, so hiding the dock in one place hides it in both.
 const AI_KEY = 'edgeos.hub.ai.hidden';
@@ -108,6 +112,7 @@ export default function ModuleShell({
     // Pinning does the same by choice, and the choice follows you everywhere.
     const [railPinned, setRailPinned] = useRailPin();
     const [menu, setMenu] = useState(null);
+    const [logsOpen, setLogsOpen] = useState(false);
     // A menu opened from the rail foot keeps the rail open, so it doesn't jump.
     const rail = railSlot || railPinned || hoverRail || (workspace && !!menu);
     const [slotEl, setSlotEl] = useState(null);
@@ -472,6 +477,19 @@ export default function ModuleShell({
                     {actions}
 
                     {actions && <span aria-hidden="true" style={{ width: 1, height: 18, background: t.line, flexShrink: 0 }} />}
+
+                    {/* Logs: everything recorded, newest first, in a side panel. */}
+                    {canSeeFinancials() && (
+                        <button type="button" className="edge-icon" title="Logs" aria-label="Logs" aria-haspopup="dialog"
+                            onClick={() => setLogsOpen(true)} style={iconBtn(t, logsOpen)}>
+                            <History aria-hidden="true" size={17} strokeWidth={1.8} />
+                        </button>
+                    )}
+                    {logsOpen && (
+                        <Suspense fallback={null}>
+                            <CompanyLogs t={t} onClose={() => setLogsOpen(false)} />
+                        </Suspense>
+                    )}
 
                     <button type="button" className="edge-icon"
                         title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}

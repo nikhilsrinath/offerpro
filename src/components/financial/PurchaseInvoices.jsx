@@ -45,7 +45,7 @@ const VENDOR_LABELS = {
  * The tiles over it are the ledger's own totals (ProjectLedger `onTotals`),
  * so whatever the filters, the two never disagree.
  *
- * With `party="vendor"` the ledger and recent entries are kept to what is with
+ * With `party="vendor"` the ledger and its logs are kept to what is with
  * a vendor, and Credit and Debit are Upload Vendor Invoice and Record Payment.
  */
 export default function PurchaseInvoices({ project = null, party = null, onOpen }) {
@@ -86,14 +86,15 @@ export default function PurchaseInvoices({ project = null, party = null, onOpen 
   const t = useT();
   const projectClient = (scope?.project || filterProject)?.client_id || '';
   const money$ = useRecordMoney({ projectId, startOn, party, projectClient });
-  const recent = useMemo(() => {
+  // Logs: everything recorded here, newest first.
+  const logs = useMemo(() => {
     // On the Vendor ledger, only what is with a vendor, and money paid to a person.
     const onSide = (e) => !party || !!(e._full || e).vendor_id;
     const paidOut = (e) => onSide(e) || !!(e._full || e).employee_id;
     return [
       ...(scope ? scope.data.income : income).filter(onSide).map((e) => ({ ...e, direction: 'in', day: e.date || e.received_on })),
       ...(scope ? scope.data.expenses : expenses).filter(paidOut).map((e) => ({ ...e, direction: 'out', day: e.date || e.incurred_on })),
-    ].sort((a, b) => String(b.day).localeCompare(String(a.day))).slice(0, 3);
+    ].sort((a, b) => String(b.day).localeCompare(String(a.day)));
   }, [scope, income, expenses, party]);
   // A row of the ledger that is a cash entry opens its form here.
   const editEntry = (direction, id) => {
@@ -307,9 +308,8 @@ export default function PurchaseInvoices({ project = null, party = null, onOpen 
 
   return (
     <div style={{ maxWidth: '100%' }}>
-      <RecordMoneyCard t={t} scoped recent={recent} onRecord={money$.record} style={{ marginBottom: 12 }}
+      <RecordMoneyCard t={t} scoped logs={logs} onRecord={money$.record} style={{ marginBottom: 12 }}
         labels={isVendor ? VENDOR_LABELS : undefined}
-        emptyText={isVendor ? 'Nothing yet. Upload a vendor invoice or record a payment to start the ledger.' : undefined}
         onOpen={(r) => money$.openEntry(r, r.direction)} />
       <div className="prod-stats">
         <Stat icon={<ArrowDownLeft size={15} />} label={isVendor ? 'Total Billed' : 'Total Credit'} value={money(credit, 2)}

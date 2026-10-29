@@ -90,14 +90,14 @@ export default function PartyLedger({ party = 'client', projectId = null, onOpen
     if (r) setEntry({ ...r, direction, date: r.date || r.received_on || r.incurred_on });
   };
 
-  // What was recorded last with a client, the newest first.
-  const recent = useMemo(() => {
+  // Logs: what was recorded with a client, the newest first.
+  const logs = useMemo(() => {
     const ids = projectId ? new Set(choices.map((c) => c.id)) : null;
     const mine = (e) => !!e.client_id && !e.vendor_id && (!ids || ids.has(e.client_id));
     return [
       ...income.filter(mine).map((e) => ({ ...e, direction: 'in', day: e.date || e.received_on })),
       ...expenses.filter((e) => mine(e) && !e.employee_id).map((e) => ({ ...e, direction: 'out', day: e.date || e.incurred_on })),
-    ].sort((a, b) => String(b.day).localeCompare(String(a.day))).slice(0, 3);
+    ].sort((a, b) => String(b.day).localeCompare(String(a.day)));
   }, [income, expenses, projectId, choices]);
 
   const toolbar = (
@@ -125,8 +125,7 @@ export default function PartyLedger({ party = 'client', projectId = null, onOpen
   const outstanding = totals?.balance || 0;
   return (
     <div style={{ maxWidth: '100%' }}>
-      <RecordMoneyCard t={t} scoped recent={recent} onRecord={record} style={{ marginBottom: 12 }} labels={CLIENT_LABELS}
-        emptyText="Nothing yet. Create an invoice or record a receipt to start the ledger."
+      <RecordMoneyCard t={t} scoped logs={logs} onRecord={record} style={{ marginBottom: 12 }} labels={CLIENT_LABELS}
         onOpen={(r) => editEntry(r.direction, r.id)} />
 
       <div className="prod-stats">

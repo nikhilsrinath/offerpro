@@ -121,14 +121,14 @@ export default function PaymentStatus({ project }) {
                                 { id: '', label: 'All', count: rows.length },
                                 ...PAYMENT_STATUSES.map((s) => ({ id: s.id, label: s.label, count: counts[s.id] })),
                             ]} />
-                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.faint }}>
-                                From <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145, height: 29 }} aria-label="Invoice date from" />
+                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0, fontSize: 12, color: t.faint }}>
+                                From <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145, height: 30 }} aria-label="Invoice date from" />
                             </label>
-                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.faint }}>
-                                To <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145, height: 29 }} aria-label="Invoice date to" />
+                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0, fontSize: 12, color: t.faint }}>
+                                To <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145, height: 30 }} aria-label="Invoice date to" />
                             </label>
                             {msOptions.length > 0 && (
-                                <Select aria-label="Milestone" value={milestone} onChange={(e) => setMilestone(e.target.value)} style={{ width: 180, height: 29 }}>
+                                <Select aria-label="Milestone" value={milestone} onChange={(e) => setMilestone(e.target.value)} style={{ width: 180, height: 30 }}>
                                     <option value="">Every milestone</option>
                                     {msOptions.map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}
                                 </Select>

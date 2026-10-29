@@ -120,7 +120,7 @@ export function activeSection(pathname, sections = projectSections()) {
 // The folded items of the rail, and what their pages are called as a group.
 const GROUPS = {
     finance: { label: 'Financials', icon: Wallet },
-    pm: { label: 'Project', icon: FolderKanban },
+    pm: { label: 'Planning', icon: FolderKanban },
     tm: { label: 'Team', icon: UsersRound },
     cm: { label: 'Client', icon: Handshake },
     vm: { label: 'Vendor', icon: Building2 },
@@ -283,8 +283,9 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                             </div>
                             <h1 style={{
                                 margin: 0, fontSize: isMobile ? 24 : 32, fontWeight: 700, fontFamily: MONO,
-                                letterSpacing: '-0.045em', color: t.text, lineHeight: 1.05,
-                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                letterSpacing: '-0.045em', color: t.text, lineHeight: 1.1,
+                                // Wraps rather than truncates: the section name is always shown in full.
+                                overflowWrap: 'anywhere',
                             }}>{section.label}</h1>
                         </div>
                         <Row gap={8} wrap style={{

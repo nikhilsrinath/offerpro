@@ -149,10 +149,10 @@ export default function ClientCommunication({ project }) {
                                 {PERIODS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                             </Select>
                             {period === 'custom' && (<>
-                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.faint }}>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0, fontSize: 12, color: t.faint }}>
                                     From <Input type="date" value={customFrom} max={customTo || undefined} onChange={(e) => setCustomFrom(e.target.value)} style={{ width: 145, height: 29 }} aria-label="From date" />
                                 </label>
-                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.faint }}>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0, fontSize: 12, color: t.faint }}>
                                     To <Input type="date" value={customTo} min={customFrom || undefined} onChange={(e) => setCustomTo(e.target.value)} style={{ width: 145, height: 29 }} aria-label="To date" />
                                 </label>
                             </>)}

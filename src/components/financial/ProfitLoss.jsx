@@ -8,10 +8,10 @@ import { useSection, money, fmtDate } from './financeHooks';
 import { baseCurrency, currencySymbol } from '../../shared/currency.js';
 
 const PRESETS = [
+  { id: 'all', label: 'All time' },
   { id: 'month', label: 'This month' },
   { id: 'quarter', label: 'This quarter' },
   { id: 'fy', label: 'This FY' },
-  { id: 'all', label: 'All time' },
   { id: 'custom', label: 'Custom' },
 ];
 
@@ -32,7 +32,7 @@ export default function ProfitLoss() {
   const [, setCatsReady] = useState(false);
   useEffect(() => { loadFinanceCategories().then(() => setCatsReady(true)); }, []);
 
-  const [preset, setPreset] = useState('month');
+  const [preset, setPreset] = useState('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
 

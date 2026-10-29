@@ -6,10 +6,10 @@ import { useSection, money, fmtDate } from './financeHooks';
 import { useProjectScope } from '../projects/projectScope';
 
 const KINDS = [
+  { id: 'all', label: 'All time' },
   { id: 'month', label: 'Monthly' },
   { id: 'quarter', label: 'Quarterly' },
   { id: 'fy', label: 'Yearly' },
-  { id: 'all', label: 'All time' },
   { id: 'custom', label: 'Custom' },
 ];
 
@@ -33,7 +33,7 @@ export default function TaxSummary({ projectId = null }) {
   const expenses = scope ? scope.data.expenses : allExpenses;
   const income = scope ? scope.data.income : allIncome;
 
-  const [kind, setKind] = useState('month');
+  const [kind, setKind] = useState('all');
   const options = useMemo(
     () => (kind === 'all' || kind === 'custom' ? [] : periodOptions(kind, kind === 'month' ? 12 : kind === 'quarter' ? 8 : 5)),
     [kind],

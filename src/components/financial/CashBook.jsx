@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Download, Paperclip, Pencil,
+  ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Download, History, Paperclip, Pencil,
   Trash2, Wallet,
 } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
@@ -24,6 +24,7 @@ import { useProjectScope } from '../projects/projectScope';
 import { fmtDate, money, useSection } from './financeHooks';
 import { confirmDialog } from '../../services/confirm';
 import CashEntryModal from './CashEntryModal';
+import RecordLogs from './RecordLogs';
 import { SECTION, billBalance, billPaymentEntry, blank } from './cashEntry';
 import { useSettledVendorBills } from './vendorAdvance';
 
@@ -253,7 +254,6 @@ export default function CashBook({ projectId = null, children }) {
     }
   };
 
-  const recent = rows.slice(0, 3);
   // Under a ledger the tiles are its own totals (bills on the credit side,
   // what was paid on the debit side), not the cash flow of entries alone.
   const tiles = ledgerTotals && typeof children === 'function'
@@ -288,7 +288,7 @@ export default function CashBook({ projectId = null, children }) {
       {/* Record Money is on the Company Ledger page, not here. */}
       <div className={flat ? 'gl-bento gl-bento-flat' : 'gl-bento'}>
         {!flat && (
-          <RecordMoneyCard t={t} recent={recent} onRecord={record} style={{ gridArea: 'rec' }}
+          <RecordMoneyCard t={t} logs={rows} onRecord={record} style={{ gridArea: 'rec' }}
             onOpen={(r) => setEditing({ ...r, ...(r._full || {}), _share: undefined, _full: undefined, date: r.day })} />
         )}
 
@@ -526,12 +526,15 @@ const RECORD_LABELS = {
 };
 
 /**
- * "Record money": Credit and Debit, and what was recorded last. Also on the
+ * "Record money": Credit and Debit, and a Logs button. Also on the
  * General Ledger pages (`scoped`), where it has no heading. `labels` ({ in,
  * out } of { label, note, icon }) renames a side; `onRecord` gets 'in' or 'out'.
+ * `logs` (newest first) puts Logs on the right: every entry in a side panel,
+ * each opening its form through `onOpen`.
  */
-export function RecordMoneyCard({ t, scoped, recent, onRecord, onOpen, style, labels, emptyText }) {
+export function RecordMoneyCard({ t, scoped, logs, onRecord, onOpen, style, labels }) {
   const side = (k) => ({ ...RECORD_LABELS[k], ...(labels?.[k] || {}) });
+  const [open, setOpen] = useState(false);
   return (
     <section {...(scoped ? { 'aria-label': 'Record Money' } : { 'aria-labelledby': 'gl-record' })} className="gl-record" style={{
       position: 'relative', overflow: 'hidden', padding: 20, borderRadius: 20,
@@ -548,36 +551,31 @@ export function RecordMoneyCard({ t, scoped, recent, onRecord, onOpen, style, la
           </div>
         </div>
       )}
-      <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
-        <RecordBtn t={t} tone={t.up} icon={side('in').icon || ArrowDownLeft} label={side('in').label} note={side('in').note} onClick={() => onRecord('in')} />
-        <RecordBtn t={t} tone={t.down} icon={side('out').icon || ArrowUpRight} label={side('out').label} note={side('out').note} onClick={() => onRecord('out')} />
-      </div>
-      <div style={{ marginTop: 'auto', minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 500, color: t.faint, marginBottom: 4 }}>Recently recorded</div>
-        {recent.length ? recent.map((r) => {
-          const isIn = r.direction === 'in';
-          return (
-            <button key={`${r.direction}-${r.id}`} type="button" className="edge-tr" onClick={() => onOpen(r)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '7px 8px', margin: '0 -8px',
-                boxSizing: 'content-box', border: 'none', borderRadius: 9, background: 'transparent', cursor: 'pointer',
-                fontFamily: 'inherit', color: t.text, textAlign: 'left',
-              }}>
-              <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: 99, flexShrink: 0, background: isIn ? t.up : t.down }} />
-              <span style={{ flex: 1, minWidth: 0, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.description}</span>
-              <span style={{ fontSize: 12, color: t.faint, whiteSpace: 'nowrap' }}>{fmtDate(r.day)}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', color: isIn ? t.up : t.down }}>
-                {isIn ? '+' : '−'}{money(r.amount, 2)}
-              </span>
-            </button>
-          );
-        }) : (
-          <div style={{ fontSize: 12.5, color: t.faint }}>{emptyText || 'Nothing yet. Both sides land in Profit & Loss and the Tax Summary straight away.'}</div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'stretch', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 340px', minWidth: 0, display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
+          <RecordBtn t={t} tone={t.up} icon={side('in').icon || ArrowDownLeft} label={side('in').label} note={side('in').note} onClick={() => onRecord('in')} />
+          <RecordBtn t={t} tone={t.down} icon={side('out').icon || ArrowUpRight} label={side('out').label} note={side('out').note} onClick={() => onRecord('out')} />
+        </div>
+        {/* On the right: everything recorded, in a side panel. */}
+        {logs && (
+          <button type="button" className="gl-logs-btn" onClick={() => setOpen(true)} aria-haspopup="dialog"
+            title="Everything recorded here, newest first" style={{
+              flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
+              minWidth: 92, padding: '12px 14px', borderRadius: 14, cursor: 'pointer', fontFamily: 'inherit',
+              background: t.card, border: '1px solid ' + t.line, boxShadow: t.highlight, color: t.text,
+            }}>
+            <History size={18} aria-hidden="true" style={{ color: t.dim }} />
+            <span style={{ fontSize: 13.5, fontWeight: 600 }}>Logs</span>
+            <span style={{ fontSize: 11.5, color: t.faint, fontVariantNumeric: 'tabular-nums' }}>{logs.length} {logs.length === 1 ? 'entry' : 'entries'}</span>
+          </button>
         )}
       </div>
+      {open && <RecordLogs t={t} logs={logs} onOpen={onOpen} onClose={() => setOpen(false)} />}
       <style>{`
         .gl-rec-btn { transition: transform .18s cubic-bezier(.16,1,.3,1), box-shadow .18s, border-color .18s; }
         .gl-rec-btn:hover { transform: translateY(-2px); }
+        .gl-logs-btn { transition: border-color .15s; }
+        .gl-logs-btn:hover { border-color: ${t.lineStrong} !important; }
         @media (prefers-reduced-motion: reduce) { .gl-rec-btn:hover { transform: none; } }
       `}</style>
     </section>
