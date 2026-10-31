@@ -202,7 +202,7 @@ export default function BulkOfferLetters() {
                             </Field>
                         </div>
                         <div style={{ marginTop: 14 }}>
-                            <div style={{ fontSize: 11, letterSpacing: '0.09em', color: t.faint, marginBottom: 6 }}>COLUMNS THE TEMPLATE FILLS IN</div>
+                            <div style={{ fontSize: 11, letterSpacing: 0, color: t.faint, marginBottom: 6 }}>Columns the Template Fills In</div>
                             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                 {VARIABLES.map((v) => (
                                     <li key={v} style={{

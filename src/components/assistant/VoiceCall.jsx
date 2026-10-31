@@ -384,7 +384,7 @@ export default function VoiceCall({ a, onClose }) {
 
     let body;
     if (error || phase === 'unsupported') {
-        body = <p className="vc-line is-hint">{error || 'This browser has no speech recognition. Open EdgeOS in Chrome or Edge to talk to EdgeAI.'}</p>;
+        body = <p className="vc-line is-hint">{error || 'This browser has no speech recognition. Open Opstead in Chrome or Edge to talk to EdgeAI.'}</p>;
     } else if (phase === 'listening') {
         body = heard
             ? (

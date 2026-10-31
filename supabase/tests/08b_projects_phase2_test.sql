@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Projects, phase 2 (0053–0057): health, invoices that know their
+-- Opstead · Projects, phase 2 (0053–0057): health, invoices that know their
 -- project, the active-project quota, reminders, employees' own tasks.
 -- Self-contained fixture; runs in one transaction and rolls back.
 -- ============================================================================

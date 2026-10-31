@@ -126,7 +126,7 @@ export function pickVoice(voices = []) {
 const FIXES = [
   [/\bpro[\s-]?forma\b/gi, 'proforma'],
   [/\bg\.?\s?s\.?\s?t\b\.?/gi, 'GST'],
-  [/\bedge\s?(?:o\.?\s?s|os)\b/gi, 'EdgeOS'],
+  [/\b(?:op|ops|up)\s?stead\b/gi, 'Opstead'],
   [/\bedge\s?a\.?\s?i\b/gi, 'EdgeAI'],
   [/\bin\s?voice(s?)\b/gi, 'invoice$1'],
   [/\bp\s?(?:&|and)\s?l\b/gi, 'P&L'],

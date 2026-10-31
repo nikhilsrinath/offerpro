@@ -36,7 +36,7 @@ const InvoicingPage = () => (
             <div className="sp-app-body">
               {/* Sidebar */}
               <div className="sp-app-sidebar">
-                <div className="sp-app-sidebar-brand"><Zap size={14} fill="currentColor" /> EdgeOS</div>
+                <div className="sp-app-sidebar-brand"><Zap size={14} fill="currentColor" /> Opstead</div>
                 <div className="sp-app-sidebar-section">Finance</div>
                 <div className="sp-app-sidebar-item"><Activity size={14} /> Finance Status</div>
                 <div className="sp-app-sidebar-item active"><Receipt size={14} /> Invoices</div>
@@ -160,7 +160,7 @@ const InvoicingPage = () => (
                           {/* Invoice Preview */}
                           <div className="sp-a4-header">
                             <div>
-                              <div className="sp-a4-company">EdgeOS Corp</div>
+                              <div className="sp-a4-company">Opstead Corp</div>
                               <div className="sp-a4-detail">123 Business Avenue, Bangalore 560001<br/>GSTIN: 29AABCT1234F1ZP<br/>contact@edgeos.app</div>
                             </div>
                             <div style={{ width: 36, height: 36, background: '#f0f0f0', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -176,7 +176,7 @@ const InvoicingPage = () => (
                           <div className="sp-a4-parties">
                             <div>
                               <div className="sp-a4-party-label">From</div>
-                              <div className="sp-a4-party-name">EdgeOS Corp</div>
+                              <div className="sp-a4-party-name">Opstead Corp</div>
                               <div className="sp-a4-detail">Bangalore, Karnataka<br/>GSTIN: 29AABCT1234F1ZP</div>
                             </div>
                             <div>
@@ -229,7 +229,7 @@ const InvoicingPage = () => (
                           </div>
 
                           <div className="sp-a4-footer-note">This is a computer generated invoice and does not require a physical signature.</div>
-                          <div className="sp-a4-stamp">EDGEOS<br/>CORP</div>
+                          <div className="sp-a4-stamp">OPSTEAD<br/>CORP</div>
                         </div>
                       </div>
                     </div>

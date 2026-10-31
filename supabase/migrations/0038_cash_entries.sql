@@ -1,7 +1,7 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 0038 — money in and money out that no document represents
 --
--- THE GAP THIS FILLS: revenue in EdgeOS could only arrive as an invoice. Cash
+-- THE GAP THIS FILLS: revenue in Opstead could only arrive as an invoice. Cash
 -- taken over the counter, a retainer paid in advance, interest credited by the
 -- bank, a grant, a founder putting money in — none of it could be entered at
 -- all, so every figure downstream (Billing & Revenue, Profit & Loss, the
@@ -63,7 +63,7 @@
 --        non_operating  a real expense, below the operating line (interest,
 --                       penalties, forex loss)
 --        capex          buying an asset. Cash out, not an expense — it would be
---                       depreciated, and EdgeOS keeps no fixed-asset register,
+--                       depreciated, and Opstead keeps no fixed-asset register,
 --                       so it stays out of the P&L rather than distorting it.
 --        financing      repaying loan principal, placing a deposit. Neither.
 --        owner          drawings and dividends. A distribution of profit, not a
@@ -102,7 +102,7 @@ create index if not exists finance_categories_pick_idx
 insert into public.finance_categories (key, label, direction, group_label, treatment, hint, sort_order) values
   -- Earned from customers
   ('product_sales',        'Product sales',               'in', 'Sales & services', 'revenue',      'Goods sold without raising an invoice — counter sales, marketplace payouts.',        10),
-  ('service_income',       'Services & consulting',       'in', 'Sales & services', 'revenue',      'Work delivered and paid for without a document in EdgeOS.',                          20),
+  ('service_income',       'Services & consulting',       'in', 'Sales & services', 'revenue',      'Work delivered and paid for without a document in Opstead.',                          20),
   ('subscription_income',  'Subscriptions & retainers',   'in', 'Sales & services', 'revenue',      'Recurring fees collected outside the recurring-invoice engine.',                     30),
   ('project_milestone',    'Project milestone',           'in', 'Sales & services', 'revenue',      'A stage payment on a project.',                                                      40),
   ('advance_received',     'Advance from customer',       'in', 'Sales & services', 'revenue',      'Money taken before the work. If you later invoice it, link the invoice instead.',    50),
@@ -572,7 +572,7 @@ begin
   insert into public.brain_metrics (org_id, key, bucket, value, dims, definition, resource)
   select p_org, 'income.direct_revenue', '', coalesce(sum(i.net_amount), 0), '{}'::jsonb,
          'Revenue received WITHOUT an invoice - counter sales, retainers, work billed outside '
-         'EdgeOS - at net value, excluding the GST collected on it. Entries linked to an invoice are '
+         'Opstead - at net value, excluding the GST collected on it. Entries linked to an invoice are '
          'excluded so nothing counts twice, and funding and refunds are excluded because they are not '
          'earned. Total revenue = revenue.billed (or revenue.collected, on a cash basis) PLUS this '
          'number; quoting revenue.* alone understates any business that also takes money directly.',

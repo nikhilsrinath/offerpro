@@ -12,7 +12,7 @@ import { useToast } from '../shared/Toast';
 import { invoiceFormDataOf, invoiceTotalsOf } from './invoiceView';
 
 /**
- * View Invoice: a tax invoice made in EdgeOS, drawn as it was issued, in a
+ * View Invoice: a tax invoice made in Opstead, drawn as it was issued, in a
  * side panel over the ledger. Download PDF captures this same drawing; Edit
  * (when it may be edited) opens it in its form.
  */

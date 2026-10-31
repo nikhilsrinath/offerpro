@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · 0013_sales_by_country.sql — country as a transaction-level fact.
+-- Opstead · 0013_sales_by_country.sql — country as a transaction-level fact.
 --
 -- THE DESIGN DECISION THIS FILE EXISTS TO MAKE:
 --

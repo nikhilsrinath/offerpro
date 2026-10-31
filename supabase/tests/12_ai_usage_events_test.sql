@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · AI usage events (0067)
+-- Opstead · AI usage events (0067)
 --
 -- The call log behind the Usage dashboard. What must hold:
 --   · a member reads their own organization's events, and only those;

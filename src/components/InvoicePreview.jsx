@@ -321,7 +321,7 @@ export default function InvoicePreview({ formData, totals, isInterState }) {
       )}
 
       <div className="inv-footer">
-        This is a computer-generated invoice. Generated via EdgeOS.
+        This is a computer-generated invoice. Generated via Opstead.
       </div>
     </div>
   );

@@ -1221,7 +1221,7 @@ export default function CopilotPanel({
             margin: '0 0 0.5rem',
           }}
         >
-          {showOnboardingButton ? 'Welcome to EdgeOS!' : 'Start thinking with your Co-founder'}
+          {showOnboardingButton ? 'Welcome to Opstead!' : 'Start thinking with your Co-founder'}
         </h3>
         <p
           style={{
@@ -1620,7 +1620,7 @@ export default function CopilotPanel({
             letterSpacing: '-0.01em',
           }}
         >
-          {showOnboardingButton ? 'Welcome to EdgeOS' : 'Your AI Co-founder'}
+          {showOnboardingButton ? 'Welcome to Opstead' : 'Your AI Co-founder'}
         </h3>
 
         <p

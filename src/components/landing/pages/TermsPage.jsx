@@ -9,7 +9,7 @@ const TermsPage = () => (
         <div className="sp-hero-badge"><FileText size={12} /> Legal</div>
         <h1 className="sp-hero-title"><em>Terms</em> of Service.</h1>
         <p className="sp-hero-subtitle">
-          The terms and conditions governing your use of EdgeOS.
+          The terms and conditions governing your use of Opstead.
         </p>
       </div>
     </section>
@@ -20,17 +20,17 @@ const TermsPage = () => (
 
         <h2>1. Acceptance of Terms</h2>
         <p>
-          By accessing or using EdgeOS ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, you may not use the Service. These terms apply to all users, including individuals and organizations.
+          By accessing or using Opstead ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, you may not use the Service. These terms apply to all users, including individuals and organizations.
         </p>
 
         <h2>2. Account Registration</h2>
         <p>
-          To use EdgeOS, you must create an account with accurate and complete information. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You must notify us immediately of any unauthorized access.
+          To use Opstead, you must create an account with accurate and complete information. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You must notify us immediately of any unauthorized access.
         </p>
 
         <h2>3. Free Plan & Subscriptions</h2>
         <p>
-          EdgeOS offers a Free plan with capped document generation and 10 messages with the AI Co-founder, requiring no credit card. Paid tiers (Pro at $12/month, Max at $54/month, and Enterprise at custom pricing) unlock higher and unlimited usage as described on the Pricing page. Annual billing applies to Pro and Max. You may upgrade, downgrade, or cancel at any time; usage limits reset at the start of each billing cycle.
+          Opstead offers a Free plan with capped document generation and 10 messages with the AI Co-founder, requiring no credit card. Paid tiers (Pro at $12/month, Max at $54/month, and Enterprise at custom pricing) unlock higher and unlimited usage as described on the Pricing page. Annual billing applies to Pro and Max. You may upgrade, downgrade, or cancel at any time; usage limits reset at the start of each billing cycle.
         </p>
 
         <h2>4. Acceptable Use</h2>
@@ -46,12 +46,12 @@ const TermsPage = () => (
 
         <h2>5. Intellectual Property</h2>
         <p>
-          EdgeOS and its original content, features, and functionality are owned by EdgeOS and protected by international copyright, trademark, and other intellectual property laws. Documents you generate using the Service are your property, but the templates, design, and underlying technology remain ours.
+          Opstead and its original content, features, and functionality are owned by Opstead and protected by international copyright, trademark, and other intellectual property laws. Documents you generate using the Service are your property, but the templates, design, and underlying technology remain ours.
         </p>
 
         <h2>6. Document Generation</h2>
         <p>
-          EdgeOS provides tools for generating business documents. You are solely responsible for the accuracy, legality, and appropriateness of the content you include in your documents. EdgeOS does not provide legal, tax, or financial advice. We recommend consulting qualified professionals for legal and tax matters.
+          Opstead provides tools for generating business documents. You are solely responsible for the accuracy, legality, and appropriateness of the content you include in your documents. Opstead does not provide legal, tax, or financial advice. We recommend consulting qualified professionals for legal and tax matters.
         </p>
 
         <h2>7. Payment Terms</h2>
@@ -61,7 +61,7 @@ const TermsPage = () => (
 
         <h2>8. Data & Privacy</h2>
         <p>
-          Your use of EdgeOS is also governed by our <a href="/privacy" style={{ color: '#fff', textDecoration: 'underline' }}>Privacy Policy</a>. By using the Service, you consent to the collection and use of information as described in the Privacy Policy.
+          Your use of Opstead is also governed by our <a href="/privacy" style={{ color: '#fff', textDecoration: 'underline' }}>Privacy Policy</a>. By using the Service, you consent to the collection and use of information as described in the Privacy Policy.
         </p>
 
         <h2>9. Service Availability</h2>
@@ -71,7 +71,7 @@ const TermsPage = () => (
 
         <h2>10. Limitation of Liability</h2>
         <p>
-          EdgeOS is provided "as is" without warranties of any kind. To the maximum extent permitted by law, EdgeOS shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of profits, data, or business opportunities.
+          Opstead is provided "as is" without warranties of any kind. To the maximum extent permitted by law, Opstead shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of profits, data, or business opportunities.
         </p>
 
         <h2>11. Termination</h2>

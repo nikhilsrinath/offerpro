@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · 0004_storage.sql
+-- Opstead · 0004_storage.sql
 -- Storage buckets and their policies.
 --
 -- Firebase Storage was configured but never used: grep for `firebase/storage`,

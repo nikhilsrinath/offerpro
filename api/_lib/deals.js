@@ -130,10 +130,10 @@ export function dealLimits(coverage) {
   if (failed.length) out.push(`Could not be read just now: ${failed.join(', ')}. Anything that needs them is left out.`);
   if (capped.length) out.push(`Only the first ${ROW_CAP} rows of ${capped.join(', ')} were read; totals over them may be incomplete.`);
   if (missing.length) out.push(`Not set up on this database yet: ${missing.join(', ')}. Nothing is recorded there.`);
-  out.push('EdgeOS stores no follow-up date or next action on a deal. Follow-ups are the open tasks on projects linked to the client; a deal with no linked project has none that can be seen.');
+  out.push('Opstead stores no follow-up date or next action on a deal. Follow-ups are the open tasks on projects linked to the client; a deal with no linked project has none that can be seen.');
   out.push(`Deal values carry no currency; they are shown in ${currencySymbol().trim()}, as the CRM board shows them. Quotation amounts include GST and are never added across currencies.`);
   out.push('No close probability is recorded, so none is estimated. Priority is a transparent score of the signals listed with it.');
-  out.push('"No activity" means none recorded in EdgeOS. Calls, emails or meetings that were not logged are not seen.');
+  out.push('"No activity" means none recorded in Opstead. Calls, emails or meetings that were not logged are not seen.');
   return out;
 }
 
@@ -200,7 +200,7 @@ export async function dealExtras(ctx, deal) {
   }));
   out.responses = responses.filter((e) => e.body || e.actor_type === 'recipient').map((e) => ({
     quotation: numberOf.get(e.financial_document_id) || null, date: localDay(e.created_at, ctx.tz), kind: e.kind,
-    by: e.actor_type === 'recipient' ? `client${e.actor_name ? ` (${e.actor_name})` : ''}` : e.actor_type === 'member' ? 'your team' : 'EdgeOS',
+    by: e.actor_type === 'recipient' ? `client${e.actor_name ? ` (${e.actor_name})` : ''}` : e.actor_type === 'member' ? 'your team' : 'Opstead',
     text: cap(e.body),
   }));
   const files = new Map();

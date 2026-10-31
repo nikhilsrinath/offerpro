@@ -53,7 +53,7 @@ const LandingPage = ({ onEnter }) => {
       <nav className="eos-nav">
         <div className="eos-nav-inner">
           <div className="eos-nav-logo">
-            <img src="/edgeos-logo.png" alt="EdgeOS" className="eos-logo-img" />
+            <img src="/edgeos-logo.png" alt="Opstead" className="eos-logo-img" />
           </div>
 
           <div className="eos-nav-links">
@@ -109,7 +109,7 @@ const LandingPage = ({ onEnter }) => {
         <div className="eos-mobile-overlay" onClick={() => setMobileMenuOpen(false)}>
           <div className="eos-mobile-menu" onClick={(e) => e.stopPropagation()}>
             <div className="eos-mobile-menu-header">
-              <img src="/edgeos-logo.png" alt="EdgeOS" className="eos-logo-img" style={{ height: 32 }} />
+              <img src="/edgeos-logo.png" alt="Opstead" className="eos-logo-img" style={{ height: 32 }} />
               <button
                 className="eos-mobile-close-btn"
                 onClick={() => setMobileMenuOpen(false)}
@@ -195,7 +195,7 @@ const LandingPage = ({ onEnter }) => {
 
         <div className="eos-container">
           <div className="eos-hero-content">
-            <span className="eos-hero-eyebrow">EdgeOS · The Royal Business OS</span>
+            <span className="eos-hero-eyebrow">Opstead · The Royal Business OS</span>
 
             <h1 className="eos-hero-title">
               The Business OS,<br />
@@ -327,7 +327,7 @@ const LandingPage = ({ onEnter }) => {
                     AI Co-founder
                   </h3>
                   <p className="eos-fc-desc" style={{ maxWidth: 720 }}>
-                    A real co-founder built into EdgeOS, not a chatbot. It reads your live business data, makes structured decisions, drafts polite-firm-urgent follow-ups to clients and team, runs guided onboarding, remembers your facts, opportunities & risks, and answers any question about your company in seconds. Always context-aware. Never invents data.
+                    A real co-founder built into Opstead, not a chatbot. It reads your live business data, makes structured decisions, drafts polite-firm-urgent follow-ups to clients and team, runs guided onboarding, remembers your facts, opportunities & risks, and answers any question about your company in seconds. Always context-aware. Never invents data.
                   </p>
                   <div className="eos-cf-skills">
                     <div className="eos-cf-skill"><Brain size={14} /> Decision Mode</div>
@@ -822,7 +822,7 @@ const LandingPage = ({ onEnter }) => {
             <div className="eos-section-badge"><Star size={12} /> Testimonials</div>
             <h2 className="eos-section-title">Trusted by teams who<br /><em>ship</em> with intent.</h2>
             <p className="eos-section-subtitle">
-              Join thousands of businesses that streamlined their operations with EdgeOS.
+              Join thousands of businesses that streamlined their operations with Opstead.
             </p>
           </div>
 
@@ -832,7 +832,7 @@ const LandingPage = ({ onEnter }) => {
                 name: 'Sarah Chen',
                 role: 'CTO, NovaScale',
                 avatar: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?q=80&w=200&h=200&auto=format&fit=crop',
-                quote: 'EdgeOS has completely transformed how we handle our corporate document pipelines. What used to take days now takes minutes.',
+                quote: 'Opstead has completely transformed how we handle our corporate document pipelines. What used to take days now takes minutes.',
               },
               {
                 name: 'Marcus Thorne',
@@ -909,7 +909,7 @@ const LandingPage = ({ onEnter }) => {
           <div className="eos-footer-grid">
             <div className="eos-footer-brand">
               <div className="eos-nav-logo" style={{ marginBottom: '0.5rem' }}>
-                <img src="/edgeos-logo.png" alt="EdgeOS" className="eos-logo-img" />
+                <img src="/edgeos-logo.png" alt="Opstead" className="eos-logo-img" />
               </div>
               <p>
                 The all-in-one operating system for business documents, financial operations, and team management.
@@ -949,7 +949,7 @@ const LandingPage = ({ onEnter }) => {
           </div>
 
           <div className="eos-footer-bottom">
-            <div>&copy; 2026 EdgeOS. All rights reserved.</div>
+            <div>&copy; 2026 Opstead. All rights reserved.</div>
             <div className="eos-footer-socials">
               <a href="#"><Globe size={16} /></a>
               <a href="#">

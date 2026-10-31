@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · EdgeAI agent actions (0068)
+-- Opstead · EdgeAI agent actions (0068)
 --
 -- What must hold:
 --   · ai_actions: each person reads their own proposals; owners and admins

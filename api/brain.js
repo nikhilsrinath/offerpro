@@ -237,7 +237,7 @@ async function context(res, { orgId, perms, allowed, body }) {
 
 /* ── ask ──────────────────────────────────────────────────────────────────── */
 
-const SYSTEM_PROMPT = `You are EdgeBrain, the company intelligence layer inside EdgeOS.
+const SYSTEM_PROMPT = `You are EdgeBrain, the company intelligence layer inside Opstead.
 
 You answer questions about THIS company using only the context below, which was
 retrieved from the organisation's own Supabase records and is already filtered

@@ -1,5 +1,5 @@
 /**
- * EdgeOS Co-founder AI Service
+ * Opstead Co-founder AI Service
  * Powered by Gemini through the /api/nvidia proxy, which picks the model
  * (api/_lib/llm.js)
  * Optimized for sub-7-second responses
@@ -65,7 +65,7 @@ interface StreamCallbacks {
 }
 
 /**
- * Build EdgeOS context from available data
+ * Build Opstead context from available data
  */
 export function buildEdgeContext(edgeData: {
   records?: any[];
@@ -148,7 +148,7 @@ export function buildEdgeContext(edgeData: {
 }
 
 /**
- * Build system prompt with EdgeOS context
+ * Build system prompt with Opstead context
  */
 function buildSystemPrompt(context: EdgeContext, memory?: CompanyMemory | null, rawData?: string): string {
   // Extract user info from rawData first (fresh from Firebase)
@@ -609,7 +609,7 @@ export async function callCofounderAISimple(
 }
 
 /**
- * Suggested prompts based on EdgeOS context
+ * Suggested prompts based on Opstead context
  */
 export function getSuggestedPrompts(context: EdgeContext): SuggestedPrompt[] {
   const prompts: SuggestedPrompt[] = [

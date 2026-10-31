@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · alerts from every server agent (0090)
+-- Opstead · alerts from every server agent (0090)
 --
 --   · agent_alerts_commit writes each notification with the type of the
 --     agent that committed it, so the bell opens that agent's page

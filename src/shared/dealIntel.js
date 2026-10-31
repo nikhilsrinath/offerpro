@@ -1,4 +1,4 @@
-// dealIntel.js: Deal Intelligence, the sales pipeline as EdgeOS records it,
+// dealIntel.js: Deal Intelligence, the sales pipeline as Opstead records it,
 // what in it is at risk, and which deals to work on first.
 //
 // Pure functions over rows the caller has already loaded, shared by the
@@ -7,7 +7,7 @@
 // here). The model is handed what these functions work out and explains it;
 // it never decides that a deal is at risk, how urgent it is, or adds a value.
 //
-// What a deal is in EdgeOS. There is no deal or opportunity table. Since 0016
+// What a deal is in Opstead. There is no deal or opportunity table. Since 0016
 // a CRM lead and a billed client are one `clients` row, and the CRM board's
 // column is its status:
 //
@@ -30,7 +30,7 @@
 //   approvals         client_approvals.client_id (0074)
 //   notes             clients.notes; EdgeAI's add_client_note dates each line
 //
-// EdgeOS stores no follow-up date, next action, close probability or stage
+// Opstead stores no follow-up date, next action, close probability or stage
 // history for a deal. Nothing here invents one: the next step is the soonest
 // open task on a linked project, no probability is ever estimated, and a
 // period is compared by the deals created, won and lost in it, never by a
@@ -290,7 +290,7 @@ export function collectDeals(input, { today, tz = 'Asia/Kolkata', config: raw, i
     // (updated_at) is not activity: dragging a card bumps it.
     const activity = [];
     const add = (date, label, type) => { if (isIsoDate(date) && date <= today) activity.push({ date, label, type }); };
-    add(day(c.created_at), `Added to EdgeOS as ${STAGE_LABEL[stageMoved(c) ? 'lead' : c.status] || 'a client'}`, 'created');
+    add(day(c.created_at), `Added to Opstead as ${STAGE_LABEL[stageMoved(c) ? 'lead' : c.status] || 'a client'}`, 'created');
     if (stageMoved(c)) add(day(c.status_changed_at), `Stage set to ${STAGE_LABEL[c.status]}`, 'stage');
     for (const x of notes) add(x.date, `Note: ${clip(x.text, 100)}`, 'note');
     for (const q of quotes) {
@@ -368,7 +368,7 @@ function quoteOf(q, events, today, tz) {
   const issued = isIsoDate(q.issue_date) ? q.issue_date : null;
   const validUntil = isIsoDate(q.valid_until) ? q.valid_until : null;
   const evs = events.filter((e) => e.kind !== 'locked').map((e) => {
-    const who = e.actor_type === 'recipient' ? (e.actor_name || 'The client') : e.actor_type === 'member' ? (e.actor_name || 'Your team') : 'EdgeOS';
+    const who = e.actor_type === 'recipient' ? (e.actor_name || 'The client') : e.actor_type === 'member' ? (e.actor_name || 'Your team') : 'Opstead';
     return {
       date: localDay(e.created_at, tz), kind: e.kind, by: e.actor_type,
       label: `${who} ${EVENT_LABEL[e.kind] || e.kind} ${q.doc_number || 'the quotation'}`,
@@ -528,7 +528,7 @@ export function detectRisks(collected) {
           [`Issued ${formatDate(q.issued)}, ${plural(q.days_waiting, 'day')} ago; status "${q.status}", and no client response is recorded on it.`,
             `${moneyIn(q.total, q.currency)} incl. GST.`,
             seen('events') ? null : 'Client responses could not be read, so one may exist.'],
-          `Check in with ${who(d)} on ${q.number || 'the quotation'}; if they answered outside EdgeOS, record it.`,
+          `Check in with ${who(d)} on ${q.number || 'the quotation'}; if they answered outside Opstead, record it.`,
           [recordOfQuote(q)], q.id);
       }
     }
@@ -571,7 +571,7 @@ export function detectRisks(collected) {
         [`Last recorded: ${d.last_activity.label} on ${formatDate(d.last_activity.date)} (${ago(d.days_inactive)}).`,
           high ? `Recorded value ${money(d.value)}, which is ${highValue.basis}.` : (d.value !== null ? `Recorded value ${money(d.value)}.` : null),
           activityNote.length ? `Some activity could not be read (${activityNote.join(', ')}), so there may be more recent contact.` : null,
-          'Only what is recorded in EdgeOS counts; calls or emails that were not logged are not seen.'],
+          'Only what is recorded in Opstead counts; calls or emails that were not logged are not seen.'],
         `Reach out to ${who(d)}${d.next_step ? '' : ' and set a dated next step'}; if you have been in touch, add a note so the deal shows it.`,
         []);
     }
@@ -691,8 +691,8 @@ export function prioritize(collected, findings) {
 export const DEFINITIONS = {
   pipeline: 'Open deals are clients at Lead or Contacted on the CRM board, archived ones left out. Pipeline value is the sum of the value recorded on them, the same figure as EdgeBrain\'s pipeline and the Sales dashboard\'s Pipeline tile. A deal with no value recorded adds nothing and is counted separately.',
   quotations: 'Quotations awaiting a response are those sent, viewed or pending; amounts include GST and are totalled per currency.',
-  flow: 'Deals created, won and lost in a period, from each client\'s creation date and the date its stage last changed. A client added directly as won (for example by its first invoice) is not counted as won from the pipeline. EdgeOS keeps no stage history, so the pipeline value on a past date cannot be rebuilt.',
-  activity: 'Activity is what EdgeOS has recorded: the deal being added, stage changes, dated notes, quotations issued and the client\'s responses to them, client communications and approvals. A plain edit to the card is not activity.',
+  flow: 'Deals created, won and lost in a period, from each client\'s creation date and the date its stage last changed. A client added directly as won (for example by its first invoice) is not counted as won from the pipeline. Opstead keeps no stage history, so the pipeline value on a past date cannot be rebuilt.',
+  activity: 'Activity is what Opstead has recorded: the deal being added, stage changes, dated notes, quotations issued and the client\'s responses to them, client communications and approvals. A plain edit to the card is not activity.',
 };
 
 /** The pipeline now: open deals by stage, values, quotations waiting, risks by severity. */
@@ -810,7 +810,7 @@ export function buildDealDigest(findings, due, orgName = '') {
   return {
     title,
     message,
-    text: `${orgName ? `${orgName}: ` : ''}${message}\n\nNeeds action:\n${lines.join('\n')}${more}\n\nOpen EdgeOS → Ask → Agents → ${AGENT_NAME} for the full list.`,
+    text: `${orgName ? `${orgName}: ` : ''}${message}\n\nNeeds action:\n${lines.join('\n')}${more}\n\nOpen Opstead → Ask → Agents → ${AGENT_NAME} for the full list.`,
     lines,
   };
 }

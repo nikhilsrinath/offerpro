@@ -4,7 +4,7 @@ import { money, monthLabel } from './adminUtils';
 
 /* The few display pieces the console needs that the shared kit does not
    already carry. Everything else, Panel, Table, Stat, Modal, Btn, comes from
-   components/ui/edge so the console is the same object as the rest of EdgeOS.  */
+   components/ui/edge so the console is the same object as the rest of Opstead.  */
 
 /* ── plan ─────────────────────────────────────────────────────────────────── */
 

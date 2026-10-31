@@ -1,5 +1,5 @@
 /**
- * EdgeOS migration · Step 2 — Transform
+ * Opstead migration · Step 2 — Transform
  *
  * Reads the raw Firebase export produced by 01-extract.js and emits normalized,
  * load-ready JSON matching the Postgres schema in supabase/migrations/0001_init.sql.

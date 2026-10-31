@@ -10,7 +10,7 @@ import { useT, tableFrame, thStyle } from '../ui/edgeUtils';
 
 /**
  * Employee profile → "Role & permissions": everything about what one person
- * may do in EdgeOS, in one place.
+ * may do in Opstead, in one place.
  *
  *   Role          which role their login holds.
  *   Permissions   what they can actually do, resource by resource. A change
@@ -161,7 +161,7 @@ export default function MemberAccess({ email, name }) {
       <Panel title="Role & permissions" note="No login" pad={13}>
         <p style={{ ...text(10.5), margin: 0 }}>
           {email
-            ? `No EdgeOS login uses ${email} yet. Once they have a login (create one above), their role and permissions are set here.`
+            ? `No Opstead login uses ${email} yet. Once they have a login (create one above), their role and permissions are set here.`
             : 'Add an email to this employee to manage their role and permissions.'}
         </p>
         {msg && <p role="alert" style={{ ...text(10.5, t.down), margin: '8px 0 0' }}>{msg.text}</p>}

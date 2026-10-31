@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   EdgeOS surface tokens: the hub and the EdgeAI copilot.
+   Opstead surface tokens: the hub and the EdgeAI copilot.
 
    Set by `data-theme` on the element carrying `.eo-surface`, so a surface
    themes itself without depending on the document root. Greys are chosen to
@@ -31,7 +31,7 @@
   --pos: #3ecf75;
   --neg: #f26d6d;
   --accent: #2f8cff;
-  --accent-btn: linear-gradient(180deg, #3a8ff7 0%, #1764d6 100%);
+  --accent-btn: #2f8cff;
   --sel-bg: #2f8cff;
   --sel-text: #ffffff;
   --on-text: #ffffff;
@@ -53,38 +53,38 @@
 }
 
 .eo-surface[data-theme="light"] {
-  --shell: #eceef1;
-  --bg: #f6f7f9;
+  --shell: #f5f6f8;
+  --bg: #ffffff;
   --panel: #ffffff;
   --card: #ffffff;
-  --card-2: #f0f2f5;
-  --card-3: #e7eaee;
-  --line: #e3e6ea;
-  --line-soft: #eceef1;
-  --line-2: #cdd2d8;
-  --line-3: #b4bac2;
-  --text: #0f1115;
-  --text-2: #0f1115;
-  --muted: #565c66;
-  --dim: #666c76;
-  --ghost: #8a909a;
+  --card-2: #f8f9fb;
+  --card-3: #f1f3f6;
+  --line: #e8eaee;
+  --line-soft: #f1f2f5;
+  --line-2: #d7dbe1;
+  --line-3: #c0c6cf;
+  --text: #101828;
+  --text-2: #101828;
+  --muted: #475467;
+  --dim: #667085;
+  --ghost: #868fa0;
   --pos: #15803d;
   --neg: #c62828;
   --accent: #1f7af0;
-  --accent-btn: linear-gradient(180deg, #2f86f6 0%, #1662d0 100%);
+  --accent-btn: #1f7af0;
   --sel-bg: #1f7af0;
   --sel-text: #ffffff;
   --on-text: #ffffff;
   --chart-a: #1f7af0;
-  --chart-b: #d3d8df;
-  --map-null: #e7eaee;
+  --chart-b: #dde2e9;
+  --map-null: #eef1f5;
   --scale-1: #d6e6fc;
   --scale-2: #a3c8f8;
   --scale-3: #5e9ff2;
   --scale-4: #1f7af0;
   --scale-5: #0d4fa8;
   --hi: inset 0 1px 0 rgba(255, 255, 255, .9);
-  --shadow: 0 24px 60px -28px rgba(20, 28, 40, .35);
+  --shadow: 0 12px 32px -12px rgba(16, 24, 40, .18);
   --orb: radial-gradient(circle at 35% 30%, #ffffff 0%, #6aa9f7 42%, #0d4fa8 92%);
   --orb-glow: rgba(31, 122, 240, .14);
   --orb-glow-2: rgba(31, 122, 240, .26);

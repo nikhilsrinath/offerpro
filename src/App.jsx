@@ -400,7 +400,7 @@ function AppContent() {
   // Logging out asks first, wherever it is clicked from.
   const askLogout = async () => {
     if (!(await confirmDialog({
-      title: 'Log out', message: 'Are you sure you want to log out of EdgeOS?',
+      title: 'Log out', message: 'Are you sure you want to log out of Opstead?',
       confirmLabel: 'Log out',
     }))) return;
     logout();
@@ -489,7 +489,7 @@ function AppContent() {
       <div className="app-loading">
         <div style={{ textAlign: 'center' }}>
           <div className="app-loading-spinner" />
-          <span className="app-loading-text">Loading EdgeOS...</span>
+          <span className="app-loading-text">Loading Opstead...</span>
         </div>
       </div>
     );
@@ -513,7 +513,7 @@ function AppContent() {
       <div className="app-loading">
         <div style={{ textAlign: 'center' }}>
           <div className="app-loading-spinner" />
-          <span className="app-loading-text">Loading EdgeOS...</span>
+          <span className="app-loading-text">Loading Opstead...</span>
         </div>
       </div>
     );

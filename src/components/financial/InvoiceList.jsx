@@ -399,7 +399,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
         ` : ''}
 
         <div class="inv-footer">
-          This is a computer-generated ${doc.type === 'quotation' ? 'quotation' : doc.type === 'proforma' ? 'proforma invoice' : 'invoice'}. Generated via EdgeOS.
+          This is a computer-generated ${doc.type === 'quotation' ? 'quotation' : doc.type === 'proforma' ? 'proforma invoice' : 'invoice'}. Generated via Opstead.
         </div>
       </div>
     `;

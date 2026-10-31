@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Employee ID (0082) and the new-project fields (0081)
+-- Opstead · Employee ID (0082) and the new-project fields (0081)
 --
 --   · a new employee is numbered EMP-0001, EMP-0002 … within its organization
 --   · a code supplied by an import is kept, and is not handed out again

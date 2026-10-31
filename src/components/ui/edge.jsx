@@ -54,7 +54,7 @@ export function Toolbar({ children, right, sticky = true }) {
         <div className="edge-toolbar" style={{
             display: 'flex', alignItems: 'flex-start', gap: 10,
             padding: 10, marginBottom: 12,
-            background: t.card, border: '1px solid ' + t.line, borderRadius: 16, boxShadow: t.highlight,
+            background: t.card, border: '1px solid ' + t.line, borderRadius: 12,
             ...(sticky ? { position: 'sticky', top: 0, zIndex: 20 } : {}),
         }}>
             {/* The filters wrap among themselves; the right-hand action stays
@@ -83,15 +83,15 @@ export function Panel({ children, title, note, actions, pad = 0, style }) {
     // no frame of its own, its title a band, its fields the sheet's rows.
     return (
         <section style={drawer ? { minWidth: 0, ...style, margin: 0, border: 0, borderRadius: 0, background: 'transparent' } : {
-            border: '1px solid ' + t.line, borderRadius: 16, boxShadow: t.highlight,
+            border: '1px solid ' + t.line, borderRadius: 12,
             background: t.card, overflow: 'hidden', minWidth: 0, ...style,
         }}>
             {(title || actions) && (
                 <header style={{
                     display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid ' + t.line,
-                    ...(drawer ? { padding: '12px 20px', background: t.panelAlt } : { padding: '12px 16px' }),
+                    ...(drawer ? { padding: '12px 20px', background: t.panelAlt } : { padding: '10px 14px' }),
                 }}>
-                    <span style={{ fontSize: drawer ? 13.5 : 14.5, color: t.text, fontWeight: drawer ? 600 : 500, letterSpacing: '-0.01em' }}>{titleCaseNode(title)}</span>
+                    <span style={{ fontSize: 13, color: t.text, fontWeight: 600, letterSpacing: '-0.005em' }}>{titleCaseNode(title)}</span>
                     {note && <span style={{ fontSize: 11.5, color: t.faint }}>{note}</span>}
                     <div style={{ flex: 1 }} />
                     {actions}
@@ -128,7 +128,7 @@ export function Muted({ children, size = 12 }) {
 export function Btn({ children, onClick, primary, danger, disabled, title, size: sizeProp = 'md', type = 'button', full, style, ...rest }) {
     const t = useT();
     const size = useContext(InDrawerFoot) ? 'sm' : sizeProp;
-    const h = size === 'sm' ? 30 : 36;
+    const h = size === 'sm' ? 28 : 32;
     return (
         <button
             {...rest}
@@ -136,13 +136,13 @@ export function Btn({ children, onClick, primary, danger, disabled, title, size:
             className={'edge-btn' + (primary ? ' edge-btn-primary' : '')}
             style={{
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                height: h, padding: size === 'sm' ? '0 11px' : '0 14px', borderRadius: size === 'sm' ? 9 : 10,
-                fontFamily: MONO, fontSize: size === 'sm' ? 12.5 : 13.5, fontWeight: 500, whiteSpace: 'nowrap',
+                height: h, padding: size === 'sm' ? '0 10px' : '0 12px', borderRadius: 7,
+                fontFamily: MONO, fontSize: size === 'sm' ? 12 : 12.5, fontWeight: 500, whiteSpace: 'nowrap',
                 cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
                 width: full ? '100%' : undefined,
                 border: '1px solid ' + (primary ? 'transparent' : t.lineStrong),
-                background: primary ? t.accentBtn : t.panelAlt,
-                boxShadow: primary ? 'inset 0 1px 0 rgba(255,255,255,.25), 0 6px 16px -8px ' + t.accent : t.highlight,
+                background: primary ? t.accent : t.card,
+                boxShadow: 'none',
                 color: primary ? t.onAccent : (danger ? t.down : t.text),
                 transition: 'border-color .15s, background .15s, color .15s, opacity .15s, filter .15s',
                 ...style,
@@ -155,7 +155,7 @@ export function Btn({ children, onClick, primary, danger, disabled, title, size:
     every option is visible, so nobody has to open a menu to learn what exists. */
 export function Seg({ value, onChange, options, size = 'md', label: groupLabel }) {
     const t = useT();
-    const h = size === 'sm' ? 30 : 36;
+    const h = size === 'sm' ? 28 : 32;
     const ids = options.map((o) => (typeof o === 'string' ? o : o.id));
     // One tab stop for the whole control; arrows move between options, the way
     // a native radio group behaves.
@@ -175,7 +175,7 @@ export function Seg({ value, onChange, options, size = 'md', label: groupLabel }
     return (
         <div role="radiogroup" aria-label={groupLabel} onKeyDown={onKeyDown} style={{
             display: 'inline-flex', alignItems: 'center', gap: 2, height: h,
-            padding: 2, boxSizing: 'border-box', border: '1px solid ' + t.line, borderRadius: 10, background: t.panelAlt,
+            padding: 2, boxSizing: 'border-box', border: '1px solid ' + t.line, borderRadius: 8, background: t.panelAlt,
         }}>
             {options.map((o) => {
                 const id = typeof o === 'string' ? o : o.id;
@@ -189,11 +189,11 @@ export function Seg({ value, onChange, options, size = 'md', label: groupLabel }
                         onClick={() => onChange(id)} className="edge-seg"
                         style={{
                             display: 'inline-flex', alignItems: 'center', gap: 6,
-                            height: '100%', padding: '0 11px', borderRadius: 8,
-                            fontFamily: MONO, fontSize: size === 'sm' ? 12.5 : 13, fontWeight: 500,
+                            height: '100%', padding: '0 10px', borderRadius: 6,
+                            fontFamily: MONO, fontSize: size === 'sm' ? 12 : 12.5, fontWeight: 500,
                             border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                            background: active ? t.raised : 'transparent',
-                            boxShadow: active ? t.highlight + ', inset 0 0 0 1px ' + t.lineStrong : 'none',
+                            background: active ? (t.isDark ? t.raised : t.card) : 'transparent',
+                            boxShadow: active ? (t.isDark ? t.highlight + ', inset 0 0 0 1px ' + t.lineStrong : '0 1px 2px rgba(16,24,40,.08), inset 0 0 0 1px ' + t.line) : 'none',
                             color: active ? t.text : t.faint,
                             transition: 'color .14s, background .14s',
                         }}
@@ -206,20 +206,20 @@ export function Seg({ value, onChange, options, size = 'md', label: groupLabel }
     );
 }
 
-export function Search({ value, onChange, placeholder = 'Search…', width = 240, height = 36 }) {
+export function Search({ value, onChange, placeholder = 'Search…', width = 240, height = 32 }) {
     const t = useT();
     return (
         <span style={{ position: 'relative', display: 'inline-flex', width, maxWidth: '100%' }}>
-            <SearchIcon size={15} aria-hidden="true" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: t.faint, pointerEvents: 'none' }} />
+            <SearchIcon size={14} aria-hidden="true" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: t.faint, pointerEvents: 'none' }} />
             <input
                 type="search"
                 value={value} onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder} aria-label={placeholder}
                 className="edge-input"
                 style={{
-                    height: Math.max(height, 36), width: '100%', padding: '0 12px 0 33px', boxSizing: 'border-box',
-                    background: t.panelAlt, border: '1px solid ' + t.line, borderRadius: 10,
-                    color: t.text, fontFamily: MONO, fontSize: 13, outline: 'none',
+                    height: Math.max(height, 32), width: '100%', padding: '0 10px 0 30px', boxSizing: 'border-box',
+                    background: t.card, border: '1px solid ' + t.line, borderRadius: 7,
+                    color: t.text, fontFamily: MONO, fontSize: 12.5, outline: 'none',
                 }}
             />
         </span>
@@ -262,8 +262,8 @@ export function Field({ label, children, hint, wide, required }) {
 
 /* The panel's controls are a little shorter and squarer than the page's. */
 const ctl = (drawer) => (drawer
-    ? { height: 34, borderRadius: 7, fontSize: 13.5 }
-    : { height: 36, borderRadius: 10, fontSize: 13.5 });
+    ? { height: 32, borderRadius: 7, fontSize: 13 }
+    : { height: 32, borderRadius: 7, fontSize: 12.5 });
 
 export function Input(props) {
     const t = useT();
@@ -289,7 +289,7 @@ export function Select({ children, ...props }) {
             style={{
                 verticalAlign: 'top', width: '100%', boxSizing: 'border-box',
                 padding: drawer ? '0 28px 0 11px' : '0 28px 0 12px', cursor: 'pointer',
-                background: t.panelAlt, border: '1px solid ' + (drawer ? t.lineStrong : t.line),
+                backgroundColor: t.panelAlt, border: '1px solid ' + (drawer ? t.lineStrong : t.line),
                 color: t.text, fontFamily: MONO, outline: 'none', ...ctl(drawer),
                 // The native control paints its own light chrome, which reads as a
                 // hole in a dark panel. Draw the caret ourselves instead.
@@ -313,7 +313,7 @@ export function Textarea(props) {
             style={{
                 width: '100%', boxSizing: 'border-box', padding: drawer ? '8px 11px' : '9px 12px', minHeight: drawer ? 72 : 74,
                 background: t.panelAlt, border: '1px solid ' + (drawer ? t.lineStrong : t.line), borderRadius: drawer ? 7 : 10,
-                color: t.text, fontFamily: MONO, fontSize: 13.5, outline: 'none',
+                color: t.text, fontFamily: MONO, fontSize: 12.5, outline: 'none',
                 resize: 'vertical', lineHeight: 1.6, ...props.style,
             }}
         />
@@ -412,11 +412,11 @@ export function Stat({ label, value, note, tone }) {
     return (
         <div style={{ minWidth: 0 }}>
             <div style={{
-                fontSize: 26, fontWeight: 600, lineHeight: 1.1, letterSpacing: '-0.04em',
+                fontSize: 21, fontWeight: 600, lineHeight: 1.1, letterSpacing: '-0.03em',
                 fontVariantNumeric: 'tabular-nums',
                 color: tone === 'up' ? t.up : tone === 'down' ? t.down : t.text,
             }}>{value}</div>
-            <div style={{ fontSize: 12.5, fontWeight: 500, color: t.dim, marginTop: 6 }}>{titleCaseNode(label)}</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: t.dim, marginTop: 5 }}>{titleCaseNode(label)}</div>
             {note && <div style={{ fontSize: 11.5, color: t.faint, marginTop: 3 }}>{note}</div>}
         </div>
     );
@@ -431,8 +431,7 @@ export function StatBand({ items }) {
             {items.map((s, i) => (
                 <div key={s.label} style={{
                     position: 'relative', padding: '16px 18px', minWidth: 0, overflow: 'hidden',
-                    background: t.card, border: '1px solid ' + t.line, borderRadius: 16, boxShadow: t.highlight,
-                    backgroundImage: `radial-gradient(120% 100% at 100% 0%, ${t.accentSoft}, transparent 60%)`,
+                    background: t.card, border: '1px solid ' + t.line, borderRadius: 12,
                 }}>
                     <span aria-hidden="true" style={{
                         position: 'absolute', left: 0, top: 16, bottom: 16, width: 3, borderRadius: '0 3px 3px 0',
@@ -814,7 +813,7 @@ function PageStyle({ t }) {
             .edge-page .edge-input::placeholder { color: ${t.faint}; }
             .edge-page input[list]::-webkit-calendar-picker-indicator { display: none !important; opacity: 0; }
             .edge-page select.edge-input option { background: ${t.card}; color: ${t.text}; }
-            .edge-page .edge-toolbar :is(.edge-input, .edge-btn, .edge-dropdown) { height: 36px !important; }
+            .edge-page .edge-toolbar :is(.edge-input, .edge-btn, .edge-dropdown) { height: 32px !important; }
             .edge-page .edge-btn[aria-pressed="true"]:not(.edge-btn-primary) {
                 background: ${t.accentSoft} !important; border-color: color-mix(in srgb, ${t.accent} 45%, transparent) !important; color: ${t.accent} !important;
             }
@@ -1022,7 +1021,7 @@ export function RowMenu({ items, label = 'Actions', size = 'sm' }) {
     `options` is [{ id, label }]. Keyboard: Enter/Space/↑↓ opens, ↑↓ Home End
     move, Enter picks, Esc or Tab closes. The list is portalled to <body> so a
     container's overflow cannot clip it. */
-export function Dropdown({ label, value, onChange, options, height = 36 }) {
+export function Dropdown({ label, value, onChange, options, height = 32 }) {
     const t = useT();
     const [open, setOpen] = useState(false);
     const [pos, setPos] = useState(null);
@@ -1117,9 +1116,9 @@ export function Dropdown({ label, value, onChange, options, height = 36 }) {
                 onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
                 style={{
                     display: 'inline-flex', alignItems: 'center', gap: 8, height,
-                    padding: '0 10px 0 12px', borderRadius: 10, cursor: 'pointer',
+                    padding: '0 9px 0 11px', borderRadius: 7, cursor: 'pointer',
                     border: '1px solid ' + (active ? t.lineStrong : t.line),
-                    background: active ? t.raised : t.panelAlt, boxShadow: t.highlight, color: t.text,
+                    background: active ? t.raised : t.card, color: t.text,
                     fontFamily: MONO, fontSize: 12.5, whiteSpace: 'nowrap', maxWidth: 260,
                     transition: 'border-color .15s, background .15s',
                 }}

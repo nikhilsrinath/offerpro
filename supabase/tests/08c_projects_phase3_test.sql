@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Projects, phase 3 (0058–0061): timesheets, their costing and
+-- Opstead · Projects, phase 3 (0058–0061): timesheets, their costing and
 -- billing, and EdgeBrain. Self-contained; rolls back.
 -- ============================================================================
 

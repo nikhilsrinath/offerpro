@@ -31,7 +31,7 @@ const LegalDocumentsPage = () => (
             </div>
             <div className="sp-app-body">
               <div className="sp-app-sidebar">
-                <div className="sp-app-sidebar-brand"><Zap size={14} fill="currentColor" /> EdgeOS</div>
+                <div className="sp-app-sidebar-brand"><Zap size={14} fill="currentColor" /> Opstead</div>
                 <div className="sp-app-sidebar-section">Documents</div>
                 <div className="sp-app-sidebar-item"><Briefcase size={14} /> Offer Letters</div>
                 <div className="sp-app-sidebar-item"><Award size={14} /> Certificates</div>
@@ -60,7 +60,7 @@ const LegalDocumentsPage = () => (
 
                       <div className="sp-df-section">
                         <div className="sp-df-section-head"><div className="sp-df-num">2</div><span className="sp-df-section-title">Disclosing party</span></div>
-                        <div><span className="sp-df-label">Company name</span><div className="sp-df-input" style={{ marginBottom: '0.375rem' }}>EdgeOS Corp Private Limited</div></div>
+                        <div><span className="sp-df-label">Company name</span><div className="sp-df-input" style={{ marginBottom: '0.375rem' }}>Opstead Corp Private Limited</div></div>
                         <div className="sp-df-row">
                           <div><span className="sp-df-label">Country</span><div className="sp-df-input">India</div></div>
                           <div><span className="sp-df-label">Address</span><div className="sp-df-input">123 Business Avenue, Bangalore</div></div>
@@ -110,7 +110,7 @@ const LegalDocumentsPage = () => (
                       <div className="sp-demo-a4">
                         <div className="sp-demo-a4-sheet" style={{ fontFamily: "'Times New Roman', 'Times', serif" }}>
                           <div className="sp-a4-header">
-                            <div><div className="sp-a4-company">EdgeOS Corp</div><div className="sp-a4-detail">123 Business Avenue, Bangalore</div></div>
+                            <div><div className="sp-a4-company">Opstead Corp</div><div className="sp-a4-detail">123 Business Avenue, Bangalore</div></div>
                             <div style={{ width: 36, height: 36, background: '#f0f0f0', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Zap size={16} color="#333" /></div>
                           </div>
                           <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '11pt', marginBottom: 10 }}>NON-DISCLOSURE AGREEMENT</div>
@@ -118,7 +118,7 @@ const LegalDocumentsPage = () => (
                             This Non-Disclosure Agreement ("Agreement") is entered into as of <strong>April 1, 2026</strong>, at <strong>Bangalore, Karnataka</strong>, by and between:
                           </div>
                           <div style={{ fontSize: '7pt', fontWeight: 700, marginBottom: 4 }}>1. DISCLOSING PARTY</div>
-                          <div style={{ fontSize: '6.5pt', paddingLeft: 12, marginBottom: 6 }}>EdgeOS Corp Private Limited, incorporated in India, having its registered office at 123 Business Avenue, Bangalore.</div>
+                          <div style={{ fontSize: '6.5pt', paddingLeft: 12, marginBottom: 6 }}>Opstead Corp Private Limited, incorporated in India, having its registered office at 123 Business Avenue, Bangalore.</div>
                           <div style={{ fontSize: '7pt', fontWeight: 700, marginBottom: 4 }}>2. RECEIVING PARTY</div>
                           <div style={{ fontSize: '6.5pt', paddingLeft: 12, marginBottom: 6 }}>TechVentures Pvt Ltd, incorporated in India, having its registered office at 456 Tech Park, Mumbai.</div>
                           <div style={{ fontSize: '7pt', fontWeight: 700, marginBottom: 4 }}>3. PURPOSE</div>

@@ -16,7 +16,7 @@ import { titleCaseNode } from '../../utils/titleCase';
 /* `open` widens the island to show labels; `widths` are the outer widths,
    the 10px gutter around the island included. Hover and focus report
    through `onHover` so the caller decides what opens it (hover, pin…). */
-export function RailIsland({ t, open, label, onHover, widths = { open: 248, shut: 80 }, children }) {
+export function RailIsland({ t, open, label, onHover, widths = { open: 220, shut: 64 }, children }) {
     return (
         <aside
             aria-label={label}
@@ -27,19 +27,17 @@ export function RailIsland({ t, open, label, onHover, widths = { open: 248, shut
             onFocus={onHover ? () => onHover(true) : undefined}
             onBlur={onHover ? (e) => { if (!e.currentTarget.contains(e.relatedTarget)) onHover(false); } : undefined}
             style={{
-                width: open ? widths.open : widths.shut, flexShrink: 0, padding: 10,
+                width: open ? widths.open : widths.shut, flexShrink: 0, padding: 8,
                 background: t.shell, display: 'flex', zIndex: 60,
                 transition: 'width .24s cubic-bezier(.16,1,.3,1)',
             }}
         >
             <div className="ri-island" style={{
                 position: 'relative', flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column',
-                borderRadius: 24, overflow: 'hidden', fontFamily: MONO, color: t.text,
-                border: '1px solid ' + t.lineStrong,
+                borderRadius: 14, overflow: 'hidden', fontFamily: MONO, color: t.text,
+                border: '1px solid ' + t.line,
                 background: t.card,
-                boxShadow: t.isDark
-                    ? 'inset 0 1px 0 rgba(255,255,255,.07), 0 20px 50px -18px rgba(0,0,0,.9)'
-                    : 'inset 0 1px 0 #fff, 0 18px 40px -22px rgba(20,40,80,.3)',
+                boxShadow: t.isDark ? 'inset 0 1px 0 rgba(255,255,255,.05)' : '0 1px 2px rgba(16,24,40,.05)',
             }}>
                 {children}
             </div>
@@ -51,33 +49,33 @@ export function RailIsland({ t, open, label, onHover, widths = { open: 248, shut
 /** The island's head row: what leads it (brand or back link), then the pin. */
 export function RailHead({ children, pin }) {
     return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 56, padding: '0 10px 0 14px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 48, padding: '0 8px 0 13px', flexShrink: 0 }}>
             {children}
             {pin}
         </div>
     );
 }
 
-/** The EdgeOS mark on its blue tile, and the name while open. */
+/** The Opstead mark on its blue tile, and the name while open. */
 export function RailBrand({ t, open, to = '/dashboard/overview' }) {
     return (
-        <Link to={to} aria-label="EdgeOS dashboard" title="Dashboard" style={{
+        <Link to={to} aria-label="Opstead dashboard" title="Dashboard" style={{
             display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1,
             textDecoration: 'none', color: t.text,
         }}>
             <span aria-hidden="true" style={{
-                width: 30, height: 30, borderRadius: 9, flexShrink: 0, display: 'grid', placeItems: 'center',
-                background: t.accentBtn, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.3), 0 6px 18px -6px ' + t.accent,
+                width: 24, height: 24, borderRadius: 7, flexShrink: 0, display: 'grid', placeItems: 'center',
+                background: t.accentBtn,
             }}>
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
                     <path d="M10 1v18M1 10h18M3.5 3.5l13 13M16.5 3.5l-13 13" stroke="#fff" strokeWidth="1.4" />
                     <circle cx="10" cy="10" r="2.6" fill="#1a6ee0" stroke="#fff" strokeWidth="1.4" />
                 </svg>
             </span>
             <span aria-hidden="true" style={{
-                fontSize: 15.5, fontWeight: 600, letterSpacing: '-0.02em', whiteSpace: 'nowrap',
+                fontSize: 14, fontWeight: 600, letterSpacing: '-0.015em', whiteSpace: 'nowrap',
                 opacity: open ? 1 : 0, transition: 'opacity .16s',
-            }}>EdgeOS</span>
+            }}>Opstead</span>
         </Link>
     );
 }
@@ -85,19 +83,19 @@ export function RailBrand({ t, open, to = '/dashboard/overview' }) {
 /** The way back (to the hub, or the project list), as the island's head. */
 export function RailBack({ t, open, to, label, onClick }) {
     const style = {
-        display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1, height: 34,
-        padding: 0, borderRadius: 10, textDecoration: 'none', color: t.text,
+        display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, flex: 1, height: 28,
+        padding: 0, borderRadius: 7, textDecoration: 'none', color: t.text,
         background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
     };
     const inner = (
         <>
             <span aria-hidden="true" className="ri-back-ic" style={{
-                width: 30, height: 30, borderRadius: 9, flexShrink: 0, display: 'grid', placeItems: 'center',
-                border: '1px solid ' + t.line, background: t.panelAlt, boxShadow: t.highlight, color: t.dim,
+                width: 24, height: 24, borderRadius: 7, flexShrink: 0, display: 'grid', placeItems: 'center',
+                border: '1px solid ' + t.line, background: t.panelAlt, color: t.dim,
                 transition: 'color .15s, border-color .15s',
-            }}><ArrowLeft size={15} strokeWidth={1.8} /></span>
+            }}><ArrowLeft size={13} strokeWidth={1.8} /></span>
             <span aria-hidden="true" style={{
-                fontSize: 13, whiteSpace: 'nowrap', color: t.dim,
+                fontSize: 12, whiteSpace: 'nowrap', color: t.dim,
                 opacity: open ? 1 : 0, transition: 'opacity .16s',
             }}>{titleCaseNode(label)}</span>
         </>
@@ -114,7 +112,7 @@ export function RailHeading({ t, open, children }) {
     return (
         <div aria-hidden="true" style={{
             display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
-            padding: '12px 6px 5px', fontSize: 10.5, fontWeight: 500, letterSpacing: '.01em', color: t.faint, whiteSpace: 'nowrap',
+            padding: '10px 8px 4px', fontSize: 11, fontWeight: 500, letterSpacing: '.01em', color: t.faint, whiteSpace: 'nowrap',
         }}>
             <span style={{ opacity: open ? 1 : 0, transition: 'opacity .16s', overflow: 'hidden', textOverflow: 'ellipsis' }}>{titleCaseNode(children)}</span>
             <span style={{ flex: 1, minWidth: 8, height: 1, background: t.line }} />
@@ -126,7 +124,7 @@ export function RailHeading({ t, open, children }) {
 export function RailList({ label, children }) {
     return (
         <nav aria-label={label} className="ri-nav" style={{
-            display: 'flex', flexDirection: 'column', padding: '0 9px',
+            display: 'flex', flexDirection: 'column', padding: '0 8px',
             overflowY: 'auto', overflowX: 'hidden', minHeight: 0,
         }}>{children}</nav>
     );
@@ -134,13 +132,12 @@ export function RailList({ label, children }) {
 
 function itemStyle(t, on) {
     return {
-        position: 'relative', display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-        height: 34, padding: '0 11px', borderRadius: 10, flexShrink: 0, marginBottom: 2,
+        position: 'relative', display: 'flex', alignItems: 'center', gap: 9, width: '100%',
+        height: 30, padding: '0 9px', borderRadius: 7, flexShrink: 0, marginBottom: 1,
         textDecoration: 'none', textAlign: 'left', fontFamily: 'inherit', cursor: 'pointer',
         color: on ? '#fff' : t.dim, fontWeight: on ? 500 : 400,
-        border: '1px solid ' + (on ? 'rgba(255,255,255,.14)' : 'transparent'),
-        background: on ? t.accentBtn : 'transparent',
-        boxShadow: on ? `inset 0 1px 0 rgba(255,255,255,.25), 0 6px 16px -8px ${t.accent}` : 'none',
+        border: '1px solid transparent',
+        background: on ? t.accent : 'transparent',
         transition: 'color .14s, background .14s',
     };
 }
@@ -149,28 +146,24 @@ function ItemInner({ t, open, on, icon: Icon, label, dot, badge }) {
     return (
         <>
             <span style={{ position: 'relative', display: 'grid', flexShrink: 0 }}>
-                <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
+                <Icon size={15} strokeWidth={1.75} aria-hidden="true" />
                 {(dot || (badge > 0 && !open)) && <span aria-hidden="true" style={{
                     position: 'absolute', top: -2, right: -2, width: 7, height: 7, borderRadius: 999,
                     background: t.down, border: '1.5px solid ' + t.card,
                 }} />}
             </span>
             <span style={{
-                fontSize: 13, whiteSpace: 'nowrap', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
+                fontSize: 12.5, whiteSpace: 'nowrap', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
                 opacity: open ? 1 : 0, transition: 'opacity .16s',
             }}>{titleCaseNode(label)}</span>
             {badge > 0 && open && (
                 <span aria-hidden="true" style={{
-                    minWidth: 18, height: 18, padding: '0 5px', borderRadius: 999, boxSizing: 'border-box',
+                    minWidth: 17, height: 17, padding: '0 5px', borderRadius: 999, boxSizing: 'border-box',
                     display: 'grid', placeItems: 'center', fontSize: 10.5, fontWeight: 600, flexShrink: 0,
                     background: on ? 'rgba(255,255,255,.22)' : t.panelAlt, color: on ? '#fff' : t.text,
                     border: '1px solid ' + (on ? 'transparent' : t.line),
                 }}>{badge}</span>
             )}
-            {on && !badge && <span aria-hidden="true" style={{
-                width: 5, height: 5, borderRadius: 999, background: '#fff', flexShrink: 0,
-                boxShadow: '0 0 8px rgba(255,255,255,.8)', opacity: open ? 1 : 0, transition: 'opacity .16s',
-            }} />}
         </>
     );
 }
@@ -203,16 +196,16 @@ export function RailItem({ t, open, icon, label, to, end, replace, onClick, acti
 /** A square icon action for the island's foot row. */
 export function IslandBtn({ t, icon: Icon, label, to, onClick, danger, dot, btnRef, ...aria }) {
     const style = {
-        position: 'relative', width: 34, height: 34, flexShrink: 0, display: 'grid', placeItems: 'center',
-        borderRadius: 10, border: '1px solid ' + t.line, background: t.panelAlt, cursor: 'pointer', padding: 0,
-        color: danger ? t.down : t.dim, boxShadow: t.highlight, textDecoration: 'none',
+        position: 'relative', width: 28, height: 28, flexShrink: 0, display: 'grid', placeItems: 'center',
+        borderRadius: 7, border: '1px solid ' + t.line, background: t.panelAlt, cursor: 'pointer', padding: 0,
+        color: danger ? t.down : t.dim, textDecoration: 'none',
         transition: 'color .15s, border-color .15s',
     };
     const inner = (
         <>
-            <Icon size={15} strokeWidth={1.8} aria-hidden="true" />
+            <Icon size={14} strokeWidth={1.8} aria-hidden="true" />
             {dot && <span aria-hidden="true" style={{
-                position: 'absolute', top: 5, right: 5, width: 7, height: 7, borderRadius: 999,
+                position: 'absolute', top: 3, right: 3, width: 7, height: 7, borderRadius: 999,
                 background: t.down, border: '1.5px solid ' + t.panelAlt,
             }} />}
         </>
@@ -246,7 +239,7 @@ export function RailFoot({ t, open, children, footRef }) {
         <div ref={footRef} style={{
             display: 'flex', flexDirection: open ? 'row' : 'column', alignItems: 'center',
             justifyContent: 'center', gap: 6, flexShrink: 0,
-            padding: '10px 9px 12px', borderTop: '1px solid ' + t.line,
+            padding: '8px 8px 10px', borderTop: '1px solid ' + t.line,
         }}>{children}</div>
     );
 }
@@ -256,20 +249,20 @@ export function RailFoot({ t, open, children, footRef }) {
 export function RailPlanCard({ t, open, plan }) {
     return (
         <div aria-hidden={!open} className="ri-plancard" style={{
-            margin: '0 10px 10px', flexShrink: 0, overflow: 'hidden',
+            margin: '0 8px 8px', flexShrink: 0, overflow: 'hidden',
             opacity: open ? 1 : 0, visibility: open ? 'visible' : 'hidden', transition: 'opacity .16s',
         }}>
             <Link to="/pricing" tabIndex={open ? 0 : -1} className="ri-plan" style={{
-                display: 'flex', alignItems: 'center', gap: 10, minWidth: 196,
-                padding: '10px 12px', borderRadius: 14, textDecoration: 'none', color: t.text,
-                background: t.panelAlt, border: '1px solid ' + t.line, boxShadow: t.highlight,
+                display: 'flex', alignItems: 'center', gap: 9, minWidth: 180,
+                padding: '8px 10px', borderRadius: 9, textDecoration: 'none', color: t.text,
+                background: t.panelAlt, border: '1px solid ' + t.line,
             }}>
                 <span aria-hidden="true" style={{
-                    width: 28, height: 28, borderRadius: 8, flexShrink: 0, display: 'grid', placeItems: 'center',
+                    width: 24, height: 24, borderRadius: 7, flexShrink: 0, display: 'grid', placeItems: 'center',
                     background: t.accentBtn, color: '#fff',
-                }}><Crown size={14} strokeWidth={2} /></span>
+                }}><Crown size={12} strokeWidth={2} /></span>
                 <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, lineHeight: 1.25 }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap' }}>{plan.displayName}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>{plan.displayName}</span>
                     <span style={{ fontSize: 11, color: t.dim, whiteSpace: 'nowrap' }}>Plans & billing</span>
                 </span>
             </Link>

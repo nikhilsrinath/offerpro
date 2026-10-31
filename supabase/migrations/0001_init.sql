@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · 0001_init.sql
+-- Opstead · 0001_init.sql
 -- Extensions, enumerated types, and every table.
 --
 -- Derived from the live Firebase shapes, not from guesswork. Source of each

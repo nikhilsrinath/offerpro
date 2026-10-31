@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Tenant isolation and privilege tests
+-- Opstead · Tenant isolation and privilege tests
 --
 -- These are the tests that could not exist under Firebase, where isolation was
 -- a client-side `where('orgId','==',_orgId)` filter and any anonymous user

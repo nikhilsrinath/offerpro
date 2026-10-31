@@ -1,4 +1,4 @@
-# EdgeOS — Fix Plan
+# Opstead — Fix Plan
 
 > ## ⚠️ Superseded in part — read `SUPABASE_MIGRATION.md` first
 >

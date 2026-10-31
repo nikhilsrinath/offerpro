@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · EdgeBrain headline totals (0066)
+-- Opstead · EdgeBrain headline totals (0066)
 --
 -- The reported case: the dashboard showed net cash ₹16,450 (₹98,000 in from
 -- the cash book, ₹81,550 of expenses out) and the assistant said −₹81,550,

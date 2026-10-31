@@ -14,7 +14,7 @@ import React, { useEffect, useRef, useState } from 'react';
 
    tone="blue" is the voice call's orb: a navy glass ball with a teal wave of
    light across it, a violet edge on the wave and a thin blue rim. Everywhere
-   else the orb stays monochrome, like the rest of EdgeOS.
+   else the orb stays monochrome, like the rest of Opstead.
    ══════════════════════════════════════════════════════════════════════════ */
 
 const VERT = `
@@ -65,7 +65,7 @@ void main() {
     float aa  = 2.0 / (R * m);
     float t   = uTime;
 
-    // Monochrome, like the rest of EdgeOS. Dark theme: a black glass ball with
+    // Monochrome, like the rest of Opstead. Dark theme: a black glass ball with
     // silver light inside and a white rim. Light theme: the inversion, pale
     // glass, graphite smoke, an ink rim. So it sits on white without a glow.
     vec3 ink   = mix(vec3(0.06, 0.065, 0.07), vec3(1.0), uDark);

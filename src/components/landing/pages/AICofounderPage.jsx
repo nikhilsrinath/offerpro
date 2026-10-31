@@ -62,7 +62,7 @@ const AICofounderPage = () => (
       <div className="sp-hero-glow" />
       <div className="eos-container">
         <div className="sp-hero-badge"><Sparkles size={12} /> Flagship Capability</div>
-        <h1 className="sp-hero-title">Your AI Co-founder.<br /><em>Built into</em> EdgeOS.</h1>
+        <h1 className="sp-hero-title">Your AI Co-founder.<br /><em>Built into</em> Opstead.</h1>
         <p className="sp-hero-subtitle">
           Not a chatbot. A real co-founder that reads your live business data, makes decisions with you, drafts follow-ups, remembers what matters, and answers anything about your company in seconds, without ever inventing a fact.
         </p>
@@ -83,7 +83,7 @@ const AICofounderPage = () => (
               <div className="acf-preview-title">AI Co-founder</div>
               <div className="acf-preview-status"><span className="acf-pulse" /> Online and reading live data</div>
             </div>
-            <div className="acf-preview-tag"><Sparkles size={11} /> Powered by EdgeOS</div>
+            <div className="acf-preview-tag"><Sparkles size={11} /> Powered by Opstead</div>
           </div>
 
           <div className="acf-thread">
@@ -247,7 +247,7 @@ const AICofounderPage = () => (
           <div>
             <h3 className="acf-policy-title">Your data, your business, always</h3>
             <p className="acf-policy-desc">
-              The AI Co-founder reads from your encrypted EdgeOS workspace cache. We never train on your data. We never share it with third parties. Every conversation is grounded in your facts and only your facts. If a question can't be answered from your data, the Co-founder says so, instead of inventing one.
+              The AI Co-founder reads from your encrypted Opstead workspace cache. We never train on your data. We never share it with third parties. Every conversation is grounded in your facts and only your facts. If a question can't be answered from your data, the Co-founder says so, instead of inventing one.
             </p>
             <div className="acf-policy-tags">
               <div className="acf-policy-tag"><Lock size={12} /> Encrypted at rest</div>

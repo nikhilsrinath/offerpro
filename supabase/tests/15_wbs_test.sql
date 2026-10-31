@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Work Breakdown Structure and PDM links (0072)
+-- Opstead · Work Breakdown Structure and PDM links (0072)
 --
 --   · a sub-task takes its parent's project, and cannot sit in another one
 --   · no task sits under itself, directly or through its own sub-tasks

@@ -31,7 +31,7 @@ const CertificatesPage = () => (
             </div>
             <div className="sp-app-body">
               <div className="sp-app-sidebar">
-                <div className="sp-app-sidebar-brand"><Zap size={14} fill="currentColor" /> EdgeOS</div>
+                <div className="sp-app-sidebar-brand"><Zap size={14} fill="currentColor" /> Opstead</div>
                 <div className="sp-app-sidebar-section">Documents</div>
                 <div className="sp-app-sidebar-item"><Briefcase size={14} /> Offer Letters</div>
                 <div className="sp-app-sidebar-item active"><Award size={14} /> Certificates</div>
@@ -58,7 +58,7 @@ const CertificatesPage = () => (
                       <div className="sp-df-section">
                         <div className="sp-df-section-head"><div className="sp-df-num">2</div><span className="sp-df-section-title">Issuing organization</span></div>
                         <div className="sp-df-row">
-                          <div><span className="sp-df-label">Organization</span><div className="sp-df-input">EdgeOS Academy</div></div>
+                          <div><span className="sp-df-label">Organization</span><div className="sp-df-input">Opstead Academy</div></div>
                           <div><span className="sp-df-label">Issue date</span><div className="sp-df-input">2026-03-28</div></div>
                         </div>
                         <div><span className="sp-df-label">Logo</span><div className="sp-df-input" style={{ color: '#22c55e', fontSize: '0.625rem' }}>✓ academy-logo.png uploaded</div></div>
@@ -133,7 +133,7 @@ const CertificatesPage = () => (
                             color: '#fff', fontSize: '5pt', fontWeight: 700, textTransform: 'uppercase', textAlign: 'center',
                             lineHeight: 1.2
                           }}>
-                            EDGEOS<br/>VERIFIED
+                            OPSTEAD<br/>VERIFIED
                           </div>
                         </div>
                       </div>

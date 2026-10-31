@@ -354,7 +354,7 @@ export default function ProjectOverviewWidgets({ tabs, ctx }) {
         )}
 
         {tiles.length > 0 && (
-            <TileRow bento cols={tileCols(Math.max(1, tiles.length))}>
+            <TileRow cols={tileCols(Math.max(1, tiles.length))}>
                 {tiles.map((w) => (
                     <Tile key={w.id} wid={w.id} icon={w.icon} label={w.title} {...w.tile(ctx)}
                         onClick={w.to ? () => go(w.to) : undefined} />

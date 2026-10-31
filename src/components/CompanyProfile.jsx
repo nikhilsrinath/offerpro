@@ -560,7 +560,7 @@ export default function CompanyProfile() {
                     )}
                   </FormField>
                   <FormField t={t} label="Currency" htmlFor="cp-currency" wide
-                    hint="Every amount in EdgeOS is shown in this currency. Existing figures are relabelled, not converted.">
+                    hint="Every amount in Opstead is shown in this currency. Existing figures are relabelled, not converted.">
                     <Select t={t} {...bind('currency')}>
                       {!CURRENCY_OPTIONS.some((c) => c.code === form.currency) && <option value={form.currency}>{form.currency}</option>}
                       {CURRENCY_OPTIONS.map((c) => <option key={c.code} value={c.code}>{`${c.symbol.trim()} ${c.code} · ${c.name}`}</option>)}
@@ -720,7 +720,7 @@ export default function CompanyProfile() {
                 <ol style={{ margin: 0, padding: '0 0 0 18px', display: 'grid', gap: 8, fontSize: 13.5, lineHeight: 1.6, color: t.dim }}>
                   <li>Turn on <b style={{ color: t.text, fontWeight: 500 }}>2-Step Verification</b> for your Google account. <ExtLink t={t} href="https://myaccount.google.com/signinoptions/two-step-verification">Open 2-Step settings</ExtLink></li>
                   <li>Open <b style={{ color: t.text, fontWeight: 500 }}>App passwords</b>. <ExtLink t={t} href="https://myaccount.google.com/apppasswords">Open App passwords</ExtLink></li>
-                  <li>Name it “EdgeOS” and press <b style={{ color: t.text, fontWeight: 500 }}>Create</b>.</li>
+                  <li>Name it “Opstead” and press <b style={{ color: t.text, fontWeight: 500 }}>Create</b>.</li>
                   <li>Copy the 16-character password, paste it here, and press <b style={{ color: t.text, fontWeight: 500 }}>Save & send a test email</b>.</li>
                 </ol>
               </Panel>

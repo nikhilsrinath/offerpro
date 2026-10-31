@@ -1,4 +1,4 @@
-# EdgeOS (OfferPro) — Mega Audit
+# Opstead (OfferPro) — Mega Audit
 
 **Repository:** `nikhilsrinath/offerpro`
 **Audit date:** 2026-09-06
@@ -19,7 +19,7 @@
 | **Low issues** | 9 |
 | **Estimated effort to production-grade** | 10–14 engineer-weeks |
 
-EdgeOS is a genuinely ambitious product. The feature surface is large and coherent — offer letters, certificates, NDAs, MoUs, invoices, quotations, proforma invoices, recurring billing, CRM, employee registry, org chart, task board, bulk operations, a recipient e-signature portal, and an AI co-founder. The UI has real craft: a considered design system, dark/light theming, and a landing page that looks like a funded startup's.
+Opstead is a genuinely ambitious product. The feature surface is large and coherent — offer letters, certificates, NDAs, MoUs, invoices, quotations, proforma invoices, recurring billing, CRM, employee registry, org chart, task board, bulk operations, a recipient e-signature portal, and an AI co-founder. The UI has real craft: a considered design system, dark/light theming, and a landing page that looks like a funded startup's.
 
 **But the product is a well-dressed prototype, not a SaaS.** The gap is not polish — it is foundations. Specifically:
 
@@ -127,7 +127,7 @@ Total, trivially reachable breach of every customer's confidential business and 
 ### AI implementation prompt
 
 ```
-Implement server-side multi-tenant authorization for the EdgeOS Firebase backend.
+Implement server-side multi-tenant authorization for the Opstead Firebase backend.
 There is currently NO authorization layer: tenant isolation exists only as a
 client-side `where('orgId','==',orgId)` filter in src/services/orgStore.js, and the
 app relies on anonymous auth passing an `auth != null` rule.
@@ -241,7 +241,7 @@ Complete platform takeover and irreversible destruction of all customer data by 
 ### AI implementation prompt
 
 ```
-Replace the insecure EdgeOS admin panel authentication with real server-verified
+Replace the insecure Opstead admin panel authentication with real server-verified
 admin identity, and make destructive operations safe and auditable.
 
 INSPECT FIRST
@@ -335,7 +335,7 @@ Unbounded third-party inference billing on a stolen key; the key must be treated
 ### AI implementation prompt
 
 ```
-Remove committed secrets from the EdgeOS repository and prevent recurrence.
+Remove committed secrets from the Opstead repository and prevent recurrence.
 
 INSPECT FIRST
 - .gitignore (no .env entry), .env (tracked, contains a live NVIDIA key),
@@ -426,7 +426,7 @@ Any third party can enumerate, read, download and **legally sign or accept** ano
 ### AI implementation prompt
 
 ```
-Secure the EdgeOS recipient portal with real, verifiable, expiring access tokens.
+Secure the Opstead recipient portal with real, verifiable, expiring access tokens.
 Today the token is decorative: PortalLinkGenerator.jsx:11 generates it with
 Math.random() on every render, and RecipientPortal.jsx never validates it.
 Document IDs are sequential (documentStore.js:98-103), so the portal is a
@@ -543,7 +543,7 @@ Three distinct critical outcomes:
 ### AI implementation prompt
 
 ```
-Secure EdgeOS outbound email. api/email.js is currently an unauthenticated open
+Secure Opstead outbound email. api/email.js is currently an unauthenticated open
 SMTP relay that accepts arbitrary Gmail credentials and recipients from any caller,
 and doubles as a credential-validation oracle via transporter.verify().
 
@@ -639,7 +639,7 @@ A free, unlimited, globally accessible LLM endpoint billed to the project owner.
 ### AI implementation prompt
 
 ```
-Secure and meter the EdgeOS AI proxy. api/nvidia.js is currently an
+Secure and meter the Opstead AI proxy. api/nvidia.js is currently an
 unauthenticated LLM endpoint with Access-Control-Allow-Origin:* and no rate
 limiting, and the ai_message_count quota it is supposed to respect is never
 incremented anywhere in the codebase.
@@ -744,7 +744,7 @@ Zero revenue is collectible, and any revenue that were collected would be trivia
 ### AI implementation prompt
 
 ```
-Make EdgeOS billing real and server-authoritative. Today `plan` is a
+Make Opstead billing real and server-authoritative. Today `plan` is a
 client-writable field on the org profile (src/services/orgStore.js line 34,
 written by updateProfile at line 333), read by usePlanStatus.js line 19, and there
 is no payment provider in the codebase at all.
@@ -855,7 +855,7 @@ Stored XSS in an authenticated financial application: session theft, fraudulent 
 ### AI implementation prompt
 
 ```
-Eliminate the DOM XSS sinks in EdgeOS invoice and stamp rendering.
+Eliminate the DOM XSS sinks in Opstead invoice and stamp rendering.
 
 INSPECT FIRST
 - src/components/financial/InvoiceList.jsx lines 135-230 (the full innerHTML
@@ -931,7 +931,7 @@ A single accidental or malicious deletion is permanent and total. There is no re
 ### AI implementation prompt
 
 ```
-Establish backup, restore, export and migration capability for EdgeOS. There is
+Establish backup, restore, export and migration capability for Opstead. There is
 currently no backup config, no migration framework, no customer data export, and
 an admin panel that permanently deletes organizations (admin/index.html:515).
 
@@ -1019,7 +1019,7 @@ Only the landing sub-pages are code-split (they come through `subPageData`, visi
 ### AI implementation prompt
 
 ```
-Code-split the EdgeOS bundle. Production build emits a single 3,382 kB
+Code-split the Opstead bundle. Production build emits a single 3,382 kB
 (976 kB gzip) main chunk plus a 260 kB CSS file, and every anonymous visitor to the
 marketing landing page downloads the entire authenticated app.
 
@@ -1228,7 +1228,7 @@ React 19 unmounts the whole tree on an uncaught render error. With 86 ESLint err
 ### AI implementation prompt
 
 ```
-Add error boundaries and error reporting to EdgeOS. There is currently no
+Add error boundaries and error reporting to Opstead. There is currently no
 ErrorBoundary, no componentDidCatch, and no error monitoring anywhere in src/.
 
 INSPECT FIRST
@@ -1303,7 +1303,7 @@ The 4 sparse-array errors (`MoUPreview.jsx:14`, `NdaPreview.jsx:14`, `pdfService
 ### AI implementation prompt
 
 ```
-Drive EdgeOS to zero ESLint errors, fixing real bugs rather than suppressing them.
+Drive Opstead to zero ESLint errors, fixing real bugs rather than suppressing them.
 Baseline: 86 errors, 13 warnings across 46 files.
 
 INSPECT FIRST
@@ -1379,7 +1379,7 @@ VERIFY
 ### AI implementation prompt
 
 ```
-Make EdgeOS discoverable. index.html has only a <title>; there is no description,
+Make Opstead discoverable. index.html has only a <title>; there is no description,
 no Open Graph, no canonical, no robots.txt, no sitemap, no structured data, and no
 per-route metadata for the 12 landing sub-pages.
 
@@ -1475,7 +1475,7 @@ The "HYBRID HEAL" reconciliation (`orgStore.js:226-275`) then runs on **every lo
 ### AI implementation prompt
 
 ```
-Collapse the EdgeOS three-way write fan-out (localStorage + RTDB + Firestore) into
+Collapse the Opstead three-way write fan-out (localStorage + RTDB + Firestore) into
 a single source of truth with observable failures.
 
 INSPECT FIRST
@@ -1559,7 +1559,7 @@ try {
 ### AI implementation prompt
 
 ```
-Fix the dead onboarding gate in EdgeOS auth.
+Fix the dead onboarding gate in Opstead auth.
 
 INSPECT FIRST
 - src/context/AuthContext.jsx lines 20-77: needsOnboarding initialised false (22),
@@ -1638,7 +1638,7 @@ There is also **no invitation flow** — no way to add a second user to an organ
 ### AI implementation prompt
 
 ```
-Implement role-based access control and team invitations for EdgeOS. The
+Implement role-based access control and team invitations for Opstead. The
 memberships documents already carry a `role` field (written in
 dualWriteService.js:93 and OrgContext.jsx:135) but it is never read anywhere in
 src/, and there is no way to invite a second user to an organization.
@@ -1723,7 +1723,7 @@ There is no automated dependency scanning: no `.github/` directory exists, so no
 ### AI implementation prompt
 
 ```
-Remediate EdgeOS dependency vulnerabilities and prevent regression. Baseline:
+Remediate Opstead dependency vulnerabilities and prevent regression. Baseline:
 `npm audit` reports 25 vulnerabilities — 3 critical, 15 high.
 
 INSPECT FIRST
@@ -1801,7 +1801,7 @@ Neither file sets a single security header. Missing:
 ### AI implementation prompt
 
 ```
-Fix EdgeOS deployment configuration and add security headers.
+Fix Opstead deployment configuration and add security headers.
 
 INSPECT FIRST
 - vercel.json (rewrites /api/(.*) then /(.*) → /index.html; no headers block, no
@@ -1878,7 +1878,7 @@ ls: cannot access '.github': No such file or directory
 ### AI implementation prompt
 
 ```
-Establish a testing foundation and CI for EdgeOS. There are currently zero tests,
+Establish a testing foundation and CI for Opstead. There are currently zero tests,
 no test runner, no npm test script, and no .github directory.
 
 INSPECT FIRST
@@ -1961,7 +1961,7 @@ But there is **no `tsconfig.json`** anywhere, and no `typescript` dependency in 
 ### AI implementation prompt
 
 ```
-Make TypeScript real in EdgeOS. There are 8 .ts files (~2,800 lines, including the
+Make TypeScript real in Opstead. There are 8 .ts files (~2,800 lines, including the
 988-line companyMemory.ts and 681-line cofounderAI.ts) but NO tsconfig.json and no
 typescript dependency — esbuild strips the annotations and nothing type-checks.
 
@@ -2036,7 +2036,7 @@ Meanwhile `orgStore.listenSection` (`orgStore.js:436-477`) already implements pr
 ### AI implementation prompt
 
 ```
-Replace interval polling with real-time subscriptions in EdgeOS.
+Replace interval polling with real-time subscriptions in Opstead.
 
 INSPECT FIRST
 - src/App.jsx lines 178-188 — a 3-second setInterval calling
@@ -2352,7 +2352,7 @@ Nothing else matters until tenant isolation is real.
 
 # PART VII — TARGET STATE
 
-### What "production-grade" looks like for EdgeOS
+### What "production-grade" looks like for Opstead
 
 **Security & tenancy.** Every read and write is authorized server-side by Firestore rules keyed on a membership document. Anonymous access grants nothing. The recipient portal issues signed, expiring, revocable tokens. Secrets live in a server-only collection, encrypted at rest, never touching the client. Admin identity is a custom claim verified server-side, every admin action is audited, and deletion is reversible for 30 days. No credential has ever been committed. Security headers score A. Rules are covered by tests that fail the build if isolation breaks.
 
@@ -2380,7 +2380,7 @@ Nothing else matters until tenant isolation is real.
 
 ## Closing assessment
 
-The instinct behind EdgeOS is right, and the execution of the visible product is better than most seed-stage software. Someone with real taste designed this interface, and someone with real domain understanding scoped these features — GST-aware invoicing, proforma advance tracking, recipient e-signature portals and an org-aware AI assistant are not obvious things to build.
+The instinct behind Opstead is right, and the execution of the visible product is better than most seed-stage software. Someone with real taste designed this interface, and someone with real domain understanding scoped these features — GST-aware invoicing, proforma advance tracking, recipient e-signature portals and an org-aware AI assistant are not obvious things to build.
 
 What is missing is the invisible half: the layer that decides who may read what, the tests that prove the arithmetic is right, and the operational discipline that lets you recover when something goes wrong. That layer is thin and well-understood. Almost every critical finding here is confined to security rules, one `api/` directory, one data-access module and the build configuration.
 

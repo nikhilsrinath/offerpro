@@ -7,7 +7,7 @@ const SubPageFooter = () => (
       <div className="eos-footer-grid">
         <div className="eos-footer-brand">
           <a href="/" className="eos-nav-logo" style={{ marginBottom: '0.5rem', textDecoration: 'none' }}>
-            <img src="/edgeos-logo.png" alt="EdgeOS" className="eos-logo-img" />
+            <img src="/edgeos-logo.png" alt="Opstead" className="eos-logo-img" />
           </a>
           <p>
             The all-in-one operating system for business documents, financial operations, and team management.
@@ -47,7 +47,7 @@ const SubPageFooter = () => (
       </div>
 
       <div className="eos-footer-bottom">
-        <div>&copy; 2026 EdgeOS. All rights reserved.</div>
+        <div>&copy; 2026 Opstead. All rights reserved.</div>
         <div className="eos-footer-socials">
           <a href="#"><Globe size={16} /></a>
           <a href="#">

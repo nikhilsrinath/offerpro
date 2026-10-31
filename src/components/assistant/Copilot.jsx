@@ -140,7 +140,7 @@ export default function Copilot({ variant = 'dock', theme = 'dark', onExpand, on
                         </div>
                     )}
                     {composer}
-                    <div className="cp-disclaimer">Answers use your live EdgeOS data. Check anything you act on.</div>
+                    <div className="cp-disclaimer">Answers use your live Opstead data. Check anything you act on.</div>
                 </div>
             </div>}
         </>
@@ -343,7 +343,7 @@ export function AgentChat({ agent, title, prompts = [], intro, placeholder, them
                             </div>
                         )}
                         {mine && <Composer a={a} onCall={() => setCallOpen(true)} placeholder={placeholder} />}
-                        <div className="cp-disclaimer">Answers use your live EdgeOS data. Nothing changes until you confirm it.</div>
+                        <div className="cp-disclaimer">Answers use your live Opstead data. Nothing changes until you confirm it.</div>
                     </div>
                 </div>
             </div>

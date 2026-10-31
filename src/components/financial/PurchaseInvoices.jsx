@@ -102,10 +102,13 @@ export default function PurchaseInvoices({ project = null, party = null, onOpen 
     if (r) money$.openEntry(r, direction);
   };
 
-  // The Vendors page links here with ?vendor=<id>&new=1 to open a bill for them.
+  // The Vendors page links here with ?vendor=<id>&new=1 to open a bill for them;
+  // Today and Billing & Revenue link with ?new=in or ?new=out for a Credit or Debit.
   useEffect(() => {
-    if (params.get('new') === '1') {
-      money$.newBill(params.get('vendor') || '');
+    const wanted = params.get('new');
+    if (wanted === '1' || wanted === 'in' || wanted === 'out') {
+      if (wanted === '1') money$.newBill(params.get('vendor') || '');
+      else money$.record(wanted);
       const next = new URLSearchParams(params);
       next.delete('new');
       setParams(next, { replace: true });

@@ -31,7 +31,7 @@ const QuotationsPage = () => (
             </div>
             <div className="sp-app-body">
               <div className="sp-app-sidebar">
-                <div className="sp-app-sidebar-brand"><Zap size={14} fill="currentColor" /> EdgeOS</div>
+                <div className="sp-app-sidebar-brand"><Zap size={14} fill="currentColor" /> Opstead</div>
                 <div className="sp-app-sidebar-section">Finance</div>
                 <div className="sp-app-sidebar-item"><Activity size={14} /> Finance Status</div>
                 <div className="sp-app-sidebar-item"><Receipt size={14} /> Invoices</div>
@@ -126,7 +126,7 @@ const QuotationsPage = () => (
                         <div className="sp-demo-a4-sheet">
                           <div className="sp-a4-header">
                             <div>
-                              <div className="sp-a4-company">EdgeOS Corp</div>
+                              <div className="sp-a4-company">Opstead Corp</div>
                               <div className="sp-a4-detail">123 Business Avenue, Bangalore<br/>GSTIN: 29AABCT1234F1ZP</div>
                             </div>
                             <div style={{ width: 36, height: 36, background: '#f0f0f0', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -138,7 +138,7 @@ const QuotationsPage = () => (
                             <span style={{ fontSize: '7pt' }}>QT-2026-031 (Rev 2)</span>
                           </div>
                           <div className="sp-a4-parties">
-                            <div><div className="sp-a4-party-label">From</div><div className="sp-a4-party-name">EdgeOS Corp</div><div className="sp-a4-detail">Bangalore, Karnataka</div></div>
+                            <div><div className="sp-a4-party-label">From</div><div className="sp-a4-party-name">Opstead Corp</div><div className="sp-a4-detail">Bangalore, Karnataka</div></div>
                             <div><div className="sp-a4-party-label">Quoted To</div><div className="sp-a4-party-name">TechVentures India</div><div className="sp-a4-detail">Mumbai, Maharashtra</div></div>
                           </div>
                           <div style={{ fontSize: '6pt', color: '#666', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>

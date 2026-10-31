@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · 0011_product_catalog.sql — a sellable product/service catalogue and
+-- Opstead · 0011_product_catalog.sql — a sellable product/service catalogue and
 -- its sales rollup.
 --
 -- NAMING, and why this table is not called `products`:

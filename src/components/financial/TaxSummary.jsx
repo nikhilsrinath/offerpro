@@ -16,7 +16,7 @@ const KINDS = [
 /**
  * Output GST collected against input GST paid, by month or FY quarter.
  * Deliberately labelled as a preparation aid: it is computed from what is in
- * EdgeOS and does not handle reverse charge, blocked credits, credit notes or
+ * Opstead and does not handle reverse charge, blocked credits, credit notes or
  * amendments, so it must never be mistaken for a return.
  */
 export default function TaxSummary({ projectId = null }) {
@@ -80,7 +80,7 @@ export default function TaxSummary({ projectId = null }) {
           {scope && <>Only this project’s invoices, bills and cash-book entries, and only its share of any split
             across projects. GST is filed for the whole company, so use the company Tax Summary to file. </>}
           <strong>A preparation aid, not a filing tool.</strong> These figures come from invoices, bills and
-          expenses recorded in EdgeOS. They do not account for reverse charge, ineligible input credit,
+          expenses recorded in Opstead. They do not account for reverse charge, ineligible input credit,
           credit/debit notes or amendments. Reconcile with GSTR-2B and your accountant before filing.
         </span>
       </div>

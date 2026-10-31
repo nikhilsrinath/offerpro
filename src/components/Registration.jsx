@@ -340,7 +340,7 @@ export default function Registration({ onBack, isGoogleUser }) {
                         {currentQ.type === 'welcome' ? (
                             <div className="reg-welcome-v2">
                                 <h1 className="reg-welcome-title-v2">
-                                    {isGoogleUser ? 'Complete Your Profile' : 'Welcome to EdgeOS'}
+                                    {isGoogleUser ? 'Complete Your Profile' : 'Welcome to Opstead'}
                                 </h1>
                                 <p className="reg-welcome-subtitle-v2">
                                     {isGoogleUser

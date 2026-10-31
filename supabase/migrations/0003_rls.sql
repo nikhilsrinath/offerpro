@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · 0003_rls.sql
+-- Opstead · 0003_rls.sql
 -- Row Level Security on every table.
 --
 -- This file is the replacement for the security model that did not exist:

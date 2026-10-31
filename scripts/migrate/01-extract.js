@@ -1,5 +1,5 @@
 /**
- * EdgeOS migration · Step 1 — Extract
+ * Opstead migration · Step 1 — Extract
  *
  * Pulls everything out of Firebase into one raw JSON file, reconciling the
  * THREE places the app wrote the same data:

@@ -95,13 +95,13 @@ export const tableFrame = (t) => ({
 });
 
 export const thStyle = (t, align) => ({
-    textAlign: align || 'left', padding: '7px 12px', height: 34,
+    textAlign: align || 'left', padding: '6px 12px', height: 32,
     fontSize: 11.5, fontWeight: 500, letterSpacing: 0, textTransform: 'none', color: t.faint,
     background: t.panelAlt, borderBottom: '1px solid ' + t.line, whiteSpace: 'nowrap',
 });
 
 export const tdStyle = (t, align) => ({
-    padding: '7px 12px', height: 38, textAlign: align || 'left', verticalAlign: 'middle',
+    padding: '5px 12px', height: 36, textAlign: align || 'left', verticalAlign: 'middle',
     fontSize: 12.5, lineHeight: 1.4, color: t.text, borderBottom: '1px solid ' + t.line,
     fontVariantNumeric: 'tabular-nums',
 });

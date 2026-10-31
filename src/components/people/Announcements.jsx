@@ -143,7 +143,7 @@ export default function Announcements() {
                                         margin: 0, flex: 1, minWidth: 0, fontSize: 14,
                                         fontWeight: 500, color: t.text, letterSpacing: '-0.01em',
                                     }}>
-                                        {a.is_pinned && <span style={{ color: t.faint, marginRight: 7, fontSize: 11.5 }}>PINNED</span>}
+                                        {a.is_pinned && <span style={{ color: t.faint, marginRight: 7, fontSize: 11.5 }}>Pinned</span>}
                                         {a.title}
                                     </h3>
                                     <Row gap={6}>

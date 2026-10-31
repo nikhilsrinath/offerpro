@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Role smoke tests and the non-negotiable guards (Phase 2)
+-- Opstead · Role smoke tests and the non-negotiable guards (Phase 2)
 --
 --   A. a viewer cannot write anywhere
 --   B. a member cannot delete (except the three day-one exceptions, pinned)

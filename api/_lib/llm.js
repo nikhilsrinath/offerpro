@@ -1,5 +1,5 @@
 /**
- * Every AI call EdgeOS makes goes to Google Gemini, and through here: the
+ * Every AI call Opstead makes goes to Google Gemini, and through here: the
  * EdgeAI agent (agent/model.js), the co-founder proxy (api/nvidia.js),
  * EdgeBrain's answers and work breakdowns (api/brain.js) and reading scanned
  * files in the Library (api/library.js). One key, one model setting, one

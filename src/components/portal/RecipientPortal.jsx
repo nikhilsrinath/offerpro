@@ -383,7 +383,7 @@ export default function RecipientPortal({ documentId }) {
         </div>
         <footer className="rp-footer">
           <div className="rp-footer-inner">
-            <div className="rp-footer-brand"><Shield size={13} /><span>Powered by <strong>EdgeOS</strong></span></div>
+            <div className="rp-footer-brand"><Shield size={13} /><span>Powered by <strong>Opstead</strong></span></div>
             <p className="rp-footer-tagline">Secure document management for businesses</p>
           </div>
         </footer>
@@ -402,7 +402,7 @@ export default function RecipientPortal({ documentId }) {
         </div>
         <footer className="rp-footer">
           <div className="rp-footer-inner">
-            <div className="rp-footer-brand"><Shield size={13} /><span>Powered by <strong>EdgeOS</strong></span></div>
+            <div className="rp-footer-brand"><Shield size={13} /><span>Powered by <strong>Opstead</strong></span></div>
             <p className="rp-footer-tagline">Secure document management for businesses</p>
           </div>
         </footer>
@@ -1334,7 +1334,7 @@ export default function RecipientPortal({ documentId }) {
         <div className="rp-footer-inner">
           <div className="rp-footer-brand">
             <Shield size={13} />
-            <span>Powered by <strong>EdgeOS</strong></span>
+            <span>Powered by <strong>Opstead</strong></span>
           </div>
           <p className="rp-footer-tagline">Secure document management for businesses</p>
         </div>

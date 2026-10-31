@@ -64,7 +64,7 @@
   - `DEFAULT_CONFIG` gains `notify_min: 'high', repeat_days: 3, email_digest: false, daily: false`; `normalizeConfig` keeps them (`notify_min` ∈ SEVERITIES, `repeat_days` int 0–60, booleans only if boolean).
   - `AGENT_NAME = 'Deal Intelligence Agent'`.
   - `dealAlertsDue(findings, sent, config, now) → [{ finding, why }]` — delegates to `alertsDue` from `deadlineWatch.js` with `{ notify_min, repeat_days }`.
-  - `buildDealDigest(findings, due, orgName = '') → { title, message, text, lines }`. Title `Deal Intelligence Agent: 2 critical, 1 high`. Each line `• [severity] <deal name> — <title>. <next_step>`, max 12 then `…and N more.`; text ends `Open EdgeOS → Ask → Agents → Deal Intelligence Agent for the full list.`
+  - `buildDealDigest(findings, due, orgName = '') → { title, message, text, lines }`. Title `Deal Intelligence Agent: 2 critical, 1 high`. Each line `• [severity] <deal name> — <title>. <next_step>`, max 12 then `…and N more.`; text ends `Open Opstead → Ask → Agents → Deal Intelligence Agent for the full list.`
 
 - [ ] **Step 1: Failing tests:** `normalizeConfig keeps alert settings and drops a bad notify_min`; `dealAlertsDue sends new high findings and not medium by default`; `escalation resends`; `buildDealDigest counts by severity and caps at 12 lines`.
 - [ ] **Step 2:** Run `npx vitest run src/shared/dealIntel.test.js` → FAIL.

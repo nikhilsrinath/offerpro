@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · 0043_clients_notes.sql
+-- Opstead · 0043_clients_notes.sql
 --
 -- WHAT THIS IS FOR:
 --

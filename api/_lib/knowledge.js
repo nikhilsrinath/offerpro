@@ -209,7 +209,7 @@ export function titleMarks(title) {
 /**
  * Documents whose names differ only by version words or dates ("Leave Policy
  * v1", "Leave Policy 2025 final"): possibly versions of one document. Only a
- * hint. EdgeOS keeps no version history for library files, so which one is
+ * hint. Opstead keeps no version history for library files, so which one is
  * in force is something the documents themselves, or a person, must say.
  */
 export function versionGroups(docs, { involving = null, tz } = {}) {

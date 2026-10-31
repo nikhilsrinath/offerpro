@@ -150,7 +150,7 @@ export default function NeuralsActivation({ phase, canBuild, error, counts, onAc
                             </button>
                             <p className="na-note">
                                 {canBuild
-                                    ? 'Nothing to upload or type. It reads what is already in EdgeOS.'
+                                    ? 'Nothing to upload or type. It reads what is already in Opstead.'
                                     : 'Your role cannot activate Neurals. Ask an owner or admin.'}
                             </p>
                             <p className="na-safe">

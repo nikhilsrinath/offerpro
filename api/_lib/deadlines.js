@@ -192,7 +192,7 @@ export async function emailDigest(orgId, recipients, digest, orgName, deps, labe
       host: 'smtp.gmail.com', port: 465, secure: true, auth: { user: creds.gmailUser, pass: creds.appPassword },
     });
     const info = await transport.sendMail({
-      from: `"${String(orgName || 'EdgeOS').replace(/[\r\n"\\]/g, '').slice(0, 80)} · ${label}" <${creds.gmailUser}>`,
+      from: `"${String(orgName || 'Opstead').replace(/[\r\n"\\]/g, '').slice(0, 80)} · ${label}" <${creds.gmailUser}>`,
       to, subject: digest.title.replace(/[\r\n]/g, ' ').slice(0, 200), text: digest.text,
     });
     return { status: 'sent', accepted: (info?.accepted || []).length };

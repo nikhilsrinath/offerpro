@@ -18,7 +18,7 @@ const SecurityPage = () => (
         <div className="sp-hero-badge"><Shield size={12} /> Security</div>
         <h1 className="sp-hero-title">Enterprise-grade<br /><em>security</em>.</h1>
         <p className="sp-hero-subtitle">
-          Your data security is our top priority. EdgeOS is built on a foundation of encryption, access controls, and continuous monitoring.
+          Your data security is our top priority. Opstead is built on a foundation of encryption, access controls, and continuous monitoring.
         </p>
       </div>
     </section>

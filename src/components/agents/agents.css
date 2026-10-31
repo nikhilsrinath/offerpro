@@ -1,5 +1,5 @@
 /* Agents (Ask → Agents): the grid of agents and an agent's page. Drawn in the
-   EdgeOS surface tokens (theme/surface.css), so it follows the app's light
+   Opstead surface tokens (theme/surface.css), so it follows the app's light
    and dark themes; the layout follows the agent page of mock.html. */
 
 .eo-surface[data-theme="dark"]  { --ag-warn: #e8a33d; --ag-crit: #f26d6d; }

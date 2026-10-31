@@ -64,7 +64,7 @@ export default function ProjectAnnouncements({ project }) {
 
     const authorOf = useCallback((userId) => {
         const e = team.employees.find((x) => x.user_id && x.user_id === userId);
-        return e?.name || (userId ? 'A former member' : 'EdgeOS');
+        return e?.name || (userId ? 'A former member' : 'Opstead');
     }, [team.employees]);
 
     const live = useMemo(() => items.filter((a) => !isExpired(a)), [items]);
@@ -189,7 +189,7 @@ export default function ProjectAnnouncements({ project }) {
                                 <Row gap={10} align="flex-start" wrap style={{ marginBottom: 8 }}>
                                     <div style={{ flex: '1 1 240px', minWidth: 0 }}>
                                         <Row gap={10} wrap style={{ marginBottom: 4 }}>
-                                            {a.is_pinned && <span style={{ fontSize: 11, letterSpacing: '0.08em', color: t.faint }}>PINNED</span>}
+                                            {a.is_pinned && <span style={{ fontSize: 11, letterSpacing: 0, color: t.faint }}>Pinned</span>}
                                             {a.priority !== 'normal' && <Status tone={pr.tone}>{pr.label}</Status>}
                                         </Row>
                                         <h3 style={{ margin: 0, fontSize: 14.5, fontWeight: 500, color: t.text, letterSpacing: '-0.01em', overflowWrap: 'anywhere' }}>

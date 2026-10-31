@@ -356,7 +356,7 @@ describe('alerts', () => {
     expect(d.title).toMatch(/\d+ (critical|high)/);
     expect(d.lines[0]).toMatch(/^• \[(critical|high)\] .+ — .+\. .+/);
     expect(d.text).toMatch(/^Test Co: /);
-    expect(d.text).toMatch(/Open EdgeOS → Ask → Agents → Deal Intelligence Agent for the full list\.$/);
+    expect(d.text).toMatch(/Open Opstead → Ask → Agents → Deal Intelligence Agent for the full list\.$/);
     const many = Array.from({ length: 15 }, (_, i) => ({ finding: { ...due[0].finding, key: `k${i}` } }));
     const big = buildDealDigest(many.map((m) => m.finding), many);
     expect(big.lines).toHaveLength(12);

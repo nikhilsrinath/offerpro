@@ -568,7 +568,7 @@ export function detectIssues(collected, input = {}) {
             `In progress; last changed ${formatDate(t.updated)}.`,
             t.deadline ? `Deadline ${formatDate(t.deadline)}.` : 'It has no deadline.',
             t.owner ? `Owner: ${t.owner}.` : 'No owner is assigned.',
-            'Only changes recorded in EdgeOS count; work done without updating the task is not seen.',
+            'Only changes recorded in Opstead count; work done without updating the task is not seen.',
           ],
           action: t.owner ? `Ask ${t.owner} for a status update and record it on the task.` : 'Find out who is working on it and assign them.',
           records: recs,
@@ -671,7 +671,7 @@ export function detectIssues(collected, input = {}) {
       evidence: [
         `Sent ${formatDate(a.sent_on)}, pending for ${plural(waiting, 'day')}.`,
         m ? `For milestone "${clip(m.title, 60)}"${m.due ? `, due ${formatDate(m.due)}${m.days < 0 ? ` (${lateText(-m.days)} past due)` : ''}` : ''}.` : null,
-        'Only responses recorded in EdgeOS count; an answer given by phone or email is not seen until it is recorded.',
+        'Only responses recorded in Opstead count; an answer given by phone or email is not seen until it is recorded.',
       ],
       action: `Follow up with ${client || 'the client'} on "${clip(a.item_name, 50)}"; if they already answered, record it on the project.`,
       records: ref ? [recordOfProject(ref)] : [],
@@ -700,7 +700,7 @@ export function detectIssues(collected, input = {}) {
           last ? `Last recorded: ${last.what}, ${formatDate(last.date)}.` : `Nothing recorded since it started on ${formatDate(p.start_date)}.`,
           lateWork ? 'It also has overdue tasks.' : null,
           notes.length ? `Some activity could not be read (${notes.join(', ')}), so there may be more recent work.` : null,
-          'Only what is recorded in EdgeOS counts; this is a sign to check, not proof that work stopped.',
+          'Only what is recorded in Opstead counts; this is a sign to check, not proof that work stopped.',
         ],
         action: `Ask the project's manager for a status update on ${p.name}, and record the next steps as tasks.`,
         records: [recordOfProject(ref)],
@@ -1050,7 +1050,7 @@ export function buildDigest(ranked, due, projectsRows, orgName = '') {
   return {
     title,
     message: s.text,
-    text: `${orgName ? `${orgName}: ` : ''}${s.text}\n\nNeeds attention:\n${lines.join('\n')}${more}\n\nOpen EdgeOS → Ask → Agents → ${AGENT_NAME} for the full list.`,
+    text: `${orgName ? `${orgName}: ` : ''}${s.text}\n\nNeeds attention:\n${lines.join('\n')}${more}\n\nOpen Opstead → Ask → Agents → ${AGENT_NAME} for the full list.`,
     lines,
   };
 }

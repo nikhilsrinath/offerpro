@@ -8,7 +8,7 @@
 //   · A TAX INVOICE is never deleted. Its number is part of a GST series, and
 //     a gap in that series is something the business has to explain; a
 //     cancelled invoice keeps its number and is reported as cancelled. The
-//     exception is an uploaded invoice (made outside EdgeOS) with no money
+//     exception is an uploaded invoice (made outside Opstead) with no money
 //     against it: it is a record of someone else's document, so a wrong or
 //     duplicate upload may be deleted.
 //   · Anything the client has received is cancelled, not deleted, so the
@@ -72,7 +72,7 @@ export function lifecycleOf(doc, docs) {
   // ── Delete ──
   let del;
   if (doc.type === 'invoice' && doc.uploaded) {
-    // An invoice made outside EdgeOS and uploaded is a record of that
+    // An invoice made outside Opstead and uploaded is a record of that
     // document, not a number in this series: a wrong or duplicate upload is
     // removed, as long as no money stands against it.
     del = received > 0 || pending ? no('A payment is recorded against it. Delete the payment first, or cancel the invoice.') : yes;

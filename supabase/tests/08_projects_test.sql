@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Projects (0044–0052)
+-- Opstead · Projects (0044–0052)
 --
 -- 03_role_isolation_test.sql derives its table list from the schema, so it
 -- already covers the plain tenant boundary of every new table. This file covers

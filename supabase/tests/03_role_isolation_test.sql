@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Tenant isolation under every role
+-- Opstead · Tenant isolation under every role
 --
 -- 01_isolation_test.sql proves isolation for the roles its fixture happens to
 -- use. Once roles are data (0026), "every role" is no longer a fixed list, so

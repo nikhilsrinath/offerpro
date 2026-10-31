@@ -57,7 +57,7 @@ const open_page = {
   module: 'core',
   kind: 'navigate',
   permission: null,
-  description: 'Open a screen of EdgeOS, only when the user asks to go somewhere, or when no tool can do what they want (then say so plainly). Never instead of a tool that can do the job, and never just to collect details.',
+  description: 'Open a screen of Opstead, only when the user asks to go somewhere, or when no tool can do what they want (then say so plainly). Never instead of a tool that can do the job, and never just to collect details.',
   params: {
     type: 'object',
     properties: { page: { type: 'string', enum: Object.keys(PAGES) } },

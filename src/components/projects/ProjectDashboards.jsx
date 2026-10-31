@@ -97,16 +97,16 @@ function DashboardPage({ project, page, navigate }) {
             <div className="edge-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable' }}>
                 <TipProvider>
                     <div className="ov-page" style={{ padding: pad, fontFamily: MONO, color: t.text, minWidth: 0 }}>
-                        <div style={{ padding: '2px 2px 18px', display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
+                        <div style={{ padding: '2px 2px 14px', display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{
-                                fontSize: 13.5, fontWeight: 500, color: t.dim, marginBottom: 6,
+                                fontSize: 12, fontWeight: 500, color: t.faint, marginBottom: 3,
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                             }}>
                                 <Link to={projectSectionPath(project.id)} style={{ color: 'inherit', textDecoration: 'none' }}>{name}</Link>
                             </div>
                             <h1 style={{
-                                margin: 0, fontSize: winW < 760 ? 24 : 32, fontWeight: 700, letterSpacing: '-0.045em', lineHeight: 1.05,
+                                margin: 0, fontSize: winW < 760 ? 18 : 20, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.25,
                             }}>{page.title}</h1>
                           </div>
                           {view === 'overview' && <ProjectActions project={project} />}

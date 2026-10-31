@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · 0012_country_codes.sql
+-- Opstead · 0012_country_codes.sql
 --
 -- GENERATED FILE — do not edit by hand.
 -- Regenerate with:  node scripts/generate-country-seed.js

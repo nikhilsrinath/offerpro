@@ -8,7 +8,7 @@ export const SECTION = { in: 'income_entries', out: 'expenses' };
 export const GST_RATES = [0, 5, 12, 18, 28];
 
 // Enough to cover what a small exporter is paid in. The rate is always entered
-// by hand: EdgeOS has no rate feed, and a stale automatic rate is worse than a
+// by hand: Opstead has no rate feed, and a stale automatic rate is worse than a
 // deliberate one.
 // The org's own currency (Company Profile) is always first.
 const LISTED = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'AUD', 'CAD', 'JPY'];

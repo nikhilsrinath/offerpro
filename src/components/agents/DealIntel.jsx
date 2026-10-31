@@ -16,7 +16,7 @@ import './agents.css';
 /* ══════════════════════════════════════════════════════════════════════════
    Deal Intelligence: the fourth agent.
 
-   The left column is the pipeline as EdgeOS records it, computed on the
+   The left column is the pipeline as Opstead records it, computed on the
    server from the person's own view of the records (api/agents.js →
    api/_lib/deals.js → src/shared/dealIntel.js): the same snapshot EdgeAI's
    deal tools read, so the page and the chat cannot disagree. Open deals are
@@ -52,7 +52,7 @@ const SEVERITY = {
 const CRM = '/clients/crm';
 
 const DEAL_TOGGLES = [
-    ['daily', 'Daily Run', 'Every morning on the server, even when nobody has EdgeOS open. The same as Run Automatically on the card.'],
+    ['daily', 'Daily Run', 'Every morning on the server, even when nobody has Opstead open. The same as Run Automatically on the card.'],
     ['email_digest', 'Email Digest', 'Also email the digest from your company Gmail (Profile → Email Configuration).'],
 ];
 const DEAL_NUMBERS = [

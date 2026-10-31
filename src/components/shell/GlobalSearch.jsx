@@ -185,12 +185,12 @@ export default function GlobalSearch({ t, width = 460, align = 'left' }) {
         // A fixed width on every page: the title beside it gives way, not the search.
         <div ref={boxRef} style={{ position: 'relative', width, flexShrink: 0 }}>
             <div role="search" className="nm-ask" style={{
-                display: 'flex', alignItems: 'center', gap: 9, height: 40, padding: '0 6px 0 12px',
-                borderRadius: 11, border: '1px solid ' + (open ? t.accent : t.line), background: t.card,
-                boxShadow: open ? `0 0 0 3px ${t.accentSoft}` : t.highlight, color: t.faint,
+                display: 'flex', alignItems: 'center', gap: 8, height: 32, padding: '0 5px 0 10px',
+                borderRadius: 8, border: '1px solid ' + (open ? t.ghost : t.line), background: t.card,
+                color: t.faint,
                 transition: 'border-color .15s, box-shadow .15s',
             }}>
-                <Search size={16} strokeWidth={1.8} aria-hidden="true" style={{ flexShrink: 0 }} />
+                <Search size={14} strokeWidth={1.8} aria-hidden="true" style={{ flexShrink: 0 }} />
                 <input
                     ref={inputRef} value={q}
                     onChange={(e) => { setQ(e.target.value); setActive(0); setOpen(true); }}
@@ -201,13 +201,13 @@ export default function GlobalSearch({ t, width = 460, align = 'left' }) {
                     placeholder="Search projects, clients, people, documents…"
                     style={{
                         flex: 1, minWidth: 0, height: '100%', border: 0, outline: 'none',
-                        background: 'transparent', color: t.text, font: 'inherit', fontSize: 13.5, textOverflow: 'ellipsis',
+                        background: 'transparent', color: t.text, font: 'inherit', fontSize: 12.5, textOverflow: 'ellipsis',
                     }}
                 />
                 <kbd aria-hidden="true" style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 3, height: 24, padding: '0 7px',
-                    borderRadius: 7, border: '1px solid ' + t.line, background: t.panelAlt,
-                    fontFamily: 'inherit', fontSize: 11.5, color: t.dim, flexShrink: 0,
+                    display: 'inline-flex', alignItems: 'center', gap: 3, height: 20, padding: '0 6px',
+                    borderRadius: 5, border: '1px solid ' + t.line, background: t.panelAlt,
+                    fontFamily: 'inherit', fontSize: 10.5, color: t.dim, flexShrink: 0,
                 }}>{IS_MAC ? '⌘' : 'Ctrl'} K</kbd>
             </div>
 
@@ -245,15 +245,15 @@ export default function GlobalSearch({ t, width = 460, align = 'left' }) {
                                                     cursor: 'pointer', background: on ? t.accentSoft : 'transparent',
                                                 }}>
                                                 <span aria-hidden="true" style={{
-                                                    width: 30, height: 30, borderRadius: 9, flexShrink: 0, display: 'grid', placeItems: 'center',
+                                                    width: 26, height: 26, borderRadius: 7, flexShrink: 0, display: 'grid', placeItems: 'center',
                                                     background: on ? t.accent : t.panelAlt, color: on ? t.onAccent : t.dim,
                                                     border: '1px solid ' + (on ? 'transparent' : t.line),
                                                 }}><Icon size={15} /></span>
                                                 <span style={{ flex: 1, minWidth: 0 }}>
-                                                    <span style={{ display: 'block', fontSize: 13.5, fontWeight: 500, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                    <span style={{ display: 'block', fontSize: 12.5, fontWeight: 500, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                         <Highlight text={r.title} q={q} t={t} />
                                                     </span>
-                                                    {r.sub && <span style={{ display: 'block', fontSize: 12, color: t.faint, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.sub}</span>}
+                                                    {r.sub && <span style={{ display: 'block', fontSize: 11.5, color: t.faint, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.sub}</span>}
                                                 </span>
                                                 {on && <CornerDownLeft size={14} aria-hidden="true" style={{ color: t.accent, flexShrink: 0 }} />}
                                             </div>

@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Permanent Employee IDs, changed only by an admin (0102)
+-- Opstead · Permanent Employee IDs, changed only by an admin (0102)
 --
 --   · an ID given when someone is added never moves: not when an earlier
 --     joiner is added, a start date changes, or someone is deleted

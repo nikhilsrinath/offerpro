@@ -265,7 +265,7 @@ function PeoplePanel({ t, employees, nodes, deptMap, editMode, onPlace, onFocus,
     }}>
       <div style={{ padding: '12px 12px 10px', borderBottom: '1px solid ' + t.lineSoft }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
-          <span style={{ fontSize: 11, letterSpacing: '0.1em', color: t.faint, flex: 1 }}>PEOPLE</span>
+          <span style={{ fontSize: 11, letterSpacing: 0, color: t.faint, flex: 1 }}>People</span>
           <span style={{ fontSize: 11, color: t.ghost }}>{placed.size}/{employees.length} placed</span>
         </div>
         <input
@@ -393,7 +393,7 @@ function DeptDrawer({ t, departments, employees, orgId, onClose, onChange }) {
         display: 'flex', alignItems: 'center', gap: 8,
         padding: '12px 12px 10px', borderBottom: '1px solid ' + t.lineSoft,
       }}>
-        <span style={{ fontSize: 11, letterSpacing: '0.1em', color: t.faint, flex: 1 }}>DEPARTMENTS</span>
+        <span style={{ fontSize: 11, letterSpacing: 0, color: t.faint, flex: 1 }}>Departments</span>
         <button type="button" className="th-btn" onClick={onClose} aria-label="Close departments"
           style={{
             width: 22, height: 22, borderRadius: 5, cursor: 'pointer',
@@ -895,7 +895,7 @@ export default function TeamHierarchy() {
           <span style={{
             fontSize: 11, letterSpacing: '0.08em', color: t.faint,
             padding: '3px 8px', borderRadius: 999, border: '1px dashed ' + t.lineStrong,
-          }}>EDITING</span>
+          }}>Editing</span>
         )}
 
         <Btn t={t} onClick={arrange} title="Lay the chart out as a tidy tree">Arrange</Btn>

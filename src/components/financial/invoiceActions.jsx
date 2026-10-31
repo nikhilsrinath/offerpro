@@ -21,7 +21,7 @@ import { useToast } from '../shared/Toast';
  * (documentActions.js), so an invoice changed here is changed everywhere.
  *
  * An uploaded invoice is its file: viewing opens the file, editing reopens
- * Upload Invoice on it. One made in EdgeOS is drawn as issued (InvoiceViewPanel)
+ * Upload Invoice on it. One made in Opstead is drawn as issued (InvoiceViewPanel)
  * and edited in its form, which comes back to this page when saved.
  *
  * Returns `menu(invoiceId)` and `receiptMenu(paymentId, invoiceId)` for

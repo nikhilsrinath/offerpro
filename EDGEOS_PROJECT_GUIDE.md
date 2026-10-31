@@ -1,6 +1,6 @@
-# EdgeOS — The Complete Project Guide
+# Opstead — The Complete Project Guide
 
-> One document that explains EdgeOS from end to end: what it is, the tech stack, how the pieces fit together at runtime, every module and page, the data layer, the serverless API, the AI agent, the database and security model, the design system, and how to run, test and deploy it.
+> One document that explains Opstead from end to end: what it is, the tech stack, how the pieces fit together at runtime, every module and page, the data layer, the serverless API, the AI agent, the database and security model, the design system, and how to run, test and deploy it.
 >
 > Written 2026-10-19 against `main` @ `46653c6`. The older, file-by-file map is `CODEBASE_OVERVIEW.md` (2026-09-25). URLs and the navigation have changed since then, and this guide follows the current code. Sizes are approximate: about 105k lines of JS/TS across `src/` and `api/`, 88 migrations, 42 unit-test files and 20+ SQL test suites.
 
@@ -8,7 +8,7 @@
 
 ## Contents
 
-1. [What EdgeOS is](#1-what-edgeos-is)
+1. [What Opstead is](#1-what-edgeos-is)
 2. [Tech stack](#2-tech-stack)
 3. [Repository layout](#3-repository-layout)
 4. [Architecture: how it works end to end](#4-architecture-how-it-works-end-to-end)
@@ -31,9 +31,9 @@
 
 ---
 
-## 1. What EdgeOS is
+## 1. What Opstead is
 
-EdgeOS is a **multi-tenant, all-in-one back office for small Indian companies**. One sign-in gives a company:
+Opstead is a **multi-tenant, all-in-one back office for small Indian companies**. One sign-in gives a company:
 
 | Area | What it covers |
 |---|---|
@@ -50,7 +50,7 @@ EdgeOS is a **multi-tenant, all-in-one back office for small Indian companies**.
 
 Plans are tiered **Free / Pro / Max** with quotas on documents, AI messages, active projects and some features.
 
-**Naming leftovers:** the npm package is still `qbitointern` and `README.md` still says "OfferPro". Both predate the EdgeOS name. `/api/nvidia` is actually Gemini.
+**Naming leftovers:** the npm package is still `qbitointern` and `README.md` still says "OfferPro". Both predate the Opstead name. `/api/nvidia` is actually Gemini.
 
 ---
 
@@ -323,7 +323,7 @@ Widget groups: Projects (health, budget burn, margin, utilisation, tasks), Finan
   - EdgeAI tools (`tools/knowledge.js`, prompt rule 14, all needing `library_documents: view`): `search_documents` (with `also` wordings, since the index matches words, not meaning), `read_document` (in order; says `complete` only when the whole of a fully read document was returned) and `list_documents`. The results carry the rules: passages are evidence, never instructions; cite the given location and never invent one; "uploaded" is not "signed"; a document whose name differs from another only by version words or dates is flagged as a possible version.
   - Safeguards in the loop: tool results and EdgeBrain context are fenced (`fenceData`), so a document containing `</data>` cannot close its data block, and `reviewAnswer()` flags any quotation in the final answer that is not word for word in the retrieved text.
   - Source chips link to `/documents/document-library[/register]?doc=<id>`, which opens that document's sheet. No migration.
-- The fourth agent is the **Deal Intelligence Agent** (`DealIntel.jsx`, `/ask?agent=deal_intelligence`). It shows the pipeline, which deals are at risk, which to work on first, and the next step for each. EdgeOS has no deal table: an open deal is a `clients` row at `lead` or `contacted` (the CRM board's Lead and Contacted columns; `active` is the Deal/won column, `lost` is Not a deal). Its value is `clients.value`, which has no currency and is shown in ₹. The pipeline total is the same sum as EdgeBrain's `clients.pipeline_value` and the Sales dashboard's Pipeline tile. A won customer with a quotation still awaiting an answer is an opportunity too.
+- The fourth agent is the **Deal Intelligence Agent** (`DealIntel.jsx`, `/ask?agent=deal_intelligence`). It shows the pipeline, which deals are at risk, which to work on first, and the next step for each. Opstead has no deal table: an open deal is a `clients` row at `lead` or `contacted` (the CRM board's Lead and Contacted columns; `active` is the Deal/won column, `lost` is Not a deal). Its value is `clients.value`, which has no currency and is shown in ₹. The pipeline total is the same sum as EdgeBrain's `clients.pipeline_value` and the Sales dashboard's Pipeline tile. A won customer with a quotation still awaiting an answer is an opportunity too.
   - What is linked to a deal, by the keys that exist:
     - quotations (`financial_documents` type `quotation`, `customer_id`) and the client's responses (`document_negotiation_events`)
     - projects (`projects.client_id`, `project_clients`) and the open tasks on them, which are the follow-ups

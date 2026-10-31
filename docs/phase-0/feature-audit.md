@@ -169,5 +169,5 @@ Stated rather than guessed:
   `src/data/`, `src/services/catalogService.js` and `src/services/salesGeoService.js` are
   **untracked** — not yet committed. Migrations `0011`–`0013` are likewise untracked or
   uncommitted.
-- **Whether `EdgeOS-Overview.pdf` (untracked, 671 KB, added 2026-09-07) contains the
+- **Whether `Opstead-Overview.pdf` (untracked, 671 KB, added 2026-09-07) contains the
   brief.** I did not open it. If it does, it supersedes §0 and I should re-key this table.

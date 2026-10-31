@@ -1,5 +1,5 @@
 /**
- * EdgeOS Plan Configuration
+ * Opstead Plan Configuration
  * Three tiers: Free, Pro, Max
  */
 

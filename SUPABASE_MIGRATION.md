@@ -1,4 +1,4 @@
-# EdgeOS — Firebase → Supabase Migration
+# Opstead — Firebase → Supabase Migration
 
 **Decision: migrate first, then run the remaining fix plan against Postgres.**
 

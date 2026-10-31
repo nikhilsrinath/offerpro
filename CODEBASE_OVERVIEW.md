@@ -1,4 +1,4 @@
-# EdgeOS — Codebase Overview
+# Opstead — Codebase Overview
 
 > A map of the whole repository: every feature and route, the modules and the files behind them, the services, the serverless API, the database schema, the security model, the tooling and the known loose ends.
 >
@@ -8,7 +8,7 @@
 
 ## Table of contents
 
-1. [What EdgeOS is](#1-what-edgeos-is)
+1. [What Opstead is](#1-what-edgeos-is)
 2. [Tech stack](#2-tech-stack)
 3. [Repository layout](#3-repository-layout)
 4. [Runtime architecture](#4-runtime-architecture)
@@ -25,9 +25,9 @@
 
 ---
 
-## 1. What EdgeOS is
+## 1. What Opstead is
 
-EdgeOS (the npm package is still named `qbitointern`, and `README.md` still says "OfferPro") is a **multi-tenant, all-in-one back office for small Indian companies**. It covers:
+Opstead (the npm package is still named `qbitointern`, and `README.md` still says "OfferPro") is a **multi-tenant, all-in-one back office for small Indian companies**. It covers:
 
 - **HR documents**: offer letters, certificates, NDAs, MoUs and HR notices (role change, termination), rendered to PDF, sent by email, and signed by the recipient through a token-gated **recipient portal**.
 - **Finance**: invoices, quotations, proforma invoices, recurring invoices, payments, a cash book, vendors, purchase bills, a GST tax summary, P&L and cash flow.
@@ -112,7 +112,7 @@ EdgeOs/
 ├── public/                   Logo, app icon, PWA manifest
 ├── main-hub.html             Untracked static mock of the hub (structure reference only)
 ├── FIX_PLAN.md, MEGA_AUDIT.md/.html, DESIGN_SYSTEM_AUDIT.md, SUPABASE_MIGRATION.md,
-│   SKILL.md, EdgeOS-Overview.pdf       Historical audits and plans
+│   SKILL.md, Opstead-Overview.pdf       Historical audits and plans
 ├── vite.config.js, vitest.config.js, eslint.config.js, vercel.json, netlify.toml
 └── .env / .env.example
 ```
@@ -754,7 +754,7 @@ Expected output is in `expected/day_one_access.out`. It covers every table under
 **Docs and history:**
 
 - `docs/phase-0/`: ai-context-contract, definition-of-done, document-model-decision, entity-decision (clients unification), feature-audit, migration-order, products-and-country-integration.
-- Root: `FIX_PLAN.md` (numbered hardening items referenced throughout the code, e.g. "FIX_PLAN item 7"), `MEGA_AUDIT.md/.html`, `DESIGN_SYSTEM_AUDIT.md`, `SUPABASE_MIGRATION.md` (the Firebase → Supabase plan), `SKILL.md`, `EdgeOS-Overview.pdf`.
+- Root: `FIX_PLAN.md` (numbered hardening items referenced throughout the code, e.g. "FIX_PLAN item 7"), `MEGA_AUDIT.md/.html`, `DESIGN_SYSTEM_AUDIT.md`, `SUPABASE_MIGRATION.md` (the Firebase → Supabase plan), `SKILL.md`, `Opstead-Overview.pdf`.
 
 ---
 
@@ -771,7 +771,7 @@ Expected output is in `expected/day_one_access.out`. It covers every table under
 - **Bulk History** is always empty because batches aren't persisted.
 - **`/api/nvidia`** is actually Gemini; the name is kept to avoid churn.
 - **`certificateTemplates.js`** is a no-op stub.
-- **Legacy names:** the npm package name `qbitointern` and README "OfferPro" predate the EdgeOS name. The orgStore sections `customers` and `crm_leads` both map to `clients`.
+- **Legacy names:** the npm package name `qbitointern` and README "OfferPro" predate the Opstead name. The orgStore sections `customers` and `crm_leads` both map to `clients`.
 - **Pending migration** `supabase/pending/0026_drop_legacy_client_tables.sql` is unapplied, so the legacy `customers` / `crm_leads` / `products` resources still appear in the permission grid.
 - **Uncommitted work in progress:** the hub widget board (`src/components/hub/`), the new copilot (`assistant/Copilot.jsx`, `AssistantContext.jsx`, `assistantStore.js`, `copilot.css`), `theme/surface.css`, and edits to `App.jsx`, `Hub.jsx`, `ModuleShell.jsx`, `edgeBridge.css`, `ui/edge.jsx` and `index.css`.
 - **The backup restore runbook has never been rehearsed.**

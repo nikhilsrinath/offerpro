@@ -31,7 +31,7 @@ const OfferLettersPage = () => (
             </div>
             <div className="sp-app-body">
               <div className="sp-app-sidebar">
-                <div className="sp-app-sidebar-brand"><Zap size={14} fill="currentColor" /> EdgeOS</div>
+                <div className="sp-app-sidebar-brand"><Zap size={14} fill="currentColor" /> Opstead</div>
                 <div className="sp-app-sidebar-section">Documents</div>
                 <div className="sp-app-sidebar-item active"><Briefcase size={14} /> Offer Letters</div>
                 <div className="sp-app-sidebar-item"><Award size={14} /> Certificates</div>
@@ -58,7 +58,7 @@ const OfferLettersPage = () => (
                       <div className="sp-df-section">
                         <div className="sp-df-section-head"><div className="sp-df-num">1</div><span className="sp-df-section-title">Company details</span></div>
                         <div className="sp-df-row">
-                          <div><span className="sp-df-label">Company name</span><div className="sp-df-input">EdgeOS Corp</div></div>
+                          <div><span className="sp-df-label">Company name</span><div className="sp-df-input">Opstead Corp</div></div>
                           <div><span className="sp-df-label">Authorized person</span><div className="sp-df-input">Rajesh Kumar</div></div>
                         </div>
                         <div className="sp-df-row">
@@ -106,7 +106,7 @@ const OfferLettersPage = () => (
                         <div className="sp-demo-a4-sheet">
                           <div className="sp-a4-header">
                             <div>
-                              <div className="sp-a4-company">EdgeOS Corp</div>
+                              <div className="sp-a4-company">Opstead Corp</div>
                               <div className="sp-a4-detail">123 Business Avenue<br/>Bangalore 560001</div>
                             </div>
                             <div style={{ width: 36, height: 36, background: '#f0f0f0', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -121,7 +121,7 @@ const OfferLettersPage = () => (
                           </div>
                           <div style={{ fontSize: '7pt', marginBottom: 6 }}>Dear Priya Sharma,</div>
                           <div style={{ fontSize: '6.5pt', color: '#333', lineHeight: 1.5, marginBottom: 6 }}>
-                            We are pleased to offer you the position of <strong>Senior Frontend Engineer</strong> in the <strong>Engineering</strong> department at EdgeOS Corp. Your expected date of joining is <strong>May 1, 2026</strong>.
+                            We are pleased to offer you the position of <strong>Senior Frontend Engineer</strong> in the <strong>Engineering</strong> department at Opstead Corp. Your expected date of joining is <strong>May 1, 2026</strong>.
                           </div>
                           <div style={{ fontSize: '6.5pt', color: '#333', lineHeight: 1.5, marginBottom: 6 }}>
                             You will receive an annual compensation of <strong>₹18,00,000 (INR)</strong>. You will report to <strong>Amit Patel</strong>.
@@ -134,9 +134,9 @@ const OfferLettersPage = () => (
                               <div style={{ fontSize: '6pt', color: '#888' }}>Sincerely,</div>
                               <div style={{ width: 60, height: 20, background: '#f9f9f9', borderRadius: 2, marginTop: 4, marginBottom: 4 }} />
                               <div style={{ fontSize: '7pt', fontWeight: 600 }}>Rajesh Kumar</div>
-                              <div style={{ fontSize: '6pt', color: '#888' }}>CEO, EdgeOS Corp</div>
+                              <div style={{ fontSize: '6pt', color: '#888' }}>CEO, Opstead Corp</div>
                             </div>
-                            <div className="sp-a4-stamp">EDGEOS<br/>CORP</div>
+                            <div className="sp-a4-stamp">OPSTEAD<br/>CORP</div>
                           </div>
                         </div>
                       </div>

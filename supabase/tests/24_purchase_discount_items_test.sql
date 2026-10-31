@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Discount and items on a purchase bill (0099)
+-- Opstead · Discount and items on a purchase bill (0099)
 --
 --   · a bill saves without items or a discount, as before
 --   · items and the discount are kept as given

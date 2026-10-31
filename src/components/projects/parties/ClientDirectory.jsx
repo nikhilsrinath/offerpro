@@ -138,7 +138,7 @@ function ClientCard({ client: c, primary, onOpen }) {
             </span>
             <Row gap={6} wrap>
                 <Badge color={clientActive(c) ? ACTIVE : INACTIVE}>{clientActive(c) ? 'Active' : `Inactive · ${CLIENT_STATUSES.find((s) => s.id === c.status)?.label || c.status}`}</Badge>
-                {primary && <span style={{ fontSize: 11, color: t.faint, letterSpacing: '0.06em' }}>PROJECT CLIENT</span>}
+                {primary && <span style={{ fontSize: 11, color: t.faint, letterSpacing: 0 }}>Project Client</span>}
             </Row>
         </button>
     );
@@ -204,14 +204,14 @@ function ClientSheet({ client: c, project, primary, link, canEdit, canRemove, on
                     <Detail label="Website">{c.website}</Detail>
                 </section>
                 <section aria-label="Contact persons">
-                    <div style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, marginBottom: 6 }}>CONTACT PERSONS</div>
+                    <div style={{ fontSize: 10.5, letterSpacing: 0, color: t.faint, marginBottom: 6 }}>Contact Persons</div>
                     {contacts.length === 0 ? <Muted>None added yet.</Muted> : (
                         <div style={{ display: 'grid', gap: 8 }}>
                             {contacts.map((x, i) => (
                                 <div key={i} style={{ border: '1px solid ' + t.line, borderRadius: 8, padding: '8px 10px' }}>
                                     <Row gap={8}>
                                         <span style={{ fontSize: 13, color: t.text, flex: 1 }}>{x.name}</span>
-                                        {x.primary && <span style={{ fontSize: 10.5, color: t.faint, letterSpacing: '0.06em' }}>PRIMARY</span>}
+                                        {x.primary && <span style={{ fontSize: 10.5, color: t.faint, letterSpacing: 0 }}>Primary</span>}
                                     </Row>
                                     {x.role && <div style={{ fontSize: 11.5, color: t.faint }}>{x.role}</div>}
                                     <div style={{ fontSize: 12, color: t.dim, marginTop: 2, overflowWrap: 'anywhere' }}>

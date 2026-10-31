@@ -182,10 +182,10 @@ export default function InternalKnowledge({ onBack, theme = 'dark' }) {
                                 <details className="bi-about">
                                     <summary><Info size={14} strokeWidth={2} aria-hidden="true" />How Answers Are Found</summary>
                                     <ul>
-                                        <li>The agent searches the text EdgeOS read out of each file when it was uploaded, and answers only from the passages it finds. It never answers a question about your company from general knowledge.</li>
+                                        <li>The agent searches the text Opstead read out of each file when it was uploaded, and answers only from the passages it finds. It never answers a question about your company from general knowledge.</li>
                                         <li>Every point names the document and the page, slide or section it came from. Quotations are checked against the retrieved text, and one that does not match is flagged under the answer.</li>
                                         <li>The search matches words, not meaning, so the agent also tries other wordings. If it still finds nothing, it says your documents do not answer the question.</li>
-                                        <li>The "added" date is when a file was uploaded, not when it was signed or took effect. EdgeOS keeps no version history for library files, so when two documents look like versions of one, the agent shows both and says which is which.</li>
+                                        <li>The "added" date is when a file was uploaded, not when it was signed or took effect. Opstead keeps no version history for library files, so when two documents look like versions of one, the agent shows both and says which is which.</li>
                                         <li className="is-limit">Documents listed under Cannot Be Read are not searched. Re-read or replace them in the Document Library.</li>
                                         <li className="is-limit">It only reads documents your role can see, and it cannot create, change, send or approve anything.</li>
                                     </ul>

@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Document versions and negotiation (0064–0065)
+-- Opstead · Document versions and negotiation (0064–0065)
 --
 -- 03_role_isolation_test.sql already probes the plain tenant boundary of the
 -- two new tables under every role. This file covers the rules:

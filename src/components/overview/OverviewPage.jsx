@@ -134,20 +134,20 @@ export default function OverviewPage() {
             {/* greeting */}
             <div style={{ padding: '2px 2px 2px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: isMobile ? 13 : 14, fontWeight: 500, color: t.dim }}>{greeting}</p>
+                    <p style={{ margin: 0, fontSize: 12.5, fontWeight: 500, color: t.faint }}>{greeting}</p>
                     <h2 style={{
-                        margin: '2px 0 0', fontSize: isMobile ? 22 : 28, fontWeight: 700,
-                        letterSpacing: '-0.03em', color: t.text, lineHeight: 1.15,
+                        margin: '2px 0 0', fontSize: isMobile ? 18 : 20, fontWeight: 600,
+                        letterSpacing: '-0.02em', color: t.text, lineHeight: 1.15,
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>{orgName}</h2>
                 </div>
                 {!isMobile && (
                     <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 8, height: 38, padding: '0 13px',
-                        borderRadius: 11, border: '1px solid ' + t.lineStrong, background: t.card,
-                        boxShadow: t.highlight, fontSize: 13.5, color: t.text, whiteSpace: 'nowrap',
+                        display: 'inline-flex', alignItems: 'center', gap: 7, height: 32, padding: '0 11px',
+                        borderRadius: 8, border: '1px solid ' + t.line, background: t.card,
+                        fontSize: 12.5, color: t.dim, whiteSpace: 'nowrap',
                     }}>
-                        <CalendarDays size={15} strokeWidth={1.8} aria-hidden="true" style={{ color: t.dim }} />
+                        <CalendarDays size={14} strokeWidth={1.8} aria-hidden="true" style={{ color: t.faint }} />
                         {now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
                     </span>
                 )}

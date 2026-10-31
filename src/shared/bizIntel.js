@@ -306,7 +306,7 @@ export const DEFINITIONS = {
   cash: 'Money in / out: every rupee received or paid in the period, gross, as the Net cash tile counts it: confirmed payments, cash-book receipts (incl. funding), expenses actually paid and payments made on vendor bills (dated by the bill\'s paid date). Not a bank balance.',
   bills: 'Vendor bills: purchase bills received (not void) by bill date, at total including GST. Billed to us, not necessarily paid.',
   expenses: 'Expenses: what the Profit & Loss page counts as costs: operating and non-operating expense entries plus vendor bills, net of input GST, by date. Asset purchases, loan repayments, owner drawings and tax remitted are not expenses; payroll counts only if it was recorded as an expense.',
-  pl_net: 'P&L net: revenue minus expenses on the Profit & Loss page\'s rules. An operating indicator from what has been recorded in EdgeOS, not audited profit.',
+  pl_net: 'P&L net: revenue minus expenses on the Profit & Loss page\'s rules. An operating indicator from what has been recorded in Opstead, not audited profit.',
   receivables: 'Receivable: balance still owed on issued invoices (grand total minus amount paid), as of today. Overdue: past its due date with a balance left.',
   payables: 'Payable: balance still owed on vendor bills that are not paid or void, as of today. Overdue: past its due date.',
 };
@@ -395,7 +395,7 @@ const isDone = (t) => t.status === 'done';
  * data: { tasks, projects (portfolio rows, see api/_lib/bizIntel.js),
  *         milestones, employees }
  *
- * EdgeOS stores no completion date on a task, so "completed in the period"
+ * Opstead stores no completion date on a task, so "completed in the period"
  * is the done tasks LAST UPDATED in it, and is labelled an approximation.
  */
 export function workFor(data, from, to, today, tz) {
@@ -958,7 +958,7 @@ export function buildBizDigest(findings, due, orgName = '') {
   return {
     title,
     message,
-    text: `${orgName ? `${orgName}: ` : ''}${message}\n\nNeeds attention:\n${lines.join('\n')}\n\nOpen EdgeOS → Ask → Agents → ${AGENT_NAME} for the figures behind each.`,
+    text: `${orgName ? `${orgName}: ` : ''}${message}\n\nNeeds attention:\n${lines.join('\n')}\n\nOpen Opstead → Ask → Agents → ${AGENT_NAME} for the figures behind each.`,
     lines,
   };
 }
@@ -1016,7 +1016,7 @@ export function buildWeeklySummary(snap, orgName = '') {
     `${orgName ? `${orgName}: ` : ''}the week of ${span}, against ${formatDate(snap.compare?.from)} – ${formatDate(snap.compare?.to)}.`,
     '', ...lines,
     ...(concerns.length ? ['', 'Needs attention:', ...concerns.map((i) => `• [${i.severity}] ${i.title}: ${i.finding}`)] : ['', 'Nothing stands out.']),
-    '', `Open EdgeOS → Ask → Agents → ${AGENT_NAME} for the full picture.`,
+    '', `Open Opstead → Ask → Agents → ${AGENT_NAME} for the full picture.`,
   ].join('\n');
   return { title, message, text, lines };
 }

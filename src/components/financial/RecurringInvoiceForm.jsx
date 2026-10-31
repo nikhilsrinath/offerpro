@@ -872,7 +872,7 @@ function RecurringInvoicePreview({ formData, totals, dueDatePreview, company }) 
       )}
 
       <div className="inv-footer">
-        This is a computer-generated recurring invoice template. Generated via EdgeOS.
+        This is a computer-generated recurring invoice template. Generated via Opstead.
       </div>
     </div>
   );
@@ -934,10 +934,10 @@ function RecurringInvoiceList({ projectId = null }) {
         marginBottom: '1.5rem',
       }}>
         <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--text-primary)', margin: 0 }}>
             Recurring Invoices
           </h2>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0' }}>
             {items.length} recurring {items.length === 1 ? 'invoice' : 'invoices'} configured
           </p>
         </div>

@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Project type, products vs services, RACI rows under a deliverable (0083)
+-- Opstead · Project type, products vs services, RACI rows under a deliverable (0083)
 --
 --   · a project's type is waterfall / agile / hybrid, or not set
 --   · a catalogue row starts as a product; an owner can make it a service

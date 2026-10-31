@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · What a vendor or product belongs to (0078)
+-- Opstead · What a vendor or product belongs to (0078)
 --
 --   · vendors and products default to General
 --   · belongs_to accepts only general / internal

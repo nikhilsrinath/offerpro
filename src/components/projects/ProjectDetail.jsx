@@ -276,14 +276,14 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                     <div style={{ padding: '2px 2px 0', display: 'flex', alignItems: 'flex-start', gap: isMobile ? 10 : 16, flexWrap: 'wrap' }}>
                         <div style={{ flex: '1 1 260px', minWidth: 0 }}>
                             <div style={{
-                                fontSize: 13.5, fontWeight: 500, color: t.dim, marginBottom: 6,
+                                fontSize: 12, fontWeight: 500, color: t.faint, marginBottom: 3,
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                             }}>
                                 <Link to={projectSectionPath(project.id)} style={{ color: 'inherit', textDecoration: 'none' }}>{name}</Link>
                             </div>
                             <h1 style={{
-                                margin: 0, fontSize: isMobile ? 24 : 32, fontWeight: 700, fontFamily: MONO,
-                                letterSpacing: '-0.045em', color: t.text, lineHeight: 1.1,
+                                margin: 0, fontSize: isMobile ? 18 : 20, fontWeight: 600, fontFamily: MONO,
+                                letterSpacing: '-0.02em', color: t.text, lineHeight: 1.25,
                                 // Wraps rather than truncates: the section name is always shown in full.
                                 overflowWrap: 'anywhere',
                             }}>{section.label}</h1>

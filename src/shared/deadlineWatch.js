@@ -352,7 +352,7 @@ export function buildDigest(findings, due, today, orgName = '') {
   return {
     title,
     message: s.text,
-    text: `${orgName ? `${orgName}: ` : ''}${s.text}\n\nNeeds attention:\n${lines.join('\n')}${more}\n\nOpen EdgeOS → Ask → Agents → Compliance and Deadline Agent for the full list.`,
+    text: `${orgName ? `${orgName}: ` : ''}${s.text}\n\nNeeds attention:\n${lines.join('\n')}${more}\n\nOpen Opstead → Ask → Agents → Compliance and Deadline Agent for the full list.`,
     lines,
   };
 }

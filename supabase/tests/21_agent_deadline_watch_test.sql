@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Compliance and Deadline Agent bookkeeping (0089)
+-- Opstead · Compliance and Deadline Agent bookkeeping (0089)
 --
 --   · the agent tables are closed to the browser (authenticated reads nothing,
 --     writes nothing); only the service role uses them

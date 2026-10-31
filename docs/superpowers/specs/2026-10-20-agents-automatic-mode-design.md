@@ -150,7 +150,7 @@ Each phase: unit tests on the rules and the run (as `deadlines.test.js` /
 - No AI in automatic runs — so no AI cost question.
 - Alerts go to owners and admins (no deal owner exists).
 - BI alerts finance only; operations items stay with the other two agents.
-- No "cash below a level" alert: EdgeOS records money in and out, not a bank
+- No "cash below a level" alert: Opstead records money in and out, not a bank
   balance, so the figure would be invented.
 - One cron per agent instead of one shared run, for the time limit.
 - Members see the state but cannot flip the switch.

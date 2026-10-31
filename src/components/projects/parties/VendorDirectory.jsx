@@ -302,12 +302,12 @@ function VendorSheet({ vendor: v, project, canEdit, canRemove, onEdit, onClose }
             </div>
 
             <section aria-label="Contact persons" style={{ marginTop: 18 }}>
-                <div style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, marginBottom: 6 }}>CONTACT PERSONS</div>
+                <div style={{ fontSize: 10.5, letterSpacing: 0, color: t.faint, marginBottom: 6 }}>Contact Persons</div>
                 {contacts.length === 0 ? <Muted>None added yet.</Muted> : (
                     <Grid min={200} gap={8}>
                         {contacts.map((x, i) => (
                             <div key={i} style={{ border: '1px solid ' + t.line, borderRadius: 8, padding: '8px 10px' }}>
-                                <Row gap={8}><span style={{ fontSize: 13, flex: 1 }}>{x.name}</span>{x.primary && <span style={{ fontSize: 10.5, color: t.faint }}>PRIMARY</span>}</Row>
+                                <Row gap={8}><span style={{ fontSize: 13, flex: 1 }}>{x.name}</span>{x.primary && <span style={{ fontSize: 10.5, color: t.faint }}>Primary</span>}</Row>
                                 {x.role && <div style={{ fontSize: 11.5, color: t.faint }}>{x.role}</div>}
                                 <div style={{ fontSize: 12, color: t.dim, overflowWrap: 'anywhere' }}>{[x.email, x.phone].filter(Boolean).join(' · ') || '-'}</div>
                             </div>
@@ -317,7 +317,7 @@ function VendorSheet({ vendor: v, project, canEdit, canRemove, onEdit, onClose }
             </section>
 
             <section aria-label="Other projects" style={{ marginTop: 18 }}>
-                <div style={{ fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, marginBottom: 6 }}>ALSO ON THESE PROJECTS</div>
+                <div style={{ fontSize: 10.5, letterSpacing: 0, color: t.faint, marginBottom: 6 }}>Also on These Projects</div>
                 {elsewhere.length === 0 ? <Muted>Only on this project.</Muted> : (
                     <div style={{ display: 'grid', gap: 6 }}>
                         {elsewhere.map((row) => (

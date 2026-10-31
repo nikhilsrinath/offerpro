@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Permissions per person (0062)
+-- Opstead · Permissions per person (0062)
 --
 -- What this file pins down:
 --   · an exception grants what the role lacks, through the real RLS policies

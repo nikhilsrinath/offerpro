@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · 0002_functions.sql
+-- Opstead · 0002_functions.sql
 -- Authorization helpers, immutability guards, updated_at, atomic document
 -- numbering, derived money totals, and usage counters.
 --

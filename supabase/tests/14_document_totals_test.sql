@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · the agent's finance writes: totals agree, and the status writes pass the version guard
+-- Opstead · the agent's finance writes: totals agree, and the status writes pass the version guard
 --
 -- EdgeAI shows the total of an invoice before it exists, computed by
 -- documentTotals() in src/shared/finDocs.js. The stored figure comes from

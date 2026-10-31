@@ -85,7 +85,7 @@ const MAX_ITEMS_PER_CATEGORY = 20;
 // ============================================================================
 
 export const ONBOARDING_QUESTIONS: OnboardingQuestion[] = [
-  { id: "1", text: "Welcome to EdgeOS Co-founder! Let's get started. What's your first name?", type: "text", field: "firstName", placeholder: "e.g. Nikhil" },
+  { id: "1", text: "Welcome to Opstead Co-founder! Let's get started. What's your first name?", type: "text", field: "firstName", placeholder: "e.g. Nikhil" },
   { id: "2", text: "Nice to meet you. And your last name?", type: "text", field: "lastName" },
   { id: "3", text: "What's your role at the company?", type: "select", field: "role", options: ["Founder", "Co-founder", "CEO", "CTO", "Operator", "Other"] },
   { id: "4", text: "What is your company's name?", type: "text", field: "companyName", placeholder: "e.g. Acme Inc" },
@@ -214,7 +214,7 @@ export function buildOnboardingPrompt(question: OnboardingQuestion, memory?: Com
   const lastName = memory?.onboarding?.lastName || '';
   const userName = firstName ? `${firstName} ${lastName}`.trim() : '';
 
-  let greeting = 'Welcome to EdgeOS Co-founder!';
+  let greeting = 'Welcome to Opstead Co-founder!';
   if (userName) {
     greeting = `Hi ${firstName}! Great to meet you.`;
   }

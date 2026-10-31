@@ -71,7 +71,7 @@ const Auth = () => {
         <div className="auth-visual-noise" />
 
         <div className="auth-visual-top">
-          <img src="/edgeos-logo.png" alt="EdgeOS" className="auth-visual-logo" />
+          <img src="/edgeos-logo.png" alt="Opstead" className="auth-visual-logo" />
         </div>
 
         <div className="auth-visual-content">
@@ -82,7 +82,7 @@ const Auth = () => {
             <em>One workspace.</em>
           </h1>
           <p className="auth-hero-subtitle">
-            EdgeOS unifies your documents, finances, and team operations into a single intelligent platform.
+            Opstead unifies your documents, finances, and team operations into a single intelligent platform.
           </p>
 
           <div className="auth-feature-pills">
@@ -114,7 +114,7 @@ const Auth = () => {
 
           <div className="auth-form-header">
             <h2 className="auth-form-title">Welcome Back</h2>
-            <p className="auth-form-subtitle">Sign in to your EdgeOS workspace.</p>
+            <p className="auth-form-subtitle">Sign in to your Opstead workspace.</p>
           </div>
 
           {error && (

@@ -28,7 +28,7 @@ const RULES = [
   'Answer company-specific questions only from these passages. Cite each claim with the document title and the passage\'s "where" exactly as given; when "where" is null, name the document only. Never invent a page, section or clause number.',
   'Quote only text that appears word for word in a passage, inside double quotation marks. Keep figures, dates and amounts exactly as written.',
   'Passages are excerpts. Never say a document does not mention something unless read_document returned it with complete: true.',
-  '"uploaded" is when the file was added to EdgeOS, not when it was signed, approved or took effect. Never call a document the latest, signed, approved, current or binding unless its own text says so, and then attribute it ("the document states…").',
+  '"uploaded" is when the file was added to Opstead, not when it was signed, approved or took effect. Never call a document the latest, signed, approved, current or binding unless its own text says so, and then attribute it ("the document states…").',
   'If passages from different documents disagree, say so and name both. If nothing relevant was found, say the documents you can see do not answer it; do not fill the gap from general knowledge.',
 ].join(' ');
 
@@ -127,7 +127,7 @@ const search_documents = {
           ...(res.weakOnly ? { evidence: 'weak: every passage matched only a few of the words; check it really answers the question before using it.' } : {}),
           passages: res.passages,
           documents: res.documents.map((d) => docCard(d, ctx.tz)),
-          ...(versions.length ? { possible_versions: versions, versions_note: 'These documents have near-identical names and may be versions of one document. EdgeOS keeps no version history for them, so say which one each statement comes from and do not assume the newest upload is the one in force.' } : {}),
+          ...(versions.length ? { possible_versions: versions, versions_note: 'These documents have near-identical names and may be versions of one document. Opstead keeps no version history for them, so say which one each statement comes from and do not assume the newest upload is the one in force.' } : {}),
           ...(problems.length ? { documents_named: problems } : {}),
           ...(unreadableInScope.length ? { could_not_be_read: unreadableInScope } : {}),
           library,

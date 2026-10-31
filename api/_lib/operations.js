@@ -166,7 +166,7 @@ export function opsLimits(coverage) {
   if (failed.length) out.push(`Could not be read just now: ${failed.join(', ')}. Anything that needs them is left out.`);
   if (capped.length) out.push(`Only the first ${ROW_CAP} rows of ${capped.join(', ')} were read; counts over them may be incomplete.`);
   if (missing.length) out.push(`Not set up on this database: ${missing.join(', ')}. Nothing is recorded there.`);
-  out.push('Activity means a change recorded in EdgeOS (a task, milestone or timesheet). Work done without updating EdgeOS is not seen.');
+  out.push('Activity means a change recorded in Opstead (a task, milestone or timesheet). Work done without updating Opstead is not seen.');
   out.push('No completion percentage, cost of delay or cause is estimated. Priority is a transparent score of the signals listed with it.');
   return out;
 }

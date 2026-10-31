@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS migration · Step 4 — Verify
+-- Opstead migration · Step 4 — Verify
 --
 --   psql "$SUPABASE_DB_URL" -f scripts/migrate/04-verify.sql
 --

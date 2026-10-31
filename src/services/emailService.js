@@ -333,7 +333,7 @@ function buildPortalLinkEmail({ recipientName, role, companyName, portalUrl, dea
   </div>
   <div style="background:#f8fafc;border-top:1px solid #e5e7eb;padding:16px 32px;text-align:center;">
     <p style="margin:0;font-size:10px;color:#cbd5e1;">
-      This is a secure link from ${companyName} via EdgeOS. Do not share this link with others.
+      This is a secure link from ${companyName} via Opstead. Do not share this link with others.
     </p>
   </div>
 </div>`.trim();

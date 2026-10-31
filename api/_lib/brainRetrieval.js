@@ -133,7 +133,7 @@ const KIND_HINTS = [
   [/\b(leave|leaves|time off|holiday|holidays|absence|absences)\b/, ['leave_request']],
   [/\b(announcement|announcements|notice|notices)\b/, ['announcement']],
   [/\b(document|documents|record|records|offer letter|offer letters|certificate|certificates)\b/, ['record', 'library_document']],
-  // The document library (0063): what was uploaded, as opposed to what EdgeOS issued.
+  // The document library (0063): what was uploaded, as opposed to what Opstead issued.
   [/\b(file|files|upload|uploaded|uploads|pdf|pdfs|deck|decks|presentation|presentations|slides|spreadsheet|spreadsheets|policy|policies|handbook|manual|manuals|guideline|guidelines|sop|sops|contract|contracts|agreement|agreements|brochure|library)\b/, ['library_document']],
 ];
 

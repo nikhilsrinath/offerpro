@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Check, ChevronLeft, ChevronRight, Move, RotateCcw } from 'lucide-react';
 import { MONO, useT } from '../ui/edgeUtils';
+import { titleCase } from '../../utils/titleCase';
 import { useOrg } from '../../context/OrgContext';
 import { documentStore } from '../../services/documentStore';
 import { todayIso } from '../../services/financeAnalytics';
@@ -65,9 +66,9 @@ export function ArrangeBar() {
     const a = useContext(ArrangeCtx);
     if (!a) return null;
     const btn = {
-        display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 30, padding: '0 11px', borderRadius: 9,
-        border: '1px solid ' + t.lineStrong, background: t.panelAlt, boxShadow: t.highlight, color: t.text,
-        fontFamily: MONO, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
+        display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 28, padding: '0 10px', borderRadius: 7,
+        border: '1px solid ' + t.line, background: t.card, color: t.text,
+        fontFamily: MONO, fontSize: 12, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
     };
     return (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -226,15 +227,15 @@ function DashboardBody({ children, orgId, periodic, snapshotNote }) {
                 padding: '8px 0 14px', marginBottom: 14,
             }}>
                 {periodic ? (<>
-                    <div role="group" aria-label="Period" style={{ display: 'inline-flex', gap: 2, padding: 3, border: '1px solid ' + t.line, borderRadius: 11, background: t.panelAlt }}>
+                    <div role="group" aria-label="Period" style={{ display: 'inline-flex', gap: 2, padding: 2, border: '1px solid ' + t.line, borderRadius: 8, background: t.panelAlt }}>
                         {PERIODS.map((p) => {
                             const on = p.id === periodId;
                             return (
                                 <button key={p.id} type="button" aria-pressed={on} aria-label={p.note} title={p.note} onClick={() => setPeriodId(p.id)}
                                     className="ov-seg" style={{
-                                        minHeight: 28, padding: '0 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                                        fontFamily: MONO, fontSize: 12.5, fontWeight: on ? 500 : 400, background: on ? t.raised : 'transparent',
-                                        boxShadow: on ? t.highlight + ', inset 0 0 0 1px ' + t.lineStrong : 'none', color: on ? t.text : t.dim,
+                                        minHeight: 24, padding: '0 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                                        fontFamily: MONO, fontSize: 12, fontWeight: on ? 500 : 400, background: on ? (t.isDark ? t.raised : t.card) : 'transparent',
+                                        boxShadow: on ? (t.isDark ? t.highlight + ', inset 0 0 0 1px ' + t.lineStrong : '0 1px 2px rgba(16,24,40,.08), inset 0 0 0 1px ' + t.line) : 'none', color: on ? t.text : t.dim,
                                     }}>{p.label}</button>
                             );
                         })}
@@ -306,21 +307,20 @@ export function Card({ title, note, right, children, style, icon: Icon, id, arra
     const t = useT();
     return (
         <section id={id} aria-label={title} className="ov-card" {...arrange?.dnd} style={{
-            position: 'relative', border: '1px solid ' + t.line, borderRadius: 18, background: t.card, boxShadow: t.highlight,
-            padding: '16px 18px 18px', minWidth: 0, display: 'flex', flexDirection: 'column',
-            backgroundImage: `radial-gradient(120% 90% at 100% 0%, ${t.accentSoft}, transparent 60%)`,
+            position: 'relative', border: '1px solid ' + t.line, borderRadius: 12, background: t.card,
+            padding: '14px 16px 16px', minWidth: 0, display: 'flex', flexDirection: 'column',
             ...style, ...arrangeStyle(t, arrange),
         }}>
             {arrange && <ArrangeHandle arrange={arrange} name={title} />}
-            <header style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, minHeight: 28 }}>
+            <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, minHeight: 24 }}>
                 {Icon && (
-                    <span aria-hidden="true" style={{ width: 28, height: 28, borderRadius: 9, background: t.accentSoft, color: t.accent, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                        <Icon size={14} strokeWidth={2.1} />
+                    <span aria-hidden="true" style={{ width: 24, height: 24, borderRadius: 6, background: t.panelAlt, color: t.dim, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                        <Icon size={13} strokeWidth={2} />
                     </span>
                 )}
                 <div style={{ minWidth: 0, flex: 1 }}>
-                    <h2 style={{ margin: 0, fontSize: 14.5, fontWeight: 600, letterSpacing: '-0.01em', color: t.text }}>{title}</h2>
-                    {note && <div style={{ fontSize: 12, color: t.faint, marginTop: 2 }}>{note}</div>}
+                    <h2 style={{ margin: 0, fontSize: 13, fontWeight: 600, letterSpacing: '-0.005em', color: t.text }}>{titleCase(title)}</h2>
+                    {note && <div style={{ fontSize: 11.5, color: t.faint, marginTop: 1 }}>{note}</div>}
                 </div>
                 {!arrange && right}
             </header>
@@ -342,34 +342,32 @@ export function Tile({ icon: Icon, label, value, exact, delta, foot, spark, spar
             style={{
                 position: 'relative', overflow: 'hidden',
                 textAlign: 'left', fontFamily: MONO, color: t.text, cursor: onClick ? 'pointer' : 'default',
-                border: '1px solid ' + t.line, borderRadius: 18, background: t.card, boxShadow: t.highlight,
-                padding: hero ? '18px 20px 14px' : '14px 16px 12px',
-                display: 'flex', flexDirection: 'column', gap: hero ? 12 : 9, minWidth: 0,
-                backgroundImage: `radial-gradient(110% 80% at 100% 0%, ${t.accentSoft}, transparent 62%)`,
+                border: '1px solid ' + t.line, borderRadius: 12, background: t.card,
+                padding: hero ? '16px 18px 12px' : '12px 14px 10px',
+                display: 'flex', flexDirection: 'column', gap: hero ? 10 : 8, minWidth: 0,
                 ...style, ...arrangeStyle(t, arrange),
             }}>
             {arrange && <ArrangeHandle arrange={arrange} name={label} />}
             <span style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%' }}>
                 <span aria-hidden="true" style={{
-                    width: hero ? 32 : 28, height: hero ? 32 : 28, borderRadius: hero ? 10 : 9, flexShrink: 0, display: 'grid', placeItems: 'center',
-                    background: hero ? t.accentBtn : t.accentSoft, color: hero ? t.onAccent : t.accent,
-                    boxShadow: hero ? 'inset 0 1px 0 rgba(255,255,255,.25), 0 6px 16px -8px ' + t.accent : 'none',
+                    width: 24, height: 24, borderRadius: 6, flexShrink: 0, display: 'grid', placeItems: 'center',
+                    background: hero ? t.accentSoft : t.panelAlt, color: hero ? t.accent : t.dim,
                 }}>
-                    <Icon size={hero ? 15 : 13.5} strokeWidth={2.1} />
+                    <Icon size={13} strokeWidth={2} />
                 </span>
-                <span style={{ fontSize: hero ? 13.5 : 12.5, fontWeight: 500, color: t.dim, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+                <span style={{ fontSize: 12.5, fontWeight: 500, color: t.dim, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{titleCase(label)}</span>
                 {delta && !arrange && <span className="ov-pill" style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 99, background: t.panelAlt, border: '1px solid ' + t.line, flexShrink: 0 }}>{delta}</span>}
             </span>
             <span style={{
-                fontSize: hero ? 40 : big ? 32 : 27, fontWeight: 600, letterSpacing: '-0.045em', lineHeight: 1,
+                fontSize: hero ? 26 : big ? 22 : 20, fontWeight: 600, letterSpacing: '-0.035em', lineHeight: 1,
                 color: tone === 'down' ? t.down : tone === 'up' ? t.up : t.text, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums',
             }}>{value}</span>
             {spark && (
                 <span style={{ display: 'block', marginTop: big ? 'auto' : undefined }}>
-                    <Spark values={spark} color={color} bars={sparkBars} height={hero ? 110 : big ? 64 : 32} />
+                    <Spark values={spark} color={color} bars={sparkBars} height={hero ? 96 : big ? 56 : 28} />
                 </span>
             )}
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', fontSize: 12, color: t.faint, borderTop: '1px solid ' + t.line, paddingTop: 9, marginTop: spark && big ? undefined : 'auto' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', fontSize: 11.5, color: t.faint, borderTop: '1px solid ' + t.line, paddingTop: 8, marginTop: spark && big ? undefined : 'auto' }}>
                 <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{foot}</span>
                 {onClick && <ChevronRight aria-hidden="true" size={13} className="ov-tile-arrow" />}
             </span>
@@ -383,8 +381,8 @@ export function Figure({ label, value, tone, big }) {
     const t = useT();
     return (
         <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-            <span style={{ fontSize: big ? 21 : 14.5, fontWeight: 600, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', color: tone === 'down' ? t.down : tone === 'up' ? t.up : t.text }}>{value}</span>
-            <span style={{ fontSize: 12, color: t.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sentence(label)}</span>
+            <span style={{ fontSize: big ? 18 : 14, fontWeight: 600, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', color: tone === 'down' ? t.down : tone === 'up' ? t.up : t.text }}>{value}</span>
+            <span style={{ fontSize: 11.5, color: t.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sentence(label)}</span>
         </span>
     );
 }
@@ -396,7 +394,7 @@ export function FigureRow({ children, style }) {
     return (
         <div style={{ display: 'grid', gap: 8, gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`, marginBottom: 14, ...style }}>
             {items.map((c, i) => (
-                <div key={i} style={{ padding: '10px 12px', borderRadius: 12, background: t.panelAlt, border: '1px solid ' + t.line, minWidth: 0, display: 'flex' }}>{c}</div>
+                <div key={i} style={{ padding: '9px 11px', borderRadius: 8, background: t.panelAlt, border: '1px solid ' + t.line, minWidth: 0, display: 'flex' }}>{c}</div>
             ))}
         </div>
     );
@@ -412,7 +410,7 @@ export function BigCount({ value, label }) {
     const t = useT();
     return (
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 14 }}>
-            <span style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-0.045em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+            <span style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.03em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
             <span style={{ fontSize: 12, color: t.faint }}>{label}</span>
         </div>
     );

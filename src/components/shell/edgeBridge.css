@@ -146,7 +146,7 @@
   .crm-column, .crm-card, .customer-card, .billing-card, .records-card,
   .sbc-card, .payment-conf, .line-items-editor, .easy-upload
 ) {
-  border-radius: 10px;
+  border-radius: 12px;
   box-shadow: none;
   backdrop-filter: none;
 }
@@ -158,7 +158,7 @@
 
 .edge-shell main .pro-card-title-group h3,
 .edge-shell main .pro-card-header h3 {
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--edge-text);
   letter-spacing: 0;
@@ -172,7 +172,7 @@
 }
 
 .edge-shell main :where(.pro-stat-label, .fin-status-stat-label, .prod-stat-label, .sbc-metric-label) {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 400;
   color: var(--edge-faint);
 }
@@ -180,10 +180,12 @@
 /* Decorative icon wells on stat tiles carried a hue each; in the terminal the
    number is the signal and the icon stays grey. */
 .edge-shell main :where(.pro-stat-icon, .fin-status-stat-icon, .prod-stat-icon) {
+  width: 28px;
+  height: 28px;
   background: var(--edge-panel-alt) !important;
   color: var(--edge-dim) !important;
   border: 1px solid var(--edge-line);
-  border-radius: 10px;
+  border-radius: 7px;
   box-shadow: none !important;
 }
 
@@ -194,7 +196,7 @@
 }
 
 .edge-shell main .easy-section-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0;
 }
@@ -224,12 +226,12 @@
 ) {
   background: var(--edge-panel-alt);
   border: 1px solid var(--edge-line);
-  border-radius: 10px;
+  border-radius: 7px;
   color: var(--edge-text);
-  font-size: 13.5px;
+  font-size: 12.5px;
   line-height: 1.4;
   box-shadow: none;
-  min-height: 36px;
+  min-height: 32px;
   transition: border-color .15s, background .15s;
 }
 
@@ -256,8 +258,8 @@
 .edge-shell main .prod-search {
   background: var(--edge-panel-alt);
   border: 1px solid var(--edge-line);
-  border-radius: 10px;
-  height: 36px;
+  border-radius: 7px;
+  height: 32px;
   color: var(--edge-faint);
 }
 
@@ -311,16 +313,16 @@
   .btn-cinematic:not(.btn-secondary), .easy-submit, .prod-btn-primary, .prod-add-btn,
   .fin-list-action-btn.primary, .portal-link-gen-btn.primary, .btn-primary
 ) {
-  background: var(--edge-accent-btn) !important;
+  background: var(--edge-accent) !important;
   color: var(--edge-on-accent) !important;
   border: 1px solid transparent !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 6px 16px -8px var(--edge-accent) !important;
+  box-shadow: none !important;
   transform: none !important;
-  border-radius: 10px;
+  border-radius: 7px;
   font-weight: 500;
-  font-size: 13.5px;
+  font-size: 12.5px;
   letter-spacing: 0;
-  min-height: 36px;
+  min-height: 32px;
   transition: filter .15s;
 }
 
@@ -356,13 +358,13 @@
   flex: 1 1 140px;
   width: auto;
   min-width: 0;
-  height: 40px;
-  min-height: 40px;
+  height: 34px;
+  min-height: 34px;
   margin: 0;
   padding: 0 16px;
   gap: 8px;
-  border-radius: 9px;
-  font-size: 13.5px;
+  border-radius: 7px;
+  font-size: 12.5px;
 }
 
 .edge-shell main .form-actions > .easy-submit {
@@ -377,7 +379,7 @@
   background: var(--edge-panel-alt);
   color: var(--edge-text);
   border: 1px solid var(--edge-line-strong);
-  border-radius: 10px;
+  border-radius: 7px;
   box-shadow: var(--edge-hi);
   backdrop-filter: none;
   transform: none;
@@ -440,7 +442,7 @@
 
 .edge-shell main .easy-add-btn {
   border: 1px dashed var(--edge-line-strong);
-  border-radius: 10px;
+  border-radius: 7px;
   color: var(--edge-dim);
   font-weight: 400;
   font-size: 13px;
@@ -530,14 +532,14 @@
    rule below answers a specific hardcoded rule used by a page in the shell. */
 
 .edge-shell main .fin-list-new-btn {
-  background: var(--edge-accent-btn);
+  background: var(--edge-accent);
   color: var(--edge-on-accent);
   border: 1px solid transparent;
-  border-radius: 10px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 6px 16px -8px var(--edge-accent);
+  border-radius: 7px;
+  box-shadow: none;
   font-weight: 500;
-  font-size: 13.5px;
-  min-height: 36px;
+  font-size: 12.5px;
+  min-height: 32px;
 }
 
 .edge-shell main .fin-list-new-btn:hover { filter: brightness(1.08); transform: none; }
@@ -555,9 +557,9 @@
   color: inherit;
   background: var(--edge-panel-alt);
   border: 1px solid var(--edge-line);
-  border-radius: 10px;
+  border-radius: 7px;
   padding: 9px 12px;
-  min-height: 40px;
+  min-height: 34px;
 }
 
 .edge-shell main .easy-switch-row:hover { border-color: var(--edge-line-strong); }
@@ -569,7 +571,7 @@
 
 .edge-shell main .easy-switch-label,
 .edge-shell main .easy-switch-row.active .easy-switch-label {
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 400;
   color: var(--edge-text);
 }
@@ -630,7 +632,7 @@
 .edge-shell main .offer-notify-btn {
   color: var(--edge-text);
   border: 1px solid var(--edge-line);
-  border-radius: 10px;
+  border-radius: 7px;
 }
 
 .edge-shell main .offer-notify-btn:hover:not(:disabled) {
@@ -726,7 +728,7 @@
   background: var(--edge-panel-alt) !important;
   color: var(--edge-dim) !important;
   border: 1px solid var(--edge-line);
-  border-radius: 10px;
+  border-radius: 7px;
 }
 
 .edge-shell main .records-grid-card-type {
@@ -872,7 +874,7 @@
   margin: 0;
   padding: 14px 16px 16px;
   border: 1px solid var(--edge-line);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--edge-panel);
 }
 
@@ -935,8 +937,8 @@
 
 .edge-shell main :where(.easy-inp, .pro-input) {
   padding: 0 10px;
-  min-height: 34px;
-  font-size: 14px;
+  min-height: 32px;
+  font-size: 13px;
 }
 
 .edge-shell main .mou-form-pane textarea.easy-inp {
@@ -954,7 +956,7 @@
 }
 
 .edge-shell main .mou-form-pane .easy-add-btn {
-  min-height: 34px;
+  min-height: 32px;
   border-radius: 8px;
 }
 
@@ -965,8 +967,8 @@
   bottom: 0;
   z-index: 3;
   margin: 4px 0 0;
-  min-height: 40px;
-  border-radius: 9px;
+  min-height: 34px;
+  border-radius: 7px;
 }
 
 /* The gutter around the sticky button is masked with a spread shadow rather
@@ -1024,14 +1026,14 @@
   margin-bottom: 12px;
   background: var(--edge-card);
   border: 1px solid var(--edge-line);
-  border-radius: 16px;
+  border-radius: 12px;
   box-shadow: var(--edge-hi);
 }
 
 .edge-shell main .prod-toolbar > * {
   flex: 0 0 auto;
   width: auto;
-  height: 36px;
+  height: 32px;
   min-height: 0;
   margin: 0;
   white-space: nowrap;
@@ -1049,8 +1051,8 @@
 .edge-shell main .prod-toolbar select {
   max-width: 220px;
   padding: 0 28px 0 12px;
-  border-radius: 10px;
-  font-size: 13.5px;
+  border-radius: 7px;
+  font-size: 12.5px;
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
@@ -1070,12 +1072,12 @@
   align-items: center;
   gap: 6px;
   padding: 0 14px;
-  border-radius: 10px;
+  border-radius: 7px;
   border: 1px solid var(--edge-line-strong);
   background: var(--edge-panel-alt);
   box-shadow: var(--edge-hi);
   color: var(--edge-text);
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 500;
 }
 
@@ -1092,11 +1094,11 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  height: 36px;
+  height: 32px;
   padding: 2px;
   box-sizing: border-box;
   border: 1px solid var(--edge-line);
-  border-radius: 10px;
+  border-radius: 7px;
   background: var(--edge-panel-alt);
   max-width: 100%;
   overflow-x: auto;
@@ -1136,15 +1138,15 @@
   gap: 6px;
   padding: 0 14px;
   margin-left: auto;
-  font-size: 13.5px;
+  font-size: 12.5px;
 }
 
 .edge-shell main .prod-toolbar > .prod-range { gap: 8px; font-size: 12.5px; color: var(--edge-faint); }
 
 .edge-shell main .prod-toolbar > .prod-range input {
-  height: 36px;
+  height: 32px;
   padding: 0 10px;
-  border-radius: 10px;
+  border-radius: 7px;
   border: 1px solid var(--edge-line);
   background: var(--edge-panel-alt);
   color: var(--edge-text);
@@ -1242,7 +1244,7 @@
 
 .edge-shell main :where(.prod-perf-table, .fin-list-table, .desktop-table) td {
   padding: 7px 12px;
-  height: 38px;
+  height: 36px;
   line-height: 1.4;
   border-bottom: 1px solid var(--edge-line) !important;
   color: var(--edge-text);
@@ -1293,7 +1295,7 @@
   margin-bottom: 12px;
   background: var(--edge-card);
   border: 1px solid var(--edge-line);
-  border-radius: 16px;
+  border-radius: 12px;
   box-shadow: var(--edge-hi);
 }
 
@@ -1302,7 +1304,7 @@
 .edge-shell main .fin-list-search-wrap {
   background: var(--edge-panel-alt);
   border: 1px solid var(--edge-line);
-  border-radius: 10px;
+  border-radius: 7px;
   padding: 0 11px;
   color: var(--edge-faint);
 }
@@ -1348,6 +1350,35 @@
 }
 
 .edge-shell main .fin-list-controls select {
-  height: 36px;
+  height: 32px;
   font-size: 13px;
 }
+
+/* ── compact density (2026-10-31) ─────────────────────────────────────────
+   The older pages' own sizes (Records, product cards) brought down to the
+   kit's: 12.5px body, 13px titles, ~20px figures, no lift on hover. */
+.edge-shell main .records-summary-grid { gap: 12px; }
+.edge-shell main .records-summary-card {
+  padding: 12px 14px;
+  gap: 12px;
+  box-shadow: none;
+  transform: none !important;
+}
+.edge-shell main .records-summary-icon { width: 32px; height: 32px; border-radius: 7px; }
+.edge-shell main .records-summary-icon svg { width: 16px; height: 16px; }
+.edge-shell main .records-summary-count { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+.edge-shell main .records-summary-label { font-size: 12px; font-weight: 500; margin-top: 2px; }
+.edge-shell main .records-tab { font-size: 12.5px; font-weight: 500; padding: 6px 12px; }
+.edge-shell main .records-tab-count { font-size: 11px; font-weight: 600; }
+.edge-shell main .records-grid-card {
+  padding: 14px;
+  gap: 8px;
+  box-shadow: none;
+  transform: none !important;
+}
+.edge-shell main .records-grid-card-icon { width: 32px; height: 32px; border-radius: 7px; }
+.edge-shell main .records-grid-card-type { font-size: 11px; font-weight: 600; }
+.edge-shell main .records-grid-card-title { font-size: 13.5px; font-weight: 600; }
+.edge-shell main .records-grid-card-detail { font-size: 12.5px; }
+.edge-shell main .records-grid-card-date { font-size: 11.5px; }
+.edge-shell main .prod-card-amount { font-size: 15px; font-weight: 600; letter-spacing: -0.015em; }

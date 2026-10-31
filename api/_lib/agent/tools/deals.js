@@ -148,7 +148,7 @@ const deal_pipeline = {
           deals_lost: flowFig(f.lost, pf?.lost),
           quotations_sent: { count: f.quotations_sent.count, total_incl_gst: totalsText(f.quotations_sent.totals), ...(pf ? { before: pf.quotations_sent.count, total_before: totalsText(pf.quotations_sent.totals) } : {}) },
         },
-        pipeline_value_in_the_past: 'Not available: EdgeOS keeps no stage history, so the pipeline on a past date cannot be rebuilt. Compare the deals created, won and lost instead.',
+        pipeline_value_in_the_past: 'Not available: Opstead keeps no stage history, so the pipeline on a past date cannot be rebuilt. Compare the deals created, won and lost instead.',
         high_value_means: p.high_value ? p.high_value.basis : 'Not set: fewer than four open deals have a recorded value.',
         definitions: [DEFINITIONS.pipeline, DEFINITIONS.quotations, DEFINITIONS.flow],
         limits: snap.limits,

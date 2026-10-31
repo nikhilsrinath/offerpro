@@ -57,7 +57,7 @@ describe('tidyTranscript', () => {
   it('fixes the app words the recogniser mishears', () => {
     expect(tidyTranscript('convert the pro forma for acme and add g s t'))
       .toBe('Convert the proforma for acme and add GST');
-    expect(tidyTranscript('what does edge os say about in voices')).toBe('What does EdgeOS say about invoices');
+    expect(tidyTranscript('what does op stead say about in voices')).toBe('What does Opstead say about invoices');
     expect(tidyTranscript('  ')).toBe('');
   });
 });

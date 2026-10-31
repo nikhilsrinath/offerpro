@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · A project's code carries the year it started (0096)
+-- Opstead · A project's code carries the year it started (0096)
 --
 --   · a project numbers in the year of its start date, not the day it was entered
 --   · each year numbers from 001

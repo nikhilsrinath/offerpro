@@ -104,7 +104,7 @@ function PortalAccess({ emp, orgId, onChanged }) {
     const create = () => run(async () => {
         const res = await portalAccessService.createLogin(emp.id);
         if (res.outcome === 'created') setCreds({ email: res.email, password: res.password });
-        else if (res.outcome === 'linked') setNote(`${res.email} already has an EdgeOS login. They sign in with the password they already use, so there is nothing to hand over.`);
+        else if (res.outcome === 'linked') setNote(`${res.email} already has an Opstead login. They sign in with the password they already use, so there is nothing to hand over.`);
         else setNote('They already have portal access.');
     });
 
@@ -140,9 +140,9 @@ function PortalAccess({ emp, orgId, onChanged }) {
                     padding: 11, marginBottom: 11, background: t.panelAlt,
                 }}>
                     <div style={{ display: 'grid', gap: 6, marginBottom: 10 }}>
-                        <Row><span style={{ width: 62, flexShrink: 0 }}><Label>EMAIL</Label></span>
+                        <Row><span style={{ width: 62, flexShrink: 0 }}><Label>Email</Label></span>
                             <code style={{ fontSize: 12.5, color: t.text, wordBreak: 'break-all' }}>{creds.email}</code></Row>
-                        <Row><span style={{ width: 62, flexShrink: 0 }}><Label>PASSWORD</Label></span>
+                        <Row><span style={{ width: 62, flexShrink: 0 }}><Label>Password</Label></span>
                             <code style={{ fontSize: 12.5, color: t.text }}>{creds.password}</code></Row>
                     </div>
                     <Row wrap gap={7}>
@@ -430,14 +430,14 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
 
                     {emp.bio && (
                         <div style={{ border: '1px solid ' + t.line, borderRadius: 10, padding: '10px 12px' }}>
-                            <Label>ABOUT</Label>
+                            <Label>About</Label>
                             <p style={{ margin: '6px 0 0', fontSize: 12.5, lineHeight: 1.65, color: t.dim, whiteSpace: 'pre-wrap' }}>{emp.bio}</p>
                         </div>
                     )}
 
                     {(emp.emergency_contact_name || emp.emergency_contact_phone) && (
                         <div style={{ border: '1px solid ' + t.line, borderRadius: 10, padding: '10px 12px' }}>
-                            <Label>EMERGENCY CONTACT</Label>
+                            <Label>Emergency Contact</Label>
                             <div style={{ fontSize: 13, color: t.text, marginTop: 6 }}>{emp.emergency_contact_name || '-'}</div>
                             {emp.emergency_contact_phone && (
                                 <a href={`tel:${emp.emergency_contact_phone}`} style={{ fontSize: 12, color: t.dim, textDecoration: 'none' }}>
@@ -455,7 +455,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
                     <RelatedProjects employeeId={emp.id} />
 
                     <div>
-                        <div style={{ fontSize: 11, letterSpacing: '0.1em', color: t.faint, margin: '4px 0 9px' }}>ACCESS</div>
+                        <div style={{ fontSize: 11, letterSpacing: 0, color: t.faint, margin: '4px 0 9px' }}>Access</div>
                         <div style={{ display: 'grid', gap: 12, alignItems: 'start' }}>
                             <PortalAccess emp={emp} orgId={orgId} onChanged={() => setAccessKey((k) => k + 1)} />
                             <MemberAccess key={accessKey} email={emp.email} name={name} />

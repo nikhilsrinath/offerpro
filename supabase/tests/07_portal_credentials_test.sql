@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Portal logins created by an admin (0031)
+-- Opstead · Portal logins created by an admin (0031)
 --
 -- 0031 moves identity from something the employee picks to something the admin
 -- issues. That removes a whole class of bug — a Google address that is not the

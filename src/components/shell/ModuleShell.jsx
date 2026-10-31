@@ -39,9 +39,9 @@ const DOCK_MIN = 1100;
 // Where the top-left arrow of the rail leads.
 const HUB_BACK = { to: '/dashboard/overview', label: 'Back to dashboard' };
 // The rail island's outer widths (its 10px gutter included).
-const RAIL_OPEN_W = 248;
-const RAIL_SHUT_W = 80;
-const RAIL_SLOT_W = 260;
+const RAIL_OPEN_W = 220;
+const RAIL_SHUT_W = 64;
+const RAIL_SLOT_W = 240;
 const readFlag = (k) => { try { return localStorage.getItem(k) === '1'; } catch { return false; } };
 const writeFlag = (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch { /* private mode */ } };
 
@@ -69,13 +69,13 @@ function PopRow({ t, icon, label, note, onClick, danger, dot }) {
     return (
         <button type="button" role="menuitem" className="edge-row" onClick={onClick} style={{
             display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-            padding: '8px 11px', background: 'transparent', border: 'none',
+            padding: '7px 10px', background: 'transparent', border: 'none',
             cursor: 'pointer', textAlign: 'left', borderRadius: 6,
             fontFamily: MONO, color: danger ? t.down : t.text,
         }}>
             <span aria-hidden="true" style={{ display: 'grid', placeItems: 'center', color: danger ? t.down : t.faint, flexShrink: 0 }}>{icon}</span>
             <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 13 }}>{label}</span>
+                <span style={{ display: 'block', fontSize: 12.5 }}>{label}</span>
                 {note && <span style={{ display: 'block', fontSize: 11, color: dot ? t.down : t.faint, marginTop: 1 }}>{note}</span>}
             </span>
             {dot && <span aria-hidden="true" style={{
@@ -209,10 +209,10 @@ export default function ModuleShell({
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '7px 8px 7px 12px', borderBottom: '1px solid ' + t.lineSoft,
             }}>
-                <h2 style={{ margin: 0, fontWeight: 400, fontSize: 11, letterSpacing: '0.1em', color: t.faint, flex: 1 }}>NOTIFICATIONS</h2>
+                <h2 style={{ margin: 0, fontWeight: 600, fontSize: 12.5, color: t.text, flex: 1 }}>Notifications</h2>
                 {unread > 0 && (
                     <span style={{ fontSize: 10.5, padding: '1px 5px', borderRadius: 4, background: t.selBg, color: t.selText }}>
-                        {unread} NEW
+                        {unread} new
                     </span>
                 )}
                 {notifs.length > 0 && (
@@ -358,9 +358,9 @@ export default function ModuleShell({
                                                 title={open ? 'Hide list' : 'Show list'}
                                                 onClick={() => setExpanded((s) => ({ ...s, [it.id]: !open }))}
                                                 style={{
-                                                    position: 'absolute', right: 6, top: 7, width: 24, height: 24,
+                                                    position: 'absolute', right: 5, top: 5, width: 20, height: 20,
                                                     display: 'grid', placeItems: 'center', padding: 0, cursor: 'pointer',
-                                                    borderRadius: 8, border: '1px solid transparent',
+                                                    borderRadius: 6, border: '1px solid transparent',
                                                     background: 'rgba(127,127,127,.12)', color: 'inherit',
                                                 }}>
                                                 <ChevronDown aria-hidden="true" size={13} strokeWidth={2} style={{
@@ -371,11 +371,11 @@ export default function ModuleShell({
                                     </div>
                                     {open && (
                                         <ul id={listId} aria-label={it.label} className="edge-scroll" style={{
-                                            listStyle: 'none', margin: '2px 0 6px 19px', padding: '0 0 0 9px',
+                                            listStyle: 'none', margin: '2px 0 6px 16px', padding: '0 0 0 8px',
                                             borderLeft: '1px solid ' + t.lineStrong, maxHeight: 280, overflowY: 'auto',
                                         }}>
                                             {it.children.length === 0 && (
-                                                <li style={{ fontSize: 12.5, color: t.faint, padding: '6px 8px' }}>{it.emptyText || 'No projects yet'}</li>
+                                                <li style={{ fontSize: 12, color: t.faint, padding: '6px 8px' }}>{it.emptyText || 'No projects yet'}</li>
                                             )}
                                             {it.children.map((c) => (
                                                 <li key={c.id}>
@@ -384,8 +384,8 @@ export default function ModuleShell({
                                                         aria-current={c.active === false ? false : 'page'}
                                                         style={({ isActive: routeActive }) => { const isActive = c.active ?? routeActive; return {
                                                             display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 1,
-                                                            padding: '6px 9px', borderRadius: 9, textDecoration: 'none',
-                                                            fontSize: 13, color: isActive ? t.accent : t.dim, fontWeight: isActive ? 500 : 400,
+                                                            padding: '5px 8px', borderRadius: 6, textDecoration: 'none',
+                                                            fontSize: 12, color: isActive ? t.accent : t.dim, fontWeight: isActive ? 500 : 400,
                                                             background: isActive ? t.accentSoft : 'transparent',
                                                         }; }}>
                                                         <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{titleCaseNode(c.label)}</span>
@@ -440,39 +440,39 @@ export default function ModuleShell({
                     // On a desktop the bar sits on the canvas above the page card,
                     // as on the hub; a phone keeps a plain strip.
                     ...(isMobile
-                        ? { padding: '9px 12px', height: 53, borderBottom: '1px solid ' + t.line, background: t.panel }
-                        : { padding: noRail ? '0 14px' : '0 14px 0 6px', height: 64 }),
+                        ? { padding: '8px 12px', height: 50, borderBottom: '1px solid ' + t.line, background: t.panel }
+                        : { padding: noRail ? '0 12px' : '0 12px 0 4px', height: 52 }),
                 }}>
                     {/* The page title on the left; a hub module's page also carries
                         the search on the right, by the theme and notifications. */}
                     {!tabs && (isMobile || noRail) && (
                         <Link to={back.to} aria-label={back.label} title={back.label} className={noRail && !isMobile ? 'edge-icon' : undefined}
                             style={noRail && !isMobile ? { ...iconBtn(t), marginLeft: -6 } : { color: t.dim, display: 'grid', placeItems: 'center', flexShrink: 0, width: 32, height: 32 }}>
-                            <ArrowLeft aria-hidden="true" size={17} strokeWidth={1.8} />
+                            <ArrowLeft aria-hidden="true" size={15} strokeWidth={1.8} />
                         </Link>
                     )}
 
                     <div style={{ minWidth: 0, ...(note && !isMobile ? { flex: '1 1 auto', maxWidth: 760 } : {}) }}>
                         <h1 style={{
-                            margin: 0, fontSize: isMobile ? 15.5 : 18, fontWeight: 600,
-                            letterSpacing: '-0.025em', color: t.text, lineHeight: 1.2,
+                            margin: 0, fontSize: isMobile ? 15 : 15.5, fontWeight: 600,
+                            letterSpacing: '-0.015em', color: t.text, lineHeight: 1.2,
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>{titleCaseNode(title)}</h1>
                         {/* A tabbed page has no subtitle; one that must say what
                             it is for has a `note`, up to two lines. */}
                         {note && !isMobile ? (
                             <div style={{
-                                fontSize: 12, lineHeight: 1.35, color: t.faint, marginTop: 2, overflow: 'hidden',
+                                fontSize: 11.5, lineHeight: 1.35, color: t.faint, marginTop: 1, overflow: 'hidden',
                                 display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
                             }}>{note}</div>
                         ) : subtitle && !isMobile && !tabs && (
-                            <div style={{ fontSize: 12, color: t.faint, marginTop: 2, whiteSpace: 'nowrap' }}>{subtitle}</div>
+                            <div style={{ fontSize: 11.5, color: t.faint, marginTop: 1, whiteSpace: 'nowrap' }}>{subtitle}</div>
                         )}
                     </div>
 
                     <div style={{ flex: 1 }} />
 
-                    {tabs && <GlobalSearch t={t} width={380} align="right" />}
+                    {tabs && <GlobalSearch t={t} width={320} align="right" />}
 
                     {actions}
 
@@ -482,7 +482,7 @@ export default function ModuleShell({
                     {canSeeFinancials() && (
                         <button type="button" className="edge-icon" title="Logs" aria-label="Logs" aria-haspopup="dialog"
                             onClick={() => setLogsOpen(true)} style={iconBtn(t, logsOpen)}>
-                            <History aria-hidden="true" size={17} strokeWidth={1.8} />
+                            <History aria-hidden="true" size={15} strokeWidth={1.8} />
                         </button>
                     )}
                     {logsOpen && (
@@ -495,7 +495,7 @@ export default function ModuleShell({
                         title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
                         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
                         onClick={onToggleTheme} style={iconBtn(t)}>
-                        {isDark ? <Sun aria-hidden="true" size={17} strokeWidth={1.8} /> : <Moon aria-hidden="true" size={17} strokeWidth={1.8} />}
+                        {isDark ? <Sun aria-hidden="true" size={15} strokeWidth={1.8} /> : <Moon aria-hidden="true" size={15} strokeWidth={1.8} />}
                     </button>
 
                     <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -504,10 +504,10 @@ export default function ModuleShell({
                             aria-expanded={menu === 'notifs'} aria-haspopup="true" aria-controls="edge-notif-panel"
                             onClick={() => setMenu((m) => (m === 'notifs' ? null : 'notifs'))}
                             style={iconBtn(t, menu === 'notifs')}>
-                            <Bell aria-hidden="true" size={17} strokeWidth={1.8} />
+                            <Bell aria-hidden="true" size={15} strokeWidth={1.8} />
                             {unread > 0 && (
                                 <span aria-hidden="true" style={{
-                                    position: 'absolute', top: 8, right: 9, width: 8, height: 8,
+                                    position: 'absolute', top: 6, right: 6, width: 7, height: 7,
                                     borderRadius: 999, background: t.down, border: '2px solid ' + t.card,
                                 }} />
                             )}
@@ -525,13 +525,13 @@ export default function ModuleShell({
                             style={{
                                 position: 'relative',
                                 display: 'flex', alignItems: 'center', gap: 8,
-                                height: 40, padding: '0 10px 0 4px', borderRadius: 999, cursor: 'pointer',
+                                height: 32, padding: '0 8px 0 3px', borderRadius: 999, cursor: 'pointer',
                                 border: '1px solid ' + (menu === 'account' ? t.lineStrong : t.line),
                                 background: t.card, boxShadow: t.highlight, fontFamily: MONO, transition: 'border-color .15s',
                             }}>
-                            {avatar(30, 999)}
+                            {avatar(24, 999)}
                             {!isMobile && (
-                                <span title={orgName} style={{ fontSize: 12.5, color: t.text, fontWeight: 500, textAlign: 'left', maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}</span>
+                                <span title={orgName} style={{ fontSize: 12, color: t.text, fontWeight: 500, textAlign: 'left', maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}</span>
                             )}
                             <ChevronDown aria-hidden="true" size={12} strokeWidth={2} style={{
                                 color: t.faint, flexShrink: 0,
@@ -539,8 +539,8 @@ export default function ModuleShell({
                             }} />
                             {profile.incomplete && (
                                 <span aria-hidden="true" style={{
-                                    position: 'absolute', top: 1, left: 26,
-                                    width: 9, height: 9, borderRadius: 999,
+                                    position: 'absolute', top: 0, left: 20,
+                                    width: 8, height: 8, borderRadius: 999,
                                     background: t.down, border: '2px solid ' + t.card,
                                 }} />
                             )}
@@ -557,28 +557,28 @@ export default function ModuleShell({
                     background: t.panel,
                     ...(isMobile ? {} : {
                         // Without a top bar (a workspace) the card keeps a gutter above too.
-                        margin: (bare ? '10px ' : '0 ') + (noRail ? '10px 10px' : '10px 10px 0'), borderRadius: 20,
+                        margin: (bare ? '8px ' : '0 ') + (noRail ? '8px 8px' : '8px 8px 0'), borderRadius: 12,
                         border: '1px solid ' + t.line,
                     }),
                 }}>
                 {tabs && (items || []).length > 1 && (
                     <div style={{
                         display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0,
-                        padding: '12px 20px', borderBottom: '1px solid ' + t.line,
+                        padding: '8px 20px', borderBottom: '1px solid ' + t.line,
                     }}>
                         <nav aria-label={(mod?.label || 'Module') + ' pages'} className="edge-scroll edge-mobnav" style={{
                             display: 'inline-flex', gap: 2, padding: 2, minWidth: 0, overflowX: 'auto',
-                            border: '1px solid ' + t.line, borderRadius: 10, background: t.panelAlt,
+                            border: '1px solid ' + t.line, borderRadius: 8, background: t.panelAlt,
                         }}>
                             {items.map((it) => (
                                 <NavLink key={it.id} to={it.to || '/' + it.id} end={!!it.end} replace className="edge-tab"
                                     aria-current={it.active === false ? false : undefined}
                                     style={({ isActive: routeActive }) => { const isActive = it.active ?? routeActive; return {
-                                        display: 'inline-flex', alignItems: 'center', minHeight: 30, padding: '0 12px',
-                                        borderRadius: 8, whiteSpace: 'nowrap', textDecoration: 'none', fontSize: 13, fontWeight: 500,
+                                        display: 'inline-flex', alignItems: 'center', minHeight: 26, padding: '0 10px',
+                                        borderRadius: 6, whiteSpace: 'nowrap', textDecoration: 'none', fontSize: 12.5, fontWeight: 500,
                                         color: isActive ? t.text : t.dim,
-                                        background: isActive ? t.raised : 'transparent',
-                                        boxShadow: isActive ? t.highlight + ', inset 0 0 0 1px ' + t.lineStrong : 'none',
+                                        background: isActive ? (isDark ? t.raised : t.card) : 'transparent',
+                                        boxShadow: isActive ? (isDark ? t.highlight + ', inset 0 0 0 1px ' + t.lineStrong : '0 1px 2px rgba(16,24,40,.08), inset 0 0 0 1px ' + t.line) : 'none',
                                         transition: 'color .14s, background .14s',
                                     }; }}>{titleCaseNode(it.label)}</NavLink>
                             ))}
@@ -595,8 +595,8 @@ export default function ModuleShell({
                             <NavLink key={it.id} to={it.to || '/' + it.id} end={!!it.end} replace className="edge-navitem"
                                 aria-current={it.active === false ? false : undefined}
                                 style={({ isActive: routeActive }) => { const isActive = it.active ?? routeActive; return {
-                                display: 'inline-flex', alignItems: 'center', height: 32, padding: '0 11px',
-                                borderRadius: 9, whiteSpace: 'nowrap', textDecoration: 'none', fontSize: 13, fontWeight: 500,
+                                display: 'inline-flex', alignItems: 'center', height: 30, padding: '0 10px',
+                                borderRadius: 7, whiteSpace: 'nowrap', textDecoration: 'none', fontSize: 12.5, fontWeight: 500,
                                 color: isActive ? t.text : t.dim,
                                 background: isActive ? t.raised : 'transparent',
                                 boxShadow: isActive ? 'inset 0 0 0 1px ' + t.lineStrong : 'none',
@@ -612,7 +612,7 @@ export default function ModuleShell({
                     style={{
                         flex: 1, minHeight: 0, outline: 'none',
                         overflow: flush ? 'hidden' : 'auto',
-                        padding: flush ? 0 : (isMobile ? 12 : 22),
+                        padding: flush ? 0 : (isMobile ? 12 : 20),
                     }}
                 >
                     {children}
@@ -673,11 +673,11 @@ function notifTarget(n) {
 
 function iconBtn(t, active) {
     return {
-        width: 40, height: 40, display: 'grid', placeItems: 'center', position: 'relative',
+        width: 32, height: 32, display: 'grid', placeItems: 'center', position: 'relative',
         border: '1px solid ' + (active ? t.lineStrong : t.line),
-        background: active ? t.panelAlt : t.card, boxShadow: t.highlight,
+        background: active ? t.panelAlt : t.card,
         color: active ? t.text : t.dim,
-        borderRadius: 11, cursor: 'pointer', padding: 0, flexShrink: 0,
+        borderRadius: 8, cursor: 'pointer', padding: 0, flexShrink: 0,
         transition: 'color .15s, border-color .15s, background .15s',
     };
 }

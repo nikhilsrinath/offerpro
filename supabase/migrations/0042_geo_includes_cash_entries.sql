@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · 0042_geo_includes_cash_entries.sql
+-- Opstead · 0042_geo_includes_cash_entries.sql
 --
 -- THE BUG THIS FIXES:
 --

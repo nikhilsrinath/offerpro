@@ -35,7 +35,7 @@
 --       trigger from invoices only, so counter sales of a catalogue product were
 --       invisible to every product ranking in the app.
 --   department_id  (spend)
---       Which team spent it. EdgeOS has had departments since 0001 and no way
+--       Which team spent it. Opstead has had departments since 0001 and no way
 --       to attribute a rupee to one.
 --   client_id, billable  (spend)
 --       Cost per client, and which of it is re-billable. An agency cannot read
@@ -421,7 +421,7 @@ begin
   insert into public.brain_metrics (org_id, key, bucket, value, dims, definition, resource)
   select p_org, 'income.direct_revenue', '', coalesce(sum(i.net_amount), 0), '{}'::jsonb,
          'Revenue received WITHOUT an invoice - counter sales, retainers, work billed outside '
-         'EdgeOS - at net value, excluding the GST collected on it. Entries linked to an invoice are '
+         'Opstead - at net value, excluding the GST collected on it. Entries linked to an invoice are '
          'excluded so nothing counts twice, and funding and refunds are excluded because they are not '
          'earned. Total revenue = revenue.billed (or revenue.collected, on a cash basis) PLUS this '
          'number; quoting revenue.* alone understates any business that also takes money directly.',

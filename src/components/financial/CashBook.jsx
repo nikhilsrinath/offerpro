@@ -537,22 +537,22 @@ export function RecordMoneyCard({ t, scoped, logs, onRecord, onOpen, style, labe
   const [open, setOpen] = useState(false);
   return (
     <section {...(scoped ? { 'aria-label': 'Record Money' } : { 'aria-labelledby': 'gl-record' })} className="gl-record" style={{
-      position: 'relative', overflow: 'hidden', padding: 20, borderRadius: 20,
-      background: t.card, border: '1px solid ' + t.line, boxShadow: t.highlight,
-      backgroundImage: `radial-gradient(120% 90% at 100% 0%, ${t.accentSoft}, transparent 62%)`,
-      display: 'flex', flexDirection: 'column', gap: 14, ...style,
+      position: 'relative', overflow: 'hidden',
+      // Without its heading the card would only frame the buttons, a box in a box.
+      ...(scoped ? {} : { padding: 12, borderRadius: 12, background: t.card, border: '1px solid ' + t.line }),
+      display: 'flex', flexDirection: 'column', gap: 12, ...style,
     }}>
       {/* On a project's Company Ledger the card goes without its heading. */}
       {!scoped && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ minWidth: 0 }}>
-            <h2 id="gl-record" style={{ margin: 0, fontSize: 18, fontWeight: 600, letterSpacing: '-0.02em', color: t.text }}>Record Money</h2>
-            <div style={{ fontSize: 12.5, color: t.faint, marginTop: 2 }}>Cash in without an invoice, and anything you spent.</div>
+            <h2 id="gl-record" style={{ margin: 0, fontSize: 14, fontWeight: 600, letterSpacing: '-0.01em', color: t.text }}>Record Money</h2>
+            <div style={{ fontSize: 12, color: t.faint, marginTop: 1 }}>Cash in without an invoice, and anything you spent.</div>
           </div>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 10, alignItems: 'stretch', flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 340px', minWidth: 0, display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 340px', minWidth: 0, display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
           <RecordBtn t={t} tone={t.up} icon={side('in').icon || ArrowDownLeft} label={side('in').label} note={side('in').note} onClick={() => onRecord('in')} />
           <RecordBtn t={t} tone={t.down} icon={side('out').icon || ArrowUpRight} label={side('out').label} note={side('out').note} onClick={() => onRecord('out')} />
         </div>
@@ -560,20 +560,20 @@ export function RecordMoneyCard({ t, scoped, logs, onRecord, onOpen, style, labe
         {logs && (
           <button type="button" className="gl-logs-btn" onClick={() => setOpen(true)} aria-haspopup="dialog"
             title="Everything recorded here, newest first" style={{
-              flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
-              minWidth: 92, padding: '12px 14px', borderRadius: 14, cursor: 'pointer', fontFamily: 'inherit',
-              background: t.card, border: '1px solid ' + t.line, boxShadow: t.highlight, color: t.text,
+              flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
+              minWidth: 80, padding: '8px 12px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit',
+              background: t.card, border: '1px solid ' + t.line, color: t.text,
             }}>
-            <History size={18} aria-hidden="true" style={{ color: t.dim }} />
-            <span style={{ fontSize: 13.5, fontWeight: 600 }}>Logs</span>
-            <span style={{ fontSize: 11.5, color: t.faint, fontVariantNumeric: 'tabular-nums' }}>{logs.length} {logs.length === 1 ? 'entry' : 'entries'}</span>
+            <History size={15} aria-hidden="true" style={{ color: t.dim }} />
+            <span style={{ fontSize: 12.5, fontWeight: 600 }}>Logs</span>
+            <span style={{ fontSize: 11, color: t.faint, fontVariantNumeric: 'tabular-nums' }}>{logs.length} {logs.length === 1 ? 'entry' : 'entries'}</span>
           </button>
         )}
       </div>
       {open && <RecordLogs t={t} logs={logs} onOpen={onOpen} onClose={() => setOpen(false)} />}
       <style>{`
-        .gl-rec-btn { transition: transform .18s cubic-bezier(.16,1,.3,1), box-shadow .18s, border-color .18s; }
-        .gl-rec-btn:hover { transform: translateY(-2px); }
+        .gl-rec-btn { transition: background .15s, border-color .15s; }
+        .gl-rec-btn:hover { background: color-mix(in srgb, var(--rec-tone, ${t.ghost}) ${t.isDark ? 18 : 10}%, ${t.card}) !important; border-color: color-mix(in srgb, var(--rec-tone, ${t.lineStrong}) 55%, transparent) !important; }
         .gl-logs-btn { transition: border-color .15s; }
         .gl-logs-btn:hover { border-color: ${t.lineStrong} !important; }
         @media (prefers-reduced-motion: reduce) { .gl-rec-btn:hover { transform: none; } }
@@ -586,19 +586,19 @@ export function RecordMoneyCard({ t, scoped, logs, onRecord, onOpen, style, labe
 function RecordBtn({ t, tone, icon: Icon, label, note, onClick }) {
   return (
     <button type="button" onClick={onClick} className="gl-rec-btn" style={{
-      display: 'flex', alignItems: 'center', gap: 12, padding: '14px 14px', borderRadius: 14, cursor: 'pointer',
+      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 9, cursor: 'pointer',
       textAlign: 'left', fontFamily: 'inherit', color: t.text,
-      background: `color-mix(in srgb, ${tone} ${t.isDark ? 12 : 7}%, ${t.card})`,
+      background: `color-mix(in srgb, ${tone} ${t.isDark ? 12 : 6}%, ${t.card})`,
       border: `1px solid color-mix(in srgb, ${tone} 30%, transparent)`,
-      boxShadow: `${t.highlight}, 0 10px 24px -18px ${tone}`,
+      '--rec-tone': tone,
     }}>
       <span aria-hidden="true" style={{
-        width: 38, height: 38, borderRadius: 11, flexShrink: 0, display: 'grid', placeItems: 'center',
-        background: tone, color: '#fff', boxShadow: `inset 0 1px 0 rgba(255,255,255,.25), 0 6px 14px -6px ${tone}`,
-      }}><Icon size={18} /></span>
+        width: 28, height: 28, borderRadius: 7, flexShrink: 0, display: 'grid', placeItems: 'center',
+        background: tone, color: '#fff',
+      }}><Icon size={15} /></span>
       <span style={{ minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em' }}>{label}</span>
-        <span style={{ display: 'block', fontSize: 12, color: t.faint, marginTop: 2 }}>{note}</span>
+        <span style={{ display: 'block', fontSize: 13, fontWeight: 600, letterSpacing: '-0.005em' }}>{label}</span>
+        <span style={{ display: 'block', fontSize: 11.5, color: t.faint, marginTop: 1, lineHeight: 1.4 }}>{note}</span>
       </span>
     </button>
   );
@@ -609,19 +609,19 @@ function FlowTile({ t, area, icon: Icon, tone, label, value, note, active, onCli
   return (
     <button type="button" onClick={onClick} aria-pressed={active} className="gl-flow" style={{
       gridArea: area, textAlign: 'left', fontFamily: 'inherit', color: t.text, cursor: 'pointer', minWidth: 0,
-      padding: '16px 18px', borderRadius: 18, background: active ? `color-mix(in srgb, ${tone} 7%, ${t.card})` : t.card,
-      border: '1px solid ' + (active ? `color-mix(in srgb, ${tone} 45%, transparent)` : t.line), boxShadow: t.highlight,
-      display: 'flex', flexDirection: 'column', gap: 10,
+      padding: '12px 14px', borderRadius: 12, background: active ? `color-mix(in srgb, ${tone} 7%, ${t.card})` : t.card,
+      border: '1px solid ' + (active ? `color-mix(in srgb, ${tone} 45%, transparent)` : t.line),
+      display: 'flex', flexDirection: 'column', gap: 8,
     }}>
       <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
         <span aria-hidden="true" style={{
-          width: 28, height: 28, borderRadius: 9, display: 'grid', placeItems: 'center', color: tone,
+          width: 24, height: 24, borderRadius: 6, display: 'grid', placeItems: 'center', color: tone,
           background: `color-mix(in srgb, ${tone} 12%, transparent)`,
-        }}><Icon size={14} /></span>
+        }}><Icon size={13} /></span>
         <span style={{ fontSize: 12.5, fontWeight: 500, color: t.dim, flex: 1 }}>{label}</span>
         {active && <span style={{ fontSize: 11.5, color: tone, fontWeight: 500 }}>Filtering</span>}
       </span>
-      <span style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1, color: tone, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+      <span style={{ fontSize: 21, fontWeight: 600, letterSpacing: '-0.03em', lineHeight: 1, color: tone, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
       <span style={{ fontSize: 12, color: t.faint, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{note}</span>
     </button>
   );

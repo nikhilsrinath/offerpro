@@ -12,9 +12,9 @@ const DocumentationPage = () => (
       <div className="sp-hero-glow" />
       <div className="eos-container">
         <div className="sp-hero-badge"><BookOpen size={12} /> Documentation</div>
-        <h1 className="sp-hero-title">Learn EdgeOS<br /><em>inside</em> and out.</h1>
+        <h1 className="sp-hero-title">Learn Opstead<br /><em>inside</em> and out.</h1>
         <p className="sp-hero-subtitle">
-          Comprehensive guides and tutorials to help you get the most out of every feature in EdgeOS. From setting up your first account to generating thousands of documents at scale.
+          Comprehensive guides and tutorials to help you get the most out of every feature in Opstead. From setting up your first account to generating thousands of documents at scale.
         </p>
       </div>
     </section>
@@ -78,7 +78,7 @@ const DocumentationPage = () => (
             {
               icon: BarChart3,
               title: 'Making Cost & Profit Tracking',
-              desc: 'For each line item, you can optionally enter a "making cost", the actual cost to you for delivering that service or product. EdgeOS calculates your real profit margin by subtracting making costs from the invoice total. This information is visible only to you and never appears on the client-facing PDF or portal.'
+              desc: 'For each line item, you can optionally enter a "making cost", the actual cost to you for delivering that service or product. Opstead calculates your real profit margin by subtracting making costs from the invoice total. This information is visible only to you and never appears on the client-facing PDF or portal.'
             },
             {
               icon: Layers,
@@ -98,7 +98,7 @@ const DocumentationPage = () => (
             {
               icon: Globe,
               title: 'GST Compliance',
-              desc: 'EdgeOS supports intra-state (CGST + SGST) and inter-state (IGST) tax calculations. Enter your company GSTIN and your client\'s GSTIN, and the system determines the supply type and applies the correct tax rates. HSN/SAC codes are supported for each line item. All invoices meet Indian GST invoice format requirements.'
+              desc: 'Opstead supports intra-state (CGST + SGST) and inter-state (IGST) tax calculations. Enter your company GSTIN and your client\'s GSTIN, and the system determines the supply type and applies the correct tax rates. HSN/SAC codes are supported for each line item. All invoices meet Indian GST invoice format requirements.'
             },
           ].map((g, i) => (
             <div key={i} className="sp-guide-card eos-parallax">
@@ -129,7 +129,7 @@ const DocumentationPage = () => (
             {
               icon: Clock,
               title: 'Revision Tracking',
-              desc: 'When a client requests changes to a quotation, create a new revision instead of editing the original. EdgeOS maintains a complete revision history (Rev 1, Rev 2, Rev 3, etc.). Each revision is a separate document with its own PDF, so you always have a full audit trail of how the deal evolved over time.'
+              desc: 'When a client requests changes to a quotation, create a new revision instead of editing the original. Opstead maintains a complete revision history (Rev 1, Rev 2, Rev 3, etc.). Each revision is a separate document with its own PDF, so you always have a full audit trail of how the deal evolved over time.'
             },
             {
               icon: Activity,
@@ -236,7 +236,7 @@ const DocumentationPage = () => (
             {
               icon: Lock,
               title: 'Legal Formatting Standards',
-              desc: 'All legal documents follow proper legal document standards: numbered sections, defined terms, clear party identification, purpose clauses, obligation terms, and dual signature blocks. The output is formatted as a professional legal document suitable for business use. While EdgeOS generates well-structured templates, we recommend having critical agreements reviewed by legal counsel.'
+              desc: 'All legal documents follow proper legal document standards: numbered sections, defined terms, clear party identification, purpose clauses, obligation terms, and dual signature blocks. The output is formatted as a professional legal document suitable for business use. While Opstead generates well-structured templates, we recommend having critical agreements reviewed by legal counsel.'
             },
             {
               icon: Globe,
@@ -272,7 +272,7 @@ const DocumentationPage = () => (
             {
               icon: Upload,
               title: 'Bulk Issuance with CSV',
-              desc: 'For training programs or large classes, upload a CSV file containing recipient names and achievement descriptions. EdgeOS generates individual, personalized certificates for each recipient in one batch. Each certificate gets a unique verification ID. This is ideal for training academies, educational institutions, and corporate programs issuing certificates to dozens or hundreds of participants.'
+              desc: 'For training programs or large classes, upload a CSV file containing recipient names and achievement descriptions. Opstead generates individual, personalized certificates for each recipient in one batch. Each certificate gets a unique verification ID. This is ideal for training academies, educational institutions, and corporate programs issuing certificates to dozens or hundreds of participants.'
             },
             {
               icon: Check,
@@ -382,7 +382,7 @@ const DocumentationPage = () => (
       <div className="eos-container">
         <div className="sp-cta-box eos-parallax">
           <h2 className="sp-cta-title">Can't find what you're looking for?</h2>
-          <p className="sp-cta-subtitle">Our support team is ready to help you with any questions about EdgeOS.</p>
+          <p className="sp-cta-subtitle">Our support team is ready to help you with any questions about Opstead.</p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
             <a href="/support" className="eos-btn eos-btn-primary">Contact Support <ArrowRight size={16} /></a>
             <a href="/" className="eos-btn eos-btn-secondary">Back to Home <ChevronRight size={16} /></a>

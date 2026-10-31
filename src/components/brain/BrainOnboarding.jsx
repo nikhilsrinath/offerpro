@@ -62,7 +62,7 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                         margin: '12px 0 0', fontSize: 14, lineHeight: 1.75,
                         color: t.dim, maxWidth: 580,
                     }}>
-                        Neurals organises the data already in EdgeOS into one connected
+                        Neurals organises the data already in Opstead into one connected
                         context your AI can reason over. So a question about a customer,
                         an invoice and the person who owns the account is one question
                         rather than three screens.
@@ -80,7 +80,7 @@ export default function BrainOnboarding({ onBuild, building, error, canBuild }) 
                 <div style={{ padding: '22px 30px 24px' }}>
                     <div style={{
                         fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, marginBottom: 14,
-                    }}>WHAT IT WILL ORGANISE</div>
+                    }}>What It Will Organise</div>
 
                     <div style={{
                         display: 'grid', gap: 1,

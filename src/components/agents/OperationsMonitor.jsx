@@ -477,7 +477,7 @@ function Settings({ orgId, value, disabled, onSaved, onClose }) {
             <div className="ag-set-grid">
                 <label className="ag-toggle">
                     <input type="checkbox" checked={!!form.daily} onChange={(e) => set('daily', e.target.checked)} disabled={disabled} />
-                    <span><b>Daily Run</b><small>Every morning on the server, even when nobody has EdgeOS open. It also stores the day&apos;s counts for weekly comparisons.</small></span>
+                    <span><b>Daily Run</b><small>Every morning on the server, even when nobody has Opstead open. It also stores the day&apos;s counts for weekly comparisons.</small></span>
                 </label>
                 <label className="ag-toggle">
                     <input type="checkbox" checked={!!form.email_digest} onChange={(e) => set('email_digest', e.target.checked)} disabled={disabled} />

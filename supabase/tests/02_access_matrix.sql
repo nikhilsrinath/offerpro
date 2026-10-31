@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Effective access matrix
+-- Opstead · Effective access matrix
 --
 -- Prints, for every table under RLS, every verb, every kind of caller and a set
 -- of probe rows, whether that caller may perform that verb on that row. The

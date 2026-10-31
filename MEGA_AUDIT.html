@@ -1,4 +1,4 @@
-<title>EdgeOS Health Report</title>
+<title>Opstead Health Report</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 :root{
@@ -460,7 +460,7 @@ footer{
 <header class="mast">
   <div>
     <div class="mast-id">Mega Audit · nikhilsrinath/offerpro</div>
-    <h1>EdgeOS is a<br><em>prototype in a</em> suit.</h1>
+    <h1>Opstead is a<br><em>prototype in a</em> suit.</h1>
   </div>
   <div class="mast-meta">
     <b>06 Sep 2026</b><br>
@@ -581,7 +581,7 @@ $ find . -name "firestore.rules" -o -name "firebase.json"
   <b>(no results)</b></pre>
       <div class="f-impact"><b>Impact</b>The portal's own comment states the deployed rule shape. Anyone can call <code>signInAnonymously()</code> and then read and write every document in every collection for every tenant — including the plaintext Gmail App Passwords stored on the org profile. A reportable breach under GDPR and India's DPDP Act.</div>
     </div>
-    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Implement server-side multi-tenant authorization for the EdgeOS Firebase backend.
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Implement server-side multi-tenant authorization for the Opstead Firebase backend.
 There is currently NO authorization layer: tenant isolation exists only as a
 client-side `where('orgId','==',orgId)` filter in src/services/orgStore.js, and the
 app relies on anonymous auth passing an `auth != null` rule.
@@ -667,7 +667,7 @@ scripts/setup-admin.js:11
   const ADMIN_PASSWORD = <b>'admin123'</b>;   ← provisions a real Firebase user</pre>
       <div class="f-impact"><b>Impact</b>Any visitor can run <code>localStorage.setItem('admin_session','true')</code> in DevTools and become a full administrator — no password required — then irreversibly destroy any tenant. There are no backups (C-9), so deletion is permanent.</div>
     </div>
-    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Replace the insecure EdgeOS admin panel authentication with real server-verified
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Replace the insecure Opstead admin panel authentication with real server-verified
 admin identity, and make destructive operations safe and auditable.
 
 INSPECT FIRST
@@ -743,7 +743,7 @@ $ git log --oneline -- .env
   cd8b4f0, f2ebe2d   ← present in history</pre>
       <div class="f-impact"><b>Impact</b>Unbounded third-party inference billing on a permanently compromised key. <code>.gitignore</code> also fails to cover <code>service-account.json</code>, which <code>scripts/setup-admin.js:5</code> expects to read — a future commit of that file would hand over total Firebase control.</div>
     </div>
-    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Remove committed secrets from the EdgeOS repository and prevent recurrence.
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Remove committed secrets from the Opstead repository and prevent recurrence.
 
 INSPECT FIRST
 - .gitignore (no .env entry), .env (tracked, contains a live NVIDIA key),
@@ -810,7 +810,7 @@ src/services/documentStore.js:101
        <b>→ /portal/INV-2026-0001, 0002, 0003 …</b></pre>
       <div class="f-impact"><b>Impact</b>The portal is not read-only — it captures legally binding e-signatures. Any third party can enumerate, read, download and <strong>sign or accept</strong> another company's offer letters, NDAs, MoUs and invoices. The UI even advertises it: <em>"Link does not expire."</em></div>
     </div>
-    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Secure the EdgeOS recipient portal with real, verifiable, expiring access tokens.
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Secure the Opstead recipient portal with real, verifiable, expiring access tokens.
 Today the token is decorative: PortalLinkGenerator.jsx:11 generates it with
 Math.random() on every render, and RecipientPortal.jsx never validates it.
 Document IDs are sequential (documentStore.js:98-103), so the portal is a
@@ -897,7 +897,7 @@ src/services/orgStore.js:36   PROFILE_FIELDS includes:
   'gmail_user', <b>'gmail_app_password'</b>   → Firestore + RTDB + localStorage</pre>
       <div class="f-impact"><b>Impact</b>Three outcomes at once: anyone can send mail through your infrastructure (blacklisting); attackers can validate stolen Gmail App Passwords at scale; and a Gmail App Password grants full SMTP/IMAP access to the customer's mailbox — stored in plaintext in a database with no rules.</div>
     </div>
-    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Secure EdgeOS outbound email. api/email.js is currently an unauthenticated open
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Secure Opstead outbound email. api/email.js is currently an unauthenticated open
 SMTP relay that accepts arbitrary Gmail credentials and recipients from any caller,
 and doubles as a credential-validation oracle via transporter.verify().
 
@@ -985,7 +985,7 @@ $ grep -rn "ai_message_count" src/
   <b>← never incremented. PLANS.free.limits.aiMessages = 10 is decorative.</b></pre>
       <div class="f-impact"><b>Impact</b>A free, unlimited, globally embeddable LLM endpoint billed to the project owner, with no circuit breaker. Separately, paying customers receive no more AI than free ones, so the pricing tiers are fictional.</div>
     </div>
-    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Secure and meter the EdgeOS AI proxy. api/nvidia.js is currently an
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Secure and meter the Opstead AI proxy. api/nvidia.js is currently an
 unauthenticated LLM endpoint with Access-Control-Allow-Origin:* and no rate
 limiting, and the ai_message_count quota it is supposed to respect is never
 incremented anywhere in the codebase.
@@ -1065,7 +1065,7 @@ $ grep -rn "stripe\|razorpay\|paddle" package.json src/
   <b>(no results)</b>   — while PricingPage.jsx advertises paid tiers</pre>
       <div class="f-impact"><b>Impact</b>Zero revenue is collectible, and any revenue that were collected would be trivially bypassed. The product cannot function as a SaaS business in its current form.</div>
     </div>
-    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Make EdgeOS billing real and server-authoritative. Today `plan` is a
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Make Opstead billing real and server-authoritative. Today `plan` is a
 client-writable field on the org profile (src/services/orgStore.js line 34, written
 by updateProfile at line 333), read by usePlanStatus.js line 19, and there is no
 payment provider in the codebase at all.
@@ -1147,7 +1147,7 @@ src/components/StampPreview.jsx:9
        ← svgString interpolates user-supplied company name and city</pre>
       <div class="f-impact"><b>Impact</b>Stored XSS in an authenticated financial application. Combined with C-1 — where any anonymous user can write any org's profile — an attacker plants a payload in one tenant and executes script in another user's session: session theft, silent modification of bank details on invoices, escalation into the admin panel.</div>
     </div>
-    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Eliminate the DOM XSS sinks in EdgeOS invoice and stamp rendering.
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Eliminate the DOM XSS sinks in Opstead invoice and stamp rendering.
 
 INSPECT FIRST
 - src/components/financial/InvoiceList.jsx lines 135-230 (the full innerHTML
@@ -1222,7 +1222,7 @@ src/services/orgStore.js:288
   ← "more items wins" — <b>silently resurrects deleted records</b></pre>
       <div class="f-impact"><b>Impact</b>A single accidental or malicious deletion is permanent and total. No point-in-time restore, no recovery path, and no way for a customer to retrieve their data — failing the most basic vendor due-diligence question any B2B buyer asks.</div>
     </div>
-    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Establish backup, restore, export and migration capability for EdgeOS. There is
+    <details class="prompt"><summary>Implementation prompt</summary><div class="prompt-body"><button class="copy">Copy</button><pre>Establish backup, restore, export and migration capability for Opstead. There is
 currently no backup config, no migration framework, no customer data export, and
 an admin panel that permanently deletes organizations (admin/index.html:515).
 
@@ -1598,7 +1598,7 @@ $ ls tsconfig*   → <b>No such file or directory</b></pre>
 
 <div class="close">
   <h3>Closing assessment</h3>
-  <p>The instinct behind EdgeOS is right, and the execution of the visible product is better than most seed-stage software. Someone with real taste designed this interface, and someone with real domain understanding scoped these features — GST-aware invoicing, proforma advance tracking, recipient e-signature portals and an org-aware AI assistant are not obvious things to build.</p>
+  <p>The instinct behind Opstead is right, and the execution of the visible product is better than most seed-stage software. Someone with real taste designed this interface, and someone with real domain understanding scoped these features — GST-aware invoicing, proforma advance tracking, recipient e-signature portals and an org-aware AI assistant are not obvious things to build.</p>
   <p>What is missing is the invisible half: the layer that decides who may read what, the tests that prove the arithmetic is right, and the operational discipline that lets you recover when something goes wrong. That layer is thin and well-understood. Almost every critical finding here is confined to security rules, one <code style="font-family:var(--mono);font-size:13px">api/</code> directory, one data-access module and the build configuration.</p>
   <p><strong>The blunt version: do not put a real customer's data in this system until Phase 1 is complete.</strong> After that, this is a credible product with roughly three months of foundational work between it and a business.</p>
 </div>

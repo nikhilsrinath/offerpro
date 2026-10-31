@@ -20,7 +20,7 @@ const PrivacyPage = () => (
 
         <h2>1. Information We Collect</h2>
         <p>
-          When you create an account on EdgeOS, we collect information you provide directly, including your name, email address, company name, and business details such as GSTIN and banking information. We also collect usage data automatically when you interact with our platform.
+          When you create an account on Opstead, we collect information you provide directly, including your name, email address, company name, and business details such as GSTIN and banking information. We also collect usage data automatically when you interact with our platform.
         </p>
 
         <h3>Account Information</h3>
@@ -30,13 +30,13 @@ const PrivacyPage = () => (
 
         <h3>Usage Data</h3>
         <p>
-          We automatically collect information about how you use EdgeOS, including pages visited, features used, documents generated, and performance metrics. This data helps us improve the platform.
+          We automatically collect information about how you use Opstead, including pages visited, features used, documents generated, and performance metrics. This data helps us improve the platform.
         </p>
 
         <h2>2. How We Use Your Information</h2>
         <p>We use the information we collect to:</p>
         <ul>
-          <li>Provide, maintain, and improve EdgeOS services</li>
+          <li>Provide, maintain, and improve Opstead services</li>
           <li>Generate and store business documents on your behalf</li>
           <li>Send documents to recipients via the sharing features you initiate</li>
           <li>Communicate with you about your account, updates, and support requests</li>
@@ -82,12 +82,12 @@ const PrivacyPage = () => (
 
         <h2>8. Cookies</h2>
         <p>
-          EdgeOS uses essential cookies for authentication and session management. We do not use third-party advertising cookies. Analytics cookies may be used to understand usage patterns and improve the platform.
+          Opstead uses essential cookies for authentication and session management. We do not use third-party advertising cookies. Analytics cookies may be used to understand usage patterns and improve the platform.
         </p>
 
         <h2>9. Changes to This Policy</h2>
         <p>
-          We may update this Privacy Policy from time to time. We will notify you of significant changes by posting a notice on our platform or sending you an email. Continued use of EdgeOS after changes constitutes acceptance of the updated policy.
+          We may update this Privacy Policy from time to time. We will notify you of significant changes by posting a notice on our platform or sending you an email. Continued use of Opstead after changes constitutes acceptance of the updated policy.
         </p>
 
         <h2>10. Contact Us</h2>

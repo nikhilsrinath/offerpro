@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Paying a purchase bill through the General Ledger (0080)
+-- Opstead · Paying a purchase bill through the General Ledger (0080)
 --
 --   · a linked money-out entry takes its category, vendor and GST from the bill
 --   · it is cash only (treatment financing), so P&L and GST do not count it twice

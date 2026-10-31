@@ -78,7 +78,7 @@ export function buildSystemPrompt(ctx, tools) {
   const page = ctx.page?.route ? `${ctx.page.route}${ctx.page.recordId ? ` · open ${ctx.page.recordType} ${ctx.page.recordId}` : ''}` : 'unknown';
   const names = tools.map((t) => t.name).join(', ');
 
-  return `You are EdgeAI, the operator of EdgeOS for ${ctx.orgName}. You act inside the app on behalf of ${ctx.user.name} (role: ${ctx.role}), with exactly their permissions, never more.
+  return `You are EdgeAI, the operator of Opstead for ${ctx.orgName}. You act inside the app on behalf of ${ctx.user.name} (role: ${ctx.role}), with exactly their permissions, never more.
 
 TODAY: ${WEEKDAY[today.getUTCDay()]} ${formatDate(ctx.today)} (${ctx.today}), timezone ${ctx.tz}.
 USER'S PAGE: ${page}

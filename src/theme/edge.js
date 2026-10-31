@@ -1,6 +1,6 @@
 import { compactNumber } from '../shared/currency.js';
 /* ══════════════════════════════════════════════════════════════════════════
-   EdgeOS theme tokens.
+   Opstead theme tokens.
 
    One palette, two inversions: near-black (or near-white) layered surfaces,
    hairlines, Inter, and a single blue. Other colour is reserved for signal
@@ -37,7 +37,7 @@ export function makeTokens(isDark) {
         up:         '#3ecf75',
         down:       '#f26d6d',
         accent:     '#2f8cff',
-        accentBtn:  'linear-gradient(180deg, #3a8ff7 0%, #1764d6 100%)',
+        accentBtn:  '#2f8cff',
         accentSoft: 'rgba(47,140,255,.12)',
         onAccent:   '#ffffff',
         scale:      ['#222225', '#1b3150', '#1d4c8c', '#2468c8', '#2f8cff', '#8cc4ff'],
@@ -49,31 +49,31 @@ export function makeTokens(isDark) {
         mapNull:    '#26262a',
         isDark:     true,
     } : {
-        shell:      '#eceef1',
-        panel:      '#f6f7f9',
+        shell:      '#f5f6f8',
+        panel:      '#ffffff',
         card:       '#ffffff',
-        panelAlt:   '#f0f2f5',
-        raised:     '#e7eaee',
-        line:       '#e3e6ea',
-        lineSoft:   '#eceef1',
-        lineStrong: '#cdd2d8',
-        text:       '#0f1115',
-        dim:        '#565c66',
-        faint:      '#666c76',
-        ghost:      '#8a909a',
+        panelAlt:   '#f8f9fb',
+        raised:     '#f1f3f6',
+        line:       '#e8eaee',
+        lineSoft:   '#f1f2f5',
+        lineStrong: '#d7dbe1',
+        text:       '#101828',
+        dim:        '#475467',
+        faint:      '#667085',
+        ghost:      '#868fa0',
         up:         '#15803d',
         down:       '#c62828',
         accent:     '#1f7af0',
-        accentBtn:  'linear-gradient(180deg, #2f86f6 0%, #1662d0 100%)',
+        accentBtn:  '#1f7af0',
         accentSoft: 'rgba(31,122,240,.08)',
         onAccent:   '#ffffff',
-        scale:      ['#e7eaee', '#d6e6fc', '#a3c8f8', '#5e9ff2', '#1f7af0', '#0d4fa8'],
+        scale:      ['#eef1f5', '#d6e6fc', '#a3c8f8', '#5e9ff2', '#1f7af0', '#0d4fa8'],
         chart:      '#1f7af0',
         selBg:      '#1f7af0',
         selText:    '#ffffff',
         highlight:  'inset 0 1px 0 rgba(255,255,255,.9)',
-        shadow:     '0 24px 60px -28px rgba(20,28,40,.35)',
-        mapNull:    '#e7eaee',
+        shadow:     '0 12px 32px -12px rgba(16,24,40,.18)',
+        mapNull:    '#eef1f5',
         isDark:     false,
     };
 }

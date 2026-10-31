@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Important tasks (0077)
+-- Opstead · Important tasks (0077)
 --
 --   · an owner or admin marks a task important; the database stamps who/when
 --   · a member or viewer cannot mark or unmark it

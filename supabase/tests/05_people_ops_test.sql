@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · People operations (0029)
+-- Opstead · People operations (0029)
 --
 -- 03_role_isolation_test.sql already proves the new tables are tenant-isolated
 -- like every other one, because it derives its table list from the schema. What

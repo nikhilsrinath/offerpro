@@ -146,7 +146,7 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
           {error && <div className="prod-form-error" role="alert" style={{ marginBottom: 12 }}>{error}</div>}
           <div style={{ display: 'grid', gap: 10 }}>
             <ChoiceBtn icon={FileUp} label={busy ? 'Uploading...' : 'Upload Invoice'} disabled={busy}
-              note="An invoice made outside EdgeOS. Choose the PDF or image from your computer."
+              note="An invoice made outside Opstead. Choose the PDF or image from your computer."
               onClick={() => fileInput.current?.click()} />
             <ChoiceBtn icon={FilePlus} label="Generate Invoice" disabled={busy}
               note="Build a new tax invoice in Billing, with line items, GST and payment terms."

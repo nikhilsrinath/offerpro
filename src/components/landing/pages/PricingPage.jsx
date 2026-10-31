@@ -4,9 +4,9 @@ import { CreditCard, Check, ArrowRight, Mail, Sparkles, Shield } from 'lucide-re
 const SALES_EMAIL = 'edgeossuite@gmail.com';
 
 const buildEmailLink = (tier, price) => {
-  const subject = `Interested in EdgeOS ${tier} Plan, schedule a meeting`;
+  const subject = `Interested in Opstead ${tier} Plan, schedule a meeting`;
   const body =
-`Hi EdgeOS team,
+`Hi Opstead team,
 
 I'm interested in the ${tier} plan (${price}). I'd love to schedule a quick meeting to discuss onboarding, billing, and next steps for getting my team started.
 
@@ -26,9 +26,9 @@ Thanks,
 };
 
 const buildMailtoFallback = (tier, price) => {
-  const subject = `Interested in EdgeOS ${tier} Plan, schedule a meeting`;
+  const subject = `Interested in Opstead ${tier} Plan, schedule a meeting`;
   const body =
-`Hi EdgeOS team,
+`Hi Opstead team,
 
 I'm interested in the ${tier} plan (${price}). I'd love to schedule a quick meeting to discuss onboarding, billing, and next steps for getting my team started.
 
@@ -55,7 +55,7 @@ const TIERS = [
     name: 'Free',
     price: '$0',
     priceMeta: '',
-    desc: 'Get started with EdgeOS. No card required.',
+    desc: 'Get started with Opstead. No card required.',
     features: [
       '5 Offer Letters',
       '1 MoU / NDA',
@@ -91,7 +91,7 @@ const TIERS = [
     name: 'Max',
     price: '$54',
     priceMeta: 'USD / month\nbilled annually',
-    desc: 'Power users running the entire business on EdgeOS.',
+    desc: 'Power users running the entire business on Opstead.',
     features: [
       'Unlimited Offer Letters',
       'Unlimited MoU / NDA',
@@ -144,7 +144,7 @@ const FAQS = [
   },
   {
     q: 'Is my data safe?',
-    a: 'Yes. EdgeOS uses encrypted Firebase storage. The AI Co-founder reads only from your workspace cache; we never train on your data and never share it with third parties.',
+    a: 'Yes. Opstead uses encrypted Firebase storage. The AI Co-founder reads only from your workspace cache; we never train on your data and never share it with third parties.',
   },
 ];
 

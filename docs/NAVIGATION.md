@@ -1,4 +1,4 @@
-# EdgeOS — Navigation Map
+# Opstead — Navigation Map
 
 Every URL in the app, where it sits in the sidebar (the module rail in `ModuleShell`), and what you can do on it.
 

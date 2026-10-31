@@ -1,5 +1,5 @@
 -- ============================================================================
--- EdgeOS · Getting into the portal (0030)
+-- Opstead · Getting into the portal (0030)
 --
 -- 0030 removed a manual step — an admin picking a login out of a dropdown —
 -- and replaced it with two automatic links: acceptance of an invitation, and a

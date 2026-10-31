@@ -527,7 +527,7 @@ function RootCard({ data }) {
             display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', background: t.panelAlt,
         }}>
             <div style={{ minWidth: 0, flex: '1 1 240px' }}>
-                <div style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint, marginBottom: 4 }}>PROJECT · WBS ROOT</div>
+                <div style={{ fontSize: 10.5, letterSpacing: 0, color: t.faint, marginBottom: 4 }}>Project · WBS Root</div>
                 <div style={{ fontSize: 16, color: t.text, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {project.name}
                 </div>
@@ -535,22 +535,22 @@ function RootCard({ data }) {
             <Row gap={8}>
                 <Avatar name={empName(manager) || '?'} size={24} />
                 <div>
-                    <div style={{ fontSize: 10.5, letterSpacing: '0.08em', color: t.faint }}>RESPONSIBLE</div>
+                    <div style={{ fontSize: 10.5, letterSpacing: 0, color: t.faint }}>Responsible</div>
                     <div style={{ fontSize: 12.5, color: manager ? t.text : t.faint }}>{empName(manager) || 'No manager set'}</div>
                 </div>
             </Row>
             <div>
-                <div style={{ fontSize: 10.5, letterSpacing: '0.08em', color: t.faint }}>SPAN</div>
+                <div style={{ fontSize: 10.5, letterSpacing: 0, color: t.faint }}>Span</div>
                 <div style={{ fontSize: 12.5, color: t.dim }}>{fmtD(total.start)} → {fmtD(total.finish)}</div>
             </div>
             <div>
-                <div style={{ fontSize: 10.5, letterSpacing: '0.08em', color: t.faint }}>WORK ITEMS</div>
+                <div style={{ fontSize: 10.5, letterSpacing: 0, color: t.faint }}>Work Items</div>
                 <div style={{ fontSize: 12.5, color: t.dim }}>
                     {total.done} of {total.leaves} done{total.overdue ? <span style={{ color: t.down }}> · {total.overdue} overdue</span> : ''}
                 </div>
             </div>
             <div style={{ minWidth: 150 }}>
-                <div style={{ fontSize: 10.5, letterSpacing: '0.08em', color: t.faint, marginBottom: 4 }}>COMPLETE</div>
+                <div style={{ fontSize: 10.5, letterSpacing: 0, color: t.faint, marginBottom: 4 }}>Complete</div>
                 <Progress value={total.progress} width={100} />
             </div>
         </div>
@@ -586,12 +586,12 @@ function Outline({ data, visible, open, toggle, adding, setAdding, startAdding, 
                     display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: '9px 12px',
                     borderBottom: '1px solid ' + t.line, fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, background: t.panelAlt,
                 }}>
-                    <span role="columnheader">WBS · NAME</span>
-                    <span role="columnheader">RESPONSIBLE</span>
-                    <span role="columnheader">START → FINISH</span>
-                    <span role="columnheader">PROGRESS</span>
-                    <span role="columnheader">STATUS</span>
-                    <span role="columnheader" style={{ textAlign: 'right' }}>ACTIONS</span>
+                    <span role="columnheader">WBS · Name</span>
+                    <span role="columnheader">Responsible</span>
+                    <span role="columnheader">Start → Finish</span>
+                    <span role="columnheader">Progress</span>
+                    <span role="columnheader">Status</span>
+                    <span role="columnheader" style={{ textAlign: 'right' }}>Actions</span>
                 </div>
                 {rows}
                 {adding === 'root' && (
@@ -781,7 +781,7 @@ function Chart({ data, visible, open, toggle, onEdit, onNew }) {
                     border: '1.5px solid ' + t.text, borderRadius: 10, padding: '10px 14px', minWidth: 240, maxWidth: 320,
                     background: t.panel, textAlign: 'center',
                 }}>
-                    <div style={{ fontSize: 10, letterSpacing: '0.12em', color: t.faint }}>PROJECT</div>
+                    <div style={{ fontSize: 10, letterSpacing: 0, color: t.faint }}>Project</div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: t.text, margin: '3px 0 7px' }}>{project.name}</div>
                     <Row gap={6} style={{ justifyContent: 'center', marginBottom: 8 }}>
                         <Avatar name={empName(manager) || '?'} size={18} />
@@ -845,7 +845,7 @@ function Branch({ node, data, visible, open, toggle, onEdit, onNew, top = false 
                         <span style={{ fontSize: 10.5, color: t.faint, fontVariantNumeric: 'tabular-nums' }}>{tree.code.get(node.id)}</span>
                         <LevelTag depth={depth} />
                         {node.important && <Star size={11} fill="currentColor" role="img" aria-label="Important" style={{ color: t.down }} />}
-                        {critical && <span style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.down, marginLeft: 'auto' }}>CRITICAL</span>}
+                        {critical && <span style={{ fontSize: 9.5, letterSpacing: 0, color: t.down, marginLeft: 'auto' }}>Critical</span>}
                     </Row>
                     <div style={{
                         fontSize: top ? 13 : 12.5, fontWeight: top ? 600 : leaf ? 400 : 500, lineHeight: 1.35, marginBottom: 6,
