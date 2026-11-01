@@ -30,24 +30,24 @@
   --ghost: #6a6a72;
   --pos: #3ecf75;
   --neg: #f26d6d;
-  --accent: #2f8cff;
-  --accent-btn: #2f8cff;
-  --sel-bg: #2f8cff;
-  --sel-text: #ffffff;
-  --on-text: #ffffff;
-  --chart-a: #2f8cff;
+  --accent: #fefe2f;
+  --accent-btn: #fefe2f;
+  --sel-bg: #fefe2f;
+  --sel-text: #0e0e0f;
+  --on-text: #0e0e0f;
+  --chart-a: #fefe2f;
   --chart-b: #3a3a40;
   --map-null: #26262a;
-  --scale-1: #1b3150;
-  --scale-2: #1d4c8c;
-  --scale-3: #2468c8;
-  --scale-4: #2f8cff;
-  --scale-5: #8cc4ff;
+  --scale-1: #3a3a1c;
+  --scale-2: #68681f;
+  --scale-3: #b0b026;
+  --scale-4: #fefe2f;
+  --scale-5: #ffff9e;
   --hi: inset 0 1px 0 rgba(255, 255, 255, .06);
   --shadow: 0 24px 60px -20px rgba(0, 0, 0, .85);
-  --orb: radial-gradient(circle at 35% 30%, #cfe5ff 0%, #2f8cff 45%, #0c2a55 92%);
-  --orb-glow: rgba(47, 140, 255, .22);
-  --orb-glow-2: rgba(47, 140, 255, .36);
+  --orb: radial-gradient(circle at 35% 30%, #ffffd6 0%, #fefe2f 45%, #4d4a00 92%);
+  --orb-glow: rgba(254, 254, 47, .22);
+  --orb-glow-2: rgba(254, 254, 47, .36);
   --scrim: rgba(0, 0, 0, .5);
   color-scheme: dark;
 }
@@ -70,24 +70,24 @@
   --ghost: #868fa0;
   --pos: #15803d;
   --neg: #c62828;
-  --accent: #1f7af0;
-  --accent-btn: #1f7af0;
-  --sel-bg: #1f7af0;
-  --sel-text: #ffffff;
-  --on-text: #ffffff;
-  --chart-a: #1f7af0;
+  --accent: #7a6e00;
+  --accent-btn: #fefe2f;
+  --sel-bg: #fefe2f;
+  --sel-text: #101828;
+  --on-text: #101828;
+  --chart-a: #9e9200;
   --chart-b: #dde2e9;
   --map-null: #eef1f5;
-  --scale-1: #d6e6fc;
-  --scale-2: #a3c8f8;
-  --scale-3: #5e9ff2;
-  --scale-4: #1f7af0;
-  --scale-5: #0d4fa8;
+  --scale-1: #fbf8c0;
+  --scale-2: #f2ec78;
+  --scale-3: #d8cd1c;
+  --scale-4: #9e9200;
+  --scale-5: #5f5600;
   --hi: inset 0 1px 0 rgba(255, 255, 255, .9);
   --shadow: 0 12px 32px -12px rgba(16, 24, 40, .18);
-  --orb: radial-gradient(circle at 35% 30%, #ffffff 0%, #6aa9f7 42%, #0d4fa8 92%);
-  --orb-glow: rgba(31, 122, 240, .14);
-  --orb-glow-2: rgba(31, 122, 240, .26);
+  --orb: radial-gradient(circle at 35% 30%, #ffffff 0%, #fefe2f 42%, #7a6e00 92%);
+  --orb-glow: rgba(254, 254, 47, .3);
+  --orb-glow-2: rgba(254, 254, 47, .45);
   --scrim: rgba(20, 28, 32, .25);
   color-scheme: light;
 }
@@ -116,8 +116,8 @@
 }
 
 .eo-surface ::selection {
-  background: var(--accent);
-  color: #fff;
+  background: var(--accent-btn);
+  color: var(--on-text);
 }
 
 /* Size and shape come from the global scrollbar in index.css. The standard

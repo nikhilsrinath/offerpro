@@ -151,7 +151,7 @@ export default function SignatureCanvas({ onSave }) {
                                         name="signature-font"
                                         checked={selectedFont === `font-${idx}`}
                                         onChange={() => setSelectedFont(`font-${idx}`)}
-                                        style={{ accentColor: 'var(--blue)' }}
+                                        style={{ accentColor: 'var(--blue-fill)' }}
                                     />
                                     <div style={{
                                         padding: '1rem 1.5rem',

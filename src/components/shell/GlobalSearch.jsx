@@ -246,7 +246,7 @@ export default function GlobalSearch({ t, width = 460, align = 'left' }) {
                                                 }}>
                                                 <span aria-hidden="true" style={{
                                                     width: 26, height: 26, borderRadius: 7, flexShrink: 0, display: 'grid', placeItems: 'center',
-                                                    background: on ? t.accent : t.panelAlt, color: on ? t.onAccent : t.dim,
+                                                    background: on ? t.accentBtn : t.panelAlt, color: on ? t.onAccent : t.dim,
                                                     border: '1px solid ' + (on ? 'transparent' : t.line),
                                                 }}><Icon size={15} /></span>
                                                 <span style={{ flex: 1, minWidth: 0 }}>

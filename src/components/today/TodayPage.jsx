@@ -278,7 +278,7 @@ export default function TodayPage() {
                                     style={{ flex: 1, minWidth: 0, height: '100%', background: 'none', border: 'none', outline: 'none', fontFamily: MONO, fontSize: 12.5, color: t.text }} />
                                 <button type="submit" disabled={!q.trim() || assistant.streaming} aria-label="Ask" title="Ask" style={{
                                     width: 28, height: 28, borderRadius: 6, border: 'none', display: 'grid', placeItems: 'center', flexShrink: 0,
-                                    background: q.trim() ? t.accent : t.panelAlt, color: q.trim() ? t.onAccent : t.ghost,
+                                    background: q.trim() ? t.accentBtn : t.panelAlt, color: q.trim() ? t.onAccent : t.ghost,
                                     cursor: q.trim() ? 'pointer' : 'default',
                                 }}><ArrowUp aria-hidden="true" size={14} strokeWidth={2.2} /></button>
                             </div>

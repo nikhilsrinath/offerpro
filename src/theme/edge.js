@@ -3,7 +3,7 @@ import { compactNumber } from '../shared/currency.js';
    Opstead theme tokens.
 
    One palette, two inversions: near-black (or near-white) layered surfaces,
-   hairlines, Inter, and a single blue. Other colour is reserved for signal
+   hairlines, Inter, and a single yellow. Other colour is reserved for signal
    (up / down / live / a department's identity) and never spent on
    decoration. Held as plain objects rather than CSS variables so a component
    can theme itself without depending on the global stylesheet.
@@ -18,7 +18,7 @@ export const MONO = "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif";
 
 /* Layered surfaces: `shell` is the canvas behind the rail and the page,
    `panel` the page, `card` a tile on the page, then panelAlt and raised for
-   controls and hover. One blue (`accent`) is spent on the primary action, the
+   controls and hover. One yellow (`accent`) is spent on the primary action, the
    current page and the focused data point; everything else is grey. */
 export function makeTokens(isDark) {
     return isDark ? {
@@ -36,14 +36,14 @@ export function makeTokens(isDark) {
         ghost:      '#6a6a72',
         up:         '#3ecf75',
         down:       '#f26d6d',
-        accent:     '#2f8cff',
-        accentBtn:  '#2f8cff',
-        accentSoft: 'rgba(47,140,255,.12)',
-        onAccent:   '#ffffff',
-        scale:      ['#222225', '#1b3150', '#1d4c8c', '#2468c8', '#2f8cff', '#8cc4ff'],
-        chart:      '#2f8cff',
-        selBg:      '#2f8cff',
-        selText:    '#ffffff',
+        accent:     '#fefe2f',
+        accentBtn:  '#fefe2f',
+        accentSoft: 'rgba(254,254,47,.12)',
+        onAccent:   '#0e0e0f',
+        scale:      ['#222225', '#3a3a1c', '#68681f', '#b0b026', '#fefe2f', '#ffff9e'],
+        chart:      '#fefe2f',
+        selBg:      '#fefe2f',
+        selText:    '#0e0e0f',
         highlight:  'inset 0 1px 0 rgba(255,255,255,.06)',
         shadow:     '0 24px 60px -20px rgba(0,0,0,.85)',
         mapNull:    '#26262a',
@@ -63,14 +63,16 @@ export function makeTokens(isDark) {
         ghost:      '#868fa0',
         up:         '#15803d',
         down:       '#c62828',
-        accent:     '#1f7af0',
-        accentBtn:  '#1f7af0',
-        accentSoft: 'rgba(31,122,240,.08)',
-        onAccent:   '#ffffff',
-        scale:      ['#eef1f5', '#d6e6fc', '#a3c8f8', '#5e9ff2', '#1f7af0', '#0d4fa8'],
-        chart:      '#1f7af0',
-        selBg:      '#1f7af0',
-        selText:    '#ffffff',
+        // Yellow on white is ~1.1:1, so in light mode `accent` (text, borders,
+        // marks) is the same hue darkened to clear AA; fills use accentBtn.
+        accent:     '#7a6e00',
+        accentBtn:  '#fefe2f',
+        accentSoft: 'rgba(254,254,47,.24)',
+        onAccent:   '#101828',
+        scale:      ['#eef1f5', '#fbf8c0', '#f2ec78', '#d8cd1c', '#9e9200', '#5f5600'],
+        chart:      '#9e9200',
+        selBg:      '#fefe2f',
+        selText:    '#101828',
         highlight:  'inset 0 1px 0 rgba(255,255,255,.9)',
         shadow:     '0 12px 32px -12px rgba(16,24,40,.18)',
         mapNull:    '#eef1f5',

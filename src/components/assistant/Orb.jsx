@@ -12,8 +12,8 @@ import React, { useEffect, useRef, useState } from 'react';
    the microphone can drive the orb at 60fps: it swells, spins faster and
    brightens while you speak.
 
-   tone="blue" is the voice call's orb: a navy glass ball with a teal wave of
-   light across it, a violet edge on the wave and a thin blue rim. Everywhere
+   tone="blue" is the voice call's orb: a dark gold glass ball with a pale wave
+   of light across it, an amber edge on the wave and a thin yellow rim. Everywhere
    else the orb stays monochrome, like the rest of Opstead.
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -77,7 +77,7 @@ void main() {
     float sweep = 0.75 + 0.25 * sin(ang * 2.0 + t * 0.6);
     float halo  = exp(-max(r - 1.0, 0.0) * (5.5 - 1.5 * uLevel)) * (0.30 + 0.45 * uLevel) * sweep;
     halo *= mix(0.35, 1.0, uDark);
-    vec3 haloC = mix(ink, vec3(0.16, 0.38, 1.0), uBlue);
+    vec3 haloC = mix(ink, vec3(1.0, 1.0, 0.18), uBlue);
     halo *= mix(1.0, 0.45, uBlue);
     vec4 outC = vec4(haloC * halo, halo);
 
@@ -109,13 +109,13 @@ void main() {
         float spec = pow(max(dot(normalize(n), normalize(vec3(-0.45, 0.55, 0.7))), 0.0), 40.0);
         col = mix(col, mix(vec3(0.0), vec3(1.0), uDark), spec * mix(0.12, 0.3, uDark));
 
-        // ── the blue glass ──
-        vec3 navy   = vec3(0.008, 0.02, 0.09);
-        vec3 deep   = vec3(0.03, 0.12, 0.52);
-        vec3 blue   = vec3(0.10, 0.42, 0.98);
-        vec3 teal   = vec3(0.36, 0.93, 0.88);
-        vec3 violet = vec3(0.58, 0.36, 1.0);
-        // lit from above: the top half glows blue, the underside falls to navy
+        // ── the yellow glass ──
+        vec3 navy   = vec3(0.03, 0.028, 0.004);
+        vec3 deep   = vec3(0.36, 0.34, 0.02);
+        vec3 blue   = vec3(1.0, 1.0, 0.18);
+        vec3 teal   = vec3(1.0, 0.99, 0.72);
+        vec3 violet = vec3(1.0, 0.72, 0.16);
+        // lit from above: the top half glows yellow, the underside falls to dark gold
         vec3 bc = mix(navy, deep, smoothstep(-0.9, 0.7, n.y + 0.25));
         bc = mix(bc, blue, clamp(smoke * 0.5, 0.0, 1.0) * smoothstep(-0.6, 0.6, n.y));
         // a slow, smooth wave of light across the middle, glossy, not smoky
@@ -127,10 +127,10 @@ void main() {
         bc += violet * exp(-pow((wave - 0.06) / 0.035, 2.0)) * 0.5;   // the thin violet crest
         // glass: darker towards the edge, then a fine rim
         bc *= mix(0.3, 1.0, pow(z, 0.5));
-        bc += vec3(0.25, 0.5, 1.0) * smoothstep(0.94, 1.0, rr) * 0.35;
+        bc += vec3(1.0, 1.0, 0.3) * smoothstep(0.94, 1.0, rr) * 0.35;
         // broad soft sheen, upper left, plus the specular point
         float sheen = pow(max(dot(normalize(n), normalize(vec3(-0.35, 0.6, 0.72))), 0.0), 6.0);
-        bc += vec3(0.35, 0.55, 1.0) * sheen * 0.12;
+        bc += vec3(1.0, 1.0, 0.45) * sheen * 0.12;
         bc = mix(bc, vec3(1.0), spec * 0.25);
         col = mix(col, bc, uBlue);
 
@@ -233,7 +233,7 @@ export default function Orb({ size = 220, levelRef, dark = true, active = false,
                 <div style={{
                     width: size * 0.68, height: size * 0.68, borderRadius: '50%',
                     background: tone === 'blue'
-                        ? 'radial-gradient(circle at 50% 58%, #5eead4 0%, #1d4ed8 38%, #0b1a5e 70%, #020617 100%)'
+                        ? 'radial-gradient(circle at 50% 58%, #fffbb8 0%, #fefe2f 38%, #5c5700 70%, #080800 100%)'
                         : dark
                         ? 'radial-gradient(circle at 35% 30%, #3a3a41 0%, #121215 55%, #050506 100%)'
                         : 'radial-gradient(circle at 35% 30%, #ffffff 0%, #d3d9db 55%, #697376 100%)',

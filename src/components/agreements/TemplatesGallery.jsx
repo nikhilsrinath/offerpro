@@ -48,7 +48,7 @@ export default function TemplatesGallery() {
       <style>{`
         .tpl-card { transition: border-color .18s, box-shadow .18s, transform .22s cubic-bezier(.16,1,.3,1); }
         .tpl-card:hover { border-color: ${t.lineStrong} !important; transform: translateY(-3px); box-shadow: ${t.highlight}, 0 16px 32px -18px ${t.isDark ? 'rgba(0,0,0,.95)' : 'rgba(15,17,21,.38)'} !important; }
-        .tpl-card:hover .tpl-start { filter: brightness(1.08); }
+        .tpl-card:hover .tpl-start { filter: brightness(.96); }
         .tpl-card:hover .tpl-start svg { transform: translateX(2px); }
         .tpl-start svg { transition: transform .15s; }
         @media (prefers-reduced-motion: reduce) { .tpl-card, .tpl-card:hover { transform: none; transition: none; } }

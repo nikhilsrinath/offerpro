@@ -106,14 +106,14 @@ export default function ImageEditor({ imageSrc, onSave, onCancel }) {
       ctx.fillRect(x + w, y, cw - x - w, h);
 
       // Crop border
-      ctx.strokeStyle = '#3b82f6';
+      ctx.strokeStyle = '#fefe2f';
       ctx.lineWidth = 2;
       ctx.strokeRect(x, y, w, h);
 
       // Corner handles
       const hs = 8;
       ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = '#3b82f6';
+      ctx.strokeStyle = '#fefe2f';
       ctx.lineWidth = 2;
       const corners = [
         [x - hs / 2, y - hs / 2],

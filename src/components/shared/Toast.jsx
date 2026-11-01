@@ -15,7 +15,7 @@ const COLORS = {
   success: { bg: '#ecfdf5', border: '#a7f3d0', text: '#065f46', icon: '#059669' },
   error: { bg: '#fef2f2', border: '#fecaca', text: '#991b1b', icon: '#dc2626' },
   warning: { bg: '#fffbeb', border: '#fde68a', text: '#92400e', icon: '#f59e0b' },
-  info: { bg: '#eff6ff', border: '#bfdbfe', text: '#1e40af', icon: '#3b82f6' },
+  info: { bg: '#fffde0', border: '#ece47a', text: '#5f5600', icon: '#9e9200' },
 };
 
 export function ToastProvider({ children }) {

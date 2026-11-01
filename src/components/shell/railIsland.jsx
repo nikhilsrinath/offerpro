@@ -68,8 +68,8 @@ export function RailBrand({ t, open, to = '/dashboard/overview' }) {
                 background: t.accentBtn,
             }}>
                 <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
-                    <path d="M10 1v18M1 10h18M3.5 3.5l13 13M16.5 3.5l-13 13" stroke="#fff" strokeWidth="1.4" />
-                    <circle cx="10" cy="10" r="2.6" fill="#1a6ee0" stroke="#fff" strokeWidth="1.4" />
+                    <path d="M10 1v18M1 10h18M3.5 3.5l13 13M16.5 3.5l-13 13" stroke={t.onAccent} strokeWidth="1.4" />
+                    <circle cx="10" cy="10" r="2.6" fill={t.accentBtn} stroke={t.onAccent} strokeWidth="1.4" />
                 </svg>
             </span>
             <span aria-hidden="true" style={{
@@ -135,9 +135,9 @@ function itemStyle(t, on) {
         position: 'relative', display: 'flex', alignItems: 'center', gap: 9, width: '100%',
         height: 30, padding: '0 9px', borderRadius: 7, flexShrink: 0, marginBottom: 1,
         textDecoration: 'none', textAlign: 'left', fontFamily: 'inherit', cursor: 'pointer',
-        color: on ? '#fff' : t.dim, fontWeight: on ? 500 : 400,
+        color: on ? t.onAccent : t.dim, fontWeight: on ? 500 : 400,
         border: '1px solid transparent',
-        background: on ? t.accent : 'transparent',
+        background: on ? t.accentBtn : 'transparent',
         transition: 'color .14s, background .14s',
     };
 }
@@ -259,7 +259,7 @@ export function RailPlanCard({ t, open, plan }) {
             }}>
                 <span aria-hidden="true" style={{
                     width: 24, height: 24, borderRadius: 7, flexShrink: 0, display: 'grid', placeItems: 'center',
-                    background: t.accentBtn, color: '#fff',
+                    background: t.accentBtn, color: t.onAccent,
                 }}><Crown size={12} strokeWidth={2} /></span>
                 <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, lineHeight: 1.25 }}>
                     <span style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>{plan.displayName}</span>
@@ -280,7 +280,7 @@ function RailIslandStyle({ t }) {
     return (
         <style>{`
             .ri-island .ri-item:not(.is-on):hover { color: ${t.text} !important; background: ${tint} !important; }
-            .ri-island .ri-item.is-on:hover { filter: brightness(1.06); }
+            .ri-island .ri-item.is-on:hover { filter: brightness(.96); }
             .ri-island .ri-ibtn:hover { color: ${t.text} !important; border-color: ${tintLine} !important; }
             .ri-island .ri-back:hover .ri-back-ic { color: ${t.text}; border-color: ${tintLine} !important; }
             .ri-island .ri-plan:hover { border-color: ${tintLine} !important; }

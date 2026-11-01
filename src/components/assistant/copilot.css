@@ -94,7 +94,7 @@
 .cp-send, .cp-call, .cp-mic, .cp-spin { width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; flex: none; }
 .cp-send { background: var(--text) !important; color: var(--panel) !important; }
 .cp-send:disabled { background: var(--card-3) !important; color: var(--dim) !important; cursor: default; }
-.cp-call { background: var(--accent) !important; color: #fff !important; }
+.cp-call { background: var(--accent-btn) !important; color: var(--on-text) !important; }
 .cp-mic { color: var(--dim); }
 .cp-mic:hover { background: var(--card-3); color: var(--text); }
 .cp-mic[aria-pressed="true"] { background: var(--card-3); color: var(--text); }

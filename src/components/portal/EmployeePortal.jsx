@@ -225,7 +225,7 @@ export default function EmployeePortal() {
                   <img src={activeOrg.logo_url} alt="" style={{ width: 34, height: 34, borderRadius: 11, objectFit: 'cover', flexShrink: 0 }} />
                 ) : (
                   <span aria-hidden="true" style={{
-                    width: 34, height: 34, borderRadius: 11, background: t.accentBtn, color: '#fff', flexShrink: 0,
+                    width: 34, height: 34, borderRadius: 11, background: t.accentBtn, color: t.onAccent, flexShrink: 0,
                     display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 600,
                     boxShadow: 'inset 0 1px 0 rgba(255,255,255,.3), 0 6px 18px -6px ' + t.accent,
                   }}>{orgName.slice(0, 2).toUpperCase()}</span>

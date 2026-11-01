@@ -141,7 +141,7 @@ export function Btn({ children, onClick, primary, danger, disabled, title, size:
                 cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
                 width: full ? '100%' : undefined,
                 border: '1px solid ' + (primary ? 'transparent' : t.lineStrong),
-                background: primary ? t.accent : t.card,
+                background: primary ? t.accentBtn : t.card,
                 boxShadow: 'none',
                 color: primary ? t.onAccent : (danger ? t.down : t.text),
                 transition: 'border-color .15s, background .15s, color .15s, opacity .15s, filter .15s',
@@ -520,7 +520,7 @@ function ColumnPicker({ cols, isOn, onToggle, onReset, onAll, changed, height = 
                                     width: 17, height: 17, flexShrink: 0, borderRadius: 5,
                                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                     border: '1px solid ' + (on ? t.accent : t.lineStrong),
-                                    background: on ? t.accent : 'transparent', color: t.onAccent,
+                                    background: on ? t.accentBtn : 'transparent', color: t.onAccent,
                                 }}>{on && <Check size={12} strokeWidth={3} />}</span>
                                 <span style={{ flex: 1, minWidth: 0 }}>{titleCaseNode(c.pickLabel || c.label)}</span>
                                 {c.always && <span style={{ fontSize: 10.5, color: t.faint }}>always</span>}
@@ -807,7 +807,7 @@ function PageStyle({ t }) {
             .edge-page .edge-btn:not(.edge-btn-primary):hover:not(:disabled) {
                 border-color: ${t.lineStrong} !important; background: ${t.raised} !important;
             }
-            .edge-page .edge-btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+            .edge-page .edge-btn-primary:hover:not(:disabled) { filter: brightness(.96); }
             .edge-page .edge-seg:hover { color: ${t.text} !important; }
             .edge-page .edge-input:focus { border-color: ${t.ghost} !important; box-shadow: none; }
             .edge-page .edge-input::placeholder { color: ${t.faint}; }

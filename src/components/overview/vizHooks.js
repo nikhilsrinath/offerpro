@@ -11,14 +11,14 @@ export function useViz() {
     return {
         t,
         cat: d
-            ? [t.accent, '#d95926', '#199e70', '#c98500', '#d55181', '#008300']
-            : [t.accent, '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300'],
+            ? [t.chart, '#d95926', '#199e70', '#c98500', '#d55181', '#008300']
+            : [t.chart, '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300'],
         ramp: d
-            ? ['#184f95', '#256abf', '#3987e5', '#6da7ec', '#b7d3f6']
-            : ['#86b6ef', '#5598e7', '#2a78d6', '#1c5cab', '#0d366b'],
+            ? ['#3a3a1c', '#68681f', '#b0b026', '#e0e02a', '#ffff9e']
+            : ['#f2ec78', '#d8cd1c', '#9e9200', '#7a6e00', '#4a4200'],
         heat: d
-            ? [t.raised, '#184f95', '#256abf', '#3987e5', '#86b6ef']
-            : [t.raised, '#b7d3f6', '#6da7ec', '#2a78d6', '#184f95'],
+            ? [t.raised, '#3a3a1c', '#68681f', '#b0b026', '#fefe2f']
+            : [t.raised, '#fbf8c0', '#f2ec78', '#d8cd1c', '#9e9200'],
         status: { good: '#0ca30c', warning: '#fab219', serious: '#ec835a', critical: '#d03b3b', neutral: t.faint },
     };
 }

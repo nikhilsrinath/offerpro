@@ -51,8 +51,8 @@
 .ag-btn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border-radius: 9px; font-size: 13px; font-weight: 600; color: var(--text); background: var(--card) !important; border: 1px solid var(--line-2) !important; transition: border-color .15s, background .15s; white-space: nowrap; }
 .ag-btn:hover:not(:disabled) { border-color: var(--accent) !important; }
 .ag-btn:disabled { opacity: .55; cursor: default; }
-.ag-btn.is-primary { color: #fff; background: var(--accent-btn) !important; border-color: transparent !important; }
-.ag-btn.is-primary:hover:not(:disabled) { filter: brightness(1.08); }
+.ag-btn.is-primary { color: var(--on-text); background: var(--accent-btn) !important; border-color: transparent !important; }
+.ag-btn.is-primary:hover:not(:disabled) { filter: brightness(.96); }
 .ag-btn.is-ai svg { color: var(--accent); }
 .ag-spin { animation: agSpin .9s linear infinite; }
 @keyframes agSpin { to { transform: rotate(360deg); } }

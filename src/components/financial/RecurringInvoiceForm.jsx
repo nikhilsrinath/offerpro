@@ -621,7 +621,7 @@ function RecurringInvoiceForm({ editItem }) {
                     set('noEndDate', e.target.checked);
                     if (e.target.checked) set('endDate', '');
                   }}
-                  style={{ accentColor: '#3b82f6', width: '16px', height: '16px' }}
+                  style={{ accentColor: 'var(--blue-fill)', width: '16px', height: '16px' }}
                 />
                 No end date (runs indefinitely)
               </label>
@@ -632,29 +632,29 @@ function RecurringInvoiceForm({ editItem }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.375rem' }}>
                   <label style={{
                     display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    padding: '0.75rem 1rem', background: formData.autoAction === 'draft' ? 'rgba(59,130,246,0.04)' : 'transparent',
-                    border: `1.5px solid ${formData.autoAction === 'draft' ? 'rgba(59,130,246,0.3)' : 'var(--border-subtle)'}`,
+                    padding: '0.75rem 1rem', background: formData.autoAction === 'draft' ? 'var(--blue-muted)' : 'transparent',
+                    border: `1.5px solid ${formData.autoAction === 'draft' ? 'var(--blue-border)' : 'var(--border-subtle)'}`,
                     borderRadius: '10px', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-secondary)',
                     transition: 'all 0.15s',
                   }}>
                     <input type="radio" name="autoAction" value="draft"
                       checked={formData.autoAction === 'draft'}
                       onChange={() => set('autoAction', 'draft')}
-                      style={{ accentColor: '#3b82f6' }}
+                      style={{ accentColor: 'var(--blue-fill)' }}
                     />
                     Auto-generate and save as draft
                   </label>
                   <label style={{
                     display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    padding: '0.75rem 1rem', background: formData.autoAction === 'sent' ? 'rgba(59,130,246,0.04)' : 'transparent',
-                    border: `1.5px solid ${formData.autoAction === 'sent' ? 'rgba(59,130,246,0.3)' : 'var(--border-subtle)'}`,
+                    padding: '0.75rem 1rem', background: formData.autoAction === 'sent' ? 'var(--blue-muted)' : 'transparent',
+                    border: `1.5px solid ${formData.autoAction === 'sent' ? 'var(--blue-border)' : 'var(--border-subtle)'}`,
                     borderRadius: '10px', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-secondary)',
                     transition: 'all 0.15s',
                   }}>
                     <input type="radio" name="autoAction" value="sent"
                       checked={formData.autoAction === 'sent'}
                       onChange={() => set('autoAction', 'sent')}
-                      style={{ accentColor: '#3b82f6' }}
+                      style={{ accentColor: 'var(--blue-fill)' }}
                     />
                     Auto-generate and mark as sent
                   </label>
@@ -743,9 +743,9 @@ function RecurringInvoicePreview({ formData, totals, dueDatePreview, company }) 
       {/* Recurring Badge */}
       <div style={{
         position: 'absolute', top: '20px', right: '20px',
-        background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',
+        background: 'var(--blue-muted)', border: '1px solid var(--blue-border)',
         borderRadius: '6px', padding: '4px 10px',
-        fontSize: '8pt', fontWeight: 700, color: '#3b82f6',
+        fontSize: '8pt', fontWeight: 700, color: 'var(--blue)',
         display: 'flex', alignItems: 'center', gap: '4px',
       }}>
         <RotateCcw size={10} /> RECURRING
@@ -850,11 +850,11 @@ function RecurringInvoicePreview({ formData, totals, dueDatePreview, company }) 
       {/* Recurring Info on Preview */}
       <div style={{
         marginTop: '1.5em', padding: '10px 14px',
-        border: '1px dashed rgba(59,130,246,0.3)', borderRadius: '6px',
-        background: 'rgba(59,130,246,0.02)',
+        border: '1px dashed var(--blue-border)', borderRadius: '6px',
+        background: 'var(--blue-muted)',
         fontSize: '8.5pt', color: '#555', lineHeight: 1.6,
       }}>
-        <strong style={{ color: '#3b82f6', fontSize: '8pt', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <strong style={{ color: 'var(--blue)', fontSize: '8pt', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Recurring Schedule
         </strong>
         <br />
@@ -1063,7 +1063,7 @@ function RecurringInvoiceList({ projectId = null }) {
                           <button type="button" onClick={() => navigate(formPath(item.id))}
                             title="Edit"
                             style={{
-                              background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',
+                              background: 'var(--blue-muted)', border: '1px solid var(--blue-border)',
                               borderRadius: '6px', padding: '0.375rem 0.625rem',
                               cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem',
                               fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)',

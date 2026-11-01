@@ -757,7 +757,7 @@ function ShellStyle({ t }) {
                 --btn-accent-bg: ${t.accentBtn}; --btn-accent-text: ${t.onAccent}; --btn-accent-shadow: none;
                 --overlay-bg: ${t.isDark ? 'rgba(0,0,0,.62)' : 'rgba(20,28,32,.34)'};
                 --num-badge-bg: ${t.panelAlt}; --toggle-active-dot: ${t.panel};
-                --blue: ${t.accent}; --blue-hover: ${t.accent}; --blue-muted: ${t.accentSoft}; --blue-border: ${t.accent};
+                --blue: ${t.accent}; --blue-hover: ${t.accent}; --blue-fill: ${t.accentBtn}; --on-blue: ${t.onAccent}; --blue-muted: ${t.accentSoft}; --blue-border: ${t.accent};
                 --gold: ${t.text}; --gold-muted: ${t.panelAlt};
                 --success: ${t.up}; --success-muted: ${t.isDark ? 'rgba(74,222,128,.10)' : 'rgba(21,128,61,.08)'};
                 --error: ${t.down}; --error-muted: ${t.isDark ? 'rgba(248,113,113,.10)' : 'rgba(185,28,28,.07)'};
@@ -777,7 +777,7 @@ function ShellStyle({ t }) {
             }
             .edge-shell .edge-navitem:active { box-shadow: none !important; }
             .edge-shell .edge-tab:hover { color: ${t.text} !important; }
-            .edge-shell ::selection { background: ${t.accent}; color: ${t.onAccent}; }
+            .edge-shell ::selection { background: ${t.accentBtn}; color: ${t.onAccent}; }
             .edge-shell :focus-visible { outline: 2px solid ${t.accent}; outline-offset: 2px; }
             .edge-shell .edge-skip {
                 position: absolute; left: 12px; top: -60px; z-index: 1000;

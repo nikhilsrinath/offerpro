@@ -111,7 +111,7 @@ export function SwitchRow({ checked, onChange, title, note }) {
             </span>
             <span aria-hidden="true" style={{
                 width: 32, height: 18, borderRadius: 99, flexShrink: 0, position: 'relative',
-                background: checked ? t.accent : t.raised, border: '1px solid ' + (checked ? t.accent : t.lineStrong),
+                background: checked ? t.accentBtn : t.raised, border: '1px solid ' + (checked ? t.accent : t.lineStrong),
                 transition: 'background .15s',
             }}>
                 <span style={{

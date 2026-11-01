@@ -367,8 +367,8 @@ button.w-li:hover .w-t, button.w-li:focus-visible .w-t { text-decoration: underl
 /* buttons: solid blue primary, dark-tile secondary */
 .eo-v2 .hx-btn { height: 30px; padding: 0 11px; border-radius: 7px; font-size: 12.5px; font-weight: 500; letter-spacing: 0; background: var(--card) !important; border-color: var(--line-2) !important; box-shadow: none; }
 .eo-v2 .hx-btn:hover { background: var(--card-3) !important; }
-.eo-v2 .hx-btn.is-primary { background: var(--accent) !important; color: #fff !important; border-color: transparent !important; box-shadow: none; }
-.eo-v2 .hx-btn.is-primary:hover { opacity: 1; filter: brightness(1.08); }
+.eo-v2 .hx-btn.is-primary { background: var(--accent-btn) !important; color: var(--on-text) !important; border-color: transparent !important; box-shadow: none; }
+.eo-v2 .hx-btn.is-primary:hover { opacity: 1; filter: brightness(.96); }
 .eo-v2 .hx-btn.is-quiet { background: transparent !important; border-color: transparent !important; box-shadow: none; color: var(--muted) !important; }
 .eo-v2 .hx-btn.is-quiet:hover { color: var(--text) !important; background: var(--card-2) !important; }
 .eo-v2 .hx-bar h2 { font-size: 14px; letter-spacing: -.01em; }
@@ -409,7 +409,7 @@ button.w-li:hover .w-t, button.w-li:focus-visible .w-t { text-decoration: underl
 .eo-v2 .w-app-ic { background: var(--card-2); box-shadow: inset 0 0 0 1px var(--line-2); border-radius: 9px; }
 .eo-v2 .w-ask { background: var(--card-2); }
 .eo-v2 .w-ask:focus-within { box-shadow: inset 0 0 0 1px var(--line-3); }
-.eo-v2 .w-ask button { background: var(--accent-btn) !important; color: #fff !important; }
+.eo-v2 .w-ask button { background: var(--accent-btn) !important; color: var(--on-text) !important; }
 .eo-v2 .w-tip, .eo-v2 .gm-read { background: var(--card-3); border-color: var(--line-3); border-radius: 10px; }
 .eo-v2 .hx-addtile { border-radius: 12px; }
 .eo-v2 .hx-addtile:hover { border-color: var(--accent) !important; color: var(--text) !important; }
@@ -419,10 +419,10 @@ button.w-li:hover .w-t, button.w-li:focus-visible .w-t { text-decoration: underl
 .eo-v2 .hx-wmenu, .eo-v2 .hx-dialog { background: var(--card); border-color: var(--line-2); border-radius: 10px; }
 .eo-v2 .hx-wmenu button:hover:not(:disabled), .eo-v2 .hx-wmenu button:focus-visible { background: var(--card-2); }
 .eo-v2 .hx-gbody { background: var(--bg); }
-.eo-v2 .hx-gtab[aria-selected="true"] { background: var(--accent-btn) !important; color: #fff; }
+.eo-v2 .hx-gtab[aria-selected="true"] { background: var(--accent-btn) !important; color: var(--on-text); }
 .eo-v2 .hx-gtab[aria-selected="true"] .hx-gtab-n { background: rgba(255, 255, 255, .22); color: #fff; }
 .eo-v2 .hx-gcard.is-on .hx-gprev > .w { box-shadow: 0 0 0 2px var(--accent); }
-.eo-v2 .hx-gcard.is-on .hx-gbadge { background: var(--accent); color: #fff; }
+.eo-v2 .hx-gcard.is-on .hx-gbadge { background: var(--accent-btn); color: var(--on-text); }
 .eo-v2 .hx-gprev > .w { --w-bg: var(--card); }
 
 /* activity */
