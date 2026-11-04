@@ -87,6 +87,15 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
   const people = editing?.direction === 'out' && !editing?.purchase_invoice_id
     && categoryOf(editing.category)?.group_label === 'People & labour';
 
+  // Money coming in carries no GST: it is charged on the invoice when it is
+  // created. An older receipt saved with GST keeps its field so it can be fixed.
+  const receiptNoGst = editing?.direction === 'in' && !(Number(entry?.tax_amount) > 0);
+
+  // Payments are not accepted in EMIs, so EMI is only offered on money going
+  // out (or on an older receipt that already says EMI).
+  const methods = PAYMENT_METHODS.filter((m) => m.key !== 'emi'
+    || editing?.direction !== 'in' || editing?.payment_method === 'emi');
+
   // A credit is from a client or from a vendor (a refund, 0098), never both.
   // `vendor_id` is only put on the entry once a vendor is involved, so a
   // credit from a client still saves on a database without the column.
@@ -220,8 +229,9 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
     // already counts the sale and its GST, so this is cash in only.
     if (payingInvoice) Object.assign(data, { currency: baseCurrency(), fx_rate: 1, tax_amount: 0, tax_rate: 0, client_id: payingInvoice.customer_id || data.client_id || '' });
     // People & labour has TDS and no GST; anything else has no TDS.
-    if (people) Object.assign(data, { tax_amount: 0, tax_rate: 0, is_inter_state: false });
-    else if ('tds_amount' in data) data.tds_amount = 0;
+    // Money coming in has no GST either: the invoice charges it.
+    if (people || receiptNoGst) Object.assign(data, { tax_amount: 0, tax_rate: 0, is_inter_state: false });
+    if (!people && 'tds_amount' in data) data.tds_amount = 0;
     const picker = payingBill ? billPicker(payingBill, Number(editing.original_amount))
       : payingInvoice ? invoicePickerOf(allocations, payingInvoice, Number(editing.original_amount)) : chosen;
     try {
@@ -543,7 +553,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
           <fieldset className="prod-field full cb-fieldset">
             <legend>{editing.direction === 'in' ? 'How were you paid?' : 'How did you pay?'}</legend>
             <div className="cb-chips">
-              {PAYMENT_METHODS.map((m) => (
+              {methods.map((m) => (
                 <button key={m.key} type="button" aria-pressed={editing.payment_method === m.key}
                   className={editing.payment_method === m.key ? 'active' : ''}
                   onClick={() => set('payment_method', m.key)}>{m.label}</button>
@@ -577,7 +587,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
                 Tax withheld from the pay, on top of the amount paid out. Record it under Financing & Tax → TDS deposited when it is paid to the government.
               </p>
             </div>
-          ) : (
+          ) : receiptNoGst ? null : (
           <fieldset className="prod-field full cb-fieldset">
             <legend>GST {editing.direction === 'in' ? 'collected' : 'paid'}</legend>
             <div className="cb-chips">
@@ -617,7 +627,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
               </div>
             ) : <div className="prod-field" aria-hidden="true" />}
 
-            {!payingBill && !payingInvoice && !people && (
+            {!payingBill && !payingInvoice && !people && !receiptNoGst && (
             <div className="prod-field">
               <label htmlFor="cb-tax">GST amount ({sym(editing.currency)})</label>
               <input id="cb-tax" type="number" min="0" step="0.01" value={editing.tax_amount}
@@ -714,7 +724,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
               <label htmlFor="cb-pos">Place of supply</label>
               <PlaceOfSupplyInput id="cb-pos" country={editing.country_code}
                 value={editing.place_of_supply} onChange={(v) => set('place_of_supply', v)} />
-              {!people && (
+              {!people && !receiptNoGst && (
               <label className="cb-check">
                 <input type="checkbox" checked={!!editing.is_inter_state}
                   onChange={(e) => set('is_inter_state', e.target.checked)} />
