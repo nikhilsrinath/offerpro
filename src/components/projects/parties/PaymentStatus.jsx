@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-    Panel, Row, Btn, Seg, Select, Field, Input, Textarea, Empty, Modal, StatBand, ConfirmBtn,
+    Panel, Row, Btn, Seg, Select, Input, Empty, Modal, StatBand, ConfirmBtn,
 } from '../../ui/edge';
 import { useT, MONO, fmtDate, tableFrame, thStyle, tdStyle } from '../../ui/edgeUtils';
 import { useToast } from '../../shared/Toast';
@@ -11,10 +11,14 @@ import { canSeeFinancials } from '../../../services/projectService';
 import { useProjectScope } from '../projectScope';
 import { uploadProjectFile, fileError } from '../../../services/projectFiles';
 import {
-    invoiceState, paymentTotals, PAYMENT_STATUSES, PAYMENT_BY_ID, fmtMoney, validate,
+    invoiceState, PAYMENT_STATUSES, PAYMENT_BY_ID, fmtMoney,
 } from '../../../services/projectWorkspace';
+import { documentStore, docNumber } from '../../../services/documentStore';
 import { todayIso } from './partyData';
-import { Badge, Legend, AttachedFiles, Bar } from './partyUi';
+import { Badge, AttachedFiles, Bar } from './partyUi';
+import CashEntryModal from '../../financial/CashEntryModal';
+import { blank as blankEntry } from '../../financial/cashEntry';
+import { useInvoiceActions } from '../../financial/invoiceActions';
 import { titleCaseNode } from '../../../utils/titleCase';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -29,8 +33,9 @@ import { titleCaseNode } from '../../../utils/titleCase';
    ══════════════════════════════════════════════════════════════════════════ */
 
 const LIVE = (d) => d.type === 'invoice' && !['draft', 'cancelled', 'void'].includes(d.status);
-const METHODS = ['Bank transfer', 'UPI', 'Cheque', 'Cash', 'Card', 'Other'];
-const tint = (hex, a) => hex + Math.round(a * 255).toString(16).padStart(2, '0');
+// No Overdue here: an invoice past its due date with a balance is Pending.
+const STATUSES = PAYMENT_STATUSES.filter((s) => s.id !== 'overdue');
+const round2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
 
 export default function PaymentStatus({ project }) {
     const t = useT();
@@ -56,33 +61,70 @@ export default function PaymentStatus({ project }) {
         if (!scope) return [];
         const shares = new Map(scope.data.docs.map((d) => [d.id, d._share]));
         const msByInvoice = new Map(milestones.filter((m) => m.project_id === project.id && m.invoice_id).map((m) => [m.invoice_id, m]));
-        return docs.filter((d) => LIVE(d) && scope.docIds.has(d.id)).map((d) => {
+        const list = docs.filter((d) => LIVE(d) && scope.docIds.has(d.id)).map((d) => {
             const share = shares.get(d.id) ?? 1;
             const st = invoiceState(d, { share, today });
             const ms = msByInvoice.get(d.id);
             const last = d.payments[d.payments.length - 1];
             return {
                 doc: d, share, ...st,
+                gst: d.gst_enabled === false ? 0 : round2((Number(d.gst_amount ?? d.gst) || 0) * share),
                 milestone: ms || null,
                 what: ms?.title || d.items?.[0]?.description || '-',
                 mode: last?.method || '', reference: last?.reference || '',
                 remarks: last?.note || d.notes || '',
             };
-        }).sort((a, b) => String(b.doc.issue_date || '').localeCompare(String(a.doc.issue_date || '')));
+        });
+        // The General Ledger counts every receipt from the client, also those
+        // recorded without naming an invoice (Record Receipt). They pay the
+        // oldest invoices first, so Received and Pending here agree with it.
+        let unapplied = round2((scope.data.income || [])
+            .filter((e) => e.client_id && !e.vendor_id && !e.document_id)
+            .reduce((sum, e) => sum + (Number(e.amount) || 0), 0));
+        const oldestFirst = [...list].sort((a, b) => String(a.doc.issue_date || '').localeCompare(String(b.doc.issue_date || '')));
+        for (const r of oldestFirst) {
+            if (unapplied <= 0.005) break;
+            const take = Math.min(unapplied, r.balance);
+            if (take <= 0) continue;
+            r.paid = round2(r.paid + take);
+            r.balance = round2(r.balance - take);
+            unapplied = round2(unapplied - take);
+            r.status = r.balance <= 0.005 ? 'paid' : 'partial';
+        }
+        for (const r of list) if (r.status === 'overdue') r.status = r.paid > 0 ? 'partial' : 'pending';
+        return list.sort((a, b) => String(b.doc.issue_date || '').localeCompare(String(a.doc.issue_date || '')));
     }, [scope, docs, milestones, project.id, today]);
 
     const shown = rows.filter((r) => (!status || r.status === status)
         && (!from || String(r.doc.issue_date) >= from) && (!to || String(r.doc.issue_date) <= to)
         && (!milestone || r.milestone?.id === milestone));
-    const totals = paymentTotals(project.contract_value, rows);
-    const counts = Object.fromEntries(PAYMENT_STATUSES.map((s) => [s.id, rows.filter((r) => r.status === s.id).length]));
+    const invoiced = round2(rows.reduce((sum, r) => sum + r.total, 0));
+    const received = round2(rows.reduce((sum, r) => sum + r.paid, 0));
+    const value = round2(Math.max(Number(project.contract_value) || 0, invoiced));
+    const totals = {
+        invoiced, received, value,
+        pending: round2(Math.max(0, value - received)),
+        gst: round2(rows.reduce((sum, r) => sum + r.gst, 0)),
+    };
+    const counts = Object.fromEntries(STATUSES.map((s) => [s.id, rows.filter((r) => r.status === s.id).length]));
     const msOptions = [...new Map(rows.filter((r) => r.milestone).map((r) => [r.milestone.id, r.milestone])).values()];
-    const filtered = !!(status || from || to || milestone);
+    // Details opens the invoice itself; Record Payment is Billing's Mark Paid panel.
+    const invoiceActions = useInvoiceActions({ projectId: project.id });
+    const recordPayment = (r) => {
+        if (documentStore.outstandingOf(r.doc) <= 0) return;
+        setPaying({
+            ...blankEntry('in'),
+            document_id: r.doc.id,
+            client_id: r.doc.customer_id || '',
+            original_amount: String(documentStore.outstandingOf(r.doc)),
+            description: `Payment for ${docNumber(r.doc)}`,
+        });
+    };
 
     const table = () => ({
-        header: ['Invoice', 'Milestone / description', 'Invoice date', 'Due date', 'Amount', 'Paid', 'Balance', 'Status',
+        header: ['Invoice', 'Milestone / description', 'Invoice date', 'Due date', 'Amount', 'GST', 'Paid', 'Balance', 'Status',
             'Payment mode', 'Reference', 'Remarks'],
-        rows: shown.map((r) => [r.doc.doc_number, r.what, r.doc.issue_date || '', r.due || '', r.total, r.paid, r.balance,
+        rows: shown.map((r) => [r.doc.doc_number, r.what, r.doc.issue_date || '', r.due || '', r.total, r.gst, r.paid, r.balance,
             PAYMENT_BY_ID[r.status].label, r.mode, r.reference, r.remarks]),
     });
     const base = `payments-${(project.code || project.name || 'project').replace(/[^\w-]+/g, '-').toLowerCase()}`;
@@ -107,11 +149,10 @@ export default function PaymentStatus({ project }) {
                 { label: 'Total project value', value: money(totals.value), note: totals.invoiced ? `${money(totals.invoiced)} invoiced` : 'nothing invoiced yet' },
                 { label: 'Amount received', value: money(totals.received), tone: totals.received ? 'up' : undefined },
                 { label: 'Amount pending', value: money(totals.pending), note: 'value not yet received' },
-                { label: 'Amount overdue', value: money(totals.overdue), tone: totals.overdue ? 'down' : undefined, note: counts.overdue ? `${counts.overdue} invoice${counts.overdue === 1 ? '' : 's'} past due` : 'none past due' },
+                { label: 'GST on invoices', value: money(totals.gst), note: `on ${rows.length} invoice${rows.length === 1 ? '' : 's'}` },
             ]} />
 
-            <Panel title="Invoices & payments" note="at this project’s share of each invoice"
-                actions={rows.length > 0 && <Row gap={6}><Btn size="sm" onClick={exportCsv}>Export CSV</Btn><Btn size="sm" onClick={exportXlsx}>Export Excel</Btn></Row>}>
+            <Panel title="Invoices & payments">
                 {rows.length === 0 ? (
                     <Empty>No invoices on this project yet. Invoices raised from the project’s Billing page, or allocated to it, show here with their payments.</Empty>
                 ) : (
@@ -119,7 +160,7 @@ export default function PaymentStatus({ project }) {
                         <Bar>
                             <Seg size="sm" value={status} onChange={setStatus} label="Status" options={[
                                 { id: '', label: 'All', count: rows.length },
-                                ...PAYMENT_STATUSES.map((s) => ({ id: s.id, label: s.label, count: counts[s.id] })),
+                                ...STATUSES.map((s) => ({ id: s.id, label: s.label, count: counts[s.id] })),
                             ]} />
                             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0, fontSize: 12, color: t.faint }}>
                                 From <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145, height: 30 }} aria-label="Invoice date from" />
@@ -133,18 +174,18 @@ export default function PaymentStatus({ project }) {
                                     {msOptions.map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}
                                 </Select>
                             )}
-                            {filtered && <Btn size="sm" onClick={() => { setStatus(''); setFrom(''); setTo(''); setMilestone(''); }}>Clear</Btn>}
+                            <Row gap={6} style={{ marginLeft: 'auto' }}>
+                                <Btn size="sm" onClick={exportCsv}>Export CSV</Btn>
+                                <Btn size="sm" onClick={exportXlsx}>Export Excel</Btn>
+                            </Row>
                         </Bar>
-                        <div style={{ padding: '10px 13px 0' }}>
-                            <Legend label="Payment statuses" items={[...PAYMENT_STATUSES, { id: 'soon', label: 'Due within 7 days', color: '#f59e0b' }]} />
-                        </div>
                         {shown.length === 0 ? <Empty>No invoice matches these filters.</Empty> : (
                             <div style={{ padding: 12 }}><div className="edge-scroll" style={{ ...tableFrame(t), overflowX: 'auto' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, minWidth: 1080 }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, minWidth: 1160 }}>
                                     <thead>
                                         <tr>
-                                            {['Invoice', 'Milestone / description', 'Invoice date', 'Due', 'Amount', 'Paid', 'Balance', 'Status', 'Mode', 'Reference', 'Remarks', ''].map((h, i) => (
-                                                <th key={h || i} scope="col" style={thStyle(t, i >= 4 && i <= 6 ? 'right' : 'left')}>{titleCaseNode(h)}</th>
+                                            {['Invoice', 'Milestone / description', 'Invoice date', 'Due', 'Amount', 'GST', 'Paid', 'Balance', 'Status', 'Mode', 'Reference', 'Remarks', ''].map((h, i) => (
+                                                <th key={h || i} scope="col" style={thStyle(t, i >= 4 && i <= 7 ? 'right' : 'left')}>{titleCaseNode(h)}</th>
                                             ))}
                                         </tr>
                                     </thead>
@@ -152,7 +193,8 @@ export default function PaymentStatus({ project }) {
                                         {shown.map((r) => (
                                             <InvoiceRow key={r.doc.id} r={r} money={money} files={files} project={project}
                                                 open={open === r.doc.id} onToggle={() => setOpen(open === r.doc.id ? null : r.doc.id)}
-                                                canPay={canPay} onPay={() => setPaying(r)} onAttach={() => setAttaching(r)} />
+                                                canPay={canPay} onPay={() => recordPayment(r)} onAttach={() => setAttaching(r)}
+                                                onView={() => invoiceActions.view(r.doc.id)} />
                                         ))}
                                     </tbody>
                                 </table>
@@ -162,17 +204,18 @@ export default function PaymentStatus({ project }) {
                 )}
             </Panel>
 
-            {paying && <RecordPayment r={paying} money={money} onClose={() => setPaying(null)} />}
+            {paying && <CashEntryModal entry={paying} party="client" projectId={project.id} onClose={() => setPaying(null)} />}
+            {invoiceActions.dialogs}
             {attaching && <AttachFile r={attaching} project={project} onClose={() => setAttaching(null)} />}
         </div>
     );
 }
 
-function InvoiceRow({ r, money, files, project, open, onToggle, canPay, onPay, onAttach }) {
+function InvoiceRow({ r, money, files, project, open, onToggle, canPay, onPay, onAttach, onView }) {
     const t = useT();
     const toast = useToast();
     const s = PAYMENT_BY_ID[r.status];
-    const bg = r.status === 'overdue' ? tint('#ef4444', t.isDark ? 0.1 : 0.06) : r.dueSoon ? tint('#f59e0b', t.isDark ? 0.1 : 0.07) : undefined;
+    const bg = undefined;
     const attached = files.filter((f) => f.project_id === project.id && f.link_type === 'invoice' && f.link_id === r.doc.id);
     const td = (align) => ({ ...tdStyle(t, align), borderBottom: open ? 'none' : '1px solid ' + t.line, verticalAlign: 'top' });
     return (
@@ -187,12 +230,9 @@ function InvoiceRow({ r, money, files, project, open, onToggle, canPay, onPay, o
                 </td>
                 <td style={{ ...td(), maxWidth: 220 }}>{r.what}</td>
                 <td style={{ ...td(), whiteSpace: 'nowrap', color: t.dim }}>{fmtDate(r.doc.issue_date)}</td>
-                <td style={{ ...td(), whiteSpace: 'nowrap', color: r.status === 'overdue' ? t.down : t.dim }}>
-                    {r.due ? fmtDate(r.due) : '-'}
-                    {r.status === 'overdue' && <div style={{ fontSize: 10.5 }}>{r.daysLate}d late</div>}
-                    {r.dueSoon && <div style={{ fontSize: 10.5, color: t.faint }}>due soon</div>}
-                </td>
+                <td style={{ ...td(), whiteSpace: 'nowrap', color: t.dim }}>{r.due ? fmtDate(r.due) : '-'}</td>
                 <td style={{ ...td('right'), whiteSpace: 'nowrap' }}>{money(r.total)}</td>
+                <td style={{ ...td('right'), whiteSpace: 'nowrap', color: t.dim }}>{money(r.gst)}</td>
                 <td style={{ ...td('right'), whiteSpace: 'nowrap' }}>{money(r.paid)}</td>
                 <td style={{ ...td('right'), whiteSpace: 'nowrap', fontWeight: r.balance ? 600 : 400 }}>{money(r.balance)}</td>
                 <td style={td()}><Badge color={s.color}>{s.label}</Badge></td>
@@ -202,13 +242,13 @@ function InvoiceRow({ r, money, files, project, open, onToggle, canPay, onPay, o
                 <td style={{ ...td('right'), whiteSpace: 'nowrap' }}>
                     <Row gap={6} style={{ justifyContent: 'flex-end' }}>
                         {canPay && r.balance > 0 && <Btn size="sm" primary onClick={onPay}>Record payment</Btn>}
-                        <Btn size="sm" onClick={onToggle}>{open ? 'Hide' : 'Details'}</Btn>
+                        <Btn size="sm" onClick={onView}>Details</Btn>
                     </Row>
                 </td>
             </tr>
             {open && (
                 <tr style={{ background: bg }}>
-                    <td colSpan={12} style={{ padding: '0 10px 12px', borderBottom: '1px solid ' + t.lineSoft }}>
+                    <td colSpan={13} style={{ padding: '0 10px 12px', borderBottom: '1px solid ' + t.lineSoft }}>
                         <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', border: '1px solid ' + t.line, borderRadius: 9, padding: 12, background: t.panel }}>
                             <div>
                                 <div style={{ fontSize: 12, fontWeight: 500, color: t.faint, marginBottom: 6 }}>Payment history</div>
@@ -244,55 +284,6 @@ function InvoiceRow({ r, money, files, project, open, onToggle, canPay, onPay, o
                 </tr>
             )}
         </>
-    );
-}
-
-function RecordPayment({ r, money, onClose }) {
-    const t = useT();
-    const toast = useToast();
-    // A payment is on the whole invoice; a split invoice owes its full balance.
-    const fullBalance = Math.max(0, Number(r.doc.grand_total) - Number(r.doc.amount_paid || 0));
-    const [form, setForm] = useState({ amount: String(Math.round(fullBalance * 100) / 100), paidOn: todayIso(), method: 'Bank transfer', reference: '', note: '' });
-    const [errors, setErrors] = useState({});
-    const [saving, setSaving] = useState(false);
-    const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-    const save = async () => {
-        const errs = validate(form, {
-            amount: [{ required: true, message: 'How much was paid?' },
-                { test: (v) => Number(v) > 0, message: 'More than zero.' },
-                { test: (v) => Number(v) <= fullBalance + 0.005, message: `At most the balance, ${money(fullBalance)}.` }],
-            paidOn: [{ required: true, message: 'When was it paid?' }, { test: (v) => v <= todayIso(), message: 'That date is in the future.' }],
-        });
-        setErrors(errs);
-        if (Object.keys(errs).length) return;
-        setSaving(true);
-        try {
-            await orgStore.addPayment({ documentId: r.doc.id, amount: Number(form.amount), paidOn: form.paidOn, method: form.method, reference: form.reference, note: form.note });
-            toast('Payment recorded', 'success');
-            onClose();
-        } catch (e) { toast(fileError(e), 'error'); } finally { setSaving(false); }
-    };
-    return (
-        <Modal open onClose={onClose} width={480} title={`Record a payment · ${r.doc.doc_number}`}
-            note={`Balance on the invoice ${money(fullBalance)}${r.share < 1 ? ` (the whole invoice; this project’s share is ${Math.round(r.share * 100)}%)` : ''}`}
-            footer={<><Btn onClick={onClose}>Cancel</Btn><Btn primary disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Record'}</Btn></>}>
-            <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
-                <Field required label="Amount">
-                    <Input type="number" min="0.01" step="0.01" value={form.amount} onChange={set('amount')} />
-                    {errors.amount && <span role="alert" style={{ display: 'block', fontSize: 11.5, color: t.down, marginTop: 4 }}>{errors.amount}</span>}
-                </Field>
-                <Field required label="Paid on">
-                    <Input type="date" value={form.paidOn} max={todayIso()} onChange={set('paidOn')} />
-                    {errors.paidOn && <span role="alert" style={{ display: 'block', fontSize: 11.5, color: t.down, marginTop: 4 }}>{errors.paidOn}</span>}
-                </Field>
-                <Field label="Payment mode">
-                    <Select value={form.method} onChange={set('method')}>{METHODS.map((m) => <option key={m}>{m}</option>)}</Select>
-                </Field>
-                <Field label="Transaction reference"><Input value={form.reference} onChange={set('reference')} maxLength={120} /></Field>
-            </div>
-            <div style={{ height: 12 }} />
-            <Field label="Remarks"><Textarea rows={2} value={form.note} onChange={set('note')} style={{ minHeight: 56 }} /></Field>
-        </Modal>
     );
 }
 

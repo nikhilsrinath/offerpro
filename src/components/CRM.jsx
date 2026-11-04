@@ -265,6 +265,9 @@ export default function CRM({ project = null }) {
           <div className="crm-card-actions" style={isMobile ? { opacity: 1 } : undefined}>
             <RowMenu label={`Actions for ${lead.company_name || lead.person_name || 'lead'}`} items={[
               { label: 'Edit', icon: Edit3, onClick: () => openEdit(lead) },
+              // On a desktop the card is dragged between columns; these do the
+              // same from the menu, so the card needs no buttons under it.
+              ...(!isMobile ? otherCols.map((c) => ({ label: `Move to ${c.label}`, icon: ChevronRight, onClick: () => moveToColumn(lead.id, c.id) })) : []),
               { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => handleDelete(lead) },
             ]} />
           </div>
@@ -300,9 +303,10 @@ export default function CRM({ project = null }) {
           </div>
         )}
 
-        {/* Move-to buttons (mobile) or inline on desktop hover */}
+        {/* Move-to buttons on a phone; a desktop moves from the card's menu. */}
+        {isMobile && (
         <div className="crm-card-move">
-          {isMobile ? (
+          {
             moveMenuId === lead.id ? (
               <div className="crm-move-options">
                 {otherCols.map(c => (
@@ -328,22 +332,9 @@ export default function CRM({ project = null }) {
                 Move to <ChevronRight size={12} />
               </button>
             )
-          ) : (
-            <div className="crm-move-options-desktop">
-              {otherCols.map(c => (
-                <button
-                  key={c.id}
-                  onClick={() => moveToColumn(lead.id, c.id)}
-                  className="crm-move-btn-desktop"
-                  title={`Move to ${c.label}`}
-                >
-                  <span className="crm-move-dot" style={{ background: c.color }} />
-                  {c.label}
-                </button>
-              ))}
-            </div>
-          )}
+          }
         </div>
+        )}
       </div>
     );
   };
@@ -529,7 +520,7 @@ export default function CRM({ project = null }) {
             </div>
           ))}
         </div>
-        <button onClick={() => openAdd('lead')} className="easy-submit" style={{ width: 'auto', padding: '0.5rem 1.125rem', fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
+        <button onClick={() => openAdd('lead')} className="easy-submit crm-add-lead" style={{ width: 'auto', padding: '0 1.125rem', height: '38px', fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
           <Plus size={16} /> Add Lead
         </button>
       </div>

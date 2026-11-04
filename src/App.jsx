@@ -3,7 +3,7 @@ import { Routes, Route, useNavigate, useLocation, Navigate, useParams } from 're
 import {
   Briefcase, Award, Scale,
   Users,
-  FileCheck, LayoutTemplate,
+  FileCheck, LayoutTemplate, ClipboardCheck,
   Activity, Receipt, FilePlus, RotateCcw,
   GitBranch, Package,
   Truck, TrendingUp, CalendarCheck, Megaphone,
@@ -109,8 +109,10 @@ const MODULE_FILTER = {
   // Tasks live inside each project (Project Management); Tasks and Timesheets
   // keep their routes but are no longer rail items (MODULE_EXTRA_PAGES).
   projects: ['projects', 'kanban-chart', 'portfolio'],
-  documents: ['document-library', 'offer-letters', 'certificates', 'templates'],
-  finance: ['finance-status', 'general-ledger', 'tax-summary', 'profit-loss'],
+  documents: ['document-library', 'offer-letters', 'certificates', 'templates', 'records'],
+  // The General Ledger is reached from Clients and Vendors; its page and path
+  // stay (MODULE_EXTRA_PAGES) for the links that open it.
+  finance: ['finance-status', 'tax-summary', 'profit-loss'],
   // Clients and Vendors are a project's Client and Vendor groups over the
   // whole company: the General Ledger first (the Company Ledger was folded
   // into it, 2026-10-25), then the rest.
@@ -127,9 +129,8 @@ const MODULE_EXTRA_PAGES = {
   // its route for the forms that return to it, but has no rail item.
   clients: ['new-invoice', 'new-quotation', 'new-proforma', 'recurring'],
   projects: ['project-detail', 'new-project', 'tasks', 'timesheets'],
-  // Records is no longer a rail item; /records keeps its route for the
-  // dashboard widgets and the old bulk-history redirect.
-  documents: ['records', 'templates/nda', 'templates/mou', 'templates/partnership', 'templates/custom'],
+  finance: ['general-ledger'],
+  documents: ['templates/nda', 'templates/mou', 'templates/partnership', 'templates/custom'],
 };
 
 // The Clients rail shows the sales documents as one Billing item; the page
@@ -232,6 +233,7 @@ const NAV_ITEMS = [
   { id: 'offer-letters', label: 'Offer Letters', icon: Briefcase },
   { id: 'certificates', label: 'Certificates', icon: Award },
   { id: 'templates', label: 'Templates', icon: LayoutTemplate },
+  { id: 'records', label: 'Records', icon: ClipboardCheck },
   { section: 'FINANCIALS' },
   { id: 'finance-status', label: 'Finance Status', icon: Activity },
   { id: 'general-ledger', label: 'General Ledger', icon: Banknote },

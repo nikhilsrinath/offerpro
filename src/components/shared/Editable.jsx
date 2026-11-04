@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useRef } from 'react';
-import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Minus, Plus, RotateCcw, Check } from 'lucide-react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { RotateCcw, Check } from 'lucide-react';
 import { adjustOf, isAdjusted, moveBy, sizeTo, MIN_SCALE, MAX_SCALE } from '../../utils/imageAdjust';
 
 /* Place-anything editing on a document's live preview, the way a design tool
@@ -23,6 +23,16 @@ import { adjustOf, isAdjusted, moveBy, sizeTo, MIN_SCALE, MAX_SCALE } from '../.
    to type in. What is typed goes to the form's own field as it is typed. */
 
 const EditContext = createContext(null);
+
+/* The document's data, for the font picked on each item: an item's font is
+   kept on the data as its adjustment key plus 'Font' ('titleAdjustFont').
+   The preview provides it whether or not it is being edited, so the PDF
+   capture draws the same fonts. */
+const FontContext = createContext(null);
+export function EditFonts({ data, children }) {
+  return <FontContext.Provider value={data}>{children}</FontContext.Provider>;
+}
+const fontStyle = (font) => (font ? { '--item-font': font } : null);
 
 const PX_PER_MM = 96 / 25.4;
 const HANDLE = 16; // the corner's size on screen, in px
@@ -78,9 +88,9 @@ export function EditText({ field, value, placeholder = '', multiline = false, op
   if (!ed) return optional && !value ? null : <div style={style}>{shown}</div>;
   if (!editing) {
     if (optional && !value) {
-      return <div data-edit-text={field} data-html2canvas-ignore="true" className="edit-text-ghost" style={style}>{placeholder}</div>;
+      return <div key="ghost" data-edit-text={field} data-html2canvas-ignore="true" className="edit-text-ghost" style={style}>{placeholder}</div>;
     }
-    return <div data-edit-text={field} style={style}>{shown}</div>;
+    return <div key="view" data-edit-text={field} style={style}>{shown}</div>;
   }
 
   const read = (el) => {
@@ -89,7 +99,7 @@ export function EditText({ field, value, placeholder = '', multiline = false, op
   };
   return (
     <div
-      ref={ref} contentEditable suppressContentEditableWarning
+      key="typing" ref={ref} contentEditable suppressContentEditableWarning
       role="textbox" aria-multiline={multiline} aria-label={label || placeholder || field}
       data-placeholder={placeholder} className="edit-text"
       style={{ ...style, cursor: 'text', outline: 'none', minWidth: '1ch', WebkitUserSelect: 'text', userSelect: 'text' }}
@@ -116,8 +126,10 @@ export function EditText({ field, value, placeholder = '', multiline = false, op
  * layout (display, margins) in the template. `text` is the field of the
  * EditText inside it that Enter (or the bar's Edit Text) opens for typing.
  */
-export function Editable({ field, label, value, origin = 'left top', style, text, children }) {
+export function Editable({ field, label, value, origin = 'left top', style, text, fontSize = null, children }) {
   const ed = useContext(EditContext);
+  const fonts = useContext(FontContext);
+  const font = fonts?.[field + 'Font'] || null;
   const ref = useRef(null);
   const drag = useRef(null);
   const a = adjustOf(value);
@@ -126,10 +138,10 @@ export function Editable({ field, label, value, origin = 'left top', style, text
     ? { transform: `translate(${a.x}mm, ${a.y}mm) scale(${s})`, transformOrigin: origin }
     : null;
 
-  if (!ed) return <div style={{ ...style, ...placed }}>{children}</div>;
+  if (!ed) return <div className={font ? 'has-font' : undefined} style={{ ...style, ...placed, ...fontStyle(font) }}>{children}</div>;
 
   const selected = ed.selected?.field === field;
-  const select = () => ed.onSelect({ field, label, text, zoom: zoomOf(ref.current) });
+  const select = () => ed.onSelect({ field, label, text, fontSize, zoom: zoomOf(ref.current) });
   const editText = (name) => { if (name && ed.onEdit) ed.onEdit(name); };
   const change = (next) => ed.onChange(field, next);
 
@@ -208,9 +220,9 @@ export function Editable({ field, label, value, origin = 'left top', style, text
       aria-label={`${label}. ${selected ? `Selected: drag to move, drag the corner to resize, or use the arrow and plus or minus keys.${text ? ' Press Enter to type.' : ''}` : 'Select to move or resize.'}`}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={endDrag}
       onDoubleClick={onDoubleClick} onKeyDown={onKeyDown}
-      className="edit-item"
+      className={font ? 'edit-item has-font' : 'edit-item'}
       style={{
-        ...style, ...placed, position: style?.position || 'relative', outline: 'none',
+        ...style, ...placed, ...fontStyle(font), position: style?.position || 'relative', outline: 'none',
         cursor: selected ? 'move' : 'pointer', touchAction: selected ? 'none' : 'auto',
       }}
     >
@@ -235,23 +247,53 @@ export function Editable({ field, label, value, origin = 'left top', style, text
  * Over the live preview: what is selected and buttons to move and resize it,
  * or, with nothing selected, how to start.
  */
-export function EditBar({ selected, value, onChange, onDone, hint = 'Tap the logo, a signature or any text on the page to move or resize it', children }) {
+/* A number box for a size: what is typed stays as typed while it has focus,
+   the item's size shows otherwise, and each whole number in range applies. */
+function SizeInput({ value, min, max, label, onCommit }) {
+  const [draft, setDraft] = useState(null);
+  return (
+    <input type="number" className="edit-bar-num" aria-label={label} min={min} max={max} step={1}
+      value={draft ?? value}
+      onFocus={() => setDraft(String(value))}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        const n = Number(e.target.value);
+        if (e.target.value !== '' && n >= min && n <= max) onCommit(n);
+      }}
+      onBlur={() => setDraft(null)}
+      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} />
+  );
+}
+
+export function EditBar({ selected, value, onChange, onDone, fonts = null, font = '', onFont, hint = 'Tap the logo, a signature or any text on the page to move or resize it', children }) {
   if (!selected) return <span className="edit-bar-hint">{hint}</span>;
   const a = adjustOf(value);
-  const btn = (labelText, icon, onClick, disabled) => (
-    <button type="button" className="edit-bar-btn" aria-label={labelText} title={labelText} onClick={onClick} disabled={disabled}>{icon}</button>
-  );
+  const base = Number(selected.fontSize) || 0;
+  // Text: its font size; anything else (a logo, a signature): its size in %.
+  const shown = base ? Math.round((base * a.scale) / 100) : a.scale;
+  const min = base ? Math.ceil((base * MIN_SCALE) / 100) : MIN_SCALE;
+  const max = base ? Math.floor((base * MAX_SCALE) / 100) : MAX_SCALE;
+  const setSize = (n) => {
+    const v = Number(n);
+    if (!Number.isFinite(v) || v <= 0) return;
+    onChange(sizeTo(a, base ? Math.round((v / base) * 100) : Math.round(v)));
+  };
   return (
     <div className="edit-bar" role="group" aria-label={`Place ${selected.label}`}>
       <span className="edit-bar-name">{selected.label}</span>
-      {btn('Move left', <ArrowLeft size={14} />, () => onChange(moveBy(a, -2, 0)))}
-      {btn('Move up', <ArrowUp size={14} />, () => onChange(moveBy(a, 0, -2)))}
-      {btn('Move down', <ArrowDown size={14} />, () => onChange(moveBy(a, 0, 2)))}
-      {btn('Move right', <ArrowRight size={14} />, () => onChange(moveBy(a, 2, 0)))}
-      <span className="edit-bar-sep" aria-hidden="true" />
-      {btn('Smaller', <Minus size={14} />, () => onChange(sizeTo(a, a.scale - 10)), a.scale <= MIN_SCALE)}
-      <output className="edit-bar-size" aria-live="polite">{a.scale}%</output>
-      {btn('Bigger', <Plus size={14} />, () => onChange(sizeTo(a, a.scale + 10)), a.scale >= MAX_SCALE)}
+      {fonts && selected.text && (
+        <label className="edit-bar-field">
+          <span>Font</span>
+          <select className="edit-bar-select" aria-label="Font" value={font || ''} onChange={(e) => onFont?.(e.target.value)}>
+            <option value="">Default</option>
+            {fonts.map((f) => <option key={f.id} value={f.id} style={{ fontFamily: f.id }}>{f.label}</option>)}
+          </select>
+        </label>
+      )}
+      <label className="edit-bar-field">
+        <span>{base ? 'Font Size' : 'Size %'}</span>
+        <SizeInput value={shown} min={min} max={max} label={base ? 'Font size' : 'Size in percent'} onCommit={setSize} />
+      </label>
       {children && <><span className="edit-bar-sep" aria-hidden="true" />{children}</>}
       <span className="edit-bar-sep" aria-hidden="true" />
       <button type="button" className="edit-bar-text" onClick={() => onChange(null)} disabled={!isAdjusted(value)}>

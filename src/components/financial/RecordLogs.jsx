@@ -1,6 +1,10 @@
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Search, UserPlus } from 'lucide-react';
+import { useEdgeTheme } from '../../theme/EdgeTheme';
+import '../../theme/surface.css';
+import '../hub/hub.css';
 import { Modal } from './financeUi';
 import { fmtDate, money, useSection } from './financeHooks';
 import { categoryLabel } from '../../services/financeCategories';
@@ -8,6 +12,57 @@ import { canSeeFinancials } from '../../services/projectService';
 import { focusKey, focusPath } from '../shell/focusTarget';
 
 const MONEY_VIEWS = [['all', 'All'], ['in', 'Credit'], ['out', 'Debit']];
+
+// The activity calendar (Logs → Activity) and the drill-down a day opens.
+// Their own chunks: the overview model is only built once someone looks.
+const HubActivity = lazy(() => import('../hub/HubActivity'));
+const WidgetDrill = lazy(() => import('../hub/WidgetDrill'));
+
+/** Logs | Activity, the panel's two views. */
+function PanelSwitch({ value, onChange }) {
+  return (
+    <div role="radiogroup" aria-label="Show" style={{
+      display: 'inline-flex', gap: 2, padding: 2, height: 32, boxSizing: 'border-box',
+      border: '1px solid var(--dr-line)', borderRadius: 8, background: 'var(--dr-field)',
+    }}>
+      {[['logs', 'Logs'], ['activity', 'Activity']].map(([id, label]) => {
+        const on = value === id;
+        return (
+          <button key={id} type="button" role="radio" aria-checked={on} onClick={() => onChange(id)}
+            style={{
+              height: '100%', padding: '0 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
+              fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap',
+              background: on ? 'var(--dr-bg)' : 'transparent',
+              color: on ? 'var(--dr-text)' : 'var(--dr-dim)',
+              boxShadow: on ? 'inset 0 0 0 1px var(--dr-line-strong)' : 'none',
+            }}>{label}</button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Logs → Activity: the calendar, and a day's drill-down above the panel. */
+function ActivityView() {
+  const { theme } = useEdgeTheme();
+  const [drill, setDrill] = useState([]);
+  const push = useCallback((v) => setDrill((s) => [...s, v]), []);
+  const pop = useCallback(() => setDrill((s) => s.slice(0, -1)), []);
+  const close = useCallback(() => setDrill([]), []);
+  return (
+    <div className="eo-surface eo-v2" data-theme={theme} style={{ background: 'transparent', padding: '14px 0 4px' }}>
+      <Suspense fallback={<div style={{ fontSize: 13, color: 'var(--dr-faint)', padding: '24px 0', textAlign: 'center' }}>Loading activity…</div>}>
+        <HubActivity onDrill={(v) => setDrill([v])} />
+        {drill.length > 0 && createPortal(
+          <div className="eo-surface eo-v2" data-theme={theme}>
+            <WidgetDrill stack={drill} push={push} pop={pop} close={close} />
+          </div>,
+          document.body,
+        )}
+      </Suspense>
+    </div>
+  );
+}
 
 // Where each kind of thing lives. A log row goes there and finds its own row
 // (`?focus=`, shell/focusTarget.js); it never opens a form to edit.
@@ -90,7 +145,7 @@ export function CompanyLogs({ t, onClose }) {
     ? [...MONEY_VIEWS, ['doc', 'Documents'], ['person', 'People']]
     : [['all', 'All'], ['doc', 'Documents'], ['person', 'People']];
 
-  return <RecordLogs t={t} logs={logs} views={views} onClose={onClose}
+  return <RecordLogs t={t} logs={logs} views={views} onClose={onClose} withActivity
     placeholder="Search name, number, description..."
     onOpen={(r) => navigate(focusPath(r.to, r.focus))} />;
 }
@@ -101,8 +156,10 @@ const STEP = 50;
  * `logs` are rows with `kind` (or `direction`): 'in' | 'out' (a credit or
  * debit), 'doc' or 'person' (with `title`, `meta`, optional `amount`), and
  * `day`. A row closes the panel and goes to the thing (`onOpen`).
+ * `withActivity` adds a Logs | Activity switch (the company-wide panel).
  */
-export default function RecordLogs({ t, logs, onOpen, onClose, views = MONEY_VIEWS, placeholder }) {
+export default function RecordLogs({ t, logs, onOpen, onClose, views = MONEY_VIEWS, placeholder, withActivity = false }) {
+  const [pane, setPane] = useState('logs');
   const [view, setView] = useState('all');
   const [q, setQ] = useState('');
   const [shown, setShown] = useState(STEP);
@@ -129,7 +186,17 @@ export default function RecordLogs({ t, logs, onOpen, onClose, views = MONEY_VIE
   const noun = (n) => (n === 1 ? 'entry' : 'entries');
 
   return (
-    <Modal title="Logs" onClose={onClose} width={560}>
+    <Modal title={pane === 'activity' ? 'Activity' : 'Logs'} onClose={onClose} width={560}>
+      {withActivity && (
+        <div style={{ padding: '12px var(--dr-pad, 20px) 0' }}>
+          <PanelSwitch value={pane} onChange={setPane} />
+        </div>
+      )}
+      {pane === 'activity' ? (
+        <div className="prod-modal-body" style={{ padding: '0 var(--dr-pad, 20px) 16px' }}>
+          <ActivityView />
+        </div>
+      ) : (<>
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
         padding: '12px var(--dr-pad, 20px)', borderBottom: '1px solid var(--dr-line)',
@@ -138,7 +205,7 @@ export default function RecordLogs({ t, logs, onOpen, onClose, views = MONEY_VIE
           {views.map(([id, label]) => (
             <button key={id} type="button" aria-pressed={view === id} onClick={() => { setView(id); setShown(STEP); }}
               style={{
-                padding: '5px 11px', borderRadius: 99, fontSize: 12.5, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
+                padding: '5px 11px', borderRadius: 99, fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
                 border: '1px solid ' + (view === id ? 'var(--dr-line-strong)' : 'var(--dr-line)'),
                 background: view === id ? 'var(--dr-field)' : 'transparent',
                 color: view === id ? 'var(--dr-text)' : 'var(--dr-dim)',
@@ -218,6 +285,7 @@ export default function RecordLogs({ t, logs, onOpen, onClose, views = MONEY_VIE
           </button>
         )}
       </div>
+      </>)}
     </Modal>
   );
 }

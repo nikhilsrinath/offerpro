@@ -1,8 +1,7 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useSection, fmtDate } from '../financial/financeHooks';
 import { statusLabel } from '../../services/projectAnalytics';
-import { canCreateProjects } from '../../services/projectService';
 import { orgStore } from '../../services/orgStore';
 import AllocationBar from './AllocationBar';
 import { projectRef } from './projectSlug';
@@ -12,7 +11,6 @@ import { projectRef } from './projectSlug';
    in both the legacy-styled client page and the edge-styled employee sheet. */
 
 export default function RelatedProjects({ clientId = null, employeeId = null }) {
-    const navigate = useNavigate();
     const projects = useSection('projects');
     const members = useSection('project_members');
     if (!orgStore.can('projects', 'view')) return null;
@@ -25,15 +23,38 @@ export default function RelatedProjects({ clientId = null, employeeId = null }) 
             .sort((a, b) => String(b.start_date).localeCompare(String(a.start_date)))
             .map((m) => ({ key: m.id, p: byId[m.project_id], m }));
 
+    // A client's projects: a dropdown that opens to the list (no Start Project here).
+    if (clientId) {
+        return (
+            <details className="related-projects" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 10 }}>
+                <summary style={{ cursor: 'pointer', padding: '10px 14px', fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Projects ({rows.length})
+                </summary>
+                <div style={{ padding: '0 14px 12px' }}>
+                    {rows.length === 0 ? (
+                        <p style={{ margin: 0, fontSize: 13.5, color: 'var(--text-muted)' }}>No projects for this client yet.</p>
+                    ) : (
+                        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
+                            {rows.map(({ key, p }) => (
+                                <li key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13.5, flexWrap: 'wrap' }}>
+                                    <Link to={`/projects/${projectRef(p.id)}`} style={{ color: 'var(--text-primary)', flex: 1, minWidth: 160 }}>
+                                        <span style={{ color: 'var(--text-muted)', fontSize: 12.5 }}>{p.code}</span> {p.name}
+                                    </Link>
+                                    <span style={{ color: 'var(--text-muted)' }}>{statusLabel(p.status)}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </details>
+        );
+    }
+
     const head = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '4px 0 9px' };
     return (
         <section aria-label="Projects">
             <div style={head}>
                 <span style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>PROJECTS ({rows.length})</span>
-                {clientId && canCreateProjects() && (
-                    <button type="button" className="easy-submit-outline" style={{ padding: '4px 10px', fontSize: 13.5 }}
-                        onClick={() => navigate(`/projects/new?client=${clientId}`)}>Start Project</button>
-                )}
             </div>
             {rows.length === 0 ? (
                 <p style={{ margin: 0, fontSize: 13.5, color: 'var(--text-muted)' }}>

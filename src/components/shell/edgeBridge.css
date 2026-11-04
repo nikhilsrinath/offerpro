@@ -694,6 +694,9 @@
 .edge-shell main .doc-status-badge[data-tone="down"] { --tone: var(--edge-down); }
 .edge-shell main .doc-status-badge[data-tone="attention"] { --tone: #c27c00; }
 .edge-shell main .doc-status-badge[data-tone="neutral"] { --tone: var(--edge-accent); }
+/* Sent is blue, so it never reads like Paid's green beside it. */
+.edge-shell main .doc-status-badge[data-tone="sent"] { --tone: #2563eb; }
+.edge-shell[data-edge-dark="1"] main .doc-status-badge[data-tone="sent"] { --tone: #60a5fa; }
 .edge-shell main .doc-status-badge[data-tone="mute"] { color: var(--edge-dim) !important; --tone: var(--edge-ghost); }
 
 .edge-shell main .doc-status-badge .doc-status-pulse-dot { display: none; }

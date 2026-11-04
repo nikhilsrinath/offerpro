@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
     Wallet, HandCoins, Truck, ListChecks, ArrowUp, ArrowUpRight, ChevronRight,
     Receipt, FolderKanban, FileText, Flag, CheckSquare, Plane, Clock, Sparkles,
-    Plus, ArrowDownLeft,
+    CalendarDays,
 } from 'lucide-react';
 import { MONO, useT } from '../ui/edgeUtils';
 import { Btn, Loading, Avatar } from '../ui/edge';
@@ -141,9 +141,9 @@ export default function TodayPage() {
 
     const s = model.snapshot;
     // The company, never a name pulled from the sign-in email.
-    const name = activeOrg?.company_name || activeOrg?.name || 'there';
+    const name = activeOrg?.company_name || activeOrg?.name || 'Your company';
     const now = new Date();
-    const dateLine = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const dateLine = now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
     const dueToday = model.agenda[0]?.day === model.today ? model.agenda[0].items.length : 0;
 
     const summary = [
@@ -168,19 +168,26 @@ export default function TodayPage() {
 
     return (
         <div className="td-page" style={{ fontFamily: MONO, color: t.text, maxWidth: 1320, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* ── header: the day, and the everyday actions ─────────────── */}
-            <header style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-                <div style={{ minWidth: 0, flex: '1 1 360px' }}>
-                    <div style={{ fontSize: 12, color: t.faint, marginBottom: 4 }}>{dateLine}</div>
-                    <h2 style={{ margin: 0, fontSize: 19, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.25 }}>{greeting(now)}, {name}</h2>
-                    <p style={{ margin: '4px 0 0', fontSize: 12.5, color: t.dim, lineHeight: 1.5 }}>{summary}</p>
+            {/* ── header: the day ──────────────────────────────────────── */}
+            {/* As on Dashboard → Overview: the greeting small on top, the
+                company name under it, the date in a chip on the right. */}
+            <header style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '2px 2px 0' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: 12.5, fontWeight: 500, color: t.faint }}>{greeting(now)}</p>
+                    <h2 style={{
+                        margin: '2px 0 0', fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', color: t.text, lineHeight: 1.15,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>{name}</h2>
+                    <p style={{ margin: '6px 0 0', fontSize: 12.5, color: t.dim, lineHeight: 1.5 }}>{summary}</p>
                 </div>
-                <div role="group" aria-label="Quick actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <Btn onClick={go('/financials/general-ledger?new=in')}><ArrowDownLeft aria-hidden="true" size={14} />Record Credit</Btn>
-                    <Btn onClick={go('/financials/general-ledger?new=out')}><ArrowUpRight aria-hidden="true" size={14} />Record Debit</Btn>
-                    <Btn onClick={go('/clients/billing/quotations/new')}><FileText aria-hidden="true" size={14} />New Quotation</Btn>
-                    <Btn primary onClick={go('/clients/billing/invoices/new')}><Plus aria-hidden="true" size={14} />Create Invoice</Btn>
-                </div>
+                <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 7, height: 32, padding: '0 11px', alignSelf: 'flex-start',
+                    borderRadius: 8, border: '1px solid ' + t.line, background: t.card,
+                    fontSize: 12.5, color: t.dim, whiteSpace: 'nowrap',
+                }}>
+                    <CalendarDays size={14} strokeWidth={1.8} aria-hidden="true" style={{ color: t.faint }} />
+                    {dateLine}
+                </span>
             </header>
 
             {loadError && (

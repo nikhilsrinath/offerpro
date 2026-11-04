@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { RowMenu } from './ui/edge';
+import { RowMenu, Seg, Table, Tr, Td } from './ui/edge';
+import useRememberedState from '../hooks/useRememberedState';
 import {
   Plus, Search, Edit3, Trash2, UserPlus,
   Mail, MapPin, Phone, Hash, ArrowLeft, FileText, FolderKanban,
@@ -36,12 +37,8 @@ const TYPE_CFG = {
   proforma:  { label: 'Proforma',  color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
 };
 
-function initials(name = '') {
-  return name.trim().split(/\s+/).map(w => w[0] || '').join('').slice(0, 2).toUpperCase() || '?';
-}
-
 // ── Customer Detail View ───────────────────────────────────────────────────────
-function CustomerDetail({ customer: shown, orgId, onBack, onEdit }) {
+export function CustomerDetail({ customer: shown, orgId, onBack, onEdit, backLabel = 'Customers' }) {
   // The live row: a lookup or an added contact person shows straight away.
   const live = useSection('customers').find((c) => c.id === shown.id);
   const customer = live || shown;
@@ -102,15 +99,11 @@ function CustomerDetail({ customer: shown, orgId, onBack, onEdit }) {
           onClick={onBack}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, padding: 0 }}
         >
-          <ArrowLeft size={15} /> Customers
+          <ArrowLeft size={15} /> {backLabel}
         </button>
         <span style={{ color: 'var(--border-default)', userSelect: 'none' }}>/</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
-          {customer.logo_path ? <Logo path={customer.logo_path} name={customer.clientName} size={42} /> : (
-            <div style={{ width: 42, height: 42, borderRadius: '11px', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 800, color: '#818cf8', flexShrink: 0 }}>
-              {initials(customer.clientName)}
-            </div>
-          )}
+          {customer.logo_path && <Logo path={customer.logo_path} name={customer.clientName} size={42} />}
           <div style={{ minWidth: 0 }}>
             <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {customer.clientName}
@@ -131,7 +124,8 @@ function CustomerDetail({ customer: shown, orgId, onBack, onEdit }) {
       </div>
 
       {/* Customer info strip */}
-      {(customer.contactPhone || customer.buyerGSTIN || customer.buyerState || customer.clientAddress) && (
+      {/* No address or state here: the client's name already says where it is. */}
+      {(customer.contactPhone || customer.buyerGSTIN) && (
         <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', padding: '0.75rem 1rem', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: '10px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
           {customer.contactPhone && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
@@ -142,16 +136,6 @@ function CustomerDetail({ customer: shown, orgId, onBack, onEdit }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
               <Hash size={12} style={{ opacity: 0.5, flexShrink: 0 }} />
               <span style={{ fontFamily: 'monospace', letterSpacing: '0.04em' }}>{customer.buyerGSTIN}</span>
-            </div>
-          )}
-          {customer.buyerState && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-              <MapPin size={12} style={{ opacity: 0.5, flexShrink: 0 }} /> {customer.buyerState}
-            </div>
-          )}
-          {!customer.buyerState && customer.clientAddress && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-              <MapPin size={12} style={{ opacity: 0.5, flexShrink: 0 }} /> {customer.clientAddress}
             </div>
           )}
         </div>
@@ -251,18 +235,18 @@ function CustomerDetail({ customer: shown, orgId, onBack, onEdit }) {
                     {tc.label}
                   </span>
                   {/* Doc ID */}
-                  <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', flex: 1, minWidth: '8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', flex: 1, minWidth: '8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {docNo(doc)}
                   </span>
                   {/* Date */}
                   <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', flexShrink: 0 }}>{dateStr}</span>
                   {/* Amount */}
-                  <span style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)', flexShrink: 0, minWidth: '5rem', textAlign: 'right' }}>
+                  <span style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--text-primary)', flexShrink: 0, minWidth: '5rem', textAlign: 'right' }}>
                     {fmt(amount)}
                   </span>
                   {/* Status */}
                   <span style={{ flexShrink: 0 }}>
-                    <DocumentStatusBadge status={doc.status} size="small" />
+                    <DocumentStatusBadge status={doc.status} type={doc.type} size="small" />
                   </span>
                 </div>
               );
@@ -292,6 +276,8 @@ export default function Customers() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const cp = useClientProjects();
   const [projectScope, setProjectScope] = useState('');
+  // Grid (cards) or List (one row per client); kept while moving between pages.
+  const [view, setView] = useRememberedState('clients.view', 'grid');
 
   useEffect(() => {
     if (activeOrg?.id) loadCustomers();
@@ -397,6 +383,9 @@ export default function Customers() {
           />
         </div>
         <ProjectScopeFilter cp={cp} value={projectScope} onChange={setProjectScope} className="prod-select" />
+        <Seg value={view} onChange={setView} label="View" options={[
+          { id: 'list', label: 'List' }, { id: 'grid', label: 'Grid' },
+        ]} />
         <button onClick={openAdd} className="prod-add-btn">
           <Plus size={15} /> Add Client
         </button>
@@ -413,6 +402,51 @@ export default function Customers() {
             {searchTerm ? 'Try a different search term' : 'Add your first customer to get started'}
           </span>
         </div>
+      ) : view === 'list' ? (
+        <Table id="clients" cols={[
+          { key: 'sn', label: 'S.No', width: 56, always: true },
+          { key: 'n', label: 'Client', always: true },
+          { key: 'e', label: 'Email' },
+          { key: 'ph', label: 'Phone' },
+          { key: 'a', label: 'Address', def: false },
+          { key: 'p', label: 'Projects' },
+          { key: 'g', label: 'GSTIN' },
+          { key: 'act', label: '', width: 48, align: 'right', always: true },
+        ]}>
+          {(show) => filtered.map((customer, i) => {
+            const projects = cp.namesOf(customer.id);
+            const dash = <span style={{ color: 'var(--text-muted)' }}>-</span>;
+            return (
+              <Tr key={customer.id} onClick={() => setSelectedCustomer(customer)} label={`Open ${customer.clientName}`}>
+                {show('sn') && <Td muted nowrap>{i + 1}</Td>}
+                {show('n') && (
+                  <Td>
+                    <span style={{ display: 'block', fontWeight: 500 }}>{customer.clientName}</span>
+                    {hasContact(customer) && (
+                      <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{customer.person_name}</span>
+                    )}
+                  </Td>
+                )}
+                {show('e') && <Td muted nowrap>{customer.clientEmail || dash}</Td>}
+                {show('ph') && <Td muted nowrap>{customer.contactPhone || dash}</Td>}
+                {show('a') && <Td muted>{customer.clientAddress || dash}</Td>}
+                {show('p') && <Td muted>{projects.length ? projects.join(', ') : 'Others'}</Td>}
+                {show('g') && <Td muted nowrap>{customer.buyerGSTIN ? <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{customer.buyerGSTIN}</span> : dash}</Td>}
+                {show('act') && (
+                  <Td align="right">
+                    <span onClick={(e) => e.stopPropagation()}>
+                      <RowMenu label={`Actions for ${customer.clientName}`} items={[
+                        { label: 'View Invoice History', icon: FileText, onClick: () => setSelectedCustomer(customer) },
+                        { label: 'Edit', icon: Edit3, onClick: e => openEdit(customer, e) },
+                        { label: 'Delete', icon: Trash2, tone: 'danger', onClick: e => handleDelete(customer, e) },
+                      ]} />
+                    </span>
+                  </Td>
+                )}
+              </Tr>
+            );
+          })}
+        </Table>
       ) : (
         <div className="customers-grid">
           {filtered.map(customer => (

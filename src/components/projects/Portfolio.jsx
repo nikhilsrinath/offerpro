@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import useRememberedState from '../../hooks/useRememberedState';
 import { useNavigate } from 'react-router-dom';
 import { Page, Toolbar, Panel, Grid, Btn, Select, Table, Tr, Td, Empty, Loading, Muted, StatBand } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
@@ -75,13 +76,13 @@ export default function Portfolio() {
     const t = useT();
     const navigate = useNavigate();
     const clients = useSection('customers');
-    const [period, setPeriod] = useState('all');
-    const [from, setFrom] = useState('');
-    const [to, setTo] = useState('');
+    const [period, setPeriod] = useRememberedState('portfolio.period', 'all');
+    const [from, setFrom] = useRememberedState('portfolio.from', '');
+    const [to, setTo] = useRememberedState('portfolio.to', '');
     const [rows, setRows] = useState(null);
     const [people, setPeople] = useState([]);
     const [error, setError] = useState('');
-    const [sort, setSort] = useState({ key: 'health', dir: 1 });
+    const [sort, setSort] = useRememberedState('portfolio.sort', { key: 'health', dir: 1 });
     const fin = canSeeFinancials();
     const allowed = hasFeature(orgStore.getProfile().plan || 'free', 'projectPortfolio');
 

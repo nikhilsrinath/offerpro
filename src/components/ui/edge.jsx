@@ -197,7 +197,7 @@ export function Seg({ value, onChange, options, size = 'md', label: groupLabel }
                         style={{
                             display: 'inline-flex', alignItems: 'center', gap: 6,
                             height: '100%', padding: '0 10px', borderRadius: 6,
-                            fontFamily: MONO, fontSize: size === 'sm' ? 12 : 12.5, fontWeight: 500,
+                            fontFamily: MONO, fontSize: size === 'sm' ? 12 : 12.5, fontWeight: 600,
                             border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
                             // The chosen option: the light-blue tint, navy text.
                             background: active ? t.soft : 'transparent',
@@ -746,7 +746,9 @@ export function Loading({ children = 'Loading…' }) {
     the left and control on the right (drawer.css). Every form opens at the
     one 680px width; a `width` of 900 or more keeps a wide panel for the
     ones that show a table, a preview or a profile. */
-export function Modal({ open, onClose, title, note, children, footer, width = 520 }) {
+/** `compact`: a short panel (a reason, a confirmation) whose buttons sit right
+    under what it asks, not pinned to the foot of the screen. */
+export function Modal({ open, onClose, title, note, children, footer, width = 520, compact = false }) {
     const t = useT();
     const ref = useRef(null);
     const sheetRef = useRef(null);
@@ -782,8 +784,13 @@ export function Modal({ open, onClose, title, note, children, footer, width = 52
                 <InDrawer.Provider value>
                     <div className="edge-drawer-body edge-scroll">
                         {children}
+                        {compact && footer && (
+                            <InDrawerFoot.Provider value>
+                                <footer className="edge-drawer-foot compact">{footer}</footer>
+                            </InDrawerFoot.Provider>
+                        )}
                     </div>
-                    {footer && (
+                    {footer && !compact && (
                         <InDrawerFoot.Provider value>
                             <footer className="edge-drawer-foot">{footer}</footer>
                         </InDrawerFoot.Provider>

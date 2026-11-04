@@ -155,8 +155,8 @@ export default function ProjectForm({ project = null, onDone }) {
     const body = (
         <form onSubmit={save} noValidate>
             <Panel title="The project" pad={15} style={{ marginBottom: 14 }}>
-                <Field label="Client or internal">
-                    <Seg value={form.kind} onChange={set('kind')} label="Client or internal" options={[
+                <Field label="Type of Project">
+                    <Seg value={form.kind} onChange={set('kind')} label="Type of Project" options={[
                         { id: 'client', label: 'For a client' }, { id: 'internal', label: 'Internal' },
                     ]} />
                 </Field>
@@ -336,7 +336,7 @@ function MethodPicker({ value, onChange }) {
                 display: 'block', fontSize: drawer ? 13.5 : 12.5, fontWeight: 500, lineHeight: drawer ? 1.4 : undefined,
                 color: drawer ? t.text : t.dim, marginBottom: 6,
             }}>
-                Type of Project
+                Nature of Project
             </span>
             <div style={{ display: 'grid', gap: 8, gridTemplateColumns: drawer ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(200px, 1fr))' }}>
                 {DELIVERY_METHODS.map((m) => {

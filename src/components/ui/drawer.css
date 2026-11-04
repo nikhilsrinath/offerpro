@@ -374,3 +374,16 @@
 @media (prefers-reduced-motion: reduce) {
   .edge-drawer, .prod-modal, .edge-drawer-backdrop, .prod-modal-backdrop { animation: none; }
 }
+
+/* A compact panel's actions follow its last row instead of the screen's foot. */
+.edge-drawer-body > .edge-drawer-foot.compact {
+  position: static;
+  margin: 0 !important;
+  border-top: 0;
+  justify-content: flex-end;
+}
+
+/* Record money (Mark Paid, Record Payment): the actions follow More Details,
+   with no empty stretch above them; on a long form they still stick to the
+   foot while it scrolls. */
+.prod-modal .cb-form > .prod-modal-foot { margin-top: 0; }

@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 import { resolveFormImages } from '../utils/imageUtils';
 import {
-  CERTIFICATE_DEFAULTS, CERTIFICATE_ACCENTS, CERTIFICATE_PAPERS, CERTIFICATE_TITLES,
+  CERTIFICATE_DEFAULTS, CERTIFICATE_ACCENTS, CERTIFICATE_PAPERS, CERTIFICATE_TITLES, CERTIFICATE_FONTS,
 } from '../services/certificateTemplates';
 import CertificatePreview from './CertificatePreview';
 import A4Stage from './shared/A4Stage';
@@ -71,7 +71,7 @@ function UploadButton({ label, onPick }) {
 
 /* A colour as one button showing it; the choices open under it, the way a
    design tool keeps its toolbar to one line. */
-function ColourPick({ label, options, value, onPick }) {
+function ColourPick({ label, options, value, onPick, none = null }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -82,21 +82,26 @@ function ColourPick({ label, options, value, onPick }) {
     document.addEventListener('keydown', esc);
     return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', esc); };
   }, [open]);
-  const named = options.find((c) => c.id === value)?.label || 'Custom';
+  const named = none?.active ? none.label : options.find((c) => c.id === value)?.label || 'Custom';
   return (
     <div className="cert-pop" ref={ref}>
       <button type="button" className="cert-tool-btn" aria-expanded={open} aria-haspopup="true" onClick={() => setOpen(!open)}
         aria-label={`${label}: ${named}`}>
-        <span className="cert-dot" style={{ background: value }} aria-hidden="true" /> {label}
+        <span className={none?.active ? 'cert-dot none' : 'cert-dot'} style={{ background: value }} aria-hidden="true" /> {label}
         <ChevronDown size={12} aria-hidden="true" />
       </button>
       {open && (
         <div className="cert-pop-panel" role="group" aria-label={label}>
+          {none && (
+            <button type="button" className="cert-pop-none" aria-pressed={!!none.active} onClick={() => { none.onPick(); setOpen(false); }}>
+              <span className="cert-dot none" aria-hidden="true" /> {none.label}
+            </button>
+          )}
           <div className="cert-swatches compact">
             {options.map((c) => (
               <button
                 key={c.id} type="button" title={c.label} aria-label={c.label} aria-pressed={value === c.id}
-                className={`cert-swatch ${value === c.id ? 'active' : ''}`}
+                className={`cert-swatch ${value === c.id && !none?.active ? 'active' : ''}`}
                 style={{ background: c.id }} onClick={() => onPick(c.id)}
               />
             ))}
@@ -247,8 +252,32 @@ export default function CertificateForm({ switcher }) {
     </button>
   );
 
+  // Text added from the bar (Add Text): one more line, typed on straight away.
+  const addText = () => {
+    const id = Math.random().toString(36).slice(2, 9);
+    set({ extraTexts: [...(formData.extraTexts || []), id], [`extra_${id}`]: '' });
+    setSelected({ field: `extra_${id}Adjust`, label: 'Added Text', text: `extra_${id}`, fontSize: 16 });
+    setEditing(`extra_${id}`);
+  };
+  const removeText = (field) => {
+    const id = field.replace(/^extra_/, '').replace(/Adjust$/, '');
+    set({
+      extraTexts: (formData.extraTexts || []).filter((x) => x !== id),
+      [`extra_${id}`]: undefined, [`extra_${id}Adjust`]: undefined, [`extra_${id}AdjustFont`]: undefined,
+    });
+    choose(null);
+  };
+
   // What the selected item can do, beside moving and resizing it.
   const tools = (() => {
+    if (selected?.field?.startsWith('extra_')) {
+      return <>
+        {typeButton}
+        <button type="button" className="cert-btn danger" onClick={() => removeText(selected.field)}>
+          <Trash2 size={13} aria-hidden="true" /> Remove Text
+        </button>
+      </>;
+    }
     switch (selected?.field) {
       case 'logoAdjust':
         return <>
@@ -346,14 +375,14 @@ export default function CertificateForm({ switcher }) {
           <RectangleVertical size={15} aria-hidden="true" />
         </button>
       </div>
-      <ColourPick label="Accent" options={CERTIFICATE_ACCENTS} value={formData.accentColor} onPick={(c) => set({ accentColor: c })} />
+      <ColourPick label="Accent" options={CERTIFICATE_ACCENTS} value={formData.accentColor}
+        onPick={(c) => set({ accentColor: c, artHidden: false })}
+        none={{ label: 'No Accent (Plain)', active: formData.artHidden, onPick: () => { set({ artHidden: true }); } }} />
       <ColourPick label="Background" options={CERTIFICATE_PAPERS} value={formData.paperColor} onPick={(c) => set({ paperColor: c })} />
       {dateInput}
       <span className="cert-tools-sep" aria-hidden="true" />
       {!formData.logo && <UploadButton label="Add Logo" onPick={pick('logo')} />}
-      {formData.artHidden && (
-        <button type="button" className="cert-btn" onClick={() => set({ artHidden: false })}><Plus size={13} aria-hidden="true" /> Add Artwork</button>
-      )}
+      <button type="button" className="cert-btn" onClick={addText}><Type size={13} aria-hidden="true" /> Add Text</button>
       {!formData.showStamp && (
         <button type="button" className="cert-btn" onClick={() => set({ showStamp: true })}><Plus size={13} aria-hidden="true" /> Add Seal</button>
       )}
@@ -375,9 +404,7 @@ export default function CertificateForm({ switcher }) {
     <div className="cert-editor">
       <div className="cert-head">
         {switcher}
-        <span className="cert-head-hint">
-          <MousePointerClick size={13} aria-hidden="true" /> Click anything on the certificate to edit it
-        </span>
+        <span style={{ marginRight: 'auto' }} />
         <div className="cert-actions">
           <button type="button" onClick={handlePreview} className="cert-act">
             <Eye size={14} aria-hidden="true" /> Preview PDF
@@ -394,6 +421,8 @@ export default function CertificateForm({ switcher }) {
             <EditBar
               selected={selected} value={formData[selected.field]}
               onChange={(v) => place(selected.field, v)} onDone={() => choose(null)}
+              fonts={CERTIFICATE_FONTS} font={formData[selected.field + 'Font'] || ''}
+              onFont={(font) => place(selected.field + 'Font', font || undefined)}
             >
               {tools}
             </EditBar>
@@ -407,6 +436,9 @@ export default function CertificateForm({ switcher }) {
         )}
         {/* A tap anywhere on the paper but an item lets go of the selection. */}
         <div className="edit-stage cert-stage" onPointerDown={() => choose(null)}>
+          <span className="cert-stage-hint">
+            <MousePointerClick size={13} aria-hidden="true" /> Click anything on the certificate to edit it
+          </span>
           <A4Stage fit="page">
             <CertificatePreview formData={formData} />
           </A4Stage>

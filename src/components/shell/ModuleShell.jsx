@@ -517,7 +517,7 @@ export default function ModuleShell({
 
                     <div style={{ flex: 1 }} />
 
-                    {tabs && <GlobalSearch t={t} width={320} align="right" />}
+                    {tabs && <GlobalSearch t={t} width={400} align="right" />}
 
                     {actions}
 
@@ -618,7 +618,7 @@ export default function ModuleShell({
                                     aria-current={it.active === false ? false : undefined}
                                     style={({ isActive: routeActive }) => { const isActive = it.active ?? routeActive; return {
                                         display: 'inline-flex', alignItems: 'center', minHeight: 26, padding: '0 10px',
-                                        borderRadius: 6, whiteSpace: 'nowrap', textDecoration: 'none', fontSize: 12.5, fontWeight: 500,
+                                        borderRadius: 6, whiteSpace: 'nowrap', textDecoration: 'none', fontSize: 12.5, fontWeight: 600,
                                         color: isActive ? t.softText : t.dim,
                                         background: isActive ? t.soft : 'transparent',
                                         boxShadow: 'none',
@@ -639,7 +639,7 @@ export default function ModuleShell({
                                 aria-current={it.active === false ? false : undefined}
                                 style={({ isActive: routeActive }) => { const isActive = it.active ?? routeActive; return {
                                 display: 'inline-flex', alignItems: 'center', height: 30, padding: '0 10px',
-                                borderRadius: 7, whiteSpace: 'nowrap', textDecoration: 'none', fontSize: 12.5, fontWeight: 500,
+                                borderRadius: 7, whiteSpace: 'nowrap', textDecoration: 'none', fontSize: 12.5, fontWeight: 600,
                                 color: isActive ? t.softText : t.dim,
                                 background: isActive ? t.soft : 'transparent',
                                 boxShadow: 'none',

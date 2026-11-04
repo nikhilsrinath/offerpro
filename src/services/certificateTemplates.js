@@ -85,3 +85,26 @@ export function renderCertificatePdf() {
   // pdfService.js rather than drawing into jsPDF. Kept as an export only so any
   // remaining import site resolves.
 }
+
+/* The fonts an item on the certificate can be set in (EditBar's Font). Web
+   fonts are loaded by the preview (CERTIFICATE_FONT_CSS) so the PDF, a capture
+   of it, draws them too. */
+export const CERTIFICATE_FONTS = [
+  { id: "'Roboto', Arial, sans-serif", label: 'Roboto' },
+  { id: "'Inter', Arial, sans-serif", label: 'Inter' },
+  { id: "'Open Sans', Arial, sans-serif", label: 'Open Sans' },
+  { id: "'Lato', Arial, sans-serif", label: 'Lato' },
+  { id: "'Montserrat', Arial, sans-serif", label: 'Montserrat' },
+  { id: "'Poppins', Arial, sans-serif", label: 'Poppins' },
+  { id: "'Playfair Display', Georgia, serif", label: 'Playfair Display' },
+  { id: "'Merriweather', Georgia, serif", label: 'Merriweather' },
+  { id: "'Lora', Georgia, serif", label: 'Lora' },
+  { id: "'Cormorant Garamond', Georgia, serif", label: 'Cormorant Garamond' },
+  { id: "Georgia, 'Times New Roman', serif", label: 'Georgia' },
+  { id: "'Times New Roman', Times, serif", label: 'Times New Roman' },
+  { id: "'Roboto Mono', Consolas, monospace", label: 'Roboto Mono' },
+  { id: "'Great Vibes', cursive", label: 'Great Vibes (Script)' },
+  { id: "'Dancing Script', cursive", label: 'Dancing Script' },
+];
+
+export const CERTIFICATE_FONT_CSS = "@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500;700&family=Inter:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Lato:wght@400;700&family=Montserrat:wght@400;600;700&family=Poppins:wght@400;600;700&family=Playfair+Display:wght@400;600;700&family=Merriweather:wght@400;700&family=Lora:wght@400;600;700&family=Cormorant+Garamond:wght@400;600;700&family=Great+Vibes&family=Dancing+Script:wght@400;700&display=swap');";

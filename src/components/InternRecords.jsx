@@ -8,6 +8,9 @@ import { useOrg } from '../context/OrgContext';
 import { confirmDialog } from '../services/confirm';
 import { initialQuery } from '../services/urlQuery';
 import { currencySymbol, currencyLocale } from '../shared/currency.js';
+import { useSection } from './financial/financeHooks';
+import { useInvoiceActions } from './financial/invoiceActions';
+import { docNumber } from '../services/documentStore';
 
 const TYPE_CONFIG = {
   offer: { icon: Briefcase, color: '#3b82f6', bg: '#3b82f612', bgSolid: 'rgba(59,130,246,0.08)', label: 'Offer Letter' },
@@ -18,19 +21,41 @@ const TYPE_CONFIG = {
   invoice: { icon: FileText, color: '#8b5cf6', bg: '#8b5cf612', bgSolid: 'rgba(139,92,246,0.08)', label: 'Invoice' }
 };
 
+// One row of tabs, in this order; each shows its count.
 const TABS = [
   { id: 'all', label: 'All Documents' },
+  { id: 'invoice', label: 'Invoices' },
   { id: 'offer', label: 'Offer Letters' },
   { id: 'certificate', label: 'Certificates' },
   { id: 'nda', label: 'NDAs' },
   { id: 'mou', label: 'MoUs' },
   { id: 'agreement', label: 'Templates' },
-  { id: 'invoice', label: 'Invoices' },
 ];
+
+// An offer letter is a record only once one was generated. Adding someone
+// straight onto the team (EmployeeForm) files a record too, but no letter
+// was made for them, so it is not listed.
+const isGeneratedRecord = (r) => !(r.type === 'offer' && r.data?.source === 'employee_form') && r.type !== 'invoice';
+
+// The company's invoices, uploaded or made in Opstead, drawn as records.
+const invoiceRecord = (d) => ({
+  id: d.id,
+  type: 'invoice',
+  title: d.issued_to || d.clientName || d.client?.name || docNumber(d) || 'Invoice',
+  created_at: d.issue_date || d.created_at,
+  invoiceId: d.id,
+  data: { totals: { grandTotal: Number(d.grand_total) || 0 }, invoiceNumber: docNumber(d), dueDate: d.due_date || '-' },
+});
 
 export default function InternRecords() {
   const { activeOrg } = useOrg();
-  const [records, setRecords] = useState([]);
+  const [stored, setStored] = useState([]);
+  const finDocs = useSection('fin_docs');
+  const invoiceActions = useInvoiceActions();
+  const records = useMemo(() => [
+    ...stored.filter(isGeneratedRecord),
+    ...finDocs.filter((d) => d.type === 'invoice' && !['draft', 'cancelled', 'void'].includes(d.status)).map(invoiceRecord),
+  ], [stored, finDocs]);
   const [searchTerm, setSearchTerm] = useState(initialQuery);
   const [sortBy, setSortBy] = useState('date_desc');
   const [activeTab, setActiveTab] = useState('all');
@@ -42,7 +67,7 @@ export default function InternRecords() {
   const loadRecords = async () => {
     setLoading(true);
     const data = await storageService.getAll(activeOrg?.id);
-    setRecords(data);
+    setStored(data);
     setLoading(false);
   };
 
@@ -105,7 +130,10 @@ export default function InternRecords() {
   }), [records]);
 
   /* One action list for every view of a record, grid, table and mobile. */
-  const recordActions = (record) => [
+  const recordActions = (record) => record.invoiceId ? [
+    // Opens the uploaded file, or the invoice as issued; changes are made in Billing.
+    { label: 'View Invoice', icon: Eye, onClick: () => invoiceActions.view(record.invoiceId) },
+  ] : [
     { label: 'Download PDF', icon: Download, onClick: () => handleDownloadPDF(record) },
     record.type === 'offer' && record.data?.email && {
       label: sendingEmail === record.id ? 'Sending…'
@@ -152,24 +180,24 @@ export default function InternRecords() {
   return (
     <div className="records-page">
 
-      {/* Summary Cards */}
-      <div className="records-summary-grid">
-        {TABS.filter(t => t.id !== 'all').map(tab => {
-          const cfg = TYPE_CONFIG[tab.id];
+      {/* The seven tabs, in one row: the filter for everything below. */}
+      <div className="records-summary-grid records-tab-row" role="tablist" aria-label="Record type">
+        {TABS.map(tab => {
+          const cfg = TYPE_CONFIG[tab.id] || { icon: ClipboardCheck, color: 'var(--text-secondary)', bg: 'transparent', bgSolid: 'transparent' };
           const Icon = cfg.icon;
-          const count = counts[tab.id];
           return (
             <button
               key={tab.id}
+              role="tab" aria-selected={activeTab === tab.id}
               className={`records-summary-card ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(activeTab === tab.id ? 'all' : tab.id)}
+              onClick={() => setActiveTab(tab.id)}
               style={{ '--card-color': cfg.color, '--card-bg': cfg.bgSolid }}
             >
               <div className="records-summary-icon" style={{ background: cfg.bg, color: cfg.color }}>
-                <Icon size={20} />
+                <Icon size={18} />
               </div>
               <div className="records-summary-info">
-                <span className="records-summary-count">{count}</span>
+                <span className="records-summary-count">{counts[tab.id]}</span>
                 <span className="records-summary-label">{tab.label}</span>
               </div>
             </button>
@@ -177,20 +205,7 @@ export default function InternRecords() {
         })}
       </div>
 
-      {/* Toolbar: Tabs + Search + View Toggle + Export */}
       <div className="records-toolbar">
-        <div className="records-tabs">
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              aria-pressed={activeTab === tab.id} className={`records-tab ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-              <span className="records-tab-count">{counts[tab.id]}</span>
-            </button>
-          ))}
-        </div>
         <div className="records-toolbar-right">
           <div className="records-search-wrap">
             <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -420,6 +435,7 @@ export default function InternRecords() {
           <span>{emailStatus.message}</span>
         </div>
       )}
+      {invoiceActions.dialogs}
     </div>
   );
 }

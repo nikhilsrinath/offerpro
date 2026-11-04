@@ -1,7 +1,7 @@
-import { Editable, EditText } from './shared/Editable';
+import { Editable, EditText, EditFonts } from './shared/Editable';
 import { useTrimmedImage } from '../hooks/useTrimmedImage';
 import StampPreview from './StampPreview';
-import { CERTIFICATE_DEFAULTS, certificateYear, certificateDate, certificateFooter, certificateInk } from '../services/certificateTemplates';
+import { CERTIFICATE_DEFAULTS, CERTIFICATE_FONT_CSS, certificateYear, certificateDate, certificateFooter, certificateInk } from '../services/certificateTemplates';
 
 /* The certificate, drawn at A4 size (96 DPI) so the PDF is a capture of exactly
    what is on screen. One template in two orientations: a band of artwork down
@@ -147,7 +147,7 @@ function Signatory({ d, which, name, designation, signature, align, ink, grey })
           )}
         </Editable>
       </div>
-      <Editable field={(which ? 'secondSignatory' : 'signatory') + 'Adjust'} label={`${who} Name`} text={nameField}
+      <Editable field={(which ? 'secondSignatory' : 'signatory') + 'Adjust'} label={`${who} Name`} text={nameField} fontSize={13}
         value={d[(which ? 'secondSignatory' : 'signatory') + 'Adjust']} origin={centre ? 'center top' : 'left top'}>
         <div style={{ height: 1, background: ink, width: 118, margin: centre ? '0 auto' : 0 }} />
         <EditText field={roleField} value={d[roleField]} placeholder="Designation" label={`${who} Designation`}
@@ -200,7 +200,7 @@ export default function CertificatePreview({ formData, captureId = 'certificate-
     </Editable>
   );
   const orgName = org && (
-    <Editable field="orgAdjust" label="Company Name" value={d.orgAdjust} origin={top} text="issuingOrganization" style={{ maxWidth: '100%', minWidth: 0 }}>
+    <Editable field="orgAdjust" label="Company Name" value={d.orgAdjust} origin={top} text="issuingOrganization" fontSize={13} style={{ maxWidth: '100%', minWidth: 0 }}>
       <EditText field="issuingOrganization" value={d.issuingOrganization} placeholder="Your Company Name" label="Company Name"
         style={{ fontFamily: MONO, fontSize: 13, lineHeight: '18px', color: ink, letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{org}</EditText>
     </Editable>
@@ -212,6 +212,7 @@ export default function CertificatePreview({ formData, captureId = 'certificate-
   );
 
   return (
+    <EditFonts data={d}>
     <div
       id={captureId}
       data-edit-root
@@ -221,9 +222,7 @@ export default function CertificatePreview({ formData, captureId = 'certificate-
         padding: FRAME, boxSizing: 'border-box', fontFamily: SANS, color: ink,
       }}
     >
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500;700&display=swap');
-      `}</style>
+      <style>{CERTIFICATE_FONT_CSS}</style>
 
       <div style={{
         width: '100%', height: '100%', boxSizing: 'border-box', border: '1px solid ' + ink,
@@ -246,7 +245,7 @@ export default function CertificatePreview({ formData, captureId = 'certificate-
               ) : <SampleArt wide={portrait} paper={artPaper} />}
             </Editable>
             {year && (
-              <Editable field="yearAdjust" label="Year" value={d.yearAdjust} origin="left top" text="yearLabel"
+              <Editable field="yearAdjust" label="Year" value={d.yearAdjust} origin="left top" text="yearLabel" fontSize={27}
                 style={{ position: 'absolute', top: 14, left: 14 }}>
                 <EditText field="yearLabel" value={d.yearLabel || year} label="Year" style={{
                   fontFamily: MONO, fontWeight: 700, fontSize: 27, lineHeight: 1.08, letterSpacing: '0.12em', color: INK,
@@ -272,7 +271,7 @@ export default function CertificatePreview({ formData, captureId = 'certificate-
               {logo}
               {orgName}
               {(d.location || date) && (
-                <Editable field="placeAdjust" label="Place And Date" value={d.placeAdjust} origin="center top" text="location">
+                <Editable field="placeAdjust" label="Place And Date" fontSize={12} value={d.placeAdjust} origin="center top" text="location">
                   <div style={{ fontFamily: MONO, fontSize: 12, lineHeight: 1.55, color: ink, whiteSpace: 'nowrap', display: 'flex', justifyContent: 'center' }}>
                     <EditText field="location" value={d.location} placeholder="Location" label="Location" optional>
                       {d.location}{date ? ',' : ''}
@@ -289,7 +288,7 @@ export default function CertificatePreview({ formData, captureId = 'certificate-
                 {orgName}
               </div>
               {(d.location || date) && (
-                <Editable field="placeAdjust" label="Place And Date" value={d.placeAdjust} origin="right top" text="location" style={{ flexShrink: 0 }}>
+                <Editable field="placeAdjust" label="Place And Date" fontSize={12} value={d.placeAdjust} origin="right top" text="location" style={{ flexShrink: 0 }}>
                   <div style={{ fontFamily: MONO, fontSize: 12, lineHeight: 1.55, color: ink, whiteSpace: 'nowrap' }}>
                     <EditText field="location" value={d.location} placeholder="Location" label="Location" optional>
                       {d.location}{date ? ',' : ''}
@@ -303,7 +302,7 @@ export default function CertificatePreview({ formData, captureId = 'certificate-
 
           {/* title */}
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: centred ? 'center' : 'space-between', gap: 24, marginTop: portrait ? 64 : 40 }}>
-            <Editable field="titleAdjust" label="Title" value={d.titleAdjust} origin={top} text="certificateTitle" style={{ minWidth: 0 }}>
+            <Editable field="titleAdjust" label="Title" value={d.titleAdjust} origin={top} text="certificateTitle" fontSize={34} style={{ minWidth: 0 }}>
               <EditText field="certificateTitle" value={d.certificateTitle} placeholder={CERTIFICATE_DEFAULTS.certificateTitle} label="Title"
                 style={{ fontFamily: MONO, fontWeight: 500, fontSize: 34, lineHeight: 1.3, letterSpacing: '0.04em', textTransform: 'uppercase', color: ink }}>
                 {titleLines.map((line, i) => <div key={i}>{line}</div>)}
@@ -315,24 +314,24 @@ export default function CertificatePreview({ formData, captureId = 'certificate-
           <div style={{ flex: 1, minHeight: 20 }} />
 
           {/* who it is given to */}
-          <Editable field="introAdjust" label="Line Above The Name" value={d.introAdjust} origin={top} text="introLine">
+          <Editable field="introAdjust" label="Line Above The Name" value={d.introAdjust} origin={top} text="introLine" fontSize={13}>
             <EditText field="introLine" value={d.introLine} placeholder={CERTIFICATE_DEFAULTS.introLine} label="Line Above The Name"
               style={{ fontFamily: SANS, fontSize: 13, color: grey }} />
           </Editable>
           <div style={{ height: 1, background: ink, marginTop: 14 }} />
-          <Editable field="nameAdjust" label="Recipient Name" value={d.nameAdjust} origin={top} text="recipientName">
+          <Editable field="nameAdjust" label="Recipient Name" value={d.nameAdjust} origin={top} text="recipientName" fontSize={nameSize}>
             <EditText field="recipientName" value={d.recipientName} placeholder="Recipient Name" label="Recipient Name"
               style={{ fontFamily: SANS, fontWeight: 700, fontSize: nameSize, letterSpacing: '-0.01em', lineHeight: 1.15, color: ink, padding: '14px 0 16px', overflowWrap: 'anywhere' }} />
           </Editable>
           <div style={{ height: 1, background: ink }} />
 
-          <Editable field="descriptionAdjust" label="Description" value={d.descriptionAdjust} origin={top} text="description" style={{ marginTop: 18 }}>
+          <Editable field="descriptionAdjust" label="Description" value={d.descriptionAdjust} origin={top} text="description" fontSize={13} style={{ marginTop: 18 }}>
             <EditText field="description" value={d.description} multiline label="Description"
               placeholder="In recognition of dedication, effort and the standard of work shown throughout the programme."
               style={{ fontFamily: SANS, fontSize: 13, lineHeight: 1.6, color: grey, whiteSpace: 'pre-line' }} />
           </Editable>
 
-          <Editable field="footerAdjust" label="Line Under The Description" value={d.footerAdjust} origin={top} text="footerLine" style={{ marginTop: 18 }}>
+          <Editable field="footerAdjust" label="Line Under The Description" value={d.footerAdjust} origin={top} text="footerLine" fontSize={12} style={{ marginTop: 18 }}>
             <EditText field="footerLine" value={certificateFooter(d)} label="Line Under The Description" style={{
               fontFamily: MONO, fontWeight: 500, fontSize: 12, lineHeight: 1.5, letterSpacing: '0.05em', textTransform: 'uppercase', color: ink,
               paddingBottom: 9, borderBottom: '1px solid ' + ink,
@@ -359,6 +358,17 @@ export default function CertificatePreview({ formData, captureId = 'certificate-
       </div>
 
       {stampOnSheet && stamp({ position: 'absolute', ...stampSpot(d.stampPosition, S, portrait, showArt, hasSecond) })}
+
+      {/* Text added from the bar (Add Text): placed anywhere by dragging. */}
+      {(d.extraTexts || []).map((id, i) => (
+        <Editable key={id} field={`extra_${id}Adjust`} label="Added Text" value={d[`extra_${id}Adjust`]} origin="left top"
+          text={`extra_${id}`} fontSize={16}
+          style={{ position: 'absolute', left: (showArt && !portrait ? S.band : 0) + FRAME + S.padX[0], top: Math.round(S.h * 0.5) + i * 34, maxWidth: S.w * 0.6 }}>
+          <EditText field={`extra_${id}`} value={d[`extra_${id}`]} placeholder="Type here" label="Added Text" multiline
+            style={{ fontFamily: SANS, fontSize: 16, lineHeight: 1.4, color: ink, whiteSpace: 'pre-line' }} />
+        </Editable>
+      ))}
     </div>
+    </EditFonts>
   );
 }

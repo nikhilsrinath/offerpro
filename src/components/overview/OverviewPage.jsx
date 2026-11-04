@@ -12,15 +12,13 @@ import { useWidgetLayout } from '../hub/useWidgetLayout';
 import { WIDGETS, WIDGET_BY_ID, DEFAULT_LAYOUT, WIDGET_GROUPS } from '../hub/widgetCatalog';
 import { previewHubData } from '../hub/previewData';
 import WidgetBoard from '../hub/WidgetBoard';
-import WidgetDrill from '../hub/WidgetDrill';
-import HubActivity from '../hub/HubActivity';
 import '../../theme/surface.css';
 import '../hub/hub.css';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Dashboard → Overview: the workspace's first page. What used to be the hub,
    inside the Dashboard module: the company's name, a board of widgets the
-   person chooses, and the activity calendar under it.
+   person chooses. The activity calendar is in the Logs panel (Activity).
 
    The board is the person's own: ten widgets by default, any of the catalog
    addable, each removable, resizable and movable (menu, keyboard or drag).
@@ -71,13 +69,6 @@ export default function OverviewPage() {
     const [galleryOpen, setGalleryOpen] = useState(false); // the widget gallery previews the map too
     const [announce, setAnnounce] = useState('');
     const say = (msg) => setAnnounce(msg);
-
-    // The drill-down sheet, opened from a day on the activity calendar.
-    // Widgets open their own pages instead (widgetCatalog `to`).
-    const [drill, setDrill] = useState([]);
-    const pushDrill = useCallback((v) => setDrill((s) => [...s, v]), []);
-    const popDrill = useCallback(() => setDrill((s) => s.slice(0, -1)), []);
-    const closeDrill = useCallback(() => setDrill([]), []);
 
     // World geometry is its own chunk; only fetch it once something needs it.
     const needsMap = layout.some((w) => w.id === 'geomap') || !!openCountry || galleryOpen;
@@ -164,10 +155,6 @@ export default function OverviewPage() {
                 pickerNote="Choose what the overview shows"
                 groups={WIDGET_GROUPS} previewProps={previewProps} onGallery={setGalleryOpen}
             />
-
-            <HubActivity onDrill={(v) => setDrill([v])} />
-
-            {drill.length > 0 && <WidgetDrill stack={drill} push={pushDrill} pop={popDrill} close={closeDrill} />}
 
             {openCountry && (
                 <CountryDialog

@@ -470,7 +470,7 @@ function EmptyState({ archived, filtered, kind, hasAny, onAdd }) {
             proforma and invoice, with its HSN code, rate and tax rate filled in.
           </span>
           <button className="prod-add-btn" onClick={onAdd}>
-            <Plus size={15} /> Add Your First Product
+            <Plus size={15} /> {kind === 'service' ? 'Add Your First Service' : kind === 'product' ? 'Add Your First Product' : 'Add Your First Product / Service'}
           </button>
         </>
       )}

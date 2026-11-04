@@ -336,6 +336,9 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
           : onType ? `Record a ${editing.direction === 'in' ? 'Credit' : 'Debit'}`
             : party === 'client' ? 'Money Coming In' : 'Record money'}
       onClose={onClose}
+      // A click outside (or Esc) asks before throwing away what was typed, and
+      // always on Mark Paid, which opens already filled in from the invoice.
+      dirty={editing !== entry || !!entry.document_id}
     >
       <form onSubmit={handleSave} className="prod-modal-body cb-form">
         {formError && <div className="prod-form-error" role="alert">{formError}</div>}

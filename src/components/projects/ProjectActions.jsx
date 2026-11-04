@@ -13,8 +13,8 @@ import { RowMenu } from './pm/pmUi';
 import ProjectForm from './ProjectForm';
 import { projectRef } from './projectSlug';
 
-/* The project's own controls: its status, and Edit / Duplicate / Archive /
-   Delete under one Actions menu. Shown on the project's home and its
+/* The project's own controls: its status (with Archive), and Edit /
+   Duplicate / Delete under one Actions menu. Shown on the project's home and its
    Overview dashboard only; every other page is about its section. */
 export default function ProjectActions({ project }) {
     const t = useT();
@@ -38,7 +38,24 @@ export default function ProjectActions({ project }) {
         finally { setBusy(false); }
     };
 
+    // Archive sits in the status dropdown after Cancelled. It is a flag, not a
+    // status: archiving keeps the status, and picking a status again unarchives.
+    const archived = !!project.archived_at;
     const changeStatus = (next) => {
+        if (next === 'archived') {
+            if (!archived) act(() => archiveProject(project.id), 'Archived');
+            return;
+        }
+        if (archived) {
+            act(async () => {
+                await unarchiveProject(project.id);
+                if (next !== project.status && next !== 'completed' && next !== 'cancelled') {
+                    await updateProject(project.id, { status: next });
+                }
+            }, 'Restored');
+            if (next !== project.status && (next === 'completed' || next === 'cancelled')) setClosing(next);
+            return;
+        }
         if (next === project.status) return;
         if (next === 'completed' || next === 'cancelled') { setClosing(next); return; }
         act(() => updateProject(project.id, { status: next }), `Marked ${statusLabel(next).toLowerCase()}`);
@@ -63,19 +80,20 @@ export default function ProjectActions({ project }) {
             const { project: copy } = await duplicateProject(project.id);
             navigate(`/projects/${projectRef(copy.id)}`);
         }, 'Duplicated') },
-        editable && (project.archived_at
-            ? { label: 'Unarchive', disabled: busy, onSelect: () => act(() => unarchiveProject(project.id), 'Restored') }
-            : { label: 'Archive', disabled: busy, onSelect: () => act(() => archiveProject(project.id), 'Archived') }),
         editable && admin && { label: 'Delete', danger: true, disabled: busy, onSelect: remove },
     ].filter(Boolean);
 
     return (
         <>
             <Row gap={6} wrap>
-                {editable && !closed && (
-                    <Select aria-label="Project status" value={project.status} disabled={busy}
+                {editable && (
+                    <Select aria-label="Project status" value={archived ? 'archived' : project.status} disabled={busy}
                         onChange={(e) => changeStatus(e.target.value)} style={{ width: 130, height: 29 }}>
-                        {PROJECT_STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                        {/* a closed project only changes status through Reopen,
+                            but it can still be archived or unarchived here */}
+                        {PROJECT_STATUSES.filter((s) => !closed || s.id === project.status)
+                            .map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                        <option value="archived">{archived ? 'Archived' : 'Archive'}</option>
                     </Select>
                 )}
                 {closed && admin && (

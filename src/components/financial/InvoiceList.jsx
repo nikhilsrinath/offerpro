@@ -115,6 +115,8 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
         || (statusFilter === 'outstanding' && d.type === 'invoice'
           && !['draft', 'cancelled', 'paid'].includes(d.status) && balanceOf(d) > 0.009)
         || (statusFilter === 'collected' && Number(d.amount_paid) > 0)
+        // An invoice that was viewed, has a payment claimed or is past due still reads Sent.
+        || (statusFilter === 'sent' && d.type === 'invoice' && ['viewed', 'payment_submitted', 'overdue'].includes(d.status))
         || d.status === statusFilter;
       const matchesProject = scope ? scope.docIds.has(d.id) : projectFilter === 'all'
         || (projectFilter === 'none' ? projectsOf(d.id).length === 0 : projectsOf(d.id).some((p) => p.id === projectFilter));
@@ -577,7 +579,10 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
     }
   };
 
-  let statuses = ['all', 'draft', 'sent', 'viewed', 'payment_submitted', 'paid', 'overdue', 'partially_paid', 'outstanding', 'collected'];
+  // An invoice is Sent until it is paid (DocumentStatusBadge): no Viewed or Overdue here.
+  let statuses = type === 'invoice'
+    ? ['all', 'draft', 'sent', 'partially_paid', 'paid', 'outstanding', 'collected']
+    : ['all', 'draft', 'sent', 'viewed', 'payment_submitted', 'paid', 'overdue', 'partially_paid', 'outstanding', 'collected'];
   if (type === 'quotation') {
     statuses = ['all', 'draft', 'sent', 'viewed', 'accepted', 'revision_requested', 'declined', 'converted'];
   }
@@ -706,7 +711,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                       </div>
                     )}
                   </td>
-                  <td><DocumentStatusBadge status={doc.status} size="small" /></td>
+                  <td><DocumentStatusBadge status={doc.status} type={doc.type} size="small" /></td>
                   {showProjects && (
                     <td style={{ fontSize: '0.75rem' }}>
                       {projectsOf(doc.id).length === 0 ? 'No project' : projectsOf(doc.id).map((p) => (
@@ -752,10 +757,11 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                           label: 'Edit invoice', icon: Edit3,
                           onClick: () => (doc.upload_path ? setEditingUpload(doc) : navigate(formPath('invoice', doc.id))),
                         },
-                        { label: 'Copy portal link', icon: Copy, onClick: () => handleCopyLink(doc) },
+                        // An invoice has no portal link to hand out here; a quotation still does.
+                        type !== 'invoice' && { label: 'Copy portal link', icon: Copy, onClick: () => handleCopyLink(doc) },
                         // An uploaded invoice (ClientInvoicePanel) is its file, not a layout to draw.
                         doc.upload_path ? {
-                          label: 'View Uploaded Invoice', icon: Eye,
+                          label: 'View Invoice', icon: Eye,
                           onClick: async () => { if (!(await receiptService.open(doc.upload_path))) toast('The file could not be opened.', 'error'); },
                         } : {
                           label: 'Download PDF', busyLabel: 'Downloading…', icon: Download,
@@ -825,7 +831,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
       />
 
       <Modal
-        open={!!cancelTarget}
+        open={!!cancelTarget} compact
         onClose={lifecycleBusy ? undefined : () => setCancelTarget(null)}
         title={`Cancel ${docNo(cancelTarget) || typeLabel.toLowerCase()}`}
         note={cancelTarget ? `${cancelTarget.issued_to || cancelTarget.clientName || 'Client'} · ${currencySymbol()}${(cancelTarget.grand_total || cancelTarget.amount || 0).toLocaleString(currencyLocale())}` : ''}
@@ -838,7 +844,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
           </>
         )}
       >
-        <p style={{ margin: '0 0 12px', fontSize: 13.5, lineHeight: 1.6 }}>
+        <p style={{ marginBottom: 12, fontSize: 13.5, lineHeight: 1.6 }}>
           {cancelTarget?.type === 'invoice'
             ? 'The invoice keeps its number and is marked cancelled. It stops counting towards revenue, receivables and GST from now on.'
             : `The ${typeLabel.toLowerCase()} is marked cancelled and the client can no longer act on it from their link.`}

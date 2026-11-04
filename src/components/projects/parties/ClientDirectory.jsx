@@ -1,14 +1,17 @@
 import React, { useMemo, useState } from 'react';
+import { MapPin, FolderKanban, FileText, Edit3, Eye, Plus, Search as SearchIcon } from 'lucide-react';
 import {
-    Panel, Row, Btn, Seg, Search, Select, Field, Empty, Modal, ConfirmBtn, Grid, Muted,
+    Panel, Row, Btn, Seg, Select, Field, Empty, Modal, ConfirmBtn, Muted, RowMenu,
 } from '../../ui/edge';
+import { useOrg } from '../../../context/OrgContext';
+import { CustomerDetail } from '../../Customers';
 import { useT, fmtDate } from '../../ui/edgeUtils';
 import { useToast } from '../../shared/Toast';
 import { orgStore } from '../../../services/orgStore';
 import { updateProject, canEditProjects } from '../../../services/projectService';
 import { fileError } from '../../../services/projectFiles';
 import { useProjectClients, useSetup, CLIENT_STATUSES, clientActive } from './partyData';
-import { SetupGate, Badge, Logo, Detail, Bar } from './partyUi';
+import { SetupGate, Badge, Logo, Detail } from './partyUi';
 import ClientFormDialog from '../../shared/ClientFormDialog';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -38,6 +41,8 @@ export default function ClientDirectory({ project, onOpen }) {
     const [open, setOpen] = useState(null);       // client id
     const [editing, setEditing] = useState(null); // client | {} for new
     const [adding, setAdding] = useState(false);
+    const [history, setHistory] = useState(null); // client whose invoice history is open
+    const { activeOrg } = useOrg();
 
     const canCreate = orgStore.can('clients', 'create');
     const canEdit = orgStore.can('clients', 'edit');
@@ -66,43 +71,65 @@ export default function ClientDirectory({ project, onOpen }) {
 
     return (
         <SetupGate setup={setup} what="the client directory">
-            <Panel title="Clients" note={`${clients.length} on this project`}
-                actions={canCreate && <Btn size="sm" primary onClick={() => setAdding(true)}>Add client</Btn>}>
+            {history ? (
+                <CustomerDetail customer={{ id: history.id, clientName: history.name }} orgId={activeOrg?.id}
+                    backLabel="Client Directory" onBack={() => setHistory(null)}
+                    onEdit={canEdit ? () => setEditing(history) : undefined} />
+            ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {/* The same toolbar as Clients › Client Directory. */}
+                <div className="prod-toolbar" style={{ marginBottom: 0 }}>
+                    <div className="prod-search">
+                        <SearchIcon size={14} />
+                        <input aria-label="Search clients" type="text" placeholder="Search by name, email, or GST..."
+                            value={query} onChange={(e) => setQuery(e.target.value)} />
+                    </div>
+                    <Seg size="sm" value={status} onChange={setStatus} label="Status" options={[
+                        { id: 'all', label: 'All' }, { id: 'active', label: 'Active' }, { id: 'inactive', label: 'Inactive' },
+                    ]} />
+                    {industries.length > 0 && (
+                        <Select aria-label="Filter by industry" value={industry} onChange={(e) => setIndustry(e.target.value)} style={{ width: 160 }}>
+                            <option value="">Every industry</option>
+                            {industries.map((i) => <option key={i} value={i}>{i}</option>)}
+                        </Select>
+                    )}
+                    <Select aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} style={{ width: 160 }}>
+                        {SORTS.map((x) => <option key={x.id} value={x.id}>Sort: {x.label}</option>)}
+                    </Select>
+                    {canCreate && (
+                        <button type="button" onClick={() => setAdding(true)} className="prod-add-btn">
+                            <Plus size={15} /> Add Client
+                        </button>
+                    )}
+                </div>
+
                 {clients.length === 0 ? (
-                    <Empty action={canCreate && <Btn primary onClick={() => setAdding(true)}>Add the client</Btn>}>
-                        No client on this project yet. Add the company it is for, and its contacts, communications and payments are kept here.
-                    </Empty>
+                    <Panel>
+                        <Empty action={canCreate && <Btn primary onClick={() => setAdding(true)}>Add the client</Btn>}>
+                            No client on this project yet. Add the company it is for, and its contacts, communications and payments are kept here.
+                        </Empty>
+                    </Panel>
+                ) : shown.length === 0 ? (
+                    <Panel>
+                        <Empty action={filtered && <Btn onClick={() => { setQuery(''); setIndustry(''); setStatus('all'); }}>Clear filters</Btn>}>
+                            No client matches these filters.
+                        </Empty>
+                    </Panel>
                 ) : (
                     <>
-                        <Bar>
-                            <Search value={query} onChange={setQuery} placeholder="Search clients" width={220} />
-                            <Seg size="sm" value={status} onChange={setStatus} label="Status" options={[
-                                { id: 'all', label: 'All' }, { id: 'active', label: 'Active' }, { id: 'inactive', label: 'Inactive' },
-                            ]} />
-                            {industries.length > 0 && (
-                                <Select aria-label="Filter by industry" value={industry} onChange={(e) => setIndustry(e.target.value)} style={{ width: 160, height: 29 }}>
-                                    <option value="">Every industry</option>
-                                    {industries.map((i) => <option key={i} value={i}>{i}</option>)}
-                                </Select>
-                            )}
-                            <Select aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} style={{ width: 160, height: 29 }}>
-                                {SORTS.map((s) => <option key={s.id} value={s.id}>Sort: {s.label}</option>)}
-                            </Select>
-                        </Bar>
-                        {shown.length === 0 ? (
-                            <Empty action={filtered && <Btn onClick={() => { setQuery(''); setIndustry(''); setStatus('all'); }}>Clear filters</Btn>}>
-                                No client matches these filters.
-                            </Empty>
-                        ) : (
-                            <div style={{ padding: 12 }}>
-                                <Grid min={260} gap={10}>
-                                    {shown.map((c) => <ClientCard key={c.id} client={c} primary={c.id === primaryId} onOpen={() => setOpen(c.id)} />)}
-                                </Grid>
-                            </div>
-                        )}
+                        <div className="customers-grid">
+                            {shown.map((c) => (
+                                <ClientCard key={c.id} client={c} project={project} canEdit={canEdit}
+                                    onOpen={() => setOpen(c.id)} onEdit={() => setEditing(c)} onHistory={() => setHistory(c)} />
+                            ))}
+                        </div>
+                        <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                            Showing {shown.length} of {clients.length} client{clients.length !== 1 ? 's' : ''}
+                        </div>
                     </>
                 )}
-            </Panel>
+            </div>
+            )}
 
             {current && (
                 <ClientSheet client={current} project={project} primary={current.id === primaryId}
@@ -118,29 +145,48 @@ export default function ClientDirectory({ project, onOpen }) {
     );
 }
 
-function ClientCard({ client: c, primary, onOpen }) {
-    const t = useT();
+function ClientCard({ client: c, project, canEdit, onOpen, onEdit, onHistory }) {
     const contact = (c.contacts || []).find((x) => x.primary);
+    const person = contact?.name || c.person_name;
+    const row = { display: 'flex', alignItems: 'flex-start', gap: '0.5rem' };
     return (
-        <button type="button" onClick={onOpen} className="edge-btn" aria-label={`Open ${c.name}`} style={{
-            textAlign: 'left', border: '1px solid ' + t.line, borderRadius: 10, padding: 12, background: t.panel,
-            cursor: 'pointer', display: 'grid', gap: 8, fontFamily: 'inherit', color: t.text, minWidth: 0,
-        }}>
-            <Row gap={10}>
-                <Logo path={c.logo_path} name={c.name} size={36} />
-                <span style={{ minWidth: 0, flex: 1 }}>
-                    <span style={{ display: 'block', fontSize: 13.5, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
-                    <span style={{ display: 'block', fontSize: 11.5, color: t.faint }}>{c.industry || 'Industry not set'}</span>
+        <div className="customer-card" onClick={onOpen} style={{ cursor: 'pointer' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <h4 title={c.name} style={{ fontSize: '0.9375rem', fontWeight: 700, margin: 0, lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflowWrap: 'break-word' }}>
+                        {c.name}
+                    </h4>
+                    {person && person !== c.name && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{person}</div>
+                    )}
+                </div>
+                <span onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
+                    <RowMenu label={`Actions for ${c.name}`} items={[
+                        { label: 'Open', icon: Eye, onClick: onOpen },
+                        canEdit && { label: 'Edit', icon: Edit3, onClick: onEdit },
+                    ]} />
                 </span>
-            </Row>
-            <span style={{ fontSize: 12, color: t.dim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {contact ? `${contact.name}${contact.role ? ` · ${contact.role}` : ''}` : c.person_name || c.email || 'No contact yet'}
-            </span>
-            <Row gap={6} wrap>
-                <Badge color={clientActive(c) ? ACTIVE : INACTIVE}>{clientActive(c) ? 'Active' : `Inactive · ${CLIENT_STATUSES.find((s) => s.id === c.status)?.label || c.status}`}</Badge>
-                {primary && <span style={{ fontSize: 11, color: t.faint, letterSpacing: 0 }}>Project Client</span>}
-            </Row>
-        </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                {c.address && (
+                    <div style={row}>
+                        <MapPin size={12} style={{ flexShrink: 0, opacity: 0.5, marginTop: 2 }} />
+                        <span style={{ lineHeight: 1.4 }}>{c.address}</span>
+                    </div>
+                )}
+                <div style={{ ...row, alignItems: 'center' }}>
+                    <FolderKanban size={12} style={{ flexShrink: 0, opacity: 0.5 }} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {[project.code, project.name].filter(Boolean).join(' · ')}
+                    </span>
+                </div>
+            </div>
+            <button type="button" onClick={(e) => { e.stopPropagation(); onHistory(); }}
+                aria-label={`View invoice history for ${c.name}`}
+                style={{ width: '100%', marginTop: '0.75rem', paddingTop: '0.625rem', minHeight: 28, border: 'none', borderTop: '1px solid var(--border-subtle)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.73rem', fontWeight: 500, color: 'var(--text-secondary)', textAlign: 'left' }}>
+                <FileText aria-hidden="true" size={11} /> View Invoice History
+            </button>
+        </div>
     );
 }
 

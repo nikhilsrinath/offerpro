@@ -15312,3 +15312,66 @@ html body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"
   .rp-a4 { transform: none !important; box-shadow: none; border: none; border-radius: 0; }
   .rp-watermark { display: none; }
 }
+
+/* Records: the seven type tabs sit in one row (All Documents … Templates). */
+.records-summary-grid.records-tab-row {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.records-tab-row .records-summary-card { padding: 0.6rem 0.75rem; gap: 0.5rem; min-width: 0; }
+.records-tab-row .records-summary-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.records-tab-row > :last-child:nth-child(odd) { grid-column: auto; }
+.records-page .records-toolbar { justify-content: flex-start; }
+@media (max-width: 1100px) {
+  .records-summary-grid.records-tab-row { display: flex; overflow-x: auto; }
+  .records-tab-row .records-summary-card { flex: 0 0 auto; }
+}
+
+/* CRM toolbar: search, then the column counts beside it, then Add Lead at the
+   end, all on one line (the button's default 2rem top margin pushed it down). */
+.crm-toolbar .crm-summary-pills { flex: 0 1 auto; justify-content: flex-start; flex-wrap: wrap; }
+.crm-toolbar > .crm-add-lead { margin: 0 0 0 auto !important; align-self: center; display: inline-flex; align-items: center; gap: 0.4rem; }
+/* A smaller card: no move buttons under it on a desktop. */
+.crm-board .crm-card { padding: 0.6rem 0.7rem; }
+.crm-board .crm-card-top { margin-bottom: 0.2rem; }
+
+/* Tax Summary: section headings, the frozen header row of All Entries, paging. */
+.tax-section-title { margin: 0 0 0.6rem; font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
+.tax-entries-wrap { max-height: 70vh; overflow: auto; }
+.tax-entries-wrap thead th { position: sticky; top: 0; z-index: 1; background: var(--surface, var(--bg-elevated)); }
+.tax-pager { display: flex; align-items: center; justify-content: flex-end; gap: 0.6rem; margin-top: 0.6rem; font-size: 0.8rem; color: var(--text-secondary); }
+.tax-pager button { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 8px; }
+
+/* An item on a document given its own font (EditBar's Font): every line in it. */
+.has-font, .has-font * { font-family: var(--item-font) !important; }
+
+/* The edit bar's Font and Font Size, and buttons that never wrap. */
+.edit-bar-text { white-space: nowrap; flex-shrink: 0; }
+.edit-bar-field { display: inline-flex; align-items: center; gap: 0.35rem; margin: 0 !important; flex-shrink: 0; }
+.edit-bar-field > span { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.edit-bar-num, .edit-bar-select {
+  height: 30px; border-radius: 8px; border: 1px solid var(--border-default); background: var(--bg-base, #fff);
+  color: var(--text-primary); font: inherit; font-size: 0.75rem; padding: 0 0.45rem; color-scheme: light dark;
+}
+.edit-bar-num { width: 4.2rem; font-variant-numeric: tabular-nums; }
+.edit-bar-select { max-width: 11rem; }
+
+/* The certificate's tool row: every control on one line, the same height. */
+.cert-tools > *, .cert-tools label, .cert-bar .edit-bar > * { margin: 0 !important; align-self: center; }
+.cert-tools .cert-tool-inp, .cert-tools .cert-btn, .cert-tools .cert-tool-btn { height: 32px; box-sizing: border-box; }
+.cert-tool-lbl { line-height: 1; }
+
+/* "Click anything on the certificate to edit it" sits at the canvas's bottom left. */
+.cert-stage-hint {
+  position: absolute; left: 14px; bottom: 12px; z-index: 5; display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 6px 10px; border: 1px solid var(--border-default); border-radius: 10px; background: var(--bg-elevated);
+  font-size: 0.75rem; color: var(--text-muted); pointer-events: none; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* The Accent picker's "No Accent" choice: a plain certificate. */
+.cert-pop-none {
+  display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.3rem 0.5rem; border: 1px solid var(--border-default);
+  border-radius: 8px; background: transparent; color: var(--text-secondary); font: inherit; font-size: 0.72rem; cursor: pointer;
+}
+.cert-pop-none[aria-pressed="true"] { border-color: var(--blue); color: var(--text-primary); }
+.cert-dot.none { background: repeating-linear-gradient(45deg, #fff 0 3px, #d4d4d4 3px 4px) !important; }

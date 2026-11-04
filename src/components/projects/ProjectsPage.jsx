@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import useRememberedState from '../../hooks/useRememberedState';
 import { useNavigate } from 'react-router-dom';
 import {
     Page, Toolbar, Panel, Row, Btn, Seg, Search, Select, Table, Tr, Td,
@@ -49,14 +50,14 @@ export default function ProjectsPage() {
     const clients = useSection('customers');
     const employees = useSection('employees');
 
-    const [view, setView] = useState('list');
-    const [query, setQuery] = useState('');
-    const [status, setStatus] = useState('open');
-    const [client, setClient] = useState('all');
-    const [manager, setManager] = useState('all');
-    const [mine, setMine] = useState(false);
-    const [showArchived, setShowArchived] = useState(false);
-    const [healthFilter, setHealthFilter] = useState('all');
+    const [view, setView] = useRememberedState('projects.view', 'list');
+    const [query, setQuery] = useRememberedState('projects.query', '');
+    // 'all' = every project not archived; 'archived' = only the archived ones.
+    const [status, setStatus] = useRememberedState('projects.status', 'all');
+    const [client, setClient] = useRememberedState('projects.type', 'all');
+    const [manager, setManager] = useRememberedState('projects.manager', 'all');
+    const [mine, setMine] = useRememberedState('projects.mine', false);
+    const [healthFilter, setHealthFilter] = useRememberedState('projects.health', 'all');
     const [money_, setMoney] = useState({});
 
     const fin = canSeeFinancials();
@@ -89,10 +90,11 @@ export default function ProjectsPage() {
     }, [projects, milestones, tasks]);
 
     const filtered = useMemo(() => withPinsFirst(projects.filter((p) => {
-        if (!showArchived && p.archived_at) return false;
-        if (status === 'open' && isClosed(p)) return false;
-        if (status !== 'open' && status !== 'all' && p.status !== status) return false;
-        if (client === 'internal' ? !!p.client_id : client !== 'all' && p.client_id !== client) return false;
+        if (status === 'archived') { if (!p.archived_at) return false; }
+        else if (p.archived_at) return false;
+        if (status !== 'all' && status !== 'archived' && p.status !== status) return false;
+        if (client === 'internal' && p.client_id) return false;
+        if (client === 'client' && !p.client_id) return false;
         if (manager !== 'all' && p.manager_employee_id !== manager) return false;
         if (healthFilter !== 'all' && money_[p.id]?.health !== healthFilter) return false;
         if (mine) {
@@ -101,7 +103,7 @@ export default function ProjectsPage() {
             if (!onIt) return false;
         }
         return matchProject(p, query, clientName[p.client_id]);
-    }).sort(latestFirst), pins), [projects, showArchived, status, client, manager, healthFilter, money_, mine, myEmployeeId, members, query, clientName, pins]);
+    }).sort(latestFirst), pins), [projects, status, client, manager, healthFilter, money_, mine, myEmployeeId, members, query, clientName, pins]);
     const pinnedShown = filtered.filter((p) => pins.includes(p.id)).map((p) => p.id);
 
     const counts = useMemo(() => {
@@ -155,19 +157,19 @@ export default function ProjectsPage() {
                 <Search value={query} onChange={setQuery} placeholder="Search name, code, client…" width={220} height={31} />
                 {view === 'list' && (
                     <Seg value={status} onChange={setStatus} label="Status" options={[
-                        { id: 'open', label: 'Open' },
-                        { id: 'active', label: 'Active' },
-                        { id: 'planned', label: 'Planned' },
-                        { id: 'on_hold', label: 'On hold' },
                         { id: 'all', label: 'All' },
+                        { id: 'planned', label: 'Planned' },
+                        { id: 'active', label: 'Active' },
+                        { id: 'on_hold', label: 'On hold' },
+                        { id: 'completed', label: 'Completed' },
+                        { id: 'cancelled', label: 'Cancelled' },
+                        { id: 'archived', label: 'Archive' },
                     ]} />
                 )}
                 <Select aria-label="Client" value={client} onChange={(e) => setClient(e.target.value)} style={{ width: 160 }}>
-                    <option value="all">Every client</option>
-                    <option value="internal">Internal only</option>
-                    {clients.filter((c) => projects.some((p) => p.client_id === c.id)).map((c) => (
-                        <option key={c.id} value={c.id}>{c.name || c.clientName}</option>
-                    ))}
+                    <option value="all">All</option>
+                    <option value="internal">Internal Only</option>
+                    <option value="client">Client Only</option>
                 </Select>
                 {managers.length > 0 && (
                     <Select aria-label="Manager" value={manager} onChange={(e) => setManager(e.target.value)} style={{ width: 150 }}>
@@ -186,9 +188,6 @@ export default function ProjectsPage() {
                     <option value="at_risk">At risk</option>
                     <option value="off_track">Off track</option>
                 </Select>
-                <Btn aria-pressed={showArchived} onClick={() => setShowArchived((v) => !v)}>
-                    {showArchived ? 'Hide archived' : 'Show archived'}
-                </Btn>
             </Toolbar>
 
             {fin && (
@@ -210,16 +209,17 @@ export default function ProjectsPage() {
                 <Panel><Empty>Nothing matches those filters.</Empty></Panel>
             ) : (
                 <Table id="projects" cols={[
-                    { key: 'pin', label: 'Pin', width: 84, always: true },
+                    { key: 'sn', label: 'S.No', width: 56, always: true },
                     { key: 'c', label: 'Code', width: 110 },
                     { key: 'n', label: 'Project', always: true },
-                    { key: 'cl', label: 'Client', def: false },
+                    { key: 'cl', label: 'Type of Project', def: false },
                     { key: 'm', label: 'Manager' },
                     { key: 's', label: 'Status' },
                     { key: 'h', label: 'Health' },
-                    { key: 'd', label: 'Dates' },
+                    { key: 'd', label: 'Start Date' },
+                    { key: 'ed', label: 'End Date' },
                     { key: 'p', label: 'Progress', width: 120 },
-                    { key: 'ty', label: 'Type of project', def: false },
+                    { key: 'ty', label: 'Nature of Project', def: false },
                     { key: 'bt', label: 'Billing type', def: false },
                     { key: 'cur', label: 'Currency', def: false },
                     { key: 'tg', label: 'Tags', def: false },
@@ -236,8 +236,10 @@ export default function ProjectsPage() {
                         { key: 'lab', label: 'Labour cost', align: 'right', def: false },
                         { key: 'bud', label: 'Budget', align: 'right', def: false },
                     ] : []),
+                    // Pinning lives at the end of the row; S.No holds the first place.
+                    { key: 'pin', label: 'Pin', width: 96, align: 'right', always: true },
                 ]}>
-                    {(show) => filtered.map((p) => {
+                    {(show) => filtered.map((p, i) => {
                         const prog = progressOf[p.id];
                         const mgr = empById[p.manager_employee_id];
                         const f = money_[p.id];
@@ -245,14 +247,7 @@ export default function ProjectsPage() {
                         const amt = (v) => (v == null ? dash : money(v));
                         return (
                             <Tr key={p.id} onClick={() => open(p)} label={`Open ${p.name}`}>
-                                {show('pin') && (
-                                    <Td nowrap>
-                                        <PinControls name={p.name} pinned={pins.includes(p.id)}
-                                            first={pinnedShown[0] === p.id} last={pinnedShown[pinnedShown.length - 1] === p.id}
-                                            onToggle={() => setPins((x) => togglePin(x, p.id))}
-                                            onMove={(by) => setPins((x) => movePin(x, p.id, by))} />
-                                    </Td>
-                                )}
+                                {show('sn') && <Td muted nowrap>{i + 1}</Td>}
                                 {show('c') && <Td muted nowrap>{p.code}</Td>}
                                 {show('n') && (
                                     <Td nowrap>
@@ -263,7 +258,7 @@ export default function ProjectsPage() {
                                         </span>
                                     </Td>
                                 )}
-                                {show('cl') && <Td nowrap>{p.client_id ? clientName[p.client_id] || 'Client' : 'Internal'}</Td>}
+                                {show('cl') && <Td nowrap>{p.client_id ? 'Client' : 'Internal'}</Td>}
                                 {show('m') && (
                                     <Td nowrap>
                                         {mgr ? (
@@ -273,11 +268,8 @@ export default function ProjectsPage() {
                                 )}
                                 {show('s') && <Td nowrap><Status tone={STATUS_TONE[p.status]}>{statusLabel(p.status)}</Status></Td>}
                                 {show('h') && <Td nowrap><HealthChip health={f?.health} reasons={f?.health_reasons || []} /></Td>}
-                                {show('d') && (
-                                    <Td muted nowrap>
-                                        {p.start_date ? fmtDate(p.start_date) : '-'} → {p.target_end_date ? fmtDate(p.target_end_date) : '-'}
-                                    </Td>
-                                )}
+                                {show('d') && <Td muted nowrap>{p.start_date ? fmtDate(p.start_date) : dash}</Td>}
+                                {show('ed') && <Td muted nowrap>{p.target_end_date ? fmtDate(p.target_end_date) : dash}</Td>}
                                 {show('p') && (
                                     <Td>
                                         {prog == null ? dash : (
@@ -314,6 +306,14 @@ export default function ProjectsPage() {
                                 {show('bud') && (
                                     <Td align="right" nowrap>
                                         {money((Number(p.budget_labour) || 0) + (Number(p.budget_vendor) || 0) + (Number(p.budget_other) || 0))}
+                                    </Td>
+                                )}
+                                {show('pin') && (
+                                    <Td align="right" nowrap>
+                                        <PinControls name={p.name} pinned={pins.includes(p.id)}
+                                            first={pinnedShown[0] === p.id} last={pinnedShown[pinnedShown.length - 1] === p.id}
+                                            onToggle={() => setPins((x) => togglePin(x, p.id))}
+                                            onMove={(by) => setPins((x) => movePin(x, p.id, by))} />
                                     </Td>
                                 )}
                             </Tr>

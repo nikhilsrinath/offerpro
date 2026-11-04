@@ -126,7 +126,7 @@ export function useInvoiceActions({ projectId = null, clients = [] } = {}) {
     const cancelled = doc.status === 'cancelled';
     const back = cancelled ? reactivationOf(doc, docs) : null;
     return [
-      { label: doc.upload_path ? 'View Uploaded Invoice' : 'View Invoice', icon: Eye, onClick: () => view(id) },
+      { label: 'View Invoice', icon: Eye, onClick: () => view(id) },
       // Shown even when it cannot be used yet: clicking says why.
       canEdit && {
         label: 'Edit', icon: Pencil, onClick: () => edit(id),
@@ -184,7 +184,7 @@ export function useInvoiceActions({ projectId = null, clients = [] } = {}) {
           onClose={() => setEditingUpload(null)} />
       )}
       <Modal
-        open={!!cancelling}
+        open={!!cancelling} compact
         onClose={busy ? undefined : () => setCancelling(null)}
         title={`Cancel ${docNumber(cancelling) || 'invoice'}`}
         note={cancelling ? `${cancelling.issued_to || cancelling.clientName || 'Client'} · ${money(cancelling.grand_total, 2)}` : ''}
@@ -195,7 +195,7 @@ export function useInvoiceActions({ projectId = null, clients = [] } = {}) {
           </>
         )}
       >
-        <p style={{ margin: '0 0 12px', fontSize: 13.5, lineHeight: 1.6 }}>
+        <p style={{ marginBottom: 12, fontSize: 13.5, lineHeight: 1.6 }}>
           The invoice keeps its number and is marked cancelled. It stops counting towards revenue, receivables and GST
           from now on, and stays on the ledger as cancelled so it can be reactivated.
           {cancelling?.converted_from ? ' The document it was converted from can be converted again.' : ''}

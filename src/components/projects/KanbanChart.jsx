@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import useRememberedState from '../../hooks/useRememberedState';
 import { useNavigate } from 'react-router-dom';
 import {
     Page, Toolbar, Panel, Row, Btn, Search, Select, Avatar, Status, Bar, Empty, Muted, StatBand,
@@ -67,11 +68,11 @@ export default function KanbanChart() {
     const clients = useSection('customers');
     const employees = useSection('employees');
 
-    const [query, setQuery] = useState('');
-    const [client, setClient] = useState('all');
-    const [manager, setManager] = useState('all');
-    const [health, setHealth] = useState('all');
-    const [showArchived, setShowArchived] = useState(false);
+    const [query, setQuery] = useRememberedState('kanban.query', '');
+    const [client, setClient] = useRememberedState('kanban.type', 'all');
+    const [manager, setManager] = useRememberedState('kanban.manager', 'all');
+    const [health, setHealth] = useRememberedState('kanban.health', 'all');
+    const [showArchived, setShowArchived] = useRememberedState('kanban.archived', false);
     const [rows, setRows] = useState({});
     const fin = canSeeFinancials();
     const today = todayIso();
@@ -103,7 +104,9 @@ export default function KanbanChart() {
 
     const shown = useMemo(() => projects.filter((p) => {
         if (!showArchived && p.archived_at) return false;
-        if (client === 'internal' ? !!p.client_id : client !== 'all' && p.client_id !== client) return false;
+        // Type of Project: Client or Internal
+        if (client === 'internal' && p.client_id) return false;
+        if (client === 'client' && !p.client_id) return false;
         if (manager !== 'all' && p.manager_employee_id !== manager) return false;
         if (health !== 'all' && rows[p.id]?.health !== health) return false;
         return matchProject(p, query, clientName[p.client_id]);
@@ -143,12 +146,10 @@ export default function KanbanChart() {
         <Page>
             <Toolbar right={newProject}>
                 <Search value={query} onChange={setQuery} placeholder="Search name, code, client…" width={220} />
-                <Select aria-label="Client" value={client} onChange={(e) => setClient(e.target.value)} style={{ width: 160, height: 29 }}>
-                    <option value="all">Every client</option>
-                    <option value="internal">Internal only</option>
-                    {clients.filter((c) => projects.some((p) => p.client_id === c.id)).map((c) => (
-                        <option key={c.id} value={c.id}>{c.name || c.clientName}</option>
-                    ))}
+                <Select aria-label="Type of Project" value={client} onChange={(e) => setClient(e.target.value)} style={{ width: 140, height: 29 }}>
+                    <option value="all">All</option>
+                    <option value="internal">Internal Only</option>
+                    <option value="client">Client Only</option>
                 </Select>
                 {managers.length > 0 && (
                     <Select aria-label="Manager" value={manager} onChange={(e) => setManager(e.target.value)} style={{ width: 150, height: 29 }}>
@@ -203,7 +204,7 @@ export default function KanbanChart() {
                                         ? <div style={{ padding: '18px 6px', textAlign: 'center', fontSize: 11.5, color: t.ghost }}>Nothing here</div>
                                         : list.map((p) => (
                                             <Card key={p.id} p={p} today={today} fin={fin}
-                                                client={p.client_id ? clientName[p.client_id] || 'Client' : 'Internal'}
+                                                client={p.client_id ? 'Client' : 'Internal'}
                                                 mgr={empById[p.manager_employee_id]} nameOf={nameOf}
                                                 stats={work[p.id]} health={rows[p.id]} onOpen={open} />
                                         ))}

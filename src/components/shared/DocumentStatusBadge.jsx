@@ -33,9 +33,16 @@ const TONE = {
   pending: 'attention', payment_submitted: 'attention', partially_paid: 'attention',
   revision_requested: 'attention', party_a_signed: 'attention', paused: 'attention',
   draft: 'mute', completed: 'mute',
+  sent: 'sent',
 };
 
-export default function DocumentStatusBadge({ status, size = 'default' }) {
+/* An invoice reads Sent until it is paid: whether the client opened the link
+   (Viewed), claimed a payment through it or let the due date pass, it is still
+   a sent invoice waiting for its money. */
+const INVOICE_AS_SENT = new Set(['viewed', 'payment_submitted', 'overdue']);
+
+export default function DocumentStatusBadge({ status: raw, type, size = 'default' }) {
+  const status = type === 'invoice' && INVOICE_AS_SENT.has(raw) ? 'sent' : raw;
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.draft;
 
   return (
