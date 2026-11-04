@@ -145,8 +145,9 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
   const pageNo = Math.min(listPage, pages - 1);
   const pageDocs = filteredDocs.slice(pageNo * PAGE_SIZE, (pageNo + 1) * PAGE_SIZE);
   useEffect(() => { setListPage(0); }, [search, statusFilter, sortBy, projectFilter]);
-  // A project's invoices are listed in their own column order (no Client or Project).
-  const projectInvoices = !!projectId && type === 'invoice';
+  // Invoices (company and project) have their own column order, without Client;
+  // the company list keeps a Project column, since it spans every project.
+  const projectInvoices = type === 'invoice';
 
   // Auto-detect overdue invoices
   useEffect(() => {
@@ -688,7 +689,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
         <table className="fin-list-table">
           <thead>
             {projectInvoices ? (
-              // A project's invoices: S.No | Issue Date | Invoice No | Amount | GST | Due Date | Status | Actions.
+              // Invoices: S.No | Issue Date | Invoice No | Amount | GST | Due Date | Status | (Project) | Actions.
               <tr>
                 <th>S.No</th>
                 <th>Issue Date</th>
@@ -697,6 +698,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                 <th>GST</th>
                 <th>Due Date</th>
                 <th>Status</th>
+                {showProjects && <th>Project</th>}
                 <th>Actions</th>
               </tr>
             ) : (
@@ -716,7 +718,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
           <tbody>
             {filteredDocs.length === 0 ? (
               <tr>
-                <td colSpan={projectInvoices ? 8 : (type === 'invoice' ? 8 : 7) + (showProjects ? 1 : 0)} className="fin-list-empty">
+                <td colSpan={(projectInvoices ? 8 : 7) + (showProjects ? 1 : 0)} className="fin-list-empty">
                   {projectId ? `No ${typeLabel.toLowerCase()}s on this project yet` : `No ${typeLabel.toLowerCase()}s found`}
                 </td>
               </tr>
@@ -750,7 +752,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                     )}
                   </td>
                   <td><DocumentStatusBadge status={doc.status} type={doc.type} size="small" /></td>
-                  {showProjects && !projectInvoices && (
+                  {showProjects && (
                     <td style={{ fontSize: '0.75rem' }}>
                       {projectsOf(doc.id).length === 0 ? 'No project' : projectsOf(doc.id).map((p) => (
                         <div key={p.id}><ProjectBadge project={p} /></div>
