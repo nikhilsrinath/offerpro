@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Eye, Edit3, Copy, CheckCircle, Bell, Search, Filter, Plus, X, Download, Trash2, Ban, RotateCcw } from 'lucide-react';
+import { Eye, Edit3, Copy, CheckCircle, Bell, Search, Filter, Plus, X, Download, Trash2, Ban, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { documentStore, docNumber as docNo } from '../../services/documentStore';
@@ -32,8 +32,11 @@ import { initialQuery } from '../../services/urlQuery';
 import { currencySymbol, currencyLocale } from '../../shared/currency.js';
 import { formatDateDMY } from '../../shared/dates.js';
 
+const PAGE_SIZE = 50; // rows a page
+
 // With `projectId` (a project's Billing page) it lists only that project's
 // documents, and a new or revised one opens its form on the project.
+
 export default function InvoiceList({ type = 'invoice', projectId = null }) {
   const navigate = useNavigate();
   const toast = useToast();
@@ -135,6 +138,15 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
       return 0;
     });
   }, [documents, search, statusFilter, sortBy, projectFilter, projectsOf, scope]);
+
+  // 50 rows a page; a new search or filter starts again at the first page.
+  const [listPage, setListPage] = useState(0);
+  const pages = Math.max(1, Math.ceil(filteredDocs.length / PAGE_SIZE));
+  const pageNo = Math.min(listPage, pages - 1);
+  const pageDocs = filteredDocs.slice(pageNo * PAGE_SIZE, (pageNo + 1) * PAGE_SIZE);
+  useEffect(() => { setListPage(0); }, [search, statusFilter, sortBy, projectFilter]);
+  // A project's invoices are listed in their own column order (no Client or Project).
+  const projectInvoices = !!projectId && type === 'invoice';
 
   // Auto-detect overdue invoices
   useEffect(() => {
@@ -675,6 +687,19 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
       <div className="fin-list-table-wrap">
         <table className="fin-list-table">
           <thead>
+            {projectInvoices ? (
+              // A project's invoices: S.No | Issue Date | Invoice No | Amount | GST | Due Date | Status | Actions.
+              <tr>
+                <th>S.No</th>
+                <th>Issue Date</th>
+                <th>Invoice No</th>
+                <th>Amount</th>
+                <th>GST</th>
+                <th>Due Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            ) : (
             <tr>
               <th>{typeLabel} No</th>
               <th>Client</th>
@@ -686,22 +711,35 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
               {showProjects && <th>Project</th>}
               <th>Actions</th>
             </tr>
+            )}
           </thead>
           <tbody>
             {filteredDocs.length === 0 ? (
               <tr>
-                <td colSpan={(type === 'invoice' ? 8 : 7) + (showProjects ? 1 : 0)} className="fin-list-empty">
+                <td colSpan={projectInvoices ? 8 : (type === 'invoice' ? 8 : 7) + (showProjects ? 1 : 0)} className="fin-list-empty">
                   {projectId ? `No ${typeLabel.toLowerCase()}s on this project yet` : `No ${typeLabel.toLowerCase()}s found`}
                 </td>
               </tr>
             ) : (
-              filteredDocs.map((doc) => (
+              pageDocs.map((doc, i) => (
                 <tr key={doc.id} data-focus={`doc:${doc.id}`}>
+                  {projectInvoices ? (
+                    <>
+                      <td>{pageNo * PAGE_SIZE + i + 1}</td>
+                      <td>{formatDateDMY(doc.issue_date)}</td>
+                      <td className="fin-list-id">{docNo(doc)}</td>
+                      <td className="fin-list-amount">{currencySymbol()}{(doc.grand_total || doc.amount || 0).toLocaleString(currencyLocale())}</td>
+                      <td>{currencySymbol()}{Number(doc.gst || doc.gst_amount || 0).toLocaleString(currencyLocale())}</td>
+                    </>
+                  ) : (
+                    <>
                   <td className="fin-list-id">{docNo(doc)}</td>
                   <td>{doc.issued_to || doc.client?.name || '-'}</td>
                   <td className="fin-list-amount">{currencySymbol()}{(doc.grand_total || doc.amount || 0).toLocaleString(currencyLocale())}</td>
-                  {type === 'invoice' && <td>{currencySymbol()}{(doc.gst || 0).toLocaleString(currencyLocale())}</td>}
+                  {type === 'invoice' && <td>{currencySymbol()}{Number(doc.gst || doc.gst_amount || 0).toLocaleString(currencyLocale())}</td>}
                   <td>{formatDateDMY(doc.issue_date)}</td>
+                    </>
+                  )}
                   <td>
                     {formatDateDMY(doc.valid_until || doc.due_date)}
                     {isOverdue(doc) && (
@@ -712,7 +750,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                     )}
                   </td>
                   <td><DocumentStatusBadge status={doc.status} type={doc.type} size="small" /></td>
-                  {showProjects && (
+                  {showProjects && !projectInvoices && (
                     <td style={{ fontSize: '0.75rem' }}>
                       {projectsOf(doc.id).length === 0 ? 'No project' : projectsOf(doc.id).map((p) => (
                         <div key={p.id}><ProjectBadge project={p} /></div>
@@ -811,6 +849,13 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
           </tbody>
         </table>
       </div>
+      {pages > 1 && (
+        <div className="fin-list-pager" role="navigation" aria-label="Pages">
+          <button type="button" className="prod-btn-ghost" disabled={pageNo === 0} onClick={() => setListPage(pageNo - 1)} aria-label="Previous page"><ChevronLeft size={14} /></button>
+          <span>{pageNo * PAGE_SIZE + 1}–{Math.min(filteredDocs.length, (pageNo + 1) * PAGE_SIZE)} of {filteredDocs.length} · Page {pageNo + 1} of {pages}</span>
+          <button type="button" className="prod-btn-ghost" disabled={pageNo >= pages - 1} onClick={() => setListPage(pageNo + 1)} aria-label="Next page"><ChevronRight size={14} /></button>
+        </div>
+      )}
 
       {receiving && (
         <CashEntryModal entry={receiving} party="client" projectId={projectId}
