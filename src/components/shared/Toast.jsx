@@ -1,6 +1,9 @@
 import { useState, createContext, useContext, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, AlertTriangle, Info } from 'lucide-react';
+import { brand } from '../../theme/palette.js';
+
+const BL = brand().light;
 
 const ToastContext = createContext(null);
 
@@ -15,7 +18,7 @@ const COLORS = {
   success: { bg: '#ecfdf5', border: '#a7f3d0', text: '#065f46', icon: '#059669' },
   error: { bg: '#fef2f2', border: '#fecaca', text: '#991b1b', icon: '#dc2626' },
   warning: { bg: '#fffbeb', border: '#fde68a', text: '#92400e', icon: '#f59e0b' },
-  info: { bg: '#fffde0', border: '#ece47a', text: '#5f5600', icon: '#9e9200' },
+  info: { bg: BL.noticeBg, border: BL.noticeBorder, text: BL.noticeText, icon: BL.noticeIcon },
 };
 
 export function ToastProvider({ children }) {

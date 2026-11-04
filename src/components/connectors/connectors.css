@@ -1,0 +1,91 @@
+/* ── AI → Connectors ──────────────────────────────────────────────────── */
+.cn-group + .cn-group { margin-top: 22px; }
+.cn-group-title { font-size: 12.5px; font-weight: 600; color: var(--muted); margin: 0 0 10px; }
+.cn-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+/* The whole card is a button that opens the connector's guide. */
+.cn-card { display: flex; flex-direction: column; gap: 6px; min-height: 148px; padding: 16px; border-radius: 12px; background: var(--card); border: 1px solid var(--line) !important; color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: border-color .15s; }
+.cn-card:hover { border-color: var(--accent) !important; }
+.cn-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cn-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+/* Brand marks sit on white in both themes: several (Notion, Tally) are black
+   and would vanish on a dark card. */
+.cn-logo { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: none; background: #fff; border: 1px solid var(--line, var(--dr-line)); overflow: hidden; }
+.cn-logo img { width: 22px; height: 22px; object-fit: contain; display: block; }
+/* A wordmark (Tally) needs the tile's full width to be legible. */
+.cn-logo.is-wide img { width: 32px; height: 32px; }
+.cn-logo.is-icon { background: var(--card-2, var(--dr-field)); color: var(--text, var(--dr-text)); }
+.cn-logo.is-lg { width: 48px; height: 48px; border-radius: 12px; }
+.cn-logo.is-lg img { width: 30px; height: 30px; }
+.cn-logo.is-lg.is-wide img { width: 42px; height: 42px; }
+.cn-name { font-size: 14px; font-weight: 700; }
+.cn-desc { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin: 0; }
+.cn-soon { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; color: var(--dim); background: var(--card-2); white-space: nowrap; }
+
+/* ── the connector's side panel ──────────────────────────────────────── */
+.cn-hero { display: flex; gap: 14px; align-items: flex-start; }
+.cn-hero p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--dr-text); }
+.cn-note { padding: 10px 12px; border-radius: 8px; background: var(--dr-field); font-size: 12.5px; line-height: 1.5; color: var(--dr-dim); }
+.cn-sec { padding-top: 16px; border-top: 1px solid var(--dr-line); }
+.cn-sec h3 { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--dr-text); }
+.cn-hero + .cn-note, .cn-hero + .cn-sec, .cn-note + .cn-sec, .cn-sec + .cn-sec { margin-top: 16px; }
+.cn-uses { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cn-use { padding: 12px; border-radius: 8px; border: 1px solid var(--dr-line); }
+.cn-use-title { font-size: 13px; font-weight: 600; color: var(--dr-text); margin-bottom: 4px; }
+.cn-use p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--dr-dim); }
+.cn-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cn-steps li { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.5; color: var(--dr-text); }
+.cn-step-n { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; margin-top: 1px; font-size: 11px; font-weight: 600; background: var(--dr-field); color: var(--dr-text); }
+.cn-tips { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.5; color: var(--dr-dim); }
+.cn-access-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.cn-access-head { font-size: 12px; font-weight: 600; color: var(--dr-faint); margin-bottom: 6px; }
+.cn-access { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cn-access li { display: flex; gap: 6px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; color: var(--dr-text); }
+.cn-access li svg { flex: none; margin-top: 2px; }
+.cn-access.is-ok svg { color: var(--pos, #16a34a); }
+.cn-access.is-never svg { color: var(--dr-down, #dc2626); }
+.cn-who { margin: 12px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--dr-dim); }
+
+/* A connected card. */
+.cn-soon.is-on { gap: 4px; color: var(--pos, #16a34a); }
+
+/* ── a live connector's Connection section ───────────────────────────── */
+.cn-connect { display: flex; flex-direction: column; gap: 10px; }
+.cn-status { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--dr-line); }
+.cn-ok { color: var(--pos, #16a34a); flex: none; margin-top: 1px; }
+.cn-status-title { font-size: 13px; font-weight: 600; color: var(--dr-text); }
+.cn-status-text { font-size: 12.5px; color: var(--dr-dim); margin-top: 2px; }
+.cn-field-label { font-size: 12.5px; font-weight: 500; color: var(--dr-dim); }
+.cn-field-hint { font-size: 12px; color: var(--dr-faint); }
+.cn-keyform { display: flex; flex-direction: column; gap: 6px; }
+.cn-input { height: 32px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--dr-line); background: var(--dr-field); color: var(--dr-text); font: inherit; font-size: 13px; outline: none; }
+.cn-input:focus { border-color: var(--dr-faint); box-shadow: none; }
+.cn-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cn-choice { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--dr-line); cursor: pointer; }
+.cn-choice.is-on { border-color: var(--dr-text); }
+.cn-choice input { margin-top: 3px; accent-color: var(--dr-text); }
+.cn-choice-title { display: block; font-size: 13px; font-weight: 600; color: var(--dr-text); }
+.cn-choice-text { display: block; font-size: 12px; line-height: 1.45; color: var(--dr-dim); margin-top: 2px; }
+.cn-msg { display: flex; gap: 6px; align-items: flex-start; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.45; background: var(--dr-field); }
+.cn-msg svg { flex: none; margin-top: 2px; }
+.cn-msg.is-ok { color: var(--dr-text); }
+.cn-msg.is-ok svg { color: var(--pos, #16a34a); }
+.cn-msg.is-error { color: var(--dr-down, #dc2626); }
+.cn-msg + .cn-connect, .cn-msg + .cn-note { margin-top: 10px; }
+.cn-usage { font-size: 12.5px; color: var(--dr-dim); }
+.cn-logs ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--dr-line); border-radius: 8px; max-height: 260px; overflow-y: auto; }
+.cn-logs li { display: flex; gap: 10px; align-items: baseline; padding: 7px 10px; font-size: 12.5px; color: var(--dr-text); }
+.cn-logs li + li { border-top: 1px solid var(--dr-line); }
+.cn-logs li.is-fail .cn-log-what { color: var(--dr-down, #dc2626); }
+.cn-log-when { flex: none; width: 108px; color: var(--dr-faint); font-variant-numeric: tabular-nums; }
+.cn-log-what { flex: 1; min-width: 0; line-height: 1.45; color: var(--dr-dim); }
+.cn-log-what strong { font-weight: 600; color: var(--dr-text); }
+.cn-log-credits { flex: none; color: var(--dr-faint); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 1280px) { .cn-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 980px) { .cn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .cn-grid { grid-template-columns: 1fr; }
+  .cn-uses, .cn-access-grid, .cn-choices { grid-template-columns: 1fr; }
+  .cn-log-when { width: auto; }
+  .cn-logs li { flex-wrap: wrap; }
+}

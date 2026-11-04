@@ -312,8 +312,7 @@ export default function PurchaseInvoices({ project = null, party = null, onOpen 
   return (
     <div style={{ maxWidth: '100%' }}>
       <RecordMoneyCard t={t} scoped logs={logs} onRecord={money$.record} style={{ marginBottom: 12 }}
-        labels={isVendor ? VENDOR_LABELS : undefined}
-        onOpen={(r) => money$.openEntry(r, r.direction)} />
+        labels={isVendor ? VENDOR_LABELS : undefined} />
       <div className="prod-stats">
         <Stat icon={<ArrowDownLeft size={15} />} label={isVendor ? 'Total Billed' : 'Total Credit'} value={money(credit, 2)}
           sub={view === 'in' ? 'Showing credit only' : undefined} onClick={() => flip('in')} />

@@ -256,7 +256,7 @@ export default function InternRecords() {
             const cfg = TYPE_CONFIG[record.type] || TYPE_CONFIG.offer;
             const Icon = cfg.icon;
             return (
-              <div key={record.id} className="records-grid-card">
+              <div key={record.id} className="records-grid-card" data-focus={`record:${record.id}`}>
                 <div className="records-grid-card-header">
                   <div className="records-grid-card-icon" style={{ background: cfg.bg, color: cfg.color }}>
                     <Icon size={20} />
@@ -317,7 +317,7 @@ export default function InternRecords() {
                 const cfg = TYPE_CONFIG[record.type] || TYPE_CONFIG.offer;
                 const Icon = cfg.icon;
                 return (
-                  <tr key={record.id}>
+                  <tr key={record.id} data-focus={`record:${record.id}`}>
                     <td style={{ padding: '1rem 1.5rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <div style={{
@@ -375,7 +375,7 @@ export default function InternRecords() {
               const cfg = TYPE_CONFIG[record.type] || TYPE_CONFIG.offer;
               const Icon = cfg.icon;
               return (
-                <div key={record.id} style={{
+                <div key={record.id} data-focus={`record:${record.id}`} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '1.25rem', borderBottom: '1px solid var(--border-subtle)', gap: '1rem'
                 }}>

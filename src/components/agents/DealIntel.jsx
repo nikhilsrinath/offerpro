@@ -225,6 +225,7 @@ export default function DealIntel({ onBack, theme = 'dark' }) {
                                             {r.deal.stage} · {r.deal.value === null ? 'No value recorded' : money(r.deal.value)}
                                             {r.deal.last_activity ? ` · last activity ${formatDate(r.deal.last_activity.date)}` : ''}
                                             {r.confidence === 'limited' ? ' · limited data' : ''}
+                                            {r.deal.company?.hiring_fast ? ' · hiring fast (Apollo)' : ''}
                                         </div>
                                         {r.reasons.length > 0 && <div className="ag-item-a">{r.reasons.slice(0, 2).map((x) => x.why).join(' · ')}</div>}
                                         <div className="ag-item-m">Next step: {r.next_step ? `${r.next_step.title}, due ${formatDate(r.next_step.due)}` : 'none recorded'}</div>

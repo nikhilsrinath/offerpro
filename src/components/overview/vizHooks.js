@@ -1,5 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useT } from '../ui/edgeUtils';
+import { brand } from '../../theme/palette.js';
+
+const B = brand();
 
 /* Hooks and helpers for vizKit.jsx, kept apart so that file exports only
    components and fast refresh keeps working. */
@@ -13,12 +16,8 @@ export function useViz() {
         cat: d
             ? [t.chart, '#d95926', '#199e70', '#c98500', '#d55181', '#008300']
             : [t.chart, '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300'],
-        ramp: d
-            ? ['#3a3a1c', '#68681f', '#b0b026', '#e0e02a', '#ffff9e']
-            : ['#f2ec78', '#d8cd1c', '#9e9200', '#7a6e00', '#4a4200'],
-        heat: d
-            ? [t.raised, '#3a3a1c', '#68681f', '#b0b026', '#fefe2f']
-            : [t.raised, '#fbf8c0', '#f2ec78', '#d8cd1c', '#9e9200'],
+        ramp: d ? B.dark.ramp : B.light.ramp,
+        heat: [t.raised, ...t.scale.slice(1, 5)],
         status: { good: '#0ca30c', warning: '#fab219', serious: '#ec835a', critical: '#d03b3b', neutral: t.faint },
     };
 }

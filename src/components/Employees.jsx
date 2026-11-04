@@ -743,7 +743,7 @@ export default function Employees() {
                                 const c = deptColor(emp.department, departments);
                                 const dash = <span style={{ color: t.ghost }}>-</span>;
                                 return (
-                                    <Tr key={emp.id} onClick={() => setSelected(emp)}>
+                                    <Tr key={emp.id} onClick={() => setSelected(emp)} focus={`employee:${emp.id}`}>
                                         {show('n') && (
                                             <Td>
                                                 <Row gap={9}>
@@ -791,7 +791,7 @@ export default function Employees() {
                                 const c = deptColor(emp.department, departments);
                                 return (
                                     <button key={emp.id} type="button" onClick={() => setSelected(emp)}
-                                        className="edge-tr"
+                                        className="edge-tr" data-focus={`employee:${emp.id}`}
                                         style={{
                                             display: 'block', textAlign: 'left', cursor: 'pointer',
                                             border: '1px solid ' + t.line, borderRadius: 10, padding: 13,

@@ -125,8 +125,7 @@ export default function PartyLedger({ party = 'client', projectId = null, onOpen
   const outstanding = totals?.balance || 0;
   return (
     <div style={{ maxWidth: '100%' }}>
-      <RecordMoneyCard t={t} scoped logs={logs} onRecord={record} style={{ marginBottom: 12 }} labels={CLIENT_LABELS}
-        onOpen={(r) => editEntry(r.direction, r.id)} />
+      <RecordMoneyCard t={t} scoped logs={logs} onRecord={record} style={{ marginBottom: 12 }} labels={CLIENT_LABELS} />
 
       <div className="prod-stats">
         <Stat icon={<ArrowUpRight size={15} />} label="Invoiced" value={money(totals?.debit || 0, 2)}

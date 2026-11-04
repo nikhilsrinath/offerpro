@@ -23,7 +23,7 @@ import { useProfileCompletion } from '../../hooks/useProfileCompletion';
 import { useToast } from '../shared/Toast';
 import { useTheme } from '../../hooks/useTheme';
 import { EdgeThemeContext } from '../../theme/EdgeTheme';
-import { makeTokens, MONO } from '../../theme/edge';
+import { makeTokens, railTokens, MONO } from '../../theme/edge';
 import {
   RailIsland, RailHead, RailHeading, RailList, RailItem, IslandBtn, AccountBtns, RailFoot, RailSpacer,
 } from '../shell/railIsland';
@@ -61,6 +61,7 @@ export default function EmployeePortal() {
   // The portal's back leads to the hub, like every page's.
   const navigate = useNavigate();
   const t = makeTokens(theme === 'dark');
+  const rt = railTokens(t); // navy rail in light mode
   // The sidenav is the navigation island, painted like the hub.
   const orgId = activeOrg?.id;
   const width = useWindowWidth();
@@ -218,32 +219,32 @@ export default function EmployeePortal() {
       <div style={{ height: '100vh', display: 'flex', overflow: 'hidden', background: t.shell }}>
         {/* ── rail ───────────────────────────────────────────────────────── */}
         {!mobile && (
-          <RailIsland t={t} open={!narrow} label="Portal navigation" widths={{ open: 244, shut: 80 }}>
+          <RailIsland t={rt} open={!narrow} label="Portal navigation" widths={{ open: 244, shut: 80 }}>
             <RailHead>
               <span style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0, flex: 1 }}>
                 {activeOrg?.logo_url ? (
                   <img src={activeOrg.logo_url} alt="" style={{ width: 34, height: 34, borderRadius: 11, objectFit: 'cover', flexShrink: 0 }} />
                 ) : (
                   <span aria-hidden="true" style={{
-                    width: 34, height: 34, borderRadius: 11, background: t.accentBtn, color: t.onAccent, flexShrink: 0,
+                    width: 34, height: 34, borderRadius: 11, background: rt.accentBtn, color: rt.onAccent, flexShrink: 0,
                     display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 600,
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.3), 0 6px 18px -6px ' + t.accent,
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.3), 0 6px 18px -6px ' + rt.accent,
                   }}>{orgName.slice(0, 2).toUpperCase()}</span>
                 )}
                 {!narrow && (
                   <span style={{ minWidth: 0, lineHeight: 1.25 }}>
                     <span style={{ display: 'block', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orgName}</span>
-                    <span style={{ display: 'block', fontSize: 11.5, color: t.faint }}>Employee portal</span>
+                    <span style={{ display: 'block', fontSize: 11.5, color: rt.faint }}>Employee portal</span>
                   </span>
                 )}
               </span>
             </RailHead>
 
             <RailList label="Portal sections">
-              <RailHeading t={t} open={!narrow}>My work</RailHeading>
+              <RailHeading t={rt} open={!narrow}>My work</RailHeading>
               {TABS.map((x) => (
                 <RailItem
-                  key={x.id} t={t} open={!narrow} icon={x.icon} label={x.label}
+                  key={x.id} t={rt} open={!narrow} icon={x.icon} label={x.label}
                   active={x.id === tab} onClick={() => go(x.id)}
                   badge={x.id === 'announcements' ? unread : 0}
                 />
@@ -252,17 +253,17 @@ export default function EmployeePortal() {
 
             <RailSpacer />
 
-            <RailFoot t={t} open={!narrow}>
+            <RailFoot t={rt} open={!narrow}>
               {role && role !== 'employee' && (
-                <IslandBtn t={t} icon={ArrowLeft} label="Back to dashboard" onClick={() => navigate('/dashboard/overview')} />
+                <IslandBtn t={rt} icon={ArrowLeft} label="Back to dashboard" onClick={() => navigate('/dashboard/overview')} />
               )}
-              <IslandBtn t={t} icon={theme === 'dark' ? Sun : Moon} label={theme === 'dark' ? 'Light mode' : 'Dark mode'} onClick={toggleTheme} />
+              <IslandBtn t={rt} icon={theme === 'dark' ? Sun : Moon} label={theme === 'dark' ? 'Light mode' : 'Dark mode'} onClick={toggleTheme} />
               {/* The account actions every rail ends with. An employee has no
                   company profile to open, and this page is already the portal. */}
               {role && role !== 'employee' ? (
-                <AccountBtns t={t} profile={profile} onLogout={logout} portal={false} />
+                <AccountBtns t={rt} profile={profile} onLogout={logout} portal={false} />
               ) : (
-                <IslandBtn t={t} icon={LogOut} label="Log out" danger onClick={logout} />
+                <IslandBtn t={rt} icon={LogOut} label="Log out" danger onClick={logout} />
               )}
             </RailFoot>
           </RailIsland>

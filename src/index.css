@@ -10,14 +10,16 @@
   --mouse-x: 50%;
   --mouse-y: 50%;
 
-  /* Theme-agnostic accent colors. Yellow on white is ~1.1:1, so --blue (text,
-     borders, marks) is the yellow darkened for light; fills use --blue-fill. */
-  --blue: #7a6e00;
-  --blue-hover: #5f5600;
-  --blue-fill: #fefe2f;
-  --on-blue: #18181b;
-  --blue-muted: rgba(254, 254, 47, 0.2);
-  --blue-border: rgba(122, 110, 0, 0.35);
+  /* Brand colours: values come from src/theme/palette.js (--brand-*); the
+     names say "blue" for history. --blue is the teal accent as text,
+     borders and marks (darkened to clear AA); --blue-fill is the primary
+     button (navy; light blue in dark mode); --blue-muted the light-blue tint. */
+  --blue: var(--brand-text-l);
+  --blue-hover: var(--brand-hover-l);
+  --blue-fill: var(--brand-primary-l);
+  --on-blue: var(--brand-on-primary-l);
+  --blue-muted: var(--brand-soft-l);
+  --blue-border: var(--brand-border-l);
 
   /* Shared chart / tooltip variables */
   --chart-tooltip-bg: #ffffff;
@@ -101,7 +103,7 @@
   --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
   --card-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.06);
 
-  --focus-ring: 0 0 0 2px var(--bg-base), 0 0 0 4px rgba(122, 110, 0, 0.45);
+  --focus-ring: 0 0 0 2px var(--bg-base), 0 0 0 4px rgba(var(--brand-text-l-rgb), 0.45);
 
   --chart-tooltip-bg: #ffffff;
   --chart-tooltip-border: rgba(0, 0, 0, 0.08);
@@ -154,10 +156,12 @@
   --text-tertiary: #71717a;
   --text-muted: #52525b;
 
-  --blue: #fefe2f;
-  --blue-hover: #ffff9e;
-  --blue-muted: rgba(254, 254, 47, 0.12);
-  --blue-border: rgba(254, 254, 47, 0.3);
+  --blue: var(--brand-text-d);
+  --blue-hover: var(--brand-hover-d);
+  --blue-fill: var(--brand-primary-d);
+  --on-blue: var(--brand-on-primary-d);
+  --blue-muted: var(--brand-soft-d);
+  --blue-border: var(--brand-border-d);
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -168,7 +172,7 @@
   --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255, 255, 255, 0.03) inset;
   --card-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
 
-  --focus-ring: 0 0 0 2px var(--bg-base), 0 0 0 4px rgba(254, 254, 47, 0.5);
+  --focus-ring: 0 0 0 2px var(--bg-base), 0 0 0 4px rgba(var(--brand-fill-rgb), 0.5);
 
   --chart-tooltip-bg: #1a1a2e;
   --chart-tooltip-border: rgba(255, 255, 255, 0.1);
@@ -3290,7 +3294,7 @@ h3 {
 }
 
 .billing-add-btn:hover {
-  background: rgba(254, 254, 47, 0.36);
+  background: rgba(var(--brand-fill-rgb), 0.36);
 }
 
 .billing-expense-form {
@@ -4482,7 +4486,7 @@ label {
 }
 
 .pro-gst-row {
-  color: rgba(254, 254, 47, 1);
+  color: rgba(var(--brand-fill-rgb), 1);
 }
 
 .pro-gst-row span:last-child {
@@ -4943,7 +4947,7 @@ label {
 }
 
 .records-tab.active .records-tab-count {
-  background: rgba(254, 254, 47, 0.3);
+  background: rgba(var(--brand-fill-rgb), 0.3);
   color: var(--blue);
 }
 
@@ -5125,8 +5129,8 @@ label {
 }
 
 .records-action-btn.download:hover {
-  background: rgba(254, 254, 47, 0.2);
-  border-color: rgba(254, 254, 47, 0.5);
+  background: rgba(var(--brand-fill-rgb), 0.2);
+  border-color: rgba(var(--brand-fill-rgb), 0.5);
   color: var(--blue);
 }
 
@@ -5717,7 +5721,7 @@ label {
 .easy-inp:focus {
   outline: none;
   border-color: var(--blue);
-  box-shadow: 0 0 0 3px rgba(254, 254, 47, 0.16);
+  box-shadow: 0 0 0 3px rgba(var(--brand-fill-rgb), 0.16);
   background: var(--bg-raised);
 }
 
@@ -5821,8 +5825,8 @@ label {
 }
 
 .easy-switch-row.active {
-  border-color: rgba(254, 254, 47, 0.6);
-  background: rgba(254, 254, 47, 0.08);
+  border-color: rgba(var(--brand-fill-rgb), 0.6);
+  background: rgba(var(--brand-fill-rgb), 0.08);
 }
 
 .easy-switch-label {
@@ -6058,7 +6062,7 @@ label {
 .easy-add-btn:hover {
   border-color: var(--blue-border);
   color: var(--blue-hover);
-  background: rgba(254, 254, 47, 0.08);
+  background: rgba(var(--brand-fill-rgb), 0.08);
 }
 
 /* Totals card */
@@ -7053,9 +7057,9 @@ label {
 }
 
 .img-editor-toolbar button.active {
-  background: var(--blue-muted, rgba(254, 254, 47, 0.24));
+  background: var(--blue-muted, rgba(var(--brand-fill-rgb), 0.24));
   color: var(--blue-hover, var(--blue));
-  border-color: var(--blue-border, rgba(254, 254, 47, 0.5));
+  border-color: var(--blue-border, rgba(var(--brand-fill-rgb), 0.5));
 }
 
 .img-editor-toolbar .toolbar-divider {
@@ -7819,7 +7823,7 @@ label {
 .emp-type-badge.intern {
   background: var(--blue-muted);
   color: var(--blue);
-  box-shadow: inset 0 0 0 1px rgba(254, 254, 47, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(var(--brand-fill-rgb), 0.3);
 }
 
 .emp-type-badge.collab {
@@ -8614,12 +8618,12 @@ label {
   font-weight: 700;
   font-family: var(--font-main);
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(254, 254, 47, 0.6);
+  box-shadow: 0 2px 8px rgba(var(--brand-fill-rgb), 0.3);
   transition: all 0.2s;
 }
 
 .empf-btn-submit:hover:not(:disabled) {
-  box-shadow: 0 4px 16px rgba(254, 254, 47, 0.8);
+  box-shadow: 0 4px 16px rgba(var(--brand-fill-rgb), 0.4);
   transform: translateY(-1px);
 }
 
@@ -11507,12 +11511,12 @@ label {
 
 .rp-btn-outline {
   background: transparent;
-  color: #7a6e00;
-  border: 1px solid #ece47a;
+  color: var(--brand-text-l);
+  border: 1px solid var(--brand-notice-border);
 }
 
 .rp-btn-outline:hover {
-  background: #fffde0;
+  background: var(--brand-notice-bg);
 }
 
 .rp-btn-danger-outline {
@@ -15212,7 +15216,7 @@ html body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"
 .rp-header { box-shadow: none; border-bottom: 1px solid #e5e7eb; }
 .rp-header-inner { max-width: 1320px; padding: 0.75rem 1.5rem; }
 .rp-header-logo, .rp-header-logo-placeholder { width: 36px; height: 36px; border-radius: 9px; }
-.rp-header-logo-placeholder { background: #fffde0; color: #7a6e00; }
+.rp-header-logo-placeholder { background: var(--brand-notice-bg); color: var(--brand-text-l); }
 .rp-header-brand h1 { font-size: 0.9375rem; font-weight: 650; color: #0f172a; }
 .rp-header-brand span { font-size: 0.75rem; color: #64748b; }
 .rp-header-secure {
@@ -15236,7 +15240,7 @@ html body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 .rp-card-header { margin-bottom: 0.75rem; }
-.rp-card-header svg { color: #7a6e00; }
+.rp-card-header svg { color: var(--brand-text-l); }
 .rp-card-header h3 { font-size: 1rem; font-weight: 650; color: #0f172a; }
 .rp-card-desc { color: #64748b; }
 
@@ -15275,9 +15279,9 @@ html body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"
 
 /* Buttons: one blue for the main action, quiet outlines for the rest. */
 .rp-btn { padding: 0.7rem 1rem; border-radius: 10px; font-size: 0.875rem; font-weight: 600; }
-.rp-btn:focus-visible { outline: 2px solid #7a6e00; outline-offset: 2px; }
-.rp-btn-primary { background: #fefe2f; color: #18181b; box-shadow: 0 1px 2px rgba(122, 110, 0, 0.25); }
-.rp-btn-primary:not(:disabled):hover { background: #f2f21c; transform: none; box-shadow: 0 2px 8px rgba(122, 110, 0, 0.3); }
+.rp-btn:focus-visible { outline: 2px solid var(--brand-text-l); outline-offset: 2px; }
+.rp-btn-primary { background: var(--brand-primary-l); color: var(--brand-on-primary-l); box-shadow: 0 1px 2px rgba(var(--brand-navy-rgb), 0.25); }
+.rp-btn-primary:not(:disabled):hover { background: var(--brand-primary-hover-l); transform: none; box-shadow: 0 2px 8px rgba(var(--brand-navy-rgb), 0.3); }
 .rp-btn-outline { background: #fff; color: #0f172a; border: 1px solid #d5dbe3; }
 .rp-btn-outline:hover { background: #f8fafc; }
 .rp-btn-ghost { background: #f1f5f9; color: #334155; }

@@ -38,9 +38,14 @@ const orMissing = (key) => async (res) => {
 const SOURCES = {
   clients: {
     resource: 'clients',
-    load: (db, orgId) => db.from('clients')
-      .select('id, name, person_name, email, status, status_changed_at, value, notes, archived_at, created_at, updated_at')
-      .eq('org_id', orgId).in('status', ['lead', 'contacted', 'active', 'lost']).is('archived_at', null).limit(ROW_CAP),
+    load: async (db, orgId) => {
+      const cols = 'id, name, person_name, email, status, status_changed_at, value, notes, archived_at, created_at, updated_at';
+      const q = (c) => db.from('clients').select(c)
+        .eq('org_id', orgId).in('status', ['lead', 'contacted', 'active', 'lost']).is('archived_at', null).limit(ROW_CAP);
+      // company_profile (Apollo's company details) is 0106, which may not be on the database yet.
+      const res = await q(`${cols}, company_profile`);
+      return res.error && MISSING.has(res.error.code) ? q(cols) : res;
+    },
   },
   quotes: {
     resource: 'financial_documents',

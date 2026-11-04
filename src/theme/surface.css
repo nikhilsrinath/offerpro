@@ -7,88 +7,95 @@
    readable text; --ghost is for dividers and markers only.
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* Values are theme/edge.js makeTokens(), one-for-one, so the hub and the
+/* Values are theme/edge.js makeTokens() (via the --brand-* variables
+   palette.js writes), one-for-one, so the hub and the
    copilot read as the same theme as every module:
      --bg panel · --card card · --card-2 panelAlt · --card-3 raised
      --line line · --line-2 lineStrong · --text text · --muted dim
      --dim faint · --ghost ghost · --pos up · --neg down · --chart-a chart */
 .eo-surface[data-theme="dark"] {
-  --shell: #0e0e0f;
-  --bg: #141415;
-  --panel: #1a1a1c;
-  --card: #1a1a1c;
-  --card-2: #222225;
-  --card-3: #29292d;
-  --line: #262629;
-  --line-soft: #1f1f22;
-  --line-2: #36363b;
-  --line-3: #46464c;
-  --text: #f5f5f6;
-  --text-2: #f5f5f6;
-  --muted: #a1a1a8;
-  --dim: #8b8b92;
-  --ghost: #6a6a72;
+  --shell: var(--brand-d-shell);
+  --bg: var(--brand-d-panel);
+  --panel: var(--brand-d-card);
+  --card: var(--brand-d-card);
+  --card-2: var(--brand-d-panel-alt);
+  --card-3: var(--brand-d-raised);
+  --line: var(--brand-d-line);
+  --line-soft: var(--brand-d-line-soft);
+  --line-2: var(--brand-d-line-strong);
+  --line-3: var(--brand-d-line-max);
+  --text: var(--brand-d-text);
+  --text-2: var(--brand-d-text);
+  --muted: var(--brand-d-dim);
+  --dim: var(--brand-d-faint);
+  --ghost: var(--brand-d-ghost);
   --pos: #3ecf75;
   --neg: #f26d6d;
-  --accent: #fefe2f;
-  --accent-btn: #fefe2f;
-  --sel-bg: #fefe2f;
-  --sel-text: #0e0e0f;
-  --on-text: #0e0e0f;
-  --chart-a: #fefe2f;
-  --chart-b: #3a3a40;
-  --map-null: #26262a;
-  --scale-1: #3a3a1c;
-  --scale-2: #68681f;
-  --scale-3: #b0b026;
-  --scale-4: #fefe2f;
-  --scale-5: #ffff9e;
-  --hi: inset 0 1px 0 rgba(255, 255, 255, .06);
+  --accent: var(--brand-text-d);
+  --accent-btn: var(--brand-primary-d);
+  --accent-soft: var(--brand-soft-d);
+  --teal-btn: var(--brand-teal-btn);
+  --on-teal: var(--brand-on-teal);
+  --sel-bg: var(--brand-primary-d);
+  --sel-text: var(--brand-on-primary-d);
+  --on-text: var(--brand-on-primary-d);
+  --chart-a: var(--brand-chart-d);
+  --chart-b: var(--brand-d-line-strong);
+  --map-null: var(--brand-d-map-null);
+  --scale-1: var(--brand-scale-d-1);
+  --scale-2: var(--brand-scale-d-2);
+  --scale-3: var(--brand-scale-d-3);
+  --scale-4: var(--brand-scale-d-4);
+  --scale-5: var(--brand-scale-d-5);
+  --hi: inset 0 1px 0 rgba(255, 255, 255, .05);
   --shadow: 0 24px 60px -20px rgba(0, 0, 0, .85);
-  --orb: radial-gradient(circle at 35% 30%, #ffffd6 0%, #fefe2f 45%, #4d4a00 92%);
-  --orb-glow: rgba(254, 254, 47, .22);
-  --orb-glow-2: rgba(254, 254, 47, .36);
+  --orb: var(--brand-orb-d);
+  --orb-glow: rgba(var(--brand-fill-rgb), .22);
+  --orb-glow-2: rgba(var(--brand-fill-rgb), .36);
   --scrim: rgba(0, 0, 0, .5);
   color-scheme: dark;
 }
 
 .eo-surface[data-theme="light"] {
-  --shell: #f5f6f8;
-  --bg: #ffffff;
-  --panel: #ffffff;
-  --card: #ffffff;
-  --card-2: #f8f9fb;
-  --card-3: #f1f3f6;
-  --line: #e8eaee;
-  --line-soft: #f1f2f5;
-  --line-2: #d7dbe1;
-  --line-3: #c0c6cf;
-  --text: #101828;
-  --text-2: #101828;
-  --muted: #475467;
-  --dim: #667085;
-  --ghost: #868fa0;
+  --shell: var(--brand-l-shell);
+  --bg: var(--brand-l-panel);
+  --panel: var(--brand-l-card);
+  --card: var(--brand-l-card);
+  --card-2: var(--brand-l-panel-alt);
+  --card-3: var(--brand-l-raised);
+  --line: var(--brand-l-line);
+  --line-soft: var(--brand-l-line-soft);
+  --line-2: var(--brand-l-line-strong);
+  --line-3: var(--brand-l-line-max);
+  --text: var(--brand-l-text);
+  --text-2: var(--brand-l-text);
+  --muted: var(--brand-l-dim);
+  --dim: var(--brand-l-faint);
+  --ghost: var(--brand-l-ghost);
   --pos: #15803d;
   --neg: #c62828;
-  --accent: #7a6e00;
-  --accent-btn: #fefe2f;
-  --sel-bg: #fefe2f;
-  --sel-text: #101828;
-  --on-text: #101828;
-  --chart-a: #9e9200;
-  --chart-b: #dde2e9;
-  --map-null: #eef1f5;
-  --scale-1: #fbf8c0;
-  --scale-2: #f2ec78;
-  --scale-3: #d8cd1c;
-  --scale-4: #9e9200;
-  --scale-5: #5f5600;
+  --accent: var(--brand-text-l);
+  --accent-btn: var(--brand-primary-l);
+  --accent-soft: var(--brand-soft-l);
+  --teal-btn: var(--brand-teal-btn);
+  --on-teal: var(--brand-on-teal);
+  --sel-bg: var(--brand-primary-l);
+  --sel-text: var(--brand-on-primary-l);
+  --on-text: var(--brand-on-primary-l);
+  --chart-a: var(--brand-chart-l);
+  --chart-b: var(--brand-light-blue);
+  --map-null: var(--brand-l-map-null);
+  --scale-1: var(--brand-scale-l-1);
+  --scale-2: var(--brand-scale-l-2);
+  --scale-3: var(--brand-scale-l-3);
+  --scale-4: var(--brand-scale-l-4);
+  --scale-5: var(--brand-scale-l-5);
   --hi: inset 0 1px 0 rgba(255, 255, 255, .9);
-  --shadow: 0 12px 32px -12px rgba(16, 24, 40, .18);
-  --orb: radial-gradient(circle at 35% 30%, #ffffff 0%, #fefe2f 42%, #7a6e00 92%);
-  --orb-glow: rgba(254, 254, 47, .3);
-  --orb-glow-2: rgba(254, 254, 47, .45);
-  --scrim: rgba(20, 28, 32, .25);
+  --shadow: 0 12px 32px -12px rgba(var(--brand-navy-rgb), .18);
+  --orb: var(--brand-orb-l);
+  --orb-glow: rgba(var(--brand-fill-rgb), .2);
+  --orb-glow-2: rgba(var(--brand-fill-rgb), .34);
+  --scrim: rgba(var(--brand-navy-rgb), .25);
   color-scheme: light;
 }
 

@@ -15,6 +15,8 @@ import { updateProject, canEditProjects } from '../../services/projectService';
 import { validate, isEmail, isPhone, isUrl, isGstin, contactErrors } from '../../services/projectWorkspace';
 import { CLIENT_STATUSES, todayIso } from '../projects/parties/partyData';
 import { LogoField, ContactsEditor } from '../projects/parties/partyUi';
+import ApolloFill from '../connectors/ApolloFill';
+import { autoFillAfterCreate } from '../../services/connectorsService';
 
 /* The one Add / Edit Client panel. The Client Directory, New project's Add
    Client and a project's Client Directory all open this, so a client is made
@@ -63,6 +65,8 @@ function initial(c, project) {
         alt_contact: c?.alt_contact || '',
         client_since: c?.client_since || '',
         contacts: c?.contacts || [],
+        // 0106: company details from Apollo, kept with the client when saved.
+        company_profile: c?.company_profile || null,
         project,
     };
 }
@@ -72,6 +76,7 @@ export default function ClientFormDialog({ client = null, project = null, defaul
     const toast = useToast();
     const cp = useClientProjects();
     const profile = useProfileColumns('clients');
+    const hasCompany = useProfileColumns('clients', 'company_profile');
     // What the Project dropdown opened on, so an edit that changes it moves them.
     const [fromProject] = useState(() => (client ? initialProject(client.id, cp.projects, cp.links) : OTHERS));
     const [form, setForm] = useState(() => initial(client, client ? fromProject : defaultProject));
@@ -98,6 +103,7 @@ export default function ClientFormDialog({ client = null, project = null, defaul
         // `project` is not a client column; it is applied through the project links.
         const { project: chosen, ...fields } = form;
         if (!profile) PROFILE.forEach((k) => delete fields[k]);
+        if (!hasCompany || !fields.company_profile) delete fields.company_profile;
         const data = { ...fields, clientName: company || contact, person_name: contact, buyerGSTIN: form.buyerGSTIN.trim().toUpperCase() };
         setSaving(true);
         try {
@@ -124,6 +130,9 @@ export default function ClientFormDialog({ client = null, project = null, defaul
                     toast('Client saved, but the project could not be set: ' + err.message, 'error');
                 }
             }
+            // A new client nobody looked up yet: Apollo fills it in, if the
+            // company turned that on. In the background; the save is done.
+            if (!client && id && hasCompany && !data.company_profile) autoFillAfterCreate(activeOrg.id, 'client', id, { toast });
             const saved = orgStore.getSectionAsList('customers').find((c) => c.id === id) || { ...client, ...data, id };
             toast(client ? 'Client updated' : project ? 'Client added to the project' : 'Client added', 'success');
             onSaved?.(saved);
@@ -162,6 +171,16 @@ export default function ClientFormDialog({ client = null, project = null, defaul
                     )}
                     {field('Contact person', 'person_name', text('person_name', { autoFocus: true }))}
                     {field('Company name', 'clientName', text('clientName', { maxLength: 200 }))}
+                    {hasCompany && (
+                        <div className="easy-field full">
+                            <ApolloFill orgId={activeOrg?.id} kind="client" form={form}
+                                onFill={(fields, company) => setForm((f) => {
+                                    // Website and industry are 0074 fields; without them only the rest is filled.
+                                    const { website, industry, ...always } = fields;
+                                    return { ...f, ...always, ...(profile ? { website: website ?? f.website, industry: industry ?? f.industry } : {}), company_profile: company };
+                                })} />
+                        </div>
+                    )}
                     {profile && field('Designation', 'contact_designation', text('contact_designation'))}
                     {profile && field('Industry', 'industry', text('industry', { placeholder: 'Retail, Healthcare…' }))}
                     {!project && field('Project', 'project', (

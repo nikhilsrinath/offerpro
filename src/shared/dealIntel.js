@@ -29,6 +29,9 @@
 //   communications    client_communications.client_id (0074)
 //   approvals         client_approvals.client_id (0074)
 //   notes             clients.notes; EdgeAI's add_client_note dates each line
+//   company           clients.company_profile (0106): Apollo.io's details, as
+//                     of the last lookup. Hiring fast raises a lead's priority;
+//                     it is never a risk and never decides one.
 //
 // Opstead stores no follow-up date, next action, close probability or stage
 // history for a deal. Nothing here invents one: the next step is the soonest
@@ -43,6 +46,7 @@ import { isIsoDate, formatDate } from './dates.js';
 import { daysUntil, alertsDue } from './deadlineWatch.js';
 import { baseCurrency, currencyLocale, recordCurrency } from './currency.js';
 import { money, localDay, resolvePeriod, comparisonPeriod } from './bizIntel.js';
+import { isHiringFast, growthText } from './apollo.js';
 
 export const AGENT_ID = 'deal_intelligence';
 export const AGENT_NAME = 'Deal Intelligence Agent';
@@ -342,6 +346,8 @@ export function collectDeals(input, { today, tz = 'Asia/Kolkata', config: raw, i
         : inrOpenQuotes.length
           ? { amount: r2(inrOpenQuotes.reduce((s, q) => s + n(q.total), 0)), basis: 'open quotations (incl. GST); no deal value recorded' }
           : { amount: null, basis: 'no value recorded' },
+      // What Apollo knew about the company at the last lookup (0106), if anyone looked.
+      company: companyOf(c.company_profile),
       gaps: [],
     };
     deal.href = HREF.deal(deal);
@@ -354,6 +360,20 @@ export function collectDeals(input, { today, tz = 'Asia/Kolkata', config: raw, i
 
   deals.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
   return { deals, highValue: highValueLine(deals, config), config, coverage: cov };
+}
+
+/** The few company facts a deal carries, from clients.company_profile. */
+function companyOf(p) {
+  if (!p || typeof p !== 'object') return null;
+  const num = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
+  return {
+    source: p.source || 'apollo',
+    as_of: typeof p.fetched_at === 'string' ? p.fetched_at.slice(0, 10) : null,
+    industry: p.industry || null,
+    employees: num(p.employees),
+    growth_6m: num(p.growth_6m),
+    hiring_fast: isHiringFast(p),
+  };
 }
 
 const CHANNEL = { email: 'Email', phone: 'Call', whatsapp: 'WhatsApp', meeting: 'Meeting', other: 'Contact' };
@@ -611,6 +631,7 @@ export const SCORING = Object.freeze({
   inactive_max: 25,             // 5 at the threshold, + 1 a day after it
   value_max: 20,                // in proportion to the largest weighted deal
   contacted: 5,                 // further along than a lead
+  hiring_fast: 10,              // an open deal whose company is hiring fast (Apollo, 0106)
 });
 
 /**
@@ -661,6 +682,9 @@ export function prioritize(collected, findings) {
         `${money(d.weight.amount)} ${d.weight.basis === 'recorded deal value' ? 'recorded value' : 'in open quotations (no deal value recorded)'}${d.weight.amount === maxWeight ? ', the largest' : ''}`);
     }
     if (d.stage === 'contacted') add(SCORING.contacted, 'Already in conversation (Contacted)');
+    if (d.open && d.company?.hiring_fast) {
+      add(SCORING.hiring_fast, `Hiring fast: ${growthText(d.company.growth_6m)} people in six months${d.company.employees ? ` (${d.company.employees.toLocaleString('en-IN')} now)` : ''}, per Apollo${d.company.as_of ? ` on ${formatDate(d.company.as_of)}` : ''}`);
+    }
 
     const linkedRecords = d.quotes.length + d.projects.length + d.communications.length + d.approvals.length;
     const thin = d.weight.amount === null && linkedRecords === 0;
@@ -669,7 +693,7 @@ export function prioritize(collected, findings) {
       deal: {
         id: d.id, name: d.name, contact: d.contact, stage: d.stage_label, kind: d.kind, value: d.value,
         last_activity: d.last_activity ? { date: d.last_activity.date, label: d.last_activity.label } : null,
-        days_inactive: d.days_inactive, href: d.href,
+        days_inactive: d.days_inactive, href: d.href, company: d.company,
       },
       score: reasons.reduce((s, r) => s + r.points, 0),
       reasons: reasons.sort((a, b) => b.points - a.points),

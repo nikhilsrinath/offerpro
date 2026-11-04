@@ -25,6 +25,7 @@ import { fmtDate, money, useSection } from './financeHooks';
 import { confirmDialog } from '../../services/confirm';
 import CashEntryModal from './CashEntryModal';
 import RecordLogs from './RecordLogs';
+import { FOCUS_PARAM, focusKey } from '../shell/focusTarget';
 import { SECTION, billBalance, billPaymentEntry, blank } from './cashEntry';
 import { useSettledVendorBills } from './vendorAdvance';
 
@@ -288,8 +289,7 @@ export default function CashBook({ projectId = null, children }) {
       {/* Record Money is on the Company Ledger page, not here. */}
       <div className={flat ? 'gl-bento gl-bento-flat' : 'gl-bento'}>
         {!flat && (
-          <RecordMoneyCard t={t} logs={rows} onRecord={record} style={{ gridArea: 'rec' }}
-            onOpen={(r) => setEditing({ ...r, ...(r._full || {}), _share: undefined, _full: undefined, date: r.day })} />
+          <RecordMoneyCard t={t} logs={rows} onRecord={record} style={{ gridArea: 'rec' }} />
         )}
 
         <FlowTile t={t} area="in" icon={ArrowDownLeft} tone={t.up} label="Credit" value={money(tileIn, 2)}
@@ -529,12 +529,19 @@ const RECORD_LABELS = {
  * "Record money": Credit and Debit, and a Logs button. Also on the
  * General Ledger pages (`scoped`), where it has no heading. `labels` ({ in,
  * out } of { label, note, icon }) renames a side; `onRecord` gets 'in' or 'out'.
- * `logs` (newest first) puts Logs on the right: every entry in a side panel,
- * each opening its form through `onOpen`.
+ * `logs` (newest first) puts Logs on the right: every entry in a side panel.
+ * An entry is not opened for editing from there: it is pointed out in the
+ * ledger on this page (`?focus=`, shell/focusTarget.js).
  */
-export function RecordMoneyCard({ t, scoped, logs, onRecord, onOpen, style, labels }) {
+export function RecordMoneyCard({ t, scoped, logs, onRecord, style, labels }) {
   const side = (k) => ({ ...RECORD_LABELS[k], ...(labels?.[k] || {}) });
   const [open, setOpen] = useState(false);
+  const [, setParams] = useSearchParams();
+  const showEntry = (r) => setParams((p) => {
+    const next = new URLSearchParams(p);
+    next.set(FOCUS_PARAM, focusKey(r.direction === 'in' ? 'income_entry' : 'expense', (r._full || r).id));
+    return next;
+  }, { replace: true });
   return (
     <section {...(scoped ? { 'aria-label': 'Record Money' } : { 'aria-labelledby': 'gl-record' })} className="gl-record" style={{
       position: 'relative', overflow: 'hidden',
@@ -570,7 +577,7 @@ export function RecordMoneyCard({ t, scoped, logs, onRecord, onOpen, style, labe
           </button>
         )}
       </div>
-      {open && <RecordLogs t={t} logs={logs} onOpen={onOpen} onClose={() => setOpen(false)} />}
+      {open && <RecordLogs t={t} logs={logs} onOpen={showEntry} onClose={() => setOpen(false)} />}
       <style>{`
         .gl-rec-btn { transition: background .15s, border-color .15s; }
         .gl-rec-btn:hover { background: color-mix(in srgb, var(--rec-tone, ${t.ghost}) ${t.isDark ? 18 : 10}%, ${t.card}) !important; border-color: color-mix(in srgb, var(--rec-tone, ${t.lineStrong}) 55%, transparent) !important; }

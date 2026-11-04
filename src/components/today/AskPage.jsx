@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Bell, FolderKanban, CheckSquare, Search, Plug } from 'lucide-react';
+import { Bell, FolderKanban, CheckSquare, Search } from 'lucide-react';
 import Copilot from '../assistant/Copilot';
 import { useAssistant } from '../assistant/assistantStore';
 import { useOrg } from '../../context/OrgContext';
@@ -19,6 +19,7 @@ import '../agents/agents.css';
 import EdgeBrain from '../brain/EdgeBrain';
 import * as brain from '../../services/brainService';
 import NeuralsActivation from './NeuralsActivation';
+import ConnectorsView from '../connectors/ConnectorsView';
 
 /* ══════════════════════════════════════════════════════════════════════════
    AI: EdgeAI as a page of its own, in four parts behind one switch.
@@ -30,7 +31,8 @@ import NeuralsActivation from './NeuralsActivation';
                  The first is Compliance and Deadline Agent (components/agents/). An agent
                  opens on its own page: ?agent=<id>, so a notification can
                  link straight to it.
-   · Connectors  outside services EdgeAI can read from. Empty for now.
+   · Connectors  outside services Opstead connects to (components/connectors/),
+                 grouped cards with each service's logo; all Coming Soon so far.
    · Neurals     the company brain (components/brain/): the knowledge graph
                  EdgeAI reasons over, with its dock, inside the pane's width.
 
@@ -89,20 +91,6 @@ function AskHero({ a, composer, name }) {
                             </button>
                         );
                     })}
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function EmptyView({ icon: Icon, title, text }) {
-    return (
-        <div className="ask-pane eo-scroll">
-            <div className="ask-pane-inner">
-                <div className="ask-pane-head"><h2>{title}</h2></div>
-                <div className="ask-empty">
-                    <span className="ask-empty-ico" aria-hidden="true"><Icon size={20} strokeWidth={1.8} /></span>
-                    <p>{text}</p>
                 </div>
             </div>
         </div>
@@ -260,7 +248,7 @@ export default function AskPage({ theme = 'dark' }) {
                     : view === 'agents'
                     ? <AgentsView onOpen={(id) => go('agents', id)} />
                     : view === 'connectors'
-                        ? <EmptyView icon={Plug} title="Connectors" text="No connectors yet. Connected services will appear here." />
+                        ? <ConnectorsView />
                         : view === 'neurals'
                             ? <NeuralsView />
                             : null;

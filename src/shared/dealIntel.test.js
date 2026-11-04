@@ -231,6 +231,30 @@ describe('priority', () => {
     expect(r.find((x) => x.deal.id === 'acme').reasons[0].why).toMatch(/Follow-up "Send Acme the proposal" is 9 days overdue/);
   });
 
+  it('raises a lead whose company Apollo shows hiring fast, and says so with the date', () => {
+    const w = world();
+    const orbit = w.clients.find((c) => c.id === 'orbit');
+    const before = run(w).r.find((x) => x.deal.id === 'orbit').score;
+    orbit.company_profile = { source: 'apollo', fetched_at: '2026-10-18T09:00:00.000Z', employees: 120, growth_6m: 0.25, industry: 'Food' };
+    const { r, deal, f } = run(w);
+    const row = r.find((x) => x.deal.id === 'orbit');
+    expect(row.score).toBe(before + 10);
+    expect(row.reasons.map((x) => x.why)).toContain('Hiring fast: +25% people in six months (120 now), per Apollo on 18 Oct 2026');
+    expect(deal('orbit').company).toEqual({ source: 'apollo', as_of: '2026-10-18', industry: 'Food', employees: 120, growth_6m: 0.25, hiring_fast: true });
+    expect(row.deal.company.hiring_fast).toBe(true);
+    // A signal, never a risk.
+    expect(f.filter((x) => x.deal.id === 'orbit').map((x) => x.category)).not.toContain('hiring_fast');
+  });
+
+  it('gives slow growth, a lost deal or no lookup no hiring points', () => {
+    const w = world();
+    w.clients.find((c) => c.id === 'orbit').company_profile = { growth_6m: 0.05, employees: 120 };
+    w.clients.find((c) => c.id === 'lostco').company_profile = { growth_6m: 0.5, employees: 120 };
+    const { r, deal } = run(w);
+    expect(r.flatMap((x) => x.reasons.map((y) => y.why)).some((y) => y.startsWith('Hiring fast'))).toBe(false);
+    expect(deal('kite').company).toBeNull();
+  });
+
   it('is deterministic: the same records in another order give the same ranking', () => {
     const a = run().r.map((x) => [x.deal.id, x.score]);
     const w = world();

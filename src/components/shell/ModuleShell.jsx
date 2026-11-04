@@ -1,10 +1,10 @@
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Bell, Sun, Moon, LogOut, Building2, User as UserIcon,
     Check, ChevronDown, Search, History,
 } from 'lucide-react';
-import { MONO, makeTokens } from '../../theme/edge';
+import { MONO, makeTokens, railTokens } from '../../theme/edge';
 import { EdgeThemeContext } from '../../theme/EdgeTheme';
 import { useOrg } from '../../context/OrgContext';
 import { useProfileCompletion } from '../../hooks/useProfileCompletion';
@@ -26,9 +26,10 @@ import '../assistant/copilot.css';
 import { confirmDialog } from '../../services/confirm';
 import { titleCaseNode } from '../../utils/titleCase';
 import { projectRef } from '../projects/projectSlug';
-import { canSeeFinancials } from '../../services/projectService';
+import { useToast } from '../shared/Toast';
+import { FOCUS_PARAM, findFocusTarget } from './focusTarget';
 
-// The Logs panel (every credit and debit) only loads when it is opened.
+// The Logs panel (credits, debits, documents, people joining) only loads when it is opened.
 const CompanyLogs = lazy(() => import('../financial/RecordLogs').then((m) => ({ default: m.CompanyLogs })));
 
 // Shared with the hub, so hiding the dock in one place hides it in both.
@@ -65,6 +66,47 @@ function useWindowWidth() {
     return w;
 }
 
+/**
+ * `?focus=<key>` (focusTarget.js): once the page shows the row or card that
+ * carries the key, scroll it to the middle and flash it, then drop the key
+ * from the address so going there again flashes it again. A page may need a
+ * moment (its data, its page of a ledger), so it is looked for a few times.
+ */
+function useFocusTarget(navigate) {
+    const location = useLocation();
+    const toast = useToast();
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const key = params.get(FOCUS_PARAM);
+        if (!key) return undefined;
+        let tries = 0;
+        let timer;
+        const done = () => {
+            params.delete(FOCUS_PARAM);
+            const search = params.toString();
+            navigate({ pathname: location.pathname, search: search ? `?${search}` : '', hash: location.hash },
+                { replace: true, state: location.state });
+        };
+        const look = () => {
+            const el = findFocusTarget(key);
+            if (el) {
+                el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                el.classList.add('focus-flash');
+                setTimeout(() => el.classList.remove('focus-flash'), 2200);
+                done();
+            } else if (++tries > 50) {
+                toast('Could not find it on this page. A filter may be hiding it.', 'info');
+                done();
+            } else {
+                timer = setTimeout(look, 120);
+            }
+        };
+        timer = setTimeout(look, 60);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.pathname, location.search]);
+}
+
 function PopRow({ t, icon, label, note, onClick, danger, dot }) {
     return (
         <button type="button" role="menuitem" className="edge-row" onClick={onClick} style={{
@@ -96,6 +138,8 @@ export default function ModuleShell({
 }) {
     const isDark = theme === 'dark';
     const t = makeTokens(isDark);
+    // The rail is navy in light mode (theme/edge.js railTokens).
+    const rt = railTokens(t);
     const { activeOrg } = useOrg();
     const profile = useProfileCompletion();
     const navigate = useNavigate();
@@ -113,6 +157,7 @@ export default function ModuleShell({
     const [railPinned, setRailPinned] = useRailPin();
     const [menu, setMenu] = useState(null);
     const [logsOpen, setLogsOpen] = useState(false);
+    useFocusTarget(navigate);
     // A menu opened from the rail foot keeps the rail open, so it doesn't jump.
     const rail = railSlot || railPinned || hoverRail || (workspace && !!menu);
     const [slotEl, setSlotEl] = useState(null);
@@ -299,20 +344,20 @@ export default function ModuleShell({
             </a>
             {!isMobile && !noRail && (
                 <RailIsland
-                    t={t} open={rail} label={(mod?.label || 'Module') + ' navigation'}
+                    t={rt} open={rail} label={(mod?.label || 'Module') + ' navigation'}
                     // A page-owned rail is always open, so hover does nothing.
                     onHover={railSlot ? undefined : setHoverRail}
                     widths={railSlot ? { open: RAIL_SLOT_W, shut: RAIL_SLOT_W } : { open: RAIL_OPEN_W, shut: RAIL_SHUT_W }}
                 >
                     <RailHead pin={railSlot ? null : (
                         <RailPinButton
-                            t={t} pinned={railPinned} visible={rail}
+                            t={rt} pinned={railPinned} visible={rail}
                             onToggle={() => { setRailPinned(!railPinned); setHoverRail(false); }}
                         />
                     )}>
                         {/* The hub's rail is headed by the mark (the way back is
                             then the arrow in the top bar); a module's by the way back. */}
-                        {tabs ? <RailBrand t={t} open={rail} /> : <RailBack t={t} open={rail} to={back.to} label={back.label} />}
+                        {tabs ? <RailBrand t={rt} open={rail} /> : <RailBack t={rt} open={rail} to={back.to} label={back.label} />}
                     </RailHead>
 
                     {railSlot ? (
@@ -325,7 +370,7 @@ export default function ModuleShell({
                             {RAIL_IDS.map((id) => {
                                 const m = MODULES.find((x) => x.id === id);
                                 return m && (
-                                    <RailItem key={id} t={t} open={rail} icon={m.icon} label={m.label}
+                                    <RailItem key={id} t={rt} open={rail} icon={m.icon} label={m.label}
                                         to={'/' + m.defaultPage} active={m.id === mod?.id} />
                                 );
                             })}
@@ -335,11 +380,11 @@ export default function ModuleShell({
                         {/* A workspace's page already carries its name in the heading. */}
                         {workspace
                             ? <div aria-hidden="true" style={{ height: 4, flexShrink: 0 }} />
-                            : <RailHeading t={t} open={rail}>{mod?.label || 'Module'}</RailHeading>}
+                            : <RailHeading t={rt} open={rail}>{mod?.label || 'Module'}</RailHeading>}
                         {(items || []).map((it) => {
                             const link = (
                                 <RailItem
-                                    key={it.id} t={t} open={rail} icon={it.icon} label={it.label}
+                                    key={it.id} t={rt} open={rail} icon={it.icon} label={it.label}
                                     to={it.to || '/' + it.id} end={!!it.end} replace={!it.push} active={it.active}
                                 />
                             );
@@ -364,7 +409,7 @@ export default function ModuleShell({
                                                     background: 'rgba(127,127,127,.12)', color: 'inherit',
                                                 }}>
                                                 <ChevronDown aria-hidden="true" size={13} strokeWidth={2} style={{
-                                                    color: t.dim, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .18s',
+                                                    color: rt.dim, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .18s',
                                                 }} />
                                             </button>
                                         )}
@@ -372,10 +417,10 @@ export default function ModuleShell({
                                     {open && (
                                         <ul id={listId} aria-label={it.label} className="edge-scroll" style={{
                                             listStyle: 'none', margin: '2px 0 6px 16px', padding: '0 0 0 8px',
-                                            borderLeft: '1px solid ' + t.lineStrong, maxHeight: 280, overflowY: 'auto',
+                                            borderLeft: '1px solid ' + rt.lineStrong, maxHeight: 280, overflowY: 'auto',
                                         }}>
                                             {it.children.length === 0 && (
-                                                <li style={{ fontSize: 12, color: t.faint, padding: '6px 8px' }}>{it.emptyText || 'No projects yet'}</li>
+                                                <li style={{ fontSize: 12, color: rt.faint, padding: '6px 8px' }}>{it.emptyText || 'No projects yet'}</li>
                                             )}
                                             {it.children.map((c) => (
                                                 <li key={c.id}>
@@ -385,11 +430,11 @@ export default function ModuleShell({
                                                         style={({ isActive: routeActive }) => { const isActive = c.active ?? routeActive; return {
                                                             display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 1,
                                                             padding: '5px 8px', borderRadius: 6, textDecoration: 'none',
-                                                            fontSize: 12, color: isActive ? t.accent : t.dim, fontWeight: isActive ? 500 : 400,
-                                                            background: isActive ? t.accentSoft : 'transparent',
+                                                            fontSize: 12, color: isActive ? rt.accent : rt.dim, fontWeight: isActive ? 500 : 400,
+                                                            background: isActive ? rt.accentSoft : 'transparent',
                                                         }; }}>
                                                         <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{titleCaseNode(c.label)}</span>
-                                                        {c.note && <span style={{ fontSize: 11, color: t.faint, whiteSpace: 'nowrap' }}>{c.note}</span>}
+                                                        {c.note && <span style={{ fontSize: 11, color: rt.faint, whiteSpace: 'nowrap' }}>{c.note}</span>}
                                                     </NavLink>
                                                 </li>
                                             ))}
@@ -407,16 +452,16 @@ export default function ModuleShell({
                         /* ── foot: notifications, the theme, then the account as on the hub.
                            Shut, a column of icons, a red dot where something
                            needs attention. */
-                        <RailFoot t={t} open={rail} footRef={footRef}>
+                        <RailFoot t={rt} open={rail} footRef={footRef}>
                             <IslandBtn
-                                t={t} icon={Bell} label="Notifications" dot={unread > 0} btnRef={notifBtnRef}
+                                t={rt} icon={Bell} label="Notifications" dot={unread > 0} btnRef={notifBtnRef}
                                 aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
                                 aria-expanded={menu === 'notifs'} aria-haspopup="true" aria-controls="edge-notif-panel"
                                 onClick={() => setMenu((m) => (m === 'notifs' ? null : 'notifs'))}
                             />
                             {/* Without a top bar the theme switch lives here. */}
-                            <IslandBtn t={t} icon={isDark ? Sun : Moon} label={isDark ? 'Light mode' : 'Dark mode'} onClick={() => onToggleTheme?.()} />
-                            <AccountBtns t={t} profile={profile} onLogout={onLogout} />
+                            <IslandBtn t={rt} icon={isDark ? Sun : Moon} label={isDark ? 'Light mode' : 'Dark mode'} onClick={() => onToggleTheme?.()} />
+                            <AccountBtns t={rt} profile={profile} onLogout={onLogout} />
 
                             {menu === 'notifs' && (
                                 <Pop t={t} width={318} id="edge-notif-panel" role="region" label="Notifications"
@@ -424,9 +469,9 @@ export default function ModuleShell({
                             )}
                         </RailFoot>
                     ) : (<>
-                        <RailPlanCard t={t} open={rail} plan={plan} />
-                        <RailFoot t={t} open={rail}>
-                            <AccountBtns t={t} profile={profile} onLogout={onLogout} />
+                        <RailPlanCard t={rt} open={rail} plan={plan} />
+                        <RailFoot t={rt} open={rail}>
+                            <AccountBtns t={rt} profile={profile} onLogout={onLogout} />
                         </RailFoot>
                     </>)}
                 </RailIsland>
@@ -478,13 +523,11 @@ export default function ModuleShell({
 
                     {actions && <span aria-hidden="true" style={{ width: 1, height: 18, background: t.line, flexShrink: 0 }} />}
 
-                    {/* Logs: everything recorded, newest first, in a side panel. */}
-                    {canSeeFinancials() && (
-                        <button type="button" className="edge-icon" title="Logs" aria-label="Logs" aria-haspopup="dialog"
-                            onClick={() => setLogsOpen(true)} style={iconBtn(t, logsOpen)}>
-                            <History aria-hidden="true" size={15} strokeWidth={1.8} />
-                        </button>
-                    )}
+                    {/* Logs: what happened in the company, newest first, in a side panel. */}
+                    <button type="button" className="edge-icon" title="Logs" aria-label="Logs" aria-haspopup="dialog"
+                        onClick={() => setLogsOpen(true)} style={iconBtn(t, logsOpen)}>
+                        <History aria-hidden="true" size={15} strokeWidth={1.8} />
+                    </button>
                     {logsOpen && (
                         <Suspense fallback={null}>
                             <CompanyLogs t={t} onClose={() => setLogsOpen(false)} />
@@ -576,9 +619,9 @@ export default function ModuleShell({
                                     style={({ isActive: routeActive }) => { const isActive = it.active ?? routeActive; return {
                                         display: 'inline-flex', alignItems: 'center', minHeight: 26, padding: '0 10px',
                                         borderRadius: 6, whiteSpace: 'nowrap', textDecoration: 'none', fontSize: 12.5, fontWeight: 500,
-                                        color: isActive ? t.text : t.dim,
-                                        background: isActive ? (isDark ? t.raised : t.card) : 'transparent',
-                                        boxShadow: isActive ? (isDark ? t.highlight + ', inset 0 0 0 1px ' + t.lineStrong : '0 1px 2px rgba(16,24,40,.08), inset 0 0 0 1px ' + t.line) : 'none',
+                                        color: isActive ? t.softText : t.dim,
+                                        background: isActive ? t.soft : 'transparent',
+                                        boxShadow: 'none',
                                         transition: 'color .14s, background .14s',
                                     }; }}>{titleCaseNode(it.label)}</NavLink>
                             ))}
@@ -597,9 +640,9 @@ export default function ModuleShell({
                                 style={({ isActive: routeActive }) => { const isActive = it.active ?? routeActive; return {
                                 display: 'inline-flex', alignItems: 'center', height: 30, padding: '0 10px',
                                 borderRadius: 7, whiteSpace: 'nowrap', textDecoration: 'none', fontSize: 12.5, fontWeight: 500,
-                                color: isActive ? t.text : t.dim,
-                                background: isActive ? t.raised : 'transparent',
-                                boxShadow: isActive ? 'inset 0 0 0 1px ' + t.lineStrong : 'none',
+                                color: isActive ? t.softText : t.dim,
+                                background: isActive ? t.soft : 'transparent',
+                                boxShadow: 'none',
                             }; }}>{titleCaseNode(it.label)}</NavLink>
                         ))}
                     </nav>
@@ -738,7 +781,9 @@ function ShellStyle({ t }) {
                 --edge-sel-bg: ${t.selBg}; --edge-sel-text: ${t.selText}; --edge-shadow: ${t.shadow};
                 --edge-card: ${t.card}; --edge-accent: ${t.accent}; --edge-accent-btn: ${t.accentBtn};
                 --edge-accent-soft: ${t.accentSoft}; --edge-on-accent: ${t.onAccent}; --edge-hi: ${t.highlight};
-                --edge-overlay: ${t.isDark ? 'rgba(0,0,0,.62)' : 'rgba(20,28,32,.34)'};
+                --edge-navy: ${t.navy}; --edge-teal: ${t.teal}; --edge-on-teal: ${t.onTeal}; --edge-teal-soft: ${t.tealSoft};
+                --edge-soft: ${t.soft}; --edge-soft-hover: ${t.softHover}; --edge-soft-text: ${t.softText};
+                --edge-overlay: ${t.isDark ? 'rgba(0,0,0,.62)' : 'rgba(20,41,62,.34)'};
                 --edge-mono: ${MONO};
 
                 --font-main: ${MONO}; --font-display: ${MONO};
@@ -755,7 +800,7 @@ function ShellStyle({ t }) {
                 --chart-tooltip-bg: ${t.card}; --chart-tooltip-border: ${t.lineStrong}; --chart-tooltip-text: ${t.text};
                 --chart-axis-text: ${t.faint}; --chart-grid: ${t.lineSoft};
                 --btn-accent-bg: ${t.accentBtn}; --btn-accent-text: ${t.onAccent}; --btn-accent-shadow: none;
-                --overlay-bg: ${t.isDark ? 'rgba(0,0,0,.62)' : 'rgba(20,28,32,.34)'};
+                --overlay-bg: ${t.isDark ? 'rgba(0,0,0,.62)' : 'rgba(20,41,62,.34)'};
                 --num-badge-bg: ${t.panelAlt}; --toggle-active-dot: ${t.panel};
                 --blue: ${t.accent}; --blue-hover: ${t.accent}; --blue-fill: ${t.accentBtn}; --on-blue: ${t.onAccent}; --blue-muted: ${t.accentSoft}; --blue-border: ${t.accent};
                 --gold: ${t.text}; --gold-muted: ${t.panelAlt};
@@ -785,6 +830,8 @@ function ShellStyle({ t }) {
                 background: ${t.accentBtn}; color: ${t.onAccent}; text-decoration: none;
             }
             .edge-shell .edge-skip:focus { top: 10px; }
+            .edge-shell [data-focus], .edge-shell [data-focus] > td { transition: background-color .8s ease; }
+            .edge-shell .focus-flash, .edge-shell .focus-flash > td { background-color: ${t.accentSoft} !important; transition: none; }
             .edge-shell .edge-mobnav { scrollbar-width: none; }
             .edge-shell .edge-mobnav::-webkit-scrollbar { display: none; }
             @media (prefers-reduced-motion: reduce) {

@@ -11,6 +11,8 @@ import { GENERAL, splitChoice, vendorChoice, vendorProjectIds, saveWithBelongsTo
 import { validate, isEmail, isPhone, isUrl, isIfsc, isSwift, contactErrors } from '../../services/projectWorkspace';
 import { recordCurrency } from '../../shared/currency.js';
 import { LogoField, ContactsEditor } from '../projects/parties/partyUi';
+import ApolloFill from '../connectors/ApolloFill';
+import { useOrg } from '../../context/OrgContext';
 
 /* The one Add / Edit Vendor panel. Finance › Vendors, a project's Vendor
    Directory and the vendor dropdown's Add Vendor all open this, so a vendor
@@ -51,6 +53,9 @@ export default function VendorFormDialog({ vendor = null, project = null, initia
     const toast = useToast();
     const links = useSection('project_vendors');
     const profile = useProfileColumns('vendors');
+    // 0106: company details from Apollo travel with the form.
+    const hasCompany = useProfileColumns('vendors', 'company_profile');
+    const { activeOrg } = useOrg();
     const canBank = !!profile && orgStore.can('vendor_banking', 'view');
     const banks = useSection('vendor_bank_accounts');
     const bank = vendor && canBank ? banks.find((b) => b.vendor_id === vendor.id) : null;
@@ -73,6 +78,7 @@ export default function VendorFormDialog({ vendor = null, project = null, initia
         scope: link?.scope || '',
         account_name: bank?.account_name || '', account_number: bank?.account_number || '', bank_name: bank?.bank_name || '',
         ifsc: bank?.ifsc || '', swift: bank?.swift || '',
+        company_profile: vendor?.company_profile || null,
     }));
     const [problems, setProblems] = useState([]);
     const [saving, setSaving] = useState(false);
@@ -95,6 +101,7 @@ export default function VendorFormDialog({ vendor = null, project = null, initia
         const { belongs, more, scope, ...rest } = form;
         BANK.forEach((k) => delete rest[k]);
         if (!profile) PROFILE.forEach((k) => delete rest[k]);
+        if (!hasCompany || !rest.company_profile) delete rest.company_profile;
         const data = { ...rest, company_name: form.company_name.trim(), gstin: form.gstin.trim().toUpperCase() };
         if (!project) data.belongs_to = splitChoice(belongs).belongs_to;
         setSaving(true);
@@ -150,6 +157,12 @@ export default function VendorFormDialog({ vendor = null, project = null, initia
                         <label className="req" htmlFor="vendor-company">Company name</label>
                         <input id="vendor-company" maxLength={200} {...bind('company_name')} autoFocus required />
                     </div>
+                    {hasCompany && (
+                        <div className="prod-field full">
+                            <ApolloFill orgId={activeOrg?.id} kind="vendor" form={form}
+                                onFill={(fields, company) => setForm((f) => ({ ...f, ...(profile ? fields : { ...fields, website: f.website }), company_profile: company }))} />
+                        </div>
+                    )}
                     {!project && (
                         <div className="prod-field full">
                             <label htmlFor="vendor-belongs">Belongs to</label>

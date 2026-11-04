@@ -125,25 +125,32 @@ export function Muted({ children, size = 12 }) {
 
 /* ── controls ─────────────────────────────────────────────────────────────── */
 
-export function Btn({ children, onClick, primary, danger, disabled, title, size: sizeProp = 'md', type = 'button', full, style, ...rest }) {
+/* Three looks, as the brand palette's three colours (theme/palette.js):
+     primary         — navy (light blue in dark mode): the one main action
+     variant="teal"  — teal: a second, positive action (create, add, send)
+     variant="soft"  — light blue: a quieter action that still reads as one
+   and the default outline button for everything else. */
+export function Btn({ children, onClick, primary, danger, disabled, title, size: sizeProp = 'md', type = 'button', full, style, variant, ...rest }) {
     const t = useT();
     const size = useContext(InDrawerFoot) ? 'sm' : sizeProp;
     const h = size === 'sm' ? 28 : 32;
+    const look = primary ? 'primary' : variant === 'teal' || variant === 'soft' ? variant : null;
+    const fill = { primary: [t.accentBtn, t.onAccent], teal: [t.teal, t.onTeal], soft: [t.soft, t.softText] }[look];
     return (
         <button
             {...rest}
             type={type} onClick={onClick} disabled={disabled} title={title}
-            className={'edge-btn' + (primary ? ' edge-btn-primary' : '')}
+            className={'edge-btn' + (look ? ' edge-btn-primary edge-btn-' + look : '')}
             style={{
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 height: h, padding: size === 'sm' ? '0 10px' : '0 12px', borderRadius: 7,
                 fontFamily: MONO, fontSize: size === 'sm' ? 12 : 12.5, fontWeight: 500, whiteSpace: 'nowrap',
                 cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
                 width: full ? '100%' : undefined,
-                border: '1px solid ' + (primary ? 'transparent' : t.lineStrong),
-                background: primary ? t.accentBtn : t.card,
+                border: '1px solid ' + (fill ? 'transparent' : t.lineStrong),
+                background: fill ? fill[0] : t.card,
                 boxShadow: 'none',
-                color: primary ? t.onAccent : (danger ? t.down : t.text),
+                color: fill ? fill[1] : (danger ? t.down : t.text),
                 transition: 'border-color .15s, background .15s, color .15s, opacity .15s, filter .15s',
                 ...style,
             }}
@@ -192,9 +199,10 @@ export function Seg({ value, onChange, options, size = 'md', label: groupLabel }
                             height: '100%', padding: '0 10px', borderRadius: 6,
                             fontFamily: MONO, fontSize: size === 'sm' ? 12 : 12.5, fontWeight: 500,
                             border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                            background: active ? (t.isDark ? t.raised : t.card) : 'transparent',
-                            boxShadow: active ? (t.isDark ? t.highlight + ', inset 0 0 0 1px ' + t.lineStrong : '0 1px 2px rgba(16,24,40,.08), inset 0 0 0 1px ' + t.line) : 'none',
-                            color: active ? t.text : t.faint,
+                            // The chosen option: the light-blue tint, navy text.
+                            background: active ? t.soft : 'transparent',
+                            boxShadow: 'none',
+                            color: active ? t.softText : t.faint,
                             transition: 'color .14s, background .14s',
                         }}
                     >
@@ -519,8 +527,8 @@ function ColumnPicker({ cols, isOn, onToggle, onReset, onAll, changed, height = 
                                 <span aria-hidden="true" style={{
                                     width: 17, height: 17, flexShrink: 0, borderRadius: 5,
                                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                    border: '1px solid ' + (on ? t.accent : t.lineStrong),
-                                    background: on ? t.accentBtn : 'transparent', color: t.onAccent,
+                                    border: '1px solid ' + (on ? t.teal : t.lineStrong),
+                                    background: on ? t.teal : 'transparent', color: t.onTeal,
                                 }}>{on && <Check size={12} strokeWidth={3} />}</span>
                                 <span style={{ flex: 1, minWidth: 0 }}>{titleCaseNode(c.pickLabel || c.label)}</span>
                                 {c.always && <span style={{ fontSize: 10.5, color: t.faint }}>always</span>}
@@ -692,7 +700,8 @@ export function Td({ children, align, nowrap, muted, width, style }) {
     );
 }
 
-export function Tr({ children, onClick, selected, label, debit }) {
+// `focus`: the key(s) a `?focus=` link finds this row by (shell/focusTarget.js).
+export function Tr({ children, onClick, selected, label, debit, focus }) {
     const t = useT();
     // A clickable row is reachable and operable from the keyboard too. Keys
     // pressed on a control inside the row are left to that control.
@@ -703,7 +712,7 @@ export function Tr({ children, onClick, selected, label, debit }) {
     return (
         <tr
             className={debit ? 'edge-tr edge-tr-debit' : 'edge-tr'} onClick={onClick} onKeyDown={onKeyDown}
-            tabIndex={onClick ? 0 : undefined} aria-label={label}
+            tabIndex={onClick ? 0 : undefined} aria-label={label} data-focus={focus || undefined}
             style={{
                 cursor: onClick ? 'pointer' : undefined,
                 background: selected ? t.accentSoft : undefined,
@@ -805,9 +814,11 @@ function PageStyle({ t }) {
     return (
         <style>{`
             .edge-page .edge-btn:not(.edge-btn-primary):hover:not(:disabled) {
-                border-color: ${t.lineStrong} !important; background: ${t.raised} !important;
+                border-color: ${t.lineStrong} !important; background: ${t.soft} !important; color: ${t.softText} !important;
             }
-            .edge-page .edge-btn-primary:hover:not(:disabled) { filter: brightness(.96); }
+            .edge-page .edge-btn-primary.edge-btn-primary:hover:not(:disabled) { background: ${t.accentBtnHover} !important; }
+            .edge-page .edge-btn-teal.edge-btn-teal:hover:not(:disabled) { background: ${t.teal} !important; filter: brightness(.92); }
+            .edge-page .edge-btn-soft.edge-btn-soft:hover:not(:disabled) { background: ${t.softHover} !important; }
             .edge-page .edge-seg:hover { color: ${t.text} !important; }
             .edge-page .edge-input:focus { border-color: ${t.ghost} !important; box-shadow: none; }
             .edge-page .edge-input::placeholder { color: ${t.faint}; }

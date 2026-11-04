@@ -51,6 +51,15 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
   }));
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  // A number another document of this organization already has, checked as
+  // it is typed (case and spaces aside); the database's unique key backs it.
+  const numberTaken = useMemo(() => {
+    const key = (n) => String(n || '').replace(/\s+/g, '').toLowerCase();
+    const typed = key(form.doc_number);
+    if (!typed) return null;
+    return documentStore.getAll().find((d) => d.id !== invoice?.id && key(d.doc_number) === typed) || null;
+  }, [form.doc_number, invoice?.id]);
+
   const generate = () => {
     onClose();
     navigate('/clients/billing/invoices/new', { state: { projectId: startOn, clientId: clientId || undefined } });
@@ -93,6 +102,7 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
     const client = clients.find((c) => c.id === form.customer_id);
     if (!client) { setError('Choose the client this invoice is for.'); return; }
     if (!(Number(form.amount) > 0)) { setError('Enter the amount before GST.'); return; }
+    if (numberTaken) { setError(`Invoice No ${form.doc_number.trim()} is already used. Enter a different number.`); return; }
     setBusy(true);
     setError('');
     try {
@@ -103,7 +113,8 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
         // Editing keeps where its payments put it.
         status: invoice ? invoice.status : 'sent',
         title: 'Tax Invoice',
-        doc_number: form.doc_number.trim() || undefined,
+        // Left blank on an edit, it keeps the number it has.
+        doc_number: form.doc_number.trim() || (invoice ? invoice.doc_number : undefined),
         customer_id: client.id,
         clientName: client.name,
         clientEmail: client.email,
@@ -130,9 +141,14 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
       toast(invoice ? 'Invoice updated' : 'Invoice uploaded', 'success');
       onClose();
     } catch (err) {
-      setError(err?.code === '23505' || /unique|duplicate/i.test(err.message || '')
+      // Only the invoice-number key means the number is taken; any other
+      // unique error is shown as it is, never blamed on the number.
+      const msg = err?.message || '';
+      setError(err?.code === '23505' && /doc_number/.test(`${msg} ${err?.details || ''}`)
         ? `Invoice No ${form.doc_number.trim()} is already used. Enter a different number.`
-        : err.message || 'The invoice was not saved.');
+        : /fin_docs_paid_lte_total/.test(err.message || '')
+          ? 'The total with GST is less than what has already been received on this invoice. Raise the amount, or remove the extra receipt first.'
+          : err.message || 'The invoice was not saved.');
     } finally {
       setBusy(false);
     }
@@ -179,9 +195,13 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
 
           <div className="prod-field">
             <label htmlFor="ui-no">Invoice No</label>
-            <input id="ui-no" value={form.doc_number} placeholder="As printed on the invoice" readOnly={!!invoice}
-              onChange={(e) => set('doc_number', e.target.value)} />
-            <p className="prod-field-note">{invoice ? 'A saved invoice keeps its number.' : 'Left blank, it takes the next number.'}</p>
+            <input id="ui-no" value={form.doc_number} placeholder="As printed on the invoice"
+              aria-invalid={!!numberTaken} onChange={(e) => set('doc_number', e.target.value)} />
+            <p className="prod-field-note" style={numberTaken ? { color: 'var(--danger, #dc2626)' } : undefined}>
+              {numberTaken
+                ? `Already used by ${numberTaken.doc_number}${numberTaken.clientName ? ` (${numberTaken.clientName})` : ''}. Enter a different number.`
+                : invoice ? 'Any number you like, as long as no other invoice uses it.' : 'Left blank, it takes the next number.'}
+            </p>
           </div>
 
           <div className="prod-field">
@@ -238,7 +258,7 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
 
         <div className="prod-modal-foot">
           <button type="button" className="prod-btn-ghost" onClick={close}>Cancel</button>
-          <button type="submit" className="prod-btn-primary" disabled={busy}>{busy ? 'Saving...' : invoice ? 'Save Changes' : 'Save Invoice'}</button>
+          <button type="submit" className="prod-btn-primary" disabled={busy || !!numberTaken}>{busy ? 'Saving...' : invoice ? 'Save Changes' : 'Save Invoice'}</button>
         </div>
       </form>
     </Modal>

@@ -7,10 +7,11 @@ import { titleCaseNode } from '../../utils/titleCase';
 /* ══════════════════════════════════════════════════════════════════════════
    The navigation island: every sidenav in the app (hub, module shell,
    employee portal) is this one floating panel. It sits off the canvas edge
-   on a hairline, the current page is a solid blue pill, and actions at the
+   on a hairline, the current page is a light-blue pill, and actions at the
    foot are an icon row, so the list fits without scrolling.
 
-   Paint it with makeTokens() (theme/edge.js).
+   Paint it with railTokens(makeTokens()) (theme/edge.js): navy in light
+   mode, the page's dark card in dark mode.
    ══════════════════════════════════════════════════════════════════════════ */
 
 /* `open` widens the island to show labels; `widths` are the outer widths,
@@ -56,7 +57,7 @@ export function RailHead({ children, pin }) {
     );
 }
 
-/** The Opstead mark on its blue tile, and the name while open. */
+/** The Opstead mark on its teal tile, and the name while open. */
 export function RailBrand({ t, open, to = '/dashboard/overview' }) {
     return (
         <Link to={to} aria-label="Opstead dashboard" title="Dashboard" style={{
@@ -65,11 +66,11 @@ export function RailBrand({ t, open, to = '/dashboard/overview' }) {
         }}>
             <span aria-hidden="true" style={{
                 width: 24, height: 24, borderRadius: 7, flexShrink: 0, display: 'grid', placeItems: 'center',
-                background: t.accentBtn,
+                background: t.teal,
             }}>
                 <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
-                    <path d="M10 1v18M1 10h18M3.5 3.5l13 13M16.5 3.5l-13 13" stroke={t.onAccent} strokeWidth="1.4" />
-                    <circle cx="10" cy="10" r="2.6" fill={t.accentBtn} stroke={t.onAccent} strokeWidth="1.4" />
+                    <path d="M10 1v18M1 10h18M3.5 3.5l13 13M16.5 3.5l-13 13" stroke={t.onTeal} strokeWidth="1.4" />
+                    <circle cx="10" cy="10" r="2.6" fill={t.teal} stroke={t.onTeal} strokeWidth="1.4" />
                 </svg>
             </span>
             <span aria-hidden="true" style={{
@@ -160,7 +161,7 @@ function ItemInner({ t, open, on, icon: Icon, label, dot, badge }) {
                 <span aria-hidden="true" style={{
                     minWidth: 17, height: 17, padding: '0 5px', borderRadius: 999, boxSizing: 'border-box',
                     display: 'grid', placeItems: 'center', fontSize: 10.5, fontWeight: 600, flexShrink: 0,
-                    background: on ? 'rgba(255,255,255,.22)' : t.panelAlt, color: on ? '#fff' : t.text,
+                    background: on ? 'rgba(127,127,127,.18)' : t.panelAlt, color: on ? t.onAccent : t.text,
                     border: '1px solid ' + (on ? 'transparent' : t.line),
                 }}>{badge}</span>
             )}
@@ -259,7 +260,7 @@ export function RailPlanCard({ t, open, plan }) {
             }}>
                 <span aria-hidden="true" style={{
                     width: 24, height: 24, borderRadius: 7, flexShrink: 0, display: 'grid', placeItems: 'center',
-                    background: t.accentBtn, color: t.onAccent,
+                    background: t.teal, color: t.onTeal,
                 }}><Crown size={12} strokeWidth={2} /></span>
                 <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, lineHeight: 1.25 }}>
                     <span style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>{plan.displayName}</span>
@@ -275,8 +276,9 @@ export function RailSpacer() {
 }
 
 function RailIslandStyle({ t }) {
-    const tint = t.isDark ? 'rgba(47,140,255,.10)' : 'rgba(31,122,240,.07)';
-    const tintLine = t.isDark ? 'rgba(90,160,255,.4)' : 'rgba(31,122,240,.35)';
+    // Hover: a light-blue wash (theme/palette.js), lighter on the navy rail.
+    const tint = t.hover || t.accentSoft;
+    const tintLine = t.hoverLine || t.accent;
     return (
         <style>{`
             .ri-island .ri-item:not(.is-on):hover { color: ${t.text} !important; background: ${tint} !important; }

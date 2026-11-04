@@ -691,7 +691,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
               </tr>
             ) : (
               filteredDocs.map((doc) => (
-                <tr key={doc.id}>
+                <tr key={doc.id} data-focus={`doc:${doc.id}`}>
                   <td className="fin-list-id">{docNo(doc)}</td>
                   <td>{doc.issued_to || doc.client?.name || '-'}</td>
                   <td className="fin-list-amount">{currencySymbol()}{(doc.grand_total || doc.amount || 0).toLocaleString(currencyLocale())}</td>

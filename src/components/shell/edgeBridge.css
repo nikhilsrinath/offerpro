@@ -308,7 +308,7 @@
 
 /* ── buttons ──────────────────────────────────────────────────────────────── */
 
-/* Primary: the one action a view exists for. The one yellow, as on the hub. */
+/* Primary: the one action a view exists for. The one brand colour (theme/palette.js), as on the hub. */
 .edge-shell main :where(
   .btn-cinematic:not(.btn-secondary), .easy-submit, .prod-btn-primary, .prod-add-btn,
   .fin-list-action-btn.primary, .portal-link-gen-btn.primary, .btn-primary
@@ -528,7 +528,7 @@
 
 /* ── accents ──────────────────────────────────────────────────────────────────
    index.css hardcodes a blue, a yellow and a violet as highlight colours.
-   Here a highlight is the theme's one yellow; other hue is kept for up/down. Every
+   Here a highlight is the theme's one brand colour; other hue is kept for up/down. Every
    rule below answers a specific hardcoded rule used by a page in the shell. */
 
 .edge-shell main .fin-list-new-btn {

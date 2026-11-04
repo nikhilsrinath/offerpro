@@ -44,6 +44,9 @@ const date = (v) => (v ? String(v).slice(0, 10) : null);
 const nowIso = () => new Date().toISOString();
 
 const jsonList = (v) => (Array.isArray(v) ? v : []);
+// 0106: company details a connector found. Undefined, not null, when there are
+// none, so a save from a screen whose cache predates a lookup never wipes one.
+const jsonObject = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : undefined);
 
 /** Only the keys the caller actually set, each through its converter. */
 function optional(item, converters) {
@@ -562,6 +565,8 @@ const SECTIONS = {
         contact_designation: r.contact_designation || '', alt_contact: r.alt_contact || '',
         client_since: r.client_since || null, contacts: Array.isArray(r.contacts) ? r.contacts : [],
       } : {}),
+      // 0106: company details from Apollo, present only when the column is.
+      ...('company_profile' in r ? { company_profile: r.company_profile || null } : {}),
     }),
     toRow: (i) => ({
       name: i.clientName || i.name || 'Unnamed',
@@ -580,7 +585,7 @@ const SECTIONS = {
       extra: i.extra || {},
       // 0074 columns go only when a caller sets them, so every older save path
       // (and a database without 0074) is untouched.
-      ...optional(i, { industry: nn, website: nn, logo_path: nn, contact_designation: nn, alt_contact: nn, client_since: date, contacts: jsonList }),
+      ...optional(i, { industry: nn, website: nn, logo_path: nn, contact_designation: nn, alt_contact: nn, client_since: date, contacts: jsonList, company_profile: jsonObject }),
     }),
   },
 
@@ -850,6 +855,8 @@ const SECTIONS = {
       } : {}),
       // 0078: general or internal when on no project (projects via project_vendors).
       ...('belongs_to' in r ? { belongs_to: r.belongs_to || 'general' } : {}),
+      // 0106: company details from Apollo.
+      ...('company_profile' in r ? { company_profile: r.company_profile || null } : {}),
       created_at: r.created_at,
     }),
     toRow: (i) => ({
@@ -863,7 +870,7 @@ const SECTIONS = {
       ...optional(i, {
         logo_path: nn, website: nn, contacts: jsonList, contract_start: date, contract_end: date,
         contract_value: (v) => (v === '' || v == null ? null : num(v)), status: (v) => (v === 'inactive' ? 'inactive' : 'active'),
-        belongs_to: belongsTo,
+        belongs_to: belongsTo, company_profile: jsonObject,
       }),
     }),
   },
@@ -1836,9 +1843,13 @@ export const orgStore = {
       if (!('discountValue' in updates)) delete merged.discountValue;
     }
 
-    // doc_number is frozen by a trigger after insert; never send it back.
+    // doc_number can be changed to anything (0107); only a deliberate change
+    // is sent, and unique(org_id, doc_number) refuses one already used.
     const row = stripNulls(finDocToRow(merged));
-    delete row.doc_number;
+    const renamed = typeof updates.doc_number === 'string' && updates.doc_number.trim()
+      && updates.doc_number.trim() !== existing.doc_number;
+    if (renamed) row.doc_number = updates.doc_number.trim();
+    else delete row.doc_number;
 
     const { error } = await supabase
       .from('financial_documents').update(row).eq('id', id);
@@ -2066,17 +2077,44 @@ const finDocToRow = (i) => finDocToRowShared(i, { signaturePath: _cache._profile
 async function replaceLineItems(documentId, items) {
   if (!Array.isArray(items)) return;
 
-  const { error: delErr } = await supabase
-    .from('document_line_items').delete().eq('document_id', documentId);
-  if (delErr) throw delErr;
+  // New lines go in before the old ones come out. Deleting first drops the
+  // trigger-computed grand_total to 0 in between, which a document with
+  // payments refuses (fin_docs_paid_lte_total: amount_paid <= grand_total).
+  // unique (document_id, position) means the new lines can't take the old
+  // ones' positions while those still exist, so they go in after the last
+  // old line and are numbered back from 0 once the old lines are gone.
+  const { data: old, error: oldErr } = await supabase
+    .from('document_line_items').select('id, position').eq('document_id', documentId);
+  if (oldErr) throw oldErr;
+  const base = (old || []).reduce((m, r) => Math.max(m, (r.position ?? 0) + 1), 0);
 
-  const rows = lineItemRows(items).map((row, position) => ({
-    ...row, document_id: documentId, org_id: _orgId, position,
+  const rows = lineItemRows(items).map((row, i) => ({
+    ...row, document_id: documentId, org_id: _orgId, position: base + i,
   }));
 
-  if (rows.length === 0) return;
-  const { error } = await supabase.from('document_line_items').insert(rows);
-  if (error) throw error;
+  let added = [];
+  if (rows.length) {
+    const { data, error } = await supabase
+      .from('document_line_items').insert(rows).select('id, position');
+    if (error) throw error;
+    added = (data || []).slice().sort((a, b) => a.position - b.position);
+  }
+
+  if (old?.length) {
+    const { error: delErr } = await supabase
+      .from('document_line_items').delete().in('id', old.map((r) => r.id));
+    if (delErr) throw delErr;
+  }
+
+  // Back to 0..n-1, lowest first: each target position is free by then (the
+  // old lines are gone and every new line below it has already moved).
+  if (base > 0) {
+    for (let i = 0; i < added.length; i++) {
+      const { error } = await supabase
+        .from('document_line_items').update({ position: i }).eq('id', added[i].id);
+      if (error) throw error;
+    }
+  }
 }
 
 // Read the row back after writing so the trigger-computed totals reach the cache.

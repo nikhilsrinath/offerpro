@@ -15,6 +15,9 @@ import ClientProjectSelect, { ProjectScopeFilter } from './shared/ClientProjectS
 import { useClientProjects } from './shared/useClientProjects';
 import { OTHERS, initialProject, assignProject, filterByProject } from '../services/clientProjects';
 import { initialQuery } from '../services/urlQuery';
+import { useSection } from './financial/financeHooks';
+import CompanyInsight from './connectors/CompanyInsight';
+import { autoFillAfterCreate, addApolloContact } from '../services/connectorsService';
 
 const COLUMNS = [
   { id: 'lead',      label: 'Lead',      color: '#6366f1' },
@@ -70,6 +73,9 @@ export default function CRM({ project = null }) {
   const [mobileTab, setMobileTab] = useState('lead');
   const [moveMenuId, setMoveMenuId] = useState(null);
   const cp = useClientProjects();
+  // The same rows as the board, through the client adapter: it carries the
+  // company details (0106) and contact persons the lead panel shows.
+  const clients = useSection('customers');
   const [projectScope, setProjectScope] = useState('');
   const scope = project ? project.id : projectScope;
   // What the project dropdown opened on, so an edit that changes it moves them.
@@ -149,6 +155,9 @@ export default function CRM({ project = null }) {
           updated_at: now,
         }))?.id;
       }
+      // A new lead with a business email: Apollo fills in its company, if the
+      // company turned that on. In the background; the lead is saved.
+      if (!editingLead && leadId) autoFillAfterCreate(activeOrg.id, 'client', leadId, { toast });
       if (leadId) {
         try {
           const { keptPrimary } = await assignProject(leadId, chosen, fromProject, cp.projects, cp.links);
@@ -461,6 +470,16 @@ export default function CRM({ project = null }) {
                 style={{ resize: 'vertical', minHeight: '70px' }}
               />
             </div>
+            {editingLead && (() => {
+              const record = clients.find(c => c.id === editingLead.id);
+              return record && (
+                <div className="easy-field full">
+                  <CompanyInsight orgId={activeOrg?.id} kind="client" record={record}
+                    existingContacts={record.contacts || []}
+                    onAddContact={Array.isArray(record.contacts) ? (person) => addApolloContact('client', record, person) : undefined} />
+                </div>
+              );
+            })()}
           </div>
           <div className="prod-modal-foot">
             <button type="button" onClick={() => setModalOpen(false)} className="prod-btn-ghost">

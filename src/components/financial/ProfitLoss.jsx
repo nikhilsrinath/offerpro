@@ -106,7 +106,7 @@ export default function ProfitLoss() {
               <Legend formatter={(value) => <span style={{ color: 'var(--text-secondary)' }}>{value}</span>} />
               <Bar dataKey="income" name="Income" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={28} />
               <Bar dataKey="expenses" name="Expenses" fill="#ef4444" radius={[6, 6, 0, 0]} maxBarSize={28} opacity={0.75} />
-              <Bar dataKey="net" name="Net" fill="var(--edge-accent, #7a6e00)" radius={[6, 6, 0, 0]} maxBarSize={28} />
+              <Bar dataKey="net" name="Net" fill="var(--edge-accent, var(--blue))" radius={[6, 6, 0, 0]} maxBarSize={28} />
             </BarChart>
           </ResponsiveContainer>
         </div>

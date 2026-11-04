@@ -200,6 +200,11 @@ begin
     insert into agent_runs (org_id, agent, run_key) values (o, 'deadline_watch', 'fixture-' || s);
     insert into agent_alerts (org_id, agent, dedupe_key, record_type, severity) values (o, 'deadline_watch', 'task:x:' || s, 'task', 'high');
 
+    -- Connectors (0106), service role only: no client access at all, asserted
+    -- in 26_connectors_test.sql.
+    insert into org_connectors (org_id, provider, settings) values (o, 'apollo', '{}');
+    insert into connector_events (org_id, provider, action) values (o, 'apollo', 'connect');
+
     -- Document library (0063): a stored file and one passage read from it.
     insert into library_documents (org_id, title, file_name, mime_type, size_bytes, storage_path)
       values (o, 'Handbook ' || s, 'handbook.pdf', 'application/pdf', 1024, o || '/handbook-' || s || '.pdf')
@@ -464,7 +469,8 @@ begin
         -- 09_member_permissions_test.sql, ai_actions in 13_ai_actions_test.sql, agent_* in 21). Cross-tenant, they are probed
         -- like everything else.
         if v_side = 'own' and t.tbl in ('memberships', 'audit_log', 'role_permissions', 'member_permissions', 'ai_actions',
-                                         'agent_settings', 'agent_runs', 'agent_alerts') then
+                                         'agent_settings', 'agent_runs', 'agent_alerts',
+                                         'org_connectors', 'connector_events') then
           continue;
         end if;
 

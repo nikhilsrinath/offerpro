@@ -18,6 +18,9 @@ import { initialQuery } from '../services/urlQuery';
 import { currencySymbol, currencyLocale } from '../shared/currency.js';
 import ClientFormDialog from './shared/ClientFormDialog';
 import { Logo } from './projects/parties/partyUi';
+import CompanyInsight from './connectors/CompanyInsight';
+import { addApolloContact } from '../services/connectorsService';
+import { useSection } from './financial/financeHooks';
 
 // A contact worth showing under the billing name: an individual client has
 // their own name in both places, and repeating it adds nothing.
@@ -38,7 +41,10 @@ function initials(name = '') {
 }
 
 // ── Customer Detail View ───────────────────────────────────────────────────────
-function CustomerDetail({ customer, orgId, onBack, onEdit }) {
+function CustomerDetail({ customer: shown, orgId, onBack, onEdit }) {
+  // The live row: a lookup or an added contact person shows straight away.
+  const live = useSection('customers').find((c) => c.id === shown.id);
+  const customer = live || shown;
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('all');
@@ -150,6 +156,11 @@ function CustomerDetail({ customer, orgId, onBack, onEdit }) {
           )}
         </div>
       )}
+
+      {/* Company details from Apollo.io (0106), with its decision makers */}
+      <CompanyInsight orgId={orgId} kind="client" record={customer}
+        existingContacts={customer.contacts || []}
+        onAddContact={Array.isArray(customer.contacts) ? (person) => addApolloContact('client', customer, person) : undefined} />
 
       {/* Note */}
       {customer.notes && (

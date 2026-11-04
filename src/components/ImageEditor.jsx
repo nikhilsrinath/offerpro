@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { brand } from '../theme/palette.js';
 import {
   RotateCcw, RotateCw, FlipHorizontal, FlipVertical,
   Crop, X, Check, RotateCcw as ResetIcon, Save
@@ -106,14 +107,14 @@ export default function ImageEditor({ imageSrc, onSave, onCancel }) {
       ctx.fillRect(x + w, y, cw - x - w, h);
 
       // Crop border
-      ctx.strokeStyle = '#fefe2f';
+      ctx.strokeStyle = brand().fill;
       ctx.lineWidth = 2;
       ctx.strokeRect(x, y, w, h);
 
       // Corner handles
       const hs = 8;
       ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = '#fefe2f';
+      ctx.strokeStyle = brand().fill;
       ctx.lineWidth = 2;
       const corners = [
         [x - hs / 2, y - hs / 2],

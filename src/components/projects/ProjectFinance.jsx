@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { FOCUS_PARAM } from '../shell/focusTarget';
 import {
     Panel, Grid, Row, Btn, Select, Search, Table, Tr, Td, Empty, Muted, Status, StatBand, Modal, Field, Input,
     Loading, RowMenu,
@@ -365,6 +366,11 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
     const [pager, setPager] = useState({ key: narrowKey, page: 1 });
     const page = pager.key === narrowKey ? pager.page : 1;
     const setPage = (n) => setPager({ key: narrowKey, page: n });
+    // A `?focus=income_entry:<id>` link (the Logs): the page of the ledger its row is on.
+    const [searchParams] = useSearchParams();
+    const focus = searchParams.get(FOCUS_PARAM);
+    const [focusSeen, setFocusSeen] = useState(null);
+    if (!focus && focusSeen !== null) setFocusSeen(null);
     // On Purchase Bills the ledger is the page's list: `bills` are the ones its
     // search and filters kept, and `billMenu` gives a bill row its actions.
     const billById = useMemo(() => (bills ? Object.fromEntries(bills.map((b) => [b.id, b])) : null), [bills]);
@@ -466,7 +472,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                 const settles = !party && only !== 'purchases' && String(s?.settles || '').startsWith('invoice:') && linked.has(s.settles);
                 const before = out.length ? out[out.length - 1].balance : 0;
                 out.push({
-                    a, s, value, credit, settles, pays, breakdown,
+                    a, s, parts, value, credit, settles, pays, breakdown,
                     balance: settles ? before : before + (credit ? value : -value) * sign,
                     splitCount: company ? 0 : allocations.filter((x) => x.source_type === a.source_type && x.source_id === a.source_id).length,
                     projects: company ? projectsOf[s ? keyOf(s) : `${a.source_type}:${a.source_id}`] || [] : null,
@@ -653,6 +659,16 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
         return sort.dir === 'asc' ? c : -c;
     });
 
+    // A row stands for every entry of a payment saved as several (0094).
+    const focusKeys = (r) => (r.parts || [r]).map((p) => `${p.a.source_type}:${p.a.source_id}`).join(' ');
+    if (focus && focus !== focusSeen) {
+        const i = ordered.findIndex((r) => focusKeys(r).split(' ').includes(focus));
+        if (i >= 0) {
+            setFocusSeen(focus);
+            setPage(Math.floor(i / LEDGER_PAGE) + 1);
+        }
+    }
+
     const pageCount = Math.ceil(ordered.length / LEDGER_PAGE);
     const at = Math.min(page, pageCount);
     const pageRows = ordered.slice((at - 1) * LEDGER_PAGE, at * LEDGER_PAGE);
@@ -703,7 +719,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                             const owed = bill ? Math.max(0, bill.total - bill.amount_paid) : 0;
                             const receipts = bill ? [] : receiptItems(r);
                             return (
-                                <Tr key={a.id} debit={!r.credit}>
+                                <Tr key={a.id} debit={!r.credit} focus={focusKeys(r)}>
                                     {show('d') && <Td muted nowrap>{s ? fmtDate(s.date) : '-'}</Td>}
                                     <Td style={{ minWidth: 200 }}>
                                         {open ? (

@@ -2,8 +2,12 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
+import { installBrand } from './theme/palette.js'
 import App from './App.jsx'
 import NavHistoryProvider from './components/shell/NavHistoryProvider'
+
+// Brand colours (--brand-* CSS variables) — switch palettes in src/theme/palette.js.
+installBrand()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

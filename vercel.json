@@ -20,6 +20,9 @@
     "functions": {
         "api/agents.js": {
             "maxDuration": 60
+        },
+        "api/connectors.js": {
+            "maxDuration": 30
         }
     },
     "rewrites": [
