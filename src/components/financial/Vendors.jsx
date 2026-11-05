@@ -15,6 +15,11 @@ import VendorFormDialog from '../shared/VendorFormDialog';
 import { Logo } from '../projects/parties/partyUi';
 import { GENERAL, vendorChoice, vendorProjectIds, inScope, choiceLabel } from '../../services/belongsTo';
 import { initialQuery } from '../../services/urlQuery';
+import { projectRef } from '../projects/projectSlug';
+
+// A heading inside the vendor panel. Only top and bottom margins, so the
+// panel's own side padding (drawer.css) lines it up with the rest.
+const sectionHead = { marginTop: 16, marginBottom: 8, fontSize: 13, fontWeight: 600 };
 
 // Every column the list can show; the Columns button picks among them, and
 // the choice is remembered on this device (ui/edge Table).
@@ -218,7 +223,29 @@ export default function Vendors() {
               <Stat icon={<IndianRupee size={15} />} label="Paid" value={money(ledger[viewing.id]?.paid)} accent="var(--success)" />
               <Stat icon={<AlertTriangle size={15} />} label="Outstanding" value={money(ledger[viewing.id]?.outstanding)} accent="var(--text-primary)" />
             </div>
-            <h4 style={{ margin: '1rem 0 0.5rem', fontSize: '0.85rem' }}>Transaction History</h4>
+            {/* Every project the vendor is on: the list's "+7 more projects", named. */}
+            <h4 style={sectionHead}>Projects</h4>
+            {(() => {
+              const ids = vendorProjectIds(viewing.id, links);
+              if (ids.length === 0) {
+                return <div className="prod-perf-note">{choiceLabel(vendorChoice(viewing, links), projects)}: not on any project.</div>;
+              }
+              return (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {ids.map((id) => {
+                    const p = projects.find((x) => x.id === id);
+                    return (
+                      <button key={id} type="button" className="prod-btn-ghost"
+                        style={{ height: 28, padding: '0 10px', fontSize: 12.5 }}
+                        onClick={() => navigate(`/projects/${projectRef(id)}`)}>
+                        {p ? [p.code, p.name].filter(Boolean).join(' · ') : 'Project'}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+            <h4 style={sectionHead}>Transaction History</h4>
             {history.length === 0 ? (
               <div className="prod-perf-note">No bills or expenses recorded against this vendor yet.</div>
             ) : (

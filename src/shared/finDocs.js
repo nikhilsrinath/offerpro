@@ -25,6 +25,34 @@ const round2 = (n) => {
 /** The human number of a document, whichever field an older save used. */
 export const docNumber = (d) => (d && (d.doc_number || d.invoiceNumber || d.id)) || '';
 
+/* ── numbering scope (0108) ───────────────────────────────────────────────── */
+
+// A number is unique within its project, not across the company: Amoldo and
+// RedAnt can each have "INV - 26-27/001". The project a document's number
+// belongs to rides in payload.number_project_id; none means "no project", which
+// is a scope of its own. The database's unique index is the real check.
+
+/** The project a project picker puts a number in: its one project, else none. */
+export function numberProjectFromPicker(picker) {
+  const ids = [...new Set((picker?.rows || []).map((r) => r.project_id).filter(Boolean))];
+  return ids.length === 1 ? ids[0] : null;
+}
+
+const numberKey = (n) => String(n || '').replace(/\s+/g, '').toLowerCase();
+
+/**
+ * Another document already using `number` in the same project (case and
+ * spaces aside), or null. `projectId` null means the no-project scope.
+ */
+export function findNumberClash(docs, number, projectId, exceptId = null) {
+  const typed = numberKey(number);
+  if (!typed) return null;
+  const scope = projectId || null;
+  return (docs || []).find((d) => d.id !== exceptId
+    && (d.number_project_id || null) === scope
+    && numberKey(d.doc_number) === typed) || null;
+}
+
 /* ── receivables ──────────────────────────────────────────────────────────── */
 
 // Statuses that mean an invoice is not (or no longer) a real receivable.

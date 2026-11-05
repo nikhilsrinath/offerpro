@@ -685,7 +685,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
       />
 
       {/* Table */}
-      <div className="fin-list-table-wrap">
+      <div className="fin-list-table-wrap table-frozen-head">
         <table className="fin-list-table">
           <thead>
             {projectInvoices ? (

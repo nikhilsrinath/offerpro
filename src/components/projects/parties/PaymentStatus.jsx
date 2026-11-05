@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import {
-    Panel, Row, Btn, Seg, Select, Input, Empty, Modal, StatBand, ConfirmBtn,
+    Panel, Row, Btn, Seg, Select, Input, Empty, Modal, StatBand, ConfirmBtn, Table,
 } from '../../ui/edge';
-import { useT, MONO, fmtDate, tableFrame, thStyle, tdStyle } from '../../ui/edgeUtils';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useT, MONO, fmtDate, tdStyle } from '../../ui/edgeUtils';
 import { useToast } from '../../shared/Toast';
 import { useSection } from '../../financial/financeHooks';
 import { orgStore } from '../../../services/orgStore';
@@ -19,7 +20,6 @@ import { Badge, AttachedFiles, Bar } from './partyUi';
 import CashEntryModal from '../../financial/CashEntryModal';
 import { blank as blankEntry } from '../../financial/cashEntry';
 import { useInvoiceActions } from '../../financial/invoiceActions';
-import { titleCaseNode } from '../../../utils/titleCase';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Client Management › Payment Status & Pendings, what the client owes on
@@ -36,6 +36,25 @@ const LIVE = (d) => d.type === 'invoice' && !['draft', 'cancelled', 'void'].incl
 // No Overdue here: an invoice past its due date with a balance is Pending.
 const STATUSES = PAYMENT_STATUSES.filter((s) => s.id !== 'overdue');
 const round2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
+const PAGE_SIZE = 50; // rows a page
+
+// Every column the table can show; the Columns button picks among them and
+// the choice is remembered on this device (ui/edge Table, id project-payments).
+const COLS = [
+    { key: 'invoice', label: 'Invoice', always: true },
+    { key: 'what', label: 'Milestone / description' },
+    { key: 'date', label: 'Invoice date' },
+    { key: 'due', label: 'Due' },
+    { key: 'amount', label: 'Amount', align: 'right' },
+    { key: 'gst', label: 'GST', align: 'right' },
+    { key: 'paid', label: 'Paid', align: 'right' },
+    { key: 'balance', label: 'Balance', align: 'right' },
+    { key: 'status', label: 'Status' },
+    { key: 'mode', label: 'Mode' },
+    { key: 'reference', label: 'Reference' },
+    { key: 'remarks', label: 'Remarks' },
+    { key: 'actions', label: '', always: true },
+];
 
 export default function PaymentStatus({ project }) {
     const t = useT();
@@ -107,6 +126,11 @@ export default function PaymentStatus({ project }) {
         gst: round2(rows.reduce((sum, r) => sum + r.gst, 0)),
     };
     const counts = Object.fromEntries(STATUSES.map((s) => [s.id, rows.filter((r) => r.status === s.id).length]));
+    // 50 a page; a change of filter starts again at the first page.
+    const [listPage, setListPage] = useState(0);
+    const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
+    const pageNo = Math.min(listPage, pages - 1);
+    const pageRows = shown.slice(pageNo * PAGE_SIZE, (pageNo + 1) * PAGE_SIZE);
     const msOptions = [...new Map(rows.filter((r) => r.milestone).map((r) => [r.milestone.id, r.milestone])).values()];
     // Details opens the invoice itself; Record Payment is Billing's Mark Paid panel.
     const invoiceActions = useInvoiceActions({ projectId: project.id });
@@ -180,25 +204,25 @@ export default function PaymentStatus({ project }) {
                             </Row>
                         </Bar>
                         {shown.length === 0 ? <Empty>No invoice matches these filters.</Empty> : (
-                            <div style={{ padding: 12 }}><div className="edge-scroll" style={{ ...tableFrame(t), overflowX: 'auto' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, minWidth: 1160 }}>
-                                    <thead>
-                                        <tr>
-                                            {['Invoice', 'Milestone / description', 'Invoice date', 'Due', 'Amount', 'GST', 'Paid', 'Balance', 'Status', 'Mode', 'Reference', 'Remarks', ''].map((h, i) => (
-                                                <th key={h || i} scope="col" style={thStyle(t, i >= 4 && i <= 7 ? 'right' : 'left')}>{titleCaseNode(h)}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {shown.map((r) => (
-                                            <InvoiceRow key={r.doc.id} r={r} money={money} files={files} project={project}
-                                                open={open === r.doc.id} onToggle={() => setOpen(open === r.doc.id ? null : r.doc.id)}
-                                                canPay={canPay} onPay={() => recordPayment(r)} onAttach={() => setAttaching(r)}
-                                                onView={() => invoiceActions.view(r.doc.id)} />
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div></div>
+                            <div style={{ padding: 12 }}>
+                                {/* Header frozen (sticky), 50 a page, columns chosen with the Columns button. */}
+                                <Table id="project-payments" cols={COLS} sticky>
+                                    {(show, cols) => pageRows.map((r) => (
+                                        <InvoiceRow key={r.doc.id} r={r} money={money} files={files} project={project}
+                                            show={show} span={cols.length}
+                                            open={open === r.doc.id} onToggle={() => setOpen(open === r.doc.id ? null : r.doc.id)}
+                                            canPay={canPay} onPay={() => recordPayment(r)} onAttach={() => setAttaching(r)}
+                                            onView={() => invoiceActions.view(r.doc.id)} />
+                                    ))}
+                                </Table>
+                                {pages > 1 && (
+                                    <div className="fin-list-pager" role="navigation" aria-label="Pages">
+                                        <button type="button" className="prod-btn-ghost" disabled={pageNo === 0} onClick={() => setListPage(pageNo - 1)} aria-label="Previous page"><ChevronLeft size={14} /></button>
+                                        <span>{pageNo * PAGE_SIZE + 1}–{Math.min(shown.length, (pageNo + 1) * PAGE_SIZE)} of {shown.length} · Page {pageNo + 1} of {pages}</span>
+                                        <button type="button" className="prod-btn-ghost" disabled={pageNo >= pages - 1} onClick={() => setListPage(pageNo + 1)} aria-label="Next page"><ChevronRight size={14} /></button>
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </>
                 )}
@@ -211,7 +235,7 @@ export default function PaymentStatus({ project }) {
     );
 }
 
-function InvoiceRow({ r, money, files, project, open, onToggle, canPay, onPay, onAttach, onView }) {
+function InvoiceRow({ r, money, files, project, show, span, open, onToggle, canPay, onPay, onAttach, onView }) {
     const t = useT();
     const toast = useToast();
     const s = PAYMENT_BY_ID[r.status];
@@ -228,17 +252,17 @@ function InvoiceRow({ r, money, files, project, open, onToggle, canPay, onPay, o
                     }}>{r.doc.doc_number}</button>
                     {r.share < 1 && <div style={{ fontSize: 10.5, color: t.faint }}>{Math.round(r.share * 100)}% of the invoice</div>}
                 </td>
-                <td style={{ ...td(), maxWidth: 220 }}>{r.what}</td>
-                <td style={{ ...td(), whiteSpace: 'nowrap', color: t.dim }}>{fmtDate(r.doc.issue_date)}</td>
-                <td style={{ ...td(), whiteSpace: 'nowrap', color: t.dim }}>{r.due ? fmtDate(r.due) : '-'}</td>
-                <td style={{ ...td('right'), whiteSpace: 'nowrap' }}>{money(r.total)}</td>
-                <td style={{ ...td('right'), whiteSpace: 'nowrap', color: t.dim }}>{money(r.gst)}</td>
-                <td style={{ ...td('right'), whiteSpace: 'nowrap' }}>{money(r.paid)}</td>
-                <td style={{ ...td('right'), whiteSpace: 'nowrap', fontWeight: r.balance ? 600 : 400 }}>{money(r.balance)}</td>
-                <td style={td()}><Badge color={s.color}>{s.label}</Badge></td>
-                <td style={{ ...td(), color: t.dim, whiteSpace: 'nowrap' }}>{r.mode || '-'}</td>
-                <td style={{ ...td(), color: t.dim }}>{r.reference || '-'}</td>
-                <td style={{ ...td(), color: t.dim, maxWidth: 200 }}>{r.remarks || '-'}</td>
+                {show('what') && <td style={{ ...td(), maxWidth: 220 }}>{r.what}</td>}
+                {show('date') && <td style={{ ...td(), whiteSpace: 'nowrap', color: t.dim }}>{fmtDate(r.doc.issue_date)}</td>}
+                {show('due') && <td style={{ ...td(), whiteSpace: 'nowrap', color: t.dim }}>{r.due ? fmtDate(r.due) : '-'}</td>}
+                {show('amount') && <td style={{ ...td('right'), whiteSpace: 'nowrap' }}>{money(r.total)}</td>}
+                {show('gst') && <td style={{ ...td('right'), whiteSpace: 'nowrap', color: t.dim }}>{money(r.gst)}</td>}
+                {show('paid') && <td style={{ ...td('right'), whiteSpace: 'nowrap' }}>{money(r.paid)}</td>}
+                {show('balance') && <td style={{ ...td('right'), whiteSpace: 'nowrap', fontWeight: r.balance ? 600 : 400 }}>{money(r.balance)}</td>}
+                {show('status') && <td style={td()}><Badge color={s.color}>{s.label}</Badge></td>}
+                {show('mode') && <td style={{ ...td(), color: t.dim, whiteSpace: 'nowrap' }}>{r.mode || '-'}</td>}
+                {show('reference') && <td style={{ ...td(), color: t.dim }}>{r.reference || '-'}</td>}
+                {show('remarks') && <td style={{ ...td(), color: t.dim, maxWidth: 200 }}>{r.remarks || '-'}</td>}
                 <td style={{ ...td('right'), whiteSpace: 'nowrap' }}>
                     <Row gap={6} style={{ justifyContent: 'flex-end' }}>
                         {canPay && r.balance > 0 && <Btn size="sm" primary onClick={onPay}>Record payment</Btn>}
@@ -248,7 +272,7 @@ function InvoiceRow({ r, money, files, project, open, onToggle, canPay, onPay, o
             </tr>
             {open && (
                 <tr style={{ background: bg }}>
-                    <td colSpan={13} style={{ padding: '0 10px 12px', borderBottom: '1px solid ' + t.lineSoft }}>
+                    <td colSpan={span} style={{ padding: '0 10px 12px', borderBottom: '1px solid ' + t.lineSoft }}>
                         <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', border: '1px solid ' + t.line, borderRadius: 9, padding: 12, background: t.panel }}>
                             <div>
                                 <div style={{ fontSize: 12, fontWeight: 500, color: t.faint, marginBottom: 6 }}>Payment history</div>

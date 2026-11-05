@@ -21,7 +21,8 @@ import ClientFormDialog from './shared/ClientFormDialog';
 import { Logo } from './projects/parties/partyUi';
 import CompanyInsight from './connectors/CompanyInsight';
 import { addApolloContact } from '../services/connectorsService';
-import { useSection } from './financial/financeHooks';
+import { useSection, money, fmtDate } from './financial/financeHooks';
+import { issuedInvoices, balanceOf } from '../shared/finDocs.js';
 
 // A contact worth showing under the billing name: an individual client has
 // their own name in both places, and repeating it adds nothing.
@@ -276,6 +277,23 @@ export default function Customers() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const cp = useClientProjects();
   const [projectScope, setProjectScope] = useState('');
+  // Each client's invoice money, for the Invoiced / Received / Outstanding /
+  // Invoices / Last Activity columns (the Vendor Directory's Billed / Paid /
+  // Outstanding, from the client's side).
+  const finDocs = useSection('fin_docs');
+  const ledger = useMemo(() => {
+    const out = {};
+    for (const d of issuedInvoices(finDocs)) {
+      if (!d.customer_id) continue;
+      const l = out[d.customer_id] || (out[d.customer_id] = { invoiced: 0, received: 0, outstanding: 0, count: 0, last: null });
+      l.invoiced += Number(d.grand_total) || 0;
+      l.received += Number(d.amount_paid) || 0;
+      l.outstanding += balanceOf(d);
+      l.count += 1;
+      if (d.issue_date && (!l.last || d.issue_date > l.last)) l.last = d.issue_date;
+    }
+    return out;
+  }, [finDocs]);
   // Grid (cards) or List (one row per client); kept while moving between pages.
   const [view, setView] = useRememberedState('clients.view', 'grid');
 
@@ -410,7 +428,15 @@ export default function Customers() {
           { key: 'ph', label: 'Phone' },
           { key: 'a', label: 'Address', def: false },
           { key: 'p', label: 'Projects' },
+          { key: 'c', label: 'Contact', def: false },
+          { key: 'ind', label: 'Industry', def: false },
+          { key: 'st', label: 'State', def: false },
           { key: 'g', label: 'GSTIN' },
+          { key: 'inv', label: 'Invoiced', align: 'right' },
+          { key: 'rec', label: 'Received', align: 'right' },
+          { key: 'out', label: 'Outstanding', align: 'right' },
+          { key: 'cnt', label: 'Invoices', align: 'right', def: false },
+          { key: 'last', label: 'Last Activity', def: false },
           { key: 'act', label: '', width: 48, align: 'right', always: true },
         ]}>
           {(show) => filtered.map((customer, i) => {
@@ -431,7 +457,15 @@ export default function Customers() {
                 {show('ph') && <Td muted nowrap>{customer.contactPhone || dash}</Td>}
                 {show('a') && <Td muted>{customer.clientAddress || dash}</Td>}
                 {show('p') && <Td muted>{projects.length ? projects.join(', ') : 'Others'}</Td>}
+                {show('c') && <Td muted nowrap>{customer.person_name ? `${customer.person_name}${customer.contact_designation ? `, ${customer.contact_designation}` : ''}` : dash}</Td>}
+                {show('ind') && <Td muted nowrap>{customer.industry || dash}</Td>}
+                {show('st') && <Td muted nowrap>{customer.buyerState || dash}</Td>}
                 {show('g') && <Td muted nowrap>{customer.buyerGSTIN ? <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{customer.buyerGSTIN}</span> : dash}</Td>}
+                {show('inv') && <Td align="right" nowrap>{money(ledger[customer.id]?.invoiced)}</Td>}
+                {show('rec') && <Td align="right" nowrap>{money(ledger[customer.id]?.received)}</Td>}
+                {show('out') && <Td align="right" nowrap><span style={{ fontWeight: 600 }}>{money(ledger[customer.id]?.outstanding)}</span></Td>}
+                {show('cnt') && <Td align="right" nowrap muted>{ledger[customer.id]?.count || 0}</Td>}
+                {show('last') && <Td nowrap muted>{fmtDate(ledger[customer.id]?.last)}</Td>}
                 {show('act') && (
                   <Td align="right">
                     <span onClick={(e) => e.stopPropagation()}>

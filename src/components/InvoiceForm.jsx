@@ -21,6 +21,7 @@ import { orgStore } from '../services/orgStore';
 import { projectIdOf } from './projects/projectSlug';
 import { useFormProject, projectStartLines } from './projects/projectScope';
 import { baseCurrency, currencyLocale } from '../shared/currency.js';
+import { numberProjectFromPicker } from '../shared/finDocs.js';
 
 
 
@@ -418,6 +419,9 @@ export default function InvoiceForm({ editDocId = null }) {
         // doc_number, not id. `id` is a uuid column; the invoice number is the
         // human number printed on the PDF above, and the two must agree.
         doc_number: formData.invoiceNumber,
+        // The project the number belongs to (0108): another project may use
+        // the same number. The allocation trigger keeps it in step after this.
+        number_project_id: numberProjectFromPicker(projectPicker),
         type: 'invoice',
         // An overdue invoice given a later due date is simply due again.
         status: !editing ? (formData.isPaid ? 'paid' : 'sent')

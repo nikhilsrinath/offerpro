@@ -10,7 +10,7 @@ import { todayIso } from '../../services/financeAnalytics';
 import {
     PROJECT_STATUSES, projectProgress, matchProject, isClosed,
 } from '../../services/projectAnalytics';
-import { canSeeFinancials, canCreateProjects, portfolio } from '../../services/projectService';
+import { canSeeFinancials, portfolio } from '../../services/projectService';
 import HealthChip from './HealthChip';
 import { projectRef } from './projectSlug';
 
@@ -127,13 +127,12 @@ export default function KanbanChart() {
         return ids.map((id) => empById[id]).filter(Boolean);
     }, [projects, empById]);
 
-    const newProject = canCreateProjects() ? <Btn primary onClick={() => navigate('/projects/new')}>New project</Btn> : null;
+    // No New Project button here: the Projects tab has it (bug list 01).
 
     if (projects.length === 0) {
         return (
             <Page>
-                <Toolbar right={newProject} />
-                <Panel><Empty action={newProject}>No projects yet. Create one and it appears here in its status column.</Empty></Panel>
+                <Panel><Empty>No projects yet. Create one in the Projects tab and it appears here in its status column.</Empty></Panel>
             </Page>
         );
     }
@@ -144,7 +143,7 @@ export default function KanbanChart() {
 
     return (
         <Page>
-            <Toolbar right={newProject}>
+            <Toolbar>
                 <Search value={query} onChange={setQuery} placeholder="Search name, code, client…" width={220} />
                 <Select aria-label="Type of Project" value={client} onChange={(e) => setClient(e.target.value)} style={{ width: 140, height: 29 }}>
                     <option value="all">All</option>

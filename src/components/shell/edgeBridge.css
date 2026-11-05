@@ -522,8 +522,14 @@
 
 /* ── motion ───────────────────────────────────────────────────────────────── */
 
+/* `backwards`, not index.css's `forwards`: a finished slide-up must not leave
+   transform: translateY(0) behind. Any transform makes the element the
+   containing block of the position: fixed side panels inside it, so a panel
+   opened from Billing's invoice list grew as tall as the whole list and
+   showed an empty stretch under More Details (bug list 01, Nov 2026). */
 .edge-shell main .animate-in {
   animation-duration: .2s;
+  animation-fill-mode: backwards;
 }
 
 /* ── accents ──────────────────────────────────────────────────────────────────
@@ -1385,3 +1391,20 @@
 .edge-shell main .records-grid-card-detail { font-size: 12.5px; }
 .edge-shell main .records-grid-card-date { font-size: 11.5px; }
 .edge-shell main .prod-card-amount { font-size: 15px; font-weight: 600; letter-spacing: -0.015em; }
+
+/* ── frozen header row (bug list 01, Nov 2026) ─────────────────────────────
+   A table wrap with .table-frozen-head scrolls its rows inside itself, so the
+   header row stays on screen. The wrap is the scroller (it already scrolls
+   sideways), so sticky th have something to stick to. */
+.edge-shell main .table-frozen-head {
+  max-height: calc(100vh - 240px);
+  min-height: 160px;
+  overflow: auto;
+}
+.edge-shell main .table-frozen-head thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--edge-panel-alt, var(--bg-elevated)) !important;
+  box-shadow: inset 0 -1px 0 var(--edge-line);
+}

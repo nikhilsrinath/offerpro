@@ -167,7 +167,7 @@ export default function TodayPage() {
     const activity = model.activity.slice(0, ACTIVITY_MAX);
 
     return (
-        <div className="td-page" style={{ fontFamily: MONO, color: t.text, maxWidth: 1320, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="td-page" style={{ fontFamily: MONO, color: t.text, width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* ── header: the day ──────────────────────────────────────── */}
             {/* As on Dashboard → Overview: the greeting small on top, the
                 company name under it, the date in a chip on the right. */}

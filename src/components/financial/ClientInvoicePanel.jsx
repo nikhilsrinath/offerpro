@@ -9,7 +9,7 @@ import { documentStore } from '../../services/documentStore';
 import { orgStore } from '../../services/orgStore';
 import { receiptService, validateReceipt, RECEIPT_ACCEPT } from '../../services/receiptService';
 import { pickerFor, pickerFromAllocations, saveSplitFromPicker } from '../../services/projectService';
-import { documentTotals } from '../../shared/finDocs';
+import { documentTotals, findNumberClash, numberProjectFromPicker } from '../../shared/finDocs';
 import { useToast } from '../shared/Toast';
 
 const TITLE = 'Create/Upload Client Invoice';
@@ -51,14 +51,15 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
   }));
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  // A number another document of this organization already has, checked as
-  // it is typed (case and spaces aside); the database's unique key backs it.
-  const numberTaken = useMemo(() => {
-    const key = (n) => String(n || '').replace(/\s+/g, '').toLowerCase();
-    const typed = key(form.doc_number);
-    if (!typed) return null;
-    return documentStore.getAll().find((d) => d.id !== invoice?.id && key(d.doc_number) === typed) || null;
-  }, [form.doc_number, invoice?.id]);
+  // The project this invoice's number belongs to: the page's project, or the
+  // one picked. Another project may use the same number (0108).
+  const numberProject = projectId || numberProjectFromPicker(form._picker);
+
+  // A number another invoice in the same project already has, checked as it
+  // is typed (case and spaces aside); the database's unique key backs it.
+  const numberTaken = useMemo(
+    () => findNumberClash(documentStore.getAll(), form.doc_number, numberProject, invoice?.id),
+    [form.doc_number, numberProject, invoice?.id]);
 
   const generate = () => {
     onClose();
@@ -127,6 +128,7 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
         enableGst: rate > 0,
         gstRate: rate,
         notes: form.notes.trim() || (invoice ? '' : undefined),
+        number_project_id: numberProject,
         uploaded: true,
         upload_path: file.path,
         upload_name: file.name,

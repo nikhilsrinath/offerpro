@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Download, Trash2, Search, FileSpreadsheet, ClipboardCheck, FileText, Award, Briefcase, FileCode, LayoutGrid, List, Eye, Send, Loader, CheckCircle } from 'lucide-react';
+import { Download, Trash2, Search, FileSpreadsheet, ClipboardCheck, FileText, Award, Briefcase, FileCode, LayoutGrid, List, Eye, Send, Loader, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { RowMenu } from './ui/edge';
 import { storageService } from '../services/storageService';
 import { pdfService } from '../services/pdfService';
@@ -19,6 +19,30 @@ const TYPE_CONFIG = {
   mou: { icon: FileCode, color: '#14b8a6', bg: '#14b8a612', bgSolid: 'rgba(20,184,166,0.08)', label: 'MoU' },
   agreement: { icon: FileCode, color: '#0ea5e9', bg: '#0ea5e912', bgSolid: 'rgba(14,165,233,0.08)', label: 'Agreement' },
   invoice: { icon: FileText, color: '#8b5cf6', bg: '#8b5cf612', bgSolid: 'rgba(139,92,246,0.08)', label: 'Invoice' }
+};
+
+const PAGE_SIZE = 50; // rows a page
+
+// dd-mm-yyyy, as in the invoice tables.
+const shortDate = (v) => {
+  const d = v ? new Date(v) : null;
+  if (!d || Number.isNaN(d.getTime())) return '-';
+  return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+};
+
+// A record's one-line details: the amount and number for an invoice, the role
+// or subject for the rest.
+const detailsOf = (record) => {
+  const d = record.data || {};
+  switch (record.type) {
+    case 'invoice': return [`${currencySymbol()}${(d.totals?.grandTotal || 0).toLocaleString(currencyLocale())}`, d.invoiceNumber].filter(Boolean).join(' · ');
+    case 'offer': return [d.role, d.department].filter(Boolean).join(' · ');
+    case 'certificate': return [d.achievementTitle, d.issuingOrganization].filter(Boolean).join(' · ');
+    case 'nda': return d.receivingPartyName ? `with ${d.receivingPartyName}` : 'NDA Agreement';
+    case 'mou': return d.secondPartyName ? `with ${d.secondPartyName}` : 'MoU Agreement';
+    case 'agreement': return d.title || (d.templateKind === 'partnership' ? 'Partnership' : 'Custom template');
+    default: return '';
+  }
 };
 
 // One row of tabs, in this order; each shows its count.
@@ -59,7 +83,7 @@ export default function InternRecords() {
   const [searchTerm, setSearchTerm] = useState(initialQuery);
   const [sortBy, setSortBy] = useState('date_desc');
   const [activeTab, setActiveTab] = useState('all');
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'; List first (bug list 01)
   const [loading, setLoading] = useState(true);
   const [sendingEmail, setSendingEmail] = useState(null); // record id being sent
   const [emailStatus, setEmailStatus] = useState(null); // { id, success, message }
@@ -166,6 +190,13 @@ export default function InternRecords() {
     });
   }, [records, activeTab, searchTerm, sortBy]);
 
+  // 50 a page; a new tab, search or sort starts again at the first page.
+  const [listPage, setListPage] = useState(0);
+  const pages = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE));
+  const pageNo = Math.min(listPage, pages - 1);
+  const pageRecords = filteredRecords.slice(pageNo * PAGE_SIZE, (pageNo + 1) * PAGE_SIZE);
+  useEffect(() => { setListPage(0); }, [activeTab, searchTerm, sortBy]);
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '8rem 2rem' }}>
@@ -240,11 +271,11 @@ export default function InternRecords() {
           </select>
           <div className="records-toolbar-actions">
             <div className="records-view-toggle">
-              <button className={`records-view-btn ${viewMode === 'grid' ? 'active' : ''}`} aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')} title="Grid view" aria-label="Grid view">
-                <LayoutGrid size={16} />
-              </button>
               <button className={`records-view-btn ${viewMode === 'list' ? 'active' : ''}`} aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')} title="List view" aria-label="List view">
                 <List size={16} />
+              </button>
+              <button className={`records-view-btn ${viewMode === 'grid' ? 'active' : ''}`} aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')} title="Grid view" aria-label="Grid view">
+                <LayoutGrid size={16} />
               </button>
             </div>
             <button onClick={() => storageService.exportToCSV(records)} className="records-export-btn" disabled={records.length === 0}>
@@ -267,7 +298,7 @@ export default function InternRecords() {
       ) : viewMode === 'grid' ? (
         /* Grid View */
         <div className="records-grid">
-          {filteredRecords.map((record) => {
+          {pageRecords.map((record) => {
             const cfg = TYPE_CONFIG[record.type] || TYPE_CONFIG.offer;
             const Icon = cfg.icon;
             return (
@@ -316,77 +347,44 @@ export default function InternRecords() {
           })}
         </div>
       ) : (
-        /* List View */
-        <div className="pro-card" style={{ padding: 0, overflow: 'hidden' }}>
-          <table className="desktop-table">
+        /* List View: the invoice tables' compact rows, header frozen. */
+        <>
+        <div className="fin-list-table-wrap table-frozen-head desktop-table">
+          <table className="fin-list-table">
             <thead>
               <tr>
-                <th style={{ padding: '0.875rem 1.5rem', textAlign: 'left' }}><label style={{ margin: 0 }}>Document</label></th>
-                <th style={{ padding: '0.875rem 1rem', textAlign: 'left' }}><label style={{ margin: 0 }}>Details</label></th>
-                <th style={{ padding: '0.875rem 1rem', textAlign: 'left' }}><label style={{ margin: 0 }}>Date</label></th>
-                <th style={{ padding: '0.875rem 1.5rem', textAlign: 'right' }}><label style={{ margin: 0 }}>Actions</label></th>
+                <th style={{ width: 56 }}>S.No</th>
+                <th>Document</th>
+                <th>Type</th>
+                <th>Details</th>
+                <th>Date</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredRecords.map((record) => {
+              {pageRecords.map((record, i) => {
                 const cfg = TYPE_CONFIG[record.type] || TYPE_CONFIG.offer;
-                const Icon = cfg.icon;
                 return (
                   <tr key={record.id} data-focus={`record:${record.id}`}>
-                    <td style={{ padding: '1rem 1.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{
-                          width: '34px', height: '34px', borderRadius: '9px',
-                          background: cfg.bg, color: cfg.color,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}>
-                          <Icon size={16} />
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: '15.5px' }}>{record.title}</div>
-                          <div style={{ fontSize: '12.5px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
-                            {cfg.label}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ padding: '1rem' }}>
-                      <div style={{ fontWeight: 500, fontSize: '14.5px' }}>
-                        {record.type === 'offer' ? record.data?.role
-                          : record.type === 'certificate' ? record.data?.achievementTitle
-                          : record.type === 'nda' ? 'NDA Agreement'
-                          : record.type === 'mou' ? 'MoU Agreement'
-                          : record.type === 'agreement' ? (record.data?.title || 'Agreement')
-                          : `${currencySymbol()}${record.data?.totals?.grandTotal?.toLocaleString(currencyLocale())}`}
-                      </div>
-                      <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
-                        {record.type === 'offer' ? record.data?.department
-                          : record.type === 'certificate' ? record.data?.issuingOrganization
-                          : record.type === 'nda' ? (record.data?.arbitrationCity ? `${record.data.arbitrationCity}, ${record.data.arbitrationState}` : '')
-                          : record.type === 'mou' ? (record.data?.arbitrationCity || '')
-                          : record.type === 'agreement' ? (record.data?.templateKind === 'partnership' ? 'Partnership' : 'Custom template')
-                          : `Due: ${record.data?.dueDate}`}
-                      </div>
-                    </td>
-                    <td style={{ padding: '1rem' }}>
-                      <div style={{ fontSize: '14.5px', color: 'var(--text-tertiary)' }}>
-                        {new Date(record.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </div>
-                    </td>
-                    <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                        <RowMenu label={`Actions for ${record.title}`} items={recordActions(record)} />
-                      </div>
+                    <td>{pageNo * PAGE_SIZE + i + 1}</td>
+                    <td style={{ fontWeight: 500, maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={record.title}>{record.title}</td>
+                    <td>{cfg.label}</td>
+                    <td style={{ maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{detailsOf(record) || '-'}</td>
+                    <td>{shortDate(record.created_at)}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <RowMenu label={`Actions for ${record.title}`} items={recordActions(record)} />
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+        </div>
 
-          {/* Mobile Cards (shown on mobile regardless of viewMode) */}
-          <div className="mobile-cards" style={{ display: 'flex', flexDirection: 'column' }}>
-            {filteredRecords.map((record) => {
+          {/* Mobile Cards (shown on mobile regardless of viewMode; index.css
+              hides them on desktop, so no inline display here). */}
+          <div className="mobile-cards" style={{ flexDirection: 'column' }}>
+            {pageRecords.map((record) => {
               const cfg = TYPE_CONFIG[record.type] || TYPE_CONFIG.offer;
               const Icon = cfg.icon;
               return (
@@ -418,12 +416,19 @@ export default function InternRecords() {
               );
             })}
           </div>
-        </div>
+        </>
       )}
 
-      {/* Footer count */}
-      {filteredRecords.length > 0 && (
-        <div style={{ textAlign: 'center', fontSize: '13.5px', color: 'var(--text-muted)', fontWeight: 500 }}>
+      {/* 50 a page, as in Billing. */}
+      {pages > 1 && (
+        <div className="fin-list-pager" role="navigation" aria-label="Pages">
+          <button type="button" className="prod-btn-ghost" disabled={pageNo === 0} onClick={() => setListPage(pageNo - 1)} aria-label="Previous page"><ChevronLeft size={14} /></button>
+          <span>{pageNo * PAGE_SIZE + 1}–{Math.min(filteredRecords.length, (pageNo + 1) * PAGE_SIZE)} of {filteredRecords.length} · Page {pageNo + 1} of {pages}</span>
+          <button type="button" className="prod-btn-ghost" disabled={pageNo >= pages - 1} onClick={() => setListPage(pageNo + 1)} aria-label="Next page"><ChevronRight size={14} /></button>
+        </div>
+      )}
+      {filteredRecords.length > 0 && pages === 1 && (
+        <div style={{ textAlign: 'center', fontSize: '12.5px', color: 'var(--text-muted)', fontWeight: 500 }}>
           Showing {filteredRecords.length} of {records.length} record{records.length !== 1 ? 's' : ''}
         </div>
       )}

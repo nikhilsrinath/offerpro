@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search, ChevronDown, ChevronUp,
+  Search, ChevronLeft, ChevronRight, Eye,
   FileText, FilePlus, FileCheck, Receipt, CheckCircle,
-  Copy, Building, Filter, Hourglass, Users, TrendingUp,
+  Filter, Hourglass, Users, TrendingUp,
 } from 'lucide-react';
 import {
   BarChart, Bar, PieChart, Pie, Cell,
@@ -12,13 +11,15 @@ import {
 import { documentStore, docNumber as docNo } from '../../services/documentStore';
 import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
-import { ShareLinkModal } from '../shared/PortalLinkGenerator';
+import { useInvoiceActions } from './invoiceActions';
 import PaymentPositionCards from './PaymentPositionCards';
 import { Dropdown } from '../ui/edge';
 import {
   issuedInvoices, balanceOf, isOverdue, daysOverdue, todayIso,
 } from '../../services/financeAnalytics';
 import { currencySymbol, currencyLocale } from '../../shared/currency.js';
+
+const PAGE_SIZE = 50; // rows a page
 
 const TYPE_CONFIG = {
   quotation: { label: 'Quotation', icon: FilePlus, color: '#3b82f6', prefix: 'QUO' },
@@ -73,60 +74,13 @@ const chartStyles = () => ({
   grid: css('--chart-grid'),
 });
 
-const PIPELINE_STAGES = [
-  { key: 'quotation', label: 'Quotation' },
-  { key: 'proforma', label: 'Proforma' },
-  { key: 'invoice', label: 'Invoice' },
-  { key: 'paid', label: 'Paid' },
-];
-
-function getStageIndex(doc) {
-  if (doc.type === 'invoice' && doc.status === 'paid') return 3;
-  if (doc.type === 'invoice') return 2;
-  if (doc.type === 'proforma') return 1;
-  return 0;
-}
-
-function groupByClient(docs) {
-  const groups = {};
-  docs.forEach((doc) => {
-    const clientKey = doc.client?.company || doc.issued_to || 'Unknown';
-    if (!groups[clientKey]) {
-      groups[clientKey] = {
-        client: clientKey,
-        clientName: doc.client?.name || doc.issued_to || 'Unknown',
-        documents: [],
-        totalValue: 0,
-        latestStatus: doc.status,
-        latestDate: doc.created_at,
-        highestStage: getStageIndex(doc),
-      };
-    }
-    groups[clientKey].documents.push(doc);
-    if (doc.status !== 'converted') {
-      groups[clientKey].totalValue += (doc.grand_total || doc.amount || doc.subtotal || 0);
-    }
-    if (new Date(doc.created_at) > new Date(groups[clientKey].latestDate)) {
-      groups[clientKey].latestDate = doc.created_at;
-      groups[clientKey].latestStatus = doc.status;
-    }
-    const stage = getStageIndex(doc);
-    if (stage > groups[clientKey].highestStage) {
-      groups[clientKey].highestStage = stage;
-    }
-  });
-  return Object.values(groups).sort((a, b) => new Date(b.latestDate) - new Date(a.latestDate));
-}
-
 export default function FinanceStatus() {
   const { activeOrg } = useOrg();
   const [documents, setDocuments] = useState([]);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('date_desc');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [expandedClient, setExpandedClient] = useState(null);
-  const [showPortalLink, setShowPortalLink] = useState(null);
-  const [viewMode, setViewMode] = useState('pipeline'); // 'pipeline' | 'list'
+  const invoiceActions = useInvoiceActions();
   const [pipelineRange, setPipelineRange] = useState('12');
   const [trendRange, setTrendRange] = useState('6');
 
@@ -172,7 +126,12 @@ export default function FinanceStatus() {
     });
   }, [documents, search, typeFilter, sortBy]);
 
-  const clientGroups = useMemo(() => groupByClient(filteredDocs), [filteredDocs]);
+  // 50 a page; a new search, type or sort starts again at the first page.
+  const [listPage, setListPage] = useState(0);
+  const pages = Math.max(1, Math.ceil(filteredDocs.length / PAGE_SIZE));
+  const pageNo = Math.min(listPage, pages - 1);
+  const pageDocs = filteredDocs.slice(pageNo * PAGE_SIZE, (pageNo + 1) * PAGE_SIZE);
+  useEffect(() => { setListPage(0); }, [search, typeFilter, sortBy]);
 
   // ── Dashboard analytics ────────────────────────────────────────────────────
   // All of it reads `documents` (everything, unfiltered) rather than
@@ -278,10 +237,6 @@ export default function FinanceStatus() {
   }, [documents]);
 
   const debtorMax = topDebtors[0]?.outstanding || 0;
-
-  const toggleClient = (client) => {
-    setExpandedClient(expandedClient === client ? null : client);
-  };
 
   return (
     <div className="finance-page animate-in">
@@ -542,251 +497,80 @@ export default function FinanceStatus() {
               </button>
             ))}
           </div>
-          <div className="fin-status-view-toggle">
-            <button
-              className={`fin-status-view-btn ${viewMode === 'pipeline' ? 'active' : ''}`}
-              onClick={() => setViewMode('pipeline')}
-            >
-              Pipeline
-            </button>
-            <button
-              className={`fin-status-view-btn ${viewMode === 'list' ? 'active' : ''}`}
-              onClick={() => setViewMode('list')}
-            >
-              List
-            </button>
-          </div>
         </div>
 
-        {/* Pipeline View */}
-        {viewMode === 'pipeline' && (
-          <div className="fin-status-pipeline">
-            {clientGroups.length === 0 ? (
-              <div className="fin-status-empty">
-                <FileText size={40} strokeWidth={1} />
-                <h3>No Financial Documents Yet</h3>
-                <p>Create a quotation, proforma invoice, or invoice to see them tracked here.</p>
-              </div>
-            ) : (
-              clientGroups.map((group) => (
-                <motion.div
-                  key={group.client}
-                  className="fin-status-deal-card"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  layout
-                >
-                  <div
-                    className="fin-status-deal-header"
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={expandedClient === group.client}
-                    onClick={() => toggleClient(group.client)}
-                    onKeyDown={(e) => {
-                      if (e.target !== e.currentTarget) return;
-                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleClient(group.client); }
-                    }}
-                  >
-                    <div className="fin-status-deal-info">
-                      <div className="fin-status-deal-avatar">
-                        <Building size={16} />
-                      </div>
-                      <div>
-                        <h4 className="fin-status-deal-company">{group.client}</h4>
-                        <span className="fin-status-deal-contact">{group.clientName}</span>
-                      </div>
-                    </div>
-                    <div className="fin-status-deal-meta">
-                      <span className="fin-status-deal-value">{currencySymbol()}{group.totalValue.toLocaleString(currencyLocale())}</span>
-                      <div className="fin-status-deal-badges">
-                        {group.documents.map((doc) => {
-                          const cfg = TYPE_CONFIG[doc.type];
-                          return (
-                            <span
-                              key={doc.id}
-                              className="fin-status-type-badge"
-                              style={{ background: cfg?.color + '18', color: cfg?.color }}
-                            >
-                              {cfg?.label}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    <div className="fin-status-deal-progress">
-                      {PIPELINE_STAGES.map((stage, i) => (
-                        <div key={stage.key} className="fin-status-stage-wrapper">
-                          <div
-                            className={`fin-status-stage-dot ${i <= group.highestStage ? 'active' : ''}`}
-                            title={stage.label}
-                          />
-                          {i < PIPELINE_STAGES.length - 1 && (
-                            <div className={`fin-status-stage-line ${i < group.highestStage ? 'active' : ''}`} />
-                          )}
-                        </div>
-                      ))}
-                      <span className="fin-status-stage-label">
-                        {PIPELINE_STAGES[group.highestStage]?.label}
-                      </span>
-                    </div>
-                    {expandedClient === group.client ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-
-                  <AnimatePresence>
-                    {expandedClient === group.client && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="fin-status-deal-details"
-                      >
-                        <div className="fin-status-timeline">
-                          {group.documents
-                            .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-                            .map((doc, idx) => {
-                              const cfg = TYPE_CONFIG[doc.type];
-                              const Icon = cfg?.icon || FileText;
-                              return (
-                                <div key={doc.id} className="fin-status-timeline-item">
-                                  <div className="fin-status-timeline-dot" style={{ background: cfg?.color }} />
-                                  {idx < group.documents.length - 1 && (
-                                    <div className="fin-status-timeline-connector" />
-                                  )}
-                                  <div className="fin-status-timeline-content">
-                                    <div className="fin-status-timeline-header">
-                                      <Icon size={14} style={{ color: cfg?.color }} />
-                                      <span className="fin-status-timeline-id">{docNo(doc)}</span>
-                                      <DocumentStatusBadge status={doc.status} size="small" />
-                                    </div>
-                                    <div className="fin-status-timeline-body">
-                                      <div className="fin-status-timeline-row">
-                                        <span>Type</span>
-                                        <strong>{cfg?.label}</strong>
-                                      </div>
-                                      <div className="fin-status-timeline-row">
-                                        <span>Amount</span>
-                                        <strong>{currencySymbol()}{(doc.grand_total || doc.amount || doc.subtotal || 0).toLocaleString(currencyLocale())}</strong>
-                                      </div>
-                                      {doc.items && doc.items.length > 0 && (
-                                        <div className="fin-status-timeline-row">
-                                          <span>Items</span>
-                                          <strong>{doc.items.map((it) => it.description).join(', ')}</strong>
-                                        </div>
-                                      )}
-                                      <div className="fin-status-timeline-row">
-                                        <span>Date</span>
-                                        <strong>{doc.issue_date || new Date(doc.created_at).toLocaleDateString('en-IN')}</strong>
-                                      </div>
-                                      {doc.due_date && (
-                                        <div className="fin-status-timeline-row">
-                                          <span>Due</span>
-                                          <strong>{doc.due_date}</strong>
-                                        </div>
-                                      )}
-                                      {doc.valid_until && (
-                                        <div className="fin-status-timeline-row">
-                                          <span>Valid Until</span>
-                                          <strong>{doc.valid_until}</strong>
-                                        </div>
-                                      )}
-                                      {doc.converted_from && (
-                                        <div className="fin-status-timeline-row">
-                                          <span>Converted From</span>
-                                          <strong>{doc.converted_from}</strong>
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="fin-status-timeline-actions">
-                                      <button
-                                        className="fin-list-action-btn"
-                                        title="Copy Portal Link"
-                                        onClick={() => setShowPortalLink(doc.id)}
-                                      >
-                                        <Copy size={13} /> Link
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* List View */}
-        {viewMode === 'list' && (
-          <div className="fin-list-table-wrap">
-            <table className="fin-list-table">
-              <thead>
+        {/* The list (the Pipeline view was removed, bug list 01). Header
+            frozen, 50 a page, View Invoice in place of Actions. */}
+        <div className="fin-list-table-wrap table-frozen-head">
+          <table className="fin-list-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Client / Company</th>
+                <th>Items</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>View Invoice</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredDocs.length === 0 ? (
                 <tr>
-                  <th>ID</th>
-                  <th>Type</th>
-                  <th>Client / Company</th>
-                  <th>Items</th>
-                  <th>Amount</th>
-                  <th>Date</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <td colSpan={8} className="fin-list-empty">No documents found</td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredDocs.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="fin-list-empty">No documents found</td>
-                  </tr>
-                ) : (
-                  filteredDocs.map((doc) => {
-                    const cfg = TYPE_CONFIG[doc.type];
-                    return (
-                      <tr key={doc.id}>
-                        <td className="fin-list-id">{docNo(doc)}</td>
-                        <td>
-                          <span
-                            className="fin-status-type-badge"
-                            style={{ background: cfg?.color + '18', color: cfg?.color }}
-                          >
-                            {cfg?.label}
-                          </span>
-                        </td>
-                        <td>{doc.client?.company || doc.issued_to || '-'}</td>
-                        <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {doc.items?.map((it) => it.description).join(', ') || '-'}
-                        </td>
-                        <td className="fin-list-amount">{currencySymbol()}{(doc.grand_total || doc.amount || doc.subtotal || 0).toLocaleString(currencyLocale())}</td>
-                        <td>{doc.issue_date || '-'}</td>
-                        <td><DocumentStatusBadge status={doc.status} size="small" /></td>
-                        <td>
+              ) : (
+                pageDocs.map((doc) => {
+                  const cfg = TYPE_CONFIG[doc.type];
+                  return (
+                    <tr key={doc.id}>
+                      <td className="fin-list-id">{docNo(doc)}</td>
+                      <td>
+                        <span
+                          className="fin-status-type-badge"
+                          style={{ background: cfg?.color + '18', color: cfg?.color }}
+                        >
+                          {cfg?.label}
+                        </span>
+                      </td>
+                      <td>{doc.client?.company || doc.issued_to || doc.clientName || '-'}</td>
+                      <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {doc.items?.map((it) => it.description).join(', ') || '-'}
+                      </td>
+                      <td className="fin-list-amount">{currencySymbol()}{(doc.grand_total || doc.amount || doc.subtotal || 0).toLocaleString(currencyLocale())}</td>
+                      <td>{doc.issue_date || '-'}</td>
+                      <td><DocumentStatusBadge status={doc.status} type={doc.type} size="small" /></td>
+                      <td>
+                        {doc.type === 'invoice' ? (
                           <button
+                            type="button"
                             className="fin-list-action-btn"
-                            title="Copy Portal Link"
-                            onClick={() => setShowPortalLink(doc.id)}
-                           aria-label="Copy Portal Link">
-                            <Copy size={14} />
+                            title="View Invoice"
+                            aria-label={`View Invoice ${docNo(doc)}`}
+                            onClick={() => invoiceActions.view(doc.id)}
+                          >
+                            <Eye size={14} /> View Invoice
                           </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                        ) : '-'}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        {pages > 1 && (
+          <div className="fin-list-pager" role="navigation" aria-label="Pages">
+            <button type="button" className="prod-btn-ghost" disabled={pageNo === 0} onClick={() => setListPage(pageNo - 1)} aria-label="Previous page"><ChevronLeft size={14} /></button>
+            <span>{pageNo * PAGE_SIZE + 1}–{Math.min(filteredDocs.length, (pageNo + 1) * PAGE_SIZE)} of {filteredDocs.length} · Page {pageNo + 1} of {pages}</span>
+            <button type="button" className="prod-btn-ghost" disabled={pageNo >= pages - 1} onClick={() => setListPage(pageNo + 1)} aria-label="Next page"><ChevronRight size={14} /></button>
           </div>
         )}
       </div>
 
-      {/* Portal Link Modal */}
-      <ShareLinkModal
-        open={!!showPortalLink}
-        onClose={() => setShowPortalLink(null)}
-        documentId={showPortalLink}
-        title={'Share link'}
-      />
+      {invoiceActions.dialogs}
     </div>
   );
 }

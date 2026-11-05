@@ -41,7 +41,7 @@ export default function InvoiceViewPanel({ doc, onEdit, onClose }) {
         display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px var(--dr-pad, 20px)',
         borderBottom: '1px solid var(--dr-line, var(--border-subtle))', fontSize: 13, color: 'var(--text-secondary)',
       }}>
-        <DocumentStatusBadge status={doc.status} size="small" />
+        <DocumentStatusBadge status={doc.status} type="invoice" size="small" />
         <span>{formData.clientName || 'Client'}</span>
         <span aria-hidden="true">·</span>
         <span>Total {money(totals.grandTotal, 2)}</span>
