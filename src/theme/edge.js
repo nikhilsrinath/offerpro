@@ -46,6 +46,8 @@ export function makeTokens(isDark) {
         dim:        S.dim,
         faint:      S.faint,
         ghost:      S.ghost,
+        thBg:       S.tableHead,         // table title row (navy) and its bold white titles
+        thText:     S.tableHeadText,
         up:         isDark ? '#3ecf75' : '#15803d',
         down:       isDark ? '#f26d6d' : '#c62828',
         // Brand colours come from theme/palette.js — change the palette there.

@@ -6,11 +6,13 @@ import { uploadOrgImage } from '../services/imageUploadService';
 import EmployeeAvatar from './shared/EmployeeAvatar';
 import DepartmentsPanel from './people/DepartmentsPanel';
 import { departmentRows } from './people/departments';
+import EmployeeProjectPicker from './people/EmployeeProjectPicker';
+import { addMember } from '../services/projectService';
 import { useAuth } from '../context/AuthContext';
 import { useOrg } from '../context/OrgContext';
 import { orgStore } from '../services/orgStore';
 import {
-    Page, Toolbar, Panel, Row, Grid, Btn, Seg, Field, Input, Select, Textarea, Empty,
+    Page, Panel, Row, Grid, Btn, Seg, Field, Input, Select, Textarea, Empty,
 } from './ui/edge';
 import { useT } from './ui/edgeUtils';
 import { baseCurrency } from '../shared/currency.js';
@@ -72,6 +74,9 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
     const photoInput = useRef(null);
     const [photoBusy, setPhotoBusy] = useState(false);
     const [photoError, setPhotoError] = useState('');
+    // Projects queued in the Projects section; added once the person is saved.
+    const [newProjects, setNewProjects] = useState([]);
+    const canAssign = orgStore.can('projects', 'view') && orgStore.can('project_members', 'create');
 
     const [form, setForm] = useState(() => (employee
         ? { ...blank(org), ...employee, studentName: employee.studentName || employee.first_name || '', id: employee.id }
@@ -150,6 +155,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
         }
         setSaving(true);
         try {
+            let employeeId = form.id;
             if (isEdit) {
                 await storageService.updateEmployee(form.id, form, activeOrg?.id);
             } else {
@@ -166,7 +172,27 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                     'offer', activeOrg?.id, user?.id,
                     { status: 'accepted', employee_id: saved?.id || employee?.id || null },
                 );
+                employeeId = saved?.id;
             }
+            // The person is saved; a project that refuses them is reported
+            // without undoing that.
+            const failed = [];
+            if (employeeId) {
+                const today = new Date().toISOString().slice(0, 10);
+                const from = !isEdit && form.startDate > today ? form.startDate : today;
+                for (const x of newProjects) {
+                    try {
+                        await addMember(x.project_id, {
+                            employee_id: employeeId, role: x.role, role_title: '', allocation_pct: x.allocation_pct,
+                            start_date: from, end_date: null, bill_rate: null,
+                        });
+                    } catch (e) {
+                        const p = orgStore.getItem('projects', x.project_id);
+                        failed.push(`${p?.name || 'A project'}: ${e.message}`);
+                    }
+                }
+            }
+            if (failed.length) alert(`${form.studentName} was saved, but was not added to:\n${failed.join('\n')}`);
             setDone(true);
             setTimeout(() => {
                 setSaving(false);
@@ -200,19 +226,6 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
 
     return (
         <Page>
-            <Toolbar right={
-                <Row gap={8}>
-                    <Btn onClick={leave}>Cancel</Btn>
-                    <Btn primary onClick={submit} disabled={saving || !ready}>
-                        {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add to the team'}
-                    </Btn>
-                </Row>
-            }>
-                <span style={{ fontSize: 13.5, color: t.text }}>
-                    {isEdit ? 'Editing ' + (form.studentName || 'employee') : 'New employee'}
-                </span>
-            </Toolbar>
-
             <div style={{ display: 'grid', gap: 14 }}>
                 <Panel title="Person" pad={15}>
                     <Row gap={15} align="flex-start" wrap>
@@ -316,6 +329,26 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                         </>
                     )}
                 </Panel>
+
+                {canAssign && <EmployeeProjectPicker employeeId={form.id} pending={newProjects} onChange={setNewProjects} />}
+            </div>
+
+            {/* Save and Cancel sit under the form, and stay in view while it scrolls. */}
+            <div style={{
+                position: 'sticky', bottom: 0, zIndex: 20, marginTop: 14,
+                display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: 10,
+                background: t.card, border: '1px solid ' + t.line, borderRadius: 12,
+            }}>
+                <span style={{ fontSize: 13.5, color: t.text, flex: 1, minWidth: 0 }}>
+                    {isEdit ? 'Editing ' + (form.studentName || 'employee') : 'New employee'}
+                    {!ready && <span style={{ color: t.faint, fontSize: 12 }}> · still needed: {missing.join(', ')}</span>}
+                </span>
+                <Row gap={8}>
+                    <Btn onClick={leave}>Cancel</Btn>
+                    <Btn primary onClick={submit} disabled={saving || !ready}>
+                        {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add to the team'}
+                    </Btn>
+                </Row>
             </div>
         </Page>
     );

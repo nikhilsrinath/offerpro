@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Eye, Send, Save } from 'lucide-react';
+import ClientFormDialog from '../shared/ClientFormDialog';
+import { AddClientItem } from '../shared/ClientSelect';
 import { documentStore, docNumber } from '../../services/documentStore';
 import { createPortalLink } from '../../services/portalService';
 import { customerService } from '../../services/customerService';
@@ -84,6 +86,8 @@ export default function QuotationForm({ editDocId }) {
 
   const [clientSearch, setClientSearch] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);
+  // The Add Client panel, with what was typed as its name (null: closed).
+  const [addingClient, setAddingClient] = useState(null);
   const clientDropdownRef = useRef(null);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -617,7 +621,7 @@ export default function QuotationForm({ editDocId }) {
                   className="easy-inp"
                   autoComplete="off"
                 />
-                {showClientDropdown && filteredClients.length > 0 && (
+                {showClientDropdown && (
                   <div className="customer-dropdown">
                     {filteredClients.map((c) => (
                       <div
@@ -631,7 +635,12 @@ export default function QuotationForm({ editDocId }) {
                         </span>
                       </div>
                     ))}
+                    <AddClientItem onClick={() => { setShowClientDropdown(false); setAddingClient(clientSearch.trim()); }} />
                   </div>
+                )}
+                {addingClient !== null && (
+                  <ClientFormDialog initialName={addingClient} onClose={() => setAddingClient(null)}
+                    onSaved={(c) => c?.id && handleSelectClient(c)} />
                 )}
               </div>
               <div className="easy-field">
@@ -1175,8 +1184,9 @@ export default function QuotationForm({ editDocId }) {
               </div>
             </div>
 
-            {/* Items Table */}
+            {/* Items Table (part of the printed document, keeps its own look) */}
             <table
+              className="doc-table"
               style={{
                 width: '100%',
                 borderCollapse: 'collapse',

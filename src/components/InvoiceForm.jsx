@@ -3,6 +3,8 @@ import { useNavigate, useLocation, useParams, useSearchParams } from 'react-rout
 import { Plus, Trash2, ChevronRight, Eye, Lock, UserPlus } from 'lucide-react';
 import { pdfService } from '../services/pdfService';
 import { customerService } from '../services/customerService';
+import ClientFormDialog from './shared/ClientFormDialog';
+import { AddClientItem } from './shared/ClientSelect';
 import { documentStore } from '../services/documentStore';
 import { useOrg } from '../context/OrgContext';
 import { usePlanStatus } from '../hooks/usePlanStatus';
@@ -57,6 +59,8 @@ export default function InvoiceForm({ editDocId = null }) {
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [customerSearch, setCustomerSearch] = useState('');
+  // The Add Client panel, with what was typed as its name (null: closed).
+  const [addingClient, setAddingClient] = useState(null);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   const customerDropdownRef = useRef(null);
@@ -665,9 +669,9 @@ export default function InvoiceForm({ editDocId = null }) {
                 <input aria-label="Client name (Bill To)" required type="text" placeholder="Search or type client name..."
                   value={customerSearch || formData.clientName}
                   onChange={(e) => handleCustomerSearchChange(e.target.value)}
-                  onFocus={() => { if (customerSearch.length > 0 || customers.length > 0) setShowCustomerDropdown(true); }}
+                  onFocus={() => setShowCustomerDropdown(true)}
                   className="easy-inp" autoComplete="off" />
-                {showCustomerDropdown && filteredCustomers.length > 0 && (
+                {showCustomerDropdown && (
                   <div className="customer-dropdown">
                     {filteredCustomers.map((c) => (
                       <div key={c.id} className="customer-dropdown-item" onClick={() => handleSelectCustomer(c)}>
@@ -677,7 +681,12 @@ export default function InvoiceForm({ editDocId = null }) {
                         </span>
                       </div>
                     ))}
+                    <AddClientItem onClick={() => { setShowCustomerDropdown(false); setAddingClient(customerSearch.trim()); }} />
                   </div>
+                )}
+                {addingClient !== null && (
+                  <ClientFormDialog initialName={addingClient} onClose={() => setAddingClient(null)}
+                    onSaved={(c) => { if (!c?.id) return; setCustomers((prev) => [c, ...prev.filter((x) => x.id !== c.id)]); handleSelectCustomer(c); }} />
                 )}
               </div>
               <div className="easy-field">

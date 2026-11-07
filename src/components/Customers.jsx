@@ -294,8 +294,8 @@ export default function Customers() {
     }
     return out;
   }, [finDocs]);
-  // Grid (cards) or List (one row per client); kept while moving between pages.
-  const [view, setView] = useRememberedState('clients.view', 'grid');
+  // List (one row per client, the default) or Grid (cards); kept while moving between pages.
+  const [view, setView] = useRememberedState('clients.view', 'list');
 
   useEffect(() => {
     if (activeOrg?.id) loadCustomers();
@@ -401,7 +401,7 @@ export default function Customers() {
           />
         </div>
         <ProjectScopeFilter cp={cp} value={projectScope} onChange={setProjectScope} className="prod-select" />
-        <Seg value={view} onChange={setView} label="View" options={[
+        <Seg size="sm" value={view} onChange={setView} label="View" options={[
           { id: 'list', label: 'List' }, { id: 'grid', label: 'Grid' },
         ]} />
         <button onClick={openAdd} className="prod-add-btn">

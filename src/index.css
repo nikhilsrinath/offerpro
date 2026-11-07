@@ -15337,8 +15337,11 @@ html body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"
 
 /* Tax Summary: section headings, the frozen header row of All Entries, paging. */
 .tax-section-title { margin: 0 0 0.6rem; font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
-.tax-entries-wrap { max-height: 70vh; overflow: auto; }
-.tax-entries-wrap thead th { position: sticky; top: 0; z-index: 1; background: var(--surface, var(--bg-elevated)); }
+/* No scroll of its own: the page scrolls and useStickyHead moves the header down
+   with it. A collapsed border would stay behind with the rows, so the line under
+   the titles is an inset shadow that moves with them. */
+.tax-entries-wrap thead { position: relative; z-index: 2; }
+.tax-entries-wrap thead th { background: var(--bg-elevated); border-bottom: 0; box-shadow: inset 0 -1px 0 var(--border-subtle); }
 .tax-pager { display: flex; align-items: center; justify-content: flex-end; gap: 0.6rem; margin-top: 0.6rem; font-size: 0.8rem; color: var(--text-secondary); }
 .tax-pager button { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 8px; }
 
@@ -15379,3 +15382,23 @@ html body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"
 /* Billing lists: 50 rows a page. */
 .fin-list-pager { display: flex; align-items: center; justify-content: flex-end; gap: 0.6rem; margin-top: 0.6rem; font-size: 0.8rem; color: var(--text-secondary); }
 .fin-list-pager button { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 8px; }
+
+/* Every table title row in the app: dark (the palette navy) with bold white
+   titles. Colours come from theme/palette.js (tableHead / tableHeadText).
+   Tables that are part of a printed document (invoice, quotation, portal and
+   landing A4 previews) keep the look of that document. */
+:root { --th-bg: var(--brand-l-table-head); --th-text: var(--brand-l-table-head-text); }
+[data-theme="dark"] { --th-bg: var(--brand-d-table-head); --th-text: var(--brand-d-table-head-text); }
+:is(table:not(.inv-table, .inv-sf-meta-table, .inv-sf-items-table, .rp-doc-table, .cp-doc-table, .sp-a4-table, .doc-table)) > thead > tr {
+  background: var(--th-bg) !important;
+}
+:is(table:not(.inv-table, .inv-sf-meta-table, .inv-sf-items-table, .rp-doc-table, .cp-doc-table, .sp-a4-table, .doc-table)) > thead > tr > th {
+  background: var(--th-bg) !important;
+  color: var(--th-text) !important;
+  font-weight: 700 !important;
+  border-color: var(--th-bg) !important;
+}
+/* Sort buttons, menus and icons in a title follow its white text. */
+:is(table:not(.inv-table, .inv-sf-meta-table, .inv-sf-items-table, .rp-doc-table, .cp-doc-table, .sp-a4-table, .doc-table)) > thead > tr > th :not(input, select, option) {
+  color: inherit !important;
+}

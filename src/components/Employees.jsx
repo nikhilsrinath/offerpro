@@ -18,11 +18,14 @@ import {
     ConfirmBtn, Muted, Label,
 } from './ui/edge';
 import { useT, fmtDate, MONO } from './ui/edgeUtils';
-import { Mail, Phone } from 'lucide-react';
-import EmployeeWorkInsights from './people/EmployeeWorkInsights';
-import RelatedProjects from './projects/RelatedProjects';
-import { PhotoPortrait } from './portal/me/portalKit';
-import { tenureLabel, daysUntilBirthday, useWindowWidth } from './portal/me/portalUtils';
+import { useEmployeeWork } from './people/useEmployeeWork';
+import {
+    TodayStrip, AttendanceSection, LeaveSection, LeaveSummary,
+} from './people/EmployeeWorkInsights';
+import EmployeeProjects from './people/EmployeeProjects';
+import { useEmployeeProjects } from './people/useEmployeeProjects';
+import { PhotoPortrait, Kpi } from './portal/me/portalKit';
+import { tenureLabel, daysUntilBirthday, useWindowWidth, hoursLabel } from './portal/me/portalUtils';
 import { initialQuery } from '../services/urlQuery';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -202,6 +205,9 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
     const [busy, setBusy] = useState(false);
     const [copied, setCopied] = useState(false);
     const [accessKey, setAccessKey] = useState(0);   // remounts MemberAccess after a login changes
+    const [tab, setTab] = useState('overview');      // overview | attendance | leave | access
+    const work = useEmployeeWork(emp, orgId);
+    const projects = useEmployeeProjects(emp.id);
 
     const winW = useWindowWidth();
     const isSelf = currentUserEmail && (emp.email || '').toLowerCase() === currentUserEmail.toLowerCase();
@@ -346,22 +352,23 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
     const tenure = tenureLabel(emp.startDate);
     const bdayIn = daysUntilBirthday(emp.date_of_birth);
     const stacked = winW < 900;
-    const wide = winW >= 1180;
+    const narrow = winW < 1180;
+    const link2 = { color: t.text, textDecoration: 'none' };
 
     const facts = [
-        ['Employment', TYPE_LABEL[emp.offerType]],
+        ['Employee ID', emp.employee_code],
         ['Department', emp.department && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: deptColor(emp.department, departments) }} />
                 {emp.department}
             </span>
         )],
-        ['Employee ID', emp.employee_code],
-        ['Reports to', emp.supervisorName],
-        ['Started', emp.startDate && (
-            <>{fmtDate(emp.startDate)}{tenure && <span style={{ color: t.faint }}> · {tenure}</span>}</>
-        )],
+        ['Employment', TYPE_LABEL[emp.offerType]],
+        ['Reports To', emp.supervisorName],
+        ['Joined', emp.startDate && fmtDate(emp.startDate)],
         ['Ends', emp.endDate ? fmtDate(emp.endDate) : null],
+        ['Email', emp.email && <a href={`mailto:${emp.email}`} style={link2}>{emp.email}</a>],
+        ['Phone', emp.phone && <a href={`tel:${emp.phone}`} style={link2}>{emp.phone}</a>],
         ['Birthday', emp.date_of_birth && (
             <>
                 {fmtDate(emp.date_of_birth)}
@@ -370,10 +377,105 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
                 )}
             </>
         )],
-        ['Phone', emp.phone],
-        ['Email', emp.email],
         ['Address', emp.address],
+        ['Emergency', (emp.emergency_contact_name || emp.emergency_contact_phone) && (
+            <>
+                {emp.emergency_contact_name || '-'}
+                {emp.emergency_contact_phone && (
+                    <> · <a href={`tel:${emp.emergency_contact_phone}`} style={link2}>{emp.emergency_contact_phone}</a></>
+                )}
+            </>
+        )],
     ].filter(([, v]) => v);
+
+    /* ── left: who they are. Fixed on desktop: it never scrolls. ── */
+    const profile = (
+        <aside style={{
+            display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0,
+            padding: 16, boxSizing: 'border-box',
+            ...(stacked ? { borderBottom: '1px solid ' + t.line } : { borderRight: '1px solid ' + t.line, overflow: 'hidden', background: t.panelAlt }),
+        }}>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                <div style={{ width: 92, flexShrink: 0 }}>
+                    <PhotoPortrait name={name} path={emp.photo_path} radius={12} initialsSize={30} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 17, fontWeight: 500, letterSpacing: '-0.02em', color: t.text, wordBreak: 'break-word' }}>{name}</div>
+                    <div style={{ fontSize: 12.5, color: t.dim, marginTop: 3 }}>{emp.role || 'No role set'}</div>
+                    {tenure && <div style={{ fontSize: 12, color: t.faint, marginTop: 3 }}>{tenure} here</div>}
+                </div>
+            </div>
+
+            <Row gap={6} wrap>
+                <Status tone={emp.user_id ? 'up' : 'mute'}>{emp.user_id ? 'Portal Active' : 'No Portal Login'}</Status>
+                {projects.current.length > 0 && <Status tone="accent">{projects.current.length} Project{projects.current.length === 1 ? '' : 's'}</Status>}
+            </Row>
+
+            <div style={{ border: '1px solid ' + t.line, borderRadius: 10, background: t.card, minHeight: 0 }}>
+                {facts.map(([k, v], i) => (
+                    <div key={k} style={{
+                        display: 'flex', gap: 10, padding: '7px 12px',
+                        borderTop: i ? '1px solid ' + t.lineSoft : 'none',
+                    }}>
+                        <span style={{ width: 86, flexShrink: 0, fontSize: 11.5, color: t.faint, paddingTop: 1 }}>{k}</span>
+                        <span style={{
+                            fontSize: 12.5, color: t.text, minWidth: 0, lineHeight: 1.45,
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }} title={typeof v === 'string' ? v : undefined}>{v}</span>
+                    </div>
+                ))}
+            </div>
+        </aside>
+    );
+
+    /* ── right: everything about how they work, in four tabs ── */
+    const kpis = work.loading ? null : (
+        <div style={{ display: 'grid', gap: 10, gridTemplateColumns: narrow ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))' }}>
+            {projects.canView && (
+                <Kpi label="Projects" value={projects.current.length}
+                    note={projects.current.length ? `${Math.round(projects.allocation)}% of time allocated` : 'Not on a project now'} />
+            )}
+            <Kpi label="Attendance" share={work.thisMonth.rate}
+                value={work.thisMonth.rate == null ? '-' : `${Math.round(work.thisMonth.rate * 100)}%`}
+                note={`${work.thisMonth.daysWorked} of ${work.thisMonth.expected} days this month`} />
+            <Kpi label="Hours This Month" value={hoursLabel(work.thisMonth.minutes)} note={`${work.streak}-day streak`} />
+            <Kpi label="Leave Left" value={work.balances.length ? `${work.leaveLeft}d` : '-'}
+                note={work.pending.length ? `${work.pending.length} request${work.pending.length === 1 ? '' : 's'} pending` : 'Nothing pending'} />
+        </div>
+    );
+
+    const tabBody = tab === 'access' ? (
+        <div style={{ display: 'grid', gap: 12, alignItems: 'start' }}>
+            <PortalAccess emp={emp} orgId={orgId} onChanged={() => setAccessKey((k) => k + 1)} />
+            <MemberAccess key={accessKey} email={emp.email} name={name} />
+        </div>
+    ) : work.loading ? <Loading>Loading work history…</Loading>
+        : tab === 'attendance' ? <AttendanceSection work={work} narrow={narrow} />
+            : tab === 'leave' ? <LeaveSection work={work} narrow={narrow} />
+                : (
+                    <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
+                        <TodayStrip work={work} />
+                        {kpis}
+                        <EmployeeProjects data={projects} />
+                        <LeaveSummary work={work} narrow={narrow} />
+                        {emp.bio && (
+                            <Panel title="About" pad={14}>
+                                <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.65, color: t.dim, whiteSpace: 'pre-wrap' }}>{emp.bio}</p>
+                            </Panel>
+                        )}
+                    </div>
+                );
+
+    const tabs = (
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid ' + t.line, flexShrink: 0, overflowX: 'auto' }}>
+            <Seg value={tab} onChange={setTab} label="Employee sections" options={[
+                { id: 'overview', label: 'Overview' },
+                { id: 'attendance', label: 'Attendance' },
+                { id: 'leave', label: 'Leave' },
+                { id: 'access', label: 'Access' },
+            ]} />
+        </div>
+    );
 
     return (
         <Modal open onClose={onClose} width={1120}
@@ -388,91 +490,30 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
                     <Btn primary onClick={onEdit}>Edit details</Btn>
                 </>
             }>
-            <div style={{
-                display: 'grid', gap: 18, alignItems: 'start',
-                gridTemplateColumns: stacked ? '1fr' : 'minmax(250px, 300px) minmax(0, 1fr)',
-            }}>
-                {/* ── left: the person ─────────────────────────────────────── */}
-                <aside style={{ display: 'grid', gap: 12, minWidth: 0 }}>
-                    <div style={{ width: '100%', maxWidth: stacked ? 240 : '100%', margin: stacked ? '0 auto' : 0 }}>
-                        <PhotoPortrait name={name} path={emp.photo_path} />
-                    </div>
-
-                    <div>
-                        <div style={{ fontSize: 19.5, fontWeight: 500, letterSpacing: '-0.03em', color: t.text }}>{name}</div>
-                        <div style={{ fontSize: 12.5, color: t.dim, marginTop: 4 }}>{emp.role || 'No role set'}</div>
-                        <Row gap={12} wrap style={{ marginTop: 9 }}>
-                            <Status tone={emp.user_id ? 'up' : 'mute'}>{emp.user_id ? 'Portal active' : 'No portal login'}</Status>
-                            {tenure && <Status tone="neutral">{tenure} here</Status>}
-                        </Row>
-                    </div>
-
-                    {(emp.email || emp.phone) && (
-                        <div style={{ display: 'grid', gap: 6, gridTemplateColumns: emp.email && emp.phone ? '1fr 1fr' : '1fr' }}>
-                            {emp.email && <a href={`mailto:${emp.email}`} className="edge-btn" style={contactBtn(t)}><Mail size={13} /> Email</a>}
-                            {emp.phone && <a href={`tel:${emp.phone}`} className="edge-btn" style={contactBtn(t)}><Phone size={13} /> Call</a>}
-                        </div>
-                    )}
-
-                    <div style={{ border: '1px solid ' + t.line, borderRadius: 10, overflow: 'hidden' }}>
-                        {facts.map(([k, v], i) => (
-                            <div key={k} style={{
-                                display: 'flex', gap: 10, padding: '8px 12px',
-                                borderTop: i ? '1px solid ' + t.lineSoft : 'none',
-                            }}>
-                                <span style={{ width: 76, flexShrink: 0, fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, paddingTop: 2 }}>
-                                    {k.toUpperCase()}
-                                </span>
-                                <span style={{ fontSize: 12.5, color: t.text, minWidth: 0, wordBreak: 'break-word', lineHeight: 1.5 }}>{v}</span>
-                            </div>
-                        ))}
-                    </div>
-
-                    {emp.bio && (
-                        <div style={{ border: '1px solid ' + t.line, borderRadius: 10, padding: '10px 12px' }}>
-                            <Label>About</Label>
-                            <p style={{ margin: '6px 0 0', fontSize: 12.5, lineHeight: 1.65, color: t.dim, whiteSpace: 'pre-wrap' }}>{emp.bio}</p>
-                        </div>
-                    )}
-
-                    {(emp.emergency_contact_name || emp.emergency_contact_phone) && (
-                        <div style={{ border: '1px solid ' + t.line, borderRadius: 10, padding: '10px 12px' }}>
-                            <Label>Emergency Contact</Label>
-                            <div style={{ fontSize: 13, color: t.text, marginTop: 6 }}>{emp.emergency_contact_name || '-'}</div>
-                            {emp.emergency_contact_phone && (
-                                <a href={`tel:${emp.emergency_contact_phone}`} style={{ fontSize: 12, color: t.dim, textDecoration: 'none' }}>
-                                    {emp.emergency_contact_phone}
-                                </a>
-                            )}
-                        </div>
-                    )}
-                </aside>
-
-                {/* ── right: how they are working, then their access ───────── */}
-                <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
-                    <EmployeeWorkInsights emp={emp} orgId={orgId} narrow={!wide} />
-
-                    <RelatedProjects employeeId={emp.id} />
-
-                    <div>
-                        <div style={{ fontSize: 11, letterSpacing: 0, color: t.faint, margin: '4px 0 9px' }}>Access</div>
-                        <div style={{ display: 'grid', gap: 12, alignItems: 'start' }}>
-                            <PortalAccess emp={emp} orgId={orgId} onChanged={() => setAccessKey((k) => k + 1)} />
-                            <MemberAccess key={accessKey} email={emp.email} name={name} />
+            {stacked ? (
+                <div style={{ margin: 0 }}>
+                    {profile}
+                    {tabs}
+                    <div style={{ padding: 16 }}>{tabBody}</div>
+                </div>
+            ) : (
+                // Fills the panel body exactly: the left column is fixed, only
+                // the right column scrolls.
+                <div style={{
+                    margin: 0, height: '100%', display: 'grid',
+                    gridTemplateColumns: '300px minmax(0, 1fr)', overflow: 'hidden',
+                }}>
+                    {profile}
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+                        {tabs}
+                        <div key={tab} className="edge-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 16 }}>
+                            {tabBody}
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
         </Modal>
     );
-}
-
-function contactBtn(t) {
-    return {
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 30,
-        borderRadius: 7, border: '1px solid ' + t.line, background: t.panel, color: t.text,
-        fontFamily: MONO, fontSize: 12.5, textDecoration: 'none',
-    };
 }
 
 /* ── page ─────────────────────────────────────────────────────────────────── */

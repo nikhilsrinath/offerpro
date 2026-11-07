@@ -96,8 +96,8 @@ export const tableFrame = (t) => ({
 
 export const thStyle = (t, align) => ({
     textAlign: align || 'left', padding: '6px 12px', height: 32,
-    fontSize: 11.5, fontWeight: 500, letterSpacing: 0, textTransform: 'none', color: t.faint,
-    background: t.panelAlt, borderBottom: '1px solid ' + t.line, whiteSpace: 'nowrap',
+    fontSize: 11.5, fontWeight: 700, letterSpacing: 0, textTransform: 'none', color: t.thText,
+    background: t.thBg, borderBottom: '1px solid ' + t.thBg, whiteSpace: 'nowrap',
 });
 
 export const tdStyle = (t, align) => ({

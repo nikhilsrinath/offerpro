@@ -4,6 +4,7 @@
 import { LogIn, LogOut, Check } from 'lucide-react';
 import { useT, MONO } from '../../ui/edgeUtils';
 import { Bar } from '../../ui/edge';
+import { titleCaseNode } from '../../../utils/titleCase';
 import { formatDuration, workedMinutes, todayKey } from '../../../services/attendanceService';
 import { useSignedPhoto, clockTime, fmtLongDay, hoursLabel, useNow } from './portalUtils';
 
@@ -29,7 +30,7 @@ export function SectionLabel({ children, right }) {
   const t = useT();
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 9px' }}>
-      <span style={{ fontSize: 11, letterSpacing: '0.1em', color: t.faint }}>{String(children).toUpperCase()}</span>
+      <span style={{ fontSize: 12, fontWeight: 500, color: t.faint }}>{titleCaseNode(children)}</span>
       <span style={{ flex: 1, height: 1, background: t.lineSoft }} />
       {right}
     </div>
@@ -45,7 +46,7 @@ export function Kpi({ label, value, note, share, tone }) {
       border: '1px solid ' + t.line, borderRadius: 10, padding: '13px 14px 12px',
       background: t.panel, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6,
     }}>
-      <span style={{ fontSize: 10.5, letterSpacing: '0.1em', color: t.faint }}>{String(label).toUpperCase()}</span>
+      <span style={{ fontSize: 12, fontWeight: 500, color: t.faint }}>{titleCaseNode(label)}</span>
       <span style={{
         fontSize: 22, fontWeight: 500, letterSpacing: '-0.03em', lineHeight: 1.1,
         color: tone === 'up' ? t.up : tone === 'down' ? t.down : t.text,
@@ -147,7 +148,7 @@ export function ClockCard({ today, clocking, onClock, compact }) {
 }
 
 /** A photo that fills its column. The admin sheet's portrait. */
-export function PhotoPortrait({ name = '', path, radius = 14 }) {
+export function PhotoPortrait({ name = '', path, radius = 14, initialsSize = 64 }) {
   const t = useT();
   const url = useSignedPhoto(path);
   const ini = name.trim().split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';
@@ -158,7 +159,7 @@ export function PhotoPortrait({ name = '', path, radius = 14 }) {
     }}>
       {url
         ? <img src={url} alt={name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-        : <span style={{ fontFamily: MONO, fontSize: 64, fontWeight: 500, letterSpacing: '-0.04em', color: t.ghost }}>{ini}</span>}
+        : <span style={{ fontFamily: MONO, fontSize: initialsSize, fontWeight: 500, letterSpacing: '-0.04em', color: t.ghost }}>{ini}</span>}
     </div>
   );
 }

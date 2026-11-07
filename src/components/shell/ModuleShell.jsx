@@ -16,7 +16,7 @@ import {
     RailIsland, RailHead, RailBrand, RailBack, RailHeading, RailList, RailItem, IslandBtn, AccountBtns, RailFoot, RailPlanCard, RailSpacer,
 } from './railIsland';
 import MobileNav from './MobileNav';
-import { MODULES, RAIL_IDS } from './modules';
+import { MODULES, RAIL_IDS, RAIL_SPLIT_AFTER } from './modules';
 import GlobalSearch from './GlobalSearch';
 import Copilot from '../assistant/Copilot';
 import { useAssistant } from '../assistant/assistantStore';
@@ -369,10 +369,18 @@ export default function ModuleShell({
                         <RailList label="Modules">
                             {RAIL_IDS.map((id) => {
                                 const m = MODULES.find((x) => x.id === id);
-                                return m && (
+                                if (!m) return null;
+                                const item = (
                                     <RailItem key={id} t={rt} open={rail} icon={m.icon} label={m.label}
                                         to={'/' + m.defaultPage} active={m.id === mod?.id} />
                                 );
+                                // A hairline sets Dashboard · Today · AI apart from the rest.
+                                if (id !== RAIL_SPLIT_AFTER) return item;
+                                return [item, (
+                                    <div key="rail-split" role="separator" aria-hidden="true" style={{
+                                        height: 1, flexShrink: 0, margin: '6px 9px', background: rt.line,
+                                    }} />
+                                )];
                             })}
                         </RailList>
                     ) : (<>

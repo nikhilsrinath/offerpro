@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Search, ChevronLeft, ChevronRight, Eye,
+  ChevronLeft, ChevronRight, Eye,
   FileText, FilePlus, FileCheck, Receipt, CheckCircle,
   Filter, Hourglass, Users, TrendingUp,
 } from 'lucide-react';
@@ -13,13 +13,35 @@ import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
 import { useInvoiceActions } from './invoiceActions';
 import PaymentPositionCards from './PaymentPositionCards';
-import { Dropdown } from '../ui/edge';
+import { Dropdown, Table, Tr, Td, Empty, Seg, Search as SearchBox } from '../ui/edge';
 import {
   issuedInvoices, balanceOf, isOverdue, daysOverdue, todayIso,
 } from '../../services/financeAnalytics';
 import { currencySymbol, currencyLocale } from '../../shared/currency.js';
 
 const PAGE_SIZE = 50; // rows a page
+
+const SORTS = [
+  { id: 'date_desc', label: 'Newest first' },
+  { id: 'date_asc', label: 'Oldest first' },
+  { id: 'amount_desc', label: 'Amount, high to low' },
+  { id: 'amount_asc', label: 'Amount, low to high' },
+  { id: 'client', label: 'Client A–Z' },
+  { id: 'status', label: 'Status' },
+];
+
+// Every column the All Documents table can show; the Columns button picks
+// among them and the choice is remembered on this device (ui/edge Table).
+const DOC_COLS = [
+  { key: 'id', label: 'ID', always: true },
+  { key: 'type', label: 'Type' },
+  { key: 'client', label: 'Client / Company' },
+  { key: 'items', label: 'Items' },
+  { key: 'amount', label: 'Amount', align: 'right' },
+  { key: 'date', label: 'Date' },
+  { key: 'status', label: 'Status' },
+  { key: 'view', label: 'View Invoice' },
+];
 
 const TYPE_CONFIG = {
   quotation: { label: 'Quotation', icon: FilePlus, color: '#3b82f6', prefix: 'QUO' },
@@ -453,114 +475,67 @@ export default function FinanceStatus() {
             {filteredDocs.length} of {documents.length} shown
           </span>
         </div>
-        {/* Toolbar */}
-        <div className="fin-status-toolbar">
-          <div className="fin-list-search-wrap">
-            <Search size={16} />
-            <input
-              type="text"
-              placeholder="Search by client, company, or ID..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="fin-list-search"
-              aria-label="Search documents"
-            />
-          </div>
-          <select
-            aria-label="Sort by"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            style={{
-              height: '36px', padding: '0 0.625rem',
-              borderRadius: '0.5rem',
-              border: '1px solid var(--border-default)',
-              background: 'var(--background)',
-              color: 'var(--text-secondary)',
-              fontSize: '0.8rem', cursor: 'pointer', outline: 'none', flexShrink: 0,
-            }}
-          >
-            <option value="date_desc">Newest first</option>
-            <option value="date_asc">Oldest first</option>
-            <option value="amount_desc">Amount ↓</option>
-            <option value="amount_asc">Amount ↑</option>
-            <option value="client">Client A–Z</option>
-            <option value="status">By status</option>
-          </select>
-          <div className="fin-status-filters">
-            {['all', 'quotation', 'proforma', 'invoice'].map((t) => (
-              <button
-                key={t}
-                className={`fin-list-filter-btn ${typeFilter === t ? 'active' : ''}`}
-                onClick={() => setTypeFilter(t)}
-              >
-                {t === 'all' ? 'All' : TYPE_CONFIG[t]?.label || t}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* The list (the Pipeline view was removed, bug list 01). Header
-            frozen, 50 a page, View Invoice in place of Actions. */}
-        <div className="fin-list-table-wrap table-frozen-head">
-          <table className="fin-list-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Type</th>
-                <th>Client / Company</th>
-                <th>Items</th>
-                <th>Amount</th>
-                <th>Date</th>
-                <th>Status</th>
-                <th>View Invoice</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredDocs.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="fin-list-empty">No documents found</td>
-                </tr>
-              ) : (
-                pageDocs.map((doc) => {
-                  const cfg = TYPE_CONFIG[doc.type];
-                  return (
-                    <tr key={doc.id}>
-                      <td className="fin-list-id">{docNo(doc)}</td>
-                      <td>
-                        <span
-                          className="fin-status-type-badge"
-                          style={{ background: cfg?.color + '18', color: cfg?.color }}
-                        >
-                          {cfg?.label}
-                        </span>
-                      </td>
-                      <td>{doc.client?.company || doc.issued_to || doc.clientName || '-'}</td>
-                      <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {doc.items?.map((it) => it.description).join(', ') || '-'}
-                      </td>
-                      <td className="fin-list-amount">{currencySymbol()}{(doc.grand_total || doc.amount || doc.subtotal || 0).toLocaleString(currencyLocale())}</td>
-                      <td>{doc.issue_date || '-'}</td>
-                      <td><DocumentStatusBadge status={doc.status} type={doc.type} size="small" /></td>
-                      <td>
-                        {doc.type === 'invoice' ? (
-                          <button
-                            type="button"
-                            className="fin-list-action-btn"
-                            title="View Invoice"
-                            aria-label={`View Invoice ${docNo(doc)}`}
-                            onClick={() => invoiceActions.view(doc.id)}
-                          >
-                            <Eye size={14} /> View Invoice
-                          </button>
-                        ) : '-'}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+            frozen, 50 a page, columns chosen with the Columns button,
+            View Invoice in place of Actions. */}
+        <Table
+          id="finance-status-documents" cols={DOC_COLS} sticky
+          // Search, type, sort and Columns on one bar over the table.
+          lead={<>
+            <div style={{ flex: '1 1 300px', minWidth: 240, maxWidth: 360 }}>
+              <SearchBox value={search} onChange={setSearch} placeholder="Search client, company or ID" width="100%" />
+            </div>
+            <Seg label="Document type" value={typeFilter} onChange={setTypeFilter} options={[
+              { id: 'all', label: 'All' },
+              ...['quotation', 'proforma', 'invoice'].map((k) => ({ id: k, label: TYPE_CONFIG[k].label })),
+            ]} />
+            <Dropdown label="Sort" value={sortBy} onChange={setSortBy} options={SORTS} height={32} />
+          </>}
+          empty={filteredDocs.length === 0 ? <Empty>No documents found</Empty> : null}
+        >
+          {(show) => pageDocs.map((doc) => {
+            const cfg = TYPE_CONFIG[doc.type];
+            return (
+              <Tr key={doc.id}>
+                {show('id') && <Td nowrap><span className="fin-list-id">{docNo(doc)}</span></Td>}
+                {show('type') && (
+                  <Td>
+                    <span
+                      className="fin-status-type-badge"
+                      style={{ background: cfg?.color + '18', color: cfg?.color }}
+                    >
+                      {cfg?.label}
+                    </span>
+                  </Td>
+                )}
+                {show('client') && <Td>{doc.client?.company || doc.issued_to || doc.clientName || '-'}</Td>}
+                {show('items') && (
+                  <Td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {doc.items?.map((it) => it.description).join(', ') || '-'}
+                  </Td>
+                )}
+                {show('amount') && <Td align="right" nowrap>{currencySymbol()}{(doc.grand_total || doc.amount || doc.subtotal || 0).toLocaleString(currencyLocale())}</Td>}
+                {show('date') && <Td nowrap>{doc.issue_date || '-'}</Td>}
+                {show('status') && <Td><DocumentStatusBadge status={doc.status} type={doc.type} size="small" /></Td>}
+                {show('view') && (
+                  <Td nowrap>
+                    {doc.type === 'invoice' ? (
+                      <button
+                        type="button"
+                        className="fin-list-action-btn"
+                        title="View Invoice"
+                        aria-label={`View Invoice ${docNo(doc)}`}
+                        onClick={() => invoiceActions.view(doc.id)}
+                      >
+                        <Eye size={14} /> View Invoice
+                      </button>
+                    ) : '-'}
+                  </Td>
+                )}
+              </Tr>
+            );
+          })}
+        </Table>
         {pages > 1 && (
           <div className="fin-list-pager" role="navigation" aria-label="Pages">
             <button type="button" className="prod-btn-ghost" disabled={pageNo === 0} onClick={() => setListPage(pageNo - 1)} aria-label="Previous page"><ChevronLeft size={14} /></button>

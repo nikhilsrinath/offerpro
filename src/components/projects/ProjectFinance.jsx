@@ -37,12 +37,29 @@ import { currencySymbol } from '../../shared/currency.js';
 const DEAD = new Set(['draft', 'cancelled', 'declined', 'expired']);
 const SOURCE_LABEL = { invoice: 'Invoice', invoice_payment: 'Receipt', income_entry: 'Income', expense: 'Expense', purchase_invoice: 'Bill' };
 // Inside the project, a link opens the project's own page for that kind. A
-// bill is on the General Ledger itself (the Company Ledger was folded into it).
-const SOURCE_TAB = { invoice: 'billing', invoice_payment: 'billing', income_entry: 'cashbook', expense: 'cashbook', purchase_invoice: 'cashbook' };
+// bill or cash entry has no page of its own in a project (its General Ledger
+// was removed 2026-11-06): it is on the ledger it is shown in.
+const SOURCE_TAB = { invoice: 'billing', invoice_payment: 'billing' };
 const SOURCE_PATH = {
     invoice: () => '/clients/billing/invoices', invoice_payment: () => '/clients/billing/invoices',
     income_entry: () => '/financials/general-ledger', expense: () => '/financials/general-ledger', purchase_invoice: () => '/financials/general-ledger',
 };
+
+// Financial Status's Open Invoices table: the usual Columns picker and "⋯" menus.
+// Money is the project's share (projectScope scales it), GST included.
+const invNumber = (d) => d.doc_number || d.invoiceNumber || 'Invoice';
+const invAmount = (d) => Number(d.grand_total ?? d.amount) || 0;
+const invGst = (d) => Number(d.gst_amount ?? d.gst) || 0;
+const OPEN_INVOICE_COLS = [
+    { key: 'sno', label: 'S.No', sortable: false },
+    { key: 'n', label: 'Invoice No', always: true, value: invNumber },
+    { key: 'issue', label: 'Issue Date', value: (d) => d.issue_date || '' },
+    { key: 'due', label: 'Due Date', value: (d) => d.due_date || '' },
+    { key: 'amount', label: 'Amount', align: 'right', value: invAmount },
+    { key: 'gst', label: 'GST', align: 'right', def: false, value: invGst },
+    { key: 'owed', label: 'Owed', align: 'right', value: (d) => balanceOf(d) },
+    { key: 'status', label: 'Status', align: 'right', value: (d) => (isOverdue(d) ? daysOverdue(d) : -1) },
+];
 
 function periodChoices() {
     const fy = periodBounds('fy');
@@ -205,6 +222,17 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
     const owed = useMemo(() => (scope?.data.docs || [])
         .filter((d) => !DEAD.has(d.status) && d.status !== 'paid' && balanceOf(d) > 0.009)
         .sort((a, b) => String(a.due_date || '').localeCompare(String(b.due_date || ''))), [scope]);
+    // The table's own sort (a column's "⋯"); without one, soonest due first.
+    const [invSort, setInvSort] = useState(null);
+    const sortedOwed = useMemo(() => {
+        const col = invSort && OPEN_INVOICE_COLS.find((c) => c.key === invSort.key);
+        if (!col?.value) return owed;
+        const dir = invSort.dir === 'desc' ? -1 : 1;
+        return [...owed].sort((a, b) => {
+            const x = col.value(a), y = col.value(b);
+            return dir * (typeof x === 'number' ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true }));
+        });
+    }, [owed, invSort]);
 
     const contract = Number(project.contract_value) || 0;
     const costs = f ? (Number(f.vendor_costs) || 0) + (Number(f.expense_costs) || 0) + (Number(f.labour_cost) || 0) : 0;
@@ -260,23 +288,26 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
                     {onOpen && <Btn size="sm" onClick={() => onOpen('billing')}>Go to billing</Btn>}
                 </Row>}>
                 {owed.length === 0 ? <Empty>Nothing is owed on this project right now.</Empty> : (
-                    <Table cols={[
-                        { key: 'n', label: 'Invoice' }, { key: 'd', label: 'Due' },
-                        { key: 'b', label: 'Owed', align: 'right' }, { key: 's', label: '', align: 'right' },
-                    ]}>
-                        {owed.map((d) => (
+                    <Table id="project-open-invoices" sticky sort={invSort} onSort={setInvSort} cols={OPEN_INVOICE_COLS}>
+                        {(show) => sortedOwed.map((d, i) => (
                             <Tr key={d.id}>
-                                <Td>
-                                    {d.doc_number || d.invoiceNumber || 'Invoice'}
+                                {show('sno') && <Td muted nowrap>{i + 1}</Td>}
+                                <Td nowrap>
+                                    {invNumber(d)}
                                     {d._share < 1 && <Muted> · this project’s share</Muted>}
                                 </Td>
-                                <Td muted nowrap>{fmtDate(d.due_date)}</Td>
-                                <Td align="right" nowrap>{money(balanceOf(d))}</Td>
-                                <Td align="right" nowrap>
-                                    {isOverdue(d)
-                                        ? <Status tone="down">{daysOverdue(d)}d overdue</Status>
-                                        : <Status tone="neutral">Due</Status>}
-                                </Td>
+                                {show('issue') && <Td muted nowrap>{fmtDate(d.issue_date)}</Td>}
+                                {show('due') && <Td muted nowrap>{fmtDate(d.due_date)}</Td>}
+                                {show('amount') && <Td align="right" nowrap>{money(invAmount(d), 2)}</Td>}
+                                {show('gst') && <Td align="right" nowrap>{money(invGst(d), 2)}</Td>}
+                                {show('owed') && <Td align="right" nowrap>{money(balanceOf(d), 2)}</Td>}
+                                {show('status') && (
+                                    <Td align="right" nowrap>
+                                        {isOverdue(d)
+                                            ? <Status tone="down">{daysOverdue(d)}d overdue</Status>
+                                            : <Status tone="neutral">Due</Status>}
+                                    </Td>
+                                )}
                             </Tr>
                         ))}
                     </Table>
@@ -711,7 +742,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                             const open = invoiceId && !direction ? () => invoices.view(invoiceId)
                                 : r.breakdown ? () => setGroupEdit(r.breakdown.map((p) => p.id))
                                 : direction && onEdit ? () => onEdit(direction, a.source_id)
-                                : onOpen && tab !== here ? () => onOpen(tab) : null;
+                                : onOpen && tab && tab !== here ? () => onOpen(tab) : null;
                             // Company-wide, a bill is on this very page: its name is not a link.
                             const plain = (company || here === 'company') && a.source_type === 'purchase_invoice';
                             // A bill row on Purchase Bills says where the bill stands and carries its actions.

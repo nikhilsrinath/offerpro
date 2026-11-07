@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Check, ChevronDown, EyeOff, MoreHorizontal, Pencil,
 import { MONO, useT, useDialog, InDrawer, drawerWidth, tableFrame, thStyle, tdStyle } from './edgeUtils';
 import { confirmDialog } from '../../services/confirm';
 import { titleCase, titleCaseNode } from '../../utils/titleCase';
+import { useStickyHead } from './useStickyHead';
 import './drawer.css';
 
 /* Set by <Modal>: buttons in the side panel's foot are the small ones
@@ -576,40 +577,7 @@ export function Table({ id, cols: allCols, children, empty, actions, sticky, lea
     };
     const body = typeof children === 'function' ? children((k) => shown.has(k), cols) : children;
 
-    /* `sticky` keeps the column titles in view while the page scrolls. CSS
-       sticky would only hold them inside the table's own sideways-scrolling
-       box, so the header is moved down by hand to the top of the page's
-       scrolling area, and no further than the table's last row. */
-    const boxRef = useRef(null);
-    const headRef = useRef(null);
-    const placeRef = useRef(() => {});
-    useEffect(() => {
-        const box = boxRef.current;
-        if (!sticky || !box) return undefined;
-        let scroller = box.parentElement;
-        while (scroller && scroller !== document.body && !/(auto|scroll)/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
-        if (scroller === document.body) scroller = null;
-        const place = () => {
-            const head = headRef.current;
-            if (!head) return;
-            const top = scroller ? scroller.getBoundingClientRect().top : 0;
-            const r = box.getBoundingClientRect();
-            const y = Math.max(0, Math.min(top - r.top, r.height - head.offsetHeight * 2));
-            head.style.transform = y > 0 ? `translateY(${y}px)` : '';
-        };
-        placeRef.current = place;
-        place();
-        const target = scroller || window;
-        target.addEventListener('scroll', place, { passive: true });
-        window.addEventListener('resize', place);
-        return () => {
-            target.removeEventListener('scroll', place);
-            window.removeEventListener('resize', place);
-            placeRef.current = () => {};
-        };
-    }, [sticky]);
-    // Rows added, removed or paged: the header's place is worked out again.
-    useLayoutEffect(() => { placeRef.current(); });
+    const { boxRef, headRef } = useStickyHead(sticky);
 
     const picker = pickable && <ColumnPicker cols={allCols} isOn={isOn} onToggle={toggle} onReset={reset} onAll={showAll}
         changed={Object.keys(prefs).length > 0} height={lead ? 32 : 30} />;
@@ -651,7 +619,7 @@ export function Table({ id, cols: allCols, children, empty, actions, sticky, lea
                                     <th key={c.key} scope="col" aria-sort={sorted ? (sorted === 'asc' ? 'ascending' : 'descending') : undefined} style={{
                                         ...thStyle(t, c.align), width: c.width,
                                         // A collapsed border stays behind with the rows; an inset line moves with the title.
-                                        ...(sticky && { borderBottom: 0, boxShadow: `inset 0 -1px 0 ${t.line}` }),
+                                        ...(sticky && { borderBottom: 0, boxShadow: `inset 0 -1px 0 ${t.thBg}` }),
                                         ...(menu.length > 0 && { paddingRight: 6 }),
                                     }}>
                                         {menu.length > 0 ? (
@@ -662,7 +630,7 @@ export function Table({ id, cols: allCols, children, empty, actions, sticky, lea
                                                 {canSort ? (
                                                     <button type="button" onClick={() => flip(c)} title={`Sort by ${titleCase(String(c.label))}`} style={{
                                                         display: 'inline-flex', alignItems: 'center', gap: 4, padding: 0, border: 0,
-                                                        background: 'none', font: 'inherit', color: sorted ? t.text : 'inherit', cursor: 'pointer',
+                                                        background: 'none', font: 'inherit', color: 'inherit', cursor: 'pointer',
                                                     }}>
                                                         {titleCaseNode(c.label)}
                                                         {sorted === 'asc' && <ArrowUp size={12} aria-hidden="true" />}

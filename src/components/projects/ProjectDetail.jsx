@@ -88,11 +88,11 @@ const TABS = [
     { id: 'raci', parent: 'tm', label: 'Team Hierarchy', icon: Network },
     { id: 'attendance', parent: 'tm', label: 'Attendance', icon: CalendarCheck },
     { id: 'announcements', parent: 'tm', label: 'Announcements', icon: Megaphone },
-    // Financials is five pages, folded under one Financials item in the rail
-    // (projectRail), just above Documents. Financial Status keeps the id
-    // 'finance', so older ?tab=finance links still land on it.
+    // Financials is folded under one Financials item in the rail (projectRail),
+    // just above Documents. Financial Status keeps the id 'finance', so older
+    // ?tab=finance links still land on it. The project's General Ledger page was
+    // removed (2026-11-06); its money is on the Client and Vendor ledgers.
     { id: 'finance', parent: 'finance', label: 'Status', icon: Gauge, fin: true },
-    { id: 'cashbook', parent: 'finance', label: 'General Ledger', icon: BookOpen, fin: true },
     { id: 'tax', parent: 'finance', label: 'Tax Summary', icon: Scale, fin: true },
     { id: 'pl', parent: 'finance', label: 'Profit & Loss', icon: TrendingUp, fin: true },
     // Documents Management (0074), folded the same way. Project Documents
@@ -321,7 +321,6 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                                 pages={sections.filter((x) => x.parent === section.parent)} />
                         )}
                         {tab === 'finance' && fin && <ProjectFinanceStatus project={project} onOpen={openTab} />}
-                        {tab === 'cashbook' && fin && <PurchaseInvoices key="general" project={project} onOpen={openTab} />}
                         {tab === 'billing' && fin && <ProjectBilling project={project} kind={billingKindOf(view)} onKind={openView} view={view} />}
                         {tab === 'tax' && fin && <TaxSummary projectId={project.id} />}
                         {tab === 'pl' && fin && <ProjectProfitLoss project={project} />}

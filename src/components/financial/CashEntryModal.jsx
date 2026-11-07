@@ -13,6 +13,7 @@ import { Modal, ReceiptField } from './financeUi';
 import { ledgerTypes } from './ledgerTypes';
 import ProjectPicker from '../shared/ProjectPicker';
 import VendorSelect from '../shared/VendorSelect';
+import ClientSelect from '../shared/ClientSelect';
 import { pickerFromAllocations, saveSplitFromPicker, friendlyError } from '../../services/projectService';
 import { projectLabel } from '../../services/projectAnalytics';
 import { money, useSection } from './financeHooks';
@@ -439,11 +440,8 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
                   vendors={vendors.filter((v) => !v.archived_at || v.id === editing.vendor_id)}
                   onChange={(v) => set('vendor_id', v)} projectId={projectId} />
               ) : (
-                <select id="cb-client" value={editing.client_id || ''} disabled={!!payingInvoice}
-                  onChange={(e) => set('client_id', e.target.value)}>
-                  <option value="">Not recorded</option>
-                  {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <ClientSelect id="cb-client" value={editing.client_id || ''} disabled={!!payingInvoice} noneLabel="Not recorded"
+                  clients={clients} onChange={(id) => set('client_id', id)} projectId={projectId} />
               )}
             </div>
           ) : payroll ? (
@@ -688,11 +686,8 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
                 </div>
                 <div className="prod-field">
                   <label htmlFor="cb-out-client">For a client</label>
-                  <select id="cb-out-client" value={editing.client_id || ''} disabled={!!payingBill}
-                    onChange={(e) => set('client_id', e.target.value)}>
-                    <option value="">Not client-specific</option>
-                    {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <ClientSelect id="cb-out-client" value={editing.client_id || ''} disabled={!!payingBill} noneLabel="Not client-specific"
+                    clients={clients} onChange={(id) => set('client_id', id)} projectId={projectId} />
                   {!payingBill && (
                   <label className="cb-check">
                     <input type="checkbox" checked={!!editing.billable}

@@ -16,11 +16,7 @@ import { projectRef } from './projectSlug';
 
 export const SECTION_PATHS = {
     finance: 'finance/status',
-    cashbook: 'finance/general-ledger',
     billing: 'client-management/billing',
-    // The Company Ledger was folded into the General Ledger (2026-10-25): its
-    // id still opens the one ledger, and the path reads back as 'cashbook'.
-    bills: 'finance/general-ledger',
     tax: 'finance/tax-summary',
     pl: 'finance/profit-loss',
     pm: 'project-management/portfolio-overview',
@@ -41,6 +37,9 @@ export const SECTION_PATHS = {
     vendors: 'vendor-management/vendor-directory',
     'vendor-general': 'vendor-management/general-ledger',
     'vendor-ledger': 'vendor-management/general-ledger',
+    // A vendor bill is on the project's Vendor General Ledger (the project's own
+    // General Ledger was removed 2026-11-06); the path reads back as 'vendor-general'.
+    bills: 'vendor-management/general-ledger',
     documents: 'documents-management/project-documents',
     templates: 'documents-management/custom-templates',
     milestones: 'milestones',
@@ -96,10 +95,9 @@ export function projectSectionPath(projectId, section, view, query) {
 export function parseProjectPath(pathname) {
     const rest = pathname.split('/').slice(3).filter(Boolean).join('/');
     if (!rest) return { section: 'home', view: null };
-    // The General Ledger was the Cash Book; a link saved back then still opens it.
-    if (rest === 'finance/cash-book') return { section: 'cashbook', view: null };
-    // And the Company Ledger was Purchase Bills; both now are the General Ledger.
-    if (rest === 'finance/purchase-bills' || rest === 'finance/company-ledger') return { section: 'cashbook', view: null };
+    // The project's General Ledger (once the Cash Book, the Company Ledger and
+    // Purchase Bills) was removed (2026-11-06): a link saved to it opens Financial Status.
+    if (['finance/general-ledger', 'finance/cash-book', 'finance/purchase-bills', 'finance/company-ledger'].includes(rest)) return { section: 'finance', view: null };
     if (rest === 'client-management/company-ledger') return { section: 'client-general', view: null };
     if (rest === 'vendor-management/company-ledger') return { section: 'vendor-general', view: null };
     // Billing was a page of Finance before it moved to Client.

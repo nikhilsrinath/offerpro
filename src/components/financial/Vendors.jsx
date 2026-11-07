@@ -5,7 +5,8 @@ import {
 } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
 import { useToast } from '../shared/Toast';
-import { RowMenu, Table, Tr, Td } from '../ui/edge';
+import { RowMenu, Table, Tr, Td, Seg, Grid } from '../ui/edge';
+import useRememberedState from '../../hooks/useRememberedState';
 import { useT } from '../ui/edgeUtils';
 import { Stat, Modal } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
@@ -54,6 +55,8 @@ export default function Vendors() {
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState(null);
   const [viewing, setViewing] = useState(null);
+  // List (the default) or Grid; kept while moving between pages.
+  const [view, setView] = useRememberedState('vendors.view', 'list');
 
   // Per-vendor totals from the bills and expenses that name them.
   const ledger = useMemo(() => {
@@ -138,6 +141,9 @@ export default function Vendors() {
           <Archive size={12} /> Archived
         </button>
         <BelongsToFilter value={scope} onChange={setScope} className="prod-select" />
+        <Seg size="sm" value={view} onChange={setView} label="View" options={[
+          { id: 'list', label: 'List' }, { id: 'grid', label: 'Grid' },
+        ]} />
         <button className="prod-add-btn" onClick={() => setEditing({})}>
           <Plus size={15} /> New Vendor
         </button>
@@ -149,6 +155,49 @@ export default function Vendors() {
           <p>{search || scope ? 'No vendors match that search' : showArchived ? 'No archived vendors' : 'No vendors yet'}</p>
           <span>Add the suppliers you buy from to record their bills and see what you owe them.</span>
         </div>
+      ) : view === 'grid' ? (
+        <Grid min={260} gap={10}>
+          {filtered.map((v) => {
+            const l = ledger[v.id] || {};
+            const onProjects = vendorProjectIds(v.id, links);
+            const clip = { display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+            return (
+              <div key={v.id} role="button" tabIndex={0} aria-label={`Open ${v.company_name}`}
+                onClick={() => setViewing(v)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(v); } }}
+                style={{
+                  border: '1px solid ' + t.line, borderRadius: 10, padding: 12, background: t.panel,
+                  cursor: 'pointer', display: 'grid', gap: 8, color: t.text, minWidth: 0,
+                }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Logo path={v.logo_path} name={v.company_name} size={36} />
+                  <span style={{ minWidth: 0, flex: 1 }}>
+                    <span style={{ ...clip, fontSize: 13.5, fontWeight: 600 }}>{v.company_name}</span>
+                    <span style={{ ...clip, fontSize: 11.5, color: t.faint }}>{v.category || 'Uncategorised'}{v.state ? ` · ${v.state}` : ''}</span>
+                  </span>
+                  <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} style={{ display: 'inline-flex', flexShrink: 0 }}>
+                    <RowMenu label={`Actions for ${v.company_name}`} items={[
+                      { label: 'Edit', icon: Pencil, onClick: () => setEditing(v) },
+                      { label: v.archived_at ? 'Restore' : 'Archive', icon: v.archived_at ? ArchiveRestore : Archive, onClick: () => handleArchive(v) },
+                      !l.count && { label: 'Delete', icon: Trash2, tone: 'danger', onClick: () => handleDelete(v) },
+                    ]} />
+                  </span>
+                </div>
+                <span style={{ ...clip, fontSize: 12, color: t.dim }}>
+                  {v.contact_name || v.email || v.phone || 'No contact yet'}
+                </span>
+                <span style={{ ...clip, fontSize: 11.5, color: t.faint }}>
+                  {choiceLabel(vendorChoice(v, links), projects)}
+                  {onProjects.length > 1 ? ` +${onProjects.length - 1} more` : ''}
+                </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, paddingTop: 8, borderTop: '1px solid ' + t.line, fontSize: 11.5 }}>
+                  <span style={{ color: t.faint }}>Billed <span style={{ color: t.text }}>{money(l.billed)}</span></span>
+                  <span style={{ color: t.faint }}>Outstanding <span style={{ color: t.text, fontWeight: 600 }}>{money(l.outstanding)}</span></span>
+                </div>
+              </div>
+            );
+          })}
+        </Grid>
       ) : (
         <Table id="vendors" cols={COLS}>
           {(show) => filtered.map((v) => {

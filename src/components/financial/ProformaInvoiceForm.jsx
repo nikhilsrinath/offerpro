@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Eye, Send, Save } from 'lucide-react';
+import ClientFormDialog from '../shared/ClientFormDialog';
+import { AddClientItem } from '../shared/ClientSelect';
 import { documentStore } from '../../services/documentStore';
 import { createPortalLink } from '../../services/portalService';
 import { customerService } from '../../services/customerService';
@@ -50,6 +52,8 @@ export default function ProformaInvoiceForm() {
 
   const [clientSearch, setClientSearch] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);
+  // The Add Client panel, with what was typed as its name (null: closed).
+  const [addingClient, setAddingClient] = useState(null);
   const clientDropdownRef = useRef(null);
   const [showPortalLink, setShowPortalLink] = useState(false);
   const [savedDocId, setSavedDocId] = useState(null);
@@ -421,7 +425,7 @@ export default function ProformaInvoiceForm() {
                   className="easy-inp"
                   autoComplete="off"
                 />
-                {showClientDropdown && filteredClients.length > 0 && (
+                {showClientDropdown && (
                   <div className="customer-dropdown">
                     {filteredClients.map((c) => (
                       <div key={c.id} className="customer-dropdown-item" onClick={() => handleSelectClient(c)}>
@@ -431,7 +435,12 @@ export default function ProformaInvoiceForm() {
                         </span>
                       </div>
                     ))}
+                    <AddClientItem onClick={() => { setShowClientDropdown(false); setAddingClient(clientSearch.trim()); }} />
                   </div>
+                )}
+                {addingClient !== null && (
+                  <ClientFormDialog initialName={addingClient} onClose={() => setAddingClient(null)}
+                    onSaved={(c) => c?.id && handleSelectClient(c)} />
                 )}
               </div>
               <div className="easy-field">

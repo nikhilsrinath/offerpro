@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import useRememberedState from '../../../hooks/useRememberedState';
 import {
     Panel, Row, Btn, Seg, Search, Select, Field, Input, Empty, Modal, ConfirmBtn, Grid, Muted,
     Table, Tr, Td,
@@ -31,7 +32,6 @@ const SORTS = [
     { id: 'contract', label: 'Contract end' },
     { id: 'value', label: 'Contract value' },
 ];
-const VIEW_KEY = 'eo-vendors-view';
 const LIST_COLS = [
     { key: 'vendor', label: 'Vendor' },
     { key: 'contact', label: 'Contact' },
@@ -48,12 +48,11 @@ export default function VendorDirectory({ project }) {
     const [status, setStatus] = useState('all');
     const [category, setCategory] = useState('');
     const [sort, setSort] = useState('name');
-    const [view, setView] = useState(() => { try { return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'grid'; } catch { return 'grid'; } });
+    // List (the default) or Grid; kept while moving between pages.
+    const [view, setView] = useRememberedState('project-vendors.view', 'list');
     const [open, setOpen] = useState(null);
     const [editing, setEditing] = useState(null);
     const [adding, setAdding] = useState(false);
-
-    useEffect(() => { try { localStorage.setItem(VIEW_KEY, view); } catch { /* private mode */ } }, [view]);
 
     const canCreate = orgStore.can('vendors', 'create');
     const canEdit = orgStore.can('vendors', 'edit');
@@ -107,7 +106,7 @@ export default function VendorDirectory({ project }) {
                             </Select>
                             <div style={{ flex: 1 }} />
                             <Seg size="sm" value={view} onChange={setView} label="Layout" options={[
-                                { id: 'grid', label: 'Grid' }, { id: 'list', label: 'List' },
+                                { id: 'list', label: 'List' }, { id: 'grid', label: 'Grid' },
                             ]} />
                         </Bar>
                         {shown.length === 0 ? (

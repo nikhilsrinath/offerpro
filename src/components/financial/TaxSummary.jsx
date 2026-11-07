@@ -4,6 +4,7 @@ import { taxSummary, periodOptions, downloadCsv } from '../../services/financeAn
 import { Stat } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
 import { useProjectScope } from '../projects/projectScope';
+import { useStickyHead } from '../ui/useStickyHead';
 
 const PAGE_SIZE = 50;
 const rateLabel = (rate) => (Number(rate) ? `${Number(rate)}%` : 'Nil / exempt');
@@ -106,6 +107,9 @@ export default function TaxSummary({ projectId = null }) {
   const pages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
   const pageNo = Math.min(page, pages - 1);
   const pageRows = entries.slice(pageNo * PAGE_SIZE, pageNo * PAGE_SIZE + PAGE_SIZE);
+  // Column titles stay on top while the page scrolls; the table has no scrollbar of its own.
+  // (On only while the table is on screen, so it hooks up when data arrives.)
+  const { boxRef: entriesBoxRef, headRef: entriesHeadRef } = useStickyHead(summary.rows.length > 0);
 
   const exportCsv = () => {
     const rows = summary.rows.map((r) => [r.date, r.kind, r.ref, r.party, r.taxable.toFixed(2), r.gst.toFixed(2)]);
@@ -222,9 +226,9 @@ export default function TaxSummary({ projectId = null }) {
             {rates.map((r) => <option key={r} value={r}>{rateLabel(r)}</option>)}
           </select>
         </div>
-        <div className="prod-perf-table-wrap tax-entries-wrap">
+        <div ref={entriesBoxRef} className="prod-perf-table-wrap tax-entries-wrap">
           <table className="prod-perf-table">
-            <thead>
+            <thead ref={entriesHeadRef}>
               <tr><th scope="col">Date</th><th scope="col">Type</th><th scope="col">Reference</th><th scope="col">Party</th><th scope="col" className="num">Rate</th><th scope="col">Kind</th><th scope="col" className="num">Taxable Value</th><th scope="col" className="num">GST</th></tr>
             </thead>
             <tbody>

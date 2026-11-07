@@ -5,6 +5,7 @@ import { Modal } from './financeUi';
 import { money } from './financeHooks';
 import { GST_RATES } from './cashEntry';
 import ProjectPicker from '../shared/ProjectPicker';
+import ClientSelect from '../shared/ClientSelect';
 import { documentStore } from '../../services/documentStore';
 import { orgStore } from '../../services/orgStore';
 import { receiptService, validateReceipt, RECEIPT_ACCEPT } from '../../services/receiptService';
@@ -100,7 +101,8 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
 
   const save = async (e) => {
     e.preventDefault();
-    const client = clients.find((c) => c.id === form.customer_id);
+    // One just added from the dropdown may not be in `clients` yet.
+    const client = clients.find((c) => c.id === form.customer_id) || orgStore.getItem('customers', form.customer_id);
     if (!client) { setError('Choose the client this invoice is for.'); return; }
     if (!(Number(form.amount) > 0)) { setError('Enter the amount before GST.'); return; }
     if (numberTaken) { setError(`Invoice No ${form.doc_number.trim()} is already used. Enter a different number.`); return; }
@@ -208,11 +210,8 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
 
           <div className="prod-field">
             <label className="req" htmlFor="ui-client">Client</label>
-            <select id="ui-client" required value={form.customer_id} onChange={(e) => set('customer_id', e.target.value)}>
-              <option value="">Choose a client</option>
-              {clients.filter((c) => !c.archived_at || c.id === form.customer_id)
-                .map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <ClientSelect id="ui-client" projectId={projectId} clients={projectId ? null : clients}
+              value={form.customer_id} onChange={(id) => set('customer_id', id)} placeholder="Choose a client" />
           </div>
 
           <div className="prod-field">

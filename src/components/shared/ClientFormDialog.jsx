@@ -71,7 +71,7 @@ function initial(c, project) {
     };
 }
 
-export default function ClientFormDialog({ client = null, project = null, defaultProject = OTHERS, onClose, onSaved }) {
+export default function ClientFormDialog({ client = null, project = null, defaultProject = OTHERS, initialName = '', onClose, onSaved }) {
     const { activeOrg } = useOrg();
     const toast = useToast();
     const cp = useClientProjects();
@@ -79,7 +79,11 @@ export default function ClientFormDialog({ client = null, project = null, defaul
     const hasCompany = useProfileColumns('clients', 'company_profile');
     // What the Project dropdown opened on, so an edit that changes it moves them.
     const [fromProject] = useState(() => (client ? initialProject(client.id, cp.projects, cp.links) : OTHERS));
-    const [form, setForm] = useState(() => initial(client, client ? fromProject : defaultProject));
+    // `initialName`: what was typed in a client dropdown's search, as the company.
+    const [form, setForm] = useState(() => {
+        const f = initial(client, client ? fromProject : defaultProject);
+        return !client && initialName ? { ...f, clientName: initialName } : f;
+    });
     const [problems, setProblems] = useState([]);
     const [saving, setSaving] = useState(false);
     const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e?.target ? e.target.value : e }));

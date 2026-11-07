@@ -8,6 +8,7 @@ import {
 import { useToast } from '../shared/Toast';
 import ProjectPicker from '../shared/ProjectPicker';
 import VendorSelect from '../shared/VendorSelect';
+import ClientSelect from '../shared/ClientSelect';
 import CountrySelect from '../shared/CountrySelect';
 import PlaceOfSupplyInput from './PlaceOfSupplyInput';
 import { Modal, ReceiptField } from './financeUi';
@@ -258,10 +259,8 @@ export default function VendorPaymentModal({ vendorId = '', startOn = null, proj
             </div>
             <div className="prod-field">
               <label htmlFor="vp-client">For a client</label>
-              <select id="vp-client" value={form.client_id} onChange={(e) => set('client_id', e.target.value)}>
-                <option value="">Not client-specific</option>
-                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <ClientSelect id="vp-client" value={form.client_id} noneLabel="Not client-specific"
+                clients={clients} onChange={(id) => set('client_id', id)} projectId={projectId} />
             </div>
             <div className="prod-field">
               <label htmlFor="vp-country">Country</label>

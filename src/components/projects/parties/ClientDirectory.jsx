@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { MapPin, FolderKanban, FileText, Edit3, Eye, Plus, Search as SearchIcon } from 'lucide-react';
 import {
-    Panel, Row, Btn, Seg, Select, Field, Empty, Modal, ConfirmBtn, Muted, RowMenu,
+    Panel, Row, Btn, Seg, Select, Field, Empty, Modal, ConfirmBtn, Muted, RowMenu, Table, Tr, Td,
 } from '../../ui/edge';
+import useRememberedState from '../../../hooks/useRememberedState';
 import { useOrg } from '../../../context/OrgContext';
 import { CustomerDetail } from '../../Customers';
 import { useT, fmtDate } from '../../ui/edgeUtils';
@@ -28,6 +29,15 @@ const SORTS = [
     { id: 'since', label: 'Client since' },
     { id: 'industry', label: 'Industry' },
 ];
+const LIST_COLS = [
+    { key: 'sn', label: 'S.No', width: 56 },
+    { key: 'client', label: 'Client' },
+    { key: 'contact', label: 'Contact' },
+    { key: 'industry', label: 'Industry' },
+    { key: 'gstin', label: 'GSTIN' },
+    { key: 'status', label: 'Status' },
+    { key: 'act', label: '', width: 48, align: 'right' },
+];
 const ACTIVE = '#10b981';
 const INACTIVE = '#94a3b8';
 
@@ -38,6 +48,8 @@ export default function ClientDirectory({ project, onOpen }) {
     const [status, setStatus] = useState('all');
     const [industry, setIndustry] = useState('');
     const [sort, setSort] = useState('name');
+    // List (the default) or Grid; kept while moving between pages.
+    const [view, setView] = useRememberedState('project-clients.view', 'list');
     const [open, setOpen] = useState(null);       // client id
     const [editing, setEditing] = useState(null); // client | {} for new
     const [adding, setAdding] = useState(false);
@@ -96,6 +108,9 @@ export default function ClientDirectory({ project, onOpen }) {
                     <Select aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} style={{ width: 160 }}>
                         {SORTS.map((x) => <option key={x.id} value={x.id}>Sort: {x.label}</option>)}
                     </Select>
+                    <Seg size="sm" value={view} onChange={setView} label="View" options={[
+                        { id: 'list', label: 'List' }, { id: 'grid', label: 'Grid' },
+                    ]} />
                     {canCreate && (
                         <button type="button" onClick={() => setAdding(true)} className="prod-add-btn">
                             <Plus size={15} /> Add Client
@@ -117,12 +132,21 @@ export default function ClientDirectory({ project, onOpen }) {
                     </Panel>
                 ) : (
                     <>
+                        {view === 'list' ? (
+                            <Table cols={LIST_COLS}>
+                                {shown.map((c, i) => (
+                                    <ClientRow key={c.id} client={c} index={i} canEdit={canEdit}
+                                        onOpen={() => setOpen(c.id)} onEdit={() => setEditing(c)} onHistory={() => setHistory(c)} />
+                                ))}
+                            </Table>
+                        ) : (
                         <div className="customers-grid">
                             {shown.map((c) => (
                                 <ClientCard key={c.id} client={c} project={project} canEdit={canEdit}
                                     onOpen={() => setOpen(c.id)} onEdit={() => setEditing(c)} onHistory={() => setHistory(c)} />
                             ))}
                         </div>
+                        )}
                         <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
                             Showing {shown.length} of {clients.length} client{clients.length !== 1 ? 's' : ''}
                         </div>
@@ -187,6 +211,47 @@ function ClientCard({ client: c, project, canEdit, onOpen, onEdit, onHistory }) 
                 <FileText aria-hidden="true" size={11} /> View Invoice History
             </button>
         </div>
+    );
+}
+
+function ClientRow({ client: c, index, canEdit, onOpen, onEdit, onHistory }) {
+    const t = useT();
+    const contact = (c.contacts || []).find((x) => x.primary);
+    const person = contact?.name || c.person_name;
+    const reach = contact ? (contact.email || contact.phone) : (c.email || c.phone);
+    const clip = { display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+    const dash = <span style={{ color: t.ghost }}>-</span>;
+    return (
+        <Tr onClick={onOpen} label={`Open ${c.name}`}>
+            <Td muted nowrap>{index + 1}</Td>
+            <Td>
+                <Row gap={10} style={{ minWidth: 200, maxWidth: 320 }}>
+                    <Logo path={c.logo_path} name={c.name} size={30} />
+                    <span style={{ minWidth: 0, flex: 1 }}>
+                        <span style={{ ...clip, fontSize: 13, fontWeight: 500 }}>{c.name}</span>
+                        {c.address && <span style={{ ...clip, fontSize: 11.5, color: t.faint }}>{c.address}</span>}
+                    </span>
+                </Row>
+            </Td>
+            <Td muted>
+                <span style={{ ...clip, maxWidth: 240 }}>{person || reach || dash}</span>
+                {person && reach && <span style={{ ...clip, maxWidth: 240, fontSize: 11.5, color: t.faint }}>{reach}</span>}
+            </Td>
+            <Td muted nowrap>{c.industry || dash}</Td>
+            <Td muted nowrap>{c.gstin ? <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{c.gstin}</span> : dash}</Td>
+            <Td nowrap>
+                <Badge color={clientActive(c) ? ACTIVE : INACTIVE}>{CLIENT_STATUSES.find((s) => s.id === c.status)?.label || c.status || 'Active'}</Badge>
+            </Td>
+            <Td align="right">
+                <span onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex' }}>
+                    <RowMenu label={`Actions for ${c.name}`} items={[
+                        { label: 'Open', icon: Eye, onClick: onOpen },
+                        { label: 'View Invoice History', icon: FileText, onClick: onHistory },
+                        canEdit && { label: 'Edit', icon: Edit3, onClick: onEdit },
+                    ]} />
+                </span>
+            </Td>
+        </Tr>
     );
 }
 
@@ -273,6 +338,36 @@ function ClientSheet({ client: c, project, primary, link, canEdit, canRemove, on
     );
 }
 
+// A centred, dashed tile with a plus: the way to create a party that is not
+// in the directory yet.
+function NewPartyTile({ title, note, onClick }) {
+    const t = useT();
+    const [hover, setHover] = useState(false);
+    return (
+        <button type="button" onClick={onClick}
+            onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+            onFocus={() => setHover(true)} onBlur={() => setHover(false)}
+            style={{
+                width: '100%', maxWidth: 340, padding: '28px 24px', borderRadius: 12, cursor: 'pointer',
+                border: `1.5px dashed ${hover ? t.teal : t.lineStrong}`,
+                background: hover ? t.tealSoft : 'transparent',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+                fontFamily: 'inherit', color: t.text, textAlign: 'center', outline: 'none',
+                transition: 'border-color .15s, background .15s',
+            }}>
+            <span style={{
+                width: 44, height: 44, borderRadius: '50%', display: 'grid', placeItems: 'center',
+                background: t.teal, color: t.onTeal,
+                transform: hover ? 'scale(1.06)' : 'none', transition: 'transform .15s',
+            }}>
+                <Plus size={22} strokeWidth={2.25} />
+            </span>
+            <span style={{ fontSize: 14, fontWeight: 600 }}>{title}</span>
+            <span style={{ fontSize: 12.5, color: t.dim, lineHeight: 1.5, maxWidth: 260 }}>{note}</span>
+        </button>
+    );
+}
+
 function AddClient({ project, all, linked, onNew, onClose }) {
     const t = useT();
     const toast = useToast();
@@ -293,21 +388,39 @@ function AddClient({ project, all, linked, onNew, onClose }) {
     return (
         <Modal open onClose={onClose} title="Add a client" width={480}
             footer={<>
-                <Btn onClick={onNew}>New client instead</Btn>
                 <div style={{ flex: 1 }} />
                 <Btn onClick={onClose}>Cancel</Btn>
-                <Btn primary disabled={!id || busy} onClick={link}>{busy ? 'Adding…' : 'Add to project'}</Btn>
+                {choices.length > 0 && (
+                    <Btn primary disabled={!id || busy} onClick={link}>{busy ? 'Adding…' : 'Add to project'}</Btn>
+                )}
             </>}>
-            {choices.length === 0 ? (
-                <p style={{ margin: 0, fontSize: 13, color: t.dim }}>Every client is already on this project. Create a new one instead.</p>
-            ) : (
-                <Field required label="An existing client">
-                    <Select value={id} onChange={(e) => setId(e.target.value)} autoFocus>
-                        <option value="">Choose…</option>
-                        {choices.map((c) => <option key={c.id} value={c.id}>{c.name}{c.email ? ` · ${c.email}` : ''}</option>)}
-                    </Select>
-                </Field>
-            )}
+            {/* Picker on top; the rest of the panel is the "new client" call to
+                action, centred so it reads as the other way in, not an afterthought. */}
+            <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+                {choices.length > 0 && (
+                    <Field required label="An existing client">
+                        <Select value={id} onChange={(e) => setId(e.target.value)} autoFocus>
+                            <option value="">Choose…</option>
+                            {choices.map((c) => <option key={c.id} value={c.id}>{c.name}{c.email ? ` · ${c.email}` : ''}</option>)}
+                        </Select>
+                    </Field>
+                )}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '24px 0' }}>
+                    {choices.length > 0 && (
+                        <div aria-hidden="true" style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', maxWidth: 340, color: t.faint, fontSize: 12 }}>
+                            <span style={{ flex: 1, height: 1, background: t.line }} />
+                            or
+                            <span style={{ flex: 1, height: 1, background: t.line }} />
+                        </div>
+                    )}
+                    <NewPartyTile
+                        title="Create a New Client"
+                        note={choices.length > 0
+                            ? 'Not in your directory yet? Add their details and they join this project.'
+                            : 'Every client is already on this project. Add a new one to the directory and this project.'}
+                        onClick={onNew} />
+                </div>
+            </div>
         </Modal>
     );
 }

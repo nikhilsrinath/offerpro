@@ -3,6 +3,8 @@ import { useSection } from './financeHooks';
 import { isOpen } from '../../services/projectAnalytics';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, ChevronRight, Pause, Play, Calendar, RotateCcw } from 'lucide-react';
+import ClientFormDialog from '../shared/ClientFormDialog';
+import { AddClientItem } from '../shared/ClientSelect';
 import { documentStore } from '../../services/documentStore';
 import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
@@ -130,6 +132,8 @@ function RecurringInvoiceForm({ editItem }) {
 
   const [clientSearch, setClientSearch] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);
+  // The Add Client panel, with what was typed as its name (null: closed).
+  const [addingClient, setAddingClient] = useState(null);
   const clientDropdownRef = useRef(null);
 
   const [customDueDays, setCustomDueDays] = useState('');
@@ -374,7 +378,7 @@ function RecurringInvoiceForm({ editItem }) {
                   onFocus={() => setShowClientDropdown(true)}
                   className="easy-inp" autoComplete="off"
                 />
-                {showClientDropdown && filteredClients.length > 0 && (
+                {showClientDropdown && (
                   <div style={{
                     position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
                     background: 'var(--bg-elevated)', border: '1px solid var(--border-default)',
@@ -398,7 +402,12 @@ function RecurringInvoiceForm({ editItem }) {
                         </span>
                       </div>
                     ))}
+                    <AddClientItem onClick={() => { setShowClientDropdown(false); setAddingClient(clientSearch.trim()); }} />
                   </div>
+                )}
+                {addingClient !== null && (
+                  <ClientFormDialog initialName={addingClient} onClose={() => setAddingClient(null)}
+                    onSaved={(c) => c?.id && handleSelectClient(c)} />
                 )}
               </div>
               <div className="easy-field">

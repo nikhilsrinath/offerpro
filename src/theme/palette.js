@@ -90,12 +90,16 @@ function surfaces(navy) {
             shell: '#eef2f5', panel: '#ffffff', card: '#ffffff', panelAlt: '#f5f8fa', raised: '#ebf0f4',
             line: '#e1e7ed', lineSoft: '#edf1f5', lineStrong: '#cdd6df', lineMax: '#b7c3cf',
             text: navy, dim: '#43566b', faint: '#5a6b7e', ghost: '#8492a3', mapNull: '#eef2f5',
+            // Every app table's title row: navy with bold white titles.
+            tableHead: navy, tableHeadText: '#ffffff',
         },
         dark: {
             shell: mix(navy, '#000000', 0.6), panel: mix(navy, '#000000', 0.45), card: mix(navy, '#000000', 0.3),
             panelAlt: mix(navy, '#000000', 0.12), raised: navy,
             line: mix(navy, '#000000', 0.08), lineSoft: mix(navy, '#000000', 0.2), lineStrong: mix(navy, '#ffffff', 0.1), lineMax: mix(navy, '#ffffff', 0.2),
             text: '#edf2f7', dim: '#a8b6c6', faint: '#8d9db0', ghost: '#66798f', mapNull: mix(navy, '#000000', 0.12),
+            // The title row is the navy, a step up from the darkened cards.
+            tableHead: mix(navy, '#ffffff', 0.06), tableHeadText: '#ffffff',
         },
     };
 }

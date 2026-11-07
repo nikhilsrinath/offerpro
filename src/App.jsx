@@ -105,7 +105,7 @@ const MODULE_FILTER = {
   today: ['today'],
   ai: ['ai'],
   // Ex-employees and leave are tabs of Employees and Attendance, not rail items.
-  team: ['company-hierarchy', 'employees', 'attendance', 'recruitment-tracker', 'announcements'],
+  team: ['employees', 'attendance', 'company-hierarchy', 'announcements', 'recruitment-tracker'],
   // Tasks live inside each project (Project Management); Tasks and Timesheets
   // keep their routes but are no longer rail items (MODULE_EXTRA_PAGES).
   projects: ['projects', 'kanban-chart', 'portfolio'],
@@ -223,11 +223,11 @@ const NAV_ITEMS = [
   { id: 'dashboard/documents', label: 'Documents', icon: FileStack },
   { id: 'dashboard/usage', label: 'Usage', icon: Gauge },
   { section: 'TEAM' },
-  { id: 'company-hierarchy', label: 'Hierarchy', icon: GitBranch },
   { id: 'employees', label: 'Employees', icon: Users },
   { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
-  { id: 'recruitment-tracker', label: 'Recruitment Tracker', icon: Activity },
+  { id: 'company-hierarchy', label: 'Hierarchy', icon: GitBranch },
   { id: 'announcements', label: 'Announcements', icon: Megaphone },
+  { id: 'recruitment-tracker', label: 'Recruitment Tracker', icon: Activity },
   { section: 'DOCUMENTS' },
   { id: 'document-library', label: 'Document Library', icon: FolderOpen },
   { id: 'offer-letters', label: 'Offer Letters', icon: Briefcase },
