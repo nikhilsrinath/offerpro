@@ -12,7 +12,7 @@
 
 import { supabase } from '../lib/supabase';
 import { esc } from '../utils/htmlEscape';
-import { currencySymbol as symbolOf, currencyLocale, recordCurrency } from '../shared/currency.js';
+import { currencySymbol as symbolOf, currencyLocale, recordCurrency, fixed2 } from '../shared/currency.js';
 
 const API_URL = '/api/email';
 
@@ -158,7 +158,7 @@ export const emailService = {
   }) {
     if (!to) return { success: false, message: 'No email address for this client.' };
     const what = revised ? 'the revised quotation' : 'your quotation';
-    const money = `${symbolOf()}${(Number(amount) || 0).toLocaleString(currencyLocale())}`;
+    const money = `${symbolOf()}${(Number(amount) || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const until = validUntil ? fmtDate(validUntil) : '';
     const text = [
       `Hi ${recipientName || 'there'},`,
@@ -219,7 +219,7 @@ function buildEmailBody(data, companyName) {
   if (supervisor) detailRows.push(['Reporting To', supervisor]);
   if (startDate) detailRows.push([isFT ? 'Start Date' : 'Start Date', startDate]);
   if (endDate) detailRows.push(['End Date', endDate]);
-  if (hasPay) detailRows.push([isFT ? 'Compensation' : 'Stipend', `${currencySymbol} ${Number(data.stipend).toLocaleString('en-IN')} / ${payFreq}`]);
+  if (hasPay) detailRows.push([isFT ? 'Compensation' : 'Stipend', `${currencySymbol} ${fixed2(data.stipend)} / ${payFreq}`]);
   if (deadline) detailRows.push(['Accept By', `<strong style="color:#b45309;">${deadline}</strong>`]);
 
   const detailsTable = detailRows.map(([label, value]) => `

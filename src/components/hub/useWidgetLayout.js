@@ -25,6 +25,17 @@ const sizeIn = (byId, id, size) => {
     return w.sizes.includes(s) ? s : w.size;
 };
 
+const isNum = (v) => Number.isInteger(v) && v >= 0 && v < 5000;
+/** A widget's saved geometry ({ [cols]: { x, y, w, h } }), kept only where it is whole. */
+function cleanGeo(g) {
+    if (!g || typeof g !== 'object') return null;
+    const out = {};
+    Object.entries(g).forEach(([cols, r]) => {
+        if (r && isNum(r.x) && isNum(r.y) && isNum(r.w) && isNum(r.h) && r.w > 0 && r.h > 0) out[cols] = { x: r.x, y: r.y, w: r.w, h: r.h };
+    });
+    return Object.keys(out).length ? out : null;
+}
+
 function read(catalog, orgId) {
     try {
         const raw = localStorage.getItem(`${catalog.key}:${orgId || 'none'}`);
@@ -41,6 +52,8 @@ function read(catalog, orgId) {
             id: w.id, size: sizeIn(catalog.byId, w.id, w.size),
             // The look-back a period widget is set to (periods.js), when one was chosen.
             ...(PERIOD_IDS.includes(w.period) ? { period: w.period } : {}),
+            // Where it sits and how big it is, per grid column count (FreeGrid).
+            ...(cleanGeo(w.g) ? { g: cleanGeo(w.g) } : {}),
         }));
     } catch {
         return catalog.defaults;
@@ -78,7 +91,23 @@ export function useWidgetLayout(orgId, catalog = HUB_CATALOG) {
             ? l.filter((w) => w.id !== id)
             : [...l, { id, size: sizeOf(id) }])),
         setPeriod: (id, period) => commit((l) => l.map((w) => (w.id === id && PERIOD_IDS.includes(period) ? { ...w, period } : w))),
-        resize: (id, size) => commit((l) => l.map((w) => (w.id === id ? { ...w, size: sizeIn(catalog.byId, id, size) } : w))),
+        /** A size preset; `dims` ({ w, h }) also resizes it on every saved grid, where it stays put. */
+        resize: (id, size, dims) => commit((l) => l.map((w) => {
+            if (w.id !== id) return w;
+            const next = { ...w, size: sizeIn(catalog.byId, id, size) };
+            if (dims && w.g) {
+                next.g = Object.fromEntries(Object.entries(w.g).map(([c, r]) => [c, { ...r, w: Math.min(dims.w, Number(c)), h: dims.h }]));
+            }
+            return next;
+        })),
+        /** Free-grid positions and sizes for one column count, after a drag, a resize or a move. */
+        arrange: (cols, rects) => commit((l) => {
+            const at = new Map(rects.map((r) => [r.id, r]));
+            return l.map((w) => {
+                const r = at.get(w.id);
+                return r ? { ...w, g: { ...(w.g || {}), [cols]: { x: r.x, y: r.y, w: r.w, h: r.h } } } : w;
+            });
+        }),
         move: (id, delta) => commit((l) => {
             const i = l.findIndex((w) => w.id === id);
             const j = i + delta;

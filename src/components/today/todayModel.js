@@ -14,7 +14,7 @@ import { currencySymbol, currencyLocale } from '../../shared/currency.js';
 
 const day = (v) => (v ? String(v).slice(0, 10) : '');
 const num = (v) => Number(v) || 0;
-const inr = (v) => currencySymbol() + Math.round(num(v)).toLocaleString(currencyLocale());
+const inr = (v) => currencySymbol() + (Number(num(v)) || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function localDay(d = new Date()) {
     const x = new Date(d);
@@ -225,14 +225,14 @@ export function buildToday(src) {
             id: 'rev', title: inr(money.revMonth) + ' earned this month',
             // A change against nothing is not a change, so no percentage then.
             sub: money.revPrevToDate > 0
-                ? `${money.revDelta >= 0 ? 'Up' : 'Down'} ${Math.abs(Math.round(money.revDelta))}% on last month by this date`
+                ? `${money.revDelta >= 0 ? 'Up' : 'Down'} ${Math.abs(money.revDelta).toFixed(2)}% on last month by this date`
                 : 'Settled invoices and income',
         },
         money?.paidCount > 0 && {
             id: 'paid', title: `${money.paidCount} of ${money.invoiceCount} invoices settled`,
-            sub: `${Math.round(money.settled)}% of everything invoiced is paid`,
+            sub: `${Number(money.settled).toFixed(2)}% of everything invoiced is paid`,
         },
-        won > 0 && { id: 'won', title: plural(won, 'deal') + ' won', sub: pipeline.winRate != null ? `${Math.round(pipeline.winRate)}% win rate on decided leads` : 'On the CRM board' },
+        won > 0 && { id: 'won', title: plural(won, 'deal') + ' won', sub: pipeline.winRate != null ? `${Number(pipeline.winRate).toFixed(2)}% win rate on decided leads` : 'On the CRM board' },
         team?.joined > 0 && { id: 'joined', title: plural(team.joined, 'person', 'people') + ' joined this month', sub: `${team.headcount} on the team now` },
         team?.tasks?.done > 0 && { id: 'done', title: plural(team.tasks.done, 'task') + ' done', sub: `${team.tasks.open} still open` },
     ].filter(Boolean);

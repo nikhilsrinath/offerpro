@@ -115,13 +115,13 @@ export const projectBillingPath = (projectId, kind) => projectSectionPath(projec
 /** Where a project's Billing opens a form: a new document, or one to revise. */
 export const projectBillingForm = projectBillingFormPath;
 
-/** Documents Management › Project Documents, on its business-documents view. */
-export const projectDocumentsPath = (projectId) => projectSectionPath(projectId, 'documents', 'business');
+/** Documents Management › Templates, where every project document is started. */
+export const projectTemplatesPath = (projectId) => projectSectionPath(projectId, 'templates');
 
 /**
- * Where "new <kind>" opens for a project. `from: 'documents'` sends the form
- * back to Documents Management when it is saved or cancelled, instead of to
- * Billing.
+ * Where "new <kind>" opens for a project. `from: 'templates'` (or the older
+ * 'documents') sends the form back to Documents Management › Templates when
+ * it is saved or cancelled, instead of to Billing.
  */
 export function projectFormPath(projectId, path, { from } = {}) {
     const q = new URLSearchParams({ project: projectId });
@@ -146,12 +146,12 @@ export function useFormProject(kind, fallbackPath) {
     const project = findProject(ref, projects);
     const projectId = project?.id || null;
     const client = project?.client_id ? customers.find((c) => c.id === project.client_id) || null : null;
-    const toDocuments = kind === 'record' || params.get('from') === 'documents';
+    const toDocuments = kind === 'record' || ['templates', 'documents'].includes(params.get('from'));
     return {
         projectId: project ? projectId : null,
         project,
         client,
-        returnTo: !project ? fallbackPath : toDocuments ? projectDocumentsPath(projectId) : projectBillingPath(projectId, kind),
+        returnTo: !project ? fallbackPath : toDocuments ? projectTemplatesPath(projectId) : projectBillingPath(projectId, kind),
     };
 }
 

@@ -159,8 +159,8 @@ export const DECISION_MAKERS = ['owner', 'founder', 'c_suite', 'partner', 'vp', 
 /** "+12%" / "−4%" from a growth fraction; null when Apollo had none. */
 export function growthText(g) {
   if (g === null || g === undefined || !Number.isFinite(Number(g))) return null;
-  const pct = Math.round(Number(g) * 100);
-  return `${pct > 0 ? '+' : pct < 0 ? '−' : ''}${Math.abs(pct)}%`;
+  const pct = Number(g) * 100;
+  return `${pct > 0 ? '+' : pct < 0 ? '−' : ''}${Math.abs(pct).toFixed(2)}%`;
 }
 
 /** Fast hiring: headcount up by this fraction over six months. */

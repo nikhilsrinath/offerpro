@@ -14,7 +14,7 @@ import CountrySelect from '../shared/CountrySelect';
 import { useToast } from '../shared/Toast';
 import A4Stage from '../shared/A4Stage';
 import { useFormProject, projectStartLines, linkToProject, projectFormNote } from '../projects/projectScope';
-import { currencySymbol, baseCurrency, currencyLocale } from '../../shared/currency.js';
+import { currencySymbol, baseCurrency, currencyLocale, fixed2 } from '../../shared/currency.js';
 
 const UNIT_OPTIONS = ['Hrs', 'Units', 'Nos', 'Kg', 'Ltr'];
 const GST_RATES = [0, 5, 12, 18, 28];
@@ -45,7 +45,7 @@ function numberToWords(num) {
 }
 
 function formatCurrency(amount) {
-  return (amount || 0).toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() });
+  return (amount || 0).toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatDate(dateStr) {
@@ -869,7 +869,7 @@ export default function QuotationForm({ editDocId }) {
                       >
                         {GST_RATES.map((r) => (
                           <option key={r} value={r}>
-                            {r}%
+                            {Number(r).toFixed(2)}%
                           </option>
                         ))}
                       </select>
@@ -928,7 +928,7 @@ export default function QuotationForm({ editDocId }) {
                   <span>
                     Discount
                     {formData.discountType === 'percent'
-                      ? ` (${formData.discountValue}%)`
+                      ? ` (${Number(formData.discountValue).toFixed(2)}%)`
                       : ' (flat)'}
                   </span>
                   <span>-{formatCurrency(totals.discountAmount)}</span>
@@ -1306,11 +1306,11 @@ export default function QuotationForm({ editDocId }) {
                       </td>
                       <td style={{ padding: '7px 10px', textAlign: 'right' }}>
                         {currencySymbol()}
-                        {(Number(item.rate) || 0).toLocaleString('en-IN')}
+                        {fixed2(item.rate)}
                       </td>
                       <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600 }}>
                         {currencySymbol()}
-                        {lineTotal.toLocaleString('en-IN')}
+                        {fixed2(lineTotal)}
                       </td>
                     </tr>
                   );
@@ -1337,7 +1337,7 @@ export default function QuotationForm({ editDocId }) {
                   }}
                 >
                   <span>Subtotal</span>
-                  <span>{currencySymbol()}{totals.subtotal.toLocaleString(currencyLocale())}</span>
+                  <span>{currencySymbol()}{totals.subtotal.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
 
                 {totals.discountAmount > 0 && (
@@ -1353,10 +1353,10 @@ export default function QuotationForm({ editDocId }) {
                     <span>
                       Discount
                       {formData.discountType === 'percent'
-                        ? ` (${formData.discountValue}%)`
+                        ? ` (${Number(formData.discountValue).toFixed(2)}%)`
                         : ''}
                     </span>
-                    <span>-{currencySymbol()}{totals.discountAmount.toLocaleString(currencyLocale())}</span>
+                    <span>-{currencySymbol()}{totals.discountAmount.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 )}
 
@@ -1371,7 +1371,7 @@ export default function QuotationForm({ editDocId }) {
                     }}
                   >
                     <span>GST</span>
-                    <span>{currencySymbol()}{totals.gstAmount.toLocaleString(currencyLocale())}</span>
+                    <span>{currencySymbol()}{totals.gstAmount.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 )}
 
@@ -1388,7 +1388,7 @@ export default function QuotationForm({ editDocId }) {
                   }}
                 >
                   <span>TOTAL</span>
-                  <span>{currencySymbol()}{totals.grandTotal.toLocaleString(currencyLocale())}</span>
+                  <span>{currencySymbol()}{totals.grandTotal.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>

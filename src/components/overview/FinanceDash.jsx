@@ -104,7 +104,7 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
                 delta={deltaOf(k.collected.delta)} foot={model.avgDaysToPay === null ? 'no settled invoices yet' : `paid in ${model.avgDaysToPay.toFixed(0)} days on average`}
                 spark={k.collected.spark} color={cat[2]} onClick={() => open({ kind: 'metric', id: 'collected' })} />
             <Tile icon={TrendingUp} label="Net profit" value={fmtShort(k.net.value)} exact={fmtInr(k.net.value)} tone={k.net.value < 0 ? 'down' : null}
-                delta={deltaOf(k.net.delta)} foot={k.net.margin === null ? 'no income in period' : `${k.net.margin.toFixed(1)}% margin`}
+                delta={deltaOf(k.net.delta)} foot={k.net.margin === null ? 'no income in period' : `${k.net.margin.toFixed(2)}% margin`}
                 spark={k.net.spark} onClick={() => open({ kind: 'metric', id: 'net' })} />
             <Tile icon={Hourglass} label="Receivables" value={fmtShort(k.outstanding.value)} exact={fmtInr(k.outstanding.value)}
                 delta={k.outstanding.overdue > 0
@@ -130,9 +130,9 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
                 exact={perHead === null ? 'no headcount' : fmtInr(model.pl.expenses / heads)}
                 foot={perHead === null ? 'no employees on the team' : `${fmtShort(model.pl.expenses)} expenses · ${heads} people`}
                 onClick={() => navigate('/dashboard/team')} />
-            <Tile icon={Percent} label="Gross profit operating ratio" value={opRatio === null ? '-' : `${opRatio.toFixed(1)}%`}
-                exact={opRatio === null ? 'no income in period' : `expenses are ${opRatio.toFixed(1)}% of income`} tone={opRatio !== null && opRatio > 100 ? 'down' : null}
-                foot={opRatio === null ? 'no income in period' : `gross profit ${fmtShort(model.pl.net)} · ${(100 - opRatio).toFixed(1)}% margin`}
+            <Tile icon={Percent} label="Gross profit operating ratio" value={opRatio === null ? '-' : `${opRatio.toFixed(2)}%`}
+                exact={opRatio === null ? 'no income in period' : `expenses are ${opRatio.toFixed(2)}% of income`} tone={opRatio !== null && opRatio > 100 ? 'down' : null}
+                foot={opRatio === null ? 'no income in period' : `gross profit ${fmtShort(model.pl.net)} · ${(100 - opRatio).toFixed(2)}% margin`}
                 onClick={() => open({ kind: 'metric', id: 'net' })} />
         </TileRow>
 

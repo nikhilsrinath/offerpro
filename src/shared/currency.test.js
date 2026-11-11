@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import {
   setBaseCurrency, baseCurrency, currencySymbol, recordCurrency,
-  formatCurrency, formatCurrencyShort, compactNumber,
+  formatCurrency, formatCurrencyShort, compactNumber, formatPercent,
 } from './currency.js';
 
 afterEach(() => setBaseCurrency('INR'));
@@ -33,18 +33,27 @@ describe('org currency', () => {
   });
 
   it('groups digits the way the currency is read', () => {
-    expect(formatCurrency(150000)).toBe('₹1,50,000');
+    expect(formatCurrency(150000)).toBe('₹1,50,000.00');
     setBaseCurrency('USD');
-    expect(formatCurrency(150000)).toBe('$150,000');
-    expect(formatCurrency(-12.5)).toBe('−$12.5');
+    expect(formatCurrency(150000)).toBe('$150,000.00');
+    expect(formatCurrency(-12.5)).toBe('−$12.50');
   });
 
-  it('shortens in lakh/crore for INR and in M/B elsewhere', () => {
-    expect(formatCurrencyShort(12400000)).toBe('₹1.24Cr');
-    expect(formatCurrencyShort(310000)).toBe('₹3.10L');
+  it('never drops below two decimals, even when asked for none', () => {
+    expect(formatCurrency(1234, { digits: 0 })).toBe('₹1,234.00');
+  });
+
+  it('never shortens to L / Cr / M / k', () => {
+    expect(formatCurrencyShort(12400000)).toBe('₹1,24,00,000.00');
+    expect(formatCurrencyShort(310000)).toBe('₹3,10,000.00');
     setBaseCurrency('USD');
-    expect(formatCurrencyShort(1240000)).toBe('$1.24M');
-    expect(formatCurrencyShort(310000)).toBe('$310.0k');
-    expect(compactNumber(-4500)).toBe('-4.5k');
+    expect(formatCurrencyShort(1240000)).toBe('$1,240,000.00');
+    expect(compactNumber(-4500)).toBe('-4,500.00');
+  });
+
+  it('prints percentages with two decimals', () => {
+    expect(formatPercent(12.5)).toBe('12.50%');
+    expect(formatPercent(3, { signed: true })).toBe('+3.00%');
+    expect(formatPercent(-4.256)).toBe('−4.26%');
   });
 });

@@ -55,18 +55,18 @@ describe('business questions in the loop', () => {
     const model = scripted(
       calls(['business_overview', { period: 'this_month', focus: ['money', 'owed'] }], ['business_breakdown', { dimension: 'expenses_by_category' }]),
       calls(['business_insights', { limit: 3 }]),
-      { role: 'assistant', content: 'Revenue is ₹10,000 this month; ₹11,800 is overdue.' },
+      { role: 'assistant', content: 'Revenue is ₹10,000.00 this month; ₹11,800.00 is overdue.' },
     );
     await runChat(ctx, { message: 'How are we doing this month, and what are our biggest expenses?', chatId: 'c1', messageId: 'm1' }, emit, { callModelImpl: model });
 
     const results = toolResults(model.seen[2]);
     expect(results).toHaveLength(3);
-    expect(results[0]).toContain('"value":"₹10,000"');
-    expect(results[1]).toContain('"total":"₹15,000"');
+    expect(results[0]).toContain('"value":"₹10,000.00"');
+    expect(results[1]).toContain('"total":"₹15,000.00"');
     expect(results[2]).toContain('Overdue invoices');
     expect(events.filter((e) => e.event === 'status').map((e) => e.text)).toEqual(['Reading the business figures…', 'Ranking it…', 'Looking for what needs attention…']);
     expect(events.find((e) => e.event === 'entities').entities.map((x) => x.id)).toContain('inv1');
-    expect(events.at(-1)).toMatchObject({ event: 'text', text: 'Revenue is ₹10,000 this month; ₹11,800 is overdue.' });
+    expect(events.at(-1)).toMatchObject({ event: 'text', text: 'Revenue is ₹10,000.00 this month; ₹11,800.00 is overdue.' });
     // Three tools, one read of each table.
     expect(db.reads.filter((t) => t === 'financial_documents')).toHaveLength(1);
     expect(db.writes.filter((w) => w.op !== 'rpc')).toEqual([]);

@@ -159,8 +159,8 @@ function partnershipClauses(data) {
     ] },
     { heading: 'SHARING OF PROFITS AND LOSSES', blocks: [
       para('The net profits and losses of the partnership, after meeting all expenses and liabilities, shall be shared between the Parties in the following ratio:'),
-      bullet(`${fp}: ${fpShare}%`),
-      bullet(`${sp}: ${spShare}%`),
+      bullet(`${fp}: ${Number(fpShare).toFixed(2)}%`),
+      bullet(`${sp}: ${Number(spShare).toFixed(2)}%`),
       para('Profits shall be computed and distributed at the close of each financial year, or at such other intervals as the Parties may agree.'),
     ] },
     { heading: 'ROLES AND RESPONSIBILITIES', blocks: [

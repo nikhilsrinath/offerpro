@@ -17,6 +17,8 @@ const PROJECT_SELECT = `${SELECT}, updated_at, project_id, priority, attachments
 export const ANNOUNCEMENT_BUCKET = 'announcements';
 export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 export const ATTACHMENT_MAX_COUNT = 10;
+/** An attachment's size, for its row. */
+export const fmtSize = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(2)} MB` : `${Math.max(1, Math.round((b || 0) / 1024))} KB`);
 export const PRIORITIES = [
   { id: 'normal', label: 'Normal', tone: 'mute' },
   { id: 'important', label: 'Important', tone: 'neutral' },
@@ -41,8 +43,9 @@ export const announcementService = {
    */
   async list(orgId, { includeExpired = false } = {}) {
     if (!orgId) return [];
+    // With 0073 a company announcement has attachments too.
     const query = (orgOnly) => {
-      let q = supabase.from('announcements').select(SELECT).eq('org_id', orgId);
+      let q = supabase.from('announcements').select(orgOnly ? `${SELECT}, attachments` : SELECT).eq('org_id', orgId);
       // A project's announcements belong on that project's page, not the board.
       if (orgOnly) q = q.is('project_id', null);
       return q.order('is_pinned', { ascending: false }).order('published_at', { ascending: false });
@@ -51,11 +54,20 @@ export const announcementService = {
     // Before 0073 there is no project_id, and every announcement is the org's.
     if (error && missingProjectColumns(error)) ({ data, error } = await query(false));
     if (error) throw error;
-    const rows = data || [];
+    const rows = (data || []).map((a) => ({ ...a, attachments: Array.isArray(a.attachments) ? a.attachments : [] }));
     return includeExpired ? rows : rows.filter((a) => isLive(a));
   },
 
-  async publish(orgId, { id, title, body, departmentId = null, isPinned = false, expiresAt = null }) {
+  /**
+   * Create or update a company announcement. Attachments work as on a
+   * project's (publishForProject), stored under <org>/org/; they are only
+   * sent when there are some to save or take off, so a notice still saves
+   * on a database without 0073.
+   */
+  async publish(orgId, {
+    id, title, body, departmentId = null, isPinned = false, expiresAt = null,
+    keep = [], files = [], dropped = [],
+  }) {
     const { data: { user } } = await supabase.auth.getUser();
     const row = {
       org_id: orgId,
@@ -67,14 +79,41 @@ export const announcementService = {
     };
     if (!row.title) throw new Error('Give the announcement a title.');
     if (!row.body) throw new Error('An announcement needs something to say.');
+    if (keep.length + files.length > ATTACHMENT_MAX_COUNT) throw new Error(`At most ${ATTACHMENT_MAX_COUNT} attachments.`);
+    const big = files.find((f) => f.size > ATTACHMENT_MAX_BYTES);
+    if (big) throw new Error(`${big.name} is over 10 MB.`);
 
-    const q = id
-      ? supabase.from('announcements').update(row).eq('id', id)
-      : supabase.from('announcements').insert({ ...row, created_by: user?.id || null });
-    const { data, error } = await q.select(SELECT).maybeSingle();
-    if (error) throw error;
-    if (!data) throw new Error('You do not have permission to publish announcements.');
-    return data;
+    const uploaded = [];
+    try {
+      for (const file of files) {
+        const ext = (file.name.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'bin';
+        const path = `${orgId}/org/${crypto.randomUUID()}.${ext}`;
+        const { error } = await supabase.storage.from(ANNOUNCEMENT_BUCKET).upload(path, file, {
+          contentType: file.type || 'application/octet-stream', upsert: false,
+        });
+        if (error) throw error;
+        uploaded.push({ path, name: file.name.slice(0, 200), size: file.size, type: file.type || '' });
+      }
+      const withFiles = keep.length > 0 || uploaded.length > 0 || dropped.length > 0;
+      if (withFiles) row.attachments = [...keep, ...uploaded];
+
+      const q = id
+        ? supabase.from('announcements').update(row).eq('id', id)
+        : supabase.from('announcements').insert({ ...row, created_by: user?.id || null });
+      const { data, error } = await q.select(withFiles ? `${SELECT}, attachments` : SELECT).maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error('You do not have permission to publish announcements.');
+
+      if (dropped.length) {
+        await supabase.storage.from(ANNOUNCEMENT_BUCKET).remove(dropped.map((a) => a.path)).catch(() => {});
+      }
+      return data;
+    } catch (err) {
+      if (uploaded.length) {
+        await supabase.storage.from(ANNOUNCEMENT_BUCKET).remove(uploaded.map((a) => a.path)).catch(() => {});
+      }
+      throw err;
+    }
   },
 
   async remove(id) {

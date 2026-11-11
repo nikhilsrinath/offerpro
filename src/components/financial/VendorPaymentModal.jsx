@@ -230,7 +230,7 @@ export default function VendorPaymentModal({ vendorId = '', startOn = null, proj
           </div>
 
           <fieldset className="prod-field full cb-fieldset">
-            <legend>How did you pay?</legend>
+            <legend>Mode of Payment</legend>
             <div className="cb-chips">
               {PAYMENT_METHODS.map((m) => (
                 <button key={m.key} type="button" aria-pressed={form.payment_method === m.key}
@@ -240,6 +240,10 @@ export default function VendorPaymentModal({ vendorId = '', startOn = null, proj
             </div>
           </fieldset>
 
+          <div className="prod-field full">
+            <label htmlFor="vp-notes">Notes</label>
+            <textarea id="vp-notes" rows={2} value={form.notes} onChange={(e) => set('notes', e.target.value)} />
+          </div>
         </div>
 
         {/* The rest of what an edit of this payment offers, folded away until asked for. */}
@@ -278,10 +282,6 @@ export default function VendorPaymentModal({ vendorId = '', startOn = null, proj
                   onChange={(e) => set('is_inter_state', e.target.checked)} />
                 Inter-state (IGST)
               </label>
-            </div>
-            <div className="prod-field full">
-              <label htmlFor="vp-notes">Notes</label>
-              <textarea id="vp-notes" rows={2} value={form.notes} onChange={(e) => set('notes', e.target.value)} />
             </div>
           </div>
         </details>

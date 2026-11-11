@@ -6,7 +6,7 @@ import { advanceOf, DEFAULT_ADVANCE_PERCENT } from '../../services/proformaAdvan
 import { recommendTarget, DUE_DAYS } from '../../services/documentConversion';
 import { currencySymbol, currencyLocale } from '../../shared/currency.js';
 
-const money = (n) => currencySymbol() + (Number(n) || 0).toLocaleString(currencyLocale(), { maximumFractionDigits: 2 });
+const money = (n) => currencySymbol() + (Number(n) || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const OPTIONS = {
   proforma: {

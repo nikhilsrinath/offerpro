@@ -70,40 +70,37 @@ export const currencyLocale = (code = base) => BY_CODE[norm(code) || base]?.loca
 export const groupNumber = (v, opts = {}, code = base) => (Number(v) || 0).toLocaleString(currencyLocale(code), opts);
 
 /**
- * "₹31,800" / "$31,800.50". Fractions are kept unless `digits` says otherwise,
- * so a total is never quietly rounded.
+ * "₹31,800.00" / "$31,800.50". Money always shows two decimals (the user's
+ * rule, 2026-11-11): no figure is printed without them, and none is shortened
+ * to L / Cr / M / k. `digits` / `minDigits` can only add decimals, never drop
+ * them below two.
  */
-export function formatCurrency(v, { currency = base, digits = 2, minDigits = 0 } = {}) {
+export function formatCurrency(v, { currency = base, digits = 2, minDigits = 2 } = {}) {
   const c = norm(currency) || base;
   const n = Number(v) || 0;
   const s = n < 0 ? '−' : '';
-  const body = Math.abs(n).toLocaleString(currencyLocale(c), {
-    minimumFractionDigits: Math.min(minDigits, digits), maximumFractionDigits: digits,
-  });
+  const max = Math.max(2, Number(digits) || 0);
+  const min = Math.max(2, Math.min(Number(minDigits) || 0, max));
+  const body = Math.abs(n).toLocaleString(currencyLocale(c), { minimumFractionDigits: min, maximumFractionDigits: max });
   return `${s}${currencySymbol(c)}${body}`;
 }
 
-/**
- * Headline figures where the exact unit is noise: ₹1.24Cr / ₹3.10L / ₹4.5k in
- * INR, $1.24M / $310.0k in everything else.
- */
+/** Kept for older callers: now the full figure, never L / Cr / M / k. */
 export function formatCurrencyShort(v, currency = base) {
-  const n = Math.round(Number(v) || 0);
-  return `${n < 0 ? '−' : ''}${currencySymbol(currency)}${compactNumber(Math.abs(n), currency)}`;
+  return formatCurrency(v, { currency });
 }
 
-/** The same scale without a symbol: 1.24Cr / 3.10L in INR, 1.24M elsewhere. */
+/** "1,23,456.00": any figure shown to people, grouped, always two decimals. */
+export const fixed2 = (v, currency = base) => (Number(v) || 0).toLocaleString(currencyLocale(currency), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Kept for older callers (chart axes, tiles): the full figure, no scale suffix. */
 export function compactNumber(v, currency = base) {
-  const c = norm(currency) || base;
-  const n = Math.round(Number(v) || 0);
-  const a = Math.abs(n);
-  if (c === 'INR') {
-    if (a >= 1e7) return (n / 1e7).toFixed(2) + 'Cr';
-    if (a >= 1e5) return (n / 1e5).toFixed(2) + 'L';
-  } else {
-    if (a >= 1e9) return (n / 1e9).toFixed(2) + 'B';
-    if (a >= 1e6) return (n / 1e6).toFixed(2) + 'M';
-  }
-  if (a >= 1e3) return (n / 1e3).toFixed(1) + 'k';
-  return String(n);
+  return fixed2(v, currency);
+}
+
+/** "12.50%": every percentage carries two decimals. `signed` adds a leading +. */
+export function formatPercent(v, { signed = false } = {}) {
+  const n = Number(v) || 0;
+  const sign = n < 0 ? '−' : signed && n > 0 ? '+' : '';
+  return `${sign}${Math.abs(n).toFixed(2)}%`;
 }

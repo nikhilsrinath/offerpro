@@ -35,7 +35,7 @@ const shortDate = (v) => {
 const detailsOf = (record) => {
   const d = record.data || {};
   switch (record.type) {
-    case 'invoice': return [`${currencySymbol()}${(d.totals?.grandTotal || 0).toLocaleString(currencyLocale())}`, d.invoiceNumber].filter(Boolean).join(' · ');
+    case 'invoice': return [`${currencySymbol()}${(d.totals?.grandTotal || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, d.invoiceNumber].filter(Boolean).join(' · ');
     case 'offer': return [d.role, d.department].filter(Boolean).join(' · ');
     case 'certificate': return [d.achievementTitle, d.issuingOrganization].filter(Boolean).join(' · ');
     case 'nda': return d.receivingPartyName ? `with ${d.receivingPartyName}` : 'NDA Agreement';
@@ -331,7 +331,7 @@ export default function InternRecords() {
                     <span>{record.data?.title || 'Agreement'}</span>
                   )}
                   {record.type === 'invoice' && (
-                    <span>{currencySymbol()}{record.data?.totals?.grandTotal?.toLocaleString(currencyLocale()) || '0'}{record.data?.invoiceNumber ? ` · ${record.data.invoiceNumber}` : ''}</span>
+                    <span>{currencySymbol()}{record.data?.totals?.grandTotal?.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0'}{record.data?.invoiceNumber ? ` · ${record.data.invoiceNumber}` : ''}</span>
                   )}
                 </div>
 

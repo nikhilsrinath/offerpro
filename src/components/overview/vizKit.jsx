@@ -402,7 +402,7 @@ export function SplitBar({ parts, format, height = 12, onSelect, selected, unit,
     const [hover, setHover] = useState(null);
     const total = parts.reduce((s, p) => s + p.value, 0);
     const active = hover ?? selected;
-    const tipOf = (p) => <TipBody title={p.label} rows={[{ label: unit || 'Value', value: format(p.value), color: p.color }, ...(p.extra || []), { label: 'Share', value: total > 0 ? `${((p.value / total) * 100).toFixed(1)}%` : '-' }]} hint={onSelect ? undefined : false} />;
+    const tipOf = (p) => <TipBody title={p.label} rows={[{ label: unit || 'Value', value: format(p.value), color: p.color }, ...(p.extra || []), { label: 'Share', value: total > 0 ? `${((p.value / total) * 100).toFixed(2)}%` : '-' }]} hint={onSelect ? undefined : false} />;
     const legend = (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 2, marginTop: donut ? 0 : 12, flex: donut ? '1 1 230px' : undefined, minWidth: 0 }}>
             {parts.map((p) => (
@@ -419,7 +419,7 @@ export function SplitBar({ parts, format, height = 12, onSelect, selected, unit,
                     {p.note && <span style={{ fontSize: 11.5, color: t.faint, padding: '0 6px', borderRadius: 99, background: t.panelAlt, border: '1px solid ' + t.line }}>{p.note}</span>}
                     <span style={{ fontSize: 12.5, color: t.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{format(p.value)}</span>
                     <span style={{ fontSize: 11.5, color: t.faint, width: 32, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                        {total > 0 ? `${Math.round((p.value / total) * 100)}%` : '-'}
+                        {total > 0 ? `${Number((p.value / total) * 100).toFixed(2)}%` : '-'}
                     </span>
                 </div>
             ))}
@@ -495,7 +495,7 @@ export function Donut({ parts, total, active, setHover, onSelect, tipOf, center,
             <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center', pointerEvents: 'none' }}>
                 <div>
                     <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.04em', color: t.text, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
-                        {act ? (total > 0 ? `${Math.round((act.value / total) * 100)}%` : '-') : (center?.value ?? format(total))}
+                        {act ? (total > 0 ? `${Number((act.value / total) * 100).toFixed(2)}%` : '-') : (center?.value ?? format(total))}
                     </div>
                     <div style={{ fontSize: 11.5, color: t.faint, marginTop: 3, maxWidth: size - thick * 2 - 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {act ? act.label : (center?.label ?? 'Total')}
@@ -540,7 +540,7 @@ export function Funnel({ stages, format, onSelect }) {
                         <span style={{ fontSize: 12.5, color: t.text, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                             {pct <= 22 && <span style={{ color: t.dim, marginRight: 6 }}>{s.count}</span>}
                             {format(s.value)}
-                            {conv !== null && conv !== undefined && <span style={{ display: 'block', fontSize: 11, color: t.faint }}>{s.convLabel || `${conv.toFixed(0)}% of prev`}</span>}
+                            {conv !== null && conv !== undefined && <span style={{ display: 'block', fontSize: 11, color: t.faint }}>{s.convLabel || `${conv.toFixed(2)}% of prev`}</span>}
                         </span>
                     </div>
                 );
@@ -688,7 +688,7 @@ export function Gauge({ value, label, size = 150, color }) {
             </svg>
             <div style={{ position: 'absolute', left: 0, right: 0, top: size / 2 - 22, textAlign: 'center' }}>
                 <div style={{ fontSize: 26, fontWeight: 600, color: t.text, letterSpacing: '-0.045em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
-                    {v === null ? '-' : v.toFixed(0)}{v !== null && <span style={{ fontSize: 14, color: t.dim }}>%</span>}
+                    {v === null ? '-' : v.toFixed(2)}{v !== null && <span style={{ fontSize: 14, color: t.dim }}>%</span>}
                 </div>
                 <div style={{ fontSize: 12, color: t.faint, marginTop: 5 }}>{label}</div>
             </div>

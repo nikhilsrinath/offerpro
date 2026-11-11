@@ -360,9 +360,9 @@ function draftTool(type) {
         ['Client', client?.name || '-'],
         ['Date', formatDate(args.issue_date)],
         type === 'quotation' ? ['Valid until', formatDate(args.valid_until)] : ['Due', formatDate(args.due_date)],
-        ['GST', args.gst_enabled ? `${args.gst_rate}% ${args.is_inter_state ? 'IGST' : 'CGST + SGST'}` : 'None'],
+        ['GST', args.gst_enabled ? `${Number(args.gst_rate).toFixed(2)}% ${args.is_inter_state ? 'IGST' : 'CGST + SGST'}` : 'None'],
       ];
-      if (type === 'proforma') rows.push(['Advance asked', `${args.advance_percent}% (${money(doc.totals.grandTotal * args.advance_percent / 100)}`]);
+      if (type === 'proforma') rows.push(['Advance asked', `${Number(args.advance_percent).toFixed(2)}% (${money(doc.totals.grandTotal * args.advance_percent / 100)}`]);
       if (args.project) {
         const p = await byId('project', args.project, ctx);
         if (p) rows.push(['Project', `${p.code} · ${p.name}`]);
@@ -380,7 +380,7 @@ function draftTool(type) {
           type === 'quotation'
             ? { key: 'valid_until', label: 'Valid until', type: 'date', value: args.valid_until }
             : { key: 'due_date', label: 'Due', type: 'date', value: args.due_date },
-          { key: 'gst_rate', label: 'GST %', type: 'select', value: String(args.gst_rate), options: [0, 5, 12, 18, 28].map((r) => ({ value: String(r), label: r ? `${r}%` : 'No GST' })) },
+          { key: 'gst_rate', label: 'GST %', type: 'select', value: String(args.gst_rate), options: [0, 5, 12, 18, 28].map((r) => ({ value: String(r), label: r ? `${Number(r).toFixed(2)}%` : 'No GST' })) },
           { key: 'notes', label: 'Notes', type: 'textarea', value: args.notes || '' },
         ],
       };
@@ -600,7 +600,7 @@ const convert_quotation = {
       ['New', `${TYPE_NOUN[args.target]} draft, dated ${formatDate(built.issue_date)}, due ${formatDate(built.due_date)}`],
       ['Total', money(row.grand_total, row.currency || 'INR')],
     ];
-    if (args.target === 'proforma') rows.push(['Advance asked', `${built.advance_percent}% (${money(Number(row.grand_total) * built.advance_percent / 100)}`]);
+    if (args.target === 'proforma') rows.push(['Advance asked', `${Number(built.advance_percent).toFixed(2)}% (${money(Number(row.grand_total) * built.advance_percent / 100)}`]);
     if (advance) rows.push(['Advance carried over', `${money(advance.amount)} already received, recorded on the invoice`]);
     return {
       title: `Convert to ${TYPE_NOUN[args.target]}`,
@@ -1031,7 +1031,7 @@ const create_purchase_bill = {
         rows: [
           ['Vendor', vendor?.company_name || '-'], ['Bill no.', args.bill_number],
           ['Bill date', formatDate(args.bill_date)], ['Due', formatDate(args.due_date)],
-          ['Amount before GST', money(args.subtotal)], [`GST ${args.tax_rate}%`, money(tax)],
+          ['Amount before GST', money(args.subtotal)], [`GST ${Number(args.tax_rate).toFixed(2)}%`, money(tax)],
           ['Total owed', money(args.subtotal + tax)], ['Category', args.category],
         ],
         note: 'Recorded as unpaid; it shows in payables until it is paid.',
@@ -1041,7 +1041,7 @@ const create_purchase_bill = {
         { key: 'bill_number', label: 'Bill no.', type: 'text', value: args.bill_number },
         { key: 'bill_date', label: 'Bill date', type: 'date', value: args.bill_date, max: ctx.today },
         { key: 'due_date', label: 'Due', type: 'date', value: args.due_date },
-        { key: 'tax_rate', label: 'GST %', type: 'select', value: String(args.tax_rate), options: [0, 5, 12, 18, 28].map((r) => ({ value: String(r), label: r ? `${r}%` : 'No GST' })) },
+        { key: 'tax_rate', label: 'GST %', type: 'select', value: String(args.tax_rate), options: [0, 5, 12, 18, 28].map((r) => ({ value: String(r), label: r ? `${Number(r).toFixed(2)}%` : 'No GST' })) },
       ],
     };
   },

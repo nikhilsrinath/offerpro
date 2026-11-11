@@ -99,7 +99,7 @@ const TABS = [
     // keeps the id 'documents', so older ?tab=documents links land on it; the
     // links it used to be are its Linked records view.
     { id: 'documents', parent: 'dm', label: 'Project Documents', icon: FolderOpen },
-    { id: 'templates', parent: 'dm', label: 'Custom Templates', icon: FilePen },
+    { id: 'templates', parent: 'dm', label: 'Templates', icon: FilePen },
     // Reached from the dashboards' links, not listed in the rail.
     { id: 'milestones', label: 'Milestones', icon: Flag, hidden: true },
 

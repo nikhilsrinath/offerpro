@@ -16,9 +16,7 @@ import {
 import { initialQuery } from '../services/urlQuery';
 import { currencySymbol, baseCurrency, currencyLocale } from '../shared/currency.js';
 
-const money = (n, digits = 0) => (Number(n) || 0).toLocaleString(currencyLocale(), {
-  style: 'currency', currency: baseCurrency(), maximumFractionDigits: digits,
-});
+const money = (n) => (Number(n) || 0).toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const qty = (n) => {
   const v = Number(n) || 0;
@@ -417,7 +415,7 @@ function ProductCard({ product: p, belongsLabel, onEdit, onArchive, onDelete }) 
         {p.category && <span className="prod-tag"><Tag size={9} /> {p.category}</span>}
         <span className="prod-tag">{service ? 'Service' : 'Product'}</span>
         {p.hsn_sac && <span className="prod-tag">{service ? 'SAC' : 'HSN'} {p.hsn_sac}</span>}
-        <span className="prod-tag">{p.tax_rate}% GST</span>
+        <span className="prod-tag">{Number(p.tax_rate).toFixed(2)}% GST</span>
       </div>
 
       {p.description && <p className="prod-card-desc">{p.description}</p>}
@@ -595,7 +593,7 @@ function ProductForm({ value, setValue, onSubmit, onClose, saving, error, catego
                     aria-pressed={!!(Number(value.tax_rate) === r)} className={`easy-chip ${Number(value.tax_rate) === r ? 'active' : ''}`}
                     onClick={() => set('tax_rate', r)}
                   >
-                    {r}%
+                    {Number(r).toFixed(2)}%
                   </button>
                 ))}
               </div>

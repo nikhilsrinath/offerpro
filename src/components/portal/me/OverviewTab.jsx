@@ -94,7 +94,7 @@ export default function OverviewTab({
         <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
           <Kpi
             label="Attendance rate"
-            value={ins.rate == null ? '-' : `${Math.round(ins.rate * 100)}%`}
+            value={ins.rate == null ? '-' : `${Number(ins.rate * 100).toFixed(2)}%`}
             share={ins.rate}
             note={`${ins.daysWorked} of ${ins.expected} working days`}
           />

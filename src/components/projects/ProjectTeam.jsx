@@ -217,8 +217,8 @@ function MemberRow({ p, today, load, hours, showHours, onDetails, show }) {
                             {p.email && <span style={{ display: 'block', fontSize: 11.5, color: t.faint, whiteSpace: 'nowrap' }}>{p.email}</span>}
                         </span>
                         {over && (
-                            <span title={`Booked ${Math.round(total)}% across open projects today`}>
-                                <Status tone="down">{Math.round(total)}% booked</Status>
+                            <span title={`Booked ${Number(total).toFixed(2)}% across open projects today`}>
+                                <Status tone="down">{Number(total).toFixed(2)}% booked</Status>
                             </span>
                         )}
                     </Row>
@@ -277,6 +277,7 @@ function MemberDetails({ project, p, today, canEdit, canAdd, canDelete, run, onR
         role: standard ? m.role : CUSTOM_ROLE,
         role_title: m.role_title || '',
         allocation_pct: String(m.allocation_pct),
+        start_date: String(m.start_date || '').slice(0, 10),
         status: inactive ? 'inactive' : 'active',
     }));
     const [saving, setSaving] = useState(false);
@@ -288,13 +289,18 @@ function MemberDetails({ project, p, today, canEdit, canAdd, canDelete, run, onR
     const pctChanged = Number(form.allocation_pct) !== Number(m.allocation_pct);
     const statusChanged = form.status !== (inactive ? 'inactive' : 'active');
     const deptChanged = form.department !== (p.department || '');
-    const dirty = deptChanged || roleChanged || pctChanged || statusChanged;
+    const startChanged = form.start_date !== String(m.start_date || '').slice(0, 10);
+    const dirty = deptChanged || roleChanged || pctChanged || statusChanged || startChanged;
     const deptNames = [...new Set(departments.map((d) => d.name).filter(Boolean))].sort();
     const canSave = statusChanged && form.status === 'active' && inactive ? canAdd : canEdit;
 
     const save = async () => {
         if (custom && !form.role_title.trim()) { setError('Type the role, for example Site Engineer.'); return; }
         if (!(Number(form.allocation_pct) > 0 && Number(form.allocation_pct) <= 100)) { setError('Time share is between 1 and 100%.'); return; }
+        if (startChanged && !form.start_date) { setError('Choose the date they joined the project.'); return; }
+        if (startChanged && m.end_date && form.start_date > String(m.end_date).slice(0, 10)) {
+            setError(`The start date can't be after the end date (${fmtDate(m.end_date)}).`); return;
+        }
         const role = custom ? 'member' : form.role;
         const roleTitle = custom ? form.role_title.trim() : null;
         setSaving(true); setError('');
@@ -304,6 +310,8 @@ function MemberDetails({ project, p, today, canEdit, canAdd, canDelete, run, onR
             if (deptChanged) {
                 await orgStore.updateItem('employees', p.id, { department: form.department || null, department_id: undefined });
             }
+            // The date they joined this membership; a correction, not a rejoin.
+            if (startChanged) await updateMember(m.id, { start_date: form.start_date });
             if (statusChanged && form.status === 'active' && inactive) {
                 // Back on the project: a new membership from today.
                 await addMember(project.id, {
@@ -387,7 +395,8 @@ function MemberDetails({ project, p, today, canEdit, canAdd, canDelete, run, onR
                     </Select>
                 </Field>
                 <Field label="On the project since">
-                    <Input value={fmtDate(m.start_date)} readOnly aria-readonly="true" />
+                    <Input type="date" value={form.start_date} onChange={set('start_date')} disabled={!canEdit}
+                        max={m.end_date ? String(m.end_date).slice(0, 10) : undefined} />
                 </Field>
                 <Field required label="Time on project (%)">
                     <Input type="number" min="1" max="100" value={form.allocation_pct} onChange={set('allocation_pct')} />

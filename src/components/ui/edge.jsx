@@ -406,7 +406,7 @@ export function Breakdown({ rows, total, max = 6 }) {
                         }}>{r.label}</span>
                         <span style={{ fontSize: 12.5, color: t.text }}>{r.value}</span>
                         {sum > 0 && <span style={{ fontSize: 11, color: t.ghost, width: 32, textAlign: 'right' }}>
-                            {Math.round((r.value / sum) * 100)}%
+                            {Number((r.value / sum) * 100).toFixed(2)}%
                         </span>}
                     </div>
                     <Bar value={r.value} max={peak} tone={r.color} />
@@ -416,7 +416,7 @@ export function Breakdown({ rows, total, max = 6 }) {
     );
 }
 
-export function Stat({ label, value, note, tone }) {
+export function Stat({ label, value, note, tone, formula }) {
     const t = useT();
     return (
         <div style={{ minWidth: 0 }}>
@@ -427,6 +427,12 @@ export function Stat({ label, value, note, tone }) {
             }}>{value}</div>
             <div style={{ fontSize: 12, fontWeight: 500, color: t.dim, marginTop: 5 }}>{titleCaseNode(label)}</div>
             {note && <div style={{ fontSize: 11.5, color: t.faint, marginTop: 3 }}>{note}</div>}
+            {/* How the figure is worked out, with the figures that went into it. */}
+            {formula && (
+                <div style={{ fontSize: 11, color: t.faint, marginTop: 6, paddingTop: 6, borderTop: '1px dashed ' + t.line, lineHeight: 1.45 }}>
+                    {formula}
+                </div>
+            )}
         </div>
     );
 }
@@ -434,18 +440,10 @@ export function Stat({ label, value, note, tone }) {
 /** The page's headline numbers, in one hairline-separated band rather than a
     row of cards: four boxes for four integers was more frame than content. */
 export function StatBand({ items }) {
-    const t = useT();
     return (
         <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', marginBottom: 12 }}>
-            {items.map((s, i) => (
-                <div key={s.label} style={{
-                    position: 'relative', padding: '16px 18px', minWidth: 0, overflow: 'hidden',
-                    background: t.card, border: '1px solid ' + t.line, borderRadius: 12,
-                }}>
-                    <span aria-hidden="true" style={{
-                        position: 'absolute', left: 0, top: 16, bottom: 16, width: 3, borderRadius: '0 3px 3px 0',
-                        background: i === 0 ? t.accent : t.lineStrong,
-                    }} />
+            {items.map((s) => (
+                <div key={s.label} className="stat-box" style={{ padding: '16px 18px', minWidth: 0, overflow: 'hidden' }}>
                     <Stat {...s} />
                 </div>
             ))}

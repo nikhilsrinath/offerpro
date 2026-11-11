@@ -162,7 +162,7 @@ describe('the deal tools', () => {
     expect(prio).toContain('Follow-up \\"Send Acme the proposal\\" is 9 days overdue');
     expect(risks).toContain('"severity":"critical"');
     expect(risks).toContain('QT-1 for Kite Labs is past its validity');
-    expect(pipe).toContain('"pipeline_value":"₹7,00,000"');
+    expect(pipe).toContain('"pipeline_value":"₹7,00,000.00"');
     expect(pipe).toContain('"pipeline_value_in_the_past":"Not available');
     expect(list).toContain('"total_matching":1');
     // Nothing from the other organization, anywhere.

@@ -522,7 +522,7 @@ export default function RecipientPortal({ documentId }) {
                       docData.supervisor && ['Reporting To', docData.supervisor],
                       docData.start_date && ['Start Date', fmtOfferDate(docData.start_date)],
                       (!isFT || isCollab) && docData.end_date && ['End Date', fmtOfferDate(docData.end_date)],
-                      docData.is_paid && docData.salary && ['Compensation', `${currSym} ${Number(docData.salary).toLocaleString(currencyLocale())} / ${(docData.payment_frequency || 'Monthly').toLowerCase()}`],
+                      docData.is_paid && docData.salary && ['Compensation', `${currSym} ${Number(docData.salary).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / ${(docData.payment_frequency || 'Monthly').toLowerCase()}`],
                       docData.valid_until && ['Respond By', fmtOfferDate(docData.valid_until)],
                     ].filter(Boolean);
 
@@ -634,7 +634,7 @@ export default function RecipientPortal({ documentId }) {
                           <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>New Role</td><td style={{ fontWeight: 700 }}>{docData.new_role || '-'}</td></tr>
                           {docData.current_department && <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>Current Dept.</td><td style={{ fontWeight: 600 }}>{docData.current_department}</td></tr>}
                           {docData.new_department && <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>New Dept.</td><td style={{ fontWeight: 700 }}>{docData.new_department}</td></tr>}
-                          {docData.new_salary && <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>New Compensation</td><td style={{ fontWeight: 700 }}>{currencySymbol()} {Number(docData.new_salary).toLocaleString(currencyLocale())} / {docData.salary_frequency || 'month'}</td></tr>}
+                          {docData.new_salary && <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>New Compensation</td><td style={{ fontWeight: 700 }}>{currencySymbol()} {Number(docData.new_salary).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / {docData.salary_frequency || 'month'}</td></tr>}
                           <tr><td style={{ color: '#6b7280', fontWeight: 500 }}>Effective Date</td><td style={{ fontWeight: 700 }}>{fmtOfferDate(docData.effective_date)}</td></tr>
                         </tbody>
                       </table>
@@ -812,8 +812,8 @@ export default function RecipientPortal({ documentId }) {
                             <tr key={i}>
                               <td>{item.description}</td>
                               <td className="rp-doc-table-center">{item.quantity} {item.unit || ''}</td>
-                              <td className="rp-doc-table-right">{currencySymbol()}{item.rate?.toLocaleString(currencyLocale())}</td>
-                              <td className="rp-doc-table-right">{currencySymbol()}{((item.quantity || 0) * (item.rate || 0)).toLocaleString(currencyLocale())}</td>
+                              <td className="rp-doc-table-right">{currencySymbol()}{item.rate?.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                              <td className="rp-doc-table-right">{currencySymbol()}{((item.quantity || 0) * (item.rate || 0)).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -873,8 +873,8 @@ export default function RecipientPortal({ documentId }) {
                             <tr key={i}>
                               <td>{item.description}</td>
                               <td className="rp-doc-table-center">{item.quantity}</td>
-                              <td className="rp-doc-table-right">{currencySymbol()}{item.rate?.toLocaleString(currencyLocale())}</td>
-                              <td className="rp-doc-table-right">{currencySymbol()}{((item.quantity || 0) * (item.rate || 0)).toLocaleString(currencyLocale())}</td>
+                              <td className="rp-doc-table-right">{currencySymbol()}{item.rate?.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                              <td className="rp-doc-table-right">{currencySymbol()}{((item.quantity || 0) * (item.rate || 0)).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1191,7 +1191,7 @@ export default function RecipientPortal({ documentId }) {
                   {docData.new_salary && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
                       <span style={{ color: 'var(--rp-text-muted)' }}>New Compensation</span>
-                      <strong>{currencySymbol()}{Number(docData.new_salary).toLocaleString(currencyLocale())} / {docData.salary_frequency || 'month'}</strong>
+                      <strong>{currencySymbol()}{Number(docData.new_salary).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / {docData.salary_frequency || 'month'}</strong>
                     </div>
                   )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
@@ -1407,7 +1407,7 @@ function StatusCard({ icon, color, title, subtitle }) {
 }
 
 
-const inr = (n) => currencySymbol() + (Number(n) || 0).toLocaleString(currencyLocale(), { maximumFractionDigits: 2 });
+const inr = (n) => currencySymbol() + (Number(n) || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** grand_total is written by the totals trigger and already includes GST. */
 function grandTotalOf(doc) {
@@ -1433,14 +1433,14 @@ function DocTotals({ doc, totalLabel, splitGst }) {
         <div className="rp-doc-total-row"><span>Discount</span><span>−{inr(discount)}</span></div>
       )}
       {gst > 0 && !splitGst && (
-        <div className="rp-doc-total-row"><span>GST @ {rate}%</span><span>{inr(gst)}</span></div>
+        <div className="rp-doc-total-row"><span>GST @ {Number(rate).toFixed(2)}%</span><span>{inr(gst)}</span></div>
       )}
       {gst > 0 && splitGst && (interState ? (
-        <div className="rp-doc-total-row"><span>IGST @ {rate}%</span><span>{inr(gst)}</span></div>
+        <div className="rp-doc-total-row"><span>IGST @ {Number(rate).toFixed(2)}%</span><span>{inr(gst)}</span></div>
       ) : (
         <>
-          <div className="rp-doc-total-row"><span>CGST @ {rate / 2}%</span><span>{inr(gst / 2)}</span></div>
-          <div className="rp-doc-total-row"><span>SGST @ {rate / 2}%</span><span>{inr(gst / 2)}</span></div>
+          <div className="rp-doc-total-row"><span>CGST @ {Number(rate / 2).toFixed(2)}%</span><span>{inr(gst / 2)}</span></div>
+          <div className="rp-doc-total-row"><span>SGST @ {Number(rate / 2).toFixed(2)}%</span><span>{inr(gst / 2)}</span></div>
         </>
       ))}
       <div className="rp-doc-total-row rp-doc-grand-total">
@@ -1503,14 +1503,14 @@ function ProformaDocument({ doc }) {
           <div className="rp-doc-total-row"><span>Subtotal</span><span>{inr(subtotal)}</span></div>
         )}
         {discount > 0 && <div className="rp-doc-total-row"><span>Discount</span><span>−{inr(discount)}</span></div>}
-        {gst > 0 && <div className="rp-doc-total-row"><span>GST @ {rate}%</span><span>{inr(gst)}</span></div>}
+        {gst > 0 && <div className="rp-doc-total-row"><span>GST @ {Number(rate).toFixed(2)}%</span><span>{inr(gst)}</span></div>}
         <div className="rp-doc-total-row rp-doc-grand-total">
           <span>Order value</span>
           <span>{inr(a.total)}</span>
         </div>
         {a.percent > 0 && (
           <>
-            <div className="rp-doc-total-row"><span>Advance payable now ({a.percent}%)</span><span>{inr(a.advance)}</span></div>
+            <div className="rp-doc-total-row"><span>Advance payable now ({Number(a.percent).toFixed(2)}%)</span><span>{inr(a.advance)}</span></div>
             {a.balance > 0 && (
               <div className="rp-doc-total-row"><span>Balance on delivery</span><span>{inr(a.balance)}</span></div>
             )}
@@ -1572,7 +1572,7 @@ function ProformaActions({
         </div>
         {a.percent > 0 && (
           <div className="rp-amount-break-row rp-amount-highlight">
-            <span>Advance ({a.percent}%)</span>
+            <span>Advance ({Number(a.percent).toFixed(2)}%)</span>
             <strong>{inr(a.advance)}</strong>
             <span className="rp-amount-badge">Now</span>
           </div>

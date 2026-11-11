@@ -132,7 +132,7 @@ export default function GanttPage({ project }) {
                                 }}>{title(node.id)}</button>
                                 <div role="cell" style={{ position: 'relative', flex: 1, height: '100%' }}>
                                     {r.start != null ? (
-                                        <span title={`${fmtD(r.start)} → ${fmtD(r.finish)} · ${r.finish - r.start + 1}d · ${r.progress}%`} style={{
+                                        <span title={`${fmtD(r.start)} → ${fmtD(r.finish)} · ${r.finish - r.start + 1}d · ${Number(r.progress).toFixed(2)}%`} style={{
                                             position: 'absolute', left: x(r.start), width: Math.max(3, (r.finish - r.start + 1) * dayW),
                                             top: r.leaf ? 8 : 12, height: r.leaf ? 16 : 7, borderRadius: 4, overflow: 'hidden',
                                             background: t.scale[1], border: '1px solid ' + (crit ? t.down : t.lineStrong),

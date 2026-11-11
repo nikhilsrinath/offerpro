@@ -89,6 +89,5 @@ export function railTokens(t) {
     };
 }
 
-/** Compact Indian-notation figures: 1.24Cr, 3.10L, 4.5k. */
-// Lakh/crore for INR, million/billion for any other org currency.
+/** Full figure with two decimals, grouped for the org currency. Never L / Cr / k. */
 export const fmtCompact = (n) => compactNumber(n);

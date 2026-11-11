@@ -40,7 +40,7 @@ function flagEmoji(code) {
   );
 }
 
-const money = (n) => `${currencySymbol()}${Math.round(Number(n) || 0).toLocaleString(currencyLocale())}`;
+const money = (n) => `${currencySymbol()}${(Number(Number(n) || 0) || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /**
  * Keep callouts from sitting on top of each other.
@@ -246,7 +246,7 @@ export default function SalesByCountries() {
             >
               {summary.growthPct == null
                 ? '-'
-                : `${summary.growthPct >= 0 ? '+' : ''}${summary.growthPct.toFixed(0)}%`}
+                : `${summary.growthPct >= 0 ? '+' : ''}${summary.growthPct.toFixed(2)}%`}
             </strong>
             <span className="sbc-metric-note">
               {summary.growthPct == null

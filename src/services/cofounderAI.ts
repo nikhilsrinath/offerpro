@@ -128,7 +128,7 @@ export function buildEdgeContext(edgeData: {
       pendingRevenue,
       avgMonthlyRevenue: Math.round(avgMonthlyRevenue),
       lastMonthRevenue,
-      growthRate: `${growthRate}%`,
+      growthRate: `${Number(growthRate).toFixed(2)}%`,
       invoicesIssued: finInvoices.length,
       invoicesPaid: paidInvoices.length,
       invoicesPending: pendingInvoices.length,
@@ -167,15 +167,15 @@ You are talking directly to ${userName}, the ${userRole}. Address them by name a
 Your mission: Help ${firstName || 'the founder'} make sharp decisions, execute fast, and grow the business.
 
 Current Business Context:
-• Revenue: ${currencySymbol()}${context.financials.totalRevenue.toLocaleString(currencyLocale())} total | ${currencySymbol()}${context.financials.lastMonthRevenue.toLocaleString(currencyLocale())} last month
+• Revenue: ${currencySymbol()}${context.financials.totalRevenue.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} total | ${currencySymbol()}${context.financials.lastMonthRevenue.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} last month
 • Growth: ${context.financials.growthRate} month-over-month
 • Invoices: ${context.financials.invoicesPaid} paid | ${context.financials.invoicesPending} pending
-• Pending Revenue: ${currencySymbol()}${context.financials.pendingRevenue.toLocaleString(currencyLocale())}
+• Pending Revenue: ${currencySymbol()}${context.financials.pendingRevenue.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
 • Documents: ${context.documents.total} total (${context.documents.offerLetters} offers, ${context.documents.invoices} invoices)
 
-6-Month Revenue Trend: ${context.trends.monthlyRevenue.map(m => `${m.month}: ${currencySymbol()}${m.revenue.toLocaleString(currencyLocale())}`).join(' | ')}
+6-Month Revenue Trend: ${context.trends.monthlyRevenue.map(m => `${m.month}: ${currencySymbol()}${m.revenue.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`).join(' | ')}
 ${context.projects ? `Projects: ${context.projects.active} open, ${context.projects.atRisk} at risk or off track
-${context.projects.list.slice(0, 12).map((p) => `  - ${p.code} ${p.name} (${p.client || 'internal'}) · ${p.status}${p.health ? ` · ${p.health.replace('_', ' ')}` : ''}${p.netMargin != null ? ` · net margin ${currencySymbol()}${Math.round(p.netMargin).toLocaleString(currencyLocale())}` : ''}`).join('\n')}
+${context.projects.list.slice(0, 12).map((p) => `  - ${p.code} ${p.name} (${p.client || 'internal'}) · ${p.status}${p.health ? ` · ${p.health.replace('_', ' ')}` : ''}${p.netMargin != null ? ` · net margin ${currencySymbol()}${(Number(p.netMargin) || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}`).join('\n')}
 ` : ''}
 STRICT RULES - NO HALLUCINATION:
 - Address ${userName} by name when appropriate
@@ -223,8 +223,8 @@ function buildSystemPromptWithMemory(
       '• Industry: ' + relevant.facts.industry + '\n' +
       '• Team Size: ' + relevant.facts.team_size + ' people\n' +
       '• Location: ' + relevant.facts.city + ', ' + relevant.facts.country + '\n' +
-      (relevant.facts.key_metrics?.total_revenue ? '• Total Revenue: ' + currencySymbol() + relevant.facts.key_metrics.total_revenue.toLocaleString(currencyLocale()) + '\n' : '') +
-      (relevant.facts.key_metrics?.pending_revenue ? '• Pending Revenue: ' + currencySymbol() + relevant.facts.key_metrics.pending_revenue.toLocaleString(currencyLocale()) + '\n' : '') +
+      (relevant.facts.key_metrics?.total_revenue ? '• Total Revenue: ' + currencySymbol() + relevant.facts.key_metrics.total_revenue.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '\n' : '') +
+      (relevant.facts.key_metrics?.pending_revenue ? '• Pending Revenue: ' + currencySymbol() + relevant.facts.key_metrics.pending_revenue.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '\n' : '') +
       (relevant.facts.key_metrics?.invoice_count ? '• Invoices: ' + relevant.facts.key_metrics.invoice_count + '\n' : '') +
       (relevant.facts.key_metrics?.offer_count ? '• Offers: ' + relevant.facts.key_metrics.offer_count + '\n' : '') +
       (relevant.facts.key_metrics?.nda_count ? '• NDAs: ' + relevant.facts.key_metrics.nda_count + '\n' : '') +
@@ -622,7 +622,7 @@ export function getSuggestedPrompts(context: EdgeContext): SuggestedPrompt[] {
   if (context.financials.invoicesPending > 0) {
     prompts.push({ 
       id: '4', 
-      text: `Follow up on ${currencySymbol()}${context.financials.pendingRevenue.toLocaleString(currencyLocale())} pending revenue` 
+      text: `Follow up on ${currencySymbol()}${context.financials.pendingRevenue.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pending revenue` 
     });
   }
 

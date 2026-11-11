@@ -75,7 +75,7 @@ describe('todayModel', () => {
         expect(kinds).not.toContain('task-t4');
         expect(kinds).not.toContain('bill-b3');
         expect(kinds).not.toContain('task-t3');
-        expect(m.attention.find((a) => a.id === 'bill-b1').value).toBe('₹6,000');
+        expect(m.attention.find((a) => a.id === 'bill-b1').value).toBe('₹6,000.00');
     });
 
     it('collects decisions with real counts', () => {
@@ -85,7 +85,7 @@ describe('todayModel', () => {
         expect(byId.leave.sub).toBe('Ananya R.');
         expect(byId.timesheets.title).toBe('3 hours to approve');
         expect(byId.revisions.count).toBe(1);
-        expect(byId.drafts.sub).toBe('₹5,000 not billed yet');
+        expect(byId.drafts.sub).toBe('₹5,000.00 not billed yet');
         expect(byId.payments).toBeUndefined();
         expect(m.needsYou).toBe(m.attention.length + 4);
     });
@@ -105,7 +105,7 @@ describe('todayModel', () => {
     it('puts cash first in the priorities and keeps three', () => {
         const m = buildToday(base());
         expect(m.priorities).toHaveLength(3);
-        expect(m.priorities[0].title).toBe('Chase Northwind for ₹18,000');
+        expect(m.priorities[0].title).toBe('Chase Northwind for ₹18,000.00');
         expect(m.priorities[1].title).toBe('Get ABC back on track');
     });
 

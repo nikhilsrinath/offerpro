@@ -23,7 +23,7 @@ import { existingConversion } from './documentConversion.js';
 import { currencySymbol, currencyLocale } from './currency.js';
 
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-const inr = (n) => currencySymbol() + round2(n).toLocaleString(currencyLocale());
+const inr = (n) => currencySymbol() + round2(n).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const LABEL = { invoice: 'invoice', quotation: 'quotation', proforma: 'proforma' };
 
 /**

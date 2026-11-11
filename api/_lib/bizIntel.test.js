@@ -177,11 +177,11 @@ describe('the tools as the model sees them', () => {
     expect(data.period).toBe('October 2026 (this month)');
     expect(data.dates).toBe('1 Oct 2026 – 19 Oct 2026 (to date; the period is not over)');
     expect(data.compared_with).toMatch(/1 Sep 2026 – 19 Sep 2026/);
-    expect(data.money.revenue_net_of_gst).toMatchObject({ value: '₹12,000', before: '₹5,000', change: '+₹7,000 (+140%)' });
-    expect(data.money.invoiced).toMatchObject({ value: '₹11,800', invoices: 1 });
-    expect(data.money.collected_on_invoices).toMatchObject({ value: '₹0', before: '₹5,900', change: '−₹5,900 (−100%)' });
-    expect(data.owed.receivable).toMatchObject({ outstanding: '₹11,800', overdue: '₹11,800', overdue_invoices: 1 });
-    expect(data.owed.payable).toMatchObject({ outstanding: '₹11,800', overdue_bills: 1 });
+    expect(data.money.revenue_net_of_gst).toMatchObject({ value: '₹12,000.00', before: '₹5,000.00', change: '+₹7,000.00 (+140.00%)' });
+    expect(data.money.invoiced).toMatchObject({ value: '₹11,800.00', invoices: 1 });
+    expect(data.money.collected_on_invoices).toMatchObject({ value: '₹0.00', before: '₹5,900.00', change: '−₹5,900.00 (−100.00%)' });
+    expect(data.owed.receivable).toMatchObject({ outstanding: '₹11,800.00', overdue: '₹11,800.00', overdue_invoices: 1 });
+    expect(data.owed.payable).toMatchObject({ outstanding: '₹11,800.00', overdue_bills: 1 });
     expect(data.work.tasks).toMatchObject({ open_now: 1, overdue_now: 1 });
     expect(data.people.leave.awaiting_approval).toBe(1);
     expect(data.definitions.join(' ')).toMatch(/Revenue: what the Profit & Loss page counts/);
@@ -222,11 +222,11 @@ describe('the tools as the model sees them', () => {
   it('breakdown: ranked rows with shares and the basis', async () => {
     const { ctx } = world();
     const { data, entities } = await tool('business_breakdown').run({ dimension: 'overdue_invoices' }, ctx);
-    expect(data.total).toBe('₹11,800');
-    expect(data.rows[0]).toMatchObject({ name: 'INV-101', value: '₹11,800', share: '100%', client: 'Kite', days_late: 9 });
+    expect(data.total).toBe('₹11,800.00');
+    expect(data.rows[0]).toMatchObject({ name: 'INV-101', value: '₹11,800.00', share: '100.00%', client: 'Kite', days_late: 9 });
     expect(entities[0]).toMatchObject({ type: 'invoice', id: 'inv1' });
     const exp = await tool('business_breakdown').run({ dimension: 'expenses_by_category' }, ctx);
-    expect(exp.data.rows.map((r) => r.value)).toEqual(['₹15,000', '₹10,000']);
+    expect(exp.data.rows.map((r) => r.value)).toEqual(['₹15,000.00', '₹10,000.00']);
   });
 
   it('breakdown: refuses what the role cannot see, and unknown dimensions', async () => {
@@ -249,7 +249,7 @@ describe('the tools as the model sees them', () => {
   it('compares two named months', async () => {
     const { ctx } = world();
     const { data } = await tool('business_overview').run({ period: 'custom', from: '2026-09-01', to: '2026-09-30', compare: 'custom', compare_from: '2026-10-01', compare_to: '2026-10-19', focus: ['money'] }, ctx);
-    expect(data.money.revenue_net_of_gst).toMatchObject({ value: '₹5,000', before: '₹12,000' });
+    expect(data.money.revenue_net_of_gst).toMatchObject({ value: '₹5,000.00', before: '₹12,000.00' });
     expect(data.comparison_note).toMatch(/30 days against 19/);
     expect(data.owed).toBeUndefined();
   });

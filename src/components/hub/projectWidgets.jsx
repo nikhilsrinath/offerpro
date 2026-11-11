@@ -151,7 +151,7 @@ export function TeamUtilisation({ nav, size }) {
     const bars = (
         <div className="w-bars">
             {[...over, ...under].slice(0, size === 'lg' ? 6 : 3).map((r) => (
-                <Bar key={r.employee_id} name={r.full_name} value={`${Math.round(r.total_pct)}%`} neg={Number(r.total_pct) > 100}
+                <Bar key={r.employee_id} name={r.full_name} value={`${Number(r.total_pct).toFixed(2)}%`} neg={Number(r.total_pct) > 100}
                     pct={Math.min(100, Number(r.total_pct))} strong={Number(r.total_pct) > 100} />
             ))}
         </div>
@@ -167,7 +167,7 @@ const STATUS = [
     { id: 'planned', label: 'Planned', cls: 'is-b' },
     { id: 'on_hold', label: 'On hold', cls: 'is-neg' },
 ];
-const pct = (done, total) => (total ? Math.round((done / total) * 100) : 0);
+const pct = (done, total) => (total ? (done / total) * 100 : 0);
 
 /** Every open project, with how far through its milestones it is. */
 export function ProjectsList({ nav, size }) {
@@ -197,7 +197,7 @@ export function ProjectsList({ nav, size }) {
             {[...live].sort((a, b) => rank(a) - rank(b)).slice(0, size === 'lg' ? 7 : 3).map((r) => {
                 const p = pct(r.milestones_done, r.milestones_total);
                 return (
-                    <Bar key={r.project_id} name={r.name} value={r.milestones_total ? `${p}%` : '-'} pct={p} strong={p >= 100}
+                    <Bar key={r.project_id} name={r.name} value={r.milestones_total ? `${Number(p).toFixed(2)}%` : '-'} pct={p} strong={p >= 100}
                         onClick={() => nav(`/projects/${projectRef(r.project_id)}`)}
                         label={`${r.name}: ${r.milestones_done} of ${r.milestones_total} milestones done`} />
                 );
@@ -233,9 +233,9 @@ export function ProjectBudget({ nav, size }) {
             {budgeted.slice(0, size === 'lg' ? 6 : 3).map((r) => {
                 const b = Number(r.budget_burn_pct);
                 return (
-                    <Bar key={r.project_id} name={r.name} value={`${Math.round(b)}%`} neg={b > 100} pct={Math.min(100, b)} strong={b > 100}
+                    <Bar key={r.project_id} name={r.name} value={`${Number(b).toFixed(2)}%`} neg={b > 100} pct={Math.min(100, b)} strong={b > 100}
                         onClick={() => nav(projectSectionPath(r.project_id, 'finance'))}
-                        label={`${r.name}: ${Math.round(b)}% of budget spent, ${inr(r.cost_to_date)} of ${inr(r.budget_total)}`} />
+                        label={`${r.name}: ${Number(b).toFixed(2)}% of budget spent, ${inr(r.cost_to_date)} of ${inr(r.budget_total)}`} />
                 );
             })}
         </div>
@@ -348,9 +348,9 @@ export function ProjectMarginPct({ nav, size }) {
             {pick.map((r) => {
                 const m = pctOf(r);
                 return (
-                    <Bar key={r.project_id} name={r.name} value={`${Math.round(m)}%`} neg={m < 0} pct={Math.min(100, Math.abs(m))} strong={m >= 0}
+                    <Bar key={r.project_id} name={r.name} value={`${Number(m).toFixed(2)}%`} neg={m < 0} pct={Math.min(100, Math.abs(m))} strong={m >= 0}
                         onClick={() => nav(projectSectionPath(r.project_id, 'finance'))}
-                        label={`${r.name}: ${Math.round(m)}% net margin on ${inr(r.revenue_invoiced)} invoiced`} />
+                        label={`${r.name}: ${Number(m).toFixed(2)}% net margin on ${inr(r.revenue_invoiced)} invoiced`} />
                 );
             })}
         </div>

@@ -286,7 +286,7 @@ function CollectedView({ model, push }) {
             <Stats items={[
                 { label: 'Collected', value: fmtShort(k.value), note: <Delta value={k.delta} /> },
                 { label: 'Payments', value: String(pays.length) },
-                { label: 'Collection rate', value: model.collectionRate === null ? '-' : `${model.collectionRate.toFixed(0)}%`, note: 'of this period’s invoicing' },
+                { label: 'Collection rate', value: model.collectionRate === null ? '-' : `${model.collectionRate.toFixed(2)}%`, note: 'of this period’s invoicing' },
                 { label: 'Avg days to pay', value: model.avgDaysToPay === null ? '-' : `${model.avgDaysToPay.toFixed(0)}d`, note: `${model.paidSample} settled invoices` },
             ]} />
             <Section title="Trend" note="click a bar to open that bucket">
@@ -317,7 +317,7 @@ function NetView({ model, push }) {
                 { label: 'Income', value: fmtShort(pl.income), note: plPrev ? `prev ${fmtShort(plPrev.income)}` : null },
                 { label: 'Expenses', value: fmtShort(pl.expenses), note: plPrev ? `prev ${fmtShort(plPrev.expenses)}` : null },
                 { label: 'Net profit', value: fmtShort(pl.net), tone: pl.net < 0 ? 'down' : 'up', note: <Delta value={model.kpis.net.delta} /> },
-                { label: 'Margin', value: pl.margin === null ? '-' : `${pl.margin.toFixed(1)}%` },
+                { label: 'Margin', value: pl.margin === null ? '-' : `${pl.margin.toFixed(2)}%` },
             ]} />
             <Explain>
                 Of every {currencySymbol()}100 earned {pl.income > 0 ? <>you kept <b style={{ color: t.text }}>{currencySymbol()}{Math.max(-999, (pl.net / pl.income) * 100).toFixed(0)}</b> after costs</> : 'nothing was earned in this period'}.
@@ -345,7 +345,7 @@ function BucketView({ model, index, push }) {
                 { label: 'Invoiced', value: fmtShort(d.invoiced), note: prev ? <Delta value={prev.invoiced > 0 ? ((d.invoiced - prev.invoiced) / prev.invoiced) * 100 : null} /> : null },
                 { label: 'Collected', value: fmtShort(d.collected), note: prev ? <Delta value={prev.collected > 0 ? ((d.collected - prev.collected) / prev.collected) * 100 : null} /> : null },
                 { label: 'Expenses', value: fmtShort(d.pl.expenses), note: prev ? <Delta invert value={prev.pl.expenses > 0 ? ((d.pl.expenses - prev.pl.expenses) / prev.pl.expenses) * 100 : null} /> : null },
-                { label: 'Net profit', value: fmtShort(d.pl.net), tone: d.pl.net < 0 ? 'down' : undefined, note: d.pl.margin === null ? null : `${d.pl.margin.toFixed(1)}% margin` },
+                { label: 'Net profit', value: fmtShort(d.pl.net), tone: d.pl.net < 0 ? 'down' : undefined, note: d.pl.margin === null ? null : `${d.pl.margin.toFixed(2)}% margin` },
             ]} />
             {d.bucket.partial && <Explain>This bucket is still in progress. It runs to today.</Explain>}
             <Section title="Cash in vs cash out">
@@ -392,7 +392,7 @@ function CustomerView({ model, k, push }) {
     return (
         <>
             <Stats items={[
-                { label: 'Invoiced (period)', value: fmtShort(d.invoiced), note: `${d.share.toFixed(1)}% of all invoicing` },
+                { label: 'Invoiced (period)', value: fmtShort(d.invoiced), note: `${d.share.toFixed(2)}% of all invoicing` },
                 { label: 'Paid (period)', value: fmtShort(d.paid) },
                 { label: 'Owed now', value: fmtShort(d.outstanding), tone: d.overdue > 0 ? 'down' : undefined, note: d.overdue > 0 ? `${fmtShort(d.overdue)} overdue` : 'nothing overdue' },
                 { label: 'Lifetime billed', value: fmtShort(d.lifetime), note: d.firstInvoice ? `since ${fmtDay(d.firstInvoice)}` : null },
@@ -420,7 +420,7 @@ function CategoryView({ model, name }) {
         <>
             <Stats items={[
                 { label: 'Spent', value: fmtShort(d.total), note: d.prev !== null ? <Delta invert value={d.prev > 0 ? ((d.total - d.prev) / d.prev) * 100 : null} /> : null },
-                { label: 'Share of costs', value: `${d.share.toFixed(1)}%` },
+                { label: 'Share of costs', value: `${d.share.toFixed(2)}%` },
                 { label: 'Entries', value: String(d.rows.length) },
                 { label: 'Largest', value: d.largest ? fmtShort(d.largest.amount) : '-', note: d.largest?.label },
             ]} />
@@ -445,7 +445,7 @@ function ProductView({ model, k, push }) {
     return (
         <>
             <Stats items={[
-                { label: 'Revenue', value: fmtShort(d.revenue), note: model.kpis.invoiced.value > 0 ? `${((d.revenue / model.kpis.invoiced.value) * 100).toFixed(1)}% of invoicing` : null },
+                { label: 'Revenue', value: fmtShort(d.revenue), note: model.kpis.invoiced.value > 0 ? `${((d.revenue / model.kpis.invoiced.value) * 100).toFixed(2)}% of invoicing` : null },
                 { label: 'Units', value: d.units.toLocaleString('en-IN') },
                 { label: 'Avg rate', value: d.avgRate === null ? '-' : fmtShort(d.avgRate), note: d.catalog ? `list ${fmtShort(d.catalog.unit_price)}` : 'not in catalogue' },
                 { label: 'Buyers', value: String(d.buyers.length) },
@@ -485,7 +485,7 @@ function AgingView({ model, focus, push }) {
             <Stats items={[
                 { label: 'Outstanding', value: fmtShort(k.value) },
                 { label: 'Overdue', value: fmtShort(k.overdue), tone: k.overdue > 0 ? 'down' : undefined, note: `${k.overdueCount} invoices` },
-                { label: 'Share overdue', value: k.value > 0 ? `${((k.overdue / k.value) * 100).toFixed(0)}%` : '-' },
+                { label: 'Share overdue', value: k.value > 0 ? `${((k.overdue / k.value) * 100).toFixed(2)}%` : '-' },
                 { label: 'Oldest', value: rows[0] ? `${rows.reduce((m, r) => Math.max(m, r.days), 0)}d` : '-', note: 'days past due' },
             ]} />
             <Section title="Aging buckets">
@@ -533,7 +533,7 @@ function QuotesView({ model, focus, push }) {
         <>
             <Stats items={[
                 { label: 'Quoted', value: fmtShort(total), note: `${model.quotes.reduce((s, q) => s + q.count, 0)} quotations` },
-                { label: 'Win rate', value: model.quoteWinRate === null ? '-' : `${model.quoteWinRate.toFixed(0)}%`, note: 'of decided quotations' },
+                { label: 'Win rate', value: model.quoteWinRate === null ? '-' : `${model.quoteWinRate.toFixed(2)}%`, note: 'of decided quotations' },
                 { label: 'Won value', value: fmtShort(model.quotes[0].amount) },
                 { label: 'Awaiting', value: fmtShort(model.quotes[1].amount), note: `${model.quotes[1].count} open` },
             ]} />
@@ -567,7 +567,7 @@ function PipelineView({ model, focus }) {
                 { label: 'Open value', value: fmtShort(stages[0].value + stages[1].value), note: `${stages[0].count + stages[1].count} leads` },
                 { label: 'Won', value: String(stages[2].count), note: fmtShort(stages[2].value) },
                 { label: 'Lost', value: String(stages[3].count), note: fmtShort(stages[3].value) },
-                { label: 'Win rate', value: closed ? `${((stages[2].count / closed) * 100).toFixed(0)}%` : '-', note: 'won ÷ closed' },
+                { label: 'Win rate', value: closed ? `${((stages[2].count / closed) * 100).toFixed(2)}%` : '-', note: 'won ÷ closed' },
             ]} />
             <Section title="Stages by value">
                 <SplitBar format={fmtShort} unit="Value" selected={focus} parts={stages.map((s) => ({ id: s.id, label: s.label, value: s.value, color: color[s.id], note: `${s.count}` }))} />
@@ -628,7 +628,7 @@ function DepartmentView({ model, name }) {
         <>
             <Stats items={[
                 { label: 'People', value: String(d.current.length) },
-                { label: 'Share of team', value: model.kpis.headcount.value ? `${((d.current.length / model.kpis.headcount.value) * 100).toFixed(0)}%` : '-' },
+                { label: 'Share of team', value: model.kpis.headcount.value ? `${((d.current.length / model.kpis.headcount.value) * 100).toFixed(2)}%` : '-' },
                 { label: 'Avg tenure', value: years === null ? '-' : years >= 1 ? `${years.toFixed(1)}y` : `${Math.round(d.avgTenureDays / 30)}mo` },
                 { label: 'Alumni', value: String(d.exited.length), note: 'exited, all time' },
             ]} />
@@ -658,7 +658,7 @@ function TasksView({ model, focus }) {
         <>
             <Stats items={[
                 { label: 'Tasks', value: String(total) },
-                { label: 'Completed', value: total ? `${((done / total) * 100).toFixed(0)}%` : '-', note: `${done} done` },
+                { label: 'Completed', value: total ? `${((done / total) * 100).toFixed(2)}%` : '-', note: `${done} done` },
                 ...model.taskStates.filter((s) => s.id !== 'done').map((s) => ({ label: s.label, value: String(s.count), tone: s.id === 'overdue' && s.count ? 'down' : undefined })),
             ]} />
             <Section title="Status">

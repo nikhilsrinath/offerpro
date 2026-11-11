@@ -145,11 +145,11 @@ export default function Portfolio() {
                 {r.client_id ? 'Client' : 'Internal'}</span></>;
             case 'status': return statusLabel(r.status);
             case 'health': return <HealthChip health={r.health} reasons={r.health_reasons || []} />;
-            case 'progress': return progress(r) == null ? '-' : `${Math.round(progress(r) * 100)}%`;
+            case 'progress': return progress(r) == null ? '-' : `${Number(progress(r) * 100).toFixed(2)}%`;
             case 'client': return r.client_id ? clientName[r.client_id] || 'Client' : 'Internal';
             case 'milestones_total': return r.milestones_total ? `${r.milestones_done || 0} / ${r.milestones_total}` : '-';
-            case 'billed_pct': return r.billed_pct == null ? '-' : `${r.billed_pct}%`;
-            case 'net_margin_pct': return r.net_margin_pct == null ? '-' : `${r.net_margin_pct}%`;
+            case 'billed_pct': return r.billed_pct == null ? '-' : `${Number(r.billed_pct).toFixed(2)}%`;
+            case 'net_margin_pct': return r.net_margin_pct == null ? '-' : `${Number(r.net_margin_pct).toFixed(2)}%`;
             case 'net_margin': return <span style={{ color: Number(r.net_margin) < 0 ? t.down : t.text }}>{money(r.net_margin)}</span>;
             default: return money(r[key]);
         }
@@ -201,7 +201,7 @@ export default function Portfolio() {
                             : <SplitBar parts={healthParts} format={(v) => String(v)} unit="projects" />}
                     </Panel>
                     <Panel title="Team utilisation today" note="Share of time booked on open projects" pad={15}>
-                        <RankBars max={10} format={(v) => `${Math.round(v)}%`} total={0}
+                        <RankBars max={10} format={(v) => `${Number(v).toFixed(2)}%`} total={0}
                             empty="No one is booked on a project"
                             rows={people.map((p) => ({
                                 key: p.employee_id, name: p.full_name, value: Number(p.total_pct) || 0,

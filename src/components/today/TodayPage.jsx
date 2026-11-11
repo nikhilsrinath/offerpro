@@ -111,14 +111,14 @@ function Quiet({ children }) {
 function Figure({ icon: Icon, label, value, foot, tone, footTone = tone, onClick }) {
     const t = useT();
     return (
-        <button type="button" onClick={onClick} className="td-fig"
+        <button type="button" onClick={onClick} className="td-fig stat-box"
             aria-label={`${label}: ${value}. ${foot}. Open detail`}
             style={{
                 display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, textAlign: 'left',
-                padding: `12px 16px`, border: 'none', background: t.card, fontFamily: MONO, color: t.text, cursor: 'pointer',
+                padding: `12px 16px`, fontFamily: MONO, color: t.text, cursor: 'pointer',
             }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 500, color: t.dim }}>
-                <Icon aria-hidden="true" size={13} strokeWidth={2} style={{ color: t.faint }} />{label}
+                <Icon aria-hidden="true" size={13} strokeWidth={2} style={{ color: t.accent }} />{label}
             </span>
             <span style={{
                 fontSize: 20, fontWeight: 600, letterSpacing: '-0.025em', lineHeight: 1.1,
@@ -197,9 +197,7 @@ export default function TodayPage() {
             )}
 
             {/* ── the figures ──────────────────────────────────────────── */}
-            <div className="td-figs" style={{
-                display: 'grid', gap: 1, background: t.line, border: '1px solid ' + t.line, borderRadius: 12, overflow: 'hidden',
-            }}>
+            <div className="td-figs" style={{ display: 'grid', gap: 12 }}>
                 <Figure icon={Wallet} label="Net Cash" value={headline(s.netCash)} tone={s.netCash < 0 ? 'down' : undefined} footTone="neutral"
                     foot={`${headline(s.cashIn)} in · ${headline(s.cashOut)} out, all time`} onClick={go('/financials/general-ledger')} />
                 <Figure icon={HandCoins} label="Owed to You" value={headline(s.receivable)}
@@ -333,8 +331,8 @@ export default function TodayPage() {
                 .td-page .td-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
                 @media (max-width: 1080px) { .td-page .td-cols { grid-template-columns: minmax(0, 1fr); } }
                 @media (max-width: 760px) { .td-page .td-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-                .td-page .td-fig, .td-page .td-row-on, .td-page .td-sugg { transition: background .12s; }
-                .td-page .td-fig:hover, .td-page .td-row-on:hover, .td-page .td-sugg:hover:not(:disabled) { background: ${t.panelAlt} !important; }
+                .td-page .td-row-on, .td-page .td-sugg { transition: background .12s; }
+                .td-page .td-row-on:hover, .td-page .td-sugg:hover:not(:disabled) { background: ${t.panelAlt} !important; }
                 .td-page .td-row-on .td-chev { transition: transform .15s, color .15s; }
                 .td-page .td-row-on:hover .td-chev { transform: translateX(2px); color: ${t.dim} !important; }
                 .td-page .td-sugg:hover:not(:disabled) { color: ${t.text} !important; }

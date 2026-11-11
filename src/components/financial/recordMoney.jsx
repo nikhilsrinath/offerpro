@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
 import { ModalSwap } from './modalSwap';
+import { orgStore } from '../../services/orgStore';
 import { loadFinanceCategories } from '../../services/financeCategories';
-import { pickerFor } from '../../services/projectService';
+import { pickerFor, pickerFromAllocations } from '../../services/projectService';
 import CashEntryModal from './CashEntryModal';
 import VendorPaymentModal from './VendorPaymentModal';
 import PurchaseBillModal from './PurchaseBillModal';
@@ -26,6 +27,8 @@ export function useRecordMoney({ projectId = null, startOn = null, party = null,
   const [payingVendor, setPayingVendor] = useState(null);
   // 'in' | 'out' while a new Credit or Debit from Record Money is open, so its form shows the Type.
   const [recording, setRecording] = useState(null);
+  // The saved bill whose Type is being changed to another kind of credit.
+  const [converting, setConverting] = useState(null);
   // A Type switch replaces the open form in place, so the new one does not animate in.
   const [swapped, setSwapped] = useState(false);
   // Each bill opened is a fresh form, even when one replaces another.
@@ -42,7 +45,7 @@ export function useRecordMoney({ projectId = null, startOn = null, party = null,
       : direction === 'in' && projectClient ? { client_id: projectClient } : {}),
   }), [startOn, projectClient, party]);
 
-  const closeAll = () => { setBill(null); setEntry(null); setPayingVendor(null); };
+  const closeAll = () => { setBill(null); setEntry(null); setPayingVendor(null); setConverting(null); };
 
   // A new Credit or Debit of one Type: that Type's form, in place of the open one.
   const openType = (direction, label) => {
@@ -68,6 +71,36 @@ export function useRecordMoney({ projectId = null, startOn = null, party = null,
     setEntry({ ...full, direction, date: full.date || full.received_on || full.incurred_on });
   };
   const editBill = (b) => { setSwapped(false); closeAll(); setRecording(null); showBill(billForEdit(b)); };
+
+  /**
+   * A saved bill given another Type: the credit entry form, filled in from the
+   * bill, which replaces the bill once it is saved. Picking Sales & Services
+   * again goes back to the bill as it was.
+   */
+  const convertBill = (label, billId) => {
+    const type = ledgerTypes('in').find((x) => x.label === label);
+    const original = orgStore.getSectionAsList('purchase_invoices').find((x) => x.id === billId);
+    if (!type || !original) return;
+    setSwapped(true);
+    closeAll();
+    setRecording(null);
+    if (type.kind === 'bill') { showBill(billForEdit(original)); return; }
+    setConverting(original.id);
+    const projectPick = projectId ? null : pickerFromAllocations('purchase_invoice', original.id);
+    setEntry({
+      ...freshEntry('in'),
+      ...(projectPick ? { _picker: projectPick } : {}),
+      category: type.group.items[0]?.key || '',
+      vendor_id: original.vendor_id || '', client_id: '',
+      original_amount: String(Number(original.total) || 0),
+      description: original.description || `Bill ${original.bill_number || ''}`.trim(),
+      date: original.bill_date || freshEntry('in').date,
+      receipt_path: original.receipt_path || null,
+      receipt_number: original.bill_number || '',
+      notes: original.notes || '',
+      _replacesBill: original.id,
+    });
+  };
   const newBill = (vendorId = '') => { setSwapped(false); closeAll(); setRecording(null); showBill(freshBill(vendorId)); };
   const payVendor = (vendorId = '') => { setSwapped(false); closeAll(); setRecording(null); setPayingVendor({ vendorId }); };
 
@@ -76,10 +109,13 @@ export function useRecordMoney({ projectId = null, startOn = null, party = null,
       {bill && (
         <PurchaseBillModal key={bill._seq} bill={bill} projectId={projectId} party={party}
           onType={recording === 'in' && !bill.id ? (label) => openType('in', label) : undefined}
+          onConvert={bill.id ? (label) => convertBill(label, bill.id) : undefined}
           onClose={() => setBill(null)} />
       )}
       {entry && <CashEntryModal key={entry.id || `new-${entry.direction}-${entry.category}`} entry={entry} fresh={freshEntry} projectId={projectId} party={party}
-        onType={recording && !entry.id ? (label) => openType(recording, label) : undefined} onClose={() => setEntry(null)} />}
+        onType={converting ? (label) => convertBill(label, converting)
+          : recording && !entry.id ? (label) => openType(recording, label) : undefined}
+        onClose={() => { setEntry(null); setConverting(null); }} />}
       {payingVendor && (
         <VendorPaymentModal vendorId={payingVendor.vendorId} startOn={startOn} projectId={projectId} party={party}
           onType={recording === 'out' ? (label) => openType('out', label) : undefined} onClose={() => setPayingVendor(null)} />

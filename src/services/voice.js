@@ -11,7 +11,7 @@
 export const VOICE_INSTRUCTION = '(This is a live phone-style voice call. Reply the way a sharp colleague '
   + 'would out loud: one or two short sentences, under 35 words in total. Lead with the answer itself, '
   + 'no greeting, no restating the question, no "Great question". Plain spoken words only: no lists, '
-  + 'tables, headings, symbols or Markdown. Round figures the way people say them, like "about 4.5 lakh". '
+  + 'tables, headings, symbols or Markdown. Say amounts as the full figure with two decimals, like "4,50,000.00 rupees"; never lakh, crore, L, Cr or k, and give percentages with two decimals. '
   + 'If there is more worth knowing, end with a very short offer such as "Want the breakdown?")';
 
 /** How much of an answer is read out on a call; the rest is in the chat. */

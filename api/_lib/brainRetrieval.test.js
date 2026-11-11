@@ -184,8 +184,8 @@ describe('headline totals (0066)', () => {
       { key: 'cash.received_by_source', bucket: 'cash_book_revenue', value: 98000, dims: {} },
     ]);
     expect(text).toMatch(/^## HEADLINE FIGURES/);
-    expect(text).toMatch(/Net cash .*: ₹16,450 \(received ₹98,000 − paid out ₹81,550\)/);
-    expect(text).toMatch(/Total revenue .*: ₹1,02,000 \(invoices ₹4,000 \+ direct ₹98,000\)/);
+    expect(text).toMatch(/Net cash .*: ₹16,450.00 \(received ₹98,000.00 − paid out ₹81,550.00\)/);
+    expect(text).toMatch(/Total revenue .*: ₹1,02,000.00 \(invoices ₹4,000.00 \+ direct ₹98,000.00\)/);
     expect(text.indexOf('cash.net')).toBeLessThan(text.indexOf('revenue.total'));
     expect(text).not.toMatch(/cash_book_revenue/);
   });
@@ -193,7 +193,7 @@ describe('headline totals (0066)', () => {
   it('writes a negative position as a minus, and says nothing when no headline is visible', async () => {
     const { headlineSection } = await import('./brainRetrieval.js');
     expect(headlineSection([{ key: 'cash.net', bucket: '', value: -81550, dims: { received: 0, paid_out: 81550 } }]))
-      .toMatch(/−₹81,550/);
+      .toMatch(/−₹81,550.00/);
     expect(headlineSection([])).toBe('');
   });
 });

@@ -207,7 +207,7 @@ export default function DocumentLibrary() {
         return [
             { label: 'Documents', value: all.length },
             { label: 'Readable by AI', value: all.filter((d) => d.chunk_count > 0).length,
-              note: all.length ? `${Math.round(100 * all.filter((d) => d.chunk_count > 0).length / all.length)}% of this register` : undefined },
+              note: all.length ? `${Number(100 * all.filter((d) => d.chunk_count > 0).length / all.length).toFixed(2)}% of this register` : undefined },
             { label: 'Passages indexed', value: all.reduce((a, d) => a + (d.chunk_count || 0), 0) },
             { label: 'Storage', value: fmtSize(all.reduce((a, d) => a + (d.size_bytes || 0), 0)) },
         ];

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { orgStore } from '../../services/orgStore';
 import { TAX_RATES } from '../../services/catalogService';
@@ -28,7 +28,7 @@ const blankItem = () => ({ name: '', price: '', quantity: '1' });
  * then the amount before tax, and a discount, a percentage or an amount, comes
  * off that before GST. The saved subtotal is net of the discount (0099).
  */
-export default function PurchaseBillModal({ bill, projectId = null, party = null, onType, onClose }) {
+export default function PurchaseBillModal({ bill, projectId = null, party = null, onType, onConvert, onClose }) {
   const toast = useToast();
   const vendors = useSection('vendors');
   const allBills = useSection('purchase_invoices');
@@ -40,6 +40,13 @@ export default function PurchaseBillModal({ bill, projectId = null, party = null
     _showDiscount: !!Number(bill.discount_value),
   }));
   const [saving, setSaving] = useState(false);
+  // What earlier bills were for, the vendor's own first, offered as the description is typed.
+  const pastDescriptions = useMemo(() => {
+    const mine = allBills.filter((b) => b.vendor_id === bill.vendor_id);
+    const rest = allBills.filter((b) => b.vendor_id !== bill.vendor_id);
+    const byLatest = (list) => list.slice().sort((x, y) => String(y.bill_date || '').localeCompare(String(x.bill_date || '')));
+    return [...new Set([...byLatest(mine), ...byLatest(rest)].map((b) => (b.description || '').trim()).filter(Boolean))].slice(0, 100);
+  }, [allBills, bill.vendor_id]);
   const [formError, setFormError] = useState('');
 
   // Both dates are left for the user to pick; nothing is filled in for them.
@@ -93,6 +100,13 @@ export default function PurchaseBillModal({ bill, projectId = null, party = null
       }
       // Only sent when there is one to set or clear (see orgStore, 0079).
       if (roundOff || prevRound) data.round_off = roundOff;
+      // A bill edited down below what its vendor has paid on it would break
+      // purchase_paid_lte_total: it is paid at most its new total here, and
+      // the rest is spread over the vendor's other bills (or kept as advance)
+      // when the bills are settled again (vendorAdvance.js).
+      if (editing.id && Number(data.amount_paid) > 0) {
+        data.amount_paid = Math.min(Number(data.amount_paid), Math.max(0, Math.round((f.exact + roundOff) * 100) / 100));
+      }
       // What GST is charged on: net of the discount, plus the other amount.
       data.subtotal = f.beforeTax;
       // Only sent when there is one to set or clear, so a bill still saves on a
@@ -149,6 +163,11 @@ export default function PurchaseBillModal({ bill, projectId = null, party = null
             <LedgerTypeField direction="in" value={ledgerTypes('in').find((x) => x.kind === 'bill')?.label || ''}
               onChange={onType} />
           )}
+          {/* A saved bill's Type can be changed too: picking another moves it to that kind of credit. */}
+          {onConvert && editing.id && (
+            <LedgerTypeField direction="in" value={ledgerTypes('in').find((x) => x.kind === 'bill')?.label || ''}
+              onChange={(label) => onConvert(label, editing)} />
+          )}
           <div className="prod-field full">
             <label className="req" htmlFor="pi-vendor">Vendor</label>
             <VendorSelect id="pi-vendor" vendors={editing.id ? vendors : activeVendors} value={editing.vendor_id}
@@ -179,7 +198,10 @@ export default function PurchaseBillModal({ bill, projectId = null, party = null
 
           <div className="prod-field full">
             <label>Description</label>
-            <input aria-label="Description" value={editing.description || ''} onChange={(e) => set('description', e.target.value)} placeholder="What was bought" />
+            <input aria-label="Description" list="pi-desc-past" autoComplete="off" value={editing.description || ''} onChange={(e) => set('description', e.target.value)} placeholder="What was bought" />
+            <datalist id="pi-desc-past">
+              {pastDescriptions.map((d) => <option key={d} value={d} />)}
+            </datalist>
           </div>
           {/* What was bought: optional. Listed, their sum is the amount before tax. */}
           <div className="prod-field full">
@@ -228,7 +250,7 @@ export default function PurchaseBillModal({ bill, projectId = null, party = null
             <label>GST rate</label>
             <div className="prod-rate-chips">
               {TAX_RATES.map((r) => (
-                <button key={r} type="button" aria-pressed={!!(Number(editing.tax_rate) === r)} className={`easy-chip ${Number(editing.tax_rate) === r ? 'active' : ''}`} onClick={() => set('tax_rate', r)}>{r}%</button>
+                <button key={r} type="button" aria-pressed={!!(Number(editing.tax_rate) === r)} className={`easy-chip ${Number(editing.tax_rate) === r ? 'active' : ''}`} onClick={() => set('tax_rate', r)}>{Number(r).toFixed(2)}%</button>
               ))}
             </div>
           </div>
@@ -253,7 +275,7 @@ export default function PurchaseBillModal({ bill, projectId = null, party = null
                 <label>GST rate on other amount</label>
                 <div className="prod-rate-chips">
                   {TAX_RATES.map((r) => (
-                    <button key={r} type="button" aria-pressed={!!(Number(editing.other_tax_rate) === r)} className={`easy-chip ${Number(editing.other_tax_rate) === r ? 'active' : ''}`} onClick={() => set('other_tax_rate', r)}>{r}%</button>
+                    <button key={r} type="button" aria-pressed={!!(Number(editing.other_tax_rate) === r)} className={`easy-chip ${Number(editing.other_tax_rate) === r ? 'active' : ''}`} onClick={() => set('other_tax_rate', r)}>{Number(r).toFixed(2)}%</button>
                   ))}
                 </div>
               </div>

@@ -250,7 +250,7 @@ function InvoiceRow({ r, money, files, project, show, span, open, onToggle, canP
                         border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', fontFamily: MONO, fontSize: 12.5, color: t.text,
                         textDecoration: 'underline', textUnderlineOffset: 3,
                     }}>{r.doc.doc_number}</button>
-                    {r.share < 1 && <div style={{ fontSize: 10.5, color: t.faint }}>{Math.round(r.share * 100)}% of the invoice</div>}
+                    {r.share < 1 && <div style={{ fontSize: 10.5, color: t.faint }}>{Number(r.share * 100).toFixed(2)}% of the invoice</div>}
                 </td>
                 {show('what') && <td style={{ ...td(), maxWidth: 220 }}>{r.what}</td>}
                 {show('date') && <td style={{ ...td(), whiteSpace: 'nowrap', color: t.dim }}>{fmtDate(r.doc.issue_date)}</td>}

@@ -183,7 +183,7 @@ describe('risks', () => {
   it('a high-value deal going quiet is one level more severe', () => {
     const f = run(world(), { high_value_amount: 150000 }).risks('kite').find((x) => x.category === 'high_value_inactive');
     expect(f).toMatchObject({ severity: 'high' });
-    expect(f.evidence[1]).toMatch(/₹2,00,000/);
+    expect(f.evidence[1]).toMatch(/₹2,00,000.00/);
   });
 
   it('the stage disagreeing with the records is a confirmed conflict', () => {
@@ -239,7 +239,7 @@ describe('priority', () => {
     const { r, deal, f } = run(w);
     const row = r.find((x) => x.deal.id === 'orbit');
     expect(row.score).toBe(before + 10);
-    expect(row.reasons.map((x) => x.why)).toContain('Hiring fast: +25% people in six months (120 now), per Apollo on 18 Oct 2026');
+    expect(row.reasons.map((x) => x.why)).toContain('Hiring fast: +25.00% people in six months (120 now), per Apollo on 18 Oct 2026');
     expect(deal('orbit').company).toEqual({ source: 'apollo', as_of: '2026-10-18', industry: 'Food', employees: 120, growth_6m: 0.25, hiring_fast: true });
     expect(row.deal.company.hiring_fast).toBe(true);
     // A signal, never a risk.
@@ -274,7 +274,7 @@ describe('priority', () => {
 
   it('weighs an unvalued opportunity by its INR quotations, and says so', () => {
     const g = run().r.find((x) => x.deal.id === 'globex');
-    expect(g.reasons.some((x) => /₹1,18,000 in open quotations \(no deal value recorded\)/.test(x.why))).toBe(true);
+    expect(g.reasons.some((x) => /₹1,18,000.00 in open quotations \(no deal value recorded\)/.test(x.why))).toBe(true);
   });
 });
 
@@ -291,7 +291,7 @@ describe('the pipeline in figures', () => {
     expect(s.pipeline.quotations.awaiting_totals).toEqual([
       { currency: 'INR', amount: 236000, count: 1 }, { currency: 'USD', amount: 1200, count: 1 },
     ]);
-    expect(totalsText(s.pipeline.quotations.awaiting_totals)).toMatch(/₹2,36,000 \+ (US)?\$1,200/);
+    expect(totalsText(s.pipeline.quotations.awaiting_totals)).toMatch(/₹2,36,000.00 \+ (US)?\$1,200/);
     expect(totalsByCurrency([])).toEqual([]);
   });
 

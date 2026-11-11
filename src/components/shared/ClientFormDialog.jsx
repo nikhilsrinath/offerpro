@@ -173,8 +173,8 @@ export default function ClientFormDialog({ client = null, project = null, defaul
                             <LogoField kind="clients" value={form.logo_path} name={form.clientName || form.person_name} onChange={set('logo_path')} />
                         </div>
                     )}
-                    {field('Contact person', 'person_name', text('person_name', { autoFocus: true }))}
-                    {field('Company name', 'clientName', text('clientName', { maxLength: 200 }))}
+                    {field('Company name', 'clientName', text('clientName', { maxLength: 200, autoFocus: true }))}
+                    {field('Contact person', 'person_name', text('person_name'))}
                     {hasCompany && (
                         <div className="easy-field full">
                             <ApolloFill orgId={activeOrg?.id} kind="client" form={form}

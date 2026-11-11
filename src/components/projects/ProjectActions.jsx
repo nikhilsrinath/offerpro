@@ -120,7 +120,9 @@ export default function ProjectActions({ project }) {
                         {closing === 'cancelled' ? 'Cancel project' : 'Mark complete'}
                     </Btn>
                 </>}>
-                <p style={{ margin: 0, fontSize: 13, color: t.dim, lineHeight: 1.7 }}>
+                {/* No inline margin: the panel's own side margins (drawer.css) keep
+                    the note off the edges. */}
+                <p style={{ fontSize: 13, color: t.dim, lineHeight: 1.7 }}>
                     The end date is recorded as today unless one is already set. Invoices can still be
                     linked to its milestones afterwards.
                 </p>

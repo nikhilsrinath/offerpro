@@ -398,7 +398,7 @@ const HEADLINES = [
 function inr(v) {
   const n = Number(v);
   if (!Number.isFinite(n)) return String(v ?? '');
-  return `${n < 0 ? '−' : ''}${currencySymbol()}${Math.abs(n).toLocaleString(currencyLocale(), { maximumFractionDigits: 2 })}`;
+  return `${n < 0 ? '−' : ''}${currencySymbol()}${Math.abs(n).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /** The headline block for the aggregates this caller may see. Empty when none. */

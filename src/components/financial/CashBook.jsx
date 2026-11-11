@@ -322,8 +322,8 @@ export default function CashBook({ projectId = null, children }) {
             <span style={{ flex: `${1 - inShare} 1 0`, background: t.down, borderRadius: 99, minWidth: inShare < 1 && tileOut > 0 ? 4 : 0 }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: t.faint }}>
-            <span>{Math.round(inShare * 100)}% in</span>
-            <span>{Math.round((1 - inShare) * 100)}% out</span>
+            <span>{Number(inShare * 100).toFixed(2)}% in</span>
+            <span>{Number((1 - inShare) * 100).toFixed(2)}% out</span>
           </div>
         </div>
       </div>
@@ -384,8 +384,8 @@ export default function CashBook({ projectId = null, children }) {
             const isIn = r.direction === 'in';
             const meta = [
               ready ? categoryLabel(r.category) : r.category,
-              Number(r.tax_amount) > 0 ? `${r.is_inter_state ? 'IGST' : 'GST'} ${money(r.tax_amount)}${Number(r.tax_rate) > 0 ? ` @ ${Number(r.tax_rate)}%` : ''}` : '',
-              r.currency && isForeign(r.currency) ? `${r.currency} ${Number(r.original_amount).toLocaleString(currencyLocale(r.currency))} @ ${Number(r.fx_rate)}` : '',
+              Number(r.tax_amount) > 0 ? `${r.is_inter_state ? 'IGST' : 'GST'} ${money(r.tax_amount)}${Number(r.tax_rate) > 0 ? ` @ ${Number(r.tax_rate).toFixed(2)}%` : ''}` : '',
+              r.currency && isForeign(r.currency) ? `${r.currency} ${Number(r.original_amount).toLocaleString(currencyLocale(r.currency), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} @ ${Number(r.fx_rate)}` : '',
               !isIn && r.department_id ? nameOf(departments, r.department_id) : '',
               !isIn && r.billable ? 're-billable' : '',
               isIn && r.catalog_item_id ? nameOf(catalog, r.catalog_item_id) : '',

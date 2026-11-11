@@ -170,14 +170,14 @@ function FinanceView({ board, open, t, cat, status, cols, tileCols }) {
     return (<>
         <TileRow bento cols={tileCols(5)}>
             <Tile icon={IndianRupee} label="Contract" value={fmtShort(contract)} exact={fmtInr(contract)}
-                foot={f.billed_pct == null ? 'nothing billed yet' : `${f.billed_pct}% billed`} />
+                foot={f.billed_pct == null ? 'nothing billed yet' : `${Number(f.billed_pct).toFixed(2)}% billed`} />
             <Tile icon={Receipt} label="Invoiced" value={fmtShort(invoiced)} exact={fmtInr(invoiced)} foot="before GST" />
             <Tile icon={Wallet} label="Collected" value={fmtShort(collected)} exact={fmtInr(collected)} foot="paid by the client" />
             <Tile icon={Hourglass} label="Outstanding" value={fmtShort(f.outstanding_receivable)} exact={fmtInr(f.outstanding_receivable)}
                 tone={n(f.overdue_receivable) > 0 ? 'down' : null}
                 foot={n(f.overdue_receivable) > 0 ? `${fmtShort(f.overdue_receivable)} overdue` : 'nothing overdue'} />
             <Tile icon={TrendingUp} label="Net margin" value={fmtShort(net)} exact={fmtInr(net)} tone={net < 0 ? 'down' : null}
-                foot={f.net_margin_pct == null ? 'nothing invoiced yet' : `${f.net_margin_pct}% of revenue`} />
+                foot={f.net_margin_pct == null ? 'nothing invoiced yet' : `${Number(f.net_margin_pct).toFixed(2)}% of revenue`} />
         </TileRow>
 
         <CardGrid cols={cols}>
@@ -202,8 +202,8 @@ function FinanceView({ board, open, t, cat, status, cols, tileCols }) {
 
             <Card title="Budget" note={f.budget_total ? `${fmtShort(f.budget_total)} budget` : 'no budget set'}>
                 <FigureRow>
-                    <Figure big label="budget used" value={burnPct == null ? '-' : `${Math.round(burnPct)}%`} tone={burnAhead ? 'down' : null} />
-                    <Figure big label="time gone" value={timePct == null ? '-' : `${Math.round(timePct)}%`} />
+                    <Figure big label="budget used" value={burnPct == null ? '-' : `${Number(burnPct).toFixed(2)}%`} tone={burnAhead ? 'down' : null} />
+                    <Figure big label="time gone" value={timePct == null ? '-' : `${Number(timePct).toFixed(2)}%`} />
                 </FigureRow>
                 <div style={{ fontSize: 12, color: burnAhead ? status.critical : t.faint, marginBottom: 12 }}>
                     {burnAhead ? 'Spending is running ahead of the schedule.' : burnPct == null ? 'Set a budget to track spending.' : 'Spending is in step with the schedule.'}
@@ -334,7 +334,7 @@ function TeamView({ board, open, cat, cols, tileCols }) {
     return (<>
         <TileRow bento cols={tileCols(4)}>
             <Tile icon={Users} label="People" value={String(team.length)} foot={team.length ? `${team.filter((m) => m.role === 'manager').length} managing` : 'nobody yet'} />
-            <Tile icon={Gauge} label="Allocated" value={`${Math.round(total)}%`} foot="sum of everyone's share" />
+            <Tile icon={Gauge} label="Allocated" value={`${Number(total).toFixed(2)}%`} foot="sum of everyone's share" />
             <Tile icon={ListChecks} label="Open tasks" value={String(tk.open.length)} foot={`${tk.all.length - tk.open.length} done`} />
             <Tile icon={AlertTriangle} label="Overdue" value={String(tk.overdue.length)} tone={tk.overdue.length ? 'down' : null}
                 foot={tk.overdue.length ? 'past their deadline' : 'all on time'} />
@@ -342,7 +342,7 @@ function TeamView({ board, open, cat, cols, tileCols }) {
 
         <CardGrid cols={cols}>
             <Card title="Who is on it" note="share of their time on this project" right={<More label="Team" onClick={() => open('team')} />}>
-                <RankBars rows={team} format={(v) => `${Math.round(v)}%`} color={cat[0]} total={0} max={8}
+                <RankBars rows={team} format={(v) => `${Number(v).toFixed(2)}%`} color={cat[0]} total={0} max={8}
                     sub={(r) => r.role} empty="No one on the project yet" />
             </Card>
 

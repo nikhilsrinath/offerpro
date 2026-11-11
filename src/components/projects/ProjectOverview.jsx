@@ -53,12 +53,12 @@ export default function ProjectOverview({ project, onTab }) {
             {fin && f && (
                 <StatBand items={[
                     { label: 'Contract', value: money(f.contract_value) },
-                    { label: 'Billed', value: f.billed_pct == null ? '-' : `${f.billed_pct}%`, note: money(f.billed_to_date) },
+                    { label: 'Billed', value: f.billed_pct == null ? '-' : `${Number(f.billed_pct).toFixed(2)}%`, note: money(f.billed_to_date) },
                     { label: 'Collected', value: money(f.revenue_collected), note: 'Net of GST' },
                     { label: 'Cost to date', value: money(f.cost_to_date), note: 'Direct costs and labour' },
                     {
                         label: 'Net margin', value: money(f.net_margin),
-                        note: f.net_margin_pct == null ? 'Nothing invoiced yet' : `${f.net_margin_pct}% of revenue`,
+                        note: f.net_margin_pct == null ? 'Nothing invoiced yet' : `${Number(f.net_margin_pct).toFixed(2)}% of revenue`,
                         tone: Number(f.net_margin) < 0 ? 'down' : undefined,
                     },
                 ]} />
@@ -73,7 +73,7 @@ export default function ProjectOverview({ project, onTab }) {
                         <EmptyNote>Set a start, a target end and a budget to see this.</EmptyNote>
                     ) : (
                         <TipProvider>
-                            <RankBars max={2} format={(v) => `${Math.round(v)}%`} total={0} rows={[
+                            <RankBars max={2} format={(v) => `${Number(v).toFixed(2)}%`} total={0} rows={[
                                 { key: 'time', name: 'Time elapsed', value: burn.timePct ?? 0 },
                                 {
                                     key: 'burn', name: 'Budget used', value: burn.burnPct ?? 0,
@@ -96,7 +96,7 @@ export default function ProjectOverview({ project, onTab }) {
                                             <span style={{ flex: 1, fontSize: 13 }}>{m.title}</span>
                                             <Status tone={late ? 'down' : 'mute'}>{m.due_date ? fmtDate(m.due_date) : 'No date'}</Status>
                                         </Row>
-                                        <Muted>{Math.round(milestoneProgress(m, projectTasks) * 100)}% done</Muted>
+                                        <Muted>{Number(milestoneProgress(m, projectTasks) * 100).toFixed(2)}% done</Muted>
                                     </div>
                                 );
                             })}

@@ -16,9 +16,11 @@ import { RowMenu } from '../pm/pmUi';
 import { useProjectClients, useProjectVendors, useSetup, todayIso } from '../parties/partyData';
 import { SetupGate, Bar } from '../parties/partyUi';
 import { SwitchRow } from '../../bulk/shared/BulkKit';
+import ReadyTemplates from './ReadyTemplates';
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Documents Management › Custom Templates, reusable documents for this
+   Documents Management › Templates. Ready-made templates (ReadyTemplates)
+   on top; under them the Custom Templates, reusable documents for this
    project, written once with {{variables}} and filled from what the project
    already knows: your company, the project, its client and vendors.
 
@@ -193,8 +195,10 @@ export default function ProjectTemplates({ project, onOpen }) {
     ]);
 
     return (
+        <div style={{ display: 'grid', gap: 14 }}>
+        <ReadyTemplates project={project} />
         <SetupGate setup={setup} what="custom templates">
-            <Panel title="Templates" note={`${templates.length} for this project`}
+            <Panel title="Custom Templates" note={`${templates.length} written for this project`}
                 actions={<Row gap={6}>
                     {templates.some((x) => x.body_html) && <Btn size="sm" onClick={() => use(templates.find((x) => x.body_html))}>Generate document</Btn>}
                     {can.create && (
@@ -239,6 +243,7 @@ export default function ProjectTemplates({ project, onOpen }) {
                     onClose={() => setStudio(null)} onOpenDocs={onOpen ? () => { setStudio(null); onOpen('documents'); } : null} />
             )}
         </SetupGate>
+        </div>
     );
 }
 

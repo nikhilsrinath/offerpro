@@ -12,14 +12,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSection } from '../financial/financeHooks';
 import { useToast } from '../shared/Toast';
 import { orgStore } from '../../services/orgStore';
-import { announcementService } from '../../services/announcementService';
+import { announcementService, fmtSize } from '../../services/announcementService';
 import {
-    Page, Toolbar, Panel, Row, Grid, Btn, Seg, Field, Input, Select, Textarea,
+    Page, Toolbar, Panel, Row, Btn, Seg, Field, Input, Select, Textarea,
     StatBand, Empty, Loading, Modal, ConfirmBtn, Status,
 } from '../ui/edge';
 import { useT, fmtDate } from '../ui/edgeUtils';
+import AttachmentsField from '../shared/AttachmentsField';
 
-const BLANK = { title: '', body: '', departmentId: '', isPinned: false, expiresAt: '' };
+const BLANK = { title: '', body: '', departmentId: '', isPinned: false, expiresAt: '', keep: [], files: [], dropped: [] };
 const isExpired = (a) => !!a.expires_at && new Date(a.expires_at) < new Date();
 
 export default function Announcements() {
@@ -70,6 +71,7 @@ export default function Announcements() {
                 isPinned: patch.isPinned,
                 // A date input gives a local calendar day; expire at the end of it.
                 expiresAt: patch.expiresAt ? new Date(`${patch.expiresAt}T23:59:59`).toISOString() : null,
+                keep: patch.keep || [], files: patch.files || [], dropped: patch.dropped || [],
             });
             setEditing(null);
             await load();
@@ -81,15 +83,31 @@ export default function Announcements() {
         }
     };
 
-    const togglePin = (a) => publish({
-        id: a.id, title: a.title, body: a.body,
-        departmentId: a.department_id || '', isPinned: !a.is_pinned,
-        expiresAt: a.expires_at ? a.expires_at.slice(0, 10) : '',
-    });
+    // Only the pin changes; the notice and its attachments stay as they are.
+    const togglePin = async (a) => {
+        setBusy(true);
+        try {
+            await announcementService.setPinned(a.id, !a.is_pinned);
+            await load();
+        } catch (err) {
+            toast(err.message || 'Could not pin it.', 'error');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const openFile = async (f) => {
+        try {
+            const url = await announcementService.attachmentUrl(f.path);
+            window.open(url, '_blank', 'noopener');
+        } catch (err) {
+            toast(err.message || 'Could not open the attachment.', 'error');
+        }
+    };
 
     const remove = async (a) => {
         try {
-            await announcementService.remove(a.id);
+            await announcementService.removeWithFiles(a);
             setItems((prev) => prev.filter((x) => x.id !== a.id));
             toast('Announcement deleted', 'success');
         } catch (err) {
@@ -102,6 +120,7 @@ export default function Announcements() {
         departmentId: a.department_id || '',
         isPinned: a.is_pinned,
         expiresAt: a.expires_at ? a.expires_at.slice(0, 10) : '',
+        keep: a.attachments || [], files: [], dropped: [],
     } : { ...BLANK });
 
     return (
@@ -160,6 +179,18 @@ export default function Announcements() {
                                     lineHeight: 1.75, whiteSpace: 'pre-wrap',
                                 }}>{a.body}</p>
 
+                                {a.attachments?.length > 0 && (
+                                    <ul aria-label="Attachments" style={{ listStyle: 'none', margin: '0 0 11px', padding: 0, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                        {a.attachments.map((f) => (
+                                            <li key={f.path}>
+                                                <Btn size="sm" onClick={() => openFile(f)} aria-label={`Open attachment ${f.name}`}>
+                                                    {f.name} <span style={{ color: t.faint, fontSize: 11 }}>{fmtSize(f.size)}</span>
+                                                </Btn>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+
                                 <Row gap={14} wrap style={{
                                     paddingTop: 10, borderTop: '1px solid ' + t.lineSoft,
                                     fontSize: 11.5, color: t.faint,
@@ -197,30 +228,24 @@ export default function Announcements() {
                         <Input value={editing.title} maxLength={200} placeholder="Office closed on Friday"
                             onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
                     </Field>
-                    <div style={{ height: 13 }} />
                     <Field required label="Message">
                         <Textarea rows={7} value={editing.body} placeholder="What the team needs to know…"
                             style={{ minHeight: 130 }}
                             onChange={(e) => setEditing({ ...editing, body: e.target.value })} />
                     </Field>
-                    <div style={{ height: 13 }} />
-                    <Grid cols="minmax(0,1fr) minmax(0,1fr)" gap={13}>
-                        <div>
-                            <Field label="Audience">
-                                <Select value={editing.departmentId}
-                                    onChange={(e) => setEditing({ ...editing, departmentId: e.target.value })}>
-                                    <option value="">Whole team</option>
-                                    {departments.map((d) => <option key={d.id} value={d.id}>{d.name} only</option>)}
-                                </Select>
-                            </Field>
-                        </div>
-                        <div>
-                            <Field label="Expires" hint="Leave blank to keep it up">
-                                <Input type="date" value={editing.expiresAt}
-                                    onChange={(e) => setEditing({ ...editing, expiresAt: e.target.value })} />
-                            </Field>
-                        </div>
-                    </Grid>
+                    {/* One field a row, as every side panel lays them out. */}
+                    <Field label="Audience">
+                        <Select value={editing.departmentId}
+                            onChange={(e) => setEditing({ ...editing, departmentId: e.target.value })}>
+                            <option value="">Whole team</option>
+                            {departments.map((d) => <option key={d.id} value={d.id}>{d.name} only</option>)}
+                        </Select>
+                    </Field>
+                    <Field label="Expire Date (Optional)" hint="Leave blank to keep it up">
+                        <Input type="date" value={editing.expiresAt}
+                            onChange={(e) => setEditing({ ...editing, expiresAt: e.target.value })} />
+                    </Field>
+                    <AttachmentsField form={editing} setForm={setEditing} />
                 </Modal>
             )}
         </Page>

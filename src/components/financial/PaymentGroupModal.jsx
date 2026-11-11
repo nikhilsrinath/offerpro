@@ -85,7 +85,7 @@ export default function PaymentGroupModal({ ids, onClose }) {
             <input id="pg-date" type="date" value={form.date} onChange={(e) => set('date', e.target.value)} required />
           </div>
           <fieldset className="prod-field full cb-fieldset">
-            <legend>How did you pay?</legend>
+            <legend>Mode of Payment</legend>
             <div className="cb-chips">
               {PAYMENT_METHODS.map((m) => (
                 <button key={m.key} type="button" aria-pressed={form.payment_method === m.key}

@@ -17,7 +17,7 @@ import { Dropdown, Table, Tr, Td, Empty, Seg, Search as SearchBox } from '../ui/
 import {
   issuedInvoices, balanceOf, isOverdue, daysOverdue, todayIso,
 } from '../../services/financeAnalytics';
-import { currencySymbol, currencyLocale } from '../../shared/currency.js';
+import { currencySymbol, currencyLocale, compactNumber } from '../../shared/currency.js';
 
 const PAGE_SIZE = 50; // rows a page
 
@@ -84,7 +84,7 @@ const monthsAgo = (months) => {
 
 const STATUS_LABEL = (s) => s.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
-const inr = (v) => currencySymbol() + Math.round(Number(v) || 0).toLocaleString(currencyLocale());
+const inr = (v) => currencySymbol() + (Number(Number(v) || 0) || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // Recharts reads its colours from the theme tokens so the charts follow
 // light/dark like every other surface, rather than baking in one palette.
@@ -368,7 +368,7 @@ export default function FinanceStatus() {
             <BarChart data={monthly} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartStyles().grid} />
               <XAxis dataKey="month" tick={chartStyles().axis} axisLine={false} tickLine={false} />
-              <YAxis tick={chartStyles().axis} axisLine={false} tickLine={false} tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
+              <YAxis tick={chartStyles().axis} axisLine={false} tickLine={false} width={96} tickFormatter={(v) => compactNumber(v)} />
               <Tooltip
                 contentStyle={chartStyles().tooltip}
                 labelStyle={chartStyles().label}
@@ -514,7 +514,7 @@ export default function FinanceStatus() {
                     {doc.items?.map((it) => it.description).join(', ') || '-'}
                   </Td>
                 )}
-                {show('amount') && <Td align="right" nowrap>{currencySymbol()}{(doc.grand_total || doc.amount || doc.subtotal || 0).toLocaleString(currencyLocale())}</Td>}
+                {show('amount') && <Td align="right" nowrap>{currencySymbol()}{(doc.grand_total || doc.amount || doc.subtotal || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Td>}
                 {show('date') && <Td nowrap>{doc.issue_date || '-'}</Td>}
                 {show('status') && <Td><DocumentStatusBadge status={doc.status} type={doc.type} size="small" /></Td>}
                 {show('view') && (

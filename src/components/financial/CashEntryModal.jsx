@@ -91,6 +91,8 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
   // Money coming in carries no GST: it is charged on the invoice when it is
   // created. An older receipt saved with GST keeps its field so it can be fixed.
   const receiptNoGst = editing?.direction === 'in' && !(Number(entry?.tax_amount) > 0);
+  // A vendor payment carries no GST either: the vendor's bill does.
+  const vendorPayNoGst = editing?.direction === 'out' && VENDOR_PAY.has(editing?.category);
 
   // Payments are not accepted in EMIs, so EMI is only offered on money going
   // out (or on an older receipt that already says EMI).
@@ -197,7 +199,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
       return;
     }
     if (!(Number(editing.fx_rate) > 0)) { setFormError('Enter an exchange rate greater than zero.'); return; }
-    if (!people && Number(editing.tax_amount || 0) > baseAmount) {
+    if (!people && !vendorPayNoGst && Number(editing.tax_amount || 0) > baseAmount) {
       setFormError('The GST cannot be more than the amount it is part of.');
       return;
     }
@@ -221,7 +223,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
     // it merges the two tables into one ledger, not columns. orgStore's toRow
     // would drop them anyway; they are stripped here so the optimistic cache
     // write does not carry them either.
-    const { direction: _d, day: _day, party: _party, treatment: _t, _picker: chosen, _share: _s, _full: _f, _parts: _p, ...data } = editing;
+    const { direction: _d, day: _day, party: _party, treatment: _t, _picker: chosen, _share: _s, _full: _f, _parts: _p, _replacesBill: replacesBill, ...data } = editing;
     // A bill payment is paid, in rupees, and split the way the bill is.
     if (payingBill) Object.assign(data, { currency: baseCurrency(), fx_rate: 1, tax_amount: 0, tax_rate: 0, status: 'paid', billable: false });
     // A salary or stipend has a person, never a vendor.
@@ -231,7 +233,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
     if (payingInvoice) Object.assign(data, { currency: baseCurrency(), fx_rate: 1, tax_amount: 0, tax_rate: 0, client_id: payingInvoice.customer_id || data.client_id || '' });
     // People & labour has TDS and no GST; anything else has no TDS.
     // Money coming in has no GST either: the invoice charges it.
-    if (people || receiptNoGst) Object.assign(data, { tax_amount: 0, tax_rate: 0, is_inter_state: false });
+    if (people || receiptNoGst || vendorPayNoGst) Object.assign(data, { tax_amount: 0, tax_rate: 0, is_inter_state: false });
     if (!people && 'tds_amount' in data) data.tds_amount = 0;
     const picker = payingBill ? billPicker(payingBill, Number(editing.original_amount))
       : payingInvoice ? invoicePickerOf(allocations, payingInvoice, Number(editing.original_amount)) : chosen;
@@ -247,6 +249,24 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
       } catch (allocErr) {
         setEditing((x) => ({ ...x, id }));
         setFormError(`Entry saved, but the project split was not: ${allocErr.message}`);
+        return;
+      }
+      // A bill whose Type was changed: this credit takes its place. Payments
+      // to the vendor stay; any still linked to the bill are let go of first.
+      if (replacesBill) {
+        try {
+          for (const x of allExpenses.filter((p) => p.purchase_invoice_id === replacesBill)) {
+            await orgStore.updateItem('expenses', x.id, { purchase_invoice_id: null, unlink_bill: true });
+          }
+          await orgStore.removeItem('purchase_invoices', replacesBill);
+        } catch (billErr) {
+          orgStore.refreshSection('purchase_invoices');
+          setEditing((x) => ({ ...x, id, _replacesBill: undefined }));
+          setFormError(`Credit saved, but the old bill could not be removed: ${billErr.message}. Delete it from the ledger.`);
+          return;
+        }
+        toast(`Bill moved to ${titleCase(categoryOf(editing.category)?.group_label || 'the new Type')}`, 'success');
+        onClose();
         return;
       }
       if (payingBill) orgStore.refreshSection('purchase_invoices');
@@ -288,10 +308,15 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
   // or, for a new Company Ledger entry, to the bill or Vendor Payment form.
   const typeGroups = editing ? groupedCategories(editing.direction) : [];
   const types = editing ? ledgerTypes(editing.direction) : [];
-  const typeLabel = picked?.group_label || typeGroups[0]?.label || '';
+  const vendorTypeLabel = types.find((x) => x.kind === 'vendor')?.label || '';
+  const typeLabel = vendorPay ? vendorTypeLabel : picked?.group_label || typeGroups[0]?.label || '';
   const typeGroup = typeGroups.find((g) => g.label === typeLabel) || null;
   const setType = (label) => {
-    if (onType && !editing.id && types.find((x) => x.label === label)?.kind !== 'entry') { onType(label); return; }
+    const kind = types.find((x) => x.label === label)?.kind;
+    if (onType && !editing.id && kind !== 'entry') { onType(label); return; }
+    // A saved debit moved to Vendor Payment pays what the vendor is owed;
+    // switched there the Against Pending | Advance choice takes over.
+    if (kind === 'vendor') { setEditing((e) => ({ ...e, category: 'vendor_bill_payment', tax_amount: 0, tax_rate: 0, is_inter_state: false })); return; }
     const first = typeGroups.find((g) => g.label === label)?.items[0];
     if (first) set('category', first.key);
   };
@@ -309,6 +334,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
           {typeLabel && !typeGroup && <option value={typeLabel}>{typeLabel}</option>}
         </select>
       </div>
+      {!vendorPay && (
       <div className="prod-field">
         <label htmlFor="cb-cat">Sub-Type</label>
         <select id="cb-cat" value={editing.category}
@@ -324,6 +350,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
           {picked?.hint || pickedTreatment?.label}
         </p>
       </div>
+      )}
     </>
   );
 
@@ -502,7 +529,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
             <input id="cb-cat" readOnly value={`Invoice receipt (${docNumber(payingInvoice)})`} />
             <p className="prod-field-note">From the invoice. It already counts the sale and its GST, so this is cash only.</p>
           </div>
-          ) : vendorPay || typeFirst ? null : typeRows}
+          ) : typeFirst || (vendorPay && !editing.id) ? null : typeRows}
 
           {/* Project-specific or General: asked up front, because it is how
               the ledger is read, per project, and everything else. On a
@@ -552,7 +579,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
           </div>
 
           <fieldset className="prod-field full cb-fieldset">
-            <legend>{editing.direction === 'in' ? 'How were you paid?' : 'How did you pay?'}</legend>
+            <legend>Mode of Payment</legend>
             <div className="cb-chips">
               {methods.map((m) => (
                 <button key={m.key} type="button" aria-pressed={editing.payment_method === m.key}
@@ -588,14 +615,14 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
                 Tax withheld from the pay, on top of the amount paid out. Record it under Financing & Tax → TDS deposited when it is paid to the government.
               </p>
             </div>
-          ) : receiptNoGst ? null : (
+          ) : receiptNoGst || vendorPayNoGst ? null : (
           <fieldset className="prod-field full cb-fieldset">
             <legend>GST {editing.direction === 'in' ? 'collected' : 'paid'}</legend>
             <div className="cb-chips">
               {GST_RATES.map((r) => (
                 <button key={r} type="button" aria-pressed={Number(editing.tax_rate) === r}
                   className={Number(editing.tax_rate) === r ? 'active' : ''}
-                  onClick={() => setRate(r)}>{r === 0 ? 'No GST' : `${r}%`}</button>
+                  onClick={() => setRate(r)}>{r === 0 ? 'No GST' : `${Number(r).toFixed(2)}%`}</button>
               ))}
             </div>
             {Number(editing.tax_amount) > 0 && (
@@ -603,6 +630,12 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
             )}
           </fieldset>
           )}
+
+          <div className="prod-field full">
+            <label htmlFor="cb-notes">Notes</label>
+            <textarea id="cb-notes" rows={2} value={editing.notes || ''}
+              onChange={(e) => set('notes', e.target.value)} />
+          </div>
         </div>
 
         {/*: everything else, folded away until asked for; held open while a
@@ -628,7 +661,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
               </div>
             ) : <div className="prod-field" aria-hidden="true" />}
 
-            {!payingBill && !payingInvoice && !people && !receiptNoGst && (
+            {!payingBill && !payingInvoice && !people && !receiptNoGst && !vendorPayNoGst && (
             <div className="prod-field">
               <label htmlFor="cb-tax">GST amount ({sym(editing.currency)})</label>
               <input id="cb-tax" type="number" min="0" step="0.01" value={editing.tax_amount}
@@ -722,7 +755,7 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
               <label htmlFor="cb-pos">Place of supply</label>
               <PlaceOfSupplyInput id="cb-pos" country={editing.country_code}
                 value={editing.place_of_supply} onChange={(v) => set('place_of_supply', v)} />
-              {!people && !receiptNoGst && (
+              {!people && !receiptNoGst && !vendorPayNoGst && (
               <label className="cb-check">
                 <input type="checkbox" checked={!!editing.is_inter_state}
                   onChange={(e) => set('is_inter_state', e.target.checked)} />
@@ -731,11 +764,6 @@ export default function CashEntryModal({ entry, fresh = blank, onClose, onType, 
               )}
             </div>
 
-            <div className="prod-field full">
-              <label htmlFor="cb-notes">Notes</label>
-              <textarea id="cb-notes" rows={2} value={editing.notes || ''}
-                onChange={(e) => set('notes', e.target.value)} />
-            </div>
           </div>
         </details>
 

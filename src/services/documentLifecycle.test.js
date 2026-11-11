@@ -52,7 +52,7 @@ describe('lifecycleOf: cancel', () => {
 
   it('refuses a paid or part-paid invoice, and a pending payment claim', () => {
     expect(lifecycleOf(doc({ type: 'invoice', status: 'partially_paid', amount_paid: 400 }), []).cancel.reason)
-      .toMatch(/₹400 has been received/);
+      .toMatch(/₹400.00 has been received/);
     expect(lifecycleOf(doc({ type: 'invoice', status: 'payment_submitted' }), []).cancel.reason).toMatch(/Verify or reject/);
   });
 

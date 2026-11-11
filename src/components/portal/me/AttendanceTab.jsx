@@ -47,7 +47,7 @@ export default function AttendanceTab({ monthKey, setMonthKey, rows, loading, na
       </div>
 
       <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
-        <Kpi label="Attendance" value={ins.rate == null ? '-' : `${Math.round(ins.rate * 100)}%`} share={ins.rate} note={`${ins.daysWorked} of ${ins.expected} working days`} />
+        <Kpi label="Attendance" value={ins.rate == null ? '-' : `${Number(ins.rate * 100).toFixed(2)}%`} share={ins.rate} note={`${ins.daysWorked} of ${ins.expected} working days`} />
         <Kpi label="Hours" value={hoursLabel(ins.minutes)} note={ins.avgMinutes ? `${formatDuration(Math.round(ins.avgMinutes))} per day` : '-'} />
         <Kpi label="Avg check-in" value={minutesToClock(ins.avgCheckIn)} />
         <Kpi label="Remote · half · leave" value={`${ins.remote} · ${ins.halfDays} · ${ins.leave}`} note={ins.absent ? `${ins.absent} absent` : 'No absences'} tone={ins.absent ? 'down' : undefined} />

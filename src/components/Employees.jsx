@@ -27,6 +27,16 @@ import { useEmployeeProjects } from './people/useEmployeeProjects';
 import { PhotoPortrait, Kpi } from './portal/me/portalKit';
 import { tenureLabel, daysUntilBirthday, useWindowWidth, hoursLabel } from './portal/me/portalUtils';
 import { initialQuery } from '../services/urlQuery';
+import PaySalaryPanel from './people/PaySalaryPanel';
+import { useSection } from './financial/financeHooks';
+import { monthlySalary, hasSalary, salaryPaidIn, monthKeyOf, monthName } from '../shared/payroll';
+import { formatCurrency } from '../shared/currency.js';
+
+const FREQ_SHORT = { Monthly: '/ mo', Yearly: '/ yr', Weekly: '/ wk', 'One-time': 'one-time' };
+const salaryLabel = (emp) => (hasSalary(emp)
+    ? (emp.isPaid === false || emp.isPaid === 'false' ? 'Unpaid'
+        : `${formatCurrency(emp.salary, { currency: emp.currency })} ${FREQ_SHORT[emp.paymentFrequency] || '/ mo'}`)
+    : null);
 
 /* ══════════════════════════════════════════════════════════════════════════
    Employee registry.
@@ -197,7 +207,7 @@ function PortalAccess({ emp, orgId, onChanged }) {
 
 /* ── person sheet ─────────────────────────────────────────────────────────── */
 
-function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, departments }) {
+function Detail({ emp, orgId, org, onClose, onDelete, onEdit, onPay, currentUserEmail, departments }) {
     const t = useT();
     const name = getDisplayName(emp);
     const [view, setView] = useState('detail');   // detail | role_change | termination
@@ -364,6 +374,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
             </span>
         )],
         ['Employment', TYPE_LABEL[emp.offerType]],
+        ['Salary', salaryLabel(emp)],
         ['Reports To', emp.supervisorName],
         ['Joined', emp.startDate && fmtDate(emp.startDate)],
         ['Ends', emp.endDate ? fmtDate(emp.endDate) : null],
@@ -392,7 +403,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
     const profile = (
         <aside style={{
             display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0,
-            padding: 16, boxSizing: 'border-box',
+            padding: 20, boxSizing: 'border-box',
             ...(stacked ? { borderBottom: '1px solid ' + t.line } : { borderRight: '1px solid ' + t.line, overflow: 'hidden', background: t.panelAlt }),
         }}>
             <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
@@ -414,13 +425,13 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
             <div style={{ border: '1px solid ' + t.line, borderRadius: 10, background: t.card, minHeight: 0 }}>
                 {facts.map(([k, v], i) => (
                     <div key={k} style={{
-                        display: 'flex', gap: 10, padding: '7px 12px',
+                        display: 'flex', gap: 12, padding: '9px 14px', alignItems: 'baseline',
                         borderTop: i ? '1px solid ' + t.lineSoft : 'none',
                     }}>
-                        <span style={{ width: 86, flexShrink: 0, fontSize: 11.5, color: t.faint, paddingTop: 1 }}>{k}</span>
+                        <span style={{ width: 96, flexShrink: 0, fontSize: 11.5, color: t.faint }}>{k}</span>
                         <span style={{
-                            fontSize: 12.5, color: t.text, minWidth: 0, lineHeight: 1.45,
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            flex: 1, fontSize: 12.5, color: t.text, minWidth: 0, lineHeight: 1.45,
+                            overflowWrap: 'anywhere',
                         }} title={typeof v === 'string' ? v : undefined}>{v}</span>
                     </div>
                 ))}
@@ -433,10 +444,10 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
         <div style={{ display: 'grid', gap: 10, gridTemplateColumns: narrow ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))' }}>
             {projects.canView && (
                 <Kpi label="Projects" value={projects.current.length}
-                    note={projects.current.length ? `${Math.round(projects.allocation)}% of time allocated` : 'Not on a project now'} />
+                    note={projects.current.length ? `${Number(projects.allocation).toFixed(2)}% of time allocated` : 'Not on a project now'} />
             )}
             <Kpi label="Attendance" share={work.thisMonth.rate}
-                value={work.thisMonth.rate == null ? '-' : `${Math.round(work.thisMonth.rate * 100)}%`}
+                value={work.thisMonth.rate == null ? '-' : `${Number(work.thisMonth.rate * 100).toFixed(2)}%`}
                 note={`${work.thisMonth.daysWorked} of ${work.thisMonth.expected} days this month`} />
             <Kpi label="Hours This Month" value={hoursLabel(work.thisMonth.minutes)} note={`${work.streak}-day streak`} />
             <Kpi label="Leave Left" value={work.balances.length ? `${work.leaveLeft}d` : '-'}
@@ -478,7 +489,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
     );
 
     return (
-        <Modal open onClose={onClose} width={1120}
+        <Modal open onClose={onClose} width={1200}
             title={name || 'Employee'} note={[emp.role, emp.department].filter(Boolean).join(' · ') || undefined}
             footer={
                 <>
@@ -487,6 +498,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
                     <div style={{ flex: 1 }} />
                     <Btn onClick={() => setView('termination')}>End employment</Btn>
                     <Btn onClick={() => setView('role_change')}>Role change</Btn>
+                    {onPay && <Btn variant="teal" onClick={onPay}>Pay salary</Btn>}
                     <Btn primary onClick={onEdit}>Edit details</Btn>
                 </>
             }>
@@ -501,7 +513,7 @@ function Detail({ emp, orgId, org, onClose, onDelete, onEdit, currentUserEmail, 
                 // the right column scrolls.
                 <div style={{
                     margin: 0, height: '100%', display: 'grid',
-                    gridTemplateColumns: '300px minmax(0, 1fr)', overflow: 'hidden',
+                    gridTemplateColumns: '360px minmax(0, 1fr)', overflow: 'hidden',
                 }}>
                     {profile}
                     <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
@@ -537,6 +549,12 @@ export default function Employees() {
     const [selected, setSelected] = useState(null);
     const [addingSelf, setAddingSelf] = useState(false);
     const [editing, setEditing] = useState(null);
+    const [paying, setPaying] = useState(null);
+
+    // Salary is admin-only: everyone else gets no pay back, and sees no column.
+    const expenses = useSection('expenses');
+    const thisMonth = monthKeyOf();
+    const paidNow = useMemo(() => salaryPaidIn(expenses, thisMonth), [expenses, thisMonth]);
 
     const ownerEmail = (activeOrg?.company_email || '').toLowerCase();
     const ownerEmployee = employees.find((e) => (e.email || '').toLowerCase() === ownerEmail);
@@ -684,12 +702,18 @@ export default function Employees() {
         intern: employees.filter((e) => e.offerType === 'internship' || e.offerType === 'intern').length,
     }), [employees]);
 
+    // Monthly payroll and what is still to pay this month (One-time pay is left out).
+    const payroll = useMemo(() => {
+        const paid = employees.filter((e) => hasSalary(e) && e.paymentFrequency !== 'One-time' && (monthlySalary(e) || 0) > 0);
+        const total = paid.reduce((s, e) => s + monthlySalary(e), 0);
+        const due = paid.filter((e) => !paidNow[e.id]);
+        return { canSee: employees.some(hasSalary), total, due: due.length, dueAmount: due.reduce((s, e) => s + monthlySalary(e), 0) };
+    }, [employees, paidNow]);
+    const canPay = (emp) => hasSalary(emp) && (monthlySalary(emp) || 0) > 0;
+
     if (editing) {
         return (
             <Page>
-                <Toolbar right={<Btn onClick={() => setEditing(null)}>Back to registry</Btn>}>
-                    <span style={{ fontSize: 13.5 }}>Editing {getDisplayName(editing) || 'employee'}</span>
-                </Toolbar>
                 <EmployeeForm employee={editing} onSuccess={() => { setEditing(null); loadEmployees(); loadDepartments(); }} onBack={() => { setEditing(null); loadDepartments(); }} />
             </Page>
         );
@@ -727,9 +751,13 @@ export default function Employees() {
             {employees.length > 0 && (
                 <StatBand items={[
                     { label: 'On the team', value: counts.all },
-                    { label: 'Full-time', value: counts.fulltime, note: counts.all ? Math.round((counts.fulltime / counts.all) * 100) + '% of the team' : undefined },
+                    { label: 'Full-time', value: counts.fulltime, note: counts.all ? Number((counts.fulltime / counts.all) * 100).toFixed(2) + '% of the team' : undefined },
                     { label: 'Interns', value: counts.intern },
                     { label: 'Departments', value: deptRows.length },
+                    ...(payroll.canSee ? [{
+                        label: 'Monthly payroll', value: formatCurrency(payroll.total),
+                        note: payroll.due ? `${payroll.due} to pay for ${monthName(thisMonth)} · ${formatCurrency(payroll.dueAmount)}` : `Everyone paid for ${monthName(thisMonth)}`,
+                    }] : []),
                 ]} />
             )}
 
@@ -777,7 +805,11 @@ export default function Employees() {
                             { key: 's', label: 'Started' },
                             { key: 'e', label: 'Ends', def: false },
                             { key: 'pd', label: 'Paid', def: false },
-                            { key: 'a', label: '', align: 'right', width: 74, always: true },
+                            ...(payroll.canSee ? [
+                                { key: 'sal', label: 'Salary', align: 'right' },
+                                { key: 'pm', label: 'This Month' },
+                            ] : []),
+                            { key: 'a', label: '', align: 'right', width: payroll.canSee ? 128 : 74, always: true },
                         ]}>
                             {(show) => list.map((emp) => {
                                 const name = getDisplayName(emp);
@@ -816,9 +848,24 @@ export default function Employees() {
                                         {show('s') && <Td muted nowrap>{emp.startDate ? fmtDate(emp.startDate) : '-'}</Td>}
                                         {show('e') && <Td muted nowrap>{emp.endDate ? fmtDate(emp.endDate) : '-'}</Td>}
                                         {show('pd') && <Td muted nowrap>{emp.isPaid === true || emp.isPaid === 'true' ? 'Paid' : emp.isPaid === false || emp.isPaid === 'false' ? 'Unpaid' : '-'}</Td>}
+                                        {payroll.canSee && show('sal') && (
+                                            <Td align="right" nowrap>{salaryLabel(emp) || dash}</Td>
+                                        )}
+                                        {payroll.canSee && show('pm') && (
+                                            <Td nowrap>
+                                                {!canPay(emp) ? dash
+                                                    : paidNow[emp.id] ? <Status tone="up">Paid</Status>
+                                                        : <Status tone="warn">Due</Status>}
+                                            </Td>
+                                        )}
                                         {show('a') && (
                                             <Td align="right">
-                                                <Btn size="sm" onClick={() => setSelected(emp)}>Open</Btn>
+                                                <Row gap={6} style={{ justifyContent: 'flex-end' }}>
+                                                    {canPay(emp) && !paidNow[emp.id] && (
+                                                        <Btn size="sm" variant="teal" onClick={(e) => { e.stopPropagation(); setPaying(emp); }}>Pay</Btn>
+                                                    )}
+                                                    <Btn size="sm" onClick={() => setSelected(emp)}>Open</Btn>
+                                                </Row>
                                             </Td>
                                         )}
                                     </Tr>
@@ -877,7 +924,12 @@ export default function Employees() {
                     onClose={() => setSelected(null)}
                     onDelete={remove}
                     onEdit={() => { setEditing(selected); setSelected(null); }}
+                    onPay={canPay(selected) ? () => { setPaying(selected); setSelected(null); } : undefined}
                 />
+            )}
+
+            {paying && (
+                <PaySalaryPanel emp={paying} orgId={activeOrg?.id} onClose={() => setPaying(null)} />
             )}
         </Page>
     );

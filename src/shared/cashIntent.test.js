@@ -75,7 +75,7 @@ describe('parseAmount', () => {
 
   it('takes the currency from the symbol beside the figure', () => {
     expect(parseAmount('$1,200')).toMatchObject({ amount: 1200, currency: 'USD' });
-    expect(parseAmount('₹4500')).toMatchObject({ amount: 4500, currency: 'INR' });
+    expect(parseAmount('₹4500.00')).toMatchObject({ amount: 4500, currency: 'INR' });
     expect(parseAmount('1200 USD')).toMatchObject({ amount: 1200, currency: 'USD' });
   });
 
@@ -274,16 +274,16 @@ describe('amountHints: figures the conversation already named', () => {
   it('offers back a figure from an earlier message', () => {
     const hints = amountHints([
       'I recommend checking your latest bank statement against our recorded expenses.',
-      'Combined bank charges around ₹2,615 so we can log them and keep the books accurate.',
+      'Combined bank charges around ₹2,615.00 so we can log them and keep the books accurate.',
     ]);
     expect(hints[0].value).toBe('2615');
     // Named from the words in front of the figure. Not the clause after it,
     // which in this sentence is "so we can log them".
-    expect(hints[0].label).toBe('₹2,615 · bank charges');
+    expect(hints[0].label).toBe('₹2,615.00 · bank charges');
   });
 
   it('takes the most recent figures first, without repeating one', () => {
-    const hints = amountHints(['paid ₹1,000', 'then ₹2,000', 'and ₹2,000 again']);
+    const hints = amountHints(['paid ₹1,000.00', 'then ₹2,000.00', 'and ₹2,000.00 again']);
     expect(hints.map((h) => h.value)).toEqual(['2000', '1000']);
   });
 
@@ -388,7 +388,7 @@ const SENTENCES = [
   // money out
   S('spent 4500 on office chairs yesterday', { dir: 'out', amount: 4500, currency: 'INR', date: '2026-09-21' }),
   S('we spent 4.5k on chairs', { dir: 'out', amount: 4500 }),
-  S('paid ₹25,000 rent for October by bank transfer', { dir: 'out', amount: 25000, currency: 'INR', method: 'bank_transfer' }),
+  S('paid ₹25,000.00 rent for October by bank transfer', { dir: 'out', amount: 25000, currency: 'INR', method: 'bank_transfer' }),
   S('paid rent 25k via NEFT', { dir: 'out', amount: 25000, method: 'bank_transfer' }),
   S('bought a laptop for 1.2 lakh on 15 Sep', { dir: 'out', amount: 120000, date: '2026-09-15' }),
   S('we spent 1.5L on the office fit-out', { dir: 'out', amount: 150000 }),
@@ -412,7 +412,7 @@ const SENTENCES = [
   S('paid 3,000 via paytm', { dir: 'out', amount: 3000, method: 'wallet' }),
   S('paid bank charges of 590', { dir: 'out', amount: 590, method: null }),
   S('cash out 1200 for courier', { dir: 'out', amount: 1200, method: null }),
-  S('paid the internet bill of ₹1,179 on 2nd Sep', { dir: 'out', amount: 1179, date: '2026-09-02' }),
+  S('paid the internet bill of ₹1,179.00 on 2nd Sep', { dir: 'out', amount: 1179, date: '2026-09-02' }),
   S('spent 600 on petrol day before yesterday', { dir: 'out', amount: 600, date: '2026-09-20' }),
   S('paid 7,080 for insurance 3 days ago', { dir: 'out', amount: 7080, date: '2026-09-19' }),
   S('paid 45000 on 12/09 for the server', { dir: 'out', amount: 45000, date: '2026-09-12' }),
@@ -436,7 +436,7 @@ const SENTENCES = [
   S('received 1,180 interest on the FD', { dir: 'in', amount: 1180 }),
   S('sold old laptops for 25k', { dir: 'in', amount: 25000 }),
   S('earned 8,000 in commission', { dir: 'in', amount: 8000 }),
-  S('received ₹40,000 advance from Kite by cheque', { dir: 'in', amount: 40000, currency: 'INR', method: 'cheque' }),
+  S('received ₹40,000.00 advance from Kite by cheque', { dir: 'in', amount: 40000, currency: 'INR', method: 'cheque' }),
   S('payment from Globex of 12,000 received today', { dir: 'in', amount: 12000, date: '2026-09-22' }),
   S('received 18000 incl 18% gst from Acme', { dir: 'in', amount: 18000, gst: 18 }),
   S('got 1,000 refund from the vendor', { dir: 'in', amount: 1000 }),

@@ -344,7 +344,7 @@ export default function TasksPage({ projectId = null, embedded = false }) {
                 }}>
                     <Row gap={8}>
                         <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.02em' }}>
-                            {Math.round((stats.done / stats.total) * 100)}%
+                            {Number((stats.done / stats.total) * 100).toFixed(2)}%
                         </span>
                         <Muted>Done · {stats.done} of {stats.total}</Muted>
                     </Row>

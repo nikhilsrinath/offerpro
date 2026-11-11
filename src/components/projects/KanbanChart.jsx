@@ -249,7 +249,7 @@ function Card({ p, today, fin, client, mgr, nameOf, stats, health, onOpen }) {
             {stats?.progress != null && !p.archived_at && (
                 <Row gap={8}>
                     <span style={{ flex: 1 }}><Bar value={stats.progress} max={1} height={4} /></span>
-                    <Muted>{Math.round(stats.progress * 100)}%</Muted>
+                    <Muted>{Number(stats.progress * 100).toFixed(2)}%</Muted>
                 </Row>
             )}
             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 11.5, color: t.faint }}>

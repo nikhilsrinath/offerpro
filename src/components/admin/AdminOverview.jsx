@@ -30,7 +30,7 @@ export default function AdminOverview({ data, orgs, loading, error }) {
   if (loading || !data) return <Loading>Reading the platform…</Loading>;
 
   const { totals, plans, series } = data;
-  const collectionRate = totals.billed > 0 ? Math.round((totals.collected / totals.billed) * 100) : 0;
+  const collectionRate = totals.billed > 0 ? (totals.collected / totals.billed) * 100 : 0;
 
   return (
     <>
@@ -38,7 +38,7 @@ export default function AdminOverview({ data, orgs, loading, error }) {
         { label: 'Organisations', value: totals.orgs, note: `${totals.newOrgs30d} new in 30 days` },
         { label: 'Users', value: totals.users, note: `${totals.activeUsers30d} active in 30 days` },
         { label: 'Billed', value: moneyShort(totals.billed), note: `${totals.invoices} invoices issued` },
-        { label: 'Collected', value: moneyShort(totals.collected), note: `${collectionRate}% of billed`, tone: 'up' },
+        { label: 'Collected', value: moneyShort(totals.collected), note: `${Number(collectionRate).toFixed(2)}% of billed`, tone: 'up' },
         { label: 'Outstanding', value: moneyShort(totals.outstanding), note: `${moneyShort(totals.overdue)} overdue`, tone: totals.outstanding > 0 ? 'down' : undefined },
       ]} />
 

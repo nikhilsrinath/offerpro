@@ -7,7 +7,7 @@ import { useProjectScope } from '../projects/projectScope';
 import { useStickyHead } from '../ui/useStickyHead';
 
 const PAGE_SIZE = 50;
-const rateLabel = (rate) => (Number(rate) ? `${Number(rate)}%` : 'Nil / exempt');
+const rateLabel = (rate) => (Number(rate) ? `${Number(rate).toFixed(2)}%` : 'Nil / exempt');
 
 // One side of the rate-wise table: Input or Output.
 function RateTable({ title, rows, tone }) {
@@ -241,7 +241,7 @@ export default function TaxSummary({ projectId = null }) {
                   <td style={{ color: r.kind === 'Output' ? 'var(--error)' : 'var(--success)', fontWeight: 600, fontSize: '0.75rem' }}>{r.kind}</td>
                   <td>{r.ref}</td>
                   <td>{r.party}</td>
-                  <td className="num">{r.rate ? `${Number(r.rate)}%` : '-'}</td>
+                  <td className="num">{r.rate ? `${Number(r.rate).toFixed(2)}%` : '-'}</td>
                   <td style={{ fontSize: '0.75rem' }}>{r.gst > 0 ? (r.interState ? 'IGST' : 'CGST+SGST') : '-'}</td>
                   <td className="num">{money(r.taxable, 2)}</td>
                   <td className="num strong">{money(r.gst, 2)}</td>

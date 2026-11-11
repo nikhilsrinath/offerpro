@@ -1,0 +1,84 @@
+/* The free grid (FreeGrid.jsx). Colours come from the surface it sits on:
+   --fg-accent if the caller sets it, else the surface's --accent. */
+
+.fg-grid {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  --fg-a: var(--fg-accent, var(--accent));
+}
+.fg-grid.is-unmeasured { visibility: hidden; }
+
+.fg-item {
+  position: absolute; left: 0; top: 0;
+  display: flex; flex-direction: column;
+  min-width: 0;
+  transition: transform .26s cubic-bezier(.2, .8, .2, 1), width .26s cubic-bezier(.2, .8, .2, 1), height .26s cubic-bezier(.2, .8, .2, 1);
+  will-change: transform;
+}
+.fg-item > :first-child { min-width: 0; }
+.fg-item.is-fixed > :first-child { flex: 1 1 0; min-height: 0; overflow: auto; scrollbar-width: thin; }
+.fg-item.is-auto > :first-child { flex: 1 0 auto; }
+
+/* the widget being moved or resized follows the pointer; the rest glide */
+.fg-item.is-live { transition: none; z-index: 40; }
+.fg-item.is-live.is-move > :first-child { box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .35); cursor: grabbing; }
+.fg-item.is-live > :first-child { opacity: .96; }
+
+/* where it will land */
+.fg-placeholder {
+  position: absolute; left: 0; top: 0; z-index: 0;
+  border-radius: 12px;
+  border: 1.5px dashed var(--fg-a);
+  background: color-mix(in srgb, var(--fg-a) 10%, transparent);
+  transition: transform .16s ease, width .16s ease, height .16s ease;
+  pointer-events: none;
+}
+
+/* moving: by the header, or anywhere while arranging */
+.fg-item [data-fg-handle] { cursor: grab; }
+.fg-grid.is-editing .fg-item { touch-action: none; cursor: grab; }
+
+/* resizing: the right edge, the bottom edge, the corner */
+.fg-rz { position: absolute; z-index: 6; touch-action: none; opacity: 0; transition: opacity .15s; }
+.fg-rz.is-e { top: 12px; bottom: 12px; right: -5px; width: 10px; cursor: ew-resize; }
+.fg-rz.is-s { left: 12px; right: 12px; bottom: -5px; height: 10px; cursor: ns-resize; }
+.fg-rz.is-se {
+  right: 2px; bottom: 2px; width: 18px; height: 18px; cursor: nwse-resize; border-radius: 4px; outline: none;
+}
+/* the corner grip: two short diagonal strokes */
+.fg-rz.is-se::before {
+  content: ''; position: absolute; right: 4px; bottom: 4px; width: 9px; height: 9px;
+  background:
+    linear-gradient(135deg, transparent 0 46%, var(--fg-a) 46% 58%, transparent 58% 100%),
+    linear-gradient(135deg, transparent 0 74%, var(--fg-a) 74% 86%, transparent 86% 100%);
+}
+.fg-rz.is-e::after, .fg-rz.is-s::after {
+  content: ''; position: absolute; border-radius: 99px; background: var(--fg-a); opacity: 0; transition: opacity .15s;
+}
+.fg-rz.is-e::after { top: 50%; left: 3px; width: 4px; height: 32px; max-height: 100%; transform: translateY(-50%); }
+.fg-rz.is-s::after { left: 50%; top: 3px; height: 4px; width: 32px; max-width: 100%; transform: translateX(-50%); }
+.fg-rz.is-e:hover::after, .fg-rz.is-s:hover::after, .fg-item.is-live.is-e .fg-rz.is-e::after, .fg-item.is-live.is-s .fg-rz.is-s::after { opacity: .9; }
+
+.fg-item:hover > .fg-rz, .fg-item:focus-within > .fg-rz, .fg-item.is-live > .fg-rz, .fg-grid.is-editing .fg-rz { opacity: 1; }
+.fg-rz.is-se:focus-visible { box-shadow: 0 0 0 1.5px var(--fg-a); }
+.fg-grid.is-live .fg-item:not(.is-live) > .fg-rz { opacity: 0; }
+@media (hover: none) {
+  .fg-item:hover > .fg-rz { opacity: 0; }
+  .fg-grid.is-editing .fg-rz { opacity: 1; }
+  .fg-rz.is-se { width: 26px; height: 26px; }
+}
+
+/* while a gesture runs: no text selection, one cursor everywhere */
+html.fg-busy, html.fg-busy * { user-select: none !important; -webkit-user-select: none !important; }
+html.fg-busy-move, html.fg-busy-move * { cursor: grabbing !important; }
+html.fg-busy-e, html.fg-busy-e * { cursor: ew-resize !important; }
+html.fg-busy-s, html.fg-busy-s * { cursor: ns-resize !important; }
+html.fg-busy-se, html.fg-busy-se * { cursor: nwse-resize !important; }
+
+.fg-tail { display: flex; }
+.fg-tail > * { flex: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fg-item, .fg-placeholder { transition: none; }
+}

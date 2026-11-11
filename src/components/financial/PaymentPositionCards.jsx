@@ -18,7 +18,7 @@ export default function PaymentPositionCards() {
   const docs = useSection('fin_docs');
   const p = useMemo(() => paymentPosition(docs), [docs]);
 
-  const pct = (v) => (p.invoiced > 0 ? `${Math.round((v / p.invoiced) * 100)}% of invoiced` : 'Nothing invoiced yet');
+  const pct = (v) => (p.invoiced > 0 ? `${Number((v / p.invoiced) * 100).toFixed(2)}% of invoiced` : 'Nothing invoiced yet');
 
   const cards = [
     { key: 'all', label: 'Total invoiced', value: p.invoiced, icon: FileText, color: '#3b82f6',

@@ -111,7 +111,7 @@ export function moneyIn(v, currency) {
   const cur = recordCurrency(currency);
   if (cur === baseCurrency()) return money(v);
   try {
-    return r2(v).toLocaleString(currencyLocale(cur), { style: 'currency', currency: cur, maximumFractionDigits: 2 });
+    return r2(v).toLocaleString(currencyLocale(cur), { style: 'currency', currency: cur, minimumFractionDigits: 2, maximumFractionDigits: 2 });
   } catch {
     return `${cur} ${r2(v)}`;
   }

@@ -121,7 +121,7 @@ function overview(snap, focus) {
       used.add('expenses');
     }
     if (f.pl_net !== null && f.pl_net !== undefined) {
-      m.pl_net = { ...fig(f.pl_net, pf?.pl_net), margin: f.margin_pct === null ? null : `${f.margin_pct}%` };
+      m.pl_net = { ...fig(f.pl_net, pf?.pl_net), margin: f.margin_pct === null ? null : `${Number(f.margin_pct).toFixed(2)}%` };
       used.add('pl_net');
     }
     out.money = m;
@@ -309,7 +309,7 @@ const business_breakdown = {
     const isMoney = b.unit === 'money';
     const show = (r) => {
       const out = { name: r.label, value: isMoney ? money(r.value) : r.value };
-      if (r.share_pct !== null && r.share_pct !== undefined) out.share = `${r.share_pct}%`;
+      if (r.share_pct !== null && r.share_pct !== undefined) out.share = `${Number(r.share_pct).toFixed(2)}%`;
       for (const k of ['previous', 'gross', 'overdue']) if (r[k] !== undefined) out[k] = isMoney ? money(r[k]) : r[k];
       for (const k of ['client', 'owner', 'invoices', 'bills', 'days_late', 'waiting_days', 'status', 'direction', 'reasons']) if (r[k] !== undefined && r[k] !== null) out[k] = r[k];
       for (const k of ['due', 'from', 'to']) if (r[k]) out[k] = formatDate(r[k]);

@@ -234,7 +234,7 @@ export default function ClientInvoicePanel({ clients, clientId = '', projectId =
           <div className="prod-field">
             <label htmlFor="ui-gst">GST Rate</label>
             <select id="ui-gst" value={form.gst_rate} onChange={(e) => set('gst_rate', Number(e.target.value))}>
-              {GST_RATES.map((r) => <option key={r} value={r}>{r === 0 ? 'No GST' : `${r}%`}</option>)}
+              {GST_RATES.map((r) => <option key={r} value={r}>{r === 0 ? 'No GST' : `${Number(r).toFixed(2)}%`}</option>)}
             </select>
           </div>
 

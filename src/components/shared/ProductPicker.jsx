@@ -47,9 +47,7 @@ export default function ProductPicker({ linkedId, onSelect, onClear }) {
     : products
   ).slice(0, 50);
 
-  const money = (n) => (Number(n) || 0).toLocaleString(currencyLocale(), {
-    style: 'currency', currency: baseCurrency(), maximumFractionDigits: 2,
-  });
+  const money = (n) => (Number(n) || 0).toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
     <div ref={boxRef} style={{ position: 'relative' }}>
@@ -112,7 +110,7 @@ export default function ProductPicker({ linkedId, onSelect, onClear }) {
                       {p.sku ? `${p.sku} · ` : ''}
                       {p.category || 'Uncategorised'}
                       {p.hsn_sac ? ` · HSN ${p.hsn_sac}` : ''}
-                      {` · ${p.tax_rate}% GST`}
+                      {` · ${Number(p.tax_rate).toFixed(2)}% GST`}
                     </span>
                   </div>
                   <div className="prodpick-item-price">

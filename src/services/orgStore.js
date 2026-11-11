@@ -734,6 +734,8 @@ const SECTIONS = {
       ...('receipt_number' in r ? { receipt_number: r.receipt_number || '' } : {}),
       // 0103, present only when the database has the column.
       ...('tds_amount' in r ? { tds_amount: Number(r.tds_amount) || 0 } : {}),
+      // 0109: the month a salary pays for, present only when the database has the column.
+      ...('pay_period' in r ? { pay_period: r.pay_period || null } : {}),
       created_at: r.created_at, updated_at: r.updated_at,
     }),
     // `amount` is deliberately NOT sent: app.expense_guard() derives it from
@@ -775,6 +777,8 @@ const SECTIONS = {
       ...optional(i, { receipt_number: nn }),
       // 0103. Same rule: only an entry that has TDS (or read it back) sends it.
       ...optional(i, { tds_amount: (v) => num(v, 0) }),
+      // 0109. Sent only by the Pay button (or an entry read back with one).
+      ...(i.pay_period ? { pay_period: date(i.pay_period) } : {}),
     }),
   },
 

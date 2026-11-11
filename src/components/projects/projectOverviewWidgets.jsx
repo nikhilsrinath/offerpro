@@ -3,7 +3,7 @@ import {
     IndianRupee, Wallet, Hourglass, TrendingUp, Users, Gauge, ListChecks, AlertTriangle, HeartPulse,
     CircleDashed, Star, CalendarRange, Flag, History, FileText, UserCheck, PieChart, Plus, Check,
 } from 'lucide-react';
-import { Btn, Modal, Seg } from '../ui/edge';
+import { Btn, Modal } from '../ui/edge';
 import { useOrg } from '../../context/OrgContext';
 import { categoryLabel } from '../../services/financeCategories';
 import { formatHealthReasons } from '../../services/projectAnalytics';
@@ -21,8 +21,8 @@ import { projectRef } from './projectSlug';
    A project's Overview: the page a project opens on. It is built from the
    same tiles and cards as the other dashboard pages, but which ones show is
    the person's choice: Add Widget lists every figure and card, each switched
-   on or off, and a card made normal or full width. Arrange (dashKit) puts
-   them in the order they read them.
+   on or off. Each one is then moved and sized freely on the page's grid
+   (dashKit / FreeGrid).
 
    One choice per person and org, shared by every project, the way the hub's
    board is (useWidgetLayout). Money widgets need Project financials; without
@@ -42,8 +42,8 @@ const TILES = [
     {
         id: 'progress', title: 'Progress', icon: CircleDashed, desc: 'How much of the plan is done',
         tile: ({ board }) => {
-            const pct = board.progress == null ? null : Math.round(board.progress * 100);
-            return { value: pct == null ? '-' : `${pct}%`, foot: pct == null ? 'no plan yet' : `${board.milestones.length} milestones · ${board.tasks.all.length} tasks` };
+            const pct = board.progress == null ? null : board.progress * 100;
+            return { value: pct == null ? '-' : `${Number(pct).toFixed(2)}%`, foot: pct == null ? 'no plan yet' : `${board.milestones.length} milestones · ${board.tasks.all.length} tasks` };
         },
     },
     {
@@ -61,14 +61,14 @@ const TILES = [
         id: 'contract', title: 'Contract', icon: IndianRupee, fin: true, to: 'dashboard:finance', desc: 'Contract value, and how much is billed',
         tile: ({ board: { f, project } }) => ({
             value: f === undefined ? '…' : fmtShort(f?.contract_value ?? project.contract_value),
-            foot: f?.billed_pct == null ? 'nothing billed yet' : `${f.billed_pct}% billed`,
+            foot: f?.billed_pct == null ? 'nothing billed yet' : `${Number(f.billed_pct).toFixed(2)}% billed`,
         }),
     },
     {
         id: 'margin', title: 'Net margin', icon: TrendingUp, fin: true, to: 'dashboard:finance', desc: 'Collected less everything spent on it',
         tile: ({ board: { f } }) => ({
             value: f ? fmtShort(f.net_margin) : '-', tone: n(f?.net_margin) < 0 ? 'down' : null,
-            foot: f?.net_margin_pct == null ? 'nothing invoiced yet' : `${f.net_margin_pct}% of revenue`,
+            foot: f?.net_margin_pct == null ? 'nothing invoiced yet' : `${Number(f.net_margin_pct).toFixed(2)}% of revenue`,
         }),
     },
     {
@@ -113,7 +113,7 @@ const TILES = [
     },
     {
         id: 'allocated', title: 'Allocated', icon: Gauge, to: 'dashboard:team', desc: "The sum of everyone's share of time on it",
-        tile: ({ board }) => ({ value: `${Math.round(board.team.reduce((s, m) => s + m.pct, 0))}%`, foot: "sum of everyone's share" }),
+        tile: ({ board }) => ({ value: `${Number(board.team.reduce((s, m) => s + m.pct, 0)).toFixed(2)}%`, foot: "sum of everyone's share" }),
     },
 ];
 
@@ -145,14 +145,14 @@ function AttentionCard({ board, navigate, t }) {
 
 function ScheduleCard({ board, t, status }) {
     const { project, today } = board;
-    const pct = board.progress == null ? null : Math.round(board.progress * 100);
+    const pct = board.progress == null ? null : board.progress * 100;
     const { timePct } = board.burn;
     const d = daysTo(project.target_end_date, today);
     return (<>
         <FigureRow>
             <Figure big label={d != null && d < 0 ? 'days over' : 'days left'} value={d == null ? '-' : String(Math.abs(d))} tone={d != null && d < 0 ? 'down' : null} />
-            <Figure big label="time gone" value={timePct == null ? '-' : `${Math.round(timePct)}%`} />
-            <Figure big label="done" value={pct == null ? '-' : `${pct}%`} />
+            <Figure big label="time gone" value={timePct == null ? '-' : `${Number(timePct).toFixed(2)}%`} />
+            <Figure big label="done" value={pct == null ? '-' : `${pct.toFixed(2)}%`} />
         </FigureRow>
         {timePct != null && pct != null && (
             <div style={{ fontSize: 12, color: pct + 10 < timePct ? status.critical : t.faint }}>
@@ -164,7 +164,7 @@ function ScheduleCard({ board, t, status }) {
 
 function TeamCard({ board, cat }) {
     const rows = board.team.map((m) => ({ key: m.id, name: m.name, role: m.role, value: m.pct }));
-    return <RankBars rows={rows} format={(v) => `${Math.round(v)}%`} color={cat[0]} total={0} max={8} sub={(r) => r.role} empty="No one on the project yet" />;
+    return <RankBars rows={rows} format={(v) => `${Number(v).toFixed(2)}%`} color={cat[0]} total={0} max={8} sub={(r) => r.role} empty="No one on the project yet" />;
 }
 
 function WorkloadCard({ board, cat }) {
@@ -225,8 +225,8 @@ function BudgetCard({ board, cat, t, status }) {
         .sort((a, b) => b.value - a.value);
     return (<>
         <FigureRow>
-            <Figure big label="budget used" value={burnPct == null ? '-' : `${Math.round(burnPct)}%`} tone={ahead ? 'down' : null} />
-            <Figure big label="time gone" value={timePct == null ? '-' : `${Math.round(timePct)}%`} />
+            <Figure big label="budget used" value={burnPct == null ? '-' : `${Number(burnPct).toFixed(2)}%`} tone={ahead ? 'down' : null} />
+            <Figure big label="time gone" value={timePct == null ? '-' : `${Number(timePct).toFixed(2)}%`} />
         </FigureRow>
         <div style={{ fontSize: 12, color: ahead ? status.critical : t.faint, marginBottom: 12 }}>
             {ahead ? 'Spending is running ahead of the schedule.' : burnPct == null ? 'Set a budget to track spending.' : 'Spending is in step with the schedule.'}
@@ -379,7 +379,7 @@ export default function ProjectOverviewWidgets({ tabs, ctx }) {
         )}
 
         <Modal open={picking} onClose={() => setPicking(false)} title="Add Widget" width={620}
-            note="Choose what every project's Overview shows. Arrange puts them in order."
+            note="Choose what every project's Overview shows. Drag a widget's header to move it, its edge or corner to resize it."
             footer={<>
                 <Btn size="sm" onClick={lay.reset}>Reset To Default</Btn>
                 <Btn size="sm" primary onClick={() => setPicking(false)}>Done</Btn>
@@ -389,9 +389,8 @@ export default function ProjectOverviewWidgets({ tabs, ctx }) {
     </>);
 }
 
-/** Every widget this person may have, switched on or off; a card's width beside it. */
-function Picker({ layout, lay, offered, t }) {
-    const sizeOf = (id) => layout.find((l) => l.id === id)?.size;
+/** Every widget this person may have, switched on or off. */
+function Picker({ lay, offered, t }) {
     const group = (kind, label) => {
         const list = ALL.filter((w) => w.kind === kind && offered(w));
         return (
@@ -413,10 +412,6 @@ function Picker({ layout, lay, offered, t }) {
                                     <span style={{ display: 'block', fontSize: 13.5, fontWeight: 600, color: t.text }}>{w.title}</span>
                                     <span style={{ display: 'block', fontSize: 12, color: t.faint }}>{w.desc}</span>
                                 </span>
-                                {on && w.kind === 'card' && (
-                                    <Seg size="sm" label={`${w.title} width`} value={sizeOf(w.id)} onChange={(s) => lay.resize(w.id, s)}
-                                        options={[{ id: 'md', label: 'Normal' }, { id: 'lg', label: 'Wide' }]} />
-                                )}
                                 <Btn size="sm" primary={!on} aria-pressed={on} aria-label={on ? `Remove ${w.title}` : `Add ${w.title}`}
                                     onClick={() => (on ? lay.remove(w.id) : lay.add(w.id))}>
                                     {on ? <><Check size={13} strokeWidth={2.2} aria-hidden="true" />Added</> : <><Plus size={13} strokeWidth={2.2} aria-hidden="true" />Add</>}

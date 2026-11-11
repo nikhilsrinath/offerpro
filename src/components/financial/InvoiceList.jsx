@@ -374,8 +374,8 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                   <td>${esc(item.description || '-')}</td>
                   ${gstRate > 0 ? `<td class="inv-td-muted">${esc(item.hsnSac || item.hsnCode || '-')}</td>` : ''}
                   <td>${esc(item.quantity || 0)}</td>
-                  <td>\${currencySymbol()}${(Number(item.rate) || Number(item.price) || 0).toLocaleString(currencyLocale())}</td>
-                  <td class="inv-td-amount">\${currencySymbol()}${lineTotal.toLocaleString(currencyLocale())}</td>
+                  <td>\${currencySymbol()}${(Number(item.rate) || Number(item.price) || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td class="inv-td-amount">\${currencySymbol()}${lineTotal.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>`;
       }).join('')}
           </tbody>
@@ -383,19 +383,19 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
 
         <!-- Totals -->
         <div class="inv-totals">
-          <div class="inv-total-row"><span>Subtotal:</span><span>\${currencySymbol()}${subtotal.toLocaleString(currencyLocale())}</span></div>
-          ${discountAmt > 0 ? `<div class="inv-total-row" style="color:#ef4444"><span>Discount (${doc.discount?.type === 'percentage' ? esc(doc.discount.value) + '%' : 'flat'}):</span><span>-\${currencySymbol()}${discountAmt.toLocaleString(currencyLocale())}</span></div>` : ''}
-          <div class="inv-total-row"><span>Taxable Amount:</span><span>\${currencySymbol()}${taxableAmount.toLocaleString(currencyLocale())}</span></div>
+          <div class="inv-total-row"><span>Subtotal:</span><span>\${currencySymbol()}${subtotal.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+          ${discountAmt > 0 ? `<div class="inv-total-row" style="color:#ef4444"><span>Discount (${doc.discount?.type === 'percentage' ? esc(doc.discount.value) + '%' : 'flat'}):</span><span>-\${currencySymbol()}${discountAmt.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>` : ''}
+          <div class="inv-total-row"><span>Taxable Amount:</span><span>\${currencySymbol()}${taxableAmount.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
           ${gstRate > 0 ? `
             <div class="inv-total-divider"></div>
-            <div class="inv-total-row inv-total-gst"><span>CGST @ ${halfRate}%:</span><span>\${currencySymbol()}${cgst.toLocaleString(currencyLocale())}</span></div>
-            <div class="inv-total-row inv-total-gst"><span>SGST @ ${halfRate}%:</span><span>\${currencySymbol()}${sgst.toLocaleString(currencyLocale())}</span></div>
+            <div class="inv-total-row inv-total-gst"><span>CGST @ ${Number(halfRate).toFixed(2)}%:</span><span>\${currencySymbol()}${cgst.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+            <div class="inv-total-row inv-total-gst"><span>SGST @ ${Number(halfRate).toFixed(2)}%:</span><span>\${currencySymbol()}${sgst.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
           ` : ''}
           <div class="inv-total-divider inv-total-divider-bold"></div>
-          <div class="inv-total-row inv-total-grand"><span>${doc.type === 'proforma' ? 'ORDER VALUE' : 'TOTAL AMOUNT'}:</span><span>\${currencySymbol()}${grandTotal.toLocaleString(currencyLocale())}</span></div>
+          <div class="inv-total-row inv-total-grand"><span>${doc.type === 'proforma' ? 'ORDER VALUE' : 'TOTAL AMOUNT'}:</span><span>\${currencySymbol()}${grandTotal.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
           ${advance && advance.percent > 0 ? `
-            <div class="inv-total-row"><span>Advance payable now (${advance.percent}%):</span><span>\${currencySymbol()}${advance.advance.toLocaleString(currencyLocale())}</span></div>
-            <div class="inv-total-row"><span>Balance on delivery:</span><span>\${currencySymbol()}${advance.balance.toLocaleString(currencyLocale())}</span></div>
+            <div class="inv-total-row"><span>Advance payable now (${Number(advance.percent).toFixed(2)}%):</span><span>\${currencySymbol()}${advance.advance.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+            <div class="inv-total-row"><span>Balance on delivery:</span><span>\${currencySymbol()}${advance.balance.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
           ` : ''}
         </div>
         ${doc.type === 'proforma' ? '<div class="inv-notes"><div class="inv-notes-text">This is a proforma invoice issued to confirm the order. It is not a tax invoice and cannot be used to claim input tax credit.</div></div>' : ''}
@@ -502,7 +502,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
       const label = built.type === 'proforma' ? 'proforma' : 'invoice';
       toast(resumed
         ? `${docNo(source)} was already converted to ${label} ${docNo(built)}, marked converted`
-        : `Converted to ${label} ${docNo(built)}${advance ? ` with ${currencySymbol()}${advance.amount.toLocaleString(currencyLocale())} advance applied` : ''}`,
+        : `Converted to ${label} ${docNo(built)}${advance ? ` with ${currencySymbol()}${advance.amount.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} advance applied` : ''}`,
       'success');
       setConvertSource(null);
       loadDocuments();
@@ -730,15 +730,15 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                       <td>{pageNo * PAGE_SIZE + i + 1}</td>
                       <td>{formatDateDMY(doc.issue_date)}</td>
                       <td className="fin-list-id">{docNo(doc)}</td>
-                      <td className="fin-list-amount">{currencySymbol()}{(doc.grand_total || doc.amount || 0).toLocaleString(currencyLocale())}</td>
-                      <td>{currencySymbol()}{Number(doc.gst || doc.gst_amount || 0).toLocaleString(currencyLocale())}</td>
+                      <td className="fin-list-amount">{currencySymbol()}{(doc.grand_total || doc.amount || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td>{currencySymbol()}{Number(doc.gst || doc.gst_amount || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     </>
                   ) : (
                     <>
                   <td className="fin-list-id">{docNo(doc)}</td>
                   <td>{doc.issued_to || doc.client?.name || '-'}</td>
-                  <td className="fin-list-amount">{currencySymbol()}{(doc.grand_total || doc.amount || 0).toLocaleString(currencyLocale())}</td>
-                  {type === 'invoice' && <td>{currencySymbol()}{Number(doc.gst || doc.gst_amount || 0).toLocaleString(currencyLocale())}</td>}
+                  <td className="fin-list-amount">{currencySymbol()}{(doc.grand_total || doc.amount || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  {type === 'invoice' && <td>{currencySymbol()}{Number(doc.gst || doc.gst_amount || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>}
                   <td>{formatDateDMY(doc.issue_date)}</td>
                     </>
                   )}
@@ -776,7 +776,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
                       {type === 'proforma' && conversionTargets(doc).includes('invoice') && (
                         <button className="fin-list-action-btn primary"
                           title={Number(doc.amount_paid) > 0
-                            ? `Convert to Tax Invoice (the ${currencySymbol()}${Number(doc.amount_paid).toLocaleString(currencyLocale())} advance is applied)`
+                            ? `Convert to Tax Invoice (the ${currencySymbol()}${Number(doc.amount_paid).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} advance is applied)`
                             : 'Convert to Tax Invoice'}
                           disabled={convertingId === doc.id} onClick={() => runConversion(doc, 'invoice')}>
                           {convertingId === doc.id ? 'Converting…' : 'Convert'}
@@ -881,7 +881,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
         open={!!cancelTarget} compact
         onClose={lifecycleBusy ? undefined : () => setCancelTarget(null)}
         title={`Cancel ${docNo(cancelTarget) || typeLabel.toLowerCase()}`}
-        note={cancelTarget ? `${cancelTarget.issued_to || cancelTarget.clientName || 'Client'} · ${currencySymbol()}${(cancelTarget.grand_total || cancelTarget.amount || 0).toLocaleString(currencyLocale())}` : ''}
+        note={cancelTarget ? `${cancelTarget.issued_to || cancelTarget.clientName || 'Client'} · ${currencySymbol()}${(cancelTarget.grand_total || cancelTarget.amount || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}
         footer={(
           <>
             <Btn onClick={() => setCancelTarget(null)} disabled={!!lifecycleBusy}>Keep it</Btn>
@@ -936,7 +936,7 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
    document: the row says what happened and carries the action that answers it. */
 function AttentionPanel({ docs, type, onVerify, onReject, onRevise, onRedraft, onConvert }) {
   const t = useT();
-  const money = (n) => currencySymbol() + (Number(n) || 0).toLocaleString(currencyLocale());
+  const money = (n) => currencySymbol() + (Number(n) || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const client = (doc) => doc.issued_to || doc.client?.name || 'Client';
 
   const items = docs.flatMap((doc) => {
@@ -947,7 +947,7 @@ function AttentionPanel({ docs, type, onVerify, onReject, onRevise, onRedraft, o
       const isAdvance = doc.type === 'proforma';
       if (isAdvance) {
         const a = advanceOf(doc);
-        facts.push(`advance asked ${money(a.advance)} (${a.percent}%)`);
+        facts.push(`advance asked ${money(a.advance)} (${Number(a.percent).toFixed(2)}%)`);
       }
       return [{
         doc, tone: 'up', label: isAdvance ? 'Advance submitted' : 'Payment submitted',

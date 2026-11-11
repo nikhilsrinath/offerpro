@@ -451,7 +451,7 @@ export default function CompanyProfile() {
 
   const plan = getPlanConfig(form.plan || DEFAULT_PLAN);
   const shown = PLAN_SUMMARY[form.plan || DEFAULT_PLAN] || { name: plan.displayName, includes: '' };
-  const pct = Math.round((doneCount / steps.length) * 100);
+  const pct = (doneCount / steps.length) * 100;
   const stepDone = Object.fromEntries(steps.map((s) => [s.id, s.done]));
   const tabInfo = TABS.map((tb) => {
     const mine = tb.steps.map((id) => stepDone[id]);

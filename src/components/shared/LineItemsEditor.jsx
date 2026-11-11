@@ -1,5 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react';
-import { currencySymbol } from '../../shared/currency.js';
+import { currencySymbol, fixed2 } from '../../shared/currency.js';
 
 const UNITS = ['Hrs', 'Units', 'Nos', 'Kg', 'Ltr'];
 const GST_RATES = [0, 5, 12, 18, 28];
@@ -135,7 +135,7 @@ export default function LineItemsEditor({
                 >
                   {GST_RATES.map((r) => (
                     <option key={r} value={r}>
-                      {r}%
+                      {Number(r).toFixed(2)}%
                     </option>
                   ))}
                 </select>
@@ -144,12 +144,12 @@ export default function LineItemsEditor({
             <div className="line-items-col total">
               <span className="line-items-amount">
                 {currency}
-                {getLineTotal(item).toLocaleString('en-IN')}
+                {fixed2(getLineTotal(item))}
               </span>
               {showGST && taxable > 0 && (
                 <span className="line-items-gst-detail">
                   +{currency}
-                  {(taxable * ((item.gstRate || 0) / 100)).toLocaleString('en-IN')} GST
+                  {fixed2(taxable * ((item.gstRate || 0) / 100))} GST
                 </span>
               )}
             </div>

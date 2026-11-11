@@ -11,6 +11,7 @@ import { useOverviewModel } from './useOverviewModel';
 import { TipProvider, Spark } from './vizKit';
 import Drilldown from './Drilldown';
 import { useViz, useWinW, mix } from './vizHooks';
+import FreeGrid from '../ui/FreeGrid';
 
 /* ══════════════════════════════════════════════════════════════════════════
    The frame every dashboard page shares, Overview, Finance, Sales, Team,
@@ -26,41 +27,48 @@ import { useViz, useWinW, mix } from './vizHooks';
 const PERIOD_KEY = 'edge.overview.period';
 
 /* ── arranging ───────────────────────────────────────────────────────────────
-   Every dashboard page lets the person put its tiles and cards in the order
-   they read them. The order is theirs: kept in this browser per page, never
-   sent anywhere. <Arrangeable> holds it, <ArrangeBar> is the Arrange / Done
-   switch, and TileRow and CardGrid lay their children out by it. While
-   arranging, a tile or card is dragged onto another to take its place, or
-   moved one step with the arrows on it. */
+   Every dashboard page lays its tiles and cards on a free grid (FreeGrid):
+   drag a tile or card by its header to move it anywhere, drag its edge or
+   corner to make it any size, and the rest make room and close up around it.
+   Arrange makes the whole tile or card the handle (and adds step arrows for
+   the keyboard). The layout is the person's own: kept in this browser per
+   page, per grid and per column count, never sent anywhere. Until someone
+   moves something, each tile and card is as tall as its content, in the
+   order and widths the page gives it. */
 
 const ArrangeCtx = createContext(null);
-const orderKey = (page) => 'edgeos.dash.order.' + page;
-const readOrder = (page) => {
-    try { return JSON.parse(localStorage.getItem(orderKey(page)) || '{}') || {}; } catch { return {}; }
+const gridKey = (page) => 'edgeos.dash.grid.' + page;
+const readGrids = (page) => {
+    try {
+        const v = JSON.parse(localStorage.getItem(gridKey(page)) || '{}');
+        return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+    } catch { return {}; }
 };
 
 /** Give it a `key` equal to `pageId` where one component serves several pages. */
 export function Arrangeable({ pageId, children }) {
-    const [orders, setOrders] = useState(() => readOrder(pageId));
+    const [grids, setGrids] = useState(() => readGrids(pageId));
     const [editing, setEditing] = useState(false);
-    const [drag, setDrag] = useState(null); // { group, id, over }
-    const save = useCallback((next) => {
-        setOrders(next);
-        try {
-            if (Object.keys(next).length) localStorage.setItem(orderKey(pageId), JSON.stringify(next));
-            else localStorage.removeItem(orderKey(pageId));
-        } catch { /* storage blocked: the order just lasts until reload */ }
+    const save = useCallback((fn) => {
+        setGrids((prev) => {
+            const next = fn(prev);
+            try {
+                if (Object.keys(next).length) localStorage.setItem(gridKey(pageId), JSON.stringify(next));
+                else localStorage.removeItem(gridKey(pageId));
+            } catch { /* storage blocked: the layout just lasts until reload */ }
+            return next;
+        });
     }, [pageId]);
     const value = useMemo(() => ({
-        orders, editing, setEditing, drag, setDrag,
-        changed: Object.keys(orders).length > 0,
-        setOrder: (group, ids) => save({ ...orders, [group]: ids }),
-        reset: () => save({}),
-    }), [orders, editing, drag, save]);
+        grids, editing, setEditing,
+        changed: Object.keys(grids).length > 0,
+        saveGrid: (group, cols, rects) => save((g) => ({ ...g, [group]: { ...(g[group] || {}), [cols]: rects } })),
+        reset: () => save(() => ({})),
+    }), [grids, editing, save]);
     return <ArrangeCtx.Provider value={value}>{children}</ArrangeCtx.Provider>;
 }
 
-/** The Arrange / Done switch, with Reset beside it once something has moved. */
+/** The Arrange / Done switch, with Reset beside it once something has been moved or resized. */
 export function ArrangeBar() {
     const t = useT();
     const a = useContext(ArrangeCtx);
@@ -72,9 +80,10 @@ export function ArrangeBar() {
     };
     return (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            {a.editing && a.changed && (
-                <button type="button" className="ov-chip" onClick={a.reset} style={{ ...btn, color: t.dim }}>
-                    <RotateCcw aria-hidden="true" size={13} />Reset
+            {a.changed && (
+                <button type="button" className="ov-chip" onClick={a.reset} style={{ ...btn, color: t.dim }}
+                    title="Put every tile and card back where the page had it">
+                    <RotateCcw aria-hidden="true" size={13} />Reset Layout
                 </button>
             )}
             <button type="button" className="ov-chip" aria-pressed={a.editing} onClick={() => a.setEditing(!a.editing)}
@@ -88,46 +97,52 @@ export function ArrangeBar() {
 const widOf = (c, i) => String(c.props?.wid ?? (typeof c.props?.label === 'string' ? c.props.label : null)
     ?? (typeof c.props?.title === 'string' ? c.props.title : null) ?? c.key ?? i);
 
-/** A grid's children in the person's order, each handed what it needs to be moved. */
-function useArranged(group, children) {
+/** A child's CSS-grid span ("span 2"), the width the page asked for. */
+const spanOf = (style, key) => {
+    const m = /span\s+(\d+)/.exec(String(style?.[key] ?? ''));
+    return m ? Number(m[1]) : 1;
+};
+
+/** A style without the CSS-grid placement the free grid now does. */
+const unplaced = (style) => {
+    if (!style) return style;
+    const { gridColumn, gridRow, ...rest } = style; // eslint-disable-line no-unused-vars
+    return rest;
+};
+
+/** Column edges for `n` equal shares of `g` grid columns (or shares weighted by `fr`). */
+const edges = (g, fr) => {
+    const total = fr.reduce((s, f) => s + f, 0);
+    let acc = 0;
+    return [0, ...fr.map((f) => { acc += f; return Math.round((g * acc) / total); })];
+};
+
+/** One free grid of a page's tiles or cards, saved under `group`. */
+function DashGrid({ group, children, defaults, min, decorate }) {
+    const t = useT();
     const a = useContext(ArrangeCtx);
-    const items = React.Children.toArray(children).filter(Boolean);
-    if (!a) return items;
-    const saved = a.orders[group];
-    let list = items.map((c, i) => ({ c, id: widOf(c, i), i }));
-    if (saved?.length) {
-        const rank = new Map(saved.map((id, i) => [id, i]));
-        const at = (x) => (rank.has(x.id) ? rank.get(x.id) : 1e6 + x.i);
-        list = list.slice().sort((x, y) => at(x) - at(y));
-    }
-    if (!a.editing) return list.map((x) => x.c);
-    const ids = list.map((x) => x.id);
-    const put = (id, to) => {
-        const from = ids.indexOf(id);
-        if (from < 0 || to < 0 || to >= ids.length || from === to) return;
-        const next = ids.slice();
-        next.splice(to, 0, next.splice(from, 1)[0]);
-        a.setOrder(group, next);
-    };
-    return list.map((x, n) => React.cloneElement(x.c, {
-        arrange: {
-            first: n === 0, last: n === list.length - 1,
-            dragging: a.drag?.group === group && a.drag.id === x.id,
-            over: a.drag?.group === group && a.drag.over === x.id && a.drag.id !== x.id,
-            move: (by) => put(x.id, n + by),
-            dnd: {
-                draggable: true,
-                onDragStart: (e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', x.id); a.setDrag({ group, id: x.id, over: null }); },
-                onDragOver: (e) => {
-                    if (a.drag?.group !== group) return;
-                    e.preventDefault();
-                    if (a.drag.over !== x.id) a.setDrag({ ...a.drag, over: x.id });
-                },
-                onDrop: (e) => { e.preventDefault(); if (a.drag?.group === group) put(a.drag.id, n); a.setDrag(null); },
-                onDragEnd: () => a.setDrag(null),
-            },
-        },
+    const [local, setLocal] = useState(null); // no Arrangeable above: the layout lasts until reload
+    const list = React.Children.toArray(children).filter(Boolean).map((c, i) => ({ c, id: widOf(c, i), i }));
+    const items = list.map(({ c, id, i }) => ({
+        id, name: c.props?.title || c.props?.label || id, min,
+        render: (geo) => React.cloneElement(c, {
+            style: unplaced(c.props.style),
+            arrange: a?.editing ? { first: geo.first, last: geo.last, move: geo.shift } : undefined,
+            ...(decorate ? decorate(i, list.length) : null),
+        }),
     }));
+    const layouts = a ? a.grids[group] : local;
+    const onLayout = a
+        ? (cols, rects) => a.saveGrid(group, cols, rects)
+        : (cols, rects) => setLocal((l) => ({ ...(l || {}), [cols]: rects }));
+    return (
+        <FreeGrid
+            items={items} layouts={layouts} onLayout={onLayout} measure editing={!!a?.editing}
+            defaults={(g, nat) => defaults(g, nat, list)}
+            gap={12} label={group}
+            style={{ marginBottom: 12, '--fg-accent': t.accent }}
+        />
+    );
 }
 
 /** The two arrows on a tile or card while arranging. */
@@ -141,7 +156,7 @@ function ArrangeHandle({ arrange, name }) {
             }}><Icon aria-hidden="true" size={14} /></button>
     );
     return (
-        <span style={{
+        <span data-fg-nodrag="" style={{
             position: 'absolute', top: 8, right: 8, zIndex: 3, display: 'inline-flex', gap: 1, padding: 2,
             borderRadius: 9, background: t.card, border: '1px solid ' + t.lineStrong, boxShadow: t.highlight,
         }}>
@@ -151,10 +166,7 @@ function ArrangeHandle({ arrange, name }) {
     );
 }
 
-const arrangeStyle = (t, arrange) => (arrange ? {
-    cursor: 'grab', opacity: arrange.dragging ? 0.4 : 1,
-    outline: arrange.over ? '2px solid ' + t.accent : '1.5px dashed ' + t.lineStrong, outlineOffset: arrange.over ? 1 : -1,
-} : null);
+const arrangeStyle = (t, arrange) => (arrange ? { outline: '1.5px dashed ' + t.lineStrong, outlineOffset: -1 } : null);
 
 export function Dashboard({ children, periodic = true, snapshotNote }) {
     const { activeOrg } = useOrg();
@@ -268,37 +280,89 @@ function DashboardBody({ children, orgId, periodic, snapshotNote }) {
 /**
  * A row of KPI tiles. With `bento`, and room for it, the first tile becomes the
  * hero: two rows tall on a wider column, the rest packed beside it in two rows
- * (with an odd count, the second tile stands tall too).
+ * (with an odd count, the second tile stands tall too). That is only where
+ * they start: each tile can then be moved and sized freely.
  */
-export function TileRow({ cols, children, style, bento = false, id = 'tiles' }) {
-    const items = useArranged(id, children);
-    const others = items.length - 1;
-    if (bento && cols >= 3 && others >= 2) {
-        const k = Math.ceil(others / 2);
-        const odd = others % 2 === 1;
-        return (
-            <div style={{
-                display: 'grid', gap: 12, marginBottom: 12, gridAutoFlow: 'dense',
-                gridTemplateColumns: `minmax(0, 1.7fr) repeat(${k}, minmax(0, 1fr))`, ...style,
-            }}>
-                {items.map((c, i) => {
-                    if (i === 0) return React.cloneElement(c, { hero: true, style: { gridRow: 'span 2' } });
-                    if (i === 1 && odd) return React.cloneElement(c, { tall: true, style: { gridRow: 'span 2' } });
-                    return c;
-                })}
-            </div>
-        );
-    }
+export function TileRow({ cols, children, bento = false, id = 'tiles' }) {
+    const count = React.Children.toArray(children).filter(Boolean).length;
+    const others = count - 1;
+    const isBento = bento && cols >= 3 && others >= 2;
+    const k = Math.ceil(others / 2);
+    const odd = others % 2 === 1;
+
+    const defaults = (g, nat, list) => {
+        const h = (x) => nat(x.id) ?? 5;
+        if (!isBento) {
+            const per = Math.max(1, Math.min(cols, list.length));
+            const xs = edges(g, Array(per).fill(1));
+            const out = [];
+            let y = 0;
+            for (let s = 0; s < list.length; s += per) {
+                const rowItems = list.slice(s, s + per);
+                const rh = Math.max(...rowItems.map(h));
+                rowItems.forEach((x, j) => out.push({ id: x.id, x: xs[j], y, w: xs[j + 1] - xs[j], h: rh }));
+                y += rh;
+            }
+            return out;
+        }
+        const xs = edges(g, [1.7, ...Array(k).fill(1)]);
+        const rest = list.slice(1);
+        // Which right-hand cells each tile takes: [col, row, rowSpan].
+        const cells = [];
+        if (odd) {
+            cells.push([0, 0, 2]);
+            for (let r = 0; r < 2; r += 1) for (let c = 1; c < k; c += 1) cells.push([c, r, 1]);
+        } else {
+            for (let r = 0; r < 2; r += 1) for (let c = 0; c < k; c += 1) cells.push([c, r, 1]);
+        }
+        const rowH = [0, 0];
+        rest.forEach((x, j) => { const [, r, span] = cells[j] || [0, 0, 1]; if (span === 1) rowH[r] = Math.max(rowH[r], h(x)); });
+        if (!rowH[0]) rowH[0] = 5;
+        if (!rowH[1]) rowH[1] = 5;
+        const heroNat = nat(list[0].id);
+        if (heroNat && heroNat > rowH[0] + rowH[1]) rowH[1] = heroNat - rowH[0];
+        const out = [{ id: list[0].id, x: 0, y: 0, w: xs[1], h: rowH[0] + rowH[1] }];
+        rest.forEach((x, j) => {
+            const [c, r, span] = cells[j] || [0, 0, 1];
+            out.push({ id: x.id, x: xs[c + 1], y: r ? rowH[0] : 0, w: xs[c + 2] - xs[c + 1], h: span === 2 ? rowH[0] + rowH[1] : rowH[r] });
+        });
+        return out;
+    };
+
     return (
-        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, marginBottom: 12, ...style }}>
-            {items}
-        </div>
+        <DashGrid group={id} defaults={defaults} min={{ w: 3, h: 3 }}
+            decorate={isBento ? (i) => (i === 0 ? { hero: true } : i === 1 && odd ? { tall: true } : null) : null}>
+            {children}
+        </DashGrid>
     );
 }
 
+/** The page's cards, `cols` across; a card's `grid(n)` style makes it n wide to start with. */
 export function CardGrid({ cols, children, id = 'cards' }) {
-    const items = useArranged(id, children);
-    return <div style={{ display: 'grid', gap: 12, gridAutoFlow: 'dense', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>{items}</div>;
+    const defaults = (g, nat, list) => {
+        const xs = edges(g, Array(cols).fill(1));
+        const out = [];
+        let row = [];
+        let at = 0;
+        let y = 0;
+        const flush = () => {
+            if (!row.length) return;
+            const rh = Math.max(...row.map((r) => nat(r.id) ?? 10));
+            row.forEach((r) => out.push({ ...r, y, h: rh }));
+            y += rh;
+            row = [];
+            at = 0;
+        };
+        list.forEach((x) => {
+            const span = Math.min(cols, spanOf(x.c.props?.style, 'gridColumn'));
+            if (at + span > cols) flush();
+            row.push({ id: x.id, x: xs[at], w: xs[at + span] - xs[at] });
+            at += span;
+        });
+        flush();
+        return out;
+    };
+    return <DashGrid group={id} defaults={defaults} min={{ w: 4, h: 4 }}>{children}</DashGrid>;
 }
 
 /* Every card and tile carries the blue wash, so `accent` no longer changes
@@ -306,13 +370,13 @@ export function CardGrid({ cols, children, id = 'cards' }) {
 export function Card({ title, note, right, children, style, icon: Icon, id, arrange }) {
     const t = useT();
     return (
-        <section id={id} aria-label={title} className="ov-card" {...arrange?.dnd} style={{
+        <section id={id} aria-label={title} className="ov-card" style={{
             position: 'relative', border: '1px solid ' + t.line, borderRadius: 12, background: t.card,
             padding: '14px 16px 16px', minWidth: 0, display: 'flex', flexDirection: 'column',
             ...style, ...arrangeStyle(t, arrange),
         }}>
             {arrange && <ArrangeHandle arrange={arrange} name={title} />}
-            <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, minHeight: 24 }}>
+            <header data-fg-handle="" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, minHeight: 24 }}>
                 {Icon && (
                     <span aria-hidden="true" style={{ width: 24, height: 24, borderRadius: 6, background: t.panelAlt, color: t.dim, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                         <Icon size={13} strokeWidth={2} />
@@ -336,7 +400,7 @@ export function Tile({ icon: Icon, label, value, exact, delta, foot, spark, spar
     const Tag = onClick ? 'button' : 'div';
     const big = hero || tall;
     return (
-        <Tag type={onClick ? 'button' : undefined} onClick={onClick} className={'ov-tile' + (onClick ? ' ov-tile-on' : '')} {...arrange?.dnd}
+        <Tag type={onClick ? 'button' : undefined} onClick={onClick} className={'ov-tile' + (onClick ? ' ov-tile-on' : '')}
             title={onClick ? `${label}: ${exact ?? value} · click for detail` : undefined}
             aria-label={onClick ? `${label}: ${exact ?? value}. ${typeof foot === 'string' ? foot + '. ' : ''}Open detail` : undefined}
             style={{
@@ -348,7 +412,7 @@ export function Tile({ icon: Icon, label, value, exact, delta, foot, spark, spar
                 ...style, ...arrangeStyle(t, arrange),
             }}>
             {arrange && <ArrangeHandle arrange={arrange} name={label} />}
-            <span style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%' }}>
+            <span data-fg-handle="" style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%' }}>
                 <span aria-hidden="true" style={{
                     width: 24, height: 24, borderRadius: 6, flexShrink: 0, display: 'grid', placeItems: 'center',
                     background: hero ? t.accentSoft : t.panelAlt, color: hero ? t.accent : t.dim,

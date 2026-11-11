@@ -122,7 +122,7 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
 
             <Card title="Offer responses" note="every offer letter · today" right={<More label="Tracker" to="/company/recruitment-tracker" />}>
                 {offers.total === 0 ? <EmptyNote>No offer letters yet</EmptyNote> : (<>
-                    <SplitBar donut center={{ value: offers.rate === null ? '-' : `${offers.rate.toFixed(0)}%`, label: 'Accepted' }} format={(v) => String(v)} unit="Offers" parts={[
+                    <SplitBar donut center={{ value: offers.rate === null ? '-' : `${offers.rate.toFixed(2)}%`, label: 'Accepted' }} format={(v) => String(v)} unit="Offers" parts={[
                         { id: 'accepted', label: 'Accepted', value: offers.c.accepted, color: status.good },
                         { id: 'awaiting', label: 'Sent, awaiting', value: offers.c.awaiting, color: cat[0] },
                         { id: 'unsent', label: 'Not sent', value: offers.c.unsent, color: t.faint },

@@ -2,19 +2,10 @@
    file only exports components and fast refresh keeps working. The same split
    the shared kit makes between edge.jsx and edgeUtils.js. */
 
-export const money = (v, digits = 0) => (Number(v) || 0).toLocaleString('en-IN', {
-  style: 'currency', currency: 'INR', maximumFractionDigits: digits,
-});
+export const money = (v) => (Number(v) || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/** ₹1.24Cr / ₹3.10L / ₹4.5k, headline figures, where the exact rupee is noise. */
-export const moneyShort = (v) => {
-  const n = Math.round(Number(v) || 0);
-  const a = Math.abs(n);
-  if (a >= 1e7) return `₹${(n / 1e7).toFixed(2)}Cr`;
-  if (a >= 1e5) return `₹${(n / 1e5).toFixed(2)}L`;
-  if (a >= 1e3) return `₹${(n / 1e3).toFixed(1)}k`;
-  return `₹${n}`;
-};
+/** Kept for older callers: the full figure, never L / Cr / k. */
+export const moneyShort = (v) => money(v);
 
 export const fmtDate = (d) => (d
   ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })

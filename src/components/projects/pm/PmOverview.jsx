@@ -32,7 +32,7 @@ export default function PmOverview({ project, onOpen }) {
     return (
         <div style={{ display: 'grid', gap: 14 }}>
             <StatBand items={[
-                { label: 'Complete', value: `${total.progress}%`, note: `${total.done} of ${total.leaves} work items done` },
+                { label: 'Complete', value: `${Number(total.progress).toFixed(2)}%`, note: `${total.done} of ${total.leaves} work items done` },
                 { label: 'Overdue', value: total.overdue, tone: total.overdue ? 'down' : undefined, note: 'work items past their finish' },
                 { label: 'Forecast finish', value: fmtDY(forecast), tone: late > 0 ? 'down' : undefined,
                     note: late == null ? 'no target end date' : late > 0 ? `${late}d after target` : 'on or before target' },

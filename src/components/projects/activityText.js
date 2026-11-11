@@ -56,7 +56,7 @@ export function describeActivity(a) {
         case 'project_documents.delete':
             return 'Document unlinked';
         case 'project_allocations.insert':
-            return d.amount ? `Money linked: ${currencySymbol()}${Number(d.amount).toLocaleString(currencyLocale())}` : 'Money linked in full';
+            return d.amount ? `Money linked: ${currencySymbol()}${Number(d.amount).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Money linked in full';
         case 'project_allocations.update':
             return 'Money split changed';
         case 'project_allocations.delete':

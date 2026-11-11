@@ -136,7 +136,7 @@ export function Progress({ value, width = 90, tone }) {
                     <span style={{ display: 'block', height: '100%', width: `${value}%`, background: tone || t.text }} />
                 </span>
             </span>
-            <span style={{ fontSize: 11.5, color: t.dim, fontVariantNumeric: 'tabular-nums', minWidth: 30 }}>{value}%</span>
+            <span style={{ fontSize: 11.5, color: t.dim, fontVariantNumeric: 'tabular-nums', minWidth: 30 }}>{Number(value || 0).toFixed(2)}%</span>
         </span>
     );
 }
@@ -345,7 +345,7 @@ export function NodeSheet({ data, node, parentId = null, onClose }) {
                             {form.status === 'in-progress' && (
                                 <>
                                     {gap}
-                                    <Field label={`Progress: ${form.progress}%`}>
+                                    <Field label={`Progress: ${Number(form.progress).toFixed(2)}%`}>
                                         <input type="range" min={0} max={99} step={5} value={form.progress}
                                             aria-valuetext={`${form.progress} percent`}
                                             onChange={(e) => set('progress')(Number(e.target.value))}
@@ -366,7 +366,7 @@ export function NodeSheet({ data, node, parentId = null, onClose }) {
                 <div style={{ border: '1px solid ' + t.line, borderRadius: 9, padding: '10px 12px', fontSize: 12.5, color: t.dim, lineHeight: 1.7 }}>
                     Dates, status and progress roll up from the {roll.leaves} work item{roll.leaves === 1 ? '' : 's'} under it:
                     {' '}<strong style={{ color: t.text, fontWeight: 500 }}>{fmtD(roll.start)} → {fmtD(roll.finish)}</strong>,
-                    {' '}{roll.done} of {roll.leaves} done, {roll.progress}% complete.
+                    {' '}{roll.done} of {roll.leaves} done, {Number(roll.progress).toFixed(2)}% complete.
                 </div>
             )}
             {data.can.flag && (

@@ -7,7 +7,7 @@ import { useT } from '../../ui/edgeUtils';
 export default function BulkProgressTracker({ total, processed, failed, status, noun = 'documents', verb = 'Generated' }) {
     const t = useT();
     const done = processed + failed;
-    const percentage = total === 0 ? 0 : Math.round((done / total) * 100);
+    const percentage = total === 0 ? 0 : (done / total) * 100;
 
     const heading = status === 'processing'
         ? `Working… ${done} of ${total}`
@@ -20,7 +20,7 @@ export default function BulkProgressTracker({ total, processed, failed, status, 
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
                 <h3 aria-live="polite" style={{ margin: 0, fontSize: 14, fontWeight: 500, color: t.text }}>{heading}</h3>
                 <div style={{ flex: 1 }} />
-                <span style={{ fontSize: 20, fontWeight: 500, letterSpacing: '-0.03em', color: t.text }}>{percentage}%</span>
+                <span style={{ fontSize: 20, fontWeight: 500, letterSpacing: '-0.03em', color: t.text }}>{Number(percentage).toFixed(2)}%</span>
             </div>
             <div role="progressbar" aria-label={`${verb} ${noun}`} aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}
                 aria-valuetext={`${done} of ${total}`}>

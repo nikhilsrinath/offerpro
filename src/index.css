@@ -13380,6 +13380,14 @@ label {
   margin-top: 0.1rem;
 }
 
+/* How a P&L figure is worked out, under its label. */
+.prod-stat-label .pl-formula {
+  display: block;
+  margin-top: 0.3rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
 .prod-tabs {
   display: flex;
   gap: 0.5rem;
@@ -15401,4 +15409,38 @@ html body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"
 /* Sort buttons, menus and icons in a title follow its white text. */
 :is(table:not(.inv-table, .inv-sf-meta-table, .inv-sf-items-table, .rp-doc-table, .cp-doc-table, .sp-a4-table, .doc-table)) > thead > tr > th :not(input, select, option) {
   color: inherit !important;
+}
+
+/* ── Stat boxes (Nov 2026) ───────────────────────────────────────────────────
+   Every headline-number box (StatBand, the Today strip, finance .prod-stat)
+   wears the palette's light blue — the same fill as the soft buttons — with a
+   slightly deeper blue edge. Hover: a step darker, a teal edge, a 1px lift.
+   Colours come from theme/palette.js via --accent-soft / --brand-soft-hover-*. */
+:root { --stat-bg: var(--brand-soft-l); --stat-bg-hover: var(--brand-soft-hover-l); }
+[data-theme="dark"] { --stat-bg: var(--brand-soft-d); --stat-bg-hover: var(--brand-soft-hover-d); }
+:root { --stat-line: color-mix(in srgb, var(--stat-bg), var(--brand-navy) 10%); }
+[data-theme="dark"] { --stat-line: color-mix(in srgb, var(--brand-light-blue) 18%, transparent); }
+
+.stat-box,
+.edge-shell main .prod-stat {
+  background: var(--stat-bg) !important;
+  border: 1px solid var(--stat-line) !important;
+  border-radius: 12px;
+  transition: background .14s ease, border-color .14s ease, transform .14s ease;
+}
+.stat-box:hover,
+.edge-shell main .prod-stat:hover {
+  background: var(--stat-bg-hover) !important;
+  border-color: var(--brand-teal-btn) !important;
+  transform: translateY(-1px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .stat-box:hover, .edge-shell main .prod-stat:hover { transform: none; }
+}
+/* Icon wells inside a stat box: white chip, teal icon. */
+.stat-box .stat-box-icon,
+.edge-shell main .prod-stat .prod-stat-icon {
+  background: var(--edge-panel, #fff) !important;
+  border: 1px solid var(--stat-line) !important;
+  color: var(--brand-teal-btn) !important;
 }

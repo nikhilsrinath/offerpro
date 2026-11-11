@@ -123,7 +123,7 @@ function SalesBody({ model, open, navigate, t, cat, ramp, status, cols, tileCols
             </Card>
 
             <Card title="Quotations" note="issued in period">
-                <SplitBar donut center={{ value: model.quoteWinRate === null ? '-' : `${model.quoteWinRate.toFixed(0)}%`, label: 'Win rate' }} format={fmtShort} unit="Quoted" parts={model.quotes.map((q) => ({ id: q.id, label: q.label, value: q.amount, color: quoteColor[q.id], note: `${q.count}` }))}
+                <SplitBar donut center={{ value: model.quoteWinRate === null ? '-' : `${model.quoteWinRate.toFixed(2)}%`, label: 'Win rate' }} format={fmtShort} unit="Quoted" parts={model.quotes.map((q) => ({ id: q.id, label: q.label, value: q.amount, color: quoteColor[q.id], note: `${q.count}` }))}
                     onSelect={(p) => open({ kind: 'quotes', id: p.id })} />
             </Card>
 
@@ -144,7 +144,7 @@ function SalesBody({ model, open, navigate, t, cat, ramp, status, cols, tileCols
                 </FigureRow>
                 <RankBars rows={acq.cats.map((c) => ({
                     ...c,
-                    tip: <TipBody title={c.name} rows={[{ label: SALES_KEYS.has(c.key) ? 'Sales' : 'Marketing', value: fmtInr(c.value), color: cat[4] }, { label: 'Share', value: `${((c.value / acq.total) * 100).toFixed(0)}%` }]} />,
+                    tip: <TipBody title={c.name} rows={[{ label: SALES_KEYS.has(c.key) ? 'Sales' : 'Marketing', value: fmtInr(c.value), color: cat[4] }, { label: 'Share', value: `${((c.value / acq.total) * 100).toFixed(2)}%` }]} />,
                 }))} format={fmtShort} total={acq.total} color={cat[4]}
                     onSelect={(r) => open({ kind: 'category', name: r.key })} empty="No sales or marketing expenses in this window" />
                 <div style={{ fontSize: 11.5, color: t.faint, marginTop: 10 }}>

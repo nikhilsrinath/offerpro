@@ -30,12 +30,11 @@ const n = (v) => Number(v) || 0;
 const r2 = (v) => Math.round(n(v) * 100) / 100;
 const sum = (list, f) => r2(list.reduce((s, x) => s + n(f(x)), 0));
 const dayKey = (d) => (d ? String(d).slice(0, 10) : '');
-/** "₹31,800", or "₹31,800.50" when there are paise: never rounded away. */
+/** "₹31,800.00": always two decimals. */
 export function money(v) {
   const x = r2(v);
-  const whole = Number.isInteger(x);
   try {
-    return x.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 });
+    return x.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 });
   } catch {
     return formatMoney(x);
   }
@@ -236,12 +235,12 @@ export function change(current, previous, { money: isMoney = true } = {}) {
   else if (prev === 0) note = `${cur > 0 ? 'Up' : 'Down'} from ${isMoney ? money(0) : '0'}: nothing in the comparison period, so no percentage.`;
   // From a gain to a loss (or back) a percentage misleads: −137% says nothing.
   else if (Math.sign(cur) !== Math.sign(prev) && cur !== 0) note = `Changed from ${isMoney ? money(prev) : prev} to ${isMoney ? money(cur) : cur}, so no percentage.`;
-  else pct = Math.round((diff / Math.abs(prev)) * 1000) / 10;
+  else pct = Math.round((diff / Math.abs(prev)) * 10000) / 100;
   return { current: cur, previous: prev, diff, pct, direction, note };
 }
 
 /** "+12.5%" / "−3%" / null. */
-export const pctText = (pct) => (pct === null || pct === undefined ? null : `${pct > 0 ? '+' : pct < 0 ? '−' : ''}${Math.abs(pct)}%`);
+export const pctText = (pct) => (pct === null || pct === undefined ? null : `${pct > 0 ? '+' : pct < 0 ? '−' : ''}${Math.abs(pct).toFixed(2)}%`);
 
 /* ── money for a period ───────────────────────────────────────────────────── */
 
@@ -294,7 +293,7 @@ export function financeFor(data, from, to) {
       by_category: pl.byCategory.filter((c) => Math.abs(c.value) >= 0.005).map((c) => ({ key: c.name, label: c.name === 'Recoveries' ? 'Recoveries' : categoryLabel(c.name), amount: r2(c.value) })),
     },
     pl_net: r2(pl.net),
-    margin_pct: pl.margin === null ? null : Math.round(pl.margin * 10) / 10,
+    margin_pct: pl.margin === null ? null : Math.round(pl.margin * 100) / 100,
   };
 }
 
@@ -501,16 +500,16 @@ export function findInsights(snap) {
   // "on 1 Sep – 19 Sep 2026": the comparison window by its dates, said once.
   const vs = snap.compare ? ` on ${formatDate(snap.compare.from)} – ${formatDate(snap.compare.to)}` : '';
   const inPrev = snap.compare ? ` in ${formatDate(snap.compare.from)} – ${formatDate(snap.compare.to)}` : '';
-  const pctAbs = (pct) => `${Math.abs(pct)}%`;
+  const pctAbs = (pct) => `${Math.abs(pct).toFixed(2)}%`;
 
   if (pos?.receivable?.overdue_count > 0) {
     const r = pos.receivable;
     const oldest = Math.max(...r.top_overdue.map((d) => d.days_late));
-    const share = r.outstanding > 0 ? Math.round((r.overdue / r.outstanding) * 100) : null;
+    const share = r.outstanding > 0 ? (r.overdue / r.outstanding) * 100 : null;
     const first = r.top_overdue[0];
     const trend = snap.overdue_trend;
     const evidence = [
-      `${money(r.overdue)} overdue across ${r.overdue_count} invoice${r.overdue_count === 1 ? '' : 's'}${share !== null ? ` (${share}% of ${money(r.outstanding)} receivable)` : ''}.`,
+      `${money(r.overdue)} overdue across ${r.overdue_count} invoice${r.overdue_count === 1 ? '' : 's'}${share !== null ? ` (${Number(share).toFixed(2)}% of ${money(r.outstanding)} receivable)` : ''}.`,
       `Largest: ${first.number}${first.client ? ` (${first.client})` : ''}, ${money(first.balance)}, ${first.days_late} day${first.days_late === 1 ? '' : 's'} late.`,
     ];
     if (r.aging.over_90 > 0 || r.aging['61_90'] > 0) evidence.push(`${money(r.aging['61_90'] + r.aging.over_90)} of it is more than 60 days late.`);
@@ -676,12 +675,12 @@ export function findInsights(snap) {
   const clients = pos?.receivable?.by_client || [];
   if (clients.length >= 2 && pos.receivable.outstanding > 0) {
     const top = clients[0];
-    const share = Math.round((top.amount / pos.receivable.outstanding) * 100);
+    const share = (top.amount / pos.receivable.outstanding) * 100;
     if (share >= 50) {
       add({
         id: 'receivable_concentration', area: 'finance', severity: 'low',
         title: 'One client holds most receivables',
-        finding: `${top.client} owes ${share}% of everything receivable.`,
+        finding: `${top.client} owes ${Number(share).toFixed(2)}% of everything receivable.`,
         evidence: [`${money(top.amount)} of ${money(pos.receivable.outstanding)} across ${top.invoices} invoice${top.invoices === 1 ? '' : 's'}.`],
         impact: 'A delay from this one client would hit cash much harder than any other.',
         next_step: `Keep ${top.client}'s payments on a close watch.`,

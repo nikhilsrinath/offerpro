@@ -45,7 +45,7 @@ export default function ProjectsTab({ orgId }) {
                         <div style={{ fontSize: 15.5, color: t.text, margin: '2px 0 6px' }}>{p.name}</div>
                         <div style={{ fontSize: 12.5, color: t.dim, lineHeight: 1.7 }}>
                             {p.client_name ? `For ${p.client_name}` : 'Internal'} · {statusLabel(p.status)}<br />
-                            You: {p.my_role}, {Math.round(p.my_allocation_pct)}% of your time
+                            You: {p.my_role}, {Number(p.my_allocation_pct).toFixed(2)}% of your time
                             {p.my_end ? ` until ${fmtLongDay(p.my_end)}` : ''}
                             {p.manager_name ? ` · Manager: ${p.manager_name}` : ''}
                         </div>

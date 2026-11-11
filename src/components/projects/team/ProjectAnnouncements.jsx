@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     Panel, Row, Btn, Seg, Search, Field, Input, Textarea, Empty, Loading, Modal, ConfirmBtn, Status,
 } from '../../ui/edge';
@@ -6,9 +6,10 @@ import { useT } from '../../ui/edgeUtils';
 import { useToast } from '../../shared/Toast';
 import { orgStore } from '../../../services/orgStore';
 import {
-    announcementService, PRIORITIES, ATTACHMENT_MAX_BYTES, ATTACHMENT_MAX_COUNT,
+    announcementService, PRIORITIES, fmtSize,
 } from '../../../services/announcementService';
 import { useProjectPeople, teamError, needsMigration } from './teamData';
+import AttachmentsField from '../../shared/AttachmentsField';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Team Management › Announcements: notices for this project's people only.
@@ -28,7 +29,6 @@ const RANK = { urgent: 0, important: 1, normal: 2 };
 const fmtWhen = (iso) => (iso
     ? new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     : '-');
-const fmtSize = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round((b || 0) / 1024))} KB`);
 
 export default function ProjectAnnouncements({ project }) {
     const t = useT();
@@ -245,20 +245,6 @@ export default function ProjectAnnouncements({ project }) {
 
 function Editor({ form, setForm, busy, onClose, onSave }) {
     const t = useT();
-    const input = useRef(null);
-    const [problem, setProblem] = useState('');
-    const count = form.keep.length + form.files.length;
-
-    const addFiles = (list) => {
-        const files = [...list];
-        const big = files.filter((f) => f.size > ATTACHMENT_MAX_BYTES);
-        const ok = files.filter((f) => f.size <= ATTACHMENT_MAX_BYTES).slice(0, Math.max(0, ATTACHMENT_MAX_COUNT - count));
-        setProblem(big.length
-            ? `${big.map((f) => f.name).join(', ')} ${big.length === 1 ? 'is' : 'are'} over 10 MB.`
-            : ok.length < files.length ? `At most ${ATTACHMENT_MAX_COUNT} attachments.` : '');
-        setForm({ ...form, files: [...form.files, ...ok] });
-        if (input.current) input.current.value = '';
-    };
 
     return (
         <Modal open onClose={onClose} width={580}
@@ -270,57 +256,26 @@ function Editor({ form, setForm, busy, onClose, onSave }) {
                     {busy ? 'Saving…' : form.id ? 'Save' : 'Post'}
                 </Btn>
             </>}>
+            {/* One field a row, as every side panel lays them out. */}
             <Field required label="Title">
                 <Input value={form.title} maxLength={200} placeholder="Sprint review moved to Thursday"
                     onChange={(e) => setForm({ ...form, title: e.target.value })} />
             </Field>
-            <div style={{ height: 12 }} />
             <Field required label="Message">
                 <Textarea rows={6} value={form.body} placeholder="What the team needs to know…" style={{ minHeight: 120 }}
                     onChange={(e) => setForm({ ...form, body: e.target.value })} />
             </Field>
-            <div style={{ height: 12 }} />
-            <Row gap={13} align="flex-end" wrap>
-                <div style={{ flex: '1 1 260px' }}>
-                    <Field label="Priority">
-                        <Seg value={form.priority} onChange={(v) => setForm({ ...form, priority: v })} label="Priority" options={PRIORITIES} />
-                    </Field>
-                </div>
-                <div style={{ flex: '1 1 160px' }}>
-                    <Field label="Expires (optional)">
-                    <Input type="date" style={{ height: 29 }} value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
-                    </Field>
-                </div>
-            </Row>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: 12.5, color: t.dim, cursor: 'pointer', minHeight: 24 }}>
+            <Field label="Priority">
+                <Seg value={form.priority} onChange={(v) => setForm({ ...form, priority: v })} label="Priority" options={PRIORITIES} />
+            </Field>
+            <Field label="Expire Date (Optional)" hint="Leave blank to keep it up">
+                <Input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
+            </Field>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: t.dim, cursor: 'pointer', minHeight: 24 }}>
                 <input type="checkbox" checked={form.isPinned} onChange={(e) => setForm({ ...form, isPinned: e.target.checked })} />
                 Pin to the top
             </label>
-
-            <div style={{ height: 14 }} />
-            <fieldset style={{ border: 'none', margin: 0, padding: 0, minWidth: 0 }}>
-                <legend style={{ padding: 0, fontSize: 10.5, letterSpacing: '0.09em', color: t.faint, marginBottom: 5 }}>
-                    ATTACHMENTS ({count}/{ATTACHMENT_MAX_COUNT})
-                </legend>
-                <div style={{ display: 'grid', gap: 6 }}>
-                    {[...form.keep.map((f) => ({ f, kept: true })), ...form.files.map((f) => ({ f, kept: false }))].map(({ f, kept }, i) => (
-                        <Row key={(kept ? f.path : `new-${i}-${f.name}`)} gap={8} style={{
-                            border: '1px solid ' + t.line, borderRadius: 7, padding: '5px 5px 5px 10px',
-                        }}>
-                            <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
-                            <span style={{ fontSize: 11, color: t.faint }}>{kept ? fmtSize(f.size) : `${fmtSize(f.size)} · new`}</span>
-                            <Btn size="sm" aria-label={`Remove ${f.name}`} onClick={() => setForm(kept
-                                ? { ...form, keep: form.keep.filter((x) => x !== f), dropped: [...form.dropped, f] }
-                                : { ...form, files: form.files.filter((x) => x !== f) })}>Remove</Btn>
-                        </Row>
-                    ))}
-                    <input ref={input} type="file" multiple aria-label="Add attachments" disabled={count >= ATTACHMENT_MAX_COUNT}
-                        onChange={(e) => addFiles(e.target.files || [])}
-                        style={{ fontSize: 12.5, color: t.dim, maxWidth: '100%' }} />
-                    <span style={{ fontSize: 11, color: t.faint }}>Up to 10 MB each.</span>
-                </div>
-            </fieldset>
-            {problem && <div role="alert" style={{ marginTop: 8, fontSize: 12.5, color: t.down }}>{problem}</div>}
+            <AttachmentsField form={form} setForm={setForm} />
         </Modal>
     );
 }

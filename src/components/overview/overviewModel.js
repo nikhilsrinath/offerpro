@@ -516,20 +516,20 @@ export function buildOverview(src, periodId, today) {
 function buildInsights({ kpis, customers, categories, aging, pl, invoiced, overdue, quotes, decided, stages, taskStates, period }) {
   const out = [];
   if (kpis.invoiced.delta !== null && Math.abs(kpis.invoiced.delta) >= 5) {
-    out.push({ tone: kpis.invoiced.delta >= 0 ? 'up' : 'down', text: `Invoicing is ${kpis.invoiced.delta >= 0 ? 'up' : 'down'} ${Math.abs(kpis.invoiced.delta).toFixed(0)}% on the previous ${period.len} days.`, drill: { kind: 'metric', id: 'invoiced' } });
+    out.push({ tone: kpis.invoiced.delta >= 0 ? 'up' : 'down', text: `Invoicing is ${kpis.invoiced.delta >= 0 ? 'up' : 'down'} ${Math.abs(kpis.invoiced.delta).toFixed(2)}% on the previous ${period.len} days.`, drill: { kind: 'metric', id: 'invoiced' } });
   }
   if (customers.length >= 2 && invoiced > 0) {
     const share = (customers[0].invoiced / invoiced) * 100;
-    if (share >= 35) out.push({ tone: 'warn', text: `${customers[0].name} accounts for ${share.toFixed(0)}% of invoicing: a concentration risk.`, drill: { kind: 'customer', key: customers[0].key } });
+    if (share >= 35) out.push({ tone: 'warn', text: `${customers[0].name} accounts for ${share.toFixed(2)}% of invoicing: a concentration risk.`, drill: { kind: 'customer', key: customers[0].key } });
   }
   const late = aging.filter((a) => a.id === '61-90' || a.id === '90+').reduce((s, a) => s + a.amount, 0);
   if (late > 0) out.push({ tone: 'down', text: `${fmtInr(late)} has been overdue for more than 60 days.`, drill: { kind: 'metric', id: 'outstanding' } });
   else if (overdue > 0) out.push({ tone: 'warn', text: `${fmtInr(overdue)} is past due across ${kpis.outstanding.overdueCount} invoice${kpis.outstanding.overdueCount === 1 ? '' : 's'}.`, drill: { kind: 'metric', id: 'outstanding' } });
   const risen = categories.filter((c) => c.prev !== null && c.prev > 0 && c.value > c.prev * 1.25 && c.value - c.prev > 1000)
     .sort((a, b) => (b.value - b.prev) - (a.value - a.prev))[0];
-  if (risen) out.push({ tone: 'warn', text: `${risen.name} spend rose ${(((risen.value - risen.prev) / risen.prev) * 100).toFixed(0)}% against the previous period.`, drill: { kind: 'category', name: risen.name } });
-  if (pl.margin !== null) out.push({ tone: pl.margin >= 0 ? 'up' : 'down', text: `Net margin is ${pl.margin.toFixed(1)}% on ${fmtInr(pl.income)} of taxable income.`, drill: { kind: 'metric', id: 'net' } });
-  if (decided >= 3) out.push({ tone: 'neutral', text: `${((quotes[0].count / decided) * 100).toFixed(0)}% of decided quotations were accepted.`, drill: { kind: 'quotes', id: 'accepted' } });
+  if (risen) out.push({ tone: 'warn', text: `${risen.name} spend rose ${(((risen.value - risen.prev) / risen.prev) * 100).toFixed(2)}% against the previous period.`, drill: { kind: 'category', name: risen.name } });
+  if (pl.margin !== null) out.push({ tone: pl.margin >= 0 ? 'up' : 'down', text: `Net margin is ${pl.margin.toFixed(2)}% on ${fmtInr(pl.income)} of taxable income.`, drill: { kind: 'metric', id: 'net' } });
+  if (decided >= 3) out.push({ tone: 'neutral', text: `${((quotes[0].count / decided) * 100).toFixed(2)}% of decided quotations were accepted.`, drill: { kind: 'quotes', id: 'accepted' } });
   const openDeals = stages[0].count + stages[1].count;
   if (openDeals > 0) out.push({ tone: 'neutral', text: `${openDeals} open lead${openDeals === 1 ? '' : 's'} worth ${fmtInr(stages[0].value + stages[1].value)} in the pipeline.`, drill: { kind: 'stage', id: 'contacted' } });
   const od = taskStates.find((s) => s.id === 'overdue');
@@ -540,9 +540,10 @@ function buildInsights({ kpis, customers, categories, aging, pl, invoiced, overd
 /* ── formatting ───────────────────────────────────────────────────────────── */
 
 // In the org's currency (Company Profile → Region & currency).
-export const fmtInr = (v) => currencySymbol() + Math.round(n(v)).toLocaleString(currencyLocale());
+export const fmtInr = (v) => currencySymbol() + (Number(n(v)) || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Full figure with two decimals: the app never shortens money to L / Cr / k.
 export const fmtShort = (v) => {
-  const x = Math.round(n(v));
+  const x = n(v);
   return `${x < 0 ? '-' : ''}${currencySymbol()}${compactNumber(Math.abs(x))}`;
 };
 export const fmtAxis = (v) => compactNumber(v);

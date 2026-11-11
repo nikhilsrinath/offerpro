@@ -184,7 +184,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                     try {
                         await addMember(x.project_id, {
                             employee_id: employeeId, role: x.role, role_title: '', allocation_pct: x.allocation_pct,
-                            start_date: from, end_date: null, bill_rate: null,
+                            start_date: x.start_date || from, end_date: null, bill_rate: null,
                         });
                     } catch (e) {
                         const p = orgStore.getItem('projects', x.project_id);
@@ -330,7 +330,8 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                     )}
                 </Panel>
 
-                {canAssign && <EmployeeProjectPicker employeeId={form.id} pending={newProjects} onChange={setNewProjects} />}
+                {canAssign && <EmployeeProjectPicker employeeId={form.id} pending={newProjects} onChange={setNewProjects}
+                    defaultDate={!isEdit && form.startDate > new Date().toISOString().slice(0, 10) ? form.startDate : undefined} />}
             </div>
 
             {/* Save and Cancel sit under the form, and stay in view while it scrolls. */}

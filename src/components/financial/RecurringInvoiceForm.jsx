@@ -43,7 +43,7 @@ function addDays(dateStr, days) {
 }
 
 function formatCurrency(n) {
-  return (n || 0).toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), maximumFractionDigits: 2 });
+  return (n || 0).toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatDate(d) {
@@ -480,7 +480,7 @@ function RecurringInvoiceForm({ editItem }) {
                     <button key={rate} type="button"
                       onClick={() => set('gstRate', rate)}
                       aria-pressed={formData.gstRate === rate} className={`easy-chip ${formData.gstRate === rate ? 'active' : ''}`}>
-                      {rate}%
+                      {Number(rate).toFixed(2)}%
                     </button>
                   ))}
                 </div>
@@ -554,7 +554,7 @@ function RecurringInvoiceForm({ editItem }) {
               </div>
               {formData.gstRate > 0 && (
                 <div className="easy-total-row" style={{ color: 'var(--text-secondary)' }}>
-                  <span>GST @ {formData.gstRate}%</span>
+                  <span>GST @ {Number(formData.gstRate).toFixed(2)}%</span>
                   <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{formatCurrency(totals.gst)}</span>
                 </div>
               )}
@@ -826,8 +826,8 @@ function RecurringInvoicePreview({ formData, totals, dueDatePreview, company }) 
                 <td style={{ color: '#666', fontSize: '0.85em' }}>{item.hsnSac || '-'}</td>
                 <td>{item.quantity || 0}</td>
                 <td style={{ color: '#666', fontSize: '0.85em' }}>{item.unit || 'Nos'}</td>
-                <td>{currencySymbol()}{(Number(item.rate) || 0).toLocaleString(currencyLocale())}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{currencySymbol()}{lineTotal.toLocaleString(currencyLocale())}</td>
+                <td>{currencySymbol()}{(Number(item.rate) || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600 }}>{currencySymbol()}{lineTotal.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               </tr>
             );
           })}
@@ -838,21 +838,21 @@ function RecurringInvoicePreview({ formData, totals, dueDatePreview, company }) 
       <div className="inv-totals">
         <div className="inv-total-row">
           <span>Subtotal:</span>
-          <span>{currencySymbol()}{totals.subtotal.toLocaleString(currencyLocale())}</span>
+          <span>{currencySymbol()}{totals.subtotal.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         {formData.gstRate > 0 && (
           <>
             <div className="inv-total-divider" />
             <div className="inv-total-row inv-total-gst">
-              <span>GST @ {formData.gstRate}%:</span>
-              <span>{currencySymbol()}{totals.gst.toLocaleString(currencyLocale())}</span>
+              <span>GST @ {Number(formData.gstRate).toFixed(2)}%:</span>
+              <span>{currencySymbol()}{totals.gst.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
           </>
         )}
         <div className="inv-total-divider inv-total-divider-bold" />
         <div className="inv-total-row inv-total-grand">
           <span>TOTAL AMOUNT:</span>
-          <span>{currencySymbol()}{totals.grandTotal.toLocaleString(currencyLocale())}</span>
+          <span>{currencySymbol()}{totals.grandTotal.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
       </div>
 

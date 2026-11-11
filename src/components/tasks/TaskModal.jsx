@@ -202,7 +202,7 @@ export default function TaskModal({ task, onClose, onSaved, defaultProjectId = n
             {outsider && canJoin && (
                 <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, fontSize: 12, color: t.dim }}>
                     <input type="checkbox" checked={addToTeam} onChange={(e) => setAddToTeam(e.target.checked)} />
-                    Also add them to the project team ({JOIN_PCT}% of their time, adjust on the Team tab)
+                    Also add them to the project team ({Number(JOIN_PCT).toFixed(2)}% of their time, adjust on the Team tab)
                 </label>
             )}
             <div style={{ height: 13 }} />

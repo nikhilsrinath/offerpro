@@ -63,7 +63,7 @@ export function AttendanceSection({ work, narrow }) {
         <div style={{ display: 'grid', gap: 10, gridTemplateColumns: narrow ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))' }}>
           <Kpi
             label="Attendance" share={ins.rate}
-            value={ins.rate == null ? '-' : `${Math.round(ins.rate * 100)}%`}
+            value={ins.rate == null ? '-' : `${Number(ins.rate * 100).toFixed(2)}%`}
             note={`${ins.daysWorked} of ${ins.expected} working days`}
           />
           <Kpi label="Hours Logged" value={hoursLabel(ins.minutes)} note={`${Object.keys(rows).length} days on record`} />

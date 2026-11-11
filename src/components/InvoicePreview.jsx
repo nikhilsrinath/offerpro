@@ -1,6 +1,6 @@
 import DocumentHeader from './DocumentHeader';
 import StampPreview from './StampPreview';
-import { currencySymbol, currencyLocale } from '../shared/currency.js';
+import { currencySymbol, currencyLocale, fixed2 } from '../shared/currency.js';
 
 const SaffronOrnaments = {
   Top: () => (
@@ -128,8 +128,8 @@ export default function InvoicePreview({ formData, totals, isInterState }) {
                   <tr key={i}>
                     <td style={{ textAlign: 'center' }}>{item.quantity}</td>
                     <td>{item.description || '-'}</td>
-                    <td style={{ textAlign: 'right' }}>{item.price?.toLocaleString()}</td>
-                    <td style={{ textAlign: 'right' }}>{(item.quantity * item.price).toLocaleString()}</td>
+                    <td style={{ textAlign: 'right' }}>{fixed2(item.price)}</td>
+                    <td style={{ textAlign: 'right' }}>{fixed2(item.quantity * item.price)}</td>
                   </tr>
                 ))}
 
@@ -137,19 +137,19 @@ export default function InvoicePreview({ formData, totals, isInterState }) {
                 <tr>
                   <td colSpan="2" style={{ border: 'none' }}></td>
                   <td style={{ textAlign: 'right', fontSize: '12px' }}>Subtotal</td>
-                  <td style={{ textAlign: 'right' }}>{totals.subtotal.toLocaleString()}</td>
+                  <td style={{ textAlign: 'right' }}>{fixed2(totals.subtotal)}</td>
                 </tr>
                 {formData.gstRate > 0 && (
                   <tr>
                     <td colSpan="2" style={{ border: 'none' }}></td>
-                    <td style={{ textAlign: 'right', fontSize: '12px' }}>GST {formData.gstRate}%</td>
-                    <td style={{ textAlign: 'right' }}>{(totals.cgst + totals.sgst + totals.igst).toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', fontSize: '12px' }}>GST {Number(formData.gstRate).toFixed(2)}%</td>
+                    <td style={{ textAlign: 'right' }}>{fixed2(totals.cgst + totals.sgst + totals.igst)}</td>
                   </tr>
                 )}
                 <tr className="inv-sf-tr-total">
                   <td colSpan="2" style={{ border: 'none' }}></td>
                   <td style={{ textAlign: 'right', textTransform: 'uppercase' }}>Total</td>
-                  <td style={{ textAlign: 'right' }}>{currencySymbol()}{totals.grandTotal.toLocaleString(currencyLocale())}</td>
+                  <td style={{ textAlign: 'right' }}>{currencySymbol()}{totals.grandTotal.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
               </tbody>
             </table>
@@ -250,8 +250,8 @@ export default function InvoicePreview({ formData, totals, isInterState }) {
                 <td>{item.description || '-'}</td>
                 {formData.gstRate > 0 && <td className="inv-td-muted">{item.hsnCode || '-'}</td>}
                 <td>{item.quantity || 0}</td>
-                <td>{currencySymbol()}{(item.price || 0).toLocaleString(currencyLocale())}</td>
-                <td className="inv-td-amount">{currencySymbol()}{lineTotal.toLocaleString(currencyLocale())}</td>
+                <td>{currencySymbol()}{(item.price || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td className="inv-td-amount">{currencySymbol()}{lineTotal.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               </tr>
             );
           })}
@@ -262,35 +262,35 @@ export default function InvoicePreview({ formData, totals, isInterState }) {
       <div className="inv-totals">
         <div className="inv-total-row">
           <span>Subtotal:</span>
-          <span>{currencySymbol()}{(totals.subtotal || 0).toLocaleString(currencyLocale())}</span>
+          <span>{currencySymbol()}{(totals.subtotal || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         {formData.discountRate > 0 && (
           <div className="inv-total-row" style={{ color: '#ef4444' }}>
-            <span>Discount ({formData.discountRate}%):</span>
-            <span>-{currencySymbol()}{(totals.discountAmount || 0).toLocaleString(currencyLocale())}</span>
+            <span>Discount ({Number(formData.discountRate).toFixed(2)}%):</span>
+            <span>-{currencySymbol()}{(totals.discountAmount || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
         )}
         <div className="inv-total-row">
           <span>Taxable Amount:</span>
-          <span>{currencySymbol()}{(totals.taxableAmount || 0).toLocaleString(currencyLocale())}</span>
+          <span>{currencySymbol()}{(totals.taxableAmount || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         {formData.gstRate > 0 && (
           <>
             <div className="inv-total-divider" />
             {isInterState ? (
               <div className="inv-total-row inv-total-gst">
-                <span>IGST @ {formData.gstRate || 0}%:</span>
-                <span>{currencySymbol()}{(totals.igst || 0).toLocaleString(currencyLocale())}</span>
+                <span>IGST @ {Number(formData.gstRate || 0).toFixed(2)}%:</span>
+                <span>{currencySymbol()}{(totals.igst || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             ) : (
               <>
                 <div className="inv-total-row inv-total-gst">
-                  <span>CGST @ {(formData.gstRate || 0) / 2}%:</span>
-                  <span>{currencySymbol()}{(totals.cgst || 0).toLocaleString(currencyLocale())}</span>
+                  <span>CGST @ {Number((formData.gstRate || 0) / 2).toFixed(2)}%:</span>
+                  <span>{currencySymbol()}{(totals.cgst || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="inv-total-row inv-total-gst">
-                  <span>SGST @ {(formData.gstRate || 0) / 2}%:</span>
-                  <span>{currencySymbol()}{(totals.sgst || 0).toLocaleString(currencyLocale())}</span>
+                  <span>SGST @ {Number((formData.gstRate || 0) / 2).toFixed(2)}%:</span>
+                  <span>{currencySymbol()}{(totals.sgst || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               </>
             )}
@@ -299,7 +299,7 @@ export default function InvoicePreview({ formData, totals, isInterState }) {
         <div className="inv-total-divider inv-total-divider-bold" />
         <div className="inv-total-row inv-total-grand">
           <span>TOTAL AMOUNT:</span>
-          <span>{currencySymbol()}{(totals.grandTotal || 0).toLocaleString(currencyLocale())}</span>
+          <span>{currencySymbol()}{(totals.grandTotal || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
       </div>
 

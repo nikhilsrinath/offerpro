@@ -80,7 +80,7 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
                 foot="started in this period" tone={k.headcount.hires ? 'up' : null}
                 onClick={() => open({ kind: 'metric', id: 'headcount' })} />
             <Tile icon={UserMinus} label="Left" value={String(k.headcount.exits)} exact={`${k.headcount.exits} left in period`}
-                foot={attrition === null ? 'left in this period' : `${attrition.toFixed(1)}% attrition`} tone={k.headcount.exits ? 'down' : null}
+                foot={attrition === null ? 'left in this period' : `${attrition.toFixed(2)}% attrition`} tone={k.headcount.exits ? 'down' : null}
                 onClick={() => navigate('/company/employees/ex-employees')} />
             <Tile icon={CalendarCheck} label="In today" value={attendance ? String(attendance.present) : '-'}
                 exact={attendance ? `${attendance.present} of ${staff.length}` : 'not available'}
@@ -115,7 +115,7 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
 
             <Card title="Attendance today" note={fmtDay(today)} right={<More label="Sheet" to="/company/attendance" />}>
                 {att === undefined ? <EmptyNote>Loading…</EmptyNote> : !attendance ? <EmptyNote>Attendance is not available to your role</EmptyNote> : (<>
-                    <SplitBar donut center={{ value: staff.length ? `${Math.round((attendance.present / staff.length) * 100)}%` : '-', label: 'In today' }} format={(v) => String(v)} unit="People" parts={[
+                    <SplitBar donut center={{ value: staff.length ? `${Number((attendance.present / staff.length) * 100).toFixed(2)}%` : '-', label: 'In today' }} format={(v) => String(v)} unit="People" parts={[
                         ...ATTENDANCE_STATUSES.map((s) => ({ id: s.key, label: s.label, value: attendance.byStatus[s.key], color: attColor[s.key] })),
                         { id: 'unmarked', label: 'Not marked', value: attendance.unmarked, color: t.lineStrong },
                     ].filter((p) => p.value > 0)} onSelect={() => navigate('/company/attendance')} />

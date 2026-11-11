@@ -272,7 +272,7 @@ const create_cash_entry = {
       ['Category', categoryLabel(draft.category)],
       ['Date', formatDate(draft.date)],
       [inward ? 'Received by' : 'Paid by', methodLabel(draft.payment_method)],
-      ['GST inside', Number(draft.tax_rate) > 0 ? `${draft.tax_rate}% (${money(draft.tax_amount)})` : 'None'],
+      ['GST inside', Number(draft.tax_rate) > 0 ? `${Number(draft.tax_rate).toFixed(2)}% (${money(draft.tax_amount)})` : 'None'],
     ];
     if (party) rows.push([inward ? 'From' : 'To', party]);
     if (project) rows.push(['Project', `${project.code} · ${project.name}`]);
@@ -289,7 +289,7 @@ const create_cash_entry = {
         { key: 'date', label: 'Date', type: 'date', value: draft.date, max: ctx.today },
         { key: 'payment_method', label: inward ? 'Received by' : 'Paid by', type: 'select', value: draft.payment_method, options: methodOptions() },
         { key: 'gst_rate', label: 'GST inside the amount', type: 'select', value: String(Number(draft.tax_rate) || 0),
-          options: GST_RATES.map((r) => ({ value: String(r), label: r ? `${r}%` : 'No GST' })) },
+          options: GST_RATES.map((r) => ({ value: String(r), label: r ? `${Number(r).toFixed(2)}%` : 'No GST' })) },
         { key: 'reference', label: 'Reference', type: 'text', value: draft.reference || '' },
       ],
     };

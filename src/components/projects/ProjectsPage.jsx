@@ -275,7 +275,7 @@ export default function ProjectsPage() {
                                         {prog == null ? dash : (
                                             <Row gap={8}>
                                                 <span style={{ flex: 1 }}><Bar value={prog} max={1} height={4} /></span>
-                                                <Muted>{Math.round(prog * 100)}%</Muted>
+                                                <Muted>{Number(prog * 100).toFixed(2)}%</Muted>
                                             </Row>
                                         )}
                                     </Td>
@@ -292,7 +292,7 @@ export default function ProjectsPage() {
                                         {f?.net_margin == null ? dash : (
                                             <span style={{ color: Number(f.net_margin) < 0 ? t.down : t.text }}>
                                                 {money(f.net_margin)}
-                                                {f.net_margin_pct != null && <span style={{ color: t.faint, fontSize: 11.5 }}> · {f.net_margin_pct}%</span>}
+                                                {f.net_margin_pct != null && <span style={{ color: t.faint, fontSize: 11.5 }}> · {Number(f.net_margin_pct).toFixed(2)}%</span>}
                                             </span>
                                         )}
                                     </Td>

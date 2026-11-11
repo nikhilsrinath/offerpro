@@ -254,7 +254,7 @@ export default function ProformaInvoiceForm() {
   };
 
   const fmt = (num) => {
-    return (num || 0).toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() });
+    return (num || 0).toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   // Build a save payload for documentStore
@@ -383,7 +383,7 @@ export default function ProformaInvoiceForm() {
 
     // Open WhatsApp with pre-filled message
     const phone = (formData.clientPhone || '').replace(/[^0-9+]/g, '');
-    const message = `Hi ${formData.clientName},\n\nPlease find your proforma invoice *${doc.id}* from *${company.company_name}*.\n\nTotal: ${currencySymbol()}${totals.grandTotal.toLocaleString(currencyLocale())}\nAdvance (${activeAdvancePercent}%): ${currencySymbol()}${totals.advanceAmount.toLocaleString(currencyLocale())}\nDue: ${formData.dueDate}\n\nView & respond here:\n${portalUrl}\n\nThank you!`;
+    const message = `Hi ${formData.clientName},\n\nPlease find your proforma invoice *${doc.id}* from *${company.company_name}*.\n\nTotal: ${currencySymbol()}${totals.grandTotal.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\nAdvance (${Number(activeAdvancePercent).toFixed(2)}%): ${currencySymbol()}${totals.advanceAmount.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\nDue: ${formData.dueDate}\n\nView & respond here:\n${portalUrl}\n\nThank you!`;
     const waUrl = `https://wa.me/${phone.replace('+', '')}?text=${encodeURIComponent(message)}`;
     window.open(waUrl, '_blank');
 
@@ -551,7 +551,7 @@ export default function ProformaInvoiceForm() {
                       onClick={() => handleAdvancePreset(pct)}
                       aria-pressed={!!(!formData.isCustomAdvance && formData.advancePercent === pct)} className={`easy-chip ${!formData.isCustomAdvance && formData.advancePercent === pct ? 'active' : ''}`}
                     >
-                      {pct}%
+                      {Number(pct).toFixed(2)}%
                     </button>
                   ))}
                   <button
@@ -676,7 +676,7 @@ export default function ProformaInvoiceForm() {
                         >
                           {GST_RATES.map((r) => (
                             <option key={r} value={r}>
-                              {r}%
+                              {Number(r).toFixed(2)}%
                             </option>
                           ))}
                         </select>
@@ -745,7 +745,7 @@ export default function ProformaInvoiceForm() {
               <div className="easy-total-divider" />
 
               <div className="easy-total-row" style={{ color: 'var(--success)' }}>
-                <span>Advance ({activeAdvancePercent}%)</span>
+                <span>Advance ({Number(activeAdvancePercent).toFixed(2)}%)</span>
                 <span style={{ fontWeight: 600 }}>{fmt(totals.advanceAmount)}</span>
               </div>
               <div className="easy-total-row" style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -873,7 +873,7 @@ function ProformaPreview({ formData, totals, itemCalcs, company, activeAdvancePe
           <div className="inv-party-label">DETAILS</div>
           <div className="inv-party-detail">Date: {fmtDate(formData.date)}</div>
           <div className="inv-party-detail">Due Date: {fmtDate(formData.dueDate)}</div>
-          <div className="inv-party-detail">Advance: {activeAdvancePercent}%</div>
+          <div className="inv-party-detail">Advance: {Number(activeAdvancePercent).toFixed(2)}%</div>
         </div>
       </div>
 
@@ -881,7 +881,7 @@ function ProformaPreview({ formData, totals, itemCalcs, company, activeAdvancePe
       <div className="inv-dates-bar">
         <span>Proforma Date: {fmtDate(formData.date)}</span>
         <span>Due: {fmtDate(formData.dueDate)}</span>
-        <span style={{ color: '#f59e0b', fontWeight: 600 }}>Advance: {activeAdvancePercent}%</span>
+        <span style={{ color: '#f59e0b', fontWeight: 600 }}>Advance: {Number(activeAdvancePercent).toFixed(2)}%</span>
       </div>
 
       {/* Items Table */}
@@ -910,12 +910,12 @@ function ProformaPreview({ formData, totals, itemCalcs, company, activeAdvancePe
                 <td className="inv-td-muted">{item.hsnSac || '-'}</td>
                 <td>{item.quantity || 0}</td>
                 <td className="inv-td-muted">{item.unit}</td>
-                <td>{currencySymbol()}{(Number(item.rate) || 0).toLocaleString(currencyLocale())}</td>
-                <td>{item.gstRate}%</td>
-                <td>{currencySymbol()}{c.taxable.toLocaleString(currencyLocale())}</td>
-                <td style={{ color: '#3b82f6', fontSize: '8pt' }}>{currencySymbol()}{c.cgst.toLocaleString(currencyLocale())}</td>
-                <td style={{ color: '#3b82f6', fontSize: '8pt' }}>{currencySymbol()}{c.sgst.toLocaleString(currencyLocale())}</td>
-                <td className="inv-td-amount">{currencySymbol()}{lineTotal.toLocaleString(currencyLocale())}</td>
+                <td>{currencySymbol()}{(Number(item.rate) || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td>{Number(item.gstRate).toFixed(2)}%</td>
+                <td>{currencySymbol()}{c.taxable.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style={{ color: '#3b82f6', fontSize: '8pt' }}>{currencySymbol()}{c.cgst.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style={{ color: '#3b82f6', fontSize: '8pt' }}>{currencySymbol()}{c.sgst.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td className="inv-td-amount">{currencySymbol()}{lineTotal.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               </tr>
             );
           })}
@@ -926,32 +926,32 @@ function ProformaPreview({ formData, totals, itemCalcs, company, activeAdvancePe
       <div className="inv-totals">
         <div className="inv-total-row">
           <span>Subtotal:</span>
-          <span>{currencySymbol()}{totals.subtotal.toLocaleString(currencyLocale())}</span>
+          <span>{currencySymbol()}{totals.subtotal.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         <div className="inv-total-divider" />
         <div className="inv-total-row inv-total-gst">
           <span>Total CGST:</span>
-          <span>{currencySymbol()}{totals.totalCGST.toLocaleString(currencyLocale())}</span>
+          <span>{currencySymbol()}{totals.totalCGST.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         <div className="inv-total-row inv-total-gst">
           <span>Total SGST:</span>
-          <span>{currencySymbol()}{totals.totalSGST.toLocaleString(currencyLocale())}</span>
+          <span>{currencySymbol()}{totals.totalSGST.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         <div className="inv-total-divider inv-total-divider-bold" />
         <div className="inv-total-row inv-total-grand">
           <span>GRAND TOTAL:</span>
-          <span>{currencySymbol()}{totals.grandTotal.toLocaleString(currencyLocale())}</span>
+          <span>{currencySymbol()}{totals.grandTotal.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
 
         <div className="inv-total-divider" />
 
         <div className="inv-total-row" style={{ color: '#059669' }}>
-          <span>Advance ({activeAdvancePercent}%):</span>
-          <span>{currencySymbol()}{totals.advanceAmount.toLocaleString(currencyLocale())}</span>
+          <span>Advance ({Number(activeAdvancePercent).toFixed(2)}%):</span>
+          <span>{currencySymbol()}{totals.advanceAmount.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         <div className="inv-total-row" style={{ fontWeight: 700, color: '#d97706' }}>
           <span>Balance Due:</span>
-          <span>{currencySymbol()}{totals.balanceDue.toLocaleString(currencyLocale())}</span>
+          <span>{currencySymbol()}{totals.balanceDue.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
       </div>
 

@@ -29,7 +29,7 @@ const LIVE_OFFER_DEAD = new Set(['cancelled', 'expired', 'declined', 'draft']);
 const DOC_ROUTE = { invoice: '/clients/billing/invoices', quotation: '/clients/billing/quotations', proforma: '/clients/billing/proforma' };
 
 const fmtCompact = (n) => compactNumber(n);
-const inr = (n) => currencySymbol() + Math.round(n || 0).toLocaleString(currencyLocale());
+const inr = (n) => currencySymbol() + (Number(n || 0) || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dateOf = (d) => String(d.issue_date || d.created_at || '').slice(0, 10);
 const val = (d) => Number(d.grand_total || d.amount || d.subtotal || 0);
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' }) : '-');
@@ -419,12 +419,12 @@ export default function CountryDialog({
                             {growth !== null && (
                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 12, color: growth >= 0 ? t.up : t.down }}>
                                     {growth >= 0 ? <ArrowUp size={10} strokeWidth={2.8} /> : <ArrowDown size={10} strokeWidth={2.8} />}
-                                    {Math.abs(growth).toFixed(1)}% vs prev
+                                    {Math.abs(growth).toFixed(2)}% vs prev
                                 </span>
                             )}
                         </div>
                         <div style={{ fontSize: 11, color: t.faint, marginTop: 4 }}>
-                            {(geoRow?.share || 0).toFixed(1)}% of total revenue
+                            {(geoRow?.share || 0).toFixed(2)}% of total revenue
                             {m.currencies.length ? ' · billed in ' + m.currencies.join(', ') : ''}
                             {cash.currencies.length ? ' · cash in ' + cash.currencies.join(', ') : ''}
                         </div>
@@ -499,7 +499,7 @@ export default function CountryDialog({
                                         <div style={{ height: '100%', width: collectedPct + '%', background: t.text, transition: 'width .4s cubic-bezier(.16,1,.3,1)' }} />
                                     </div>
                                     <div style={{ fontSize: 11, color: t.faint, marginTop: 6 }}>
-                                        {collectedPct.toFixed(0)}% collected
+                                        {collectedPct.toFixed(2)}% collected
                                         {cash.direct > 0 ? ' · direct receipts counted as collected' : ''}
                                     </div>
                                 </div>
@@ -607,7 +607,7 @@ export default function CountryDialog({
                                         {(cash.cashIn > 0 || cash.cashOut > 0) && marginBase > 0 && (
                                             <Row t={t} label="Net of running costs"
                                                  value={(netHere < 0 ? '−' + currencySymbol() : currencySymbol()) + fmtCompact(Math.abs(netHere))}
-                                                 note={((netHere / marginBase) * 100).toFixed(0) + '% margin'}
+                                                 note={((netHere / marginBase) * 100).toFixed(2) + '% margin'}
                                                  tone={netHere < 0 ? t.down : undefined} />
                                         )}
                                         {(cash.taxIn > 0 || cash.taxOut > 0) && (
@@ -616,7 +616,7 @@ export default function CountryDialog({
                                                  note={currencySymbol() + fmtCompact(cash.taxIn) + ' out · ' + currencySymbol() + fmtCompact(cash.taxOut) + ' in'} />
                                         )}
                                         <Row t={t} label="Previous period" value={currencySymbol() + fmtCompact(prev)}
-                                             note={growth !== null ? (growth >= 0 ? '+' : '') + growth.toFixed(1) + '%' : null} />
+                                             note={growth !== null ? (growth >= 0 ? '+' : '') + growth.toFixed(2) + '%' : null} />
                                     </div>
                                 </div>
                             </div>
@@ -640,7 +640,7 @@ export default function CountryDialog({
                                             <span style={{ textAlign: 'right', flexShrink: 0 }}>
                                                 <span style={line1}>{currencySymbol()}{fmtCompact(c.revenue)}</span>
                                                 <span style={{ ...line2(t), color: c.paid >= c.revenue ? t.up : t.faint }}>
-                                                    {c.revenue ? Math.round((c.paid / c.revenue) * 100) : 0}% paid
+                                                    {(c.revenue ? (c.paid / c.revenue) * 100 : 0).toFixed(2)}% paid
                                                 </span>
                                             </span>
                                             <ChevronRight size={12} style={{ color: t.faint, flexShrink: 0 }} />
@@ -767,7 +767,7 @@ export default function CountryDialog({
                                                             {categoryLabel(r.category) || r.category}
                                                             {' · ' + fmtDate(r.on)}
                                                             {r.currency && recordCurrency(r.currency) !== baseCurrency()
-                                                                ? ' · ' + r.currency + ' ' + (Number(r.original_amount) || 0).toLocaleString(currencyLocale(r.currency))
+                                                                ? ' · ' + r.currency + ' ' + (Number(r.original_amount) || 0).toLocaleString(currencyLocale(r.currency), { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                                                                 : ''}
                                                             {r.place_of_supply ? ' · ' + r.place_of_supply : ''}
                                                         </span>

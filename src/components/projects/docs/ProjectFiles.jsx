@@ -14,7 +14,6 @@ import {
     FILE_KINDS, fileKind, canPreview, fmtBytes, folderPath, folderSubtree,
 } from '../../../services/projectWorkspace';
 import { RowMenu } from '../pm/pmUi';
-import ProjectDocuments from '../ProjectDocuments';
 import { useSetup, useUserNames } from '../parties/partyData';
 import { SetupGate, Bar } from '../parties/partyUi';
 import {
@@ -32,10 +31,6 @@ import {
    approvals, invoices, vendors, generated documents) sit in "Attached
    elsewhere", so this is the one place they can all be found.
 
-   It opens on Business documents (ProjectDocuments): the quotations,
-   proformas, invoices, agreements and vendor bills, each startable from
-   "New document" already pointed at this project.
-
    A folder or file can be limited to some roles. Owners and admins always
    see everything; the database hides the rest, including whatever is inside
    a hidden folder.
@@ -52,22 +47,14 @@ const LINK_LABEL = {
     vendor: 'Vendor document', client: 'Client document', generated: 'Generated from a template',
 };
 const KIND_ICON = { pdf: FileType2, image: FileImage, doc: FileText, sheet: FileSpreadsheet, slides: Presentation, text: FileText, archive: FileArchive, other: FileIcon };
+// Rows a page, folders first, then files.
+const PAGE_SIZE = 50;
 const KIND_LABEL = { pdf: 'PDF', image: 'Image', doc: 'Document', sheet: 'Spreadsheet', slides: 'Slides', text: 'Text', archive: 'Archive', other: 'File' };
 
-export default function ProjectFiles({ project, view, onView }) {
-    // The choice is the last part of the path (…/project-documents/general-documents),
-    // so a form opened from Business documents comes back to it.
-    const tab = view === 'files' ? 'files' : 'business';
-    const choose = onView;
-    return (
-        <div style={{ display: 'grid', gap: 14 }}>
-            <Seg value={tab} onChange={choose} label="Documents" options={[
-                { id: 'business', label: 'Business documents' },
-                { id: 'files', label: 'General Documents' },
-            ]} />
-            {tab === 'files' ? <FilesView project={project} /> : <ProjectDocuments project={project} onUploaded={() => choose('files')} />}
-        </div>
-    );
+// The Business documents view was removed (2026-11-10); its "new document"
+// options are the ready-made templates on Documents Management › Templates.
+export default function ProjectFiles({ project }) {
+    return <FilesView project={project} />;
 }
 
 function FilesView({ project }) {
@@ -200,6 +187,16 @@ function FilesView({ project }) {
 
     const empty = !listed.folders.length && !sortedFiles.length;
 
+    // 50 rows a page, folders first; back to the first page whenever the listing changes.
+    const [page, setPage] = useState(1);
+    useEffect(() => { setPage(1); }, [at, query, tag, kind, uploader, from, to]);
+    const total = listed.folders.length + sortedFiles.length;
+    const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const pg = Math.min(page, pageCount);
+    const start = (pg - 1) * PAGE_SIZE;
+    const pageFolders = listed.folders.slice(start, start + PAGE_SIZE);
+    const pageFiles = sortedFiles.slice(Math.max(0, start - listed.folders.length), Math.max(0, start + PAGE_SIZE - listed.folders.length));
+
     return (
         <SetupGate setup={setup} what="project documents">
             <section aria-label="Project documents"
@@ -277,11 +274,11 @@ function FilesView({ project }) {
                     </Empty>
                 ) : view === 'grid' ? (
                     <div style={{ display: 'grid', gap: 10, padding: 13, gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))' }}>
-                        {listed.folders.map((f) => (
+                        {pageFolders.map((f) => (
                             <FolderTile key={f.id} name={f.name} restricted={!!f.visible_roles} view="grid" onOpen={() => setAt(f.id)}
                                 menu={<RowMenu label={`Actions for folder ${f.name}`} items={folderMenu(f)}>⋯</RowMenu>} />
                         ))}
-                        {sortedFiles.map((f) => (
+                        {pageFiles.map((f) => (
                             <FileTile key={f.id} file={f} onOpen={() => openFile(f)} sub={searching || at === LINKED ? pathOf(f) : null}
                                 menu={<RowMenu label={`Actions for ${f.name}`} items={fileMenu(f)}>⋯</RowMenu>} />
                         ))}
@@ -289,12 +286,13 @@ function FilesView({ project }) {
                 ) : (
                     <div style={{ padding: 13 }}>
                         <Table cols={[
-                            { key: 'n', label: 'Name' }, { key: 't', label: 'Type' }, { key: 's', label: 'Size', align: 'right' }, { key: 'u', label: 'Uploaded by' },
+                            { key: 'sno', label: 'S.No', width: 60 }, { key: 'n', label: 'Name' }, { key: 't', label: 'Type' }, { key: 's', label: 'Size', align: 'right' }, { key: 'u', label: 'Uploaded by' },
                             { key: 'c', label: 'Uploaded' }, { key: 'm', label: 'Last modified' }, { key: 'v', label: 'Version', align: 'right' },
                             { key: 'x', label: '', align: 'right' },
                         ]}>
-                            {listed.folders.map((f) => (
+                            {pageFolders.map((f, i) => (
                                 <Tr key={f.id}>
+                                    <Td muted nowrap>{start + i + 1}</Td>
                                     <Td>
                                         <button type="button" onClick={() => setAt(f.id)} className="edge-btn" style={linkBtn(t)}>
                                             <Icon folder />
@@ -311,8 +309,9 @@ function FilesView({ project }) {
                                     <Td align="right"><RowMenu label={`Actions for folder ${f.name}`} items={folderMenu(f)}>⋯</RowMenu></Td>
                                 </Tr>
                             ))}
-                            {sortedFiles.map((f) => (
+                            {pageFiles.map((f, i) => (
                                 <Tr key={f.id}>
+                                    <Td muted nowrap>{start + pageFolders.length + i + 1}</Td>
                                     <Td>
                                         <button type="button" onClick={() => openFile(f)} className="edge-btn" style={linkBtn(t)}>
                                             <Icon kind={fileKind(f.mime_type, f.name)} />
@@ -337,6 +336,18 @@ function FilesView({ project }) {
                             ))}
                         </Table>
                     </div>
+                )}
+                {!empty && pageCount > 1 && (
+                    <nav aria-label="Document pages" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '0 13px 12px' }}>
+                        <span style={{ fontSize: 12.5, color: t.faint }} aria-live="polite">
+                            Showing {start + 1}–{Math.min(start + PAGE_SIZE, total)} of {total}
+                        </span>
+                        <Row gap={4}>
+                            <Btn size="sm" onClick={() => setPage(pg - 1)} disabled={pg === 1}>Previous</Btn>
+                            <span style={{ fontSize: 12.5, color: t.dim, padding: '0 6px' }}>Page {pg} of {pageCount}</span>
+                            <Btn size="sm" onClick={() => setPage(pg + 1)} disabled={pg === pageCount}>Next</Btn>
+                        </Row>
+                    </nav>
                 )}
                 {can.create && at !== LINKED && !empty && (
                     <div style={{ padding: '0 13px 12px', fontSize: 11.5, color: t.faint }}>

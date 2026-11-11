@@ -155,16 +155,16 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
                     const pr = progressOf(p);
                     const r = byId[p.id];
                     return {
-                        key: p.id, name: nameOf[p.id], value: pr === null ? 0 : Math.round(pr * 100), none: pr === null,
+                        key: p.id, name: nameOf[p.id], value: pr === null ? 0 : pr * 100, none: pr === null,
                         tip: <TipBody title={nameOf[p.id]} rows={[
                             { label: 'Status', value: statusLabel(p.status) },
                             { label: 'Client', value: p.client_id ? clientName[p.client_id] || 'Client' : 'Internal' },
-                            { label: 'Progress', value: pr === null ? 'no plan yet' : `${Math.round(pr * 100)}%` },
+                            { label: 'Progress', value: pr === null ? 'no plan yet' : `${Number(pr * 100).toFixed(2)}%` },
                             ...(p.target_end_date ? [{ label: 'Target end', value: fmtDay(p.target_end_date) }] : []),
                             ...(r?.health ? [{ label: 'Health', value: r.health.replace('_', ' ') }] : []),
                         ]} />,
                     };
-                }).sort((a, b) => b.value - a.value)} format={(v) => `${v}%`} total={0} max={7} color={cat[2]}
+                }).sort((a, b) => b.value - a.value)} format={(v) => `${Number(v).toFixed(2)}%`} total={0} max={7} color={cat[2]}
                     sub={(r) => (r.none ? 'no plan' : '')}
                     onSelect={(r) => navigate(`/projects/${projectRef(r.key)}`)} empty="No open projects" />
             </Card>
@@ -190,7 +190,7 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
                         : rows === undefined ? <EmptyNote>Loading…</EmptyNote>
                             : !margins?.length ? <EmptyNote>No project has money booked against it yet</EmptyNote>
                                 : <RankBars rows={margins.map((m) => ({ ...m, color: m.value < 0 ? status.critical : status.good }))} format={fmtShort} total={0} max={8}
-                                    sub={(r) => (r.pct == null ? '' : `${r.pct.toFixed(0)}%`)} onSelect={(r) => navigate(`/projects/${projectRef(r.key)}`)} />}
+                                    sub={(r) => (r.pct == null ? '' : `${r.pct.toFixed(2)}%`)} onSelect={(r) => navigate(`/projects/${projectRef(r.key)}`)} />}
             </Card>
         </CardGrid>
     </>);

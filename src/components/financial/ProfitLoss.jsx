@@ -5,7 +5,7 @@ import { profitAndLoss, periodSeries, periodBounds, downloadCsv } from '../../se
 import { categoryLabel, loadFinanceCategories } from '../../services/financeCategories';
 import { Stat } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
-import { baseCurrency, currencySymbol } from '../../shared/currency.js';
+import { baseCurrency, formatCurrency } from '../../shared/currency.js';
 
 const PRESETS = [
   { id: 'all', label: 'All time' },
@@ -76,11 +76,15 @@ export default function ProfitLoss() {
       </div>
 
       <div className="prod-stats">
-        <Stat icon={<TrendingUp size={15} />} label="Income" value={money(pl.income)} accent="var(--success)" />
-        <Stat icon={<TrendingDown size={15} />} label="Expenses" value={money(pl.expenses)} accent="var(--error)" />
-        <Stat icon={<Wallet size={15} />} label={pl.net >= 0 ? 'Net profit' : 'Net loss'} value={money(Math.abs(pl.net))}
-          accent={pl.net >= 0 ? 'var(--success)' : 'var(--error)'} />
-        <Stat icon={<Percent size={15} />} label="Net margin" value={pl.margin == null ? '-' : `${pl.margin.toFixed(1)}%`} />
+        <Stat icon={<TrendingUp size={15} />} label="Income" value={money(pl.income, 2)} accent="var(--success)"
+          sub={<span className="pl-formula">= Invoiced {money(pl.invoiced, 2)} + Received without an invoice {money(pl.direct, 2)}, before GST</span>} />
+        <Stat icon={<TrendingDown size={15} />} label="Expenses" value={money(pl.expenses, 2)} accent="var(--error)"
+          sub={<span className="pl-formula">= Purchase bills + expense entries, before GST − refunds received</span>} />
+        <Stat icon={<Wallet size={15} />} label={pl.net >= 0 ? 'Net profit' : 'Net loss'} value={money(Math.abs(pl.net), 2)}
+          accent={pl.net >= 0 ? 'var(--success)' : 'var(--error)'}
+          sub={<span className="pl-formula">= Income {money(pl.income, 2)} − Expenses {money(pl.expenses, 2)}</span>} />
+        <Stat icon={<Percent size={15} />} label="Net margin" value={pl.margin == null ? '-' : `${pl.margin.toFixed(2)}%`}
+          sub={<span className="pl-formula">= Net profit ÷ Income × 100</span>} />
       </div>
 
       <p className="prod-perf-note">
@@ -100,8 +104,8 @@ export default function ProfitLoss() {
             <BarChart data={series.points} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="2 5" vertical={false} stroke="var(--border-default)" />
               <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={13.5} />
-              <YAxis tickLine={false} axisLine={false} fontSize={12.5} width={70}
-                tickFormatter={(v) => (Math.abs(v) >= 100000 ? `${currencySymbol()}${(v / 100000).toFixed(1)}L` : `${currencySymbol()}${(v / 1000).toFixed(0)}k`)} />
+              <YAxis tickLine={false} axisLine={false} fontSize={12.5} width={110}
+                tickFormatter={(v) => formatCurrency(v)} />
               <Tooltip formatter={(v, name) => [money(v), name]} cursor={{ fill: 'var(--surface-hover)' }} />
               <Legend formatter={(value) => <span style={{ color: 'var(--text-secondary)' }}>{value}</span>} />
               <Bar dataKey="income" name="Income" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={28} />

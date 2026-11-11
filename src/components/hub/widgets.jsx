@@ -41,7 +41,7 @@ function Delta({ value, invert, vs }) {
     const good = invert ? !up : up;
     return (
         <div className="w-cap">
-            <b className={`w-chip ${good ? 'up' : 'down'}`}>{up ? '↑' : '↓'} {Math.abs(value).toFixed(0)}%</b>
+            <b className={`w-chip ${good ? 'up' : 'down'}`}>{up ? '↑' : '↓'} {Math.abs(value).toFixed(2)}%</b>
             {vs && <span>{vs}</span>}
         </div>
     );
@@ -254,21 +254,21 @@ function GrossProfit({ d, size, period, setPeriod }) {
     const p = periodOf(period);
     const f = d.pnl[period];
     if (!f.income) return <Empty>No income {p.label.toLowerCase()}.</Empty>;
-    const gp = Math.round(f.grossPct);
-    const op = Math.round(f.opRatio);
+    const gp = Number(f.grossPct || 0).toFixed(2);
+    const op = Number(f.opRatio || 0).toFixed(2);
     const ring = (
-        <Ring value={f.grossPct} small={size === 'sm'} label={`Gross profit ${gp}% of income, operating ratio ${op}%, ${p.label.toLowerCase()}`}>
+        <Ring value={f.grossPct} small={size === 'sm'} label={`Gross profit ${Number(gp).toFixed(2)}% of income, operating ratio ${Number(op).toFixed(2)}%, ${p.label.toLowerCase()}`}>
             {gp}<small>%</small>
         </Ring>
     );
     if (size === 'sm') {
-        return <div className="w-center">{ring}<div className="w-cap">Gross · op. ratio {op}%</div></div>;
+        return <div className="w-center">{ring}<div className="w-cap">Gross · op. ratio {Number(op).toFixed(2)}%</div></div>;
     }
     const kv = (
         <div className="w-kv">
             <div><i style={{ background: 'var(--chart-a)' }} />Gross profit<b>{inrShort(f.gross)}</b></div>
             <div><i style={{ background: 'var(--chart-b)' }} />Direct costs<b>{inrShort(f.cogs)}</b></div>
-            <div>Operating ratio<b className={op > 100 ? 'down' : ''}>{op}%</b></div>
+            <div>Operating ratio<b className={op > 100 ? 'down' : ''}>{Number(op).toFixed(2)}%</b></div>
             {size === 'lg' && <div>Operating costs<b>{inrShort(f.opex)}</b></div>}
             {size === 'lg' && <div>Income<b>{inrShort(f.income)}</b></div>}
         </div>
@@ -458,9 +458,9 @@ function Receivables({ d, nav, size }) {
 function Settlement({ d, size }) {
     const m = d.money;
     if (!m.invoiceCount) return <Empty>No invoices yet.</Empty>;
-    const pct = Math.round(m.settled);
+    const pct = Number(m.settled || 0).toFixed(2);
     const ring = (
-        <Ring value={m.settled} label={`${pct}% of invoices settled`} small={size === 'sm'}>
+        <Ring value={m.settled} label={`${Number(pct).toFixed(2)}% of invoices settled`} small={size === 'sm'}>
             {pct}<small>%</small>
         </Ring>
     );
@@ -497,7 +497,7 @@ function Markets({ d, openCountry, countryNames, size }) {
             <>
                 <div className="w-kicker">#1 market</div>
                 <Value size={size}>{inrShort(lead.revenue)}</Value>
-                <div className="w-cap">{name(lead.code)} · {share.toFixed(0)}%</div>
+                <div className="w-cap">{name(lead.code)} · {share.toFixed(2)}%</div>
                 <div className="w-bottom"><Meter value={share} strong /></div>
             </>
         );
@@ -511,7 +511,7 @@ function Markets({ d, openCountry, countryNames, size }) {
                     return (
                         <Bar key={r.code} name={name(r.code)} value={inrShort(r.revenue)} pct={share} strong={i === 0}
                             onClick={() => openCountry(r.code)}
-                            label={`${name(r.code)}: ${inr(r.revenue)}, ${share.toFixed(1)}% of revenue. Open detail`} />
+                            label={`${name(r.code)}: ${inr(r.revenue)}, ${share.toFixed(2)}% of revenue. Open detail`} />
                     );
                 })}
             </div>
@@ -627,7 +627,7 @@ function GeoMap({ d, geoMap, openCountry, countryNames, size, geoPeriod, setGeoP
                         {hv ? (
                             <>
                                 <div className="gm-read-v">{inr(hv.revenue)}</div>
-                                <div className="gm-read-s">{hv.share.toFixed(1)}% of total</div>
+                                <div className="gm-read-s">{hv.share.toFixed(2)}% of total</div>
                                 {hv.cashOut > 0 && <div className="gm-read-s down">{inrShort(hv.cashOut)} spent</div>}
                             </>
                         ) : <div className="gm-read-s">Nothing recorded</div>}
@@ -641,7 +641,7 @@ function GeoMap({ d, geoMap, openCountry, countryNames, size, geoPeriod, setGeoP
                         return (
                             <Bar key={r.code} name={countryNames[r.code] || r.code} value={inrShort(r.revenue)} pct={share}
                                 strong={hover === r.code || i === 0} onClick={() => openCountry(r.code)}
-                                label={`${countryNames[r.code] || r.code}: ${inr(r.revenue)}, ${share.toFixed(1)}% of revenue. Open detail`} />
+                                label={`${countryNames[r.code] || r.code}: ${inr(r.revenue)}, ${share.toFixed(2)}% of revenue. Open detail`} />
                         );
                     })}
                 </div>
@@ -720,7 +720,7 @@ function Brain({ d, nav, ask, size }) {
 /* ── people & work ──────────────────────────────────────────────────────── */
 
 /** "12 · 25%" · a count and its share of the whole. */
-const countShare = (n, of) => `${n} · ${of ? Math.round((n / of) * 100) : 0}%`;
+const countShare = (n, of) => `${n} · ${(of ? (n / of) * 100 : 0).toFixed(2)}%`;
 
 function Team({ d, nav, size }) {
     const tm = d.team;
@@ -825,17 +825,17 @@ function Pipeline({ d, nav, size }) {
     const stat = (
         <>
             <Value size={size} unit=" leads">{p.total}</Value>
-            <div className="w-cap">{p.winRate === null ? 'No decided deals' : `${Math.round(p.winRate)}% win rate`}</div>
+            <div className="w-cap">{p.winRate === null ? 'No decided deals' : `${Number(p.winRate).toFixed(2)}% win rate`}</div>
             {perLead !== null && <div className="w-cap">{inrShort(perLead)} spent per lead</div>}
         </>
     );
     if (size === 'sm') {
         return (
             <div className="w-center">
-                <Ring value={p.winRate || 0} small label={p.winRate === null ? 'No decided deals yet' : `${Math.round(p.winRate)}% win rate`}>
+                <Ring value={p.winRate || 0} small label={p.winRate === null ? 'No decided deals yet' : `${Number(p.winRate).toFixed(2)}% win rate`}>
                     {p.total}
                 </Ring>
-                <div className="w-cap">{p.winRate === null ? 'leads' : `leads · ${Math.round(p.winRate)}% won`}</div>
+                <div className="w-cap">{p.winRate === null ? 'leads' : `leads · ${Number(p.winRate).toFixed(2)}% won`}</div>
                 {perLead !== null && <div className="w-cap">{inrShort(perLead)} / lead</div>}
             </div>
         );

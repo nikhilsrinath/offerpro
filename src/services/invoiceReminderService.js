@@ -20,9 +20,7 @@ import { baseCurrency, currencyLocale } from '../shared/currency.js';
 export const REMINDER_INTERVAL_DAYS = 7;
 export const MAX_AUTO_REMINDERS = 3;
 
-const money = (v) => (Number(v) || 0).toLocaleString(currencyLocale(), {
-  style: 'currency', currency: baseCurrency(), maximumFractionDigits: 2,
-});
+const money = (v) => (Number(v) || 0).toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function reminderDue(doc, now = new Date()) {
   const count = Number(doc.reminder_count) || 0;

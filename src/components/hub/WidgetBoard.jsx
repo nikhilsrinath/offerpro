@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
     Check, Plus, Minus, MoreHorizontal, ArrowUp, ArrowDown, EyeOff, X, Move, RotateCcw,
 } from 'lucide-react';
 import { SIZE_LABEL } from './widgetCatalog';
 import { PreviewCtx } from './previewData';
 import { PERIODS, DEFAULT_PERIOD, periodOf } from './periods';
+import FreeGrid from '../ui/FreeGrid';
 import './hub.css';
 import { titleCase } from '../../utils/titleCase';
 
@@ -12,10 +13,11 @@ import { titleCase } from '../../utils/titleCase';
    A board of widgets the person chooses. The hub's, and each project's.
 
    The board is the person's own: any of the catalog addable, each removable,
-   resizable and movable (menu, keyboard or drag). It is a grid of square
-   cells, the way Apple lays out widgets: a widget is one cell, two side by
-   side, or a two-by-two block. The caller owns the layout (useWidgetLayout)
-   and the data every widget body is handed (`widgetProps`).
+   and every widget sized and placed freely on a fine grid (FreeGrid): drag
+   its header to move it, its edge or corner to make it any size, and the
+   others make room and close up around it. Small, Medium and Large in its
+   menu are quick presets. The caller owns the layout (useWidgetLayout) and
+   the data every widget body is handed (`widgetProps`).
 
    Must sit inside an `.eo-surface` with a data-theme, hub.css reads its
    palette from there.
@@ -28,60 +30,21 @@ function useLatest(fn) {
     return ref;
 }
 
-/* The board's cells are square and fill the row exactly: as many columns of
-   at least CELL_MIN as fit, then each stretched to share the leftover. The
-   result is written straight onto the grid as CSS variables rather than
-   through state, so while the copilot is dragged wider or narrower the board
-   re-flows every frame without re-rendering a single widget. */
-const CELL_MIN = 146;
+/* The presets, in grid cells (24 across a wide board, each about 45px, rows
+   20px). Small is about square, Medium two Smalls side by side, Large a
+   two-by-two block. */
+const SIZE_DIMS = { sm: { w: 4, h: 7 }, md: { w: 8, h: 7 }, lg: { w: 8, h: 14 } };
+const ORDER = ['sm', 'md', 'lg'];
 
-function useSquareGrid(gap) {
-    const ro = useRef(null);
-    const ref = useCallback((el) => {
-        ro.current?.disconnect();
-        ro.current = null;
-        if (!el) return;
-        let last = '';
-        const fit = () => {
-            const w = el.clientWidth;
-            if (!w) return;
-            let cols = Math.max(2, Math.floor((w + gap) / (CELL_MIN + gap)));
-            // Hysteresis: gain a column only with clear room to spare. A new
-            // column changes the board's height, which can add or drop the
-            // page scrollbar and nudge the width back, without this margin
-            // the two could chase each other forever.
-            const prev = Number(el.dataset.cols) || 0;
-            if (prev && cols > prev && w < cols * CELL_MIN + (cols - 1) * gap + 24) cols = prev;
-            const cell = Math.floor((w - gap * (cols - 1)) / cols);
-            const key = cols + ':' + cell;
-            if (key === last) return;
-            last = key;
-            // When the column count changes, widgets glide to their new
-            // places (FLIP) instead of jumping.
-            const reflow = el.dataset.cols && el.dataset.cols !== String(cols)
-                && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-            const kids = reflow ? [...el.children] : [];
-            const before = kids.map((k) => k.getBoundingClientRect());
-            el.style.setProperty('--cols', String(cols));
-            el.style.setProperty('--cell', `${cell}px`);
-            el.dataset.cols = String(cols);
-            kids.forEach((k, i) => {
-                const a = before[i];
-                const b = k.getBoundingClientRect();
-                const dx = a.left - b.left;
-                const dy = a.top - b.top;
-                if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
-                k.animate?.(
-                    [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
-                    { duration: 320, easing: 'cubic-bezier(.16, 1, .3, 1)' },
-                );
-            });
-        };
-        ro.current = new ResizeObserver(fit);
-        ro.current.observe(el);
-        fit();
-    }, [gap]);
-    return [ref, { '--gap': `${gap}px` }];
+/** The smallest a widget may be dragged to: a little under its smallest preset. */
+const minFor = (w) => (w.sizes.includes('sm') ? { w: 3, h: 5 } : { w: 6, h: 6 });
+
+/** Which of its layouts a widget body draws at this size: the nearest it has. */
+function sizeClass(w, wPx, hPx) {
+    const want = wPx < 330 ? 'sm' : hPx >= 400 ? 'lg' : 'md';
+    if (w.sizes.includes(want)) return want;
+    const i = ORDER.indexOf(want);
+    return w.sizes.slice().sort((a, b) => Math.abs(ORDER.indexOf(a) - i) - Math.abs(ORDER.indexOf(b) - i))[0] || w.size;
 }
 
 /**
@@ -103,9 +66,17 @@ export default function WidgetBoard({
     useEffect(() => { galleryCb.current?.(picker); }, [picker, galleryCb]);
     const [editing, setEditing] = useState(false);
     const [widgetMenu, setWidgetMenu] = useState(null);
-    const [drag, setDrag] = useState({ id: null, over: null });
     const [lastLayout, setLastLayout] = useState(null);
-    const [gridRef, gridStyle] = useSquareGrid(isMobile ? 12 : 14);
+    const grid = useRef(null);
+
+    // Saved geometry, per column count, as FreeGrid reads it.
+    const layouts = useMemo(() => {
+        const out = {};
+        layout.forEach((item) => Object.entries(item.g || {}).forEach(([c, r]) => {
+            (out[c] = out[c] || []).push({ id: item.id, ...r });
+        }));
+        return out;
+    }, [layout]);
 
     const clearBoard = () => {
         setLastLayout(layout);
@@ -119,11 +90,81 @@ export default function WidgetBoard({
         setWidgetMenu(null);
         if (action === 'remove') { lay.remove(id); say(`${w.title} removed.`); }
         if (action === 'period') { lay.setPeriod(id, arg); say(`${w.title} now shows ${periodOf(arg).label.toLowerCase()}.`); }
-        if (action === 'size') { lay.resize(id, arg); say(`${w.title} is now ${SIZE_LABEL[arg].toLowerCase()}.`); }
-        if (action === 'up') { lay.move(id, -1); say(`${w.title} moved earlier.`); }
-        if (action === 'down') { lay.move(id, 1); say(`${w.title} moved later.`); }
+        if (action === 'size') {
+            const d = SIZE_DIMS[arg];
+            grid.current?.setSize(id, d.w, d.h);
+            lay.resize(id, arg, d);
+            say(`${w.title} is now ${SIZE_LABEL[arg].toLowerCase()}.`);
+        }
+        if (action === 'up') { grid.current?.shift(id, -1); say(`${w.title} moved earlier.`); }
+        if (action === 'down') { grid.current?.shift(id, 1); say(`${w.title} moved later.`); }
         if (action !== 'remove') requestAnimationFrame(() => document.getElementById(`wbtn-${id}`)?.focus());
     };
+
+    const items = layout.map((item) => {
+        const w = byId.get(item.id);
+        return {
+            id: item.id, name: w.title, min: minFor(w), def: SIZE_DIMS[item.size] || SIZE_DIMS[w.size],
+            render: (geo) => {
+                const size = sizeClass(w, geo.wPx, geo.hPx);
+                const Body = w.render;
+                // A period widget's look-back (periods.js), kept with the layout.
+                const period = w.periods ? (item.period || w.period || DEFAULT_PERIOD) : undefined;
+                const setPeriod = w.periods ? (p) => lay.setPeriod(item.id, p) : undefined;
+                const meta = w.meta?.(widgetProps.d, { ...metaArgs, period }) ?? (period ? periodOf(period).label : null);
+                // The widget's page (`to`: a path, or one worked out from the
+                // board's props), opened through the board's own `nav`.
+                const to = typeof w.to === 'function' ? w.to(widgetProps) : w.to;
+                const open = !editing && to && widgetProps.nav ? () => widgetProps.nav(to) : null;
+                const tapBody = open && w.tapBody !== false;
+                return (
+                    <article
+                        className={['w', `is-${size}`, editing ? 'is-editing' : '', widgetMenu === item.id ? 'is-open' : ''].join(' ')}
+                        style={{ '--i': layout.indexOf(item) }}
+                        aria-labelledby={`wt-${item.id}`}
+                    >
+                        <div className="w-head" data-fg-handle="" title={editing ? undefined : 'Drag to move'}>
+                            {w.icon && <span className="w-ic" aria-hidden="true"><w.icon size={15} strokeWidth={1.8} /></span>}
+                            {open ? (
+                                <button type="button" className="w-title w-title-btn" id={`wt-${item.id}`}
+                                    aria-label={`${w.title}, open page`} onClick={open}>{titleCase(w.title)}</button>
+                            ) : (
+                                <span className="w-title" id={`wt-${item.id}`}>{titleCase(w.title)}</span>
+                            )}
+                            {meta && <span className="w-meta">{meta}</span>}
+                            <button
+                                type="button" id={`wbtn-${item.id}`} className="w-grip"
+                                aria-label={`${w.title} widget options`} aria-haspopup="menu"
+                                aria-expanded={widgetMenu === item.id}
+                                onClick={() => setWidgetMenu((m) => (m === item.id ? null : item.id))}
+                            ><MoreHorizontal size={14} aria-hidden="true" /></button>
+                        </div>
+                        {widgetMenu === item.id && (
+                            <WidgetMenu
+                                widget={w} size={size} period={period} first={geo.first} last={geo.last}
+                                onAction={(a, arg) => widgetAction(item.id, a, arg)}
+                                onClose={() => { setWidgetMenu(null); document.getElementById(`wbtn-${item.id}`)?.focus(); }}
+                            />
+                        )}
+                        {/* A tap anywhere on the body opens the widget's page,
+                            except on the body's own buttons and links, which
+                            keep doing what they say. The title button above is
+                            the keyboard route to the same page. */}
+                        <div
+                            className={`w-body${tapBody ? ' is-drill' : ''}`}
+                            onClick={tapBody ? (e) => { if (!e.target.closest('button, a, input, select, textarea, label, [role="button"]')) open(); } : undefined}
+                        ><Body {...widgetProps} size={size} period={period} setPeriod={setPeriod} /></div>
+                        {editing && (
+                            <button type="button" className="w-remove" aria-label={`Remove ${w.title}`}
+                                onClick={() => widgetAction(item.id, 'remove')}>
+                                <Minus size={11} strokeWidth={3} aria-hidden="true" />
+                            </button>
+                        )}
+                    </article>
+                );
+            },
+        };
+    });
 
     return (
         <>
@@ -149,7 +190,7 @@ export default function WidgetBoard({
             </div>
 
             {editing && (
-                <div className="hx-hint">Drag a widget onto another to move it, tap − to remove, or use its ⋯ menu to change its size.</div>
+                <div className="hx-hint">Drag a widget anywhere to move it, drag its edge or corner to make it any size, tap − to remove.</div>
             )}
 
             {layout.length === 0 ? (
@@ -176,82 +217,21 @@ export default function WidgetBoard({
                     </div>
                 </section>
             ) : (
-                <section ref={gridRef} style={gridStyle} className={`hx-grid${editing ? ' is-editing' : ''}`} aria-label="Widgets">
-                    {layout.map((item, i) => {
-                        const w = byId.get(item.id);
-                        const Body = w.render;
-                        // A period widget's look-back (periods.js), kept with the layout.
-                        const period = w.periods ? (item.period || w.period || DEFAULT_PERIOD) : undefined;
-                        const setPeriod = w.periods ? (p) => lay.setPeriod(item.id, p) : undefined;
-                        const meta = w.meta?.(widgetProps.d, { ...metaArgs, period }) ?? (period ? periodOf(period).label : null);
-                        // The widget's page (`to`: a path, or one worked out from the
-                        // board's props), opened through the board's own `nav`.
-                        const to = typeof w.to === 'function' ? w.to(widgetProps) : w.to;
-                        const open = !editing && to && widgetProps.nav ? () => widgetProps.nav(to) : null;
-                        const tapBody = open && w.tapBody !== false;
-                        return (
-                            <article
-                                key={item.id}
-                                className={[
-                                    'w', `is-${item.size}`,
-                                    editing ? 'is-editing' : '',
-                                    widgetMenu === item.id ? 'is-open' : '',
-                                    drag.id === item.id ? 'is-dragging' : '',
-                                    drag.over === item.id && drag.id !== item.id ? 'is-over' : '',
-                                ].join(' ')}
-                                style={{ '--i': i }}
-                                aria-labelledby={`wt-${item.id}`}
-                                draggable={editing}
-                                onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', item.id); setDrag({ id: item.id, over: null }); }}
-                                onDragOver={(e) => { if (drag.id) { e.preventDefault(); if (drag.over !== item.id) setDrag((s) => ({ ...s, over: item.id })); } }}
-                                onDrop={(e) => { e.preventDefault(); if (drag.id) lay.place(drag.id, item.id); setDrag({ id: null, over: null }); }}
-                                onDragEnd={() => setDrag({ id: null, over: null })}
-                            >
-                                <div className="w-head">
-                                    {w.icon && <span className="w-ic" aria-hidden="true"><w.icon size={15} strokeWidth={1.8} /></span>}
-                                    {open ? (
-                                        <button type="button" className="w-title w-title-btn" id={`wt-${item.id}`}
-                                            aria-label={`${w.title}, open page`} onClick={open}>{titleCase(w.title)}</button>
-                                    ) : (
-                                        <span className="w-title" id={`wt-${item.id}`}>{titleCase(w.title)}</span>
-                                    )}
-                                    {meta && <span className="w-meta">{meta}</span>}
-                                    <button
-                                        type="button" id={`wbtn-${item.id}`} className="w-grip"
-                                        aria-label={`${w.title} widget options`} aria-haspopup="menu"
-                                        aria-expanded={widgetMenu === item.id}
-                                        onClick={() => setWidgetMenu((m) => (m === item.id ? null : item.id))}
-                                    ><MoreHorizontal size={14} aria-hidden="true" /></button>
-                                </div>
-                                {widgetMenu === item.id && (
-                                    <WidgetMenu
-                                        widget={w} size={item.size} period={period} first={i === 0} last={i === layout.length - 1}
-                                        onAction={(a, arg) => widgetAction(item.id, a, arg)}
-                                        onClose={() => { setWidgetMenu(null); document.getElementById(`wbtn-${item.id}`)?.focus(); }}
-                                    />
-                                )}
-                                {/* A tap anywhere on the body opens the widget's page,
-                                    except on the body's own buttons and links, which
-                                    keep doing what they say. The title button above is
-                                    the keyboard route to the same page. */}
-                                <div
-                                    className={`w-body${tapBody ? ' is-drill' : ''}`}
-                                    onClick={tapBody ? (e) => { if (!e.target.closest('button, a, input, select, textarea, label, [role="button"]')) open(); } : undefined}
-                                ><Body {...widgetProps} size={item.size} period={period} setPeriod={setPeriod} /></div>
-                                {editing && (
-                                    <button type="button" className="w-remove" aria-label={`Remove ${w.title}`}
-                                        onClick={() => widgetAction(item.id, 'remove')}>
-                                        <Minus size={11} strokeWidth={3} aria-hidden="true" />
-                                    </button>
-                                )}
-                            </article>
-                        );
-                    })}
-                    <button type="button" className="hx-addtile" onClick={() => setPicker(true)} aria-label="Add widget">
-                        <span className="hx-addtile-ic"><Plus size={16} strokeWidth={2} aria-hidden="true" /></span>
-                        <span>Add widget</span>
-                    </button>
-                </section>
+                <FreeGrid
+                    items={items} layouts={layouts} editing={editing} apiRef={grid}
+                    onLayout={(cols, rects) => lay.arrange(cols, rects)}
+                    gap={isMobile ? 12 : 14}
+                    className={`hx-grid hx-free${editing ? ' is-editing' : ''}`}
+                    tail={{
+                        ...SIZE_DIMS.sm,
+                        node: (
+                            <button type="button" className="hx-addtile" onClick={() => setPicker(true)} aria-label="Add widget">
+                                <span className="hx-addtile-ic"><Plus size={16} strokeWidth={2} aria-hidden="true" /></span>
+                                <span>Add widget</span>
+                            </button>
+                        ),
+                    }}
+                />
             )}
 
             {picker && (
@@ -432,7 +412,7 @@ function WidgetPicker({ layout, lay, widgets, defaultCount, groups, previewProps
                             const size = on ? placed.get(w.id) : (tryOn[w.id] || w.size);
                             const Body = w.render;
                             const setSize = (s) => {
-                                if (on) { lay.resize(w.id, s); say(`${w.title} is now ${SIZE_LABEL[s].toLowerCase()}.`); }
+                                if (on) { lay.resize(w.id, s, SIZE_DIMS[s]); say(`${w.title} is now ${SIZE_LABEL[s].toLowerCase()}.`); }
                                 else setTryOn((t) => ({ ...t, [w.id]: s }));
                             };
                             return (

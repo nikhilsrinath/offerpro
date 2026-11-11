@@ -17,9 +17,9 @@ export const money = (v, code) => {
   const n = Number(v) || 0;
   const currency = recordCurrency(code);
   try {
-    return n.toLocaleString(currencyLocale(currency), { style: 'currency', currency, maximumFractionDigits: 2 });
+    return n.toLocaleString(currencyLocale(currency), { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 });
   } catch {
-    return `${currency} ${n.toLocaleString(currencyLocale(currency), { maximumFractionDigits: 2 })}`;
+    return `${currency} ${n.toLocaleString(currencyLocale(currency), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 };
 

@@ -1,6 +1,6 @@
 // EmployeeProjectPicker: the Projects section of the add / edit employee form.
 // Lists the projects the person is already on (edit only) and lets the admin
-// queue more: project, project role, time share. Nothing is written here; the
+// queue more: project, project role, time share, start date. Nothing is written here; the
 // form adds the queued memberships after the employee itself is saved, so a
 // new hire has an id to attach them to.
 import { useState } from 'react';
@@ -8,6 +8,7 @@ import { X } from 'lucide-react';
 import { useSection } from '../financial/financeHooks';
 import { MEMBER_ROLES, isOpen, statusLabel } from '../../services/projectAnalytics';
 import AllocationBar from '../projects/AllocationBar';
+import { fmtDate } from '../financial/financeHooks';
 import { Panel, Row, Btn, Field, Input, Select, Empty } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
 import { useEmployeeProjects } from './useEmployeeProjects';
@@ -15,11 +16,13 @@ import { useEmployeeProjects } from './useEmployeeProjects';
 const roleLabel = (id) => MEMBER_ROLES.find((r) => r.id === id)?.label || 'Member';
 const projectName = (p) => (p.code ? `${p.code} · ${p.name}` : p.name);
 
-export default function EmployeeProjectPicker({ employeeId, pending, onChange }) {
+export default function EmployeeProjectPicker({ employeeId, pending, onChange, defaultDate }) {
     const t = useT();
     const projects = useSection('projects');
     const existing = useEmployeeProjects(employeeId);
-    const [draft, setDraft] = useState({ project_id: '', role: 'member', allocation_pct: '100' });
+    const today = new Date().toISOString().slice(0, 10);
+    const blankDraft = () => ({ project_id: '', role: 'member', allocation_pct: '100', start_date: defaultDate || today });
+    const [draft, setDraft] = useState(blankDraft);
     const [error, setError] = useState('');
 
     const taken = new Set([...existing.current.map((r) => r.p.id), ...pending.map((x) => x.project_id)]);
@@ -32,8 +35,9 @@ export default function EmployeeProjectPicker({ employeeId, pending, onChange })
         if (!draft.project_id) { setError('Choose a project.'); return; }
         const pct = Number(draft.allocation_pct);
         if (!(pct > 0 && pct <= 100)) { setError('Time share is between 1 and 100%.'); return; }
+        if (!draft.start_date) { setError('Choose the date they join the project.'); return; }
         onChange([...pending, { ...draft, allocation_pct: pct }]);
-        setDraft({ project_id: '', role: 'member', allocation_pct: '100' });
+        setDraft(blankDraft());
         setError('');
     };
 
@@ -52,9 +56,9 @@ export default function EmployeeProjectPicker({ employeeId, pending, onChange })
     );
 
     const rows = [
-        ...existing.current.map(({ m, p }) => ({ key: m.id, p, meta: [m.role_title || roleLabel(m.role), statusLabel(p.status)].filter(Boolean).join(' · '), pct: m.allocation_pct })),
+        ...existing.current.map(({ m, p }) => ({ key: m.id, p, meta: [m.role_title || roleLabel(m.role), m.start_date && `since ${fmtDate(m.start_date)}`, statusLabel(p.status)].filter(Boolean).join(' · '), pct: m.allocation_pct })),
         ...pending.map((x, i) => ({
-            key: 'new-' + x.project_id, p: byId[x.project_id] || { name: 'Project' }, meta: `${roleLabel(x.role)} · added when you save`, pct: x.allocation_pct,
+            key: 'new-' + x.project_id, p: byId[x.project_id] || { name: 'Project' }, meta: `${roleLabel(x.role)} · from ${fmtDate(x.start_date)} · added when you save`, pct: x.allocation_pct,
             action: (
                 <Btn size="sm" title="Remove" aria-label="Remove from the list" onClick={() => onChange(pending.filter((_, j) => j !== i))}>
                     <X size={12} />
@@ -92,6 +96,11 @@ export default function EmployeeProjectPicker({ employeeId, pending, onChange })
                     <div style={{ flex: '0 1 100px', minWidth: 0 }}>
                         <Field label="Time %">
                             <Input type="number" min="1" max="100" value={draft.allocation_pct} onChange={set('allocation_pct')} />
+                        </Field>
+                    </div>
+                    <div style={{ flex: '0 1 150px', minWidth: 0 }}>
+                        <Field label="From">
+                            <Input type="date" value={draft.start_date} onChange={set('start_date')} />
                         </Field>
                     </div>
                     <Btn onClick={add} disabled={!draft.project_id}>Add</Btn>

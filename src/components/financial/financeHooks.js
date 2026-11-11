@@ -4,9 +4,7 @@ import { useEffect, useState } from 'react';
 import { orgStore } from '../../services/orgStore';
 import { baseCurrency, currencyLocale } from '../../shared/currency.js';
 
-export const money = (v, digits = 0) => (Number(v) || 0).toLocaleString(currencyLocale(), {
-  style: 'currency', currency: baseCurrency(), maximumFractionDigits: digits,
-});
+export const money = (v) => (Number(v) || 0).toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export const fmtDate = (d) => (d
   ? new Date(`${String(d).slice(0, 10)}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })

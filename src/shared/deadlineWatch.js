@@ -231,9 +231,9 @@ function blank() { return { total: 0, overdue: 0, today: 0, soon: 0 }; }
 export function formatMoney(v, currency) {
   const c = recordCurrency(currency);
   try {
-    return Number(v).toLocaleString(currencyLocale(c), { style: 'currency', currency: c, maximumFractionDigits: 0 });
+    return Number(v).toLocaleString(currencyLocale(c), { style: 'currency', currency: c, minimumFractionDigits: 2, maximumFractionDigits: 2 });
   } catch {
-    return `${c} ${Math.round(Number(v)).toLocaleString(currencyLocale(c))}`;
+    return `${c} ${(Number(Number(v)) || 0).toLocaleString(currencyLocale(c), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 }
 

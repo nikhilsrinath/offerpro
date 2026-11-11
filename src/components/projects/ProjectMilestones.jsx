@@ -72,7 +72,7 @@ export default function ProjectMilestones({ project }) {
 
     return (
         <Panel title="Milestones"
-            note={billedPct ? `${Math.round(billedPct)}% of the contract is planned to bill` : locked ? 'Locked while the project is closed' : undefined}
+            note={billedPct ? `${Number(billedPct).toFixed(2)}% of the contract is planned to bill` : locked ? 'Locked while the project is closed' : undefined}
             actions={canAdd && <Btn size="sm" primary onClick={() => setEditing({ project_id: project.id, sort_order: rows.length })}>Add milestone</Btn>}>
             {rows.length === 0 ? (
                 <Empty action={canAdd && <Btn primary onClick={() => setEditing({ project_id: project.id, sort_order: 0 })}>Add the first milestone</Btn>}>
@@ -117,13 +117,13 @@ export default function ProjectMilestones({ project }) {
                                 {show('b') && (
                                     <Td align="right" nowrap>
                                         {m.billing_amount != null ? money(m.billing_amount) : <Muted>-</Muted>}
-                                        {m.billing_pct != null && <span style={{ color: t.faint, fontSize: 11.5 }}> · {m.billing_pct}%</span>}
+                                        {m.billing_pct != null && <span style={{ color: t.faint, fontSize: 11.5 }}> · {Number(m.billing_pct).toFixed(2)}%</span>}
                                     </Td>
                                 )}
                                 {show('p') && (
                                     <Td>
                                         <Row gap={8}><span style={{ flex: 1 }}><Bar value={prog} max={1} height={4} /></span>
-                                            <Muted>{Math.round(prog * 100)}%</Muted></Row>
+                                            <Muted>{Number(prog * 100).toFixed(2)}%</Muted></Row>
                                     </Td>
                                 )}
                                 {show('s') && (

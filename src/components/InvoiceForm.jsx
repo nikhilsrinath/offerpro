@@ -760,7 +760,7 @@ export default function InvoiceForm({ editDocId = null }) {
                   {GST_RATES.map(rate => (
                     <button key={rate} type="button" onClick={() => setFormData({ ...formData, gstRate: rate })}
                       aria-pressed={formData.gstRate === rate} className={`easy-chip ${formData.gstRate === rate ? 'active' : ''}`}>
-                      {rate}%
+                      {Number(rate).toFixed(2)}%
                     </button>
                   ))}
                 </div>
@@ -822,7 +822,7 @@ export default function InvoiceForm({ editDocId = null }) {
                     </div>
                     <div>
                       <label className="easy-lbl-sm">Amount</label>
-                      <div className="easy-line-amount">{(item.quantity * item.price).toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), maximumFractionDigits: 0 })}</div>
+                      <div className="easy-line-amount">{(item.quantity * item.price).toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                     </div>
                   </div>
                 </div>
@@ -871,7 +871,7 @@ export default function InvoiceForm({ editDocId = null }) {
               <div className="easy-totals">
                 <div className="easy-total-row">
                   <span>Subtotal</span>
-                  <strong>{totals.subtotal.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</strong>
+                  <strong>{totals.subtotal.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                 </div>
 
                 <div className="easy-total-row">
@@ -887,31 +887,31 @@ export default function InvoiceForm({ editDocId = null }) {
                 {totals.discountAmount > 0 && (
                   <div className="easy-total-row" style={{ color: '#ef4444' }}>
                     <span>Discount amount</span>
-                    <span>-{totals.discountAmount.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</span>
+                    <span>-{totals.discountAmount.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 )}
 
                 <div className="easy-total-row">
                   <span>Taxable amount</span>
-                  <strong>{totals.taxableAmount.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</strong>
+                  <strong>{totals.taxableAmount.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                 </div>
 
                 <div className="easy-total-divider" />
 
                 {isInterState ? (
                   <div className="easy-total-row" style={{ color: 'var(--text-secondary)' }}>
-                    <span>IGST @ {formData.gstRate}%</span>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totals.igst.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</span>
+                    <span>IGST @ {Number(formData.gstRate).toFixed(2)}%</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totals.igst.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 ) : (
                   <>
                     <div className="easy-total-row" style={{ color: 'var(--text-secondary)' }}>
-                      <span>CGST @ {formData.gstRate / 2}%</span>
-                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totals.cgst.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</span>
+                      <span>CGST @ {Number(formData.gstRate / 2).toFixed(2)}%</span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totals.cgst.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <div className="easy-total-row" style={{ color: 'var(--text-secondary)' }}>
-                      <span>SGST @ {formData.gstRate / 2}%</span>
-                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totals.sgst.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</span>
+                      <span>SGST @ {Number(formData.gstRate / 2).toFixed(2)}%</span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totals.sgst.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </>
                 )}
@@ -920,7 +920,7 @@ export default function InvoiceForm({ editDocId = null }) {
 
                 <div className="easy-total-row easy-total-grand">
                   <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>Total</span>
-                  <span>{totals.grandTotal.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</span>
+                  <span>{totals.grandTotal.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
 
                 {totalMakingCost > 0 && (
@@ -928,11 +928,11 @@ export default function InvoiceForm({ editDocId = null }) {
                     <div className="easy-total-divider" />
                     <div className="easy-total-row" style={{ color: 'var(--text-primary)' }}>
                       <span>Making cost</span>
-                      <span style={{ fontWeight: 600 }}>-{totalMakingCost.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</span>
+                      <span style={{ fontWeight: 600 }}>-{totalMakingCost.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <div className="easy-total-row" style={{ fontWeight: 700, color: estimatedProfit >= 0 ? '#10b981' : '#ef4444' }}>
                       <span>Profit</span>
-                      <span>{estimatedProfit.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency() })}</span>
+                      <span>{estimatedProfit.toLocaleString(currencyLocale(), { style: 'currency', currency: baseCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </>
                 )}

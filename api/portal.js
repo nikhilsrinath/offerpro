@@ -636,7 +636,7 @@ function labelFor(type) {
 
 function formatAmount(payment) {
   const amount = Number(payment?.amountPaid) || 0;
-  return `${currencySymbol()}${amount.toLocaleString(currencyLocale())}`;
+  return `${currencySymbol()}${amount.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 async function notify(grant, action, document, signerName, payload) {

@@ -29,7 +29,7 @@ import { issuedInvoices, balanceOf } from '../shared/finDocs.js';
 const hasContact = (c) => !!c.person_name && c.person_name !== c.clientName;
 
 function fmt(n) {
-  return currencySymbol() + Number(n || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  return currencySymbol() + Number(n || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 const TYPE_CFG = {

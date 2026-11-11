@@ -17,7 +17,9 @@ import { useSection, money, fmtDate } from '../financial/financeHooks';
 import {
     periodOptions, periodBounds, netOfTax, balanceOf, isOverdue, daysOverdue, downloadCsv, inRange,
 } from '../../services/financeAnalytics';
-import { categoryLabel, categoryOf, loadFinanceCategories } from '../../services/financeCategories';
+import { categoryLabel, categoryOf, loadFinanceCategories, methodLabel } from '../../services/financeCategories';
+import { titleCase } from '../../utils/titleCase';
+import { VENDOR_LABEL } from '../financial/ledgerTypes';
 import { isClosed } from '../../services/projectAnalytics';
 import {
     financials, canAllocate, unbilledHours,
@@ -109,21 +111,21 @@ function useSources() {
                 type: 'invoice_payment', id: p.id, invoiceId: d.id, date: p.paid_on, net: Number(p.amount), gross: Number(p.amount),
                 party: d.clientName || clientName[d.customer_id] || '', kind: 'Receipt',
                 number: d.doc_number || d.invoiceNumber || '', client_id: d.customer_id, created: p.created_at || '',
-                receiptNo: p.reference || '',
+                receiptNo: p.reference || '', method: p.method || '',
             }))),
             ...income.map((e) => ({
                 type: 'income_entry', id: e.id, date: e.received_on, net: netOfTax(e), gross: Number(e.amount) || 0,
-                party: clientName[e.client_id] || vendorName[e.vendor_id] || e.description || '', kind: categoryLabel(e.category),
+                party: clientName[e.client_id] || vendorName[e.vendor_id] || e.description || '', kind: typeOfCategory(e.category), subKind: categoryLabel(e.category),
                 number: e.reference || '', client_id: e.client_id, vendor_id: e.vendor_id || null, description: e.description || '', created: e.created_at || '',
-                receipt: e.receipt_path || null, receiptNo: e.receipt_number || '',
+                receipt: e.receipt_path || null, receiptNo: e.receipt_number || '', method: e.payment_method ? methodLabel(e.payment_method) : '',
                 settles: e.document_id ? `invoice:${e.document_id}` : null,
             })),
             ...expenses.map((e) => ({
                 type: 'expense', id: e.id, date: e.incurred_on, net: netOfTax(e), gross: Number(e.amount) || 0,
-                party: vendorName[e.vendor_id] || employeeName[e.employee_id] || e.description || '', kind: categoryLabel(e.category),
+                party: vendorName[e.vendor_id] || employeeName[e.employee_id] || e.description || '', kind: typeOfCategory(e.category), subKind: categoryLabel(e.category),
                 number: e.reference || '', client_id: e.client_id, vendor_id: e.vendor_id || null, employee_id: e.employee_id || null,
                 description: e.description || '', created: e.created_at || '',
-                receipt: e.receipt_path || null, receiptNo: e.receipt_number || '',
+                receipt: e.receipt_path || null, receiptNo: e.receipt_number || '', method: e.payment_method ? methodLabel(e.payment_method) : '',
                 // Paid to a vendor, before their bill (0093) or towards what they are owed.
                 advance: e.category === 'vendor_advance',
                 vendorPay: e.category === 'vendor_bill_payment',
@@ -135,7 +137,7 @@ function useSources() {
             ...bills.map((b) => ({
                 type: 'purchase_invoice', id: b.id, date: b.bill_date, net: Number(b.subtotal) || 0,
                 gross: Number(b.total) || 0, tax: Number(b.tax_amount) || 0, void: b.status === 'void',
-                party: vendorName[b.vendor_id] || b.description || '', kind: (categoryOf(b.category)?.active ? categoryLabel(b.category) : b.category) || 'Purchase',
+                party: vendorName[b.vendor_id] || b.description || '', kind: BILL_TYPE, subKind: (categoryOf(b.category)?.active ? categoryLabel(b.category) : b.category) || 'Purchase',
                 number: b.bill_number || '', client_id: null, vendor_id: b.vendor_id || null, description: b.description || '', created: b.created_at || '',
             })),
         ];
@@ -247,17 +249,28 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
             ) : f && (
                 <>
                     <StatBand items={[
-                        { label: 'Invoiced', value: money(f.revenue_invoiced) },
-                        { label: 'Collected', value: money(f.revenue_collected) },
-                        { label: 'Outstanding', value: money(f.outstanding_receivable), note: 'Owed by the client, GST included' },
                         {
-                            label: 'Overdue', value: money(f.overdue_receivable),
-                            tone: Number(f.overdue_receivable) > 0 ? 'down' : undefined,
+                            label: 'Invoiced', value: money(f.revenue_invoiced, 2),
+                            formula: 'Sum of this project’s issued invoices (not draft or cancelled), before GST, by issue date',
                         },
                         {
-                            label: 'Net margin', value: money(f.net_margin),
+                            label: 'Collected', value: money(f.revenue_collected, 2),
+                            formula: 'Payments recorded on those invoices (Mark Paid / Record Receipt against an invoice), before GST. Money received without an invoice is Other income, not here',
+                        },
+                        {
+                            label: 'Outstanding', value: money(f.outstanding_receivable, 2), note: 'Owed by the client, GST included',
+                            formula: 'Each open invoice’s total with GST − what has been paid on it, added up',
+                        },
+                        {
+                            label: 'Overdue', value: money(f.overdue_receivable, 2),
+                            tone: Number(f.overdue_receivable) > 0 ? 'down' : undefined,
+                            formula: 'The Outstanding of invoices whose due date has passed',
+                        },
+                        {
+                            label: 'Net margin', value: money(f.net_margin, 2),
                             tone: Number(f.net_margin) < 0 ? 'down' : undefined,
-                            note: f.net_margin_pct == null ? 'After labour' : `${f.net_margin_pct}% after labour`,
+                            note: f.net_margin_pct == null ? 'After labour' : `${Number(f.net_margin_pct).toFixed(2)}% after labour`,
+                            formula: `Invoiced ${money(f.revenue_invoiced, 2)} + Other income ${money(f.other_income, 2)} − Bills ${money(f.vendor_costs, 2)} − Expenses ${money(f.expense_costs, 2)} − Labour ${money(f.labour_cost, 2)}`,
                         },
                     ]} />
 
@@ -267,15 +280,15 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
                                 empty="No contract value set. Add one with Edit to track billing against it." />
                             <p style={{ margin: '10px 0 0', fontSize: 12.5, color: t.dim }}>
                                 {contract > 0
-                                    ? `${money(f.unbilled_value)} of ${money(contract)} still to bill.`
-                                    : `${money(f.unbilled_value)} unbilled.`}
+                                    ? `${money(f.unbilled_value, 2)} of ${money(contract, 2)} still to bill.`
+                                    : `${money(f.unbilled_value, 2)} unbilled.`}
                             </p>
                         </Panel>
-                        <Panel title="Budget" pad={15} note={Number(f.budget_total) > 0 ? `${money(f.budget_total)} planned` : undefined}>
+                        <Panel title="Budget" pad={15} note={Number(f.budget_total) > 0 ? `${money(f.budget_total, 2)} planned` : undefined}>
                             <Meter label="Used" pct={f.budget_burn_pct} total={Number(f.budget_total) || 0}
                                 empty="No budget set. Add labour, vendor or other budget with Edit." />
                             <p style={{ margin: '10px 0 0', fontSize: 12.5, color: t.dim }}>
-                                Costs so far {money(costs)}: bills, expenses and labour.
+                                Costs so far {money(costs, 2)}: bills, expenses and labour.
                             </p>
                         </Panel>
                     </Grid>
@@ -525,7 +538,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
             .filter((r) => (!nFrom && !nTo) || inRange(r.s?.date, nFrom, nTo))
             .filter((r) => type === 'all' || String(kindOfRow(r)) === type)
             .filter((r) => nView === 'all' || r.credit === (nView === 'in'))
-            .filter((r) => !nSearch || [r.s?.party, r.s?.description, r.s?.number, r.s?.receiptNo, r.s?.kind, r.pays?.number, SOURCE_LABEL[r.a.source_type],
+            .filter((r) => !nSearch || [r.s?.party, r.s?.description, r.s?.number, r.s?.receiptNo, r.s?.kind, r.s?.subKind, r.s?.method, r.pays?.number, SOURCE_LABEL[r.a.source_type],
                 ...(r.breakdown || []).map((p) => p.bill?.number),
                 ...(r.projects || []).flatMap((p) => [p.code, p.name])]
                 .some((v) => String(v || '').toLowerCase().includes(nSearch)))
@@ -612,6 +625,9 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
             onClick: async () => { if (!(await receiptService.open(p))) toast('Could not open the receipt', 'error'); },
         }));
     };
+    // What the entry was for, and how it was paid (each entry of a grouped payment).
+    const descriptionOf = (r) => [...new Set((r.breakdown ? partsOf(r).map((e) => e.description) : [r.s?.description]).filter(Boolean))].join(', ');
+    const methodOf = (r) => [...new Set((r.breakdown ? partsOf(r).map((e) => (e.payment_method ? methodLabel(e.payment_method) : '')) : [r.s?.method]).filter(Boolean))].join(', ');
     const projectText = (r) => (r.projects?.length ? r.projects.map((p) => p.code || p.name).join(', ') : 'General');
     const projectNameText = (r) => (r.projects?.length ? r.projects.map((p) => p.name || p.code).join(', ') : 'General');
 
@@ -630,15 +646,15 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
     const exportCsv = () => downloadCsv(
         company ? `${sideName || 'general-ledger'}.csv`
             : `${sideName || 'general-ledger'}-${project.code || project.name || 'project'}.csv`,
-        ['Date', 'Particular / Company Name', ...(company ? ['Project', 'Project Name'] : []), 'Type', 'Invoice No', 'Receipt No', 'Credit', 'Debit', 'Balance', 'Note'],
+        ['Date', 'Particular / Company Name', ...(company ? ['Project', 'Project Name'] : []), 'Type', 'Sub Type', 'Description', 'Mode of Payment', 'Invoice No', 'Receipt No', 'Credit', 'Debit', 'Balance', 'Note'],
         [
             ...shown.map((r) => [
-                r.s?.date || '', nameOf(r), ...(company ? [projectText(r), projectNameText(r)] : []), kindOf(r), r.s?.number || '', receiptOf(r),
+                r.s?.date || '', nameOf(r), ...(company ? [projectText(r), projectNameText(r)] : []), kindOf(r), subKindOfRow(r), descriptionOf(r), methodOf(r), r.s?.number || '', receiptOf(r),
                 r.credit ? r.value.toFixed(2) : '', r.credit ? '' : r.value.toFixed(2),
                 r.balance.toFixed(2),
                 r.settles ? 'Receipt against a linked invoice, not counted' : '',
             ]),
-            ...foot.map((f) => ['', f.label, ...(company ? ['', ''] : []), '', '', '', '', '', f.value.toFixed(2), '']),
+            ...foot.map((f) => ['', f.label, ...(company ? ['', ''] : []), '', '', '', '', '', '', '', '', f.value.toFixed(2), '']),
         ],
     );
 
@@ -677,7 +693,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
     const sortValue = {
         d: (r) => `${r.s?.date || ''}|${r.s?.created || ''}`, p: (r) => nameOf(r).toLowerCase(),
         pr: (r) => projectText(r).toLowerCase(), pn: (r) => projectNameText(r).toLowerCase(),
-        t: (r) => String(kindOf(r)).toLowerCase(), n: (r) => String(r.s?.number || '').toLowerCase(), rn: (r) => receiptOf(r).toLowerCase(),
+        t: (r) => String(kindOf(r)).toLowerCase(), st: (r) => subKindOfRow(r).toLowerCase(), ds: (r) => descriptionOf(r).toLowerCase(), pm: (r) => methodOf(r).toLowerCase(), n: (r) => String(r.s?.number || '').toLowerCase(), rn: (r) => receiptOf(r).toLowerCase(),
         cr: (r) => (r.credit ? r.value : null), dr: (r) => (r.credit ? null : r.value), b: (r) => r.balance,
     }[sort?.key];
     const ordered = !sortValue ? shown : shown.slice().sort((x, y) => {
@@ -721,7 +737,8 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                 id={sideName || (company ? 'company-ledger' : only === 'purchases' ? 'project-purchase-ledger' : 'project-ledger')} cols={[
                 { key: 'd', label: 'Date', width: 104 }, { key: 'p', label: 'Particular / Company Name', always: true },
                 ...(company ? [{ key: 'pr', label: 'Project' }, { key: 'pn', label: 'Project Name' }] : []),
-                { key: 't', label: 'Type' }, { key: 'n', label: 'Invoice No', def: false }, { key: 'rn', label: 'Receipt No', def: false },
+                { key: 't', label: 'Type' }, { key: 'st', label: 'Sub Type' }, { key: 'ds', label: 'Description', def: false },
+                { key: 'pm', label: 'Mode of Payment' }, { key: 'n', label: 'Invoice No', def: false }, { key: 'rn', label: 'Receipt No', def: false },
                 { key: 'cr', label: 'Credit', align: 'right' }, { key: 'dr', label: 'Debit', align: 'right' },
                 { key: 'b', label: 'Balance', align: 'right' },
                 ...(readOnly ? [] : [{ key: 'x', label: '', align: 'right', always: true }]),
@@ -785,6 +802,9 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                     )}
                                     {company && show('pn') && <Td muted>{clip(projectNameText(r), 160)}</Td>}
                                     {show('t') && <Td muted nowrap>{kindOf(r)}</Td>}
+                                    {show('st') && <Td muted nowrap>{subKindOfRow(r) || '-'}</Td>}
+                                    {show('ds') && <Td muted>{clip(descriptionOf(r) || '-', 220)}</Td>}
+                                    {show('pm') && <Td muted nowrap>{methodOf(r) || '-'}</Td>}
                                     {show('n') && <Td muted nowrap>{s?.number || '-'}</Td>}
                                     {show('rn') && <Td muted nowrap>{receiptOf(r) || '-'}</Td>}
                                     {show('cr') && <Td align="right" nowrap>{amount(r, r.credit)}</Td>}
@@ -801,7 +821,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                                 ? <RowMenu label={`Actions for this receipt`} items={invoices.receiptMenu(a.source_id, invoiceId)} />
                                         : bill && billMenu
                                             ? <RowMenu label={`Actions for bill ${bill.bill_number}`} items={billMenu(bill)} />
-                                            : (r.pays || s?.advance || s?.vendorPay || r.breakdown) && paymentMenu ? <RowMenu label={kindOf(r) === 'Advance' ? 'Actions for this advance' : 'Actions for this payment'}
+                                            : (r.pays || s?.advance || s?.vendorPay || r.breakdown) && paymentMenu ? <RowMenu label={isAdvanceRow(r) ? 'Actions for this advance' : 'Actions for this payment'}
                                                 items={[...receipts, ...(r.breakdown ? paymentMenu(r.breakdown.map((p) => p.id), open) : paymentMenu(a.source_id))]} />
                                             : (open || deletable || receipts.length > 0) && <RowMenu label={`Actions for ${name}`} items={[
                                                 ...receipts,
@@ -825,6 +845,9 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                     {company && show('pr') && <Td style={cell} />}
                                     {company && show('pn') && <Td style={cell} />}
                                     {show('t') && <Td style={cell} />}
+                                    {show('st') && <Td style={cell} />}
+                                    {show('ds') && <Td style={cell} />}
+                                    {show('pm') && <Td style={cell} />}
                                     {show('n') && <Td style={cell} />}
                                     {show('rn') && <Td style={cell} />}
                                     {['cr', 'dr', 'b'].filter(show).map((k) => (
@@ -864,8 +887,21 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
 const LEDGER_PAGE = 25;
 
 // What a ledger row is, as its Type column shows it.
-const kindOfRow = (r) => (r.breakdown?.some((p) => p.advance) || r.s?.advance ? 'Advance'
-    : r.pays || r.breakdown || r.s?.vendorPay ? 'Payment' : r.s?.kind || SOURCE_LABEL[r.a.source_type]);
+// The Type and Sub Type columns read as the forms do: a bill is Sales & Services
+// with its category, a vendor payment is Vendor Payment with Against Pending or
+// Advance, and any other entry is its category's group and the category.
+const BILL_TYPE = 'Sales & Services';
+function typeOfCategory(key) {
+    const c = categoryOf(key);
+    if (!c?.group_label) return categoryLabel(key);
+    return c.direction === 'out' && /^product\s*&\s*delivery/i.test(c.group_label) ? VENDOR_LABEL : titleCase(c.group_label);
+}
+const isAdvanceRow = (r) => !!(r.breakdown?.some((p) => p.advance) || r.s?.advance);
+const kindOfRow = (r) => (isAdvanceRow(r) || r.pays || r.breakdown || r.s?.vendorPay ? VENDOR_LABEL
+    : r.s?.kind || SOURCE_LABEL[r.a.source_type]);
+const subKindOfRow = (r) => (isAdvanceRow(r) ? 'Advance'
+    : r.pays ? 'Bill payment'
+        : r.breakdown || r.s?.vendorPay ? 'Against Pending' : r.s?.subKind || '');
 
 const CREDIT = new Set(['invoice', 'income_entry']);
 const ENTRY_DIRECTION = { income_entry: 'in', expense: 'out' };
@@ -892,14 +928,14 @@ const BILLING_LABEL = { fixed_price: 'Fixed price', time_materials: 'Time & mate
 /** Used against a total, as a bar and a percentage. */
 function Meter({ label, used, total, pct, empty }) {
     const t = useT();
-    const p = pct != null ? Math.round(Number(pct)) : total > 0 && used != null ? Math.round((used / total) * 100) : null;
+    const p = pct != null ? Number(pct) : total > 0 && used != null ? (used / total) * 100 : null;
     if (!(total > 0) || p == null) return <Muted>{empty}</Muted>;
     const over = p > 100;
     return (
         <div>
             <Row gap={8}>
                 <span style={{ flex: 1, fontSize: 13 }}>{label}</span>
-                <span style={{ fontSize: 13, color: over ? t.down : t.text }}>{p}%</span>
+                <span style={{ fontSize: 13, color: over ? t.down : t.text }}>{Number(p).toFixed(2)}%</span>
             </Row>
             <div role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(p, 100)}
                 style={{ height: 6, borderRadius: 3, background: t.lineSoft, marginTop: 7, overflow: 'hidden' }}>
@@ -930,14 +966,27 @@ export function ProjectProfitLoss({ project }) {
             ) : f && (
                 <>
                     <StatBand items={[
-                        { label: 'Revenue', value: money((Number(f.revenue_invoiced) || 0) + (Number(f.other_income) || 0)) },
-                        { label: 'Direct costs', value: money((Number(f.vendor_costs) || 0) + (Number(f.expense_costs) || 0)) },
-                        { label: 'Gross margin', value: money(f.gross_margin), note: f.gross_margin_pct == null ? '' : `${f.gross_margin_pct}%` },
-                        { label: 'Labour', value: money(f.labour_cost), note: 'Pay × time on the project' },
                         {
-                            label: Number(f.net_margin) < 0 ? 'Net loss' : 'Net profit', value: money(f.net_margin),
+                            label: 'Revenue', value: money((Number(f.revenue_invoiced) || 0) + (Number(f.other_income) || 0), 2),
+                            formula: `Invoiced ${money(f.revenue_invoiced, 2)} + Other income ${money(f.other_income, 2)} (money in with no invoice)`,
+                        },
+                        {
+                            label: 'Direct costs', value: money((Number(f.vendor_costs) || 0) + (Number(f.expense_costs) || 0), 2),
+                            formula: `Vendor bills ${money(f.vendor_costs, 2)} + Expenses ${money(f.expense_costs, 2)}, before GST`,
+                        },
+                        {
+                            label: 'Gross margin', value: money(f.gross_margin, 2), note: f.gross_margin_pct == null ? '' : `${Number(f.gross_margin_pct).toFixed(2)}%`,
+                            formula: 'Revenue − Direct costs; % = Gross margin ÷ Revenue × 100',
+                        },
+                        {
+                            label: 'Labour', value: money(f.labour_cost, 2), note: 'Pay × time on the project',
+                            formula: 'Each member’s monthly pay × 12 ÷ 365 × days on the project × allocation %',
+                        },
+                        {
+                            label: Number(f.net_margin) < 0 ? 'Net loss' : 'Net profit', value: money(f.net_margin, 2),
                             tone: Number(f.net_margin) < 0 ? 'down' : 'up',
-                            note: f.net_margin_pct == null ? '' : `${f.net_margin_pct}%`,
+                            note: f.net_margin_pct == null ? '' : `${Number(f.net_margin_pct).toFixed(2)}%`,
+                            formula: `Gross margin ${money(f.gross_margin, 2)} − Labour ${money(f.labour_cost, 2)}; % = Net ÷ Revenue × 100`,
                         },
                     ]} />
                     <Grid min={320} gap={14}>
@@ -947,19 +996,19 @@ export function ProjectProfitLoss({ project }) {
                                 <PlRow label="Other income" value={f.other_income} note="General ledger" />
                                 <PlRow label="Vendor bills" value={-f.vendor_costs} />
                                 <PlRow label="Expenses" value={-f.expense_costs} note="General ledger" />
-                                <PlRow label="Gross margin" value={f.gross_margin} strong note={f.gross_margin_pct == null ? '' : `${f.gross_margin_pct}%`} />
+                                <PlRow label="Gross margin" value={f.gross_margin} strong note={f.gross_margin_pct == null ? '' : `${Number(f.gross_margin_pct).toFixed(2)}%`} />
                                 <PlRow label="Labour" value={-f.labour_cost} note="Pay × time on the project" />
-                                <PlRow label="Net margin" value={f.net_margin} strong note={f.net_margin_pct == null ? '' : `${f.net_margin_pct}%`} />
+                                <PlRow label="Net margin" value={f.net_margin} strong note={f.net_margin_pct == null ? '' : `${Number(f.net_margin_pct).toFixed(2)}%`} />
                             </Table>
                         </Panel>
                         <Panel title="Costs by category" pad={15}
-                            note={f.budget_burn_pct == null ? 'No budget set' : `${f.budget_burn_pct}% of ${money(f.budget_total)} used to date`}>
+                            note={f.budget_burn_pct == null ? 'No budget set' : `${Number(f.budget_burn_pct).toFixed(2)}% of ${money(f.budget_total, 2)} used to date`}>
                             {cats.length === 0 ? <Muted>No direct costs in this period.</Muted> : (
                                 <div style={{ display: 'grid', gap: 7 }}>
                                     {cats.map((c) => (
                                         <Row key={c.k} gap={8}>
                                             <span style={{ flex: 1, fontSize: 13 }}>{categoryLabel(c.k)}</span>
-                                            <span style={{ fontSize: 13 }}>{money(c.v)}</span>
+                                            <span style={{ fontSize: 13 }}>{money(c.v, 2)}</span>
                                         </Row>
                                     ))}
                                 </div>
@@ -986,7 +1035,7 @@ function PlRow({ label, value, strong, note }) {
             <Td>{strong ? <strong style={{ fontWeight: 500 }}>{label}</strong> : label}
                 {note && <span style={{ fontSize: 11.5, color: t.faint }}> · {note}</span>}</Td>
             <Td align="right" nowrap>
-                <span style={{ color: strong && v < 0 ? t.down : t.text, fontWeight: strong ? 500 : 400 }}>{money(v)}</span>
+                <span style={{ color: strong && v < 0 ? t.down : t.text, fontWeight: strong ? 500 : 400 }}>{money(v, 2)}</span>
             </Td>
         </Tr>
     );

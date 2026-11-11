@@ -57,7 +57,7 @@ const MONEY = [
     { id: 'invoiced', label: 'Invoiced', sub: 'Incl. GST', get: (f) => f.invoiced?.gross, count: (f) => f.invoiced && `${f.invoiced.count} invoice${f.invoiced.count === 1 ? '' : 's'}`, good: 'up' },
     { id: 'collected', label: 'Collected', sub: 'Invoices and advances', get: (f) => (f.collected ? f.collected.on_invoices + f.collected.advances : null), good: 'up' },
     { id: 'expenses', label: 'Expenses', sub: 'Net of GST', get: (f) => f.expenses?.total, good: 'down' },
-    { id: 'pl_net', label: 'P&L Net', sub: 'Revenue − expenses', get: (f) => f.pl_net, good: 'up', count: (f) => (f.margin_pct === null || f.margin_pct === undefined ? null : `${f.margin_pct}% margin`) },
+    { id: 'pl_net', label: 'P&L Net', sub: 'Revenue − expenses', get: (f) => f.pl_net, good: 'up', count: (f) => (f.margin_pct === null || f.margin_pct === undefined ? null : `${Number(f.margin_pct).toFixed(2)}% margin`) },
     { id: 'cash', label: 'Net Money Movement', sub: 'Money in − out', get: (f) => f.cash?.net, good: 'up', count: (f) => f.cash && `In ${money(f.cash.in)} · Out ${money(f.cash.out)}` },
 ];
 
@@ -339,7 +339,7 @@ function Kpi({ label, sub, value, previous, extra, good, def }) {
 }
 
 function Owed({ label, def, total, count, overdue, overdueCount, noun }) {
-    const pct = total > 0 ? Math.min(100, Math.round((overdue / total) * 100)) : 0;
+    const pct = total > 0 ? Math.min(100, (overdue / total) * 100) : 0;
     return (
         <div className="bi-kpi" title={def}>
             <span className="bi-kpi-l">{label}</span>
@@ -418,7 +418,7 @@ function Bars({ title, note, rows, total, empty, onAsk, busy }) {
                     <span className="bi-bar-l" title={r.label}>{r.label}</span>
                     <span className="bi-bar-v">
                         {money(r.value)}
-                        <small>{total > 0 ? ` · ${Math.round((r.value / total) * 1000) / 10}%` : ''}</small>
+                        <small>{total > 0 ? ` · ${((r.value / total) * 100).toFixed(2)}%` : ''}</small>
                     </span>
                     <span className="bi-track" aria-hidden="true"><i style={{ width: `${Math.max(2, (Math.abs(r.value) / max) * 100)}%` }} /></span>
                     {r.sub && <span className="bi-bar-sub">{r.sub}</span>}

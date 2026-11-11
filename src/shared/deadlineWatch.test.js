@@ -170,7 +170,7 @@ describe('summary', () => {
   it('says what is late, from the records', () => {
     expect(s.text).toContain('3 tasks are overdue across 2 projects.');
     expect(s.text).toContain('The Orion milestone "Beta launch" is due tomorrow.');
-    expect(s.text).toContain('2 invoices are unpaid past their due date (₹60,000 outstanding).');
+    expect(s.text).toContain('2 invoices are unpaid past their due date (₹60,000.00 outstanding).');
     expect(s.text).toMatch(/^3 tasks/);
     expect(s.headline).toBe('5 items need action now'); // the milestone is due soon, not urgent
   });
@@ -178,7 +178,7 @@ describe('summary', () => {
     expect(unsupportedNumbers(s.text, f, TODAY)).toEqual([]);
   });
   it('the check catches invented figures', () => {
-    expect(unsupportedNumbers('You have 9 overdue invoices worth ₹75,000.', f, TODAY)).toEqual(['9', '75000']);
+    expect(unsupportedNumbers('You have 9 overdue invoices worth ₹75,000.00.', f, TODAY)).toEqual(['9', '75000']);
   });
   it('an empty watch says so', () => {
     expect(summarize([], TODAY).headline).toMatch(/Nothing/);

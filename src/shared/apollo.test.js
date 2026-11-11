@@ -92,9 +92,9 @@ describe('people and candidates', () => {
 
 describe('showing it', () => {
   it('writes growth and size for people', () => {
-    expect(growthText(0.1834)).toBe('+18%');
-    expect(growthText(-0.04)).toBe('−4%');
-    expect(growthText(0)).toBe('0%');
+    expect(growthText(0.1834)).toBe('+18.34%');
+    expect(growthText(-0.04)).toBe('−4.00%');
+    expect(growthText(0)).toBe('0.00%');
     expect(growthText(null)).toBeNull();
     expect(sizeText(1250)).toBe('1,250 people');
     expect(sizeText(null)).toBeNull();

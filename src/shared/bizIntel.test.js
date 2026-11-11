@@ -146,14 +146,14 @@ describe('change', () => {
   it('works out the difference and the percentage', () => {
     expect(change(125, 100)).toMatchObject({ diff: 25, pct: 25, direction: 'up' });
     expect(change(75, 100)).toMatchObject({ diff: -25, pct: -25, direction: 'down' });
-    expect(change(1, 3).pct).toBe(-66.7);
+    expect(change(1, 3).pct).toBe(-66.67);
     expect(change(-50, -100)).toMatchObject({ diff: 50, pct: 50 });
     // A profit that turned into a loss has no meaningful percentage.
     expect(change(-10212, 27500)).toMatchObject({ diff: -37712, pct: null, direction: 'down' });
-    expect(change(-10212, 27500).note).toBe('Changed from ₹27,500 to -₹10,212, so no percentage.');
-    expect(change(-500, 0).note).toMatch(/^Down from ₹0/);
-    expect(pctText(12.5)).toBe('+12.5%');
-    expect(pctText(-3)).toBe('−3%');
+    expect(change(-10212, 27500).note).toBe('Changed from ₹27,500.00 to -₹10,212.00, so no percentage.');
+    expect(change(-500, 0).note).toMatch(/^Down from ₹0.00/);
+    expect(pctText(12.5)).toBe('+12.50%');
+    expect(pctText(-3)).toBe('−3.00%');
   });
 
   it('never divides by zero', () => {
@@ -260,20 +260,20 @@ describe('snapshot and findings', () => {
     }
     const rec = snap.insights[0];
     expect(rec.severity).toBe('high');
-    expect(rec.evidence.join(' ')).toContain('₹31,800');
-    expect(rec.evidence.join(' ')).toContain('On 19 Sep 2026 ₹23,600 was overdue');
+    expect(rec.evidence.join(' ')).toContain('₹31,800.00');
+    expect(rec.evidence.join(' ')).toContain('On 19 Sep 2026 ₹23,600.00 was overdue');
     expect(rec.sources.map((s) => s.id)).toEqual(['inv3', 'inv1']);
     const coll = snap.insights.find((i) => i.id === 'collections_down');
-    expect(coll.finding).toBe('Payments collected on invoices fell 39% on 1 Sep 2026 – 19 Sep 2026.');
+    expect(coll.finding).toBe('Payments collected on invoices fell 38.98% on 1 Sep 2026 – 19 Sep 2026.');
   });
 
   it('every number in a finding comes from the figures', () => {
     const snap = buildSnapshot(data(), { period: 'this_month', today: TODAY });
     const exp = snap.insights.find((i) => i.id === 'expenses_up');
-    expect(exp.evidence[0]).toContain('₹27,000');
-    expect(exp.evidence[0]).toContain('₹5,000');
-    expect(exp.finding).toContain('are up 440% on 1 Sep 2026 – 19 Sep 2026');
-    expect(exp.evidence[0]).toBe('₹27,000 in October 2026 (this month) against ₹5,000 in 1 Sep 2026 – 19 Sep 2026.');
+    expect(exp.evidence[0]).toContain('₹27,000.00');
+    expect(exp.evidence[0]).toContain('₹5,000.00');
+    expect(exp.finding).toContain('are up 440.00% on 1 Sep 2026 – 19 Sep 2026');
+    expect(exp.evidence[0]).toBe('₹27,000.00 in October 2026 (this month) against ₹5,000.00 in 1 Sep 2026 – 19 Sep 2026.');
   });
 
   it('a table the person may not see is left out, never counted as zero', () => {
@@ -407,9 +407,9 @@ describe('the automatic run', () => {
     const snap = buildSnapshot(data, { period: { id: 'custom', from: '2026-10-12', to: '2026-10-18' }, compare: { from: '2026-10-05', to: '2026-10-11' }, today: TODAY });
     const s = buildWeeklySummary(snap, 'Test Co');
     expect(s.title).toMatch(/^Business Intelligence Agent: week of /);
-    expect(s.text).toMatch(/Invoiced: ₹11,800/);
+    expect(s.text).toMatch(/Invoiced: ₹11,800.00/);
     expect(s.text).toMatch(/Money in: left out \(could not read expenses\)/);
-    expect(s.text).not.toMatch(/Money (in|out): ₹0/);
+    expect(s.text).not.toMatch(/Money (in|out): ₹0.00/);
     expect(s.text).toMatch(/^Test Co: the week of /);
   });
 });

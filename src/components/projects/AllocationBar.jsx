@@ -13,7 +13,7 @@ export default function AllocationBar({ pct, width = 90 }) {
                 <Bar value={Math.min(v, 100)} max={100} height={4} tone={over ? t.down : undefined} />
             </span>
             <span style={{ fontSize: 12, color: over ? t.down : t.dim, minWidth: 34 }}>
-                {Math.round(v)}%{over ? ' · over' : ''}
+                {Number(v).toFixed(2)}%{over ? ' · over' : ''}
             </span>
         </span>
     );

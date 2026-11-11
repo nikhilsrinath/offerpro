@@ -5,7 +5,7 @@
 
 import { supabase } from '../lib/supabase';
 import { orgStore } from './orgStore';
-import { currencySymbol, currencyLocale } from '../shared/currency.js';
+import { currencySymbol, currencyLocale, fixed2 } from '../shared/currency.js';
 
 // Memory lives in one row per org: ai_company_memory(org_id, memory jsonb).
 // Firebase wrote it to RTDB `memory/{orgId}` and Firestore `memory/{orgId}` at
@@ -473,7 +473,7 @@ function analyzeCRM(orgData: any, insights: string[], opportunities: string[], r
 
     // High-value opportunity detection
     if (value >= 20000 || notes.toLowerCase().includes('20k') || notes.toLowerCase().includes('large')) {
-      opportunities.push(`Potential large deal (${value > 0 ? value.toLocaleString() : 'significant'} value) from ${item.company_name || item.person_name || item.name || 'a lead'}`);
+      opportunities.push(`Potential large deal (${value > 0 ? fixed2(value) : 'significant'} value) from ${item.company_name || item.person_name || item.name || 'a lead'}`);
     }
 
     // Deal in negotiation
@@ -522,10 +522,10 @@ function analyzeFinancials(orgData: any, insights: string[], opportunities: stri
   const totalPending = pending.reduce((acc: number, d: any) => acc + (d.grand_total || d.amount || 0), 0);
 
   if (totalPaid > 100000) {
-    insights.push(`Strong revenue base: ${totalPaid.toLocaleString()} collected to date`);
+    insights.push(`Strong revenue base: ${fixed2(totalPaid)} collected to date`);
   }
   if (totalPending > 50000) {
-    opportunities.push(`${totalPending.toLocaleString()} in pending invoices - collection opportunity`);
+    opportunities.push(`${fixed2(totalPending)} in pending invoices - collection opportunity`);
   }
   if (pending.length > 5) {
     risks.push(`${pending.length} unpaid invoices - cash flow attention needed`);
@@ -728,13 +728,13 @@ function formatFinancials(finDocs: any, expenses: any): string {
     const amount = d.grand_total || d.amount || 0;
     const status = d.status || 'draft';
     const date = d.issue_date || d.created_at || '';
-    return `${idx + 1}. [${type} ${id}] ${client} - ${currencySymbol()}${amount.toLocaleString(currencyLocale())} (${status}) ${date ? `on ${date}` : ''}`;
+    return `${idx + 1}. [${type} ${id}] ${client} - ${currencySymbol()}${amount.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${status}) ${date ? `on ${date}` : ''}`;
   };
 
   const sections: string[] = [];
   sections.push(`FINANCIAL SUMMARY:
-- Total Collected: ${currencySymbol()}${totalPaid.toLocaleString(currencyLocale())}
-- Total Pending: ${currencySymbol()}${totalPending.toLocaleString(currencyLocale())}
+- Total Collected: ${currencySymbol()}${totalPaid.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+- Total Pending: ${currencySymbol()}${totalPending.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
 - Total Invoices: ${invoices.length} (${paid.length} paid, ${pending.length} unpaid)`);
 
   if (invoices.length > 0) {
@@ -749,9 +749,9 @@ function formatFinancials(finDocs: any, expenses: any): string {
   if (expList.length > 0) {
     const totalExp = expList.reduce((acc, e) => acc + (e.amount || 0), 0);
     const expStrings = expList.slice(0, 10).map((e, idx) => 
-      `${idx + 1}. ${e.category || 'General'}: ${currencySymbol()}${(e.amount || 0).toLocaleString(currencyLocale())} - ${e.description || 'No description'}`
+      `${idx + 1}. ${e.category || 'General'}: ${currencySymbol()}${(e.amount || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - ${e.description || 'No description'}`
     );
-    sections.push(`EXPENSES (Total: ${currencySymbol()}${totalExp.toLocaleString(currencyLocale())}):\n${expStrings.join('\n')}`);
+    sections.push(`EXPENSES (Total: ${currencySymbol()}${totalExp.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}):\n${expStrings.join('\n')}`);
   }
 
   return sections.join('\n\n');
@@ -787,14 +787,14 @@ function formatCatalog(catalog: any): string {
   const items = (Object.values(catalog) as any[]).filter((p) => !p.archived_at);
   if (items.length === 0) return 'The product catalogue is empty.';
 
-  const money = (n: any) => `${currencySymbol()}${(Number(n) || 0).toLocaleString(currencyLocale())}`;
+  const money = (n: any) => `${currencySymbol()}${(Number(n) || 0).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const ranked = [...items].sort((a, b) => (Number(b.revenue) || 0) - (Number(a.revenue) || 0));
 
   const lines = ranked.map((p, idx) => {
     const parts = [`${idx + 1}. ${p.name || 'Unnamed'}`];
     if (p.sku) parts.push(`[${p.sku}]`);
     parts.push(` · ${money(p.unit_price)} per ${p.unit || 'Nos'}`);
-    parts.push(`(${p.category || 'Uncategorised'}, ${p.tax_rate ?? 18}% GST${p.hsn_sac ? `, HSN ${p.hsn_sac}` : ''})`);
+    parts.push(`(${p.category || 'Uncategorised'}, ${Number(p.tax_rate ?? 18).toFixed(2)}% GST${p.hsn_sac ? `, HSN ${p.hsn_sac}` : ''})`);
     if (Number(p.units_sold) > 0) {
       parts.push(`| sold ${Number(p.units_sold).toLocaleString('en-IN')} units across ${p.invoice_count} invoice(s), ${money(p.revenue)} billed, ${money(p.revenue_paid)} collected, last sold ${p.last_sold_at || 'unknown'}`);
     } else {
@@ -867,7 +867,7 @@ function formatCRM(crm: any): string {
   const formatItem = (item: any, idx: number) => {
     const contact = item.person_name && item.company_name ? ` (contact: ${item.person_name})` : '';
     const parts = [`${idx + 1}. ${nameOf(item)}${contact}`];
-    if (item.value) parts.push(`Value: ${currencySymbol()}${Number(item.value).toLocaleString(currencyLocale())}`);
+    if (item.value) parts.push(`Value: ${currencySymbol()}${Number(item.value).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     if (item.email) parts.push(item.email);
     if (item.phone) parts.push(item.phone);
     let out = parts.join(' - ');
@@ -891,8 +891,8 @@ function formatCRM(crm: any): string {
 
   const sections: string[] = [];
   sections.push(`CRM PIPELINE (${items.length} lead${items.length === 1 ? '' : 's'}):
-- Open pipeline value (excludes lost): ${currencySymbol()}${openValue.toLocaleString(currencyLocale())}
-- Won (stage "deal"): ${(byStage.get('deal') || []).length} worth ${currencySymbol()}${wonValue.toLocaleString(currencyLocale())}`);
+- Open pipeline value (excludes lost): ${currencySymbol()}${openValue.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+- Won (stage "deal"): ${(byStage.get('deal') || []).length} worth ${currencySymbol()}${wonValue.toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 
   const ORDER = ['lead', 'contacted', 'deal', 'not_deal'];
   for (const stage of ORDER) {

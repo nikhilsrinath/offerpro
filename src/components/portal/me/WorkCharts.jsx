@@ -71,7 +71,7 @@ export function MonthsWorkedChart({ months, currentKey, height = 210, empty = 'N
                 [monthLabel(m.key), null],
                 ['Days worked', m.days],
                 ['Hours', hoursLabel(m.minutes)],
-                ['Attendance', m.rate == null ? '-' : `${Math.round(m.rate * 100)}%`],
+                ['Attendance', m.rate == null ? '-' : `${Number(m.rate * 100).toFixed(2)}%`],
               ]} />}
             />
             <Bar dataKey="days" radius={[6, 6, 0, 0]} maxBarSize={26}>

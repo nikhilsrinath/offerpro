@@ -250,9 +250,9 @@ export default function ActionCard({ card, onConfirm, onCancel, onUndo, onOpen }
 const inr = (v, code) => {
     const currency = recordCurrency(code);
     try {
-        return (Number(v) || 0).toLocaleString(currencyLocale(currency), { style: 'currency', currency, maximumFractionDigits: 2 });
+        return (Number(v) || 0).toLocaleString(currencyLocale(currency), { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 });
     } catch {
-        return `${currency} ${(Number(v) || 0).toLocaleString(currencyLocale(currency))}`;
+        return `${currency} ${(Number(v) || 0).toLocaleString(currencyLocale(currency), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
 };
 
@@ -283,10 +283,10 @@ function DocTable({ doc, full }) {
                     <tr><th scope="row" colSpan={2}>Subtotal</th><td className="is-num">{inr(t.subtotal, cur)}</td></tr>
                     {t.discountAmount > 0 && <tr><th scope="row" colSpan={2}>Discount</th><td className="is-num">− {inr(t.discountAmount, cur)}</td></tr>}
                     {doc.gstRate > 0 && (doc.isInterState
-                        ? <tr><th scope="row" colSpan={2}>IGST {doc.gstRate}%</th><td className="is-num">{inr(t.igst, cur)}</td></tr>
+                        ? <tr><th scope="row" colSpan={2}>IGST {Number(doc.gstRate).toFixed(2)}%</th><td className="is-num">{inr(t.igst, cur)}</td></tr>
                         : <>
-                            <tr><th scope="row" colSpan={2}>CGST {half}%</th><td className="is-num">{inr(t.cgst, cur)}</td></tr>
-                            <tr><th scope="row" colSpan={2}>SGST {half}%</th><td className="is-num">{inr(t.sgst, cur)}</td></tr>
+                            <tr><th scope="row" colSpan={2}>CGST {Number(half).toFixed(2)}%</th><td className="is-num">{inr(t.cgst, cur)}</td></tr>
+                            <tr><th scope="row" colSpan={2}>SGST {Number(half).toFixed(2)}%</th><td className="is-num">{inr(t.sgst, cur)}</td></tr>
                         </>)}
                     <tr className="is-total"><th scope="row" colSpan={2}>Total</th><td className="is-num">{inr(t.grandTotal, cur)}</td></tr>
                 </tfoot>
