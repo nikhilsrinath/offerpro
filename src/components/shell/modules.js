@@ -1,4 +1,4 @@
-import { Users, FileText, Wallet, PieChart, FolderKanban, CalendarDays, MessageSquareText, Handshake, Building2 } from 'lucide-react';
+import { Users, FileText, Wallet, PieChart, FolderKanban, CalendarDays, MessageSquareText, Handshake, Building2, NotebookTabs } from 'lucide-react';
 
 /* The workspace's first page: the Dashboard's Overview. There is no hub; the
    brand mark, the phone's first tab and every "back" outside a project lead
@@ -21,12 +21,14 @@ export const MODULES = [
     { id: 'documents', code: 'DOC', label: 'Documents', desc: 'Library · letters · NDAs', icon: FileText,  defaultPage: 'documents/document-library' },
     { id: 'today',     code: 'TDY', label: 'Today',     desc: 'What needs you today', icon: CalendarDays, defaultPage: 'today' },
     { id: 'ai',        code: 'AI',  label: 'AI',        desc: 'Ask EdgeAI anything',  icon: MessageSquareText, defaultPage: 'ai' },
+    // Each person's own calendar, to-dos and notes (0112), private to them.
+    { id: 'workspace', code: 'WSP', label: 'Workspace', desc: 'Calendar · tasks · notes', icon: NotebookTabs, defaultPage: 'workspace/calendar' },
 ];
 
 // The rail's modules, in order, as one plain list. A module's pages wear the
 // same rail (ModuleShell `topNav`), so the two read as one menu.
-export const RAIL_IDS = ['overall', 'today', 'ai', 'projects', 'clients', 'vendors', 'team', 'finance', 'documents'];
+export const RAIL_IDS = ['overall', 'today', 'workspace', 'ai', 'projects', 'clients', 'vendors', 'team', 'finance', 'documents'];
 
-// The rail draws a hairline after this module, splitting Dashboard · Today · AI
+// The rail draws a hairline after this module, splitting Dashboard · Today · Workspace · AI
 // from the working modules below.
 export const RAIL_SPLIT_AFTER = 'ai';

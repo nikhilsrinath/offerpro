@@ -15,7 +15,7 @@ import { projectDashboards } from './projectDashboardNav';
 import { fmtShort, fmtInr, fmtDay, invoiceStateOf, INVOICE_STATES } from '../overview/overviewModel';
 import { TipProvider, RankBars, SplitBar, EmptyNote } from '../overview/vizKit';
 import { useViz, useWinW } from '../overview/vizHooks';
-import { Card, Tile, Figure, FigureRow, SubLabel, More, TileRow, CardGrid, ListRow, DashStyle, Arrangeable, ArrangeBar } from '../overview/dashKit';
+import { Card, Tile, Figure, FigureRow, SubLabel, More, TileRow, CardGrid, PageGrid, ListRow, DashStyle, Arrangeable, ArrangeBar } from '../overview/dashKit';
 import { useProjectBoardData } from './projectBoard';
 import ProjectOverviewWidgets from './projectOverviewWidgets';
 import ProjectActions from './ProjectActions';
@@ -167,7 +167,7 @@ function FinanceView({ board, open, t, cat, status, cols, tileCols }) {
     const { timePct, burnPct } = board.burn;
     const burnAhead = timePct != null && burnPct != null && burnPct - timePct > 10;
 
-    return (<>
+    return (<PageGrid>
         <TileRow bento cols={tileCols(5)}>
             <Tile icon={IndianRupee} label="Contract" value={fmtShort(contract)} exact={fmtInr(contract)}
                 foot={f.billed_pct == null ? 'nothing billed yet' : `${Number(f.billed_pct).toFixed(2)}% billed`} />
@@ -212,7 +212,7 @@ function FinanceView({ board, open, t, cat, status, cols, tileCols }) {
                 <RankBars rows={cats} format={fmtShort} color={cat[1]} max={4} empty="No costs yet" />
             </Card>
         </CardGrid>
-    </>);
+    </PageGrid>);
 }
 
 /* ── sales ───────────────────────────────────────────────────────────────── */
@@ -247,7 +247,7 @@ function SalesView({ board, open, navigate, t, status, cols, tileCols }) {
     const stateLabel = Object.fromEntries(INVOICE_STATES.map((s) => [s.id, s.label]));
     const quoteValue = quotes.reduce((s, d) => s + n(d.grand_total), 0);
 
-    return (<>
+    return (<PageGrid>
         <TileRow bento cols={tileCols(4)}>
             <Tile icon={Briefcase} label="Deal value" value={fmtShort(project.contract_value)} exact={fmtInr(project.contract_value)}
                 foot={project.billing_type ? project.billing_type.replace(/_/g, ' ') : 'contract'} />
@@ -298,7 +298,7 @@ function SalesView({ board, open, navigate, t, status, cols, tileCols }) {
                 </>) : <EmptyNote>This project has no client, so there is nothing to sell.</EmptyNote>}
             </Card>
         </CardGrid>
-    </>);
+    </PageGrid>);
 }
 
 /* ── team ────────────────────────────────────────────────────────────────── */
@@ -331,7 +331,7 @@ function TeamView({ board, open, cat, cols, tileCols }) {
     }, [tk, nameOf]);
     const total = team.reduce((s, m) => s + m.value, 0);
 
-    return (<>
+    return (<PageGrid>
         <TileRow bento cols={tileCols(4)}>
             <Tile icon={Users} label="People" value={String(team.length)} foot={team.length ? `${team.filter((m) => m.role === 'manager').length} managing` : 'nobody yet'} />
             <Tile icon={Gauge} label="Allocated" value={`${Number(total).toFixed(2)}%`} foot="sum of everyone's share" />
@@ -358,7 +358,7 @@ function TeamView({ board, open, cat, cols, tileCols }) {
                 )) : <EmptyNote>Nothing scheduled.</EmptyNote>}
             </Card>
         </CardGrid>
-    </>);
+    </PageGrid>);
 }
 
 /* ── documents ───────────────────────────────────────────────────────────── */
@@ -391,7 +391,7 @@ function DocumentsView({ board, open, navigate, cat, cols, tileCols }) {
         return [...m.entries()].map(([k, v]) => ({ key: k, name: k, value: v })).sort((a, b) => b.value - a.value);
     }, [items]);
 
-    return (<>
+    return (<PageGrid>
         <TileRow bento cols={tileCols(4)}>
             <Tile icon={FileText} label="All documents" value={String(items.length)} foot="linked to this project" />
             <Tile icon={FileSignature} label="Agreements" value={String(count('agreements'))} foot="NDAs, MoUs, offers" />
@@ -411,5 +411,5 @@ function DocumentsView({ board, open, navigate, cat, cols, tileCols }) {
                 <RankBars rows={byType} format={(v) => String(v)} color={cat[0]} max={8} empty="No documents yet" />
             </Card>
         </CardGrid>
-    </>);
+    </PageGrid>);
 }

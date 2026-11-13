@@ -11,7 +11,7 @@ import { isOwnerOrAdmin } from '../../services/projectService';
 import { needsAttention } from '../../services/importantTasks';
 import { fmtShort, fmtInr, fmtDay } from '../overview/overviewModel';
 import { RankBars, SplitBar, EmptyNote } from '../overview/vizKit';
-import { Card, Tile, Figure, FigureRow, SubLabel, More, TileRow, CardGrid, ListRow, ArrangeBar } from '../overview/dashKit';
+import { Card, Tile, Figure, FigureRow, SubLabel, More, TileRow, CardGrid, PageGrid, ListRow, ArrangeBar } from '../overview/dashKit';
 import { useWidgetLayout } from '../hub/useWidgetLayout';
 import { describeActivity } from './activityText';
 import { projectSectionPath } from './projectPaths';
@@ -331,7 +331,7 @@ export default function ProjectOverviewWidgets({ tabs, ctx }) {
     const tiles = shown.filter((w) => w.kind === 'tile');
     const cards = shown.filter((w) => w.kind === 'card');
 
-    return (<>
+    return (<PageGrid>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 0 }}>{tabs}</div>
             <div style={{ margin: '-1px 0 14px', display: 'inline-flex', gap: 6 }}>
@@ -386,7 +386,7 @@ export default function ProjectOverviewWidgets({ tabs, ctx }) {
             </>}>
             <Picker layout={layout} lay={lay} offered={offered} t={t} />
         </Modal>
-    </>);
+    </PageGrid>);
 }
 
 /** Every widget this person may have, switched on or off. */

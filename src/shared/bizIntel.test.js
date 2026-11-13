@@ -37,6 +37,9 @@ const finance = () => ({
     { id: 'e2', category: 'software', treatment: 'operating', amount: 1180, tax_amount: 180, incurred_on: '2026-09-05', status: 'paid', paid_on: '2026-09-05' },
     { id: 'e3', category: 'furniture', treatment: 'capex', amount: 30000, tax_amount: 0, incurred_on: '2026-10-04', status: 'paid', paid_on: '2026-10-04' },
     { id: 'e4', category: 'travel', treatment: 'operating', amount: 2000, tax_amount: 0, incurred_on: '2026-10-10', status: 'pending', paid_on: null },
+    // Paying DL-0 is a debit (a Vendor Payment); the bill's amount_paid below is
+    // only the figure worked out from it, never counted a second time.
+    { id: 'e5', category: 'vendor_bill_payment', treatment: 'financing', vendor_id: 'v1', amount: 4720, tax_amount: 0, incurred_on: '2026-09-03', status: 'paid', paid_on: '2026-09-03' },
   ],
   purchases: [
     { id: 'b1', vendor_id: 'v1', bill_number: 'DL-1', status: 'unpaid', bill_date: '2026-10-02', due_date: '2026-10-12', category: 'Operations', subtotal: 10000, total: 11800, amount_paid: 0 },

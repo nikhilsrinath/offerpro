@@ -4,7 +4,7 @@ import { useSection } from '../financial/financeHooks';
 import { balanceOf, cashPosition, taxSummary } from '../../services/financeAnalytics';
 import { fmtShort, fmtInr, customerKey } from './overviewModel';
 import { Columns, RankBars, SplitBar, Gauge, Legend, Delta, TipBody } from './vizKit';
-import { Dashboard, Card, Tile, Figure, FigureRow, SubLabel, More, MiniSeg, TileRow, CardGrid } from './dashKit';
+import { Dashboard, Card, Tile, Figure, FigureRow, SubLabel, More, MiniSeg, TileRow, CardGrid, PageGrid } from './dashKit';
 import { plainBtn } from './vizHooks';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -94,7 +94,7 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
     const perHead = heads > 0 ? heads : null;
     const opRatio = model.pl.income > 0 ? (model.pl.expenses / model.pl.income) * 100 : null;
 
-    return (<>
+    return (<PageGrid>
         <TileRow bento cols={tileCols(6)}>
             <Tile icon={IndianRupee} label="Revenue" value={fmtShort(k.revenue.value)} exact={fmtInr(k.revenue.value)}
                 delta={deltaOf(k.revenue.delta)}
@@ -229,5 +229,5 @@ function FinanceBody({ model, open, navigate, t, cat, ramp, status, cols, grid, 
         <div style={{ fontSize: 11.5, color: t.faint, marginTop: 16, lineHeight: 1.6 }}>
             Profit is taxable income less expenses and purchase bills, net of GST. Receivables, payables and cash position are as of today and do not follow the period.
         </div>
-    </>);
+    </PageGrid>);
 }

@@ -15444,3 +15444,28 @@ html body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"
   border: 1px solid var(--stat-line) !important;
   color: var(--brand-teal-btn) !important;
 }
+
+/* Announcement audience: the members picked by name (announcementFields.jsx). */
+.ann-member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--edge-line, var(--border));
+  transition: background .12s ease;
+}
+.ann-member:last-child { border-bottom: none; }
+.ann-member:hover { background: var(--edge-panel-alt, var(--surface-hover)); }
+.ann-member.on { background: color-mix(in srgb, var(--brand-light-blue, #DBECF6) 55%, transparent); }
+.ann-member input[type="checkbox"] { width: 15px; height: 15px; margin: 0; accent-color: var(--brand-teal-btn, #259E95); flex-shrink: 0; }
+[data-theme="dark"] .ann-member.on { background: color-mix(in srgb, var(--brand-light-blue, #DBECF6) 12%, transparent); }
+
+/* Whiteboard (Planning › Whiteboard): its floating tool buttons and the saving spinner. */
+.wb-tool { transition: background .12s ease, color .12s ease; }
+.wb-tool:not(:disabled):not([aria-pressed="true"]):hover { background: var(--edge-panel-alt, rgba(20,41,62,.06)) !important; color: var(--edge-text, #14293E) !important; }
+.wb-tool:focus-visible { outline: 2px solid var(--brand-teal-btn, #259E95); outline-offset: 1px; }
+.wb-wrap:fullscreen { border-radius: 0 !important; }
+@keyframes wb-spin { to { transform: rotate(360deg); } }
+.wb-spin { animation: wb-spin 0.9s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .wb-spin { animation: none; } }

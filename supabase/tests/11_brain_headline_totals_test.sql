@@ -105,8 +105,16 @@ values ('f0000000-0000-0000-0000-00000000000a', 'training_income', 'INV-F-1 part
 
 -- a vendor bill, ₹3,000, ₹2,000 paid
 insert into public.vendors (id, org_id, company_name) values ('f3000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-00000000000a', 'Supplier');
-insert into public.purchase_invoices (org_id, vendor_id, bill_number, subtotal, tax_rate, amount_paid)
-values ('f0000000-0000-0000-0000-00000000000a', 'f3000000-0000-0000-0000-000000000001', 'B-1', 3000, 0, 2000);
+insert into public.purchase_invoices (org_id, vendor_id, bill_number, subtotal, tax_rate)
+values ('f0000000-0000-0000-0000-00000000000a', 'f3000000-0000-0000-0000-000000000001', 'B-1', 3000, 0);
+-- Paying a vendor is a debit (0080/0093); the bill's amount_paid is only a
+-- figure the app works out from it, so it is set here too and must NOT be
+-- counted again (0110: net cash used to count the 2,000 twice).
+insert into public.expenses (org_id, category, description, vendor_id, incurred_on, amount, original_amount, status)
+values ('f0000000-0000-0000-0000-00000000000a', 'vendor_bill_payment', 'Paid Supplier', 'f3000000-0000-0000-0000-000000000001',
+        '2026-09-22', 2000, 2000, 'paid');
+update public.purchase_invoices set amount_paid = 2000 where bill_number = 'B-1'
+   and org_id = 'f0000000-0000-0000-0000-00000000000a';
 
 select app.brain_refresh_metrics('f0000000-0000-0000-0000-00000000000a');
 

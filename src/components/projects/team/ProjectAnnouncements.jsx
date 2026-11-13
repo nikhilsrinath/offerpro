@@ -6,10 +6,12 @@ import { useT } from '../../ui/edgeUtils';
 import { useToast } from '../../shared/Toast';
 import { orgStore } from '../../../services/orgStore';
 import {
-    announcementService, PRIORITIES, fmtSize,
+    announcementService, PRIORITIES, fmtSize, isExpired, isScheduled, audienceOf,
 } from '../../../services/announcementService';
 import { useProjectPeople, teamError, needsMigration } from './teamData';
 import AttachmentsField from '../../shared/AttachmentsField';
+import { SendDateField, AudienceField } from '../../shared/announcementFields';
+import { sendFormOf, sendAtOf, datesProblem, whenText, audienceText } from '../../shared/announcementForm';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Team Management › Announcements: notices for this project's people only.
@@ -18,11 +20,14 @@ import AttachmentsField from '../../shared/AttachmentsField';
    database lets a project notice be read by the project's current members
    (and by whoever may read every announcement), and nobody else. Pinned
    first, then newest; urgent and important say so in words at the top of
-   the card, and a coloured edge repeats it.
+   the card, and a coloured edge repeats it. A notice can go to members
+   picked by name, and out on a later send date (0111).
    ══════════════════════════════════════════════════════════════════════════ */
 
-const BLANK = { title: '', body: '', priority: 'normal', isPinned: false, expiresAt: '', keep: [], files: [], dropped: [] };
-const isExpired = (a) => !!a.expires_at && new Date(a.expires_at) < new Date();
+const blank = () => ({
+    title: '', body: '', priority: 'normal', isPinned: false, expiresAt: '', keep: [], files: [], dropped: [],
+    audienceMode: 'everyone', audience: [], hadAudience: false, ...sendFormOf(null),
+});
 const PRIORITY = Object.fromEntries(PRIORITIES.map((p) => [p.id, p]));
 const RANK = { urgent: 0, important: 1, normal: 2 };
 
@@ -67,31 +72,46 @@ export default function ProjectAnnouncements({ project }) {
         return e?.name || (userId ? 'A former member' : 'Opstead');
     }, [team.employees]);
 
-    const live = useMemo(() => items.filter((a) => !isExpired(a)), [items]);
+    // Who can be picked by name: the project's current people.
+    const current = team.current;
+    const people = useMemo(() => current
+        .map((p) => ({ id: p.id, name: p.name, sub: [p.designation, p.department].filter(Boolean).join(' · ') })), [current]);
+    const empById = team.empById;
+    const nameOf = useCallback((id) => empById.get(id)?.name || '', [empById]);
+    const [problem, setProblem] = useState('');
+
+    const scheduled = useMemo(() => items.filter((a) => isScheduled(a)), [items]);
+    const live = useMemo(() => items.filter((a) => !isScheduled(a) && !isExpired(a)), [items]);
     const shown = useMemo(() => {
         const q = query.trim().toLowerCase();
-        return (show === 'board' ? live : items)
+        return (show === 'board' ? live : show === 'scheduled' ? scheduled : items)
             .filter((a) => priority === 'all' || a.priority === priority)
             .filter((a) => !q || `${a.title} ${a.body} ${(a.attachments || []).map((f) => f.name).join(' ')}`.toLowerCase().includes(q))
             .sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned)
                 || new Date(b.published_at || 0) - new Date(a.published_at || 0));
-    }, [items, live, show, priority, query]);
+    }, [items, live, scheduled, show, priority, query]);
 
 
     const save = async (form) => {
+        const issue = datesProblem(form)
+            || (form.audienceMode === 'members' && form.audience.length === 0 ? 'Pick at least one member, or send it to everyone on the project.' : '');
+        if (issue) { setProblem(issue); return; }
+        setProblem('');
         setBusy(true);
         try {
             await announcementService.publishForProject(orgId, project.id, {
                 id: form.id, title: form.title, body: form.body, priority: form.priority, isPinned: form.isPinned,
-                // A date input gives a local calendar day; expire at the end of it.
-                expiresAt: form.expiresAt ? new Date(`${form.expiresAt}T23:59:59`).toISOString() : null,
+                sendAt: sendAtOf(form),
+                expiresAt: form.expiresAt || null,
+                audience: form.audienceMode === 'members' ? form.audience : [], hadAudience: form.hadAudience,
                 keep: form.keep, files: form.files, dropped: form.dropped,
             });
+            const later = form.sendMode === 'later' && !form.sentAt;
             setEditing(null);
             await load();
-            toast(form.id ? 'Announcement updated' : 'Announcement posted to the project', 'success');
+            toast(later ? `Scheduled for ${whenText(sendAtOf(form))}` : form.id ? 'Announcement updated' : 'Announcement posted to the project', 'success');
         } catch (e) {
-            toast(teamError(e, 'Could not publish.'), 'error');
+            setProblem(teamError(e, 'Could not publish.'));
         } finally {
             setBusy(false);
         }
@@ -132,10 +152,17 @@ export default function ProjectAnnouncements({ project }) {
         }
     };
 
-    const openEditor = (a) => setEditing(a ? {
-        id: a.id, title: a.title, body: a.body, priority: a.priority || 'normal', isPinned: a.is_pinned,
-        expiresAt: a.expires_at ? a.expires_at.slice(0, 10) : '', keep: a.attachments || [], files: [], dropped: [],
-    } : { ...BLANK });
+    const openEditor = (a) => {
+        setProblem('');
+        if (!a) { setEditing(blank()); return; }
+        const picked = audienceOf(a);
+        setEditing({
+            id: a.id, title: a.title, body: a.body, priority: a.priority || 'normal', isPinned: a.is_pinned,
+            expiresAt: a.expires_at ? a.expires_at.slice(0, 10) : '', keep: a.attachments || [], files: [], dropped: [],
+            audienceMode: picked.length ? 'members' : 'everyone', audience: picked, hadAudience: picked.length > 0,
+            ...sendFormOf(a),
+        });
+    };
 
     if (state === 'loading') return <Panel><Loading>Loading announcements…</Loading></Panel>;
     if (state === 'missing') {
@@ -150,6 +177,7 @@ export default function ProjectAnnouncements({ project }) {
             <Row gap={8} wrap>
                 <Seg size="sm" value={show} onChange={setShow} label="Show" options={[
                     { id: 'board', label: 'Current' },
+                    { id: 'scheduled', label: `Scheduled${scheduled.length ? ` (${scheduled.length})` : ''}` },
                     { id: 'all', label: 'Everything' },
                 ]} />
                 <Seg size="sm" value={priority} onChange={setPriority} label="Priority" options={[
@@ -158,7 +186,7 @@ export default function ProjectAnnouncements({ project }) {
                 ]} />
                 {items.length > 0 && <Search value={query} onChange={setQuery} placeholder="Search announcements" width={220} />}
                 <div style={{ flex: 1 }} />
-                {canCreate && <Btn primary onClick={() => openEditor(null)}>New announcement</Btn>}
+                {canCreate && <Btn primary onClick={() => openEditor(null)}>New Announcement</Btn>}
             </Row>
             
 
@@ -169,20 +197,24 @@ export default function ProjectAnnouncements({ project }) {
                         : (query || priority !== 'all') && <Btn onClick={() => { setQuery(''); setPriority('all'); }}>Clear filters</Btn>}>
                         {items.length === 0
                             ? 'No announcements on this project yet. Post one to reach everyone on the team at once.'
-                            : show === 'board' && live.length === 0 ? 'Nothing current. Every announcement here has expired.' : 'No announcements match these filters.'}
+                            : show === 'scheduled' && scheduled.length === 0 ? 'Nothing scheduled. Pick Schedule under Send Date to post one later.'
+                                : show === 'board' && live.length === 0 ? 'Nothing current. Every announcement here has expired or is still scheduled.' : 'No announcements match these filters.'}
                     </Empty>
                 </Panel>
             ) : (
                 <div style={{ display: 'grid', gap: 10 }}>
                     {shown.map((a) => {
                         const expired = isExpired(a);
+                        const later = isScheduled(a);
+                        const who = audienceText(a, { nameOf, scope: 'Everyone on the project' });
                         const pr = PRIORITY[a.priority] || PRIORITY.normal;
                         const edge = a.priority === 'urgent' ? t.down : a.priority === 'important' ? '#f59e0b' : null;
-                        const edited = a.updated_at && a.published_at && new Date(a.updated_at) - new Date(a.published_at) > 60000;
+                        const edited = !later && a.updated_at && a.created_at && new Date(a.updated_at) - new Date(a.created_at) > 60000
+                            && new Date(a.updated_at) - new Date(a.published_at) > 60000;
                         return (
                             <article key={a.id} aria-label={a.title} style={{
                                 border: '1px solid ' + (a.is_pinned ? t.lineStrong : t.line),
-                                boxShadow: edge ? `inset 3px 0 0 ${edge}` : undefined,
+                                boxShadow: edge ? `inset 3px 0 0 ${edge}` : later ? `inset 3px 0 0 ${t.teal}` : undefined,
                                 borderRadius: 10, padding: '14px 14px 12px 16px', background: t.panel,
                                 opacity: expired ? 0.62 : 1,
                             }}>
@@ -197,7 +229,7 @@ export default function ProjectAnnouncements({ project }) {
                                         </h3>
                                     </div>
                                     <Row gap={6} wrap>
-                                        {canEdit && <Btn size="sm" onClick={() => togglePin(a)} disabled={busy}>{a.is_pinned ? 'Unpin' : 'Pin'}</Btn>}
+                                        {canEdit && !later && <Btn size="sm" onClick={() => togglePin(a)} disabled={busy}>{a.is_pinned ? 'Unpin' : 'Pin'}</Btn>}
                                         {canEdit && <Btn size="sm" onClick={() => openEditor(a)}>Edit</Btn>}
                                         {canDelete && (
                                             <ConfirmBtn label="Delete" title="Delete announcement"
@@ -223,8 +255,13 @@ export default function ProjectAnnouncements({ project }) {
                                 )}
 
                                 <Row gap={14} wrap style={{ paddingTop: 10, borderTop: '1px solid ' + t.lineSoft, fontSize: 11.5, color: t.faint }}>
+                                    <span title={who.names || undefined}>
+                                        <Status tone={who.names ? 'neutral' : 'mute'}>{who.label}</Status>
+                                    </span>
                                     <span>{authorOf(a.created_by)}</span>
-                                    <span>{fmtWhen(a.published_at)}</span>
+                                    {later
+                                        ? <span style={{ color: t.accent, fontWeight: 500 }}>Scheduled · goes out {whenText(a.published_at)}</span>
+                                        : <span>{fmtWhen(a.published_at)}</span>}
                                     {edited && <span>edited {fmtWhen(a.updated_at)}</span>}
                                     {a.expires_at && (
                                         <span style={{ color: expired ? t.down : t.faint }}>
@@ -238,25 +275,25 @@ export default function ProjectAnnouncements({ project }) {
                 </div>
             )}
 
-            {editing && <Editor form={editing} setForm={setEditing} busy={busy} onClose={() => setEditing(null)} onSave={save} />}
+            {editing && <Editor form={editing} setForm={setEditing} busy={busy} problem={problem} people={people}
+                onClose={() => setEditing(null)} onSave={save} />}
         </div>
     );
 }
 
-function Editor({ form, setForm, busy, onClose, onSave }) {
-    const t = useT();
-
+function Editor({ form, setForm, busy, problem, people, onClose, onSave }) {
     return (
-        <Modal open onClose={onClose} width={580}
-            title={form.id ? 'Edit announcement' : 'New announcement'}
-            note="Only this project’s people see it"
+        <Modal open onClose={onClose} width={680}
+            title={form.id ? 'Edit Announcement' : 'New Announcement'}
+            note="Only this project’s people see it, or the members you pick"
             footer={<>
                 <Btn onClick={onClose}>Cancel</Btn>
                 <Btn primary disabled={busy || !form.title.trim() || !form.body.trim()} onClick={() => onSave(form)}>
-                    {busy ? 'Saving…' : form.id ? 'Save' : 'Post'}
+                    {busy ? 'Saving…' : form.id ? 'Save' : form.sendMode === 'later' ? 'Schedule' : 'Post'}
                 </Btn>
             </>}>
-            {/* One field a row, as every side panel lays them out. */}
+            {problem && <div role="alert" className="prod-form-error">{problem}</div>}
+            {/* One field a row, as every side panel lays them out. Pinning is on the card. */}
             <Field required label="Title">
                 <Input value={form.title} maxLength={200} placeholder="Sprint review moved to Thursday"
                     onChange={(e) => setForm({ ...form, title: e.target.value })} />
@@ -266,15 +303,15 @@ function Editor({ form, setForm, busy, onClose, onSave }) {
                     onChange={(e) => setForm({ ...form, body: e.target.value })} />
             </Field>
             <Field label="Priority">
-                <Seg value={form.priority} onChange={(v) => setForm({ ...form, priority: v })} label="Priority" options={PRIORITIES} />
+                <Seg size="sm" value={form.priority} onChange={(v) => setForm({ ...form, priority: v })} label="Priority" options={PRIORITIES} />
             </Field>
+            <SendDateField form={form} setForm={setForm} />
+            <AudienceField form={form} setForm={setForm} people={people} scope="Everyone on the Project" />
             <Field label="Expire Date (Optional)" hint="Leave blank to keep it up">
-                <Input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
+                <Input type="date" value={form.expiresAt}
+                    min={form.sendMode === 'later' && !form.sentAt ? form.sendDate : undefined}
+                    onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
             </Field>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: t.dim, cursor: 'pointer', minHeight: 24 }}>
-                <input type="checkbox" checked={form.isPinned} onChange={(e) => setForm({ ...form, isPinned: e.target.checked })} />
-                Pin to the top
-            </label>
             <AttachmentsField form={form} setForm={setForm} />
         </Modal>
     );

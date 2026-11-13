@@ -5,8 +5,9 @@
 // (api/_lib/bizIntel.js) compute the same figures from the same rows by the
 // same rules. financeAnalytics.js re-exports everything here, so no screen
 // changed its import.
-import { countsAsIncome, countsAsExpense, isCostRecovery, groupOf } from './financeTaxonomy.js';
+import { countsAsIncome, countsAsExpense, isCostRecovery, groupOf, rowTreatment, EXPENSE_TREATMENTS } from './financeTaxonomy.js';
 import { issuedInvoices } from './finDocs.js';
+import { appliedReceipts, unappliedShare, isReceiptShare } from './invoiceReceipt.js';
 
 const n = (v) => Number(v) || 0;
 const dayKey = (d) => (d ? String(d).slice(0, 10) : '');
@@ -28,6 +29,48 @@ export const inRange = (d, from, to) => {
   return !!k && (!from || k >= from) && (!to || k <= to);
 };
 
+// ── What is counted once ─────────────────────────────────────────────────────
+
+const byDayThenCreated = (a, b) => String(a.incurred_on || a.date || '').localeCompare(String(b.incurred_on || b.date || ''))
+  || String(a.created_at || '').localeCompare(String(b.created_at || ''))
+  || (String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0);
+
+/**
+ * A debit to a vendor under a cost Type (Contractors, Raw materials…) that pays
+ * that vendor's bills: { [expenseId]: amount that pays bills }. The bill counts
+ * the cost, so that part is not a second one. The Vendor ledger already takes
+ * every such debit off what is payable; this is the same money, seen from P&L.
+ *
+ * A vendor's bills are paid first by their Vendor Payments and Advances (cash
+ * only, never a cost), then by these debits, oldest first. What is left of a
+ * debit beyond every bill is a cost of its own. Mirrors
+ * app.vendor_cost_applied() (0110), which the project P&L uses.
+ */
+export function vendorCostApplied({ expenses = [], purchases = [] } = {}) {
+  const billed = {};
+  for (const b of purchases || []) {
+    if (b.status === 'void' || !b.vendor_id) continue;
+    billed[b.vendor_id] = (billed[b.vendor_id] || 0) + n(b.total);
+  }
+  const room = { ...billed };
+  const costs = [];
+  for (const e of expenses || []) {
+    if (!e.vendor_id || !(e.vendor_id in room)) continue;
+    if (EXPENSE_TREATMENTS.has(rowTreatment(e, 'out'))) costs.push(e);
+    else room[e.vendor_id] -= n(e.amount);
+  }
+  const out = {};
+  costs.sort(byDayThenCreated).forEach((e) => {
+    const take = Math.max(0, Math.min(n(e.amount), room[e.vendor_id]));
+    if (take > 0) out[e.id] = take;
+    room[e.vendor_id] -= n(e.amount);
+  });
+  return out;
+}
+
+/** The part of a debit that is a cost of its own, 0..1 (see vendorCostApplied). */
+export const vendorCostShare = (e, applied) => (n(e.amount) > 0 ? Math.max(0, 1 - n(applied?.[e.id]) / n(e.amount)) : 1);
+
 // ── Profit & Loss ────────────────────────────────────────────────────────────
 
 /**
@@ -42,6 +85,15 @@ export const inRange = (d, from, to) => {
  *   · asset purchases, loan repayments, owner drawings and tax remittances,
  *     which are cash leaving and not costs.
  *
+ * Counted ONCE (0110):
+ *
+ *   · a client's receipt that the database laid over their invoices (Record
+ *     Receipt): only the part beyond every invoice is income; the rest is the
+ *     invoice's money, and the invoice is already income;
+ *   · a debit to a vendor under a cost Type that pays their bill: only the part
+ *     beyond the vendor's bills is a cost (vendorCostApplied);
+ *   · a bill is its subtotal plus its round off: what it really cost, before GST.
+ *
  * Refunds and reimbursements received come back as a negative expense rather
  * than as income, which is where they belong: money returned on something you
  * paid for reduces what that thing cost you.
@@ -55,7 +107,8 @@ export function profitAndLoss({ docs, purchases, expenses, income: incomeRows },
     .reduce((s, d) => s + n(d.taxable_amount), 0);
 
   const inPeriod = (incomeRows || []).filter((e) => inRange(e.date || e.received_on, from, to));
-  const direct = inPeriod.filter(countsAsIncome).reduce((s, e) => s + netOfTax(e), 0);
+  const applied = appliedReceipts(docs);
+  const direct = inPeriod.filter(countsAsIncome).reduce((s, e) => s + netOfTax(e) * unappliedShare(e, applied), 0);
   const income = invoiced + direct;
 
   // Kept keyed on the raw category, not on its label or its group: the
@@ -69,13 +122,14 @@ export function profitAndLoss({ docs, purchases, expenses, income: incomeRows },
     const g = groupOf(cat);
     byGroup[g] = (byGroup[g] || 0) + amt;
   };
+  const paysBills = vendorCostApplied({ expenses, purchases });
   (expenses || []).filter((e) => inRange(e.date || e.incurred_on, from, to))
     .filter(countsAsExpense)
-    .forEach((e) => add(e.category, n(e.amount) - n(e.tax_amount)));
+    .forEach((e) => add(e.category, (n(e.amount) - n(e.tax_amount)) * vendorCostShare(e, paysBills)));
   // A purchase invoice has no treatment of its own: a bill from a vendor is a
   // cost of running, and every category it can carry is an operating one.
   (purchases || []).filter((p) => p.status !== 'void' && inRange(p.bill_date, from, to))
-    .forEach((p) => add(p.category, n(p.subtotal)));
+    .forEach((p) => add(p.category, n(p.subtotal) + n(p.round_off)));
 
   const recovered = inPeriod.filter(isCostRecovery).reduce((s, e) => s + netOfTax(e), 0);
   if (recovered > 0) add('Recoveries', -recovered);
@@ -107,11 +161,19 @@ export function profitAndLoss({ docs, purchases, expenses, income: incomeRows },
  *            + cash-book receipts not tied to a document, and those tied to a
  *              document that has no confirmed payment, any reason: sales,
  *              funding, refunds. It is cash.
- *   paidOut  = expenses actually paid (not 'pending') + payments on vendor bills
+ *   paidOut  = expenses actually paid (not 'pending'). Paying a vendor IS
+ *              one of these (0080, 0093); a bill's amount_paid is only a figure
+ *              worked out from them, so it is never added on top (it was: every
+ *              vendor payment came off net cash twice).
+ *
+ *   A payment that is a share of a client receipt laid over an invoice (0110)
+ *   is not money in: the receipt is.
  *
  * Returns dated events too (each with the id of the record behind it), so a
  * period's money in or out sums the same rows and can name them.
  */
+// `purchases` is still accepted, for callers that pass it, and not read.
+// eslint-disable-next-line no-unused-vars
 export function cashPosition({ finDocs = [], income = [], expenses = [], purchases = [] } = {}) {
   const inEvents = [];
   const outEvents = [];
@@ -119,7 +181,7 @@ export function cashPosition({ finDocs = [], income = [], expenses = [], purchas
 
   for (const d of finDocs) {
     for (const p of d.payments || []) {
-      if (!p.confirmed_at) continue;
+      if (!p.confirmed_at || isReceiptShare(p)) continue;
       paidDocs.add(d.id);
       const carried = d.type === 'invoice' && p.method === 'Advance' && !!d.converted_from
         && String(p.note || '').startsWith('Advance received against proforma ');
@@ -136,10 +198,6 @@ export function cashPosition({ finDocs = [], income = [], expenses = [], purchas
   for (const e of expenses) {
     if ((e.status || 'paid') === 'pending') continue;
     outEvents.push({ at: e.paid_on || e.date || e.incurred_on, amount: n(e.amount), source: 'expenses', id: e.id });
-  }
-  for (const b of purchases) {
-    if (b.status === 'void' || n(b.amount_paid) <= 0) continue;
-    outEvents.push({ at: b.paid_on || b.bill_date, amount: n(b.amount_paid), source: 'vendor_bills', id: b.id });
   }
 
   const sum = (evs) => Math.round(evs.reduce((s, x) => s + x.amount, 0) * 100) / 100;

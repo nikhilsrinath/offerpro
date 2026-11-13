@@ -27,6 +27,7 @@ import {
 import { useToast } from '../shared/Toast';
 import { useProjectScope } from './projectScope';
 import { currencySymbol } from '../../shared/currency.js';
+import { isReceiptShare } from '../../shared/invoiceReceipt.js';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Two of a project's finance pages: Financial Status and Profit & Loss,
@@ -98,7 +99,9 @@ function useSources() {
         // What a client paid against an invoice is recorded on the invoice in
         // Billing (its payments, 0029), not as a General Ledger entry: only the
         // confirmed ones are money in.
-        const paidOn = (d) => (d.payments || []).filter((p) => p.confirmed_at && Number(p.amount) > 0);
+        // A share of a client receipt laid over the invoice (0110) is not a
+        // receipt of its own: the receipt is on the ledger already.
+        const paidOn = (d) => (d.payments || []).filter((p) => p.confirmed_at && Number(p.amount) > 0 && !isReceiptShare(p));
         return [
             ...invoices.map((d) => ({
                 type: 'invoice', id: d.id, date: d.issue_date, net: Number(d.taxable_amount) || 0, gross: Number(d.grand_total) || 0,
@@ -513,10 +516,16 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                 const pays = breakdown ? null : billOf({ s });
                 // The invoice is not on the Company Ledger, so a receipt against it counts there.
                 // On the Client ledgers a receipt always counts: it is what brings what is owed down.
-                const settles = !party && only !== 'purchases' && String(s?.settles || '').startsWith('invoice:') && linked.has(s.settles);
+                const receipt = !party && only !== 'purchases' && String(s?.settles || '').startsWith('invoice:') && linked.has(s.settles);
+                // On the Vendor ledger a salary or stipend is listed (Money Going
+                // Out records it there) but it pays no vendor: it does not take
+                // anything off what is payable to vendors.
+                const toPerson = party === 'vendor' && a.source_type === 'expense' && !s?.vendor_id && !!s?.employee_id;
+                const settles = receipt || toPerson;
+                const aside = receipt ? 'receipt against a linked invoice' : toPerson ? 'paid to a person, not to a vendor' : '';
                 const before = out.length ? out[out.length - 1].balance : 0;
                 out.push({
-                    a, s, parts, value, credit, settles, pays, breakdown,
+                    a, s, parts, value, credit, settles, aside, pays, breakdown,
                     balance: settles ? before : before + (credit ? value : -value) * sign,
                     splitCount: company ? 0 : allocations.filter((x) => x.source_type === a.source_type && x.source_id === a.source_id).length,
                     projects: company ? projectsOf[s ? keyOf(s) : `${a.source_type}:${a.source_id}`] || [] : null,
@@ -652,7 +661,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                 r.s?.date || '', nameOf(r), ...(company ? [projectText(r), projectNameText(r)] : []), kindOf(r), subKindOfRow(r), descriptionOf(r), methodOf(r), r.s?.number || '', receiptOf(r),
                 r.credit ? r.value.toFixed(2) : '', r.credit ? '' : r.value.toFixed(2),
                 r.balance.toFixed(2),
-                r.settles ? 'Receipt against a linked invoice, not counted' : '',
+                r.settles ? `${titleCase(r.aside || 'not counted')}, not counted` : '',
             ]),
             ...foot.map((f) => ['', f.label, ...(company ? ['', ''] : []), '', '', '', '', '', '', '', '', f.value.toFixed(2), '']),
         ],
@@ -777,7 +786,7 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
                                             }}>{name}</button>
                                         ) : onOpen || plain ? name : <Link to={SOURCE_PATH[a.source_type]()} style={{ color: t.text }}>{name}</Link>}
                                         {r.splitCount > 1 && <Muted> · split {r.splitCount} ways</Muted>}
-                                        {r.settles && <Muted> · receipt against a linked invoice</Muted>}
+                                        {r.settles && <Muted> · {r.aside || 'not counted'}</Muted>}
                                         {a.source_type === 'invoice' && s?.void && <Muted> · cancelled, not counted</Muted>}
                                         {bill && (
                                             <span style={{ display: 'block', fontSize: 11, marginTop: 1, color: t.faint }}>

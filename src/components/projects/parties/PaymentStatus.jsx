@@ -20,6 +20,7 @@ import { Badge, AttachedFiles, Bar } from './partyUi';
 import CashEntryModal from '../../financial/CashEntryModal';
 import { blank as blankEntry } from '../../financial/cashEntry';
 import { useInvoiceActions } from '../../financial/invoiceActions';
+import { isReceiptShare } from '../../../shared/invoiceReceipt.js';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Client Management › Payment Status & Pendings, what the client owes on
@@ -282,11 +283,12 @@ function InvoiceRow({ r, money, files, project, show, span, open, onToggle, canP
                                             <Row key={p.id} gap={8} style={{ fontSize: 12.5, borderBottom: '1px solid ' + t.lineSoft, paddingBottom: 6 }}>
                                                 <span style={{ width: 96, color: t.dim }}>{fmtDate(p.paid_on)}</span>
                                                 <span style={{ flex: 1, minWidth: 0, color: t.dim }}>
-                                                    {[p.method, p.reference, p.note].filter(Boolean).join(' · ') || '-'}
+                                                    {(isReceiptShare(p) ? [p.method, p.reference, 'From a receipt on the Client ledger']
+                                                        : [p.method, p.reference, p.note]).filter(Boolean).join(' · ') || '-'}
                                                     {!p.confirmed_at && <span style={{ color: t.down }}> · unconfirmed</span>}
                                                 </span>
                                                 <span style={{ whiteSpace: 'nowrap' }}>{money(Number(p.amount) * r.share)}</span>
-                                                {orgStore.can('payments', 'delete') && (
+                                                {orgStore.can('payments', 'delete') && !isReceiptShare(p) && (
                                                     <ConfirmBtn label="Delete" title="Delete this payment?" message="The invoice goes back to owing this amount."
                                                         onConfirm={() => orgStore.deletePayment(p.id, r.doc.id).then(() => toast('Payment deleted', 'success')).catch((e) => toast(fileError(e), 'error'))} />
                                                 )}

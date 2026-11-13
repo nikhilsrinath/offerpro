@@ -185,6 +185,8 @@ begin
       values (o, pj, pf, 1, o || '/' || pj || '/file.pdf');
     insert into client_approvals (org_id, project_id, client_id, item_name, file_id) values (o, pj, cl, 'Design ' || s, pf);
     insert into project_templates (org_id, project_id, name, body_html) values (o, pj, 'Template ' || s, '<p>{{client_name}}</p>');
+    -- The project's whiteboard (0111).
+    insert into project_whiteboards (org_id, project_id, data) values (o, pj, '{"items": []}');
 
     -- AI call log (0067), written by the API.
     insert into ai_usage_events (org_id, surface) values (o, 'copilot');
@@ -193,6 +195,15 @@ begin
     -- and the org's owners/admins only — asserted in 13_ai_actions_test.sql.
     insert into ai_actions (org_id, user_id, tool, risk)
     select o, m.user_id, 'create_task', 'low' from memberships m where m.org_id = o limit 1;
+
+    -- Workspace (0112): private to their author. Own-org access is asserted
+    -- in 30_workspace_test.sql; here they are probed across tenants.
+    insert into workspace_tasks (org_id, user_id, title)
+    select o, m.user_id, 'Workspace task ' || s from memberships m where m.org_id = o limit 1;
+    insert into workspace_notes (org_id, user_id, title)
+    select o, m.user_id, 'Workspace note ' || s from memberships m where m.org_id = o limit 1;
+    insert into workspace_events (org_id, user_id, title, start_at, end_at)
+    select o, m.user_id, 'Workspace event ' || s, now(), now() from memberships m where m.org_id = o limit 1;
 
     -- Agents (0089), service role only: no client access at all, asserted in
     -- 21_agent_deadline_watch_test.sql.
@@ -312,6 +323,7 @@ select c.table_name as tbl,
                                 when 'project_code_counters' then 'projects'
                                 when 'timesheet_entries' then 'timesheets'
                                 when 'task_dependencies' then 'tasks'
+                                when 'project_whiteboards' then 'tasks'
                                 when 'project_raci_items' then 'project_members'
                                 when 'project_raci_assignments' then 'project_members'
                                 when 'project_clients' then 'clients'
@@ -470,7 +482,8 @@ begin
         -- like everything else.
         if v_side = 'own' and t.tbl in ('memberships', 'audit_log', 'role_permissions', 'member_permissions', 'ai_actions',
                                          'agent_settings', 'agent_runs', 'agent_alerts',
-                                         'org_connectors', 'connector_events') then
+                                         'org_connectors', 'connector_events',
+                                         'workspace_tasks', 'workspace_notes', 'workspace_events') then
           continue;
         end if;
 

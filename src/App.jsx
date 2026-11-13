@@ -8,7 +8,8 @@ import {
   GitBranch, Package,
   Truck, TrendingUp, CalendarCheck, Megaphone,
   Banknote, FolderKanban, SquareKanban, Kanban, PieChart, FolderOpen,
-  Wallet, BarChart3, UsersRound, FileStack, Gauge, CalendarDays, MessageSquareText, LayoutDashboard
+  Wallet, BarChart3, UsersRound, FileStack, Gauge, CalendarDays, MessageSquareText, LayoutDashboard,
+  ListTodo, StickyNote
 } from 'lucide-react';
 import SubPage from './components/landing/SubPage';
 import subPages from './components/landing/subPageData';
@@ -59,6 +60,9 @@ import { AssistantProvider } from './components/assistant/AssistantContext';
 import TodayPage from './components/today/TodayPage';
 import AskPage from './components/today/AskPage';
 import OverviewPage from './components/overview/OverviewPage';
+import CalendarPage from './components/workspace/CalendarPage';
+import MyTasksPage from './components/workspace/MyTasksPage';
+import NotesPage from './components/workspace/NotesPage';
 import { HOME } from './components/shell/modules';
 import { useTaskDeadlineMonitor } from './hooks/useTaskDeadlineMonitor';
 import { useTheme } from './hooks/useTheme';
@@ -104,6 +108,8 @@ const MODULE_FILTER = {
   // One page each, so the shell shows no tabs for them.
   today: ['today'],
   ai: ['ai'],
+  // Each person's own calendar, to-dos and notes (0112).
+  workspace: ['calendar', 'my-tasks', 'notes'],
   // Ex-employees and leave are tabs of Employees and Attendance, not rail items.
   team: ['employees', 'attendance', 'company-hierarchy', 'announcements', 'recruitment-tracker'],
   // Tasks live inside each project (Project Management); Tasks and Timesheets
@@ -146,13 +152,15 @@ const BILLING_GROUP = {
 // Like the dashboards (/dashboard/finance), every module page's path starts
 // with its module: /financials/general-ledger, /company/employees. The page ids
 // below stay unprefixed; pageOf() strips the module back off.
-const MODULE_PREFIX = { team: 'company', documents: 'documents', finance: 'financials', clients: 'clients', vendors: 'vendors', projects: 'projects' };
-const PREFIXES = new Set(['company', 'documents', 'financials', 'clients', 'vendors']);
+const MODULE_PREFIX = { workspace: 'workspace', team: 'company', documents: 'documents', finance: 'financials', clients: 'clients', vendors: 'vendors', projects: 'projects' };
+const PREFIXES = new Set(['workspace', 'company', 'documents', 'financials', 'clients', 'vendors']);
 // Projects' own pages; anything else under /projects/ is a project.
 const PROJECTS_PAGES = new Set(['kanban-chart', 'portfolio', 'tasks', 'timesheets']);
 // Pages whose path is not their id, by module: Clients' and Vendors' ledgers
 // are /clients/general-ledger and /vendors/general-ledger, as in a project.
 const SLUG_PAGE = {
+  // My Tasks is /workspace/tasks; the page id stays apart from Projects' tasks.
+  workspace: { tasks: 'my-tasks' },
   clients: { 'general-ledger': 'client-general-ledger', 'business-directory': 'products-directory' },
   vendors: { 'general-ledger': 'vendor-general-ledger' },
 };
@@ -202,6 +210,7 @@ const isTabbed = (path) => path !== '/company/employees/new'
 
 const MODULE_META = {
   today:     { id: 'today', label: 'Today' },
+  workspace: { id: 'workspace', label: 'Workspace' },
   ai:        { id: 'ai', label: 'AI' },
   team:      { id: 'team', label: 'Company' },
   documents: { id: 'documents', label: 'Documents' },
@@ -222,6 +231,10 @@ const NAV_ITEMS = [
   { id: 'dashboard/team', label: 'Team', icon: UsersRound },
   { id: 'dashboard/documents', label: 'Documents', icon: FileStack },
   { id: 'dashboard/usage', label: 'Usage', icon: Gauge },
+  { section: 'WORKSPACE' },
+  { id: 'calendar', label: 'Calendar', icon: CalendarDays },
+  { id: 'my-tasks', label: 'My Tasks', icon: ListTodo },
+  { id: 'notes', label: 'Notes', icon: StickyNote },
   { section: 'TEAM' },
   { id: 'employees', label: 'Employees', icon: Users },
   { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
@@ -260,6 +273,9 @@ const NAV_ITEMS = [
 const PAGE_META = {
   today: { title: 'Today', subtitle: 'What needs you today, worked out from your live records' },
   ai: { title: 'AI', subtitle: 'Ask about your company, or tell EdgeAI what to do' },
+  calendar: { title: 'Calendar', subtitle: 'Your events and every date in the company, in one place' },
+  'my-tasks': { title: 'My Tasks', subtitle: 'Your own to-dos, and the work assigned to you' },
+  notes: { title: 'Notes', subtitle: 'Ideas, checklists and reminders, visible only to you' },
   'dashboard/overview': { title: 'Overview', subtitle: 'Your company at a glance: the widgets you choose and the activity behind them' },
   dashboard: { title: 'Dashboard', subtitle: 'The whole organisation for one period. Click anything for the analysis behind it' },
   'dashboard/finance': { title: 'Finance Dashboard', subtitle: 'Credit, debit, and who owes whom' },
@@ -617,6 +633,11 @@ function AppContent() {
             <Route path="edgebrain" element={<Navigate to="/ai?view=neurals" replace />} />
             <Route path="today" element={<TodayPage />} />
             <Route path="ai" element={<AskPage theme={theme} />} />
+            {/* Workspace: private to each person (0112). */}
+            <Route path="workspace" element={<Navigate to="/workspace/calendar" replace />} />
+            <Route path="workspace/calendar" element={<CalendarPage />} />
+            <Route path="workspace/tasks" element={<MyTasksPage />} />
+            <Route path="workspace/notes" element={<NotesPage />} />
             <Route path="profile" element={<CompanyProfile />} />
             {/* Every path is named after its place in the sidebar: the page,
                 then the tab inside it, under its module (/clients/billing/proforma,

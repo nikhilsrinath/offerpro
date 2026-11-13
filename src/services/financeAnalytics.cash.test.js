@@ -24,7 +24,11 @@ describe('cashPosition', () => {
         // the same receipt as the ₹300 payment below, logged in the cash book too
         { id: 'i3', treatment: 'revenue', amount: 300, received_on: '2026-09-21', document_id: 'inv1' },
       ],
-      expenses: [...reported.expenses, { id: 'e2', amount: 7000, status: 'pending' }],
+      expenses: [
+        ...reported.expenses, { id: 'e2', amount: 7000, status: 'pending' },
+        // paying the vendor: the debit is the money out
+        { id: 'e3', amount: 2000, status: 'paid', vendor_id: 'v1', category: 'vendor_bill_payment', treatment: 'financing' },
+      ],
       finDocs: [
         { id: 'inv1', type: 'invoice', payments: [{ amount: 300, paid_on: '2026-09-21', confirmed_at: 't' }] },
         { id: 'pf1', type: 'proforma', doc_number: 'PI-1', payments: [{ amount: 500, paid_on: '2026-09-15', confirmed_at: 't' }] },
@@ -33,6 +37,7 @@ describe('cashPosition', () => {
         ] },
         { id: 'inv4', type: 'invoice', payments: [{ amount: 999, confirmed_at: null }] },   // an unverified claim
       ],
+      // amount_paid is worked out from the debits; adding it too counted 2,000 twice
       purchases: [{ id: 'b1', status: 'partially_paid', amount_paid: 2000 }, { id: 'b2', status: 'void', amount_paid: 50 }],
     });
     expect(c.received).toBe(118800);

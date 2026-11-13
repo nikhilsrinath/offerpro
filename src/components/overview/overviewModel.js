@@ -23,6 +23,8 @@ import {
 } from '../../services/financeAnalytics';
 import { categoryLabel, countsAsExpense, countsAsIncome } from '../../services/financeCategories';
 import { compactNumber, currencyLocale, currencySymbol } from '../../shared/currency.js';
+import { appliedReceipts, unappliedShare } from '../../shared/invoiceReceipt.js';
+import { vendorCostApplied, vendorCostShare } from '../../shared/financeReports.js';
 
 const n = (v) => Number(v) || 0;
 export const dayOf = (d) => (d ? String(d).slice(0, 10) : '');
@@ -156,10 +158,18 @@ export function collectionEvents(docs, income) {
   });
   // Gross, like every other collection event: what arrived in the bank. Only
   // entries that were EARNED, funding and refunds are cash but not takings.
-  (income || []).filter(countsAsIncome).forEach((e) => out.push({
-    date: dayOf(e.date || e.received_on), amount: n(e.amount), doc: null,
-    method: e.payment_method || '', cashBook: true, label: e.description || 'Cash book',
-  }));
+  // A client's receipt laid over their invoices (0110) is already above, as
+  // the invoices' payments, so only what is beyond every invoice is added.
+  const applied = appliedReceipts(docs);
+  (income || []).filter(countsAsIncome).forEach((e) => {
+    const amount = n(e.amount) * unappliedShare(e, applied);
+    if (amount > 0.004) {
+      out.push({
+        date: dayOf(e.date || e.received_on), amount, doc: null,
+        method: e.payment_method || '', cashBook: true, label: e.description || 'Cash book',
+      });
+    }
+  });
   return out;
 }
 
@@ -171,14 +181,17 @@ export function collectionEvents(docs, income) {
  */
 export function expenseEvents({ expenses, purchases, vendors = [] }) {
   const vendorName = (id) => vendors.find((v) => v.id === id)?.company_name || '';
+  // As profitAndLoss: a debit that pays a vendor's bill is the bill's cost, and
+  // a bill costs its subtotal plus its round off (0110).
+  const paysBills = vendorCostApplied({ expenses, purchases });
   return [
     ...(expenses || []).filter(countsAsExpense).map((e) => ({
-      date: dayOf(e.date || e.incurred_on), amount: n(e.amount) - n(e.tax_amount),
+      date: dayOf(e.date || e.incurred_on), amount: (n(e.amount) - n(e.tax_amount)) * vendorCostShare(e, paysBills),
       category: e.category || 'Other', label: e.description || 'Expense',
       party: vendorName(e.vendor_id), kind: 'Expense', id: e.id,
     })),
     ...(purchases || []).filter((p) => p.status !== 'void').map((p) => ({
-      date: dayOf(p.bill_date), amount: n(p.subtotal),
+      date: dayOf(p.bill_date), amount: n(p.subtotal) + n(p.round_off),
       category: p.category || 'Other', label: p.bill_number ? `Bill ${p.bill_number}` : 'Purchase bill',
       party: vendorName(p.vendor_id), kind: 'Purchase', id: p.id,
     })),
@@ -316,9 +329,10 @@ export function buildOverview(src, periodId, today) {
   // Earned without an invoice: part of income, and part of the cash that came
   // in. `collected` stays invoice-only: the drill-downs behind it read each
   // event's document: so the cash view names it "Collected on invoices".
+  const appliedIn = appliedReceipts(data.finDocs);
   data.income.filter(countsAsIncome).forEach((e) => {
     const i = bucketOf(buckets, dayOf(e.date || e.received_on));
-    if (i >= 0) series[i].income += netOfTax(e);
+    if (i >= 0) series[i].income += netOfTax(e) * unappliedShare(e, appliedIn);
   });
   spend.forEach((e) => { const i = bucketOf(buckets, e.date); if (i >= 0) series[i].expenses += e.amount; });
   docsTimeline.forEach((e) => {
@@ -478,10 +492,13 @@ export function buildOverview(src, periodId, today) {
   // grand_total, tax included, as this tile has always been; pl.direct is NET of
   // GST because a P&L must be. Adding those two would have produced a number
   // that was neither, off by the GST on the cash-book half.
+  // A client's receipt laid over their invoices (0110) is the invoices' money:
+  // only what is beyond every invoice is revenue without one.
+  const applied = appliedReceipts(data.finDocs);
   const directGross = (day) => data.income
     .filter(countsAsIncome)
     .filter((e) => day(dayOf(e.date || e.received_on)))
-    .reduce((acc, e) => acc + n(e.amount), 0);
+    .reduce((acc, e) => acc + n(e.amount) * unappliedShare(e, applied), 0);
   const direct = directGross(inPeriod);
   const revenue = invoiced + direct;
   const revenuePrev = prev ? invoicedPrev + directGross(inPrev) : null;

@@ -9,7 +9,7 @@ import { portfolio, canSeeFinancials, isOwnerOrAdmin } from '../../services/proj
 import { needsAttention } from '../../services/importantTasks';
 import { fmtShort, fmtInr, fmtDay, addDays } from './overviewModel';
 import { RankBars, SplitBar, EmptyNote, TipBody } from './vizKit';
-import { Dashboard, Card, Tile, More, TileRow, CardGrid, ListRow } from './dashKit';
+import { Dashboard, Card, Tile, More, TileRow, CardGrid, PageGrid, ListRow } from './dashKit';
 import { projectSectionPath } from '../projects/projectPaths';
 import { projectRef } from '../projects/projectSlug';
 
@@ -95,7 +95,7 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
         return { key: p.id, name: nameOf[p.id], value: mine.length, late: mine.filter((x) => x.deadline && String(x.deadline).slice(0, 10) < today).length };
     }).filter((r) => r.value > 0).sort((a, b) => b.value - a.value);
 
-    return (<>
+    return (<PageGrid>
         <TileRow bento cols={tileCols(6)}>
             <Tile icon={FolderKanban} label="Open projects" value={String(openP.length)} exact={`${openP.length} open`}
                 tone={Number.isFinite(limit) && openP.length >= limit ? 'down' : null}
@@ -193,5 +193,5 @@ function ProjectsBody({ model, navigate, t, cat, status, cols, grid, tileCols, t
                                     sub={(r) => (r.pct == null ? '' : `${r.pct.toFixed(2)}%`)} onSelect={(r) => navigate(`/projects/${projectRef(r.key)}`)} />}
             </Card>
         </CardGrid>
-    </>);
+    </PageGrid>);
 }

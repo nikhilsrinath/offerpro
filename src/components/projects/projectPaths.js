@@ -23,6 +23,7 @@ export const SECTION_PATHS = {
     wbs: 'project-management/tasks-wbs',
     tasks: 'project-management/kanban-board',
     gantt: 'project-management/gantt-chart',
+    whiteboard: 'project-management/whiteboard',
     products: 'project-management/sku',
     team: 'team-management/team-members',
     raci: 'team-management/team-hierarchy',

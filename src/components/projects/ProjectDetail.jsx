@@ -20,6 +20,7 @@ import TasksPage from '../tasks/TasksPage';
 import PmOverview from './pm/PmOverview';
 import WbsPage from './pm/WbsPage';
 import GanttPage from './pm/GanttPage';
+import WhiteboardPage from './pm/whiteboard/WhiteboardPage';
 import RaciPage from './team/RaciPage';
 import ProjectAttendance from './team/ProjectAttendance';
 import ProjectAnnouncements from './team/ProjectAnnouncements';
@@ -37,7 +38,7 @@ import { findProject, projectSlug, withProjectRef } from './projectSlug';
 import {
     LayoutDashboard, Wallet, Users, Flag, FileText, History,
     Gauge, BookOpen, Receipt, Scale, TrendingUp,
-    FolderKanban, Briefcase, ListTree, SquareKanban, ChartGantt,
+    FolderKanban, Briefcase, ListTree, SquareKanban, ChartGantt, PenTool,
     UsersRound, Network, CalendarCheck, Megaphone,
     Package, Handshake, Building2, MessagesSquare, BadgeIndianRupee, Truck, FolderOpen, FilePen, Contact, Kanban,
 } from 'lucide-react';
@@ -78,6 +79,8 @@ const TABS = [
     { id: 'wbs', parent: 'pm', label: 'Tasks (WBS)', icon: ListTree },
     { id: 'tasks', parent: 'pm', label: 'Kanban Board', icon: SquareKanban },
     { id: 'gantt', parent: 'pm', label: 'Gantt Chart', icon: ChartGantt },
+    // A Miro-style board for the project (0111).
+    { id: 'whiteboard', parent: 'pm', label: 'Whiteboard', icon: PenTool },
     // SKUs: the products and services the project sells, the company's
     // catalogue narrowed to it. A page of Project, not a rail item.
     { id: 'products', parent: 'pm', label: 'SKU', icon: Package },
@@ -334,6 +337,7 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                         {tab === 'wbs' && <WbsPage project={project} />}
                         {tab === 'tasks' && <TasksPage projectId={project.id} embedded />}
                         {tab === 'gantt' && <GanttPage project={project} />}
+                        {tab === 'whiteboard' && <WhiteboardPage project={project} />}
                         {tab === 'clients' && <ClientDirectory project={project} onOpen={openTab} />}
                         {tab === 'crm' && <CRM project={project} />}
                         {tab === 'comms' && <ClientCommunication key={params.get('client') || 'all'} project={project} />}

@@ -21,6 +21,7 @@
 import { docNumber } from './finDocs.js';
 import { existingConversion } from './documentConversion.js';
 import { currencySymbol, currencyLocale } from './currency.js';
+import { isReceiptShare } from './invoiceReceipt.js';
 
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const inr = (n) => currencySymbol() + round2(n).toLocaleString(currencyLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -36,12 +37,17 @@ export function isCarriedAdvance(payment, parent) {
     && payment.reference === parent.doc_number;
 }
 
-/** Confirmed money received against `doc` itself, carried advances excluded. */
+/**
+ * Confirmed money received against `doc` itself, carried advances excluded,
+ * and so are shares of a client's receipt laid over it (0110): those are the
+ * client's money, not this invoice's, and move to their next invoice if this
+ * one is cancelled, so they never stand in the way of cancelling it.
+ */
 export function ownMoneyReceived(doc, parent = null) {
   const payments = doc.payments || [];
   if (!payments.length) return round2(doc.amount_paid);
   return round2(payments
-    .filter((p) => p.confirmed_at && !isCarriedAdvance(p, parent))
+    .filter((p) => p.confirmed_at && !isCarriedAdvance(p, parent) && !isReceiptShare(p))
     .reduce((s, p) => s + (Number(p.amount) || 0), 0));
 }
 

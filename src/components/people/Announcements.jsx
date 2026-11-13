@@ -1,32 +1,41 @@
-// Announcements: broadcast to the whole team or one department.
+// Announcements: broadcast to the whole team, one department, or members
+// picked by name, now or on a send date.
 //
-// The audience is `department_id`: null means everyone. Who can actually read a
-// notice is decided by RLS (0029 §6), not by this screen, so an announcement
-// aimed at one department genuinely does not reach the rest.
+// Who can actually read a notice is decided by RLS (0029 §6, 0111), not by
+// this screen, so an announcement aimed at one department or three people
+// genuinely does not reach the rest, and a scheduled one reaches nobody until
+// its send date.
 //
-// Redesigned as a board: pinned notices first, each one a plain card whose
-// audience and dates sit on a single footer line. Pinning is a toggle on the
-// card rather than a checkbox buried in the editor, because pinning is
-// something you decide about an existing notice, not while writing one.
+// A board: pinned notices first, each one a plain card whose audience and
+// dates sit on a single footer line. Pinning is a toggle on the card rather
+// than a checkbox in the editor, because pinning is something you decide
+// about an existing notice, not while writing one.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSection } from '../financial/financeHooks';
 import { useToast } from '../shared/Toast';
 import { orgStore } from '../../services/orgStore';
-import { announcementService, fmtSize } from '../../services/announcementService';
 import {
-    Page, Toolbar, Panel, Row, Btn, Seg, Field, Input, Select, Textarea,
+    announcementService, fmtSize, isExpired, isScheduled, audienceOf,
+} from '../../services/announcementService';
+import {
+    Page, Toolbar, Panel, Row, Btn, Seg, Field, Input, Textarea,
     StatBand, Empty, Loading, Modal, ConfirmBtn, Status,
 } from '../ui/edge';
 import { useT, fmtDate } from '../ui/edgeUtils';
 import AttachmentsField from '../shared/AttachmentsField';
+import { SendDateField, AudienceField } from '../shared/announcementFields';
+import { sendFormOf, sendAtOf, datesProblem, whenText, audienceText } from '../shared/announcementForm';
 
-const BLANK = { title: '', body: '', departmentId: '', isPinned: false, expiresAt: '', keep: [], files: [], dropped: [] };
-const isExpired = (a) => !!a.expires_at && new Date(a.expires_at) < new Date();
+const blank = () => ({
+    title: '', body: '', audienceMode: 'everyone', departmentId: '', audience: [], hadAudience: false,
+    isPinned: false, expiresAt: '', keep: [], files: [], dropped: [], ...sendFormOf(null),
+});
 
 export default function Announcements() {
     const t = useT();
     const toast = useToast();
     const departments = useSection('departments');
+    const employees = useSection('employees');
     const orgId = orgStore.getOrgId();
 
     const [tab, setTab] = useState('board');
@@ -34,10 +43,17 @@ export default function Announcements() {
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [problem, setProblem] = useState('');
 
     const deptName = useMemo(
         () => Object.fromEntries(departments.map((d) => [d.id, d.name])), [departments],
     );
+    // Everyone who can be picked by name: the current employees, A to Z.
+    const people = useMemo(() => employees
+        .filter((e) => !e.exited_at)
+        .map((e) => ({ id: e.id, name: e.name || e.full_name || 'Unnamed', sub: [e.role, e.department].filter(Boolean).join(' · ') }))
+        .sort((a, b) => a.name.localeCompare(b.name)), [employees]);
+    const nameOf = useCallback((id) => people.find((p) => p.id === id)?.name || '', [people]);
 
     const load = useCallback(async () => {
         if (!orgId) return;
@@ -53,31 +69,41 @@ export default function Announcements() {
 
     useEffect(() => { load(); }, [load]);
 
-    const live = useMemo(() => items.filter((a) => !isExpired(a)), [items]);
+    const scheduled = useMemo(() => items.filter((a) => isScheduled(a)), [items]);
+    const live = useMemo(() => items.filter((a) => !isScheduled(a) && !isExpired(a)), [items]);
     const shown = useMemo(() => {
-        const base = tab === 'board' ? live : items;
-        return [...base].sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned)
-            || new Date(b.published_at || 0) - new Date(a.published_at || 0));
-    }, [tab, live, items]);
+        const base = tab === 'board' ? live : tab === 'scheduled' ? scheduled : items;
+        return [...base].sort((a, b) => (tab === 'scheduled'
+            ? new Date(a.published_at) - new Date(b.published_at)
+            : Number(b.is_pinned) - Number(a.is_pinned) || new Date(b.published_at || 0) - new Date(a.published_at || 0)));
+    }, [tab, live, scheduled, items]);
 
-    const publish = async (patch) => {
+    const publish = async (form) => {
+        const issue = datesProblem(form)
+            || (form.audienceMode === 'members' && form.audience.length === 0 ? 'Pick at least one member, or send it to the whole team.' : '')
+            || (form.audienceMode === 'department' && !form.departmentId ? 'Choose the department it is for.' : '');
+        if (issue) { setProblem(issue); return; }
+        setProblem('');
         setBusy(true);
         try {
+            const audience = form.audienceMode === 'members' ? form.audience : [];
             await announcementService.publish(orgId, {
-                id: patch.id,
-                title: patch.title,
-                body: patch.body,
-                departmentId: patch.departmentId || null,
-                isPinned: patch.isPinned,
-                // A date input gives a local calendar day; expire at the end of it.
-                expiresAt: patch.expiresAt ? new Date(`${patch.expiresAt}T23:59:59`).toISOString() : null,
-                keep: patch.keep || [], files: patch.files || [], dropped: patch.dropped || [],
+                id: form.id,
+                title: form.title,
+                body: form.body,
+                departmentId: form.audienceMode === 'department' ? form.departmentId : null,
+                audience, hadAudience: form.hadAudience,
+                isPinned: form.isPinned,
+                sendAt: sendAtOf(form),
+                expiresAt: form.expiresAt || null,
+                keep: form.keep || [], files: form.files || [], dropped: form.dropped || [],
             });
+            const later = form.sendMode === 'later' && !form.sentAt;
             setEditing(null);
             await load();
-            toast(patch.id ? 'Announcement updated' : 'Announcement published', 'success');
+            toast(later ? `Scheduled for ${whenText(sendAtOf(form))}` : form.id ? 'Announcement updated' : 'Announcement published', 'success');
         } catch (err) {
-            toast(err.message || 'Could not publish.', 'error');
+            setProblem(err.message || 'Could not publish.');
         } finally {
             setBusy(false);
         }
@@ -97,10 +123,13 @@ export default function Announcements() {
     };
 
     const openFile = async (f) => {
+        // Opened before the await so a popup blocker sees the click.
+        const w = window.open('', '_blank');
         try {
             const url = await announcementService.attachmentUrl(f.path);
-            window.open(url, '_blank', 'noopener');
+            if (w) { w.opener = null; w.location.href = url; } else window.location.assign(url);
         } catch (err) {
+            w?.close();
             toast(err.message || 'Could not open the attachment.', 'error');
         }
     };
@@ -115,45 +144,58 @@ export default function Announcements() {
         }
     };
 
-    const openEditor = (a) => setEditing(a ? {
-        id: a.id, title: a.title, body: a.body,
-        departmentId: a.department_id || '',
-        isPinned: a.is_pinned,
-        expiresAt: a.expires_at ? a.expires_at.slice(0, 10) : '',
-        keep: a.attachments || [], files: [], dropped: [],
-    } : { ...BLANK });
+    const openEditor = (a) => {
+        setProblem('');
+        if (!a) { setEditing(blank()); return; }
+        const picked = audienceOf(a);
+        setEditing({
+            id: a.id, title: a.title, body: a.body,
+            audienceMode: picked.length ? 'members' : a.department_id ? 'department' : 'everyone',
+            departmentId: a.department_id || '', audience: picked, hadAudience: picked.length > 0,
+            isPinned: a.is_pinned,
+            expiresAt: a.expires_at ? a.expires_at.slice(0, 10) : '',
+            keep: a.attachments || [], files: [], dropped: [],
+            ...sendFormOf(a),
+        });
+    };
+
+    const emptyText = {
+        board: 'Nothing on the board. An announcement appears in every reader’s portal until it expires.',
+        scheduled: 'Nothing scheduled. Pick Schedule under Send Date to post one later.',
+        history: 'No announcements yet.',
+    }[tab];
 
     return (
         <Page>
-            <Toolbar right={<Btn primary onClick={() => openEditor(null)}>New announcement</Btn>}>
+            <Toolbar right={<Btn primary onClick={() => openEditor(null)}>New Announcement</Btn>}>
                 <Seg value={tab} onChange={setTab} options={[
                     { id: 'board', label: 'Board' },
+                    { id: 'scheduled', label: `Scheduled${scheduled.length ? ` (${scheduled.length})` : ''}` },
                     { id: 'history', label: 'History' },
                 ]} />
             </Toolbar>
 
             <StatBand items={[
                 { label: 'On the board', value: live.length },
+                { label: 'Scheduled', value: scheduled.length },
                 { label: 'Pinned', value: live.filter((a) => a.is_pinned).length },
-                { label: 'Department only', value: live.filter((a) => a.department_id).length },
-                { label: 'Expired', value: items.length - live.length },
+                { label: 'Expired', value: items.filter((a) => isExpired(a)).length },
             ]} />
 
             {loading ? <Loading /> : shown.length === 0 ? (
                 <Panel>
-                    <Empty action={<Btn primary onClick={() => openEditor(null)}>Write the first one</Btn>}>
-                        {tab === 'board'
-                            ? 'Nothing on the board. An announcement appears in every reader’s portal until it expires.'
-                            : 'No announcements yet.'}
-                    </Empty>
+                    <Empty action={<Btn primary onClick={() => openEditor(null)}>Write the First One</Btn>}>{emptyText}</Empty>
                 </Panel>
             ) : (
                 <div style={{ display: 'grid', gap: 10 }}>
                     {shown.map((a) => {
                         const expired = isExpired(a);
+                        const later = isScheduled(a);
+                        const who = audienceText(a, { nameOf, deptName, scope: 'Whole team' });
                         return (
                             <article key={a.id} style={{
                                 border: '1px solid ' + (a.is_pinned ? t.lineStrong : t.line),
+                                borderLeft: later ? `3px solid ${t.teal}` : undefined,
                                 borderRadius: 10, padding: 14, background: t.panel,
                                 opacity: expired ? 0.62 : 1,
                             }}>
@@ -166,11 +208,13 @@ export default function Announcements() {
                                         {a.title}
                                     </h3>
                                     <Row gap={6}>
-                                        <Btn size="sm" onClick={() => togglePin(a)} disabled={busy}>
-                                            {a.is_pinned ? 'Unpin' : 'Pin'}
-                                        </Btn>
+                                        {!later && (
+                                            <Btn size="sm" onClick={() => togglePin(a)} disabled={busy}>
+                                                {a.is_pinned ? 'Unpin' : 'Pin'}
+                                            </Btn>
+                                        )}
                                         <Btn size="sm" onClick={() => openEditor(a)}>Edit</Btn>
-                                        <ConfirmBtn label="Delete" title="Delete announcement" message="It will be removed for everyone in the organisation. This cannot be undone." onConfirm={() => remove(a)} />
+                                        <ConfirmBtn label="Delete" title="Delete announcement" message="It will be removed for everyone it was sent to. This cannot be undone." onConfirm={() => remove(a)} />
                                     </Row>
                                 </Row>
 
@@ -195,10 +239,12 @@ export default function Announcements() {
                                     paddingTop: 10, borderTop: '1px solid ' + t.lineSoft,
                                     fontSize: 11.5, color: t.faint,
                                 }}>
-                                    <Status tone={a.department_id ? 'neutral' : 'mute'}>
-                                        {a.department_id ? (deptName[a.department_id] || 'Department') + ' only' : 'Whole team'}
-                                    </Status>
-                                    <span>Posted {fmtDate(a.published_at)}</span>
+                                    <span title={who.names || undefined}>
+                                        <Status tone={who.label === 'Whole team' ? 'mute' : 'neutral'}>{who.label}</Status>
+                                    </span>
+                                    {later
+                                        ? <span style={{ color: t.accent, fontWeight: 500 }}>Scheduled · goes out {whenText(a.published_at)}</span>
+                                        : <span>Sent {fmtDate(a.published_at)}</span>}
                                     {a.expires_at && (
                                         <span style={{ color: expired ? t.down : t.faint }}>
                                             {expired ? 'Expired ' : 'Expires '}{fmtDate(a.expires_at)}
@@ -213,17 +259,20 @@ export default function Announcements() {
 
             {editing && (
                 <Modal open onClose={() => setEditing(null)} width={700}
-                    title={editing.id ? 'Edit announcement' : 'New announcement'}
-                    note="A department announcement is invisible to everyone outside it"
+                    title={editing.id ? 'Edit Announcement' : 'New Announcement'}
+                    note="Only the audience you choose can read it"
                     footer={
                         <>
                             <Btn onClick={() => setEditing(null)}>Cancel</Btn>
                             <Btn primary disabled={busy || !editing.title.trim() || !editing.body.trim()}
                                 onClick={() => publish(editing)}>
-                                {busy ? 'Publishing…' : editing.id ? 'Save' : 'Publish'}
+                                {busy ? 'Saving…' : editing.id ? 'Save'
+                                    : editing.sendMode === 'later' ? 'Schedule' : 'Publish'}
                             </Btn>
                         </>
                     }>
+                    {problem && <div role="alert" className="prod-form-error">{problem}</div>}
+                    {/* One field a row, as every side panel lays them out. */}
                     <Field required label="Title">
                         <Input value={editing.title} maxLength={200} placeholder="Office closed on Friday"
                             onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
@@ -233,16 +282,11 @@ export default function Announcements() {
                             style={{ minHeight: 130 }}
                             onChange={(e) => setEditing({ ...editing, body: e.target.value })} />
                     </Field>
-                    {/* One field a row, as every side panel lays them out. */}
-                    <Field label="Audience">
-                        <Select value={editing.departmentId}
-                            onChange={(e) => setEditing({ ...editing, departmentId: e.target.value })}>
-                            <option value="">Whole team</option>
-                            {departments.map((d) => <option key={d.id} value={d.id}>{d.name} only</option>)}
-                        </Select>
-                    </Field>
+                    <SendDateField form={editing} setForm={setEditing} />
+                    <AudienceField form={editing} setForm={setEditing} people={people} departments={departments} scope="Whole Team" />
                     <Field label="Expire Date (Optional)" hint="Leave blank to keep it up">
                         <Input type="date" value={editing.expiresAt}
+                            min={editing.sendMode === 'later' && !editing.sentAt ? editing.sendDate : undefined}
                             onChange={(e) => setEditing({ ...editing, expiresAt: e.target.value })} />
                     </Field>
                     <AttachmentsField form={editing} setForm={setEditing} />

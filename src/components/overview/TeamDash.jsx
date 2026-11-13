@@ -4,7 +4,7 @@ import { attendanceService, ATTENDANCE_STATUSES } from '../../services/attendanc
 import { leaveService } from '../../services/leaveService';
 import { fmtDay, employedOn } from './overviewModel';
 import { Columns, RankBars, SplitBar, EmptyNote, Delta } from './vizKit';
-import { Dashboard, Card, Tile, SubLabel, More, TileRow, CardGrid, ListRow } from './dashKit';
+import { Dashboard, Card, Tile, SubLabel, More, TileRow, CardGrid, PageGrid, ListRow } from './dashKit';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Dashboard · Team: who is here, who is coming and going, who is out today,
@@ -70,7 +70,7 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
 
     const attColor = { present: status.good, remote: cat[0], half_day: status.warning, leave: cat[4], absent: status.critical, holiday: t.ghost };
 
-    return (<>
+    return (<PageGrid>
         <TileRow bento cols={tileCols(6)}>
             <Tile icon={Users} label="Headcount" value={String(k.headcount.value)} exact={`${k.headcount.value} people`}
                 delta={<Delta abs value={k.headcount.deltaAbs} />}
@@ -151,5 +151,5 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
                     onSelect={() => open({ kind: 'tasks', id: 'overdue' })} empty="No open tasks" />
             </Card>
         </CardGrid>
-    </>);
+    </PageGrid>);
 }

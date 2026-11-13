@@ -4,7 +4,7 @@ import { MONO } from '../ui/edgeUtils';
 import { libraryService, categoryLabel } from '../../services/libraryService';
 import { DOC_GROUPS, fmtDay } from './overviewModel';
 import { Columns, CalendarHeat, RankBars, SplitBar, EmptyNote } from './vizKit';
-import { Dashboard, Card, Tile, Figure, FigureRow, SubLabel, More, TileRow, CardGrid } from './dashKit';
+import { Dashboard, Card, Tile, Figure, FigureRow, SubLabel, More, TileRow, CardGrid, PageGrid } from './dashKit';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Dashboard · Documents: everything the company has issued or keeps.
@@ -66,7 +66,7 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
 
     const finCount = group('invoice') + group('quotation') + group('proforma');
 
-    return (<>
+    return (<PageGrid>
         <TileRow bento cols={tileCols(6)}>
             <Tile icon={FileText} label="Issued" value={String(model.docTotal)} exact={`${model.docTotal} documents`}
                 foot="HR letters + financial documents" spark={model.series.map((s) => s.docs)} sparkBars color={cat[0]}
@@ -151,7 +151,7 @@ function DocumentsBody({ model, open, navigate, t, cat, status, cols, grid, tile
                     </>)}
             </Card>
         </CardGrid>
-    </>);
+    </PageGrid>);
 }
 
 function fmtBytes(b) {

@@ -7,7 +7,7 @@ import { getPlanConfig, DEFAULT_PLAN } from '../../services/planConfig';
 import { activeProjectCount } from '../../services/projectService';
 import { aiUsageService, summariseUsage, runway, AI_SURFACES, surfaceLabel } from '../../services/aiUsageService';
 import { Columns, RankBars, Legend, EmptyNote, Delta } from './vizKit';
-import { Dashboard, Card, Tile, Figure, FigureRow, More, TileRow, CardGrid, ListRow, Meter } from './dashKit';
+import { Dashboard, Card, Tile, Figure, FigureRow, More, TileRow, CardGrid, PageGrid, ListRow, Meter } from './dashKit';
 import { mix } from './vizHooks';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -72,7 +72,7 @@ function UsageBody({ t, cat, status, cols, grid, tileCols, orgId, navigate, toda
     const surfaceColor = { copilot: cat[0], brain: cat[2], library: cat[3] };
     const noHistory = history && !history.available;
 
-    return (<>
+    return (<PageGrid>
         <TileRow bento cols={tileCols(5)}>
             <Tile icon={Sparkles} label="AI messages used" value={used.toLocaleString('en-IN')}
                 exact={unlimited ? `${used} used · unlimited` : `${used} of ${limit}`}
@@ -202,7 +202,7 @@ function UsageBody({ t, cat, status, cols, grid, tileCols, orgId, navigate, toda
             </Card>
         </CardGrid>
         <style>{'@keyframes usageSpin { to { transform: rotate(360deg); } } @media (prefers-reduced-motion: reduce) { [style*="usageSpin"] { animation: none !important; } }'}</style>
-    </>);
+    </PageGrid>);
 }
 
 function fmtTokens(n) {

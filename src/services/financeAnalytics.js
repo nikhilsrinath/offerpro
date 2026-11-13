@@ -15,7 +15,7 @@
 // EdgeBrain's aggregates cannot drift apart.
 import { groupOf } from './financeCategories';
 import { issuedInvoices, balanceOf, isOverdue as isOverdueShared } from '../shared/finDocs.js';
-import { netOfTax as net, inRange, profitAndLoss } from '../shared/financeReports.js';
+import { netOfTax as net, inRange, profitAndLoss, vendorCostApplied, vendorCostShare } from '../shared/financeReports.js';
 
 const n = (v) => Number(v) || 0;
 
@@ -28,7 +28,7 @@ export const todayIso = () => iso(new Date());
 export { issuedInvoices, balanceOf } from '../shared/finDocs.js';
 // Profit and loss and net cash live in src/shared/financeReports.js, where the
 // agents read them too.
-export { netOfTax, inRange, profitAndLoss, cashPosition } from '../shared/financeReports.js';
+export { netOfTax, inRange, profitAndLoss, cashPosition, vendorCostApplied } from '../shared/financeReports.js';
 export const isOverdue = (d, today = todayIso()) => isOverdueShared(d, today);
 
 export const daysOverdue = (d, today = todayIso()) => (d.due_date
@@ -113,7 +113,16 @@ export function taxSummary({ docs, purchases, expenses, income, vendors = [] }, 
   });
 
   const pRows = (purchases || []).filter((p) => p.status !== 'void' && inRange(p.bill_date, from, to));
-  const eRows = (expenses || []).filter((e) => n(e.tax_amount) > 0 && inRange(e.date || e.incurred_on, from, to));
+  // A debit to a vendor that pays their bill claims no GST of its own: the
+  // bill's GST is the input credit (0110, as in the P&L). Only its share beyond
+  // the vendor's bills does.
+  const paysBills = vendorCostApplied({ expenses, purchases });
+  const eRows = (expenses || []).filter((e) => n(e.tax_amount) > 0 && inRange(e.date || e.incurred_on, from, to))
+    .map((e) => {
+      const share = vendorCostShare(e, paysBills);
+      return share >= 1 ? e : { ...e, amount: n(e.amount) * share, tax_amount: n(e.tax_amount) * share };
+    })
+    .filter((e) => n(e.tax_amount) > 0);
   const input = {
     purchases: pRows.reduce((s, p) => s + n(p.tax_amount), 0),
     expenses: eRows.reduce((s, e) => s + n(e.tax_amount), 0),

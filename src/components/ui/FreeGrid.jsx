@@ -28,6 +28,18 @@ import './freeGrid.css';
 const ROW = 20;
 const NO_DRAG = 'input, textarea, select, [contenteditable="true"], [data-fg-nodrag], .fg-rz';
 
+const EDGE = 90;      // px from the top/bottom of the scrolling area where a drag scrolls it
+const MAX_SPEED = 22; // px per frame at the very edge
+
+/** The nearest ancestor that scrolls vertically, or the window. */
+function scrollParentOf(el) {
+    for (let n = el?.parentElement; n && n !== document.body && n !== document.documentElement; n = n.parentElement) {
+        const oy = getComputedStyle(n).overflowY;
+        if ((oy === 'auto' || oy === 'scroll' || oy === 'overlay') && n.scrollHeight > n.clientHeight) return n;
+    }
+    return window;
+}
+
 function suppressNextClick() {
     const stop = (e) => { e.stopPropagation(); e.preventDefault(); };
     window.addEventListener('click', stop, { capture: true, once: true });
@@ -204,7 +216,31 @@ export default function FreeGrid({
             setLive({ id, mode, rects: g.rects, ghost });
         };
         const onScroll = () => { if (g.active) step(null); };
+
+        /* Near the top or bottom of the scrolling area the page scrolls by
+           itself, so a widget can be carried to rows that are out of view
+           (the top row once the page has been scrolled down). */
+        const scroller = scrollParentOf(grid);
+        let raf = 0;
+        const autoScroll = () => {
+            raf = requestAnimationFrame(autoScroll);
+            if (!g.active) return;
+            const view = scroller === window
+                ? { top: 0, bottom: window.innerHeight }
+                : scroller.getBoundingClientRect();
+            const top = Math.max(view.top, 0);
+            const bot = Math.min(view.bottom, window.innerHeight);
+            let dy = 0;
+            if (g.cy < top + EDGE) dy = -Math.ceil(((top + EDGE - g.cy) / EDGE) * MAX_SPEED);
+            else if (g.cy > bot - EDGE) dy = Math.ceil(((g.cy - (bot - EDGE)) / EDGE) * MAX_SPEED);
+            if (!dy) return;
+            dy = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, dy));
+            if (scroller === window) window.scrollBy(0, dy); else scroller.scrollTop += dy;
+        };
+        raf = requestAnimationFrame(autoScroll);
+
         function detach() {
+            cancelAnimationFrame(raf);
             window.removeEventListener('pointermove', step);
             window.removeEventListener('pointerup', finish);
             window.removeEventListener('pointercancel', finish);

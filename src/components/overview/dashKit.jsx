@@ -12,6 +12,7 @@ import { TipProvider, Spark } from './vizKit';
 import Drilldown from './Drilldown';
 import { useViz, useWinW, mix } from './vizHooks';
 import FreeGrid from '../ui/FreeGrid';
+import { bottom } from '../ui/freeGridEngine';
 
 /* ══════════════════════════════════════════════════════════════════════════
    The frame every dashboard page shares, Overview, Finance, Sales, Team,
@@ -117,20 +118,43 @@ const edges = (g, fr) => {
     return [0, ...fr.map((f) => { acc += f; return Math.round((g * acc) / total); })];
 };
 
-/** One free grid of a page's tiles or cards, saved under `group`. */
-function DashGrid({ group, children, defaults, min, decorate }) {
+/**
+ * One free grid, saved under `group`, holding one or more sections (a tile
+ * row, a card grid). Each section starts below the one before it, but once
+ * the grid is up every tile and card can go anywhere on it: a card from the
+ * bottom can be dragged into the top row and the tiles there make room.
+ * section: { id, children, defaults(g, nat, list), min, decorate(i, n) }
+ */
+function DashGrid({ group, sections }) {
     const t = useT();
     const a = useContext(ArrangeCtx);
     const [local, setLocal] = useState(null); // no Arrangeable above: the layout lasts until reload
-    const list = React.Children.toArray(children).filter(Boolean).map((c, i) => ({ c, id: widOf(c, i), i }));
-    const items = list.map(({ c, id, i }) => ({
-        id, name: c.props?.title || c.props?.label || id, min,
+    const many = sections.length > 1;
+    const list = [];
+    sections.forEach((s) => {
+        const kids = React.Children.toArray(s.children).filter(Boolean);
+        // Prefixed with the section on a shared grid, so a tile and a card with the same name never collide.
+        kids.forEach((c, i) => list.push({ c, id: (many ? s.id + ':' : '') + widOf(c, i), i, n: kids.length, s }));
+    });
+    const items = list.map(({ c, id, i, n, s }) => ({
+        id, name: c.props?.title || c.props?.label || id, min: s.min,
         render: (geo) => React.cloneElement(c, {
             style: unplaced(c.props.style),
             arrange: a?.editing ? { first: geo.first, last: geo.last, move: geo.shift } : undefined,
-            ...(decorate ? decorate(i, list.length) : null),
+            ...(s.decorate ? s.decorate(i, n) : null),
         }),
     }));
+    const defaults = (g, nat) => {
+        const out = [];
+        let y0 = 0;
+        sections.forEach((s) => {
+            const own = list.filter((x) => x.s === s);
+            if (!own.length) return;
+            s.defaults(g, nat, own).forEach((r) => out.push({ ...r, y: r.y + y0 }));
+            y0 = bottom(out);
+        });
+        return out;
+    };
     const layouts = a ? a.grids[group] : local;
     const onLayout = a
         ? (cols, rects) => a.saveGrid(group, cols, rects)
@@ -138,7 +162,7 @@ function DashGrid({ group, children, defaults, min, decorate }) {
     return (
         <FreeGrid
             items={items} layouts={layouts} onLayout={onLayout} measure editing={!!a?.editing}
-            defaults={(g, nat) => defaults(g, nat, list)}
+            defaults={defaults}
             gap={12} label={group}
             style={{ marginBottom: 12, '--fg-accent': t.accent }}
         />
@@ -283,7 +307,11 @@ function DashboardBody({ children, orgId, periodic, snapshotNote }) {
  * (with an odd count, the second tile stands tall too). That is only where
  * they start: each tile can then be moved and sized freely.
  */
-export function TileRow({ cols, children, bento = false, id = 'tiles' }) {
+export function TileRow(props) {
+    return <DashGrid group={props.id || 'tiles'} sections={[tileSection(props)]} />;
+}
+
+function tileSection({ cols, children, bento = false, id = 'tiles' }) {
     const count = React.Children.toArray(children).filter(Boolean).length;
     const others = count - 1;
     const isBento = bento && cols >= 3 && others >= 2;
@@ -329,16 +357,46 @@ export function TileRow({ cols, children, bento = false, id = 'tiles' }) {
         return out;
     };
 
-    return (
-        <DashGrid group={id} defaults={defaults} min={{ w: 3, h: 3 }}
-            decorate={isBento ? (i) => (i === 0 ? { hero: true } : i === 1 && odd ? { tall: true } : null) : null}>
-            {children}
-        </DashGrid>
-    );
+    return {
+        id, children, defaults, min: { w: 3, h: 3 },
+        decorate: isBento ? (i) => (i === 0 ? { hero: true } : i === 1 && odd ? { tall: true } : null) : null,
+    };
 }
 
 /** The page's cards, `cols` across; a card's `grid(n)` style makes it n wide to start with. */
-export function CardGrid({ cols, children, id = 'cards' }) {
+export function CardGrid(props) {
+    return <DashGrid group={props.id || 'cards'} sections={[cardSection(props)]} />;
+}
+
+/**
+ * A page's tile rows and card grids on one shared grid, so any tile or card
+ * can be dragged into any row, the top one included. Wrap the page body in it;
+ * its TileRow / CardGrid children are laid out top to bottom to start with,
+ * and anything else among them renders as usual, the grid standing where the
+ * first of them was.
+ */
+export function PageGrid({ children, id = 'page' }) {
+    const flat = [];
+    const walk = (kids) => React.Children.forEach(kids, (c) => {
+        if (!c) return;
+        if (c.type === React.Fragment) walk(c.props.children);
+        else flat.push(c);
+    });
+    walk(children);
+    const sections = [];
+    const out = [];
+    let at = -1;
+    flat.forEach((c) => {
+        if (c.type === TileRow || c.type === CardGrid) {
+            if (at < 0) { at = out.length; out.push(null); }
+            sections.push(c.type === TileRow ? tileSection(c.props) : cardSection(c.props));
+        } else out.push(c.key != null || !React.isValidElement(c) ? c : React.cloneElement(c, { key: '__pg' + out.length }));
+    });
+    if (at >= 0) out[at] = <DashGrid key="__page-grid" group={id} sections={sections} />;
+    return <>{out}</>;
+}
+
+function cardSection({ cols, children, id = 'cards' }) {
     const defaults = (g, nat, list) => {
         const xs = edges(g, Array(cols).fill(1));
         const out = [];
@@ -362,7 +420,7 @@ export function CardGrid({ cols, children, id = 'cards' }) {
         flush();
         return out;
     };
-    return <DashGrid group={id} defaults={defaults} min={{ w: 4, h: 4 }}>{children}</DashGrid>;
+    return { id, children, defaults, min: { w: 4, h: 4 } };
 }
 
 /* Every card and tile carries the blue wash, so `accent` no longer changes

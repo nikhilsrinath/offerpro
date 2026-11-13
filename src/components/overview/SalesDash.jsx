@@ -6,7 +6,7 @@ import { categoryLabel } from '../../services/financeCategories';
 import { annualRecurring, acquisitionSpend, SALES_KEYS } from '../../services/salesMetrics';
 import { fmtShort, fmtInr, iso } from './overviewModel';
 import { RankBars, SplitBar, Funnel, EmptyNote, TipBody, Delta } from './vizKit';
-import { Dashboard, Card, Tile, Figure, FigureRow, More, TileRow, CardGrid, ListRow, MiniSeg } from './dashKit';
+import { Dashboard, Card, Tile, Figure, FigureRow, More, TileRow, CardGrid, PageGrid, ListRow, MiniSeg } from './dashKit';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Dashboard · Sales & marketing: where the next rupee comes from, and what
@@ -79,7 +79,7 @@ function SalesBody({ model, open, navigate, t, cat, ramp, status, cols, tileCols
     }, [model.raw, today, winDef]);
     const quoteColor = { accepted: status.good, open: t.faint, lost: status.critical, draft: t.ghost };
 
-    return (<>
+    return (<PageGrid>
         <TileRow bento cols={tileCols(5)}>
             <Tile icon={Target} label="Pipeline" value={fmtShort(k.pipeline.value)} exact={fmtInr(k.pipeline.value)}
                 delta={<span style={{ fontSize: 12, color: t.dim }}>{k.pipeline.open} open</span>}
@@ -163,5 +163,5 @@ function SalesBody({ model, open, navigate, t, cat, ramp, status, cols, tileCols
                 )}
             </Card>
         </CardGrid>
-    </>);
+    </PageGrid>);
 }

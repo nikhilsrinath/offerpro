@@ -12,6 +12,7 @@ import { useAssistant } from '../assistant/assistantStore';
 import { headline } from '../hub/format';
 import { useTodayData } from './useTodayData';
 import { suggestedQuestions } from './todayModel';
+import MyDay from '../workspace/MyDay';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Today: the owner's first page of the day.
@@ -262,6 +263,9 @@ export default function TodayPage() {
                 </div>
 
                 <div className="td-col">
+                    {/* The person's own events and to-dos (Workspace). */}
+                    <MyDay today={model.today} />
+
                     <Section title="Waiting on You" count={waiting}>
                         {model.decisions.length === 0 && <Quiet>Nothing is waiting on you{leaveKnown ? '' : ' (leave requests could not be checked)'}.</Quiet>}
                         {model.decisions.map((d, i) => (

@@ -21,7 +21,7 @@ import {
 import { IMAGE_KINDS, resolveImageUrl } from './imageUploadService';
 import { loadMyPermissions as loadEffectivePermissions } from './permissionService';
 import { baseCurrency } from '../shared/currency.js';
-import { linkedEntryOf, receiptNote } from '../shared/invoiceReceipt.js';
+import { isReceiptShare, linkedEntryOf, receiptNote } from '../shared/invoiceReceipt.js';
 
 let _orgId = null;
 let _cache = {};
@@ -1542,6 +1542,7 @@ export const orgStore = {
     if (section === 'employees' || section === 'ex_employees') {
       await saveCompensation(item.id, data);
     }
+    if (section === 'income_entries') await refreshClientInvoices([item.client_id]).catch(() => {});
     return item;
   },
 
@@ -1600,6 +1601,9 @@ export const orgStore = {
     bumpWrite(section);
     persistToLS();
     notifySection(section);
+    if (section === 'income_entries') {
+      await refreshClientInvoices([before?.client_id, updated?.client_id]).catch(() => {});
+    }
 
     // Pay lives in employee_compensation; without this an edited salary was
     // shown, then lost on reload. Only when the edit itself carries pay.
@@ -1662,6 +1666,10 @@ export const orgStore = {
         .eq('document_id', before.document_id).eq('note', receiptNote(id));
       if (payErr) throw payErr;
       await refreshFinDoc(before.document_id).catch(() => {});
+    }
+    // What the receipt paid of the client's invoices is owed again (0110).
+    if (section === 'income_entries' && before?.client_id) {
+      await refreshClientInvoices([before.client_id]).catch(() => {});
     }
   },
 
@@ -1983,6 +1991,11 @@ export const orgStore = {
 
   async deletePayment(paymentId, documentId) {
     const payment = (_cache.fin_docs?.[documentId]?.payments || []).find((p) => p.id === paymentId);
+    // A share of a client's receipt is worked out by the database from the
+    // receipt (0110); deleting it here would only see it put back.
+    if (isReceiptShare(payment)) {
+      throw new Error('This was paid by a receipt on the Client ledger. Edit or delete that receipt there.');
+    }
     const { error } = await supabase.from('payments').delete().eq('id', paymentId);
     if (error) throw error;
     // A receipt recorded from the ledger (Mark Paid) is that credit too.
@@ -2123,6 +2136,7 @@ async function replaceLineItems(documentId, items) {
 
 // Read the row back after writing so the trigger-computed totals reach the cache.
 async function refreshFinDoc(id) {
+  const beforeClient = _cache.fin_docs?.[id]?.customer_id || null;
   const { data, error } = await supabase
     .from('financial_documents')
     .select('*, document_line_items(*), payments(*)').eq('id', id).single();
@@ -2133,7 +2147,31 @@ async function refreshFinDoc(id) {
   _cache.fin_docs[id] = item;
   persistToLS();
   notifySection('fin_docs');
+  // The client's receipts are laid over their invoices oldest first (0110), so
+  // a change to one invoice can move what the client's other invoices are paid.
+  if (item.type === 'invoice') {
+    await refreshClientInvoices([beforeClient, item.customer_id]).catch(() => {});
+  }
   return item;
+}
+
+/**
+ * Every invoice of these clients, read again. A receipt from a client is laid
+ * over their invoices by the database (0110): after a receipt or an invoice of
+ * theirs changes, what each invoice has been paid (and its status) may have.
+ */
+async function refreshClientInvoices(clientIds) {
+  const ids = [...new Set((clientIds || []).filter(Boolean))];
+  if (!_orgId || ids.length === 0) return;
+  const { data, error } = await supabase
+    .from('financial_documents')
+    .select('*, document_line_items(*), payments(*)')
+    .eq('org_id', _orgId).eq('type', 'invoice').in('customer_id', ids);
+  if (error) throw error;
+  if (!_cache.fin_docs) _cache.fin_docs = {};
+  (data || []).forEach((r) => { _cache.fin_docs[r.id] = financialDocFromRow(r); });
+  persistToLS();
+  notifySection('fin_docs');
 }
 
 // org_secrets is unreadable and unwritable by every client role, by design.
