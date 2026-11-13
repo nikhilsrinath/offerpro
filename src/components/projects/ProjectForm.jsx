@@ -8,7 +8,7 @@ import { useT, useInDrawer } from '../ui/edgeUtils';
 import { useSection, money } from '../financial/financeHooks';
 import { BILLING_TYPES, MEMBER_ROLES, DELIVERY_METHODS } from '../../services/projectAnalytics';
 import {
-    createProject, updateProject, prefillFromQuotation, prefillFromClient, canSeeFinancials,
+    createProject, updateProject, prefillFromQuotation, prefillFromClient, prefillFromDeal, linkDealToProject, canSeeFinancials,
 } from '../../services/projectService';
 import { projectSectionPath } from './projectPaths';
 import ClientFormDialog from '../shared/ClientFormDialog';
@@ -64,6 +64,9 @@ export default function ProjectForm({ project = null, onDone }) {
         if (isEdit) return null;
         const q = params.get('fromQuotation');
         if (q) return prefillFromQuotation(q);
+        // Convert to Project from a CRM deal (?deal=): its client, name and value.
+        const d = params.get('deal');
+        if (d) return prefillFromDeal(d);
         const c = params.get('client');
         if (c) return prefillFromClient(c);
         return null;
@@ -139,6 +142,8 @@ export default function ProjectForm({ project = null, onDone }) {
                     members: members.filter((m) => m.employee_id).map(({ role_text, ...m }) => ({ ...m, ...roleFromText(role_text) })),
                     milestones,
                 });
+                // From a CRM deal: the deal is won and now points at its project.
+                if (params.get('deal')) await linkDealToProject(params.get('deal'), created.id);
                 if (problems.length) {
                     navigate(projectSectionPath(created.id, 'team'), { state: { problems } });
                 } else {

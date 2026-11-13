@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useDealForForm, linkQuoteToDeal } from '../crm/dealLinks';
 import { Plus, Trash2, Eye, Send, Save } from 'lucide-react';
 import ClientFormDialog from '../shared/ClientFormDialog';
 import { AddClientItem } from '../shared/ClientSelect';
@@ -63,6 +64,11 @@ export default function QuotationForm({ editDocId }) {
   // the project's client and contract, is linked to the project when saved,
   // and every way out returns there.
   const fromProject = useFormProject('quotation', '/clients/billing/quotations');
+  // New Quote from a CRM deal: the deal's client, linked to the deal when
+  // saved, and every way out goes back to the deal.
+  const location = useLocation();
+  const fromDeal = useDealForForm(editDocId ? null : location.state?.dealId);
+  const returnTo = fromDeal.returnTo || fromProject.returnTo;
 
   // Build company info from activeOrg (dynamic, not stale localStorage)
   const company = {
@@ -312,6 +318,12 @@ export default function QuotationForm({ editDocId }) {
     }
   }, [editDocId, fromProject.project, fromProject.client]);
 
+  useEffect(() => {
+    if (editDocId || !fromDeal.client || prefilled.current.client) return;
+    prefilled.current.client = true;
+    handleSelectClient(fromDeal.client);
+  }, [editDocId, fromDeal.client]);
+
   const handleClientSearchChange = (value) => {
     setClientSearch(value);
     setShowClientDropdown(value.length > 0 || savedClients.length > 0);
@@ -480,9 +492,10 @@ export default function QuotationForm({ editDocId }) {
       } else {
         const saved = await documentStore.save(buildDocument('draft', customerId));
         linkError = await linkToProject(fromProject.projectId, saved?.id);
+        await linkQuoteToDeal(fromDeal.deal, saved?.id);
       }
       toast(linkError ? `Quotation saved as draft, but ${linkError}` : 'Quotation saved as draft', linkError ? 'error' : 'success');
-      navigate(fromProject.returnTo);
+      navigate(returnTo);
     } catch (err) {
       toast(err.message || 'Could not save the quotation', 'error');
     } finally {
@@ -521,6 +534,7 @@ export default function QuotationForm({ editDocId }) {
       } else {
         doc = await documentStore.save(buildDocument('sent', customerId));
         const linkError = await linkToProject(fromProject.projectId, doc?.id);
+        await linkQuoteToDeal(fromDeal.deal, doc?.id);
         if (linkError) toast(`Quotation saved, but ${linkError}`, 'error');
       }
     } catch (err) {
@@ -549,14 +563,14 @@ export default function QuotationForm({ editDocId }) {
       });
     } catch (err) {
       toast(`Quotation saved, but the link could not be created: ${err.message}`, 'error');
-      navigate(fromProject.returnTo);
+      navigate(returnTo);
       return;
     }
 
     const email = (formData.clientEmail || '').trim();
     if (!email) {
       toast(`${label} sent, link created. Copy it from the Quotations list to share.`, 'success');
-      navigate(fromProject.returnTo);
+      navigate(returnTo);
       return;
     }
 
@@ -581,7 +595,7 @@ export default function QuotationForm({ editDocId }) {
       // can still be copied from the list.
       toast(`${label} saved and link created, but the email failed: ${mail.message}`, 'error');
     }
-    navigate(fromProject.returnTo);
+    navigate(returnTo);
   };
 
   return (

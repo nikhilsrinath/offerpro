@@ -188,6 +188,10 @@ begin
     -- The project's whiteboard (0111).
     insert into project_whiteboards (org_id, project_id, data) values (o, pj, '{"items": []}');
 
+    -- CRM deals (0113), on the `clients` permission. The insert writes the
+    -- deal's own 'created' activity row too.
+    insert into crm_deals (org_id, name, client_id, value) values (o, 'Deal ' || s, cl, 1000);
+
     -- AI call log (0067), written by the API.
     insert into ai_usage_events (org_id, surface) values (o, 'copilot');
 
@@ -330,6 +334,8 @@ select c.table_name as tbl,
                                 when 'client_channels' then 'clients'
                                 when 'client_communications' then 'clients'
                                 when 'client_approvals' then 'clients'
+                                when 'crm_deals' then 'clients'
+                                when 'crm_deal_activities' then 'clients'
                                 when 'project_vendors' then 'vendors'
                                 when 'vendor_bank_accounts' then 'vendor_banking'
                                 when 'project_folders' then 'project_files'

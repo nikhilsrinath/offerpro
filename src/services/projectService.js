@@ -168,6 +168,31 @@ export function prefillFromClient(clientId) {
     return { client_id: c.id, name: '', source_client_stage: c.status || null };
 }
 
+/** Convert to Project from a CRM deal: its client, its name and its value. */
+export function prefillFromDeal(dealId) {
+    const d = orgStore.getItem('crm_deals', dealId);
+    if (!d) return null;
+    return {
+        client_id: d.client_id || '', name: d.name || '',
+        contract_value: d.value == null ? '' : d.value,
+        source_client_stage: null,
+    };
+}
+
+/** After the project is made: the deal points at it and is won, and its
+    client is an active customer. A failure here leaves the project made. */
+export async function linkDealToProject(dealId, projectId) {
+    const d = orgStore.getItem('crm_deals', dealId);
+    if (!d || !projectId) return;
+    try {
+        await orgStore.updateItem('crm_deals', dealId, { project_id: projectId, state: 'won', probability: 100 });
+        const c = d.client_id ? orgStore.getItem('customers', d.client_id) : null;
+        if (c && c.status !== 'active') await orgStore.updateItem('customers', c.id, { status: 'active' });
+    } catch (err) {
+        console.warn('[projectService] linking the deal failed:', err.message);
+    }
+}
+
 // ─── Team ─────────────────────────────────────────────────────────────────────
 
 export const addMember = (projectId, member) =>

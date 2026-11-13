@@ -634,6 +634,59 @@ const SECTIONS = {
     },
   },
 
+  // 0113: the CRM's deals and their timeline. A deal belongs to a client (the
+  // organisation); a client can have many. Before 0113 the read fails and the
+  // section is simply empty.
+  crm_deals: {
+    table: 'crm_deals',
+    order: 'created_at',
+    orderDesc: true,
+    fromRow: (r) => ({
+      id: r.id, name: r.name, client_id: r.client_id || null, project_id: r.project_id || null,
+      owner_id: r.owner_id || null,
+      value: r.value == null ? null : Number(r.value), currency: r.currency || null,
+      probability: r.probability == null ? null : Number(r.probability),
+      expected_close: r.expected_close || null,
+      stage: r.stage || 'lead', stage_changed_at: r.stage_changed_at,
+      state: r.state || 'open', state_changed_at: r.state_changed_at, closed_on: r.closed_on || null,
+      lost_reason: r.lost_reason || '', source: r.source || '', description: r.description || '',
+      contacts: Array.isArray(r.contacts) ? r.contacts : [],
+      quote_ids: Array.isArray(r.quote_ids) ? r.quote_ids : [],
+      starred_by: Array.isArray(r.starred_by) ? r.starred_by : [],
+      position: r.position || 0,
+      created_by: r.created_by || null, created_at: r.created_at, updated_at: r.updated_at,
+    }),
+    toRow: (i) => ({
+      name: String(i.name || '').trim() || 'Untitled deal',
+      client_id: nn(i.client_id), project_id: nn(i.project_id), owner_id: nn(i.owner_id),
+      value: i.value === '' || i.value == null ? null : num(i.value),
+      currency: i.currency ? String(i.currency).toUpperCase() : null,
+      probability: i.probability === '' || i.probability == null ? null : Math.max(0, Math.min(100, Math.round(Number(i.probability) || 0))),
+      expected_close: date(i.expected_close),
+      stage: i.stage || 'lead', state: i.state || 'open',
+      lost_reason: nn(i.lost_reason), source: nn(i.source), description: nn(i.description),
+      contacts: Array.isArray(i.contacts) ? i.contacts : [],
+      quote_ids: Array.isArray(i.quote_ids) ? i.quote_ids : [],
+      starred_by: Array.isArray(i.starred_by) ? i.starred_by : [],
+      position: num(i.position, 0),
+    }),
+  },
+
+  crm_deal_activities: {
+    table: 'crm_deal_activities',
+    order: 'created_at',
+    orderDesc: true,
+    fromRow: (r) => ({
+      id: r.id, deal_id: r.deal_id, kind: r.kind, title: r.title || '', body: r.body || '',
+      due_at: r.due_at || null, done: r.done === true, done_at: r.done_at || null,
+      meta: r.meta || {}, created_by: r.created_by || null, created_at: r.created_at, updated_at: r.updated_at,
+    }),
+    toRow: (i) => ({
+      deal_id: i.deal_id, kind: i.kind || 'note', title: nn(i.title), body: nn(i.body),
+      due_at: i.due_at || null, done: bool(i.done, false), meta: i.meta || {},
+    }),
+  },
+
   products: {
     table: 'products',
     order: 'created_at',

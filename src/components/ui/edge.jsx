@@ -850,8 +850,10 @@ export function DialogSheet({ as: As = 'div', label, labelledBy, onClose, childr
     entries so callers can write `cond && {...}` inline. Each item:
     { label, icon, onClick, tone: 'danger' | 'success', disabled, hint, busy }.
     Danger items sit last, below a hairline. The list is portalled to <body>
-    so a table's overflow cannot clip it. */
-export function RowMenu({ items, label = 'Actions', size = 'sm' }) {
+    so a table's overflow cannot clip it. `{ divider: true }` draws a hairline
+    between groups. `text` makes the trigger a worded button ("Actions ⌄")
+    instead of the "⋯". */
+export function RowMenu({ items, label = 'Actions', size = 'sm', text }) {
     const t = useT();
     const [open, setOpen] = useState(false);
     const [pos, setPos] = useState(null);
@@ -924,6 +926,7 @@ export function RowMenu({ items, label = 'Actions', size = 'sm' }) {
     };
 
     const item = (it, k) => {
+        if (it.divider) return <div key={k} role="separator" style={{ height: 1, background: t.line, margin: '4px 2px' }} />;
         const Icon = it.icon;
         const colour = it.tone === 'danger' ? t.down : it.tone === 'success' ? t.up : t.text;
         return (
@@ -962,7 +965,12 @@ export function RowMenu({ items, label = 'Actions', size = 'sm' }) {
                 onClick={(e) => { e.stopPropagation(); setPos(null); setOpen((o) => !o); }}
                 onKeyDown={(e) => { if (e.key === 'ArrowDown' && !open) { e.preventDefault(); setOpen(true); } }}
                 onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-                style={{
+                style={text ? {
+                    display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 10px 0 12px',
+                    borderRadius: 7, cursor: 'pointer', flexShrink: 0, fontFamily: MONO, fontSize: 12.5, fontWeight: 500,
+                    border: '1px solid ' + (lit ? t.text : t.lineStrong), background: t.card, color: t.text,
+                    transition: 'border-color .15s, background .15s',
+                } : {
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                     width: h, height: h, padding: 0, borderRadius: ghost ? 6 : 9, cursor: 'pointer', flexShrink: 0,
                     border: '1px solid ' + (lit ? t.lineStrong : ghost ? 'transparent' : t.line),
@@ -971,7 +979,9 @@ export function RowMenu({ items, label = 'Actions', size = 'sm' }) {
                     transition: 'border-color .15s, background .15s',
                 }}
             >
-                <MoreHorizontal size={ghost ? 14 : 15} aria-hidden="true" />
+                {text
+                    ? <>{titleCaseNode(text)}<ChevronDown size={14} aria-hidden="true" /></>
+                    : <MoreHorizontal size={ghost ? 14 : 15} aria-hidden="true" />}
             </button>
             {open && createPortal(
                 <div
