@@ -17,7 +17,7 @@ import subPages from './components/landing/subPageData';
 import OfferForm from './components/OfferForm';
 import InternRecords from './components/InternRecords';
 import DocumentLibrary from './components/library/DocumentLibrary';
-import LandingPage from './components/LandingPage';
+import LandingPage from './components/landing/home/LandingPage';
 import CertificateForm from './components/CertificateForm';
 import NdaForm from './components/NdaForm';
 import MoUForm from './components/MoUForm';

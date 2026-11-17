@@ -1,0 +1,130 @@
+/* Sign-in page. Shares the landing's look: navy ink, light-blue sky, logo red
+   kept to the logo. Product mock styles (.opm-*) and .op-sky come from
+   landing/home/landing.css. */
+
+.op-auth {
+  --op-ink: #14293E;
+  --op-ink-2: #0E1F30;
+  --op-text: #2B3B4D;
+  --op-muted: #5A6A7C;
+  --op-line: #E1E8EF;
+  --op-sky: #DBECF6;
+  --op-sky-2: #C4DFF0;
+  --op-mist: #F4F8FB;
+  --op-teal: #259E95;
+  --op-display: 'Schibsted Grotesk', 'Inter', system-ui, sans-serif;
+  --op-body: 'Geist', 'Inter', system-ui, sans-serif;
+
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(420px, 0.9fr) 1.1fr;
+  background: #fff;
+  color: var(--op-text);
+  font-family: var(--op-body);
+  font-size: 14.5px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.op-auth *, .op-auth *::before, .op-auth *::after { box-sizing: border-box; }
+.op-auth h1, .op-auth h2 { font-family: var(--op-display); color: var(--op-ink); margin: 0; letter-spacing: -0.025em; }
+.op-auth a { color: inherit; }
+.op-auth :focus-visible { outline: 2px solid var(--op-ink); outline-offset: 2px; border-radius: 6px; }
+
+/* ── Form side ── */
+.op-auth-form-side { display: flex; flex-direction: column; padding: 24px 48px 20px; height: 100%; min-height: 0; overflow-y: auto; }
+.op-auth-top { display: flex; align-items: center; justify-content: space-between; }
+.op-auth-logo img { height: 22px; width: auto; display: block; }
+.op-auth-back {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px;
+  border: 1px solid var(--op-line); background: #fff; color: var(--op-text); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.op-auth-back:hover { border-color: #C9D6E2; color: var(--op-ink); }
+
+.op-auth-card { width: 100%; max-width: 380px; margin: auto; padding: 16px 0; }
+.op-auth-card h1 { font-size: 28px; font-weight: 700; line-height: 1.15; }
+.op-auth-sub { margin: 6px 0 22px; color: var(--op-muted); }
+
+.op-auth-error {
+  display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; margin-bottom: 16px; border-radius: 10px;
+  background: #FDECEC; color: #9B1C20; border: 1px solid #F6CFD0; font-size: 13.5px;
+}
+.op-auth-error svg { flex: none; margin-top: 2px; }
+
+.op-auth-google {
+  width: 100%; height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  border-radius: 10px; border: 1px solid #D6E0EA; background: #fff; color: var(--op-ink);
+  font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; transition: border-color .15s ease, background-color .15s ease;
+}
+.op-auth-google:hover:not(:disabled) { border-color: var(--op-ink); background: var(--op-mist); }
+
+.op-auth-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--op-muted); font-size: 12.5px; }
+.op-auth-divider::before, .op-auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--op-line); }
+
+.op-auth-field { display: block; margin-bottom: 14px; }
+.op-auth-field > span:first-child { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--op-ink); }
+.op-auth-input {
+  display: flex; align-items: center; gap: 9px; height: 42px; padding: 0 12px; border-radius: 10px;
+  border: 1px solid #D6E0EA; background: #fff; color: #8696A6; transition: border-color .15s ease;
+}
+.op-auth-input:focus-within { border-color: var(--op-ink); color: var(--op-ink); }
+.op-auth-input input {
+  flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: transparent; box-shadow: none;
+  font: inherit; font-size: 14.5px; color: var(--op-ink); padding: 0;
+}
+.op-auth-input input::placeholder { color: #9AA8B6; }
+.op-auth .op-auth-input input:focus, .op-auth .op-auth-input input:focus-visible { outline: none; box-shadow: none; }
+.op-auth-eye { display: grid; place-items: center; width: 28px; height: 28px; margin-right: -6px; border: 0; background: none; color: #8696A6; border-radius: 6px; cursor: pointer; }
+.op-auth-eye:hover { color: var(--op-ink); background: var(--op-mist); }
+
+.op-auth-submit {
+  width: 100%; height: 44px; margin-top: 8px; border: 0; border-radius: 10px; background: var(--op-ink); color: #fff;
+  font: inherit; font-weight: 600; font-size: 14.5px; cursor: pointer; transition: background-color .15s ease;
+}
+.op-auth-submit:hover:not(:disabled) { background: var(--op-ink-2); }
+.op-auth button:disabled { opacity: .6; cursor: default; }
+
+.op-auth-switch { margin: 18px 0 0; text-align: center; color: var(--op-muted); font-size: 13.5px; }
+.op-auth-switch button { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--op-ink); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+
+.op-auth-legal { margin: 0; text-align: center; color: var(--op-muted); font-size: 12px; }
+.op-auth-legal a { text-decoration: underline; text-underline-offset: 2px; }
+
+/* ── Visual side ── */
+.op-auth-visual {
+  position: relative; isolation: isolate; overflow: hidden; margin: 12px 12px 12px 0; border-radius: 24px;
+  display: flex; flex-direction: column; padding: 56px 0 0 56px; min-height: 0;
+}
+.op-auth-visual .op-sky { inset: 0; }
+.op-auth-visual-copy { max-width: 540px; padding-right: 40px; }
+.op-auth-visual h2 { font-size: 30px; line-height: 1.12; font-weight: 700; }
+.op-auth-visual-copy p { margin: 12px 0 0; color: var(--op-text); font-size: 15px; }
+.op-auth-shot { margin-top: auto; padding-top: 40px; }
+.op-auth-window {
+  width: 118% !important; border-radius: 16px 0 0 0; overflow: hidden; background: #fff;
+  box-shadow: 0 30px 70px -30px rgba(20,41,62,.35), 0 0 0 1px rgba(20,41,62,.08);
+}
+
+/* Short windows: tighten so the form still fits without scrolling. */
+@media (max-height: 680px) {
+  .op-auth-form-side { padding: 16px 48px 12px; }
+  .op-auth-card { padding: 8px 0; }
+  .op-auth-card h1 { font-size: 24px; }
+  .op-auth-sub { margin: 4px 0 16px; }
+  .op-auth-google, .op-auth-input { height: 38px; }
+  .op-auth-submit { height: 40px; margin-top: 4px; }
+  .op-auth-divider { margin: 13px 0; }
+  .op-auth-field { margin-bottom: 10px; }
+  .op-auth-field > span:first-child { margin-bottom: 4px; }
+  .op-auth-switch { margin-top: 12px; }
+  .op-auth-visual { padding-top: 40px; }
+  .op-auth-visual h2 { font-size: 26px; }
+  .op-auth-shot { padding-top: 24px; }
+}
+
+@media (max-width: 960px) {
+  .op-auth { grid-template-columns: 1fr; }
+  .op-auth-visual { display: none; }
+  .op-auth-form-side { padding: 16px; }
+}

@@ -3,7 +3,7 @@ import SubPageNav from './SubPageNav';
 import SubPageFooter from './SubPageFooter';
 import { useScrollParallax } from '../../hooks/useScrollParallax';
 import { useCardGlow } from '../../hooks/useCardGlow';
-import '../LandingPage.css';
+import './SubPageBase.css';
 import './SubPage.css';
 
 const SubPage = ({ children }) => {

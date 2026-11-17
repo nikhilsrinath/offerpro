@@ -185,9 +185,9 @@
 }
 
 .eos-logo-img {
-  height: 32px;
+  height: 26px;
   width: auto;
-  filter: brightness(0.05);
+  filter: none;
 }
 
 .eos-nav-links {

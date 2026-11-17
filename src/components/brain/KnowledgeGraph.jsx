@@ -157,6 +157,12 @@ function tick(sim, links, centres, alpha) {
 const KnowledgeGraph = forwardRef(function KnowledgeGraph({
     nodes = [], edges = [], highlight = '', selectedId = null, onSelect, onClear,
     height = '100%', bare = false, onViewChange,
+    // matchFn: optional predicate that replaces the text highlight (e.g. one domain).
+    // wheelZoom: false lets a plain wheel scroll the page (pinch / Ctrl+wheel still
+    // zoom), for embeds inside a scrolling page such as the landing.
+    matchFn = null, wheelZoom = true,
+    // camEase: fraction of the gap the camera closes per frame (lower = slower glide).
+    camEase = 0.24,
 }, ref) {
     const t = useT();
     const wrapRef = useRef(null);
@@ -202,9 +208,14 @@ const KnowledgeGraph = forwardRef(function KnowledgeGraph({
     }), [t.isDark]);
 
     const matcher = useMemo(() => {
+        if (matchFn) return matchFn;
         const q = highlight.trim().toLowerCase();
         return q ? (n) => n.label?.toLowerCase().includes(q) || n.kind.includes(q) : null;
-    }, [highlight]);
+    }, [highlight, matchFn]);
+    const wheelZoomRef = useRef(wheelZoom);
+    wheelZoomRef.current = wheelZoom;
+    const camEaseRef = useRef(camEase);
+    camEaseRef.current = camEase;
     const matcherRef = useRef(matcher);
     matcherRef.current = matcher;
     const selRef = useRef(selectedId);
@@ -272,9 +283,32 @@ const KnowledgeGraph = forwardRef(function KnowledgeGraph({
         momentumRef.current = { x: 0, y: 0 };
     }, []);
 
+    /** Frames every node the predicate accepts (e.g. one domain), eased. */
+    const focusWhere = useCallback((pred, maxK = 2.2) => {
+        const { sim } = stateRef.current;
+        const { w, h } = sizeRef.current;
+        let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity;
+        let any = false;
+        for (const n of sim) {
+            if (!pred(n)) continue;
+            any = true;
+            if (n.x < minX) minX = n.x; if (n.x > maxX) maxX = n.x;
+            if (n.y < minY) minY = n.y; if (n.y > maxY) maxY = n.y;
+        }
+        if (!any) return;
+        interactedRef.current = true;
+        const pad = 80;
+        const k = Math.min(maxK, Math.max(MIN_K, Math.min(
+            (w - pad * 2) / Math.max(maxX - minX, 1),
+            (h - pad * 2) / Math.max(maxY - minY, 1),
+        )));
+        targetRef.current = { k, x: w / 2 - ((minX + maxX) / 2) * k, y: h / 2 - ((minY + maxY) / 2) * k };
+        momentumRef.current = { x: 0, y: 0 };
+    }, []);
+
     fitRef.current = fit;
 
-    useImperativeHandle(ref, () => ({ fit, focusNode, zoomBy }), [fit, focusNode, zoomBy]);
+    useImperativeHandle(ref, () => ({ fit, focusNode, zoomBy, focusWhere }), [fit, focusNode, zoomBy, focusWhere]);
 
     /* ── build / rebuild the simulation when the data changes ─────────────── */
     useEffect(() => {
@@ -381,7 +415,7 @@ const KnowledgeGraph = forwardRef(function KnowledgeGraph({
 
             const v = viewRef.current;
             const tg = targetRef.current;
-            const ease = reduceMotion ? 1 : 0.24;
+            const ease = reduceMotion ? 1 : camEaseRef.current;
             const dk = tg.k - v.k;
             const dx = tg.x - v.x;
             const dy = tg.y - v.y;
@@ -740,6 +774,7 @@ const KnowledgeGraph = forwardRef(function KnowledgeGraph({
         if (!cv) return undefined;
 
         const onWheel = (e) => {
+            if (!wheelZoomRef.current && !(e.ctrlKey || e.metaKey)) return;
             e.preventDefault();
             interactedRef.current = true;
             const r = cv.getBoundingClientRect();
@@ -823,7 +858,7 @@ const KnowledgeGraph = forwardRef(function KnowledgeGraph({
                     display: 'block', width: '100%', height: '100%', outline: 'none',
                     ...frame,
                     cursor: grabbing ? 'grabbing' : hover ? 'pointer' : 'grab',
-                    touchAction: 'none',
+                    touchAction: wheelZoom ? 'none' : 'pan-y',
                 }}
             />
 

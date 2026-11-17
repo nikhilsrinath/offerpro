@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authErrorMessage } from '../lib/authErrors';
-import { Mail, Lock, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import Registration from './Registration';
+import { DashboardScreen, Scaled } from './landing/home/ProductScreens';
+import './landing/home/landing.css';
+import './auth.css';
 
 const GoogleIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24">
+  <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
@@ -14,20 +17,12 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const FEATURES = [
-  'Offer Letters & Contracts',
-  'GST Invoicing',
-  'AI Co-founder',
-  'Legal Documents',
-  'Team Management',
-  'Quotations & Proformas',
-];
-
 const Auth = () => {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { login, loginWithGoogle } = useAuth();
@@ -65,129 +60,83 @@ const Auth = () => {
   }
 
   return (
-    <div className="auth-split-wrapper" data-theme="light">
-      {/* Left Side: Editorial Visual */}
-      <div className="auth-visual-side">
-        <div className="auth-visual-noise" />
-
-        <div className="auth-visual-top">
-          <img src="/edgeos-logo.png" alt="Opstead" className="auth-visual-logo" />
-        </div>
-
-        <div className="auth-visual-content">
-          <div className="auth-visual-eyebrow">Business Operating System</div>
-          <h1 className="auth-hero-title">
-            Every document.<br />
-            Every deal.<br />
-            <em>One workspace.</em>
-          </h1>
-          <p className="auth-hero-subtitle">
-            Opstead unifies your documents, finances, and team operations into a single intelligent platform.
-          </p>
-
-          <div className="auth-feature-pills">
-            {FEATURES.map((f) => (
-              <span key={f} className="auth-feature-pill">{f}</span>
-            ))}
-          </div>
-        </div>
-
-        <div className="auth-visual-bottom">
-          <div className="auth-visual-stat">
-            <span className="auth-visual-stat-num">10×</span>
-            <span className="auth-visual-stat-label">faster document workflow</span>
-          </div>
-          <div className="auth-visual-stat-divider" />
-          <div className="auth-visual-stat">
-            <span className="auth-visual-stat-num">100%</span>
-            <span className="auth-visual-stat-label">GST compliant invoicing</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Right Side: Form */}
-      <div className="auth-form-side">
-        <div className="auth-form-container">
-          <button className="auth-back-btn" onClick={() => navigate('/')}>
-            <ArrowLeft size={14} /> Back to Home
+    <div className="op-auth" data-theme="light">
+      <main className="op-auth-form-side">
+        <div className="op-auth-top">
+          <a href="/" className="op-auth-logo" aria-label="Opstead home"><img src="/opstead-logo.png" alt="Opstead" /></a>
+          <button type="button" className="op-auth-back" onClick={() => navigate('/')}>
+            <ArrowLeft size={14} /> Back To Home
           </button>
+        </div>
 
-          <div className="auth-form-header">
-            <h2 className="auth-form-title">Welcome Back</h2>
-            <p className="auth-form-subtitle">Sign in to your Opstead workspace.</p>
-          </div>
+        <div className="op-auth-card">
+          <h1>Welcome Back</h1>
+          <p className="op-auth-sub">Sign in to your Opstead workspace.</p>
 
           {error && (
-            <div className="auth-error-banner">{error}</div>
+            <div className="op-auth-error" role="alert"><AlertCircle size={15} /> <span>{error}</span></div>
           )}
 
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-            className="auth-google-btn"
-          >
-            <GoogleIcon />
-            Continue with Google
+          <button type="button" onClick={handleGoogleSignIn} disabled={loading} className="op-auth-google">
+            <GoogleIcon /> Continue With Google
           </button>
 
-          <div className="auth-divider">
-            <div className="auth-divider-line" />
-            <span className="auth-divider-text">or</span>
-            <div className="auth-divider-line" />
-          </div>
+          <div className="op-auth-divider"><span>or sign in with email</span></div>
 
           <form onSubmit={handleSubmit}>
-            <div className="auth-field">
-              <label className="auth-label">Email</label>
-              <div className="auth-input-wrapper">
-                <Mail size={15} className="auth-input-icon" />
+            <label className="op-auth-field">
+              <span>Email</span>
+              <span className="op-auth-input">
+                <Mail size={15} aria-hidden="true" />
                 <input
-                  type="email"
-                  placeholder="name@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="auth-input"
+                  type="email" autoComplete="email" placeholder="name@company.com"
+                  value={email} onChange={(e) => setEmail(e.target.value)} required
                 />
-              </div>
-            </div>
+              </span>
+            </label>
 
-            <div className="auth-field-last">
-              <label className="auth-label">Password</label>
-              <div className="auth-input-wrapper">
-                <Lock size={15} className="auth-input-icon" />
+            <label className="op-auth-field">
+              <span>Password</span>
+              <span className="op-auth-input">
+                <Lock size={15} aria-hidden="true" />
                 <input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="auth-input"
+                  type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Your password"
+                  value={password} onChange={(e) => setPassword(e.target.value)} required
                 />
-              </div>
-            </div>
+                <button
+                  type="button" className="op-auth-eye" onClick={() => setShowPassword((s) => !s)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </span>
+            </label>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="auth-submit-btn"
-            >
-              {loading ? 'Signing in…' : 'Sign In'}
-              {!loading && <ArrowRight size={17} />}
+            <button type="submit" disabled={loading} className="op-auth-submit">
+              {loading ? 'Signing In…' : 'Sign In'}
             </button>
           </form>
 
-          <div className="auth-footer">
-            <button
-              onClick={() => setIsLogin(false)}
-              className="auth-switch-btn"
-            >
-              Don't have an account? <span>Get started</span>
-            </button>
-          </div>
+          <p className="op-auth-switch">
+            New to Opstead? <button type="button" onClick={() => setIsLogin(false)}>Create Your Workspace</button>
+          </p>
         </div>
-      </div>
+
+        <p className="op-auth-legal">
+          By continuing you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.
+        </p>
+      </main>
+
+      <aside className="op-auth-visual" aria-hidden="true">
+        <div className="op-sky"><i className="c1" /><i className="c2" /><i className="c3" /><i className="c4" /></div>
+        <div className="op-auth-visual-copy">
+          <h2>An Agentic Operating System<br />For Businesses</h2>
+          <p>Projects, clients, ledgers, payroll and documents in one workspace, with AI that answers from your own books.</p>
+        </div>
+        <div className="op-auth-shot">
+          <Scaled width={1120} className="op-auth-window"><DashboardScreen /></Scaled>
+        </div>
+      </aside>
     </div>
   );
 };
