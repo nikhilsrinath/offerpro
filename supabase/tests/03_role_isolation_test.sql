@@ -209,6 +209,10 @@ begin
     insert into workspace_events (org_id, user_id, title, start_at, end_at)
     select o, m.user_id, 'Workspace event ' || s, now(), now() from memberships m where m.org_id = o limit 1;
 
+    -- Pinned projects (0114): private to their person, like the Workspace.
+    insert into project_pins (org_id, user_id)
+    select o, m.user_id from memberships m where m.org_id = o limit 1;
+
     -- Agents (0089), service role only: no client access at all, asserted in
     -- 21_agent_deadline_watch_test.sql.
     insert into agent_settings (org_id, agent, config) values (o, 'deadline_watch', '{}');
@@ -489,7 +493,7 @@ begin
         if v_side = 'own' and t.tbl in ('memberships', 'audit_log', 'role_permissions', 'member_permissions', 'ai_actions',
                                          'agent_settings', 'agent_runs', 'agent_alerts',
                                          'org_connectors', 'connector_events',
-                                         'workspace_tasks', 'workspace_notes', 'workspace_events') then
+                                         'workspace_tasks', 'workspace_notes', 'workspace_events', 'project_pins') then
           continue;
         end if;
 

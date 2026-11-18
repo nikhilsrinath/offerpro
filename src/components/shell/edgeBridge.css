@@ -1392,19 +1392,15 @@
 .edge-shell main .records-grid-card-date { font-size: 11.5px; }
 .edge-shell main .prod-card-amount { font-size: 15px; font-weight: 600; letter-spacing: -0.015em; }
 
-/* ── frozen header row (bug list 01, Nov 2026) ─────────────────────────────
-   A table wrap with .table-frozen-head scrolls its rows inside itself, so the
-   header row stays on screen. The wrap is the scroller (it already scrolls
-   sideways), so sticky th have something to stick to. */
+/* ── frozen header row (bug list 01, Nov 2026; reworked 18 Nov) ───────────
+   A table wrap with .table-frozen-head keeps its header row on screen while
+   the page scrolls: the rows never scroll inside a box of their own. The
+   thead is made sticky against the page by useStickyHead (ui/useStickyHead.js),
+   which also lets the wrap clip instead of scroll when the table fits. */
 .edge-shell main .table-frozen-head {
-  max-height: calc(100vh - 240px);
-  min-height: 160px;
-  overflow: auto;
+  overflow-x: auto;
 }
 .edge-shell main .table-frozen-head thead th {
-  position: sticky;
-  top: 0;
-  z-index: 3;
   /* The navy title row every table wears (index.css, --th-bg), kept when frozen. */
   background: var(--th-bg, var(--edge-panel-alt)) !important;
   color: var(--th-text) !important;

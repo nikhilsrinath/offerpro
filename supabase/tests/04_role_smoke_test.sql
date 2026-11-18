@@ -118,7 +118,11 @@ create temp table _tenant_tables as
 select c.table_name as tbl
   from information_schema.columns c
   join information_schema.tables tb using (table_schema, table_name)
- where c.table_schema = 'public' and c.column_name = 'org_id' and tb.table_type = 'BASE TABLE';
+ where c.table_schema = 'public' and c.column_name = 'org_id' and tb.table_type = 'BASE TABLE'
+   -- A person's own private rows (Workspace 0112, pinned projects 0114) are
+   -- theirs to write whatever their role, a viewer too; asserted in
+   -- 30_workspace_test.sql and 32_project_pins_test.sql.
+   and c.table_name not in ('workspace_tasks', 'workspace_notes', 'workspace_events', 'project_pins');
 grant select on _tenant_tables to authenticated;
 
 \echo ''

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Download, Trash2, Search, FileSpreadsheet, ClipboardCheck, FileText, Award, Briefcase, FileCode, LayoutGrid, List, Eye, Send, Loader, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { RowMenu } from './ui/edge';
+import { useStickyHead } from './ui/useStickyHead';
 import { storageService } from '../services/storageService';
 import { pdfService } from '../services/pdfService';
 import { emailService } from '../services/emailService';
@@ -196,6 +197,10 @@ export default function InternRecords() {
   const pageNo = Math.min(listPage, pages - 1);
   const pageRecords = filteredRecords.slice(pageNo * PAGE_SIZE, (pageNo + 1) * PAGE_SIZE);
   useEffect(() => { setListPage(0); }, [activeTab, searchTerm, sortBy]);
+  // The list's header row stays on screen while the page scrolls; the rows never
+  // scroll inside the table (bug list 18 Nov). On only while the list is drawn.
+  const listShown = !loading && viewMode === 'list' && filteredRecords.length > 0;
+  const { boxRef: listBoxRef, headRef: listHeadRef } = useStickyHead(listShown);
 
   if (loading) {
     return (
@@ -349,9 +354,9 @@ export default function InternRecords() {
       ) : (
         /* List View: the invoice tables' compact rows, header frozen. */
         <>
-        <div className="fin-list-table-wrap table-frozen-head desktop-table">
+        <div ref={listBoxRef} className="fin-list-table-wrap table-frozen-head desktop-table">
           <table className="fin-list-table">
-            <thead>
+            <thead ref={listHeadRef}>
               <tr>
                 <th style={{ width: 56 }}>S.No</th>
                 <th>Document</th>

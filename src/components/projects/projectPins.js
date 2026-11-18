@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Pinned projects: the ones a person keeps at the top of the Projects list,
    in the order they arranged them.
 
-   A preference, not a fact about the company: kept per person and per
-   organization in localStorage, the way the hub's widget layout is
-   (hub/useWidgetLayout). The stored value is the pinned ids, top first.
+   A preference, not a fact about the company, kept per person and per
+   organization in public.project_pins (0114), so the same pins show on every
+   device the person signs in from. localStorage keeps a copy, so the list
+   draws pinned at once and still works offline or before 0114 is applied.
+   The stored value is the pinned ids, top first.
    ══════════════════════════════════════════════════════════════════════════ */
 
 const KEY = 'edgeos.projects.pins.v1';
@@ -42,11 +44,76 @@ function read(key) {
     }
 }
 
+function cache(key, pins) {
+    try { localStorage.setItem(key, JSON.stringify(pins)); } catch { /* quota / private mode */ }
+}
+
+const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+// Loaded only when needed, so the pure helpers above stay free of the client.
+const db = () => import('../../lib/supabase').then((m) => m.supabase);
+
+/** The person's saved pins, or null when there is no row (or no table yet). */
+async function fetchPins(orgId, userId) {
+    const supabase = await db();
+    const { data, error } = await supabase.from('project_pins')
+        .select('project_ids').eq('org_id', orgId).eq('user_id', userId).maybeSingle();
+    if (error) throw error;
+    return data ? (data.project_ids || []).filter((x) => typeof x === 'string') : null;
+}
+
+async function savePins(orgId, userId, pins) {
+    const supabase = await db();
+    const { error } = await supabase.from('project_pins')
+        .upsert({ org_id: orgId, user_id: userId, project_ids: pins }, { onConflict: 'org_id,user_id' });
+    if (error) throw error;
+}
+
 /** [pins, setPins] for this person in this organization. */
 export function useProjectPins(orgId, userId) {
     const key = `${KEY}:${orgId || 'none'}:${userId || 'none'}`;
     const [state, setState] = useState(() => ({ key, pins: read(key) }));
     const pins = state.key === key ? state.pins : read(key);
+    // Bumped by every local change, so a fetch that set off before it cannot
+    // put the older pins back when it lands.
+    const edits = useRef(0);
+    // Saves go one after another, so the last change made is the one kept.
+    const queue = useRef(Promise.resolve());
+    // Saves not yet done: until they are, what the database says is older than what is shown.
+    const saving = useRef(0);
+
+    // The saved pins, on opening the page and whenever the window comes back
+    // into focus (pinned on another device meanwhile).
+    useEffect(() => {
+        if (!orgId || !userId) return undefined;
+        let live = true;
+        const pull = async () => {
+            const at = edits.current;
+            try {
+                const saved = await fetchPins(orgId, userId);
+                if (!live || at !== edits.current || saving.current > 0) return;
+                if (saved === null) {
+                    // Nothing saved yet: this browser's pins become the saved ones.
+                    const local = read(key);
+                    if (local.length) await savePins(orgId, userId, local);
+                    return;
+                }
+                cache(key, saved);
+                setState((s) => (s.key === key && same(s.pins, saved) ? s : { key, pins: saved }));
+            } catch {
+                /* offline, or 0114 not applied yet: this browser's pins stand */
+            }
+        };
+        pull();
+        const onFocus = () => { if (document.visibilityState !== 'hidden') pull(); };
+        window.addEventListener('focus', onFocus);
+        document.addEventListener('visibilitychange', onFocus);
+        return () => {
+            live = false;
+            window.removeEventListener('focus', onFocus);
+            document.removeEventListener('visibilitychange', onFocus);
+        };
+    }, [orgId, userId, key]);
 
     // Another tab pinning something shows here too.
     useEffect(() => {
@@ -55,13 +122,22 @@ export function useProjectPins(orgId, userId) {
         return () => window.removeEventListener('storage', onStorage);
     }, [key]);
 
+    // The pins as last set, read by setPins without waiting for a render.
+    const latest = useRef(pins);
+    useEffect(() => { latest.current = pins; }, [pins]);
+
     const setPins = useCallback((fn) => {
-        setState((s) => {
-            const next = fn(s.key === key ? s.pins : read(key));
-            try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* quota / private mode */ }
-            return { key, pins: next };
-        });
-    }, [key]);
+        edits.current += 1;
+        const next = fn(latest.current);
+        latest.current = next;
+        cache(key, next);
+        setState({ key, pins: next });
+        if (!orgId || !userId) return;
+        saving.current += 1;
+        queue.current = queue.current.then(() => savePins(orgId, userId, next))
+            .catch(() => { /* offline, or 0114 not applied yet: kept in this browser */ })
+            .finally(() => { saving.current -= 1; });
+    }, [key, orgId, userId]);
 
     return [pins, setPins];
 }

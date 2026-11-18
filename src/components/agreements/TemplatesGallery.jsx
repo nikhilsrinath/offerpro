@@ -30,21 +30,17 @@ const TEMPLATES = [
   },
 ];
 
-export default function TemplatesGallery() {
+/**
+ * The four agreement cards, in the dashboards' own style: the blue wash, a
+ * tinted icon, the number issued, and a lift on hover. Used by Documents ›
+ * Templates and by a project's Documents › Templates (ReadyTemplates), so the
+ * two look the same. `records` are the issued documents to count (null while
+ * loading); `linkTo` changes where a card opens (a project's own form).
+ */
+export function TemplateCards({ records, linkTo = (to) => to }) {
   const t = useT();
-  const { activeOrg } = useOrg();
-  const [records, setRecords] = useState(null);
-
-  useEffect(() => {
-    if (!activeOrg?.id) return undefined;
-    let cancelled = false;
-    storageService.getAll(activeOrg.id).then((rows) => { if (!cancelled) setRecords(rows); });
-    return () => { cancelled = true; };
-  }, [activeOrg?.id]);
-
   return (
-    <Page>
-      {/* Cards in the dashboards' own style: the blue wash, a tinted icon, and a lift on hover. */}
+    <>
       <style>{`
         .tpl-card { transition: border-color .18s, box-shadow .18s, transform .22s cubic-bezier(.16,1,.3,1); }
         .tpl-card:hover { border-color: ${t.lineStrong} !important; transform: translateY(-3px); box-shadow: ${t.highlight}, 0 16px 32px -18px ${t.isDark ? 'rgba(0,0,0,.95)' : 'rgba(15,17,21,.38)'} !important; }
@@ -57,7 +53,7 @@ export default function TemplatesGallery() {
         {TEMPLATES.map(({ to, icon: Icon, title, tag, desc, count }) => {
           const issued = records ? records.filter(count).length : null;
           return (
-            <Link key={to} to={to} className="tpl-card" aria-label={`${title}: start a new document`} style={{
+            <Link key={to} to={linkTo(to)} className="tpl-card" aria-label={`${title}: start a new document`} style={{
               display: 'flex', flexDirection: 'column', gap: 14, padding: '18px 18px 14px',
               border: '1px solid ' + t.line, borderRadius: 18, background: t.card, boxShadow: t.highlight,
               backgroundImage: `radial-gradient(120% 90% at 100% 0%, ${t.accentSoft}, transparent 60%)`,
@@ -96,6 +92,24 @@ export default function TemplatesGallery() {
           );
         })}
       </Grid>
+    </>
+  );
+}
+
+export default function TemplatesGallery() {
+  const { activeOrg } = useOrg();
+  const [records, setRecords] = useState(null);
+
+  useEffect(() => {
+    if (!activeOrg?.id) return undefined;
+    let cancelled = false;
+    storageService.getAll(activeOrg.id).then((rows) => { if (!cancelled) setRecords(rows); });
+    return () => { cancelled = true; };
+  }, [activeOrg?.id]);
+
+  return (
+    <Page>
+      <TemplateCards records={records} />
     </Page>
   );
 }

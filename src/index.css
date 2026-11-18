@@ -3973,6 +3973,9 @@ label {
   box-shadow: var(--card-shadow);
   min-width: 0;
   overflow: hidden;
+  /* clip rounds the corners the same, but is not a scrolling box, so a
+     table header inside can stick to the page (useStickyHead). */
+  overflow: clip;
 }
 
 .pro-card-header {
@@ -8763,6 +8766,7 @@ label {
     padding: 1.125rem;
     border-radius: 10px;
     overflow: hidden;
+    overflow: clip;
     min-width: 0;
   }
 

@@ -334,11 +334,17 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                     defaultDate={!isEdit && form.startDate > new Date().toISOString().slice(0, 10) ? form.startDate : undefined} />}
             </div>
 
-            {/* Save and Cancel sit under the form, and stay in view while it scrolls. */}
+            {/* Save and Cancel sit under the form, frozen to the foot of the
+                screen while it scrolls. The band around the bar runs down over
+                the page's own 20px bottom gutter in the page's colour, so no
+                field ever shows through beneath it. */}
             <div style={{
-                position: 'sticky', bottom: 0, zIndex: 20, marginTop: 14,
+                position: 'sticky', bottom: -20, zIndex: 20, marginTop: 14, marginBottom: -20,
+                padding: '10px 0 20px', background: t.panel,
+            }}>
+            <div style={{
                 display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: 10,
-                background: t.card, border: '1px solid ' + t.line, borderRadius: 12,
+                background: t.card, border: '1px solid ' + t.lineStrong, borderRadius: 12,
             }}>
                 <span style={{ fontSize: 13.5, color: t.text, flex: 1, minWidth: 0 }}>
                     {isEdit ? 'Editing ' + (form.studentName || 'employee') : 'New employee'}
@@ -350,6 +356,7 @@ export default function EmployeeForm({ onBack, onSuccess, employee }) {
                         {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add to the team'}
                     </Btn>
                 </Row>
+            </div>
             </div>
         </Page>
     );

@@ -266,6 +266,23 @@ export async function financials(projectId, period = {}) {
     });
 }
 
+/**
+ * The entries behind each line of a project's P&L (0115): one row per source,
+ * { line, source_type, source_id, on_date, label, category, amount }, with the
+ * same rules project_financials adds them up by. Resolves to null when the
+ * database does not have 0115 yet, so the page can fall back.
+ */
+export async function plLines(projectId, period = {}) {
+    const { data, error } = await supabase.rpc('project_pl_lines', {
+        p_project_id: projectId, p_from: period.from || null, p_to: period.to || null,
+    });
+    if (error) {
+        if (error.code === 'PGRST202' || /project_pl_lines/.test(error.message || '')) return null;
+        throw error;
+    }
+    return data || [];
+}
+
 export async function portfolio(period = {}) {
     return run(async () => {
         const { data, error } = await supabase.rpc('project_portfolio', {

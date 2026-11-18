@@ -90,7 +90,9 @@ export const fmtDay = (d) => (d
    draw itself: a card on a hairline, a tinted header row in sentence case,
    hairline rows. edgeBridge.css gives the legacy table classes the same. */
 export const tableFrame = (t) => ({
-    border: '1px solid ' + t.line, borderRadius: 12, overflow: 'hidden',
+    // `clip`, not `hidden`: it rounds the corners the same but is not a box
+    // that scrolls, so a sticky header inside still holds to the page.
+    border: '1px solid ' + t.line, borderRadius: 12, overflow: 'clip',
     background: t.card, boxShadow: t.highlight,
 });
 

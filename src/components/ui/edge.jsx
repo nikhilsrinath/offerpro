@@ -85,7 +85,9 @@ export function Panel({ children, title, note, actions, pad = 0, style }) {
     return (
         <section style={drawer ? { minWidth: 0, ...style, margin: 0, border: 0, borderRadius: 0, background: 'transparent' } : {
             border: '1px solid ' + t.line, borderRadius: 12,
-            background: t.card, overflow: 'hidden', minWidth: 0, ...style,
+            // `clip` (with its own block context) rounds the corners like `hidden`
+            // but lets a table's sticky header inside hold to the page (useStickyHead).
+            background: t.card, overflow: 'clip', display: 'flow-root', minWidth: 0, ...style,
         }}>
             {(title || actions) && (
                 <header style={{
@@ -607,7 +609,7 @@ export function Table({ id, cols: allCols, children, empty, actions, sticky, lea
             <div ref={boxRef} className="edge-scroll" style={{ overflowX: 'auto' }}>
                 {/* `pinEnd` holds the last column (a row's actions) at the right edge while the rest scrolls. */}
                 <table className={pinEnd ? 'edge-table-pin-end' : undefined} style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO }}>
-                    <thead ref={headRef} style={sticky ? { position: 'relative', zIndex: 2 } : undefined}>
+                    <thead ref={headRef}>
                         <tr>
                             {cols.map((c) => {
                                 const menu = (onSort || pickable) && c.label ? colItems(c) : [];

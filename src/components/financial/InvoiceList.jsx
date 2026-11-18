@@ -8,6 +8,7 @@ import { useOrg } from '../../context/OrgContext';
 import DocumentStatusBadge from '../shared/DocumentStatusBadge';
 import { Btn, Status, Modal, Field, Textarea, RowMenu } from '../ui/edge';
 import { useT } from '../ui/edgeUtils';
+import { useStickyHead } from '../ui/useStickyHead';
 import { ShareLinkModal } from '../shared/PortalLinkGenerator';
 import { useToast } from '../shared/Toast';
 import { esc, safeImageUrl } from '../../utils/htmlEscape';
@@ -39,6 +40,8 @@ const PAGE_SIZE = 50; // rows a page
 
 export default function InvoiceList({ type = 'invoice', projectId = null }) {
   const navigate = useNavigate();
+  // The header row stays on screen while the page scrolls; the rows never scroll inside the table.
+  const { boxRef: tableBoxRef, headRef: tableHeadRef } = useStickyHead(true);
   const toast = useToast();
   const { activeOrg } = useOrg();
   const [documents, setDocuments] = useState([]);
@@ -685,9 +688,9 @@ export default function InvoiceList({ type = 'invoice', projectId = null }) {
       />
 
       {/* Table */}
-      <div className="fin-list-table-wrap table-frozen-head">
+      <div ref={tableBoxRef} className="fin-list-table-wrap table-frozen-head">
         <table className="fin-list-table">
-          <thead>
+          <thead ref={tableHeadRef}>
             {projectInvoices ? (
               // Invoices: S.No | Issue Date | Invoice No | Amount | GST | Due Date | Status | (Project) | Actions.
               <tr>

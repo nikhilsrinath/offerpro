@@ -23,6 +23,7 @@ import { VENDOR_LABEL } from '../financial/ledgerTypes';
 import { isClosed } from '../../services/projectAnalytics';
 import {
     financials, canAllocate, unbilledHours,
+    plLines,
 } from '../../services/projectService';
 import { useToast } from '../shared/Toast';
 import { useProjectScope } from './projectScope';
@@ -189,11 +190,11 @@ function PeriodPicker({ value, onChange, choices, note }) {
 
 /**
  * Financial Status: where the project's money stands: what was invoiced,
- * collected and is still owed, how much of the contract and the budget is
- * used, which invoices are open.
+ * collected and is still owed, the GST on its invoices, and which invoices
+ * are open. (The Contract and Budget cards and the Overdue box came off in
+ * bug list 18 Nov 2026.)
  */
 export default function ProjectFinanceStatus({ project, onOpen }) {
-    const t = useT();
     const toast = useToast();
     const navigate = useNavigate();
     const { choices, periodId, setPeriodId, period } = usePeriod();
@@ -239,8 +240,12 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
         });
     }, [owed, invSort]);
 
-    const contract = Number(project.contract_value) || 0;
-    const costs = f ? (Number(f.vendor_costs) || 0) + (Number(f.expense_costs) || 0) + (Number(f.labour_cost) || 0) : 0;
+    // GST on the project's issued invoices in the period (by issue date), at
+    // the project's share of each: the same invoices Invoiced counts.
+    const gst = useMemo(() => {
+        const list = (scope?.data.docs || []).filter((d) => !DEAD.has(d.status) && inRange(d.issue_date, period.from, period.to));
+        return { total: list.reduce((n, d) => n + invGst(d), 0), count: list.filter((d) => invGst(d) > 0).length };
+    }, [scope, period]);
 
     return (
         <div style={{ display: 'grid', gap: 14 }}>
@@ -265,9 +270,9 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
                             formula: 'Each open invoice’s total with GST − what has been paid on it, added up',
                         },
                         {
-                            label: 'Overdue', value: money(f.overdue_receivable, 2),
-                            tone: Number(f.overdue_receivable) > 0 ? 'down' : undefined,
-                            formula: 'The Outstanding of invoices whose due date has passed',
+                            label: 'GST', value: money(gst.total, 2),
+                            note: gst.count ? `On ${gst.count} invoice${gst.count === 1 ? '' : 's'}` : 'No GST charged',
+                            formula: 'GST charged on this project’s issued invoices (not draft or cancelled), by issue date; on a split invoice, this project’s share',
                         },
                         {
                             label: 'Net margin', value: money(f.net_margin, 2),
@@ -276,29 +281,11 @@ export default function ProjectFinanceStatus({ project, onOpen }) {
                             formula: `Invoiced ${money(f.revenue_invoiced, 2)} + Other income ${money(f.other_income, 2)} − Bills ${money(f.vendor_costs, 2)} − Expenses ${money(f.expense_costs, 2)} − Labour ${money(f.labour_cost, 2)}`,
                         },
                     ]} />
-
-                    <Grid min={300} gap={14}>
-                        <Panel title="Contract" pad={15} note={BILLING_LABEL[project.billing_type] || 'Fixed price'}>
-                            <Meter label="Billed" used={Number(f.revenue_invoiced) || 0} total={contract}
-                                empty="No contract value set. Add one with Edit to track billing against it." />
-                            <p style={{ margin: '10px 0 0', fontSize: 12.5, color: t.dim }}>
-                                {contract > 0
-                                    ? `${money(f.unbilled_value, 2)} of ${money(contract, 2)} still to bill.`
-                                    : `${money(f.unbilled_value, 2)} unbilled.`}
-                            </p>
-                        </Panel>
-                        <Panel title="Budget" pad={15} note={Number(f.budget_total) > 0 ? `${money(f.budget_total, 2)} planned` : undefined}>
-                            <Meter label="Used" pct={f.budget_burn_pct} total={Number(f.budget_total) || 0}
-                                empty="No budget set. Add labour, vendor or other budget with Edit." />
-                            <p style={{ margin: '10px 0 0', fontSize: 12.5, color: t.dim }}>
-                                Costs so far {money(costs, 2)}: bills, expenses and labour.
-                            </p>
-                        </Panel>
-                    </Grid>
                 </>
             )}
 
-            <Panel title="Open invoices" note={owed.length ? `${owed.length} awaiting payment` : undefined}
+            {/* Padded like its header, so Columns lines up under Go to Billing. */}
+            <Panel title="Open invoices" pad={owed.length ? 14 : 0} note={owed.length ? `${owed.length} awaiting payment` : undefined}
                 actions={<Row gap={6}>
                     {project.billing_type === 'time_materials' && !locked && <Btn size="sm" onClick={invoiceHours}>Invoice unbilled hours</Btn>}
                     {onOpen && <Btn size="sm" onClick={() => onOpen('billing')}>Go to billing</Btn>}
@@ -932,39 +919,28 @@ function onSide(s, party) {
 }
 const partyIdOf = (s, party) => (party === 'vendor' ? s?.vendor_id : s?.client_id) || null;
 
-const BILLING_LABEL = { fixed_price: 'Fixed price', time_materials: 'Time & materials', retainer: 'Retainer', other: 'Others' };
-
-/** Used against a total, as a bar and a percentage. */
-function Meter({ label, used, total, pct, empty }) {
-    const t = useT();
-    const p = pct != null ? Number(pct) : total > 0 && used != null ? (used / total) * 100 : null;
-    if (!(total > 0) || p == null) return <Muted>{empty}</Muted>;
-    const over = p > 100;
-    return (
-        <div>
-            <Row gap={8}>
-                <span style={{ flex: 1, fontSize: 13 }}>{label}</span>
-                <span style={{ fontSize: 13, color: over ? t.down : t.text }}>{Number(p).toFixed(2)}%</span>
-            </Row>
-            <div role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(p, 100)}
-                style={{ height: 6, borderRadius: 3, background: t.lineSoft, marginTop: 7, overflow: 'hidden' }}>
-                <div style={{ width: `${Math.min(p, 100)}%`, height: '100%', background: over ? t.down : t.text }} />
-            </div>
-        </div>
-    );
-}
-
 /**
  * Profit & Loss, from public.project_financials, never recomputed here:
  * revenue against direct costs for the gross margin, then labour (pay × time
  * on the project) for the net.
+ *
+ * The Statement is grouped: Income (Invoiced Revenue, Other Income) and
+ * Expenses (Vendor Bills, Other Expenses), each with its total. Clicking one
+ * of those four lines opens a side panel listing what it is made of, by
+ * category (or by client, for revenue) and entry by entry. That panel took
+ * the place of the Costs by Category card (bug list 18 Nov 2026).
  */
 export function ProjectProfitLoss({ project }) {
     const t = useT();
     const { choices, periodId, setPeriodId, period } = usePeriod();
     const { loading, f, error } = useProjectFinancials(project, period);
-    const cats = f ? Object.entries(f.costs_by_category || {})
-        .map(([k, v]) => ({ k, v: Number(v) })).sort((a, b) => b.v - a.v) : [];
+    // The line whose entries are open in the side panel.
+    const [open, setOpen] = useState(null);
+
+    const n = (v) => Number(v) || 0;
+    const income = f ? n(f.revenue_invoiced) + n(f.other_income) : 0;
+    const expenses = f ? n(f.vendor_costs) + n(f.expense_costs) : 0;
+    const pct = (v) => (v == null ? '' : `${Number(v).toFixed(2)}%`);
 
     return (
         <div style={{ display: 'grid', gap: 14 }}>
@@ -976,15 +952,15 @@ export function ProjectProfitLoss({ project }) {
                 <>
                     <StatBand items={[
                         {
-                            label: 'Revenue', value: money((Number(f.revenue_invoiced) || 0) + (Number(f.other_income) || 0), 2),
+                            label: 'Revenue', value: money(income, 2),
                             formula: `Invoiced ${money(f.revenue_invoiced, 2)} + Other income ${money(f.other_income, 2)} (money in with no invoice)`,
                         },
                         {
-                            label: 'Direct costs', value: money((Number(f.vendor_costs) || 0) + (Number(f.expense_costs) || 0), 2),
-                            formula: `Vendor bills ${money(f.vendor_costs, 2)} + Expenses ${money(f.expense_costs, 2)}, before GST`,
+                            label: 'Direct costs', value: money(expenses, 2),
+                            formula: `Vendor bills ${money(f.vendor_costs, 2)} + Other expenses ${money(f.expense_costs, 2)}, before GST`,
                         },
                         {
-                            label: 'Gross margin', value: money(f.gross_margin, 2), note: f.gross_margin_pct == null ? '' : `${Number(f.gross_margin_pct).toFixed(2)}%`,
+                            label: 'Gross margin', value: money(f.gross_margin, 2), note: pct(f.gross_margin_pct),
                             formula: 'Revenue − Direct costs; % = Gross margin ÷ Revenue × 100',
                         },
                         {
@@ -994,59 +970,255 @@ export function ProjectProfitLoss({ project }) {
                         {
                             label: Number(f.net_margin) < 0 ? 'Net loss' : 'Net profit', value: money(f.net_margin, 2),
                             tone: Number(f.net_margin) < 0 ? 'down' : 'up',
-                            note: f.net_margin_pct == null ? '' : `${Number(f.net_margin_pct).toFixed(2)}%`,
+                            note: pct(f.net_margin_pct),
                             formula: `Gross margin ${money(f.gross_margin, 2)} − Labour ${money(f.labour_cost, 2)}; % = Net ÷ Revenue × 100`,
                         },
                     ]} />
-                    <Grid min={320} gap={14}>
-                        <Panel title="Statement" pad={0}>
-                            <Table cols={[{ key: 'l', label: 'Line' }, { key: 'v', label: 'Amount', align: 'right' }]}>
-                                <PlRow label="Invoiced revenue" value={f.revenue_invoiced} />
-                                <PlRow label="Other income" value={f.other_income} note="General ledger" />
-                                <PlRow label="Vendor bills" value={-f.vendor_costs} />
-                                <PlRow label="Expenses" value={-f.expense_costs} note="General ledger" />
-                                <PlRow label="Gross margin" value={f.gross_margin} strong note={f.gross_margin_pct == null ? '' : `${Number(f.gross_margin_pct).toFixed(2)}%`} />
-                                <PlRow label="Labour" value={-f.labour_cost} note="Pay × time on the project" />
-                                <PlRow label="Net margin" value={f.net_margin} strong note={f.net_margin_pct == null ? '' : `${Number(f.net_margin_pct).toFixed(2)}%`} />
-                            </Table>
-                        </Panel>
-                        <Panel title="Costs by category" pad={15}
-                            note={f.budget_burn_pct == null ? 'No budget set' : `${Number(f.budget_burn_pct).toFixed(2)}% of ${money(f.budget_total, 2)} used to date`}>
-                            {cats.length === 0 ? <Muted>No direct costs in this period.</Muted> : (
-                                <div style={{ display: 'grid', gap: 7 }}>
-                                    {cats.map((c) => (
-                                        <Row key={c.k} gap={8}>
-                                            <span style={{ flex: 1, fontSize: 13 }}>{categoryLabel(c.k)}</span>
-                                            <span style={{ fontSize: 13 }}>{money(c.v, 2)}</span>
-                                        </Row>
-                                    ))}
-                                </div>
-                            )}
-                            {f.over_allocated_sources > 0 && (
-                                <p style={{ margin: '12px 0 0', fontSize: 12, color: t.down }}>
-                                    {f.over_allocated_sources} invoice{f.over_allocated_sources === 1 ? ' is' : 's are'} now worth less than
-                                    was allocated from {f.over_allocated_sources === 1 ? 'it' : 'them'}; the share is scaled down until the split is fixed.
-                                </p>
-                            )}
-                        </Panel>
-                    </Grid>
+
+                    <Panel title="Statement" note="Click a line to see what it is made of" pad={0}>
+                        <Table cols={[{ key: 'l', label: 'Line' }, { key: 'v', label: 'Amount', align: 'right' }]}>
+                            <PlHead label="Income" />
+                            <PlRow label="Invoiced Revenue" value={f.revenue_invoiced} indent onOpen={() => setOpen('invoiced_revenue')} />
+                            <PlRow label="Other Income" value={f.other_income} note="General ledger" indent onOpen={() => setOpen('other_income')} />
+                            <PlRow label="Total Income" value={income} total />
+                            <PlHead label="Expenses" />
+                            <PlRow label="Vendor Bills" value={f.vendor_costs} indent onOpen={() => setOpen('vendor_bills')} />
+                            <PlRow label="Other Expenses" value={f.expense_costs} note="General ledger" indent onOpen={() => setOpen('other_expenses')} />
+                            <PlRow label="Total Expenses" value={expenses} total />
+                            <PlRow label="Gross Margin" value={f.gross_margin} strong note={pct(f.gross_margin_pct)} />
+                            <PlRow label="Less: Labour" value={f.labour_cost} note="Pay × time on the project" />
+                            <PlRow label="Net Margin" value={f.net_margin} strong note={pct(f.net_margin_pct)} />
+                        </Table>
+                    </Panel>
+                    {f.over_allocated_sources > 0 && (
+                        <p style={{ margin: 0, fontSize: 12, color: t.down }}>
+                            {f.over_allocated_sources} invoice{f.over_allocated_sources === 1 ? ' is' : 's are'} now worth less than
+                            was allocated from {f.over_allocated_sources === 1 ? 'it' : 'them'}; the share is scaled down until the split is fixed.
+                        </p>
+                    )}
                 </>
+            )}
+            {open && f && (
+                <PlLinePanel project={project} period={period} line={open} f={f} onClose={() => setOpen(null)} />
             )}
         </div>
     );
 }
 
-function PlRow({ label, value, strong, note }) {
+// The four Statement lines that open, what each is called, and the figure
+// from project_financials it has to add up to.
+const PL_LINES = {
+    invoiced_revenue: { title: 'Invoiced Revenue', total: (f) => f.revenue_invoiced, by: 'Client' },
+    other_income: { title: 'Other Income', total: (f) => f.other_income, by: 'Category' },
+    vendor_bills: { title: 'Vendor Bills', total: (f) => f.vendor_costs, by: 'Category' },
+    other_expenses: { title: 'Other Expenses', total: (f) => f.expense_costs, by: 'Category' },
+};
+
+const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
+
+const catName = (k) => {
+    if (!k) return 'Uncategorised';
+    const label = categoryOf(k) ? categoryLabel(k) : '';
+    return label || titleCase(String(k).replace(/_/g, ' '));
+};
+
+/**
+ * Without 0115 the entries are gathered here from the project's slice of the
+ * books (projectScope), by the same rules as closely as the browser can: an
+ * entry laid over an invoice or paying a bill is left out. The panel says so
+ * when these do not add up to the Statement's figure.
+ */
+function localLines(scope, line, period) {
+    if (!scope) return [];
+    const inPeriod = (d) => inRange(d, period.from, period.to);
+    const { docs, income, expenses, purchases } = scope.data;
+    if (line === 'invoiced_revenue') {
+        return docs.filter((d) => !DEAD.has(d.status) && inPeriod(d.issue_date)).map((d) => ({
+            source_type: 'invoice', source_id: d.id, on_date: d.issue_date, label: invNumber(d), category: null, amount: Number(d.taxable_amount) || 0,
+        }));
+    }
+    if (line === 'vendor_bills') {
+        return purchases.filter((b) => b.status !== 'void' && inPeriod(b.bill_date)).map((b) => ({
+            source_type: 'purchase_invoice', source_id: b.id, on_date: b.bill_date, label: b.bill_number || '', category: b.category || null, amount: Number(b.subtotal) || 0,
+        }));
+    }
+    if (line === 'other_income') {
+        return income.filter((e) => inPeriod(e.received_on) && !e.document_id
+            && (!e.treatment || e.treatment === 'revenue' || e.treatment === 'other_income')).map((e) => ({
+            source_type: 'income_entry', source_id: e.id, on_date: e.received_on, label: e.description || '', category: e.category || null, amount: netOfTax(e),
+        }));
+    }
+    // Other expenses: costs that are not a payment against a bill, less cost recoveries.
+    const costs = expenses.filter((e) => inPeriod(e.incurred_on) && !e.purchase_invoice_id
+        && e.category !== 'vendor_bill_payment' && e.category !== 'vendor_advance'
+        && (!e.treatment || e.treatment === 'operating' || e.treatment === 'non_operating')).map((e) => ({
+        source_type: 'expense', source_id: e.id, on_date: e.incurred_on, label: e.description || '', category: e.category || null, amount: netOfTax(e),
+    }));
+    const recoveries = income.filter((e) => inPeriod(e.received_on) && e.treatment === 'cost_recovery').map((e) => ({
+        source_type: 'income_entry', source_id: e.id, on_date: e.received_on, label: e.description || '', category: 'Recoveries', amount: -netOfTax(e),
+    }));
+    return [...costs, ...recoveries];
+}
+
+/** The side panel behind one Statement line: by category (or client), then entry by entry. */
+function PlLinePanel({ project, period, line, f, onClose }) {
+    const t = useT();
+    const spec = PL_LINES[line];
+    const scope = useProjectScope(project.id);
+    const sources = useSources();
+    const [result, setResult] = useState({ key: null, rows: null, exact: true, error: '' });
+    const reqKey = `${project.id}|${period.id}|${line}`;
+    useEffect(() => {
+        let cancelled = false;
+        plLines(project.id, period)
+            .then((rows) => {
+                if (cancelled) return;
+                setResult({ key: reqKey, rows: rows ? rows.filter((r) => r.line === line) : null, exact: !!rows, error: '' });
+            })
+            .catch((e) => { if (!cancelled) setResult({ key: reqKey, rows: null, exact: true, error: e.message }); });
+        return () => { cancelled = true; };
+    }, [project.id, period, line, reqKey]);
+    const loading = result.key !== reqKey;
+
+    // Without 0115 (rows null, no error) the browser gathers them itself.
+    const rows = useMemo(() => {
+        if (loading || result.error) return [];
+        const list = result.rows ?? localLines(scope, line, period);
+        const byKey = Object.fromEntries(sources.map((s) => [`${s.type}:${s.id}`, s]));
+        return list.map((r) => {
+            const s = byKey[`${r.source_type}:${r.source_id}`];
+            const party = s?.party || '';
+            return {
+                ...r, amount: Number(r.amount) || 0,
+                party: party || r.label || SOURCE_LABEL[r.source_type],
+                ref: r.source_type === 'invoice' || r.source_type === 'purchase_invoice' ? (r.label || s?.number || '') : (s?.number || ''),
+                description: r.source_type === 'invoice' || r.source_type === 'purchase_invoice' ? (s?.description || '') : (r.label || ''),
+                group: spec.by === 'Client' ? (party || 'No client') : catName(r.category),
+            };
+        }).sort((a, b) => String(b.on_date || '').localeCompare(String(a.on_date || '')));
+    }, [loading, result, scope, line, period, sources, spec.by]);
+
+    const groups = useMemo(() => {
+        const by = new Map();
+        rows.forEach((r) => {
+            const g = by.get(r.group) || { name: r.group, count: 0, amount: 0 };
+            g.count += 1; g.amount += r.amount;
+            by.set(r.group, g);
+        });
+        return [...by.values()].sort((a, b) => b.amount - a.amount);
+    }, [rows]);
+
+    const listed = Math.round(rows.reduce((s, r) => s + r.amount, 0) * 100) / 100;
+    const total = Number(spec.total(f)) || 0;
+    const off = !loading && !result.error && Math.abs(listed - total) >= 0.01;
+
+    return (
+        <Modal open onClose={onClose} width={900} title={spec.title}
+            note={`${period.label} · before GST · this project’s share of each entry`}
+            footer={<><div style={{ flex: 1 }} /><Btn primary onClick={onClose}>Done</Btn></>}>
+            {loading ? <Loading /> : result.error ? (
+                <Empty>{result.error}</Empty>
+            ) : (
+                <div style={{ display: 'grid', gap: 16 }}>
+                    <div className="stat-box" style={{ padding: '14px 16px' }}>
+                        <div style={{ fontSize: 20, fontWeight: 600, color: t.text, fontVariantNumeric: 'tabular-nums' }}>{money(total, 2)}</div>
+                        <div style={{ fontSize: 12, color: t.dim, marginTop: 2 }}>
+                            {rows.length === 0 ? 'Nothing in this period'
+                                : `${plural(rows.length, 'entry', 'entries')} · ${spec.by === 'Client' ? plural(groups.length, 'client', 'clients') : plural(groups.length, 'category', 'categories')}`}
+                        </div>
+                    </div>
+                    {off && (
+                        <p style={{ margin: 0, fontSize: 12, color: t.down }}>
+                            These entries add up to {money(listed, 2)}; the Statement counts {money(total, 2)}.
+                            {!result.exact && ' The exact list needs database update 0115; until then this one is worked out in the browser.'}
+                        </p>
+                    )}
+                    {rows.length === 0 ? (
+                        <Empty>Nothing on this line in this period.</Empty>
+                    ) : (
+                        <>
+                            <section>
+                                <h3 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: t.text }}>{`By ${spec.by}`}</h3>
+                                <Table cols={[
+                                    { key: 'g', label: spec.by }, { key: 'c', label: 'Entries', align: 'right' },
+                                    { key: 's', label: 'Share', align: 'right' }, { key: 'a', label: 'Amount', align: 'right' },
+                                ]}>
+                                    {groups.map((g) => (
+                                        <Tr key={g.name}>
+                                            <Td>{g.name}</Td>
+                                            <Td align="right" muted nowrap>{g.count}</Td>
+                                            <Td align="right" muted nowrap>{listed ? `${((g.amount / listed) * 100).toFixed(2)}%` : '-'}</Td>
+                                            <Td align="right" nowrap>{money(g.amount, 2)}</Td>
+                                        </Tr>
+                                    ))}
+                                </Table>
+                            </section>
+                            <section>
+                                <h3 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: t.text }}>Entries</h3>
+                                <Table cols={[
+                                    { key: 'd', label: 'Date', width: 104 }, { key: 'p', label: 'Particular / Company Name' },
+                                    { key: 'r', label: line === 'invoiced_revenue' ? 'Invoice No' : line === 'vendor_bills' ? 'Bill No' : 'Reference' },
+                                    ...(spec.by === 'Category' ? [{ key: 'c', label: 'Category' }] : []),
+                                    { key: 'a', label: 'Amount', align: 'right' },
+                                ]}>
+                                    {rows.map((r) => (
+                                        <Tr key={`${r.source_type}:${r.source_id}`}>
+                                            <Td muted nowrap>{fmtDate(r.on_date)}</Td>
+                                            <Td>
+                                                {r.party}
+                                                {r.description && r.description !== r.party && <Muted> · {r.description}</Muted>}
+                                            </Td>
+                                            <Td muted nowrap>{r.ref || '-'}</Td>
+                                            {spec.by === 'Category' && <Td muted nowrap>{r.group}</Td>}
+                                            <Td align="right" nowrap>
+                                                <span style={{ color: r.amount < 0 ? t.down : t.text }}>{money(r.amount, 2)}</span>
+                                            </Td>
+                                        </Tr>
+                                    ))}
+                                </Table>
+                            </section>
+                        </>
+                    )}
+                </div>
+            )}
+        </Modal>
+    );
+}
+
+/** A heading of the Statement (Income, Expenses): a band across the table. */
+function PlHead({ label }) {
+    const t = useT();
+    return (
+        <tr>
+            <Td style={{ background: t.panelAlt, fontWeight: 600, fontSize: 12, letterSpacing: '0.01em' }}>{label}</Td>
+            <Td style={{ background: t.panelAlt }} />
+        </tr>
+    );
+}
+
+/**
+ * One line of the Statement. `indent` sits it under a heading; `total` is the
+ * heading's total; `onOpen` makes it open its entries in the side panel.
+ */
+function PlRow({ label, value, strong, total, indent, note, onOpen }) {
     const t = useT();
     const v = Number(value) || 0;
+    const bold = strong || total;
+    const name = bold ? <strong style={{ fontWeight: 600 }}>{label}</strong> : label;
     return (
-        <Tr>
-            <Td>{strong ? <strong style={{ fontWeight: 500 }}>{label}</strong> : label}
-                {note && <span style={{ fontSize: 11.5, color: t.faint }}> · {note}</span>}</Td>
-            <Td align="right" nowrap>
-                <span style={{ color: strong && v < 0 ? t.down : t.text, fontWeight: strong ? 500 : 400 }}>{money(v, 2)}</span>
+        <Tr onClick={onOpen} label={onOpen ? `${label}: show the entries` : undefined}>
+            <Td style={{ paddingLeft: indent ? 28 : 12, ...(total && { borderTop: '1px solid ' + t.lineStrong }) }}>
+                {onOpen ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ textDecoration: 'underline', textUnderlineOffset: 3, textDecorationColor: t.lineStrong }}>{name}</span>
+                        <ChevronRight size={13} aria-hidden="true" style={{ color: t.faint }} />
+                    </span>
+                ) : name}
+                {note && <span style={{ fontSize: 11.5, color: t.faint }}> · {note}</span>}
+            </Td>
+            <Td align="right" nowrap style={total ? { borderTop: '1px solid ' + t.lineStrong } : undefined}>
+                <span style={{ color: strong && v < 0 ? t.down : t.text, fontWeight: bold ? 600 : 400 }}>{money(v, 2)}</span>
             </Td>
         </Tr>
     );
 }
-

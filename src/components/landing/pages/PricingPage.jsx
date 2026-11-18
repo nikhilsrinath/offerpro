@@ -1,293 +1,295 @@
-import React from 'react';
-import { CreditCard, Check, ArrowRight, Mail, Sparkles, Shield } from 'lucide-react';
+import React, { useState } from 'react';
+import { Check, CircleCheck, Sparkles, Minus, Plus, ArrowRight, LayoutGrid, MessagesSquare, Bot, Building2 } from 'lucide-react';
+import './pricing.css';
 
 const SALES_EMAIL = 'edgeossuite@gmail.com';
 
-const buildEmailLink = (tier, price) => {
-  const subject = `Interested in Opstead ${tier} Plan, schedule a meeting`;
-  const body =
+// Gmail compose in a new tab; hold Alt/Option to use the OS mail client instead.
+const mailBody = (plan) =>
 `Hi Opstead team,
 
-I'm interested in the ${tier} plan (${price}). I'd love to schedule a quick meeting to discuss onboarding, billing, and next steps for getting my team started.
-
-A few things I'd like to cover:
-• Confirming the right plan for my team size and use case
-• Setup, data migration (if any), and onboarding timeline
-• Billing details and payment options
-• Any questions specific to my industry / workflow
-
-Could we set up a 15–20 minute call this week or next?
+${plan ? `I'm interested in the ${plan} plan` : `I'd like help choosing the right plan`} and would like to schedule a quick call to talk about onboarding and next steps for my team.
 
 Thanks,
 `;
-  // Gmail web compose: works in any browser without requiring a native mail client.
-  // We pass `mailto:` as the primary intent so any existing native mail handler also works.
-  return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(SALES_EMAIL)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-};
-
-const buildMailtoFallback = (tier, price) => {
-  const subject = `Interested in Opstead ${tier} Plan, schedule a meeting`;
-  const body =
-`Hi Opstead team,
-
-I'm interested in the ${tier} plan (${price}). I'd love to schedule a quick meeting to discuss onboarding, billing, and next steps for getting my team started.
-
-Could we set up a 15–20 minute call this week or next?
-
-Thanks,
-`;
-  return `mailto:${SALES_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-};
-
-// Click handler: open Gmail compose in a new tab. Hold ⌥/Alt to use the OS mail client instead.
-const handleEmailClick = (tier, price) => (e) => {
+const subjectFor = (plan) => (plan ? `Opstead ${plan} plan, schedule a call` : 'Opstead plans, schedule a call');
+const gmailLink = (plan) =>
+  `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(SALES_EMAIL)}&su=${encodeURIComponent(subjectFor(plan))}&body=${encodeURIComponent(mailBody(plan))}`;
+const onMailClick = (plan) => (e) => {
   if (e.altKey) {
-    // Power-user fallback: use native mailto:
-    window.location.href = buildMailtoFallback(tier, price);
     e.preventDefault();
+    window.location.href = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent(subjectFor(plan))}&body=${encodeURIComponent(mailBody(plan))}`;
   }
-  // Otherwise let the default <a target="_blank"> behaviour open Gmail compose.
 };
 
-const TIERS = [
+// Product layers a plan is built from (shown as chips on each card).
+const LAYERS = {
+  workspace: { label: 'Opstead Workspace', icon: LayoutGrid },
+  convo: { label: 'Conversational Agents', icon: MessagesSquare },
+  background: { label: 'Background Agents', icon: Bot },
+  industry: { label: 'Opstead Industry', icon: Building2 },
+};
+
+const PLANS = [
   {
-    stars: '★',
-    name: 'Free',
-    price: '$0',
-    priceMeta: '',
-    desc: 'Get started with Opstead. No card required.',
+    name: 'Basic',
+    desc: 'For businesses starting with automation.',
+    layers: ['workspace', 'convo'],
+    basis: 'Everything you need to start',
     features: [
-      '5 Offer Letters',
+      'Up to 2 projects',
+      '5 offer letters',
+      '5 invoices & quotations',
       '1 MoU / NDA',
-      '5 Invoices / Quotations',
-      '10 messages with AI Co-founder',
-      'Professional templates',
-      'PDF export & cloud sync',
-      'Recipient portal access',
+      'Client & vendor directories',
+      'General ledger & expenses',
     ],
-    cta: 'Schedule a Meeting',
-    featured: false,
+    cta: 'Get Started',
   },
   {
-    stars: '★★',
-    name: 'Pro',
-    price: '$12',
-    priceMeta: 'USD / month\nbilled annually',
-    desc: 'Solo founders & small teams shipping daily.',
+    name: 'Growth',
+    pill: 'Rolling Out',
+    desc: 'For businesses running full operations on Opstead.',
+    layers: ['workspace', 'convo', 'background'],
+    basis: <>Everything in <b>Basic</b> plus...</>,
     features: [
-      'Everything in Free',
-      'Unlimited Offer Letters',
-      '5 MoU / NDA',
-      'Unlimited Invoice / Quotation',
-      '50 messages with AI Co-founder',
-      'Priority customer support',
-      'Recipient portal access',
+      'Up to 20 projects',
+      '25 offer letters',
+      '25 invoices & quotations',
+      '20 MoU / NDA & agreements',
+      'Team, payroll & salary pay',
+      'CRM deal pipeline & client portal',
+      'Background agents on autopilot',
+      'Connectors (Apollo.io)',
     ],
-    cta: 'Schedule a Meeting',
-    featured: false,
-  },
-  {
-    stars: '★★★',
-    name: 'Max',
-    price: '$54',
-    priceMeta: 'USD / month\nbilled annually',
-    desc: 'Power users running the entire business on Opstead.',
-    features: [
-      'Unlimited Offer Letters',
-      'Unlimited MoU / NDA',
-      'Unlimited Invoice / Quotation',
-      'Unlimited messages with AI Co-founder',
-      'Priority customer support',
-      'Recipient portal access',
-      'Team follow-up automation',
-    ],
-    cta: 'Schedule a Meeting',
+    cta: 'Get Started',
     featured: true,
   },
   {
-    stars: '★★★★★',
     name: 'Enterprise',
-    price: 'Custom',
-    priceMeta: '',
-    desc: 'For organizations that need scale, control, and white-glove onboarding.',
+    pill: 'Complete Layer',
+    desc: 'For businesses in our four industries. Built with founding clients.',
+    layers: ['workspace', 'convo', 'background', 'industry'],
+    basis: <>Everything in <b>Growth</b> plus...</>,
     features: [
-      'Everything in Max',
-      'Bulk document generation',
+      'Unlimited projects & documents',
+      'Neurals: your company brain',
+      'Industry workflows for your sector',
       'Tally / Zoho / SAP data migration',
-      'White-label & custom branding',
-      'Aadhaar eSign integration',
+      'Custom letterhead & branding',
+      'Custom roles & permissions',
       'Dedicated account manager',
-      'And many more...',
     ],
-    cta: 'Contact Sales',
-    featured: false,
-    enterprise: true,
+    cta: 'Talk to Us',
   },
+];
+
+// true = included, false = not included, string = limit/detail
+const COMPARE = [
+  { group: 'Workspace' },
+  { label: 'Projects', v: ['2', '20', 'Unlimited'] },
+  { label: 'Offer letters', v: ['5', '25', 'Unlimited'] },
+  { label: 'Invoices & quotations', v: ['5', '25', 'Unlimited'] },
+  { label: 'MoU / NDA & agreements', v: ['1', '20', 'Unlimited'] },
+  { label: 'Clients, vendors & ledgers', v: [true, true, true] },
+  { label: 'Team, payroll & salary pay', v: [false, true, true] },
+  { label: 'CRM deal pipeline', v: [false, true, true] },
+  { label: 'Client portal', v: [false, true, true] },
+  { group: 'Intelligence' },
+  { label: 'Conversational agents (Ask)', v: [true, true, true] },
+  { label: 'Background agents (automatic mode)', v: [false, true, true] },
+  { label: 'Connectors', v: [false, true, true] },
+  { label: 'Neurals company brain', v: [false, false, true] },
+  { group: 'Industry & Support' },
+  { label: 'Industry workflows', v: [false, false, true] },
+  { label: 'Data migration', v: [false, false, true] },
+  { label: 'Custom roles & branding', v: [false, false, true] },
+  { label: 'Support', v: ['Email', 'Priority', 'Dedicated manager'] },
 ];
 
 const FAQS = [
   {
-    q: 'Do I need a credit card to start?',
-    a: 'No. The Free plan requires no payment information at all. Just sign in and start generating documents.',
+    q: 'What is Opstead?',
+    a: 'Opstead is one operating system for your business: projects, clients, vendors, finance, documents and team in a single workspace, with AI agents that work on top of your real data.',
   },
   {
-    q: 'How does annual billing work for Pro and Max?',
-    a: 'Pro ($12/month) and Max ($54/month) are billed annually upfront. Once we schedule a meeting, our team will help you complete payment via your preferred method (UPI, bank transfer, or invoice).',
+    q: 'What is the difference between conversational and background agents?',
+    a: 'Conversational agents answer when you ask, from your own records. Background agents run on their own schedule: they watch deadlines, operations, deals and business numbers, and bring what needs attention to you.',
   },
   {
-    q: 'Can I upgrade or downgrade later?',
-    a: 'Yes. You can change plans anytime. Usage limits reset at the start of each billing cycle, and any pro-rated balance is applied to your next invoice.',
+    q: 'What does the Industry layer add?',
+    a: 'Enterprise adds workflows, templates and reports shaped for your sector. It is available for the four industries we build with our founding clients.',
   },
   {
-    q: 'What does "schedule a meeting" actually do?',
-    a: 'When you click any plan button above, it opens your email client with a pre-filled message to our team. We respond within one business day with a calendar link to book a 15–20 minute onboarding call.',
+    q: 'Can I move from Basic to Growth later?',
+    a: 'Yes. Your projects, documents and ledgers stay exactly where they are; your limits go up and the new layers switch on.',
   },
   {
     q: 'Is my data safe?',
-    a: 'Yes. Opstead uses encrypted Firebase storage. The AI Co-founder reads only from your workspace cache; we never train on your data and never share it with third parties.',
+    a: 'Your data stays inside your own workspace and every record is protected by access rules for each role. Agents read only your workspace, and your data is never used to train models.',
+  },
+  {
+    q: 'How do I get started?',
+    a: 'Pick a plan and book a call. We reply within one business day to set up your workspace and walk your team through onboarding.',
   },
 ];
 
-const PricingPage = () => (
-  <>
-    {/* ── HERO ── */}
-    <section className="sp-hero">
-      <div className="sp-hero-glow" />
-      <div className="eos-container">
-        <div className="sp-hero-badge"><CreditCard size={12} /> Pricing</div>
-        <h1 className="sp-hero-title">Pricing built for <em>every</em><br />stage of your journey.</h1>
-        <p className="sp-hero-subtitle">
-          From the first invoice to enterprise scale. Simple plans, no hidden fees, no credit card to begin. Pick a plan and we'll set up a quick onboarding call.
-        </p>
-      </div>
-    </section>
+const Cell = ({ value }) => {
+  if (value === true) return <Check size={16} className="pr-yes" aria-label="Included" />;
+  if (value === false) return <Minus size={16} className="pr-no" aria-label="Not included" />;
+  return <span>{value}</span>;
+};
 
-    {/* ── PRICING GRID ── */}
-    <section className="eos-section" style={{ paddingTop: '2rem' }}>
-      <div className="eos-container">
-        <div className="eos-pricing-grid eos-pricing-grid-4">
-          {TIERS.map((tier) => {
-            const priceLabel = tier.priceMeta ? `${tier.price} ${tier.priceMeta.replace('\n', ' ')}` : tier.price;
-            const link = buildEmailLink(tier.name, priceLabel);
-            const cardClass = [
-              'eos-pricing-card',
-              'eos-parallax',
-              tier.featured ? 'eos-pricing-featured' : '',
-              tier.enterprise ? 'eos-pricing-enterprise' : '',
-            ].filter(Boolean).join(' ');
-            const btnClass = tier.featured
-              ? 'eos-btn eos-btn-primary'
-              : 'eos-btn eos-btn-secondary';
-            return (
-              <div key={tier.name} className={cardClass}>
-                {tier.featured && <div className="eos-pricing-popular">Most Popular</div>}
-                <div className="eos-pricing-stars" aria-hidden>{tier.stars}</div>
-                <div className="eos-pricing-tier">{tier.name}</div>
-                <div className="eos-pricing-price">
-                  {tier.price}
-                  {tier.priceMeta && (
-                    <span style={{ whiteSpace: 'pre-line' }}>{tier.priceMeta}</span>
-                  )}
+const PricingPage = () => {
+  const [open, setOpen] = useState(0);
+
+  return (
+    <div className="pr">
+      {/* ── Hero banner + plans ── */}
+      <section className="pr-top">
+        <div className="pr-wrap">
+          <div className="pr-hero">
+            <h1>A plan for every stage</h1>
+            <p>One operating layer for your business. Start with the workspace, add agents as you grow.</p>
+          </div>
+
+          <div className="pr-plans">
+            {PLANS.map((p) => (
+              <article key={p.name} className={`pr-card${p.featured ? ' is-featured' : ''}`}>
+                {p.featured && <div className="pr-glow" aria-hidden><Sparkles size={16} /></div>}
+                <div className="pr-card-top">
+                  <div className="pr-title">
+                    {p.name} plan
+                    {p.pill && <span className="pr-pill">{p.pill}</span>}
+                  </div>
+                  <div className="pr-big">
+                    <strong>{p.layers.length}</strong>
+                    <span>layers</span>
+                  </div>
+                  <p className="pr-desc">{p.desc}</p>
+                  <a
+                    href={gmailLink(p.name)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={onMailClick(p.name)}
+                    className={`pr-btn ${p.featured ? 'pr-btn-red' : 'pr-btn-soft'}`}
+                    title="Opens Gmail compose in a new tab. Hold Alt/Option to use your default mail app instead."
+                  >
+                    {p.cta}
+                  </a>
                 </div>
-                <p className="eos-pricing-desc">{tier.desc}</p>
-                <ul className="eos-pricing-features">
-                  {tier.features.map((f) => (
-                    <li key={f}><Check size={16} /> {f}</li>
-                  ))}
-                </ul>
-                <a
-                  href={link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={handleEmailClick(tier.name, priceLabel)}
-                  className={btnClass}
-                  style={{ width: '100%', justifyContent: 'center' }}
-                  title="Opens Gmail compose in a new tab. Hold Alt/Option to use your default mail app instead."
-                >
-                  {tier.cta} {tier.enterprise ? <Mail size={16} /> : <ArrowRight size={16} />}
-                </a>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </section>
 
-    {/* ── COMPARISON TRUST STRIP ── */}
-    <section className="eos-section" style={{ paddingTop: 0 }}>
-      <div className="eos-container">
-        <div className="sp-pricing-trust eos-parallax">
-          <div className="sp-pricing-trust-item">
-            <Sparkles size={18} />
-            <div>
-              <div className="sp-pricing-trust-title">AI Co-founder included</div>
-              <div className="sp-pricing-trust-desc">Every plan ships with the AI Co-founder. Free starts at 10 messages.</div>
-            </div>
-          </div>
-          <div className="sp-pricing-trust-item">
-            <Shield size={18} />
-            <div>
-              <div className="sp-pricing-trust-title">Cancel anytime</div>
-              <div className="sp-pricing-trust-desc">Your data is yours. Export anytime. Pay only for the months you use.</div>
-            </div>
-          </div>
-          <div className="sp-pricing-trust-item">
-            <Check size={18} />
-            <div>
-              <div className="sp-pricing-trust-title">No card to start</div>
-              <div className="sp-pricing-trust-desc">Begin on the Free plan. Upgrade only when you're ready.</div>
-            </div>
+                <div className="pr-card-body">
+                  <div className="pr-label">Layers</div>
+                  <div className="pr-layers">
+                    {p.layers.map((k) => {
+                      const L = LAYERS[k];
+                      const Icon = L.icon;
+                      return (
+                        <span key={k} className={`pr-layer${k === 'industry' ? ' is-industry' : ''}`}>
+                          <Icon size={12} /> {L.label}
+                        </span>
+                      );
+                    })}
+                  </div>
+
+                  <div className="pr-label pr-label-gap">Features</div>
+                  <div className="pr-basis">{p.basis}</div>
+                  <ul className="pr-features">
+                    {p.features.map((f) => (
+                      <li key={f}><CircleCheck size={16} /> {f}</li>
+                    ))}
+                  </ul>
+                </div>
+              </article>
+            ))}
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    {/* ── FAQ ── */}
-    <section className="eos-section" style={{ paddingTop: 0 }}>
-      <div className="eos-container">
-        <div className="sp-section-label eos-parallax">
-          <h2>Pricing <em>questions</em>, answered.</h2>
-          <p>Everything you might want to know before booking a meeting.</p>
+      {/* ── Compare ── */}
+      <section className="pr-section">
+        <div className="pr-wrap">
+          <div className="pr-head">
+            <h2>Compare plans</h2>
+            <p>Every plan runs on the same workspace. Higher plans raise the limits and add layers.</p>
+          </div>
+          <div className="pr-table-scroll">
+            <table className="pr-table">
+              <thead>
+                <tr>
+                  <th scope="col"><span className="sr-only">Feature</span></th>
+                  {PLANS.map((p) => <th key={p.name} scope="col">{p.name}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARE.map((row) =>
+                  row.group ? (
+                    <tr key={row.group} className="pr-group"><th colSpan={4} scope="colgroup">{row.group}</th></tr>
+                  ) : (
+                    <tr key={row.label}>
+                      <th scope="row">{row.label}</th>
+                      {row.v.map((v, i) => <td key={i}><Cell value={v} /></td>)}
+                    </tr>
+                  )
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
+      </section>
 
-        <div className="sp-faq-list eos-parallax">
-          {FAQS.map((f) => (
-            <div key={f.q} className="sp-faq-item">
-              <h3 className="sp-faq-q">{f.q}</h3>
-              <p className="sp-faq-a">{f.a}</p>
+      {/* ── FAQ ── */}
+      <section className="pr-section">
+        <div className="pr-wrap pr-wrap-narrow">
+          <div className="pr-head">
+            <h2>Frequently Asked <span>Questions</span></h2>
+          </div>
+          <div className="pr-faq">
+            {FAQS.map((f, i) => {
+              const isOpen = open === i;
+              return (
+                <div key={f.q} className={`pr-faq-item${isOpen ? ' is-open' : ''}`}>
+                  <button
+                    type="button"
+                    className="pr-faq-q"
+                    aria-expanded={isOpen}
+                    aria-controls={`pr-faq-${i}`}
+                    onClick={() => setOpen(isOpen ? -1 : i)}
+                  >
+                    <span>{f.q}</span>
+                    <span className="pr-faq-icon">{isOpen ? <Minus size={14} /> : <Plus size={14} />}</span>
+                  </button>
+                  {isOpen && <p id={`pr-faq-${i}`} className="pr-faq-a">{f.a}</p>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section className="pr-section pr-section-last">
+        <div className="pr-wrap">
+          <div className="pr-cta">
+            <div>
+              <h2>Not sure which plan fits?</h2>
+              <p>Tell us how your business runs and we will point you to the right layer on a short call.</p>
             </div>
-          ))}
-        </div>
-      </div>
-    </section>
-
-    {/* ── CTA ── */}
-    <section className="eos-cta">
-      <div className="eos-container">
-        <div className="eos-cta-box eos-parallax">
-          <h2 className="eos-cta-title">Still unsure which plan <em>fits</em>?</h2>
-          <p className="eos-cta-subtitle">
-            Tell us about your business and we'll point you to the right plan and answer anything else on a quick call.
-          </p>
-          <div className="eos-cta-actions">
             <a
-              href={buildEmailLink('your team', 'a custom recommendation')}
+              href={gmailLink(null)}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={handleEmailClick('your team', 'a custom recommendation')}
-              className="eos-btn eos-btn-primary"
-              title="Opens Gmail compose in a new tab. Hold Alt/Option to use your default mail app instead."
+              onClick={onMailClick(null)}
+              className="pr-btn pr-btn-red"
             >
-              Schedule a Meeting <Mail size={16} />
-            </a>
-            <a href="/" className="eos-btn eos-btn-secondary">
-              Back to Home
+              Book a Call <ArrowRight size={15} />
             </a>
           </div>
         </div>
-      </div>
-    </section>
-  </>
-);
+      </section>
+    </div>
+  );
+};
 
 export default PricingPage;
