@@ -107,6 +107,9 @@ function useSources() {
             ...invoices.map((d) => ({
                 type: 'invoice', id: d.id, date: d.issue_date, net: Number(d.taxable_amount) || 0, gross: Number(d.grand_total) || 0,
                 tax: Number(d.gst_amount) || 0, void: d.status === 'cancelled',
+                // What the client still owes on it (amount_paid is derived from its confirmed payments).
+                due: d.status === 'cancelled' || d.status === 'paid' ? 0
+                    : Math.max(0, (Number(d.grand_total) || 0) - (Number(d.amount_paid) || 0)),
                 party: d.clientName || clientName[d.customer_id] || '', kind: 'Sales',
                 number: d.doc_number || d.invoiceNumber || '', client_id: d.customer_id, created: d.created_at || d.createdAt || '',
                 payments: paidOn(d).map((p) => p.id),
@@ -533,7 +536,10 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
         return rows.slice().reverse()
             .filter((r) => (!nFrom && !nTo) || inRange(r.s?.date, nFrom, nTo))
             .filter((r) => type === 'all' || String(kindOfRow(r)) === type)
-            .filter((r) => nView === 'all' || r.credit === (nView === 'in'))
+            // 'due': invoices still owed in part or whole; 'gst': invoices and bills carrying GST.
+            .filter((r) => (nView === 'due' ? r.a.source_type === 'invoice' && (r.s?.due || 0) > 0.005
+                : nView === 'gst' ? (r.s?.tax || 0) > 0 && !r.s?.void
+                    : nView === 'all' || r.credit === (nView === 'in')))
             .filter((r) => !nSearch || [r.s?.party, r.s?.description, r.s?.number, r.s?.receiptNo, r.s?.kind, r.s?.subKind, r.s?.method, r.pays?.number, SOURCE_LABEL[r.a.source_type],
                 ...(r.breakdown || []).map((p) => p.bill?.number),
                 ...(r.projects || []).flatMap((p) => [p.code, p.name])]
@@ -555,6 +561,8 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
         const credit = counted.filter((r) => r.credit).reduce((n, r) => n + r.value, 0);
         // The GST on the bills and invoices shown, at the share of each that is shown.
         const tax = counted.reduce((n, r) => n + (r.s?.tax && r.s.gross > 0 ? r.s.tax * (r.value / r.s.gross) : 0), 0);
+        // What is still owed on the invoices shown, at the share of each that is shown.
+        const due = counted.reduce((n, r) => n + (r.a.source_type === 'invoice' && r.s?.due && r.s.gross > 0 ? r.s.due * (r.value / r.s.gross) : 0), 0);
         // The same totals party by party (the vendor, or the client), so a tile
         // can say who the balance is with.
         const byParty = {};
@@ -565,14 +573,14 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
             if (r.credit) p.credit += r.value; else p.debit += r.value;
         });
         return {
-            debit, credit, balance: credit - debit, tax,
+            debit, credit, balance: credit - debit, tax, due,
             inCount: counted.filter((r) => r.credit).length, outCount: counted.filter((r) => !r.credit).length,
             byParty: Object.values(byParty).map((p) => ({ ...p, balance: (p.credit - p.debit) * sign })),
         };
     }, [shown, sign]);
     // The tiles above the ledger show these same totals, so the two never disagree.
     useEffect(() => {
-        onTotals?.({ credit: closing.credit, debit: closing.debit, balance: closing.balance * sign, tax: closing.tax, inCount: closing.inCount, outCount: closing.outCount, byParty: closing.byParty });
+        onTotals?.({ credit: closing.credit, debit: closing.debit, balance: closing.balance * sign, tax: closing.tax, due: closing.due, inCount: closing.inCount, outCount: closing.outCount, byParty: closing.byParty });
     }, [onTotals, closing, sign]);
 
     // A project's ledger is a view of the company's entries, so deleting here

@@ -103,6 +103,7 @@ export default function PartyLedger({ party = 'client', projectId = null, onOpen
   const toolbar = (
     <LedgerBar search={search} onSearch={setSearch} view={view} onView={setView} period={period}
       placeholder="Search client, invoice no., receipt no..."
+      views={[['due', 'Outstanding invoices'], ['gst', 'GST invoices']]}
       selects={[
         !projectId && { label: 'Filter by project', value: projectFilter, onChange: setProjectFilter, options: projectChoices(projects, projectFilter) },
         {
@@ -122,7 +123,8 @@ export default function PartyLedger({ party = 'client', projectId = null, onOpen
 
   // An invoice is the debit side here, a receipt the credit.
   const flip = (side) => setView(view === side ? 'all' : side);
-  const outstanding = totals?.balance || 0;
+  // Narrowed to unpaid invoices, what is outstanding is what is still owed on them.
+  const outstanding = view === 'due' ? totals?.due || 0 : totals?.balance || 0;
   return (
     <div style={{ maxWidth: '100%' }}>
       <RecordMoneyCard t={t} scoped logs={logs} onRecord={record} style={{ marginBottom: 12 }} labels={CLIENT_LABELS} />
@@ -133,8 +135,10 @@ export default function PartyLedger({ party = 'client', projectId = null, onOpen
         <Stat icon={<ArrowDownLeft size={15} />} label="Received" value={money(totals?.credit || 0, 2)}
           sub={view === 'in' ? 'Showing credit only' : undefined} onClick={() => flip('in')} />
         <Stat icon={<Scale size={15} />} label={outstanding < 0 ? 'Received in Advance' : 'Outstanding'}
-          value={money(Math.abs(outstanding), 2)} accent="var(--text-primary)" />
-        <Stat icon={<Receipt size={15} />} label="GST on Invoices" value={money(totals?.tax || 0, 2)} />
+          value={money(Math.abs(outstanding), 2)} accent="var(--text-primary)"
+          sub={view === 'due' ? 'Showing unpaid invoices only' : undefined} onClick={() => flip('due')} />
+        <Stat icon={<Receipt size={15} />} label="GST on Invoices" value={money(totals?.tax || 0, 2)}
+          sub={view === 'gst' ? 'Showing GST invoices only' : undefined} onClick={() => flip('gst')} />
       </div>
 
       {projectId

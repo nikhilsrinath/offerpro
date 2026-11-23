@@ -15,7 +15,7 @@ const PERIODS = [
  * [{ label, value, onChange, options: [[id, text]] }]. `view` is 'all',
  * 'in' (credit) or 'out' (debit).
  */
-export function LedgerBar({ search, onSearch, placeholder, selects = [], view, onView, period }) {
+export function LedgerBar({ search, onSearch, placeholder, selects = [], view, onView, period, views = [] }) {
   return (
     <>
       <div className="prod-search">
@@ -29,7 +29,7 @@ export function LedgerBar({ search, onSearch, placeholder, selects = [], view, o
         </select>
       ))}
       <select aria-label="Credit or debit" title="Credit or debit" value={view} onChange={(e) => onView(e.target.value)} className="prod-select">
-        {SIDES.map(([id, text]) => <option key={id} value={id}>{text}</option>)}
+        {[...SIDES, ...views].map(([id, text]) => <option key={id} value={id}>{text}</option>)}
       </select>
       <select aria-label="Period" title="Period" value={period.preset} onChange={(e) => period.setPreset(e.target.value)} className="prod-select">
         {PERIODS.map(([id, text]) => <option key={id} value={id}>{text}</option>)}
