@@ -139,7 +139,7 @@ describe('drafts', () => {
   it('enforces the plan limit the form enforces', async () => {
     const { ctx } = world({ plan: 'free', usage: { invoices: 5 } });
     const p = await propose('create_invoice_draft', { client: 'Acme', items: 'x 5k' }, ctx);
-    expect(p.problems[0]).toMatch(/all 5 invoices on the Free plan/);
+    expect(p.problems[0]).toMatch(/all 5 invoices on the Basic plan/);
   });
 
   it('re-resolving its own output lands on the same draft (what confirm does)', async () => {

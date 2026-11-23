@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { MONO } from '../../theme/edge';
+import { prefSet, PREFS_EVENT } from '../../services/userPrefs';
 
 /* Whether the navigation rail stays open on its own.
 
@@ -23,15 +24,18 @@ export function useRailPin() {
         const sync = () => setPinnedState(read());
         window.addEventListener(EVENT, sync);
         window.addEventListener('storage', sync);
+        // Pinned or unpinned on another device.
+        window.addEventListener(PREFS_EVENT, sync);
         return () => {
             window.removeEventListener(EVENT, sync);
             window.removeEventListener('storage', sync);
+            window.removeEventListener(PREFS_EVENT, sync);
         };
     }, []);
 
     const setPinned = useCallback((next) => {
         setPinnedState(next);
-        try { window.localStorage.setItem(KEY, next ? '1' : '0'); } catch { /* private mode */ }
+        prefSet(KEY, next ? '1' : '0');
         window.dispatchEvent(new Event(EVENT));
     }, []);
 

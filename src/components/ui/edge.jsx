@@ -6,6 +6,7 @@ import { confirmDialog } from '../../services/confirm';
 import { titleCase, titleCaseNode } from '../../utils/titleCase';
 import { useStickyHead } from './useStickyHead';
 import './drawer.css';
+import { prefSet, prefRemove } from '../../services/userPrefs';
 
 /* Set by <Modal>: buttons in the side panel's foot are the small ones
    (InDrawer, in edgeUtils, gives its controls their tighter sizes). */
@@ -407,7 +408,7 @@ export function Breakdown({ rows, total, max = 6 }) {
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>{r.label}</span>
                         <span style={{ fontSize: 12.5, color: t.text }}>{r.value}</span>
-                        {sum > 0 && <span style={{ fontSize: 11, color: t.ghost, width: 32, textAlign: 'right' }}>
+                        {sum > 0 && <span style={{ fontSize: 11, color: t.ghost, minWidth: 52, flexShrink: 0, whiteSpace: 'nowrap', textAlign: 'right' }}>
                             {Number((r.value / sum) * 100).toFixed(2)}%
                         </span>}
                     </div>
@@ -455,18 +456,16 @@ export function StatBand({ items }) {
 
 /* ── table ────────────────────────────────────────────────────────────────── */
 
-/* Which columns a table shows is a per-person choice, remembered in this
-   browser. Only the overrides are stored ({ key: true|false }), so a column
+/* Which columns a table shows is a per-person choice, saved with the
+   person's settings (0116) so it is the same on every device. Only the overrides are stored ({ key: true|false }), so a column
    added to a table later still follows its own default. */
 const colStoreKey = (id) => 'edgeos.cols.' + id;
 function readColPrefs(id) {
     try { return JSON.parse(localStorage.getItem(colStoreKey(id)) || '{}') || {}; } catch { return {}; }
 }
 function writeColPrefs(id, prefs) {
-    try {
-        if (Object.keys(prefs).length) localStorage.setItem(colStoreKey(id), JSON.stringify(prefs));
-        else localStorage.removeItem(colStoreKey(id));
-    } catch { /* storage blocked: the choice just lasts until reload */ }
+    if (Object.keys(prefs).length) prefSet(colStoreKey(id), JSON.stringify(prefs));
+    else prefRemove(colStoreKey(id));
 }
 
 /** The pencil above a table. Opens a dialog in the centre of the screen listing

@@ -373,9 +373,9 @@ function ActivityTab({ data }) {
 /* ── plan ─────────────────────────────────────────────────────────────────── */
 
 const PLAN_OPTIONS = [
-  { id: 'free', label: 'Free' },
-  { id: 'pro', label: 'Pro' },
-  { id: 'max', label: 'Max' },
+  { id: 'free', label: 'Basic' },
+  { id: 'pro', label: 'Growth' },
+  { id: 'max', label: 'Enterprise' },
 ];
 const STATUS_OPTIONS = ['active', 'trialing', 'past_due', 'paused', 'cancelled'];
 

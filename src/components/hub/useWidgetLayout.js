@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { DEFAULT_LAYOUT, WIDGET_BY_ID } from './widgetCatalog';
 import { PERIOD_IDS } from './periods';
+import { prefSet, PREFS_EVENT } from '../../services/userPrefs';
 
 /* Which widgets a board shows, in what order and at what size.
 
@@ -70,7 +71,7 @@ export function useWidgetLayout(orgId, catalog = HUB_CATALOG) {
         setState((s) => {
             const base = s.storageKey === storageKey ? s.layout : read(catalog, orgId);
             const next = fn(base);
-            try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* quota / private mode */ }
+            prefSet(storageKey, JSON.stringify(next));
             return { storageKey, layout: next };
         });
     }, [storageKey, catalog, orgId]);
@@ -78,8 +79,14 @@ export function useWidgetLayout(orgId, catalog = HUB_CATALOG) {
     // Another tab changed the layout.
     useEffect(() => {
         const onStorage = (e) => { if (e.key === storageKey) setState({ storageKey, layout: read(catalog, orgId) }); };
+        // …or another device did (src/services/userPrefs.js).
+        const onPrefs = (e) => { if (e.detail?.keys?.includes(storageKey)) setState({ storageKey, layout: read(catalog, orgId) }); };
         window.addEventListener('storage', onStorage);
-        return () => window.removeEventListener('storage', onStorage);
+        window.addEventListener(PREFS_EVENT, onPrefs);
+        return () => {
+            window.removeEventListener('storage', onStorage);
+            window.removeEventListener(PREFS_EVENT, onPrefs);
+        };
     }, [storageKey, catalog, orgId]);
 
     const sizeOf = (id) => catalog.byId.get(id)?.size || 'sm';

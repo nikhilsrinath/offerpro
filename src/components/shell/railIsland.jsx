@@ -64,19 +64,14 @@ export function RailBrand({ t, open, to = '/dashboard/overview' }) {
             display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1,
             textDecoration: 'none', color: t.text,
         }}>
-            <span aria-hidden="true" style={{
-                width: 24, height: 24, borderRadius: 7, flexShrink: 0, display: 'grid', placeItems: 'center',
-                background: t.teal,
-            }}>
-                <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
-                    <path d="M10 1v18M1 10h18M3.5 3.5l13 13M16.5 3.5l-13 13" stroke={t.onTeal} strokeWidth="1.4" />
-                    <circle cx="10" cy="10" r="2.6" fill={t.teal} stroke={t.onTeal} strokeWidth="1.4" />
-                </svg>
-            </span>
-            <span aria-hidden="true" style={{
-                fontSize: 14, fontWeight: 600, letterSpacing: '-0.015em', whiteSpace: 'nowrap',
+            {/* The Opstead mark (red triangle); the wordmark shows when the rail is open.
+                The rail is navy in both themes, so the wordmark is the white cut. */}
+            <img src="/opstead-mark-48.png" alt="" aria-hidden="true"
+                style={{ width: 24, height: 24, flexShrink: 0, display: 'block' }} />
+            <img src="/opstead-wordmark-white.png" alt="" aria-hidden="true" style={{
+                height: 16, width: 'auto', flexShrink: 0, display: 'block',
                 opacity: open ? 1 : 0, transition: 'opacity .16s',
-            }}>Opstead</span>
+            }} />
         </Link>
     );
 }

@@ -32,7 +32,7 @@ const DocumentationPage = () => (
             {
               icon: Zap,
               title: '1. Create Your Account',
-              desc: 'Sign up with your email or Google account. No credit card is required. Start on the Free plan with access to invoicing, offer letters, certificates, and 10 messages with the AI Co-founder. Upgrade to Pro, Max, or Enterprise anytime.'
+              desc: 'Sign up with your email or Google account. No credit card is required. Start on the Basic plan with access to invoicing, offer letters, certificates, and 10 messages with the AI Co-founder. Upgrade to Growth or Enterprise anytime.'
             },
             {
               icon: Settings,

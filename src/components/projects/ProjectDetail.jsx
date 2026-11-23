@@ -33,7 +33,7 @@ import Products from '../Products';
 import ProjectFiles from './docs/ProjectFiles';
 import ProjectTemplates from './docs/ProjectTemplates';
 import { orgStore } from '../../services/orgStore';
-import { projectSectionPath, parseProjectPath, legacyProjectPath, billingKindOf, documentsViewOf } from './projectPaths';
+import { projectSectionPath, parseProjectPath, legacyProjectPath, currentProjectPath, billingKindOf, documentsViewOf } from './projectPaths';
 import { findProject, projectSlug, withProjectRef } from './projectSlug';
 import {
     LayoutDashboard, Wallet, Users, Flag, FileText, History,
@@ -51,7 +51,7 @@ import {
    its widget board. Dashboard's pages are their own routes
    (/projects/:id/dashboard/:view, ProjectDashboards) in the same rail;
    every other item is that section's full page, under the same heading, at
-   a path named after the rail (projectPaths: /projects/:id/client-management/billing).
+   a path named after the rail (projectPaths: /projects/:id/client/billing).
    ══════════════════════════════════════════════════════════════════════════ */
 
 const TABS = [
@@ -192,6 +192,10 @@ export default function ProjectDetail() {
     // Older links named the page in ?tab= (and Billing's kind in ?doc=).
     const legacy = legacyProjectPath(project?.id || projectId, location.search);
     if (legacy) return <Navigate to={legacy} replace state={location.state} />;
+    // An older path (…/vendor-management/general-ledger): the URL takes the
+    // page's current name, the one the rail shows (…/vendor/general-ledger).
+    const moved = currentProjectPath(location.pathname);
+    if (moved) return <Navigate to={moved + location.search} replace state={location.state} />;
     // A project opens on its Overview dashboard; the bare path, and any
     // path that names no page, lead there.
     if (activeSection(location.pathname) === 'home') {
@@ -302,7 +306,7 @@ function ProjectWorkspace({ project, t, navigate, location, params }) {
                             {project.archived_at && <Muted>Archived</Muted>}
                             <Chip t={t}>
                                 {client
-                                    ? <>Client: <Link to={`/clients/client-directory?client=${client.id}`} style={{ color: 'inherit' }}>{clientName}</Link></>
+                                    ? <Link to={`/clients/client-directory?client=${client.id}`} title={clientName} style={{ color: 'inherit', textDecoration: 'none' }}>Client</Link>
                                     : 'Internal Project'}
                             </Chip>
                             {project.delivery_method && <Chip t={t}>{deliveryLabel(project.delivery_method)} Method</Chip>}

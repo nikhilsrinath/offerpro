@@ -9,6 +9,7 @@ import BrainSummary from './BrainSummary';
 import BrainInspector from './BrainInspector';
 import BrainAsk from './BrainAsk';
 import BrainHealth from './BrainHealth';
+import { prefSet } from '../../services/userPrefs';
 
 /* The side dock.
 
@@ -72,7 +73,7 @@ export default function BrainDock({
     const resize = useCallback((next) => {
         const clamped = Math.round(Math.min(MAX_W, Math.max(MIN_W, next)));
         setW(clamped);
-        try { window.localStorage.setItem(STORE_KEY, String(clamped)); } catch { /* fine */ }
+        prefSet(STORE_KEY, String(clamped));
     }, []);
 
     /* The drag is tracked on the window rather than on the handle: a resize that

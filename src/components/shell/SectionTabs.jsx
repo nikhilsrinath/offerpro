@@ -10,20 +10,27 @@ import { useT } from '../ui/edgeUtils';
    The page is registered as flush in App.jsx, so this owns the whole body:
    a `flush` tab (the form-beside-preview editors) fills it edge to edge; any
    other tab scrolls inside it with the padding the shell gives a normal page.
-   The chosen tab is part of the path. The page's own path for the first
-   tab, `<base>/<path>` for the others (/employees/ex-employees). So links
-   and refreshes land on it.
+   The chosen tab is part of the path, named as the tab reads:
+   `<base>/<path>` (/documents/offer-letters/bulk-offers), so links and
+   refreshes land on it and the URL always says which tab is open. A tab
+   named like the page itself (Attendance › Attendance) has `path: ''` and
+   is the page's own path. `was` lists the paths a tab used to have.
    ══════════════════════════════════════════════════════════════════════════ */
 
+const pathOf = (tab) => (tab.path ?? tab.id);
 /** Where a tab of the page at `base` lives. */
-const tabPath = (base, tabs, id) => (id === tabs[0].id ? base : `${base}/${tabs.find((x) => x.id === id)?.path || id}`);
+const tabPath = (base, tabs, id) => {
+    const p = pathOf(tabs.find((x) => x.id === id) || tabs[0]);
+    return p ? `${base}/${p}` : base;
+};
 
 export default function SectionTabs({ tabs, label, base }) {
     const t = useT();
     const location = useLocation();
     const navigate = useNavigate();
     const sub = location.pathname.slice(base.length + 1).split('/')[0];
-    const active = tabs.find((x) => sub && (x.path || x.id) === sub) || tabs[0];
+    const exact = tabs.find((x) => pathOf(x) === sub);
+    const active = exact || tabs.find((x) => sub && x.was?.includes(sub)) || tabs[0];
     const select = (id) => navigate(tabPath(base, tabs, id), { replace: true });
 
     // Older links named the tab in ?mode=.
@@ -33,6 +40,10 @@ export default function SectionTabs({ tabs, label, base }) {
         rest.delete('mode');
         const q = rest.toString();
         return <Navigate to={tabPath(base, tabs, mode) + (q ? '?' + q : '')} replace />;
+    }
+    // The bare page, or a tab's older path: on to the path of the tab shown.
+    if (!exact) {
+        return <Navigate to={tabPath(base, tabs, active.id) + location.search + location.hash} replace state={location.state} />;
     }
 
     const switcher = (

@@ -18,9 +18,9 @@ import { PlanTag } from './adminUi';
 const AUDIENCE = [
   { id: 'picked', label: 'Picked' },
   { id: 'all', label: 'All tenants' },
-  { id: 'free', label: 'Free' },
-  { id: 'pro', label: 'Pro' },
-  { id: 'max', label: 'Max' },
+  { id: 'free', label: 'Basic' },
+  { id: 'pro', label: 'Growth' },
+  { id: 'max', label: 'Enterprise' },
 ];
 
 const TEMPLATES = [

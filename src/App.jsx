@@ -66,6 +66,7 @@ import NotesPage from './components/workspace/NotesPage';
 import { HOME } from './components/shell/modules';
 import { useTaskDeadlineMonitor } from './hooks/useTaskDeadlineMonitor';
 import { useTheme } from './hooks/useTheme';
+import { usePrefsReady } from './services/userPrefs';
 import { PLANS } from './services/planConfig';
 
 import BulkOfferLetters from './components/bulk/BulkOfferLetters';
@@ -156,21 +157,30 @@ const MODULE_PREFIX = { workspace: 'workspace', team: 'company', documents: 'doc
 const PREFIXES = new Set(['workspace', 'company', 'documents', 'financials', 'clients', 'vendors']);
 // Projects' own pages; anything else under /projects/ is a project.
 const PROJECTS_PAGES = new Set(['kanban-chart', 'portfolio', 'tasks', 'timesheets']);
-// Pages whose path is not their id, by module: Clients' and Vendors' ledgers
-// are /clients/general-ledger and /vendors/general-ledger, as in a project.
+// Pages whose path is not their id, by module. Every path reads as the rail
+// item it is (the label slugged): Clients' and Vendors' ledgers are
+// /clients/general-ledger and /vendors/general-ledger, as in a project;
+// Hierarchy is /company/hierarchy.
 const SLUG_PAGE = {
-  // My Tasks is /workspace/tasks; the page id stays apart from Projects' tasks.
-  workspace: { tasks: 'my-tasks' },
   clients: { 'general-ledger': 'client-general-ledger', 'business-directory': 'products-directory' },
   vendors: { 'general-ledger': 'vendor-general-ledger' },
+  company: { hierarchy: 'company-hierarchy' },
+  financials: { 'profit-and-loss': 'profit-loss' },
 };
 const PAGE_SLUG = Object.fromEntries(Object.values(SLUG_PAGE).flatMap((m) => Object.entries(m).map(([slug, id]) => [id, slug])));
+// Pages outside a module prefix whose path is not their id: the dashboard
+// the rail calls Sales & Marketing.
+const PAGE_PATH = { 'dashboard/sales': 'dashboard/sales-and-marketing' };
+const PATH_PAGE = Object.fromEntries(Object.entries(PAGE_PATH).map(([id, path]) => [path, id]));
+// Paths a page used to have, read as that page while it redirects (MOVED),
+// so the old path never wears another module's frame (/workspace/tasks is My Tasks, not Projects' Tasks).
+const OLD_SLUG_PAGE = { workspace: { tasks: 'my-tasks' } };
 
 // The path of a rail page: '/financials/general-ledger'. The projects list is
 // the module's root, /projects.
 function pagePath(mod, id) {
   const prefix = MODULE_PREFIX[mod];
-  if (!prefix || id === prefix) return '/' + id;
+  if (!prefix || id === prefix) return '/' + (PAGE_PATH[id] || id);
   return '/' + prefix + '/' + (PAGE_SLUG[id] || id);
 }
 
@@ -342,15 +352,15 @@ const PAGE_META = {
    tool. */
 const OffersSection = () => (
   <SectionTabs label="Offer letters" base="/documents/offer-letters" tabs={[
-    { id: 'single', label: 'Single offer', flush: true, render: () => <OfferForm /> },
-    { id: 'bulk', label: 'Bulk offers', note: 'Generate and send a batch from a CSV', render: () => <BulkOfferLetters /> },
+    { id: 'single', path: 'single-offer', label: 'Single offer', flush: true, render: () => <OfferForm /> },
+    { id: 'bulk', path: 'bulk-offers', was: ['bulk'], label: 'Bulk offers', note: 'Generate and send a batch from a CSV', render: () => <BulkOfferLetters /> },
   ]} />
 );
 
 const CertificatesSection = () => (
   <SectionTabs label="Certificates" base="/documents/certificates" tabs={[
-    { id: 'single', label: 'Single certificate', flush: true, ownsBar: true, render: ({ switcher }) => <CertificateForm switcher={switcher} /> },
-    { id: 'bulk', label: 'Bulk certificates', note: 'Issue a batch from a CSV', render: () => <BulkCertificates /> },
+    { id: 'single', path: 'single-certificate', label: 'Single certificate', flush: true, ownsBar: true, render: ({ switcher }) => <CertificateForm switcher={switcher} /> },
+    { id: 'bulk', path: 'bulk-certificates', was: ['bulk'], label: 'Bulk certificates', note: 'Issue a batch from a CSV', render: () => <BulkCertificates /> },
   ]} />
 );
 
@@ -364,7 +374,7 @@ const EmployeesSection = () => (
 
 const AttendanceSection = () => (
   <SectionTabs label="Attendance" base="/company/attendance" tabs={[
-    { id: 'sheet', label: 'Attendance', render: () => <AttendanceSheet /> },
+    { id: 'sheet', path: '', label: 'Attendance', render: () => <AttendanceSheet /> },
     { id: 'leave', label: 'Leave', render: () => <LeaveRequests /> },
   ]} />
 );
@@ -376,9 +386,10 @@ const BILLING_FORM = { invoices: 'new-invoice', quotations: 'new-quotation', pro
 function pageOf(pathname) {
   let page = pathname.substring(1).replace(/\/+$/, '');
   if (page === '') return 'dashboard/overview';
+  if (PATH_PAGE[page]) return PATH_PAGE[page];
   let parts = page.split('/');
   if (PREFIXES.has(parts[0]) && parts.length > 1) {
-    const slugged = SLUG_PAGE[parts[0]]?.[parts[1]];
+    const slugged = SLUG_PAGE[parts[0]]?.[parts[1]] || OLD_SLUG_PAGE[parts[0]]?.[parts[1]];
     if (slugged) return slugged;
     parts = parts.slice(1);
     page = parts.join('/');
@@ -502,6 +513,9 @@ function AppContent() {
       .catch(() => { if (!cancelled) setMyRole(null); });
     return () => { cancelled = true; };
   }, [user, activeOrg?.id]);
+  // The person's saved layouts and settings (0116), in place before any page
+  // reads them, so every device opens on the same layout.
+  const prefsReady = usePrefsReady(user?.id);
   if (loading) {
     return (
       <div className="app-loading">
@@ -526,7 +540,7 @@ function AppContent() {
 
   // Wait for the role before choosing a shell, so an employee never sees the
   // admin sidebar flash past on the way to their portal.
-  if (activeOrg?.id && myRole === undefined) {
+  if ((activeOrg?.id && myRole === undefined) || !prefsReady) {
     return (
       <div className="app-loading">
         <div style={{ textAlign: 'center' }}>
@@ -624,19 +638,19 @@ function AppContent() {
             <Route path="dashboard" element={<Navigate to={HOME} replace />} />
             <Route path="dashboard/overview" element={<OverviewPage />} />
             <Route path="dashboard/finance" element={<FinanceDash />} />
-            <Route path="dashboard/sales" element={<SalesDash />} />
+            <Route path="dashboard/sales-and-marketing" element={<SalesDash />} />
             <Route path="dashboard/team" element={<TeamDash />} />
             <Route path="dashboard/projects" element={<ProjectsDash />} />
             <Route path="dashboard/documents" element={<DocumentsDash />} />
             <Route path="dashboard/usage" element={<UsageDash />} />
             {/* EdgeBrain is now Neurals, a section of the AI page. */}
-            <Route path="edgebrain" element={<Navigate to="/ai?view=neurals" replace />} />
+            <Route path="edgebrain" element={<Navigate to="/ai/neurals" replace />} />
             <Route path="today" element={<TodayPage />} />
-            <Route path="ai" element={<AskPage theme={theme} />} />
+            <Route path="ai/*" element={<AskPage theme={theme} />} />
             {/* Workspace: private to each person (0112). */}
             <Route path="workspace" element={<Navigate to="/workspace/calendar" replace />} />
             <Route path="workspace/calendar" element={<CalendarPage />} />
-            <Route path="workspace/tasks" element={<MyTasksPage />} />
+            <Route path="workspace/my-tasks" element={<MyTasksPage />} />
             <Route path="workspace/notes" element={<NotesPage />} />
             <Route path="profile" element={<CompanyProfile />} />
             {/* Every path is named after its place in the sidebar: the page,
@@ -660,7 +674,7 @@ function AppContent() {
             {/* The one ledger (the Company Ledger was folded into it): the same page as a project's, with a Project column. */}
             <Route path="financials/general-ledger" element={<PurchaseInvoices key="general" />} />
             <Route path="financials/tax-summary" element={<TaxSummary />} />
-            <Route path="financials/profit-loss" element={<ProfitLoss />} />
+            <Route path="financials/profit-and-loss" element={<ProfitLoss />} />
             {/* Clients */}
             <Route path="clients/general-ledger" element={<PartyLedger key="client" party="client" />} />
             <Route path="clients/billing" element={<Navigate to="/clients/billing/quotations" replace />} />
@@ -690,7 +704,7 @@ function AppContent() {
             <Route path="company/attendance" element={<AttendanceSection />} />
             <Route path="company/attendance/:tab" element={<AttendanceSection />} />
             <Route path="company/announcements" element={<Announcements />} />
-            <Route path="company/company-hierarchy" element={<TeamHierarchy />} />
+            <Route path="company/hierarchy" element={<TeamHierarchy />} />
             <Route path="company/recruitment-tracker" element={<OfferTracker onNavigate={routerNavigate} />} />
             {/* Projects */}
             <Route path="projects" element={<ProjectsPage />} />
@@ -707,7 +721,7 @@ function AppContent() {
             <Route path="financials" element={<Navigate to="/financials/finance-status" replace />} />
             <Route path="clients" element={<Navigate to="/clients/general-ledger" replace />} />
             <Route path="vendors" element={<Navigate to="/vendors/general-ledger" replace />} />
-            <Route path="company" element={<Navigate to="/company/company-hierarchy" replace />} />
+            <Route path="company" element={<Navigate to="/company/hierarchy" replace />} />
             {/* Where pages used to live; bookmarks, notifications and older
                 links land on the page's current path. */}
             {Object.entries(MOVED).map(([from, to]) => (
@@ -734,7 +748,12 @@ function AppContent() {
 const MOVED = {
   // The hub became the Dashboard's Overview; Ask became AI.
   'hub': HOME,
-  'ask': '/ai',
+  'ask': '/ai/ask',
+  // Paths renamed to read as the rail does (2026-11-23).
+  'dashboard/sales': '/dashboard/sales-and-marketing',
+  'workspace/tasks': '/workspace/my-tasks',
+  'company/company-hierarchy': '/company/hierarchy',
+  'financials/profit-loss': '/financials/profit-and-loss',
   // Finance became Financials, and Billing moved to Clients; the Business
   // module was split into Clients and Vendors (2026-10-23).
   'finance': '/financials/finance-status',
@@ -771,12 +790,12 @@ const MOVED = {
   // Purchase Bills became the Company Ledger.
   'finance/purchase-bills': '/financials/general-ledger',
   'tax-summary': '/financials/tax-summary',
-  'profit-loss': '/financials/profit-loss',
+  'profit-loss': '/financials/profit-and-loss',
   'crm': '/clients/crm',
   'client-directory': '/clients/client-directory',
   'vendor-directory': '/vendors/vendor-directory',
   'products-directory': '/clients/business-directory',
-  'company-hierarchy': '/company/company-hierarchy',
+  'company-hierarchy': '/company/hierarchy',
   'employees': '/company/employees',
   'employees/new': '/company/employees/new',
   'employees/:tab': ({ tab }) => `/company/employees/${tab}`,
@@ -812,7 +831,7 @@ const MOVED = {
   'purchases': '/financials/general-ledger',
   'customers': '/clients/client-directory',
   'products': '/clients/business-directory',
-  'team-hierarchy': '/company/company-hierarchy',
+  'team-hierarchy': '/company/hierarchy',
   'offer-tracker': '/company/recruitment-tracker',
   'library': '/documents/document-library',
   'offers': '/documents/offer-letters',
@@ -822,8 +841,8 @@ const MOVED = {
   'mous': '/documents/templates/mou',
   'ex-employees': '/company/employees/ex-employees',
   'leave': '/company/attendance/leave',
-  'bulk-offers': '/documents/offer-letters/bulk',
-  'bulk-certificates': '/documents/certificates/bulk',
+  'bulk-offers': '/documents/offer-letters/bulk-offers',
+  'bulk-certificates': '/documents/certificates/bulk-certificates',
   'bulk-team': '/company/employees/bulk-import',
   'bulk-history': '/documents/records',
 };

@@ -28,6 +28,7 @@ import { titleCaseNode } from '../../utils/titleCase';
 import { projectRef } from '../projects/projectSlug';
 import { useToast } from '../shared/Toast';
 import { FOCUS_PARAM, findFocusTarget } from './focusTarget';
+import { prefSet } from '../../services/userPrefs';
 
 // The Logs panel (credits, debits, documents, people joining) only loads when it is opened.
 const CompanyLogs = lazy(() => import('../financial/RecordLogs').then((m) => ({ default: m.CompanyLogs })));
@@ -44,7 +45,7 @@ const RAIL_OPEN_W = 220;
 const RAIL_SHUT_W = 64;
 const RAIL_SLOT_W = 240;
 const readFlag = (k) => { try { return localStorage.getItem(k) === '1'; } catch { return false; } };
-const writeFlag = (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch { /* private mode */ } };
+const writeFlag = (k, v) => prefSet(k, v ? '1' : '0');
 
 /* ══════════════════════════════════════════════════════════════════════════
    The frame a module's pages sit inside: the same rail and top bar the hub
@@ -384,10 +385,27 @@ export default function ModuleShell({
                             })}
                         </RailList>
                     ) : (<>
+                    {/* Dashboard · Today · Workspace · AI stay at the top of the
+                        rail on every page, a project's included. */}
+                    <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+                    <RailList label="Main">
+                        {RAIL_IDS.slice(0, RAIL_IDS.indexOf(RAIL_SPLIT_AFTER) + 1).map((id) => {
+                            const m = MODULES.find((x) => x.id === id);
+                            if (!m) return null;
+                            return (
+                                <RailItem key={id} t={rt} open={rail} icon={m.icon} label={m.label}
+                                    to={'/' + m.defaultPage} active={m.id === mod?.id} />
+                            );
+                        })}
+                        <div role="separator" aria-hidden="true" style={{
+                            height: 1, flexShrink: 0, margin: '6px 9px', background: rt.line,
+                        }} />
+                    </RailList>
+                    </div>
                     <RailList label={(mod?.label || 'Module') + ' pages'}>
                         {/* A workspace's page already carries its name in the heading. */}
                         {workspace
-                            ? <div aria-hidden="true" style={{ height: 4, flexShrink: 0 }} />
+                            ? null
                             : <RailHeading t={rt} open={rail}>{mod?.label || 'Module'}</RailHeading>}
                         {(items || []).map((it) => {
                             const link = (

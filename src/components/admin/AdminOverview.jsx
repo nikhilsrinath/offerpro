@@ -51,9 +51,9 @@ export default function AdminOverview({ data, orgs, loading, error }) {
           <Panel title="Plan mix" pad={14}>
             <Breakdown
               rows={[
-                { label: 'Free', value: plans.free },
-                { label: 'Pro', value: plans.pro },
-                { label: 'Max', value: plans.max },
+                { label: 'Basic', value: plans.free },
+                { label: 'Growth', value: plans.pro },
+                { label: 'Enterprise', value: plans.max },
               ]}
               total={plans.free + plans.pro + plans.max}
             />

@@ -13,6 +13,7 @@ import { useCalendarData } from './useCalendarData';
 import EventPanel from './EventPanel';
 import { IconBtn, WorkspaceStyle } from './workspaceUi';
 import { SOURCE_ICON, itemColor } from './workspaceTheme';
+import { prefSet } from '../../services/userPrefs';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Calendar. Month, Week, Day and Agenda over one set of items: the person's
@@ -43,7 +44,7 @@ const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const readHidden = () => {
     try { const v = JSON.parse(localStorage.getItem(HIDDEN_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
 };
-const writeHidden = (v) => { try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(v)); } catch { /* private window */ } };
+const writeHidden = (v) => prefSet(HIDDEN_KEY, JSON.stringify(v));
 const validIso = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v || '') && !Number.isNaN(dayDate(v).getTime());
 const isTyping = (el) => !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
 
@@ -518,7 +519,7 @@ export default function CalendarPage() {
 
     const open = useCallback((it) => {
         if (it.kind === 'event') { setMoreDay(null); setPanel({ event: it.row }); return; }
-        if (it.kind === 'mytask') { navigate(`/workspace/tasks?task=${it.taskId}`); return; }
+        if (it.kind === 'mytask') { navigate(`/workspace/my-tasks?task=${it.taskId}`); return; }
         if (it.to) navigate(it.to);
     }, [navigate]);
     const missing = data.missing;

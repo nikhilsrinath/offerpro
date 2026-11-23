@@ -312,7 +312,7 @@ export default function OfferForm() {
                 You've used all {planConfig.limits.offerLetters} offer letters in your {planConfig.name} plan.
               </p>
               <a href="mailto:edgeossuite@gmail.com" className="btn-cinematic" style={{ textDecoration: 'none', padding: '0.75rem 1.5rem', fontSize: '0.875rem' }}>
-                Upgrade to {currentPlan === 'free' ? 'Pro' : 'Max'}
+                Upgrade to {currentPlan === 'free' ? 'Growth' : 'Enterprise'}
               </a>
             </div>
           )}

@@ -555,15 +555,25 @@ export function ProjectLedger({ project = null, onOpen, onEdit, only, here, bill
         const credit = counted.filter((r) => r.credit).reduce((n, r) => n + r.value, 0);
         // The GST on the bills and invoices shown, at the share of each that is shown.
         const tax = counted.reduce((n, r) => n + (r.s?.tax && r.s.gross > 0 ? r.s.tax * (r.value / r.s.gross) : 0), 0);
+        // The same totals party by party (the vendor, or the client), so a tile
+        // can say who the balance is with.
+        const byParty = {};
+        counted.forEach((r) => {
+            const id = r.s?.vendor_id || r.s?.client_id || '';
+            const p = (byParty[id] ||= { id, name: r.s?.party || '', credit: 0, debit: 0 });
+            if (!p.name && r.s?.party) p.name = r.s.party;
+            if (r.credit) p.credit += r.value; else p.debit += r.value;
+        });
         return {
             debit, credit, balance: credit - debit, tax,
             inCount: counted.filter((r) => r.credit).length, outCount: counted.filter((r) => !r.credit).length,
+            byParty: Object.values(byParty).map((p) => ({ ...p, balance: (p.credit - p.debit) * sign })),
         };
-    }, [shown]);
+    }, [shown, sign]);
     // The tiles above the ledger show these same totals, so the two never disagree.
     useEffect(() => {
-        onTotals?.({ credit: closing.credit, debit: closing.debit, balance: closing.balance * sign, tax: closing.tax, inCount: closing.inCount, outCount: closing.outCount });
-    }, [onTotals, closing.credit, closing.debit, closing.balance, closing.tax, sign, closing.inCount, closing.outCount]);
+        onTotals?.({ credit: closing.credit, debit: closing.debit, balance: closing.balance * sign, tax: closing.tax, inCount: closing.inCount, outCount: closing.outCount, byParty: closing.byParty });
+    }, [onTotals, closing, sign]);
 
     // A project's ledger is a view of the company's entries, so deleting here
     // deletes the entry itself: it goes from the Company Ledger, the General

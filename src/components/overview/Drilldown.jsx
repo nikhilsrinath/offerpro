@@ -328,7 +328,7 @@ function NetView({ model, push }) {
                     line={{ key: 'net', label: 'Net', color: t.text }} tipFormat={fmtInr} onSelect={(i) => push({ kind: 'bucket', index: i })} />
                 <div style={{ marginTop: 8 }}><Legend items={[{ label: 'Income', color: cat[0] }, { label: 'Expenses', color: cat[1] }, { label: 'Net', color: t.text, line: true }]} /></div>
             </Section>
-            <Section title="Where the money went" right={<OpenModule to="/financials/profit-loss">Profit & Loss</OpenModule>}>
+            <Section title="Where the money went" right={<OpenModule to="/financials/profit-and-loss">Profit & Loss</OpenModule>}>
                 <RankBars rows={model.categories.map((c) => ({ ...c, key: c.name, name: c.label }))} format={fmtShort} max={10} color={cat[1]} onSelect={(r) => push({ kind: 'category', name: r.key })} />
             </Section>
         </>
@@ -427,7 +427,7 @@ function CategoryView({ model, name }) {
             <Section title="Trend"><Columns data={d.series} series={[{ key: 'value', label: name, color: cat[1] }]} tipFormat={fmtInr} height={190} /></Section>
             <Section title="By vendor"><RankBars rows={d.parties} format={fmtShort} color={cat[1]} /></Section>
             <Section title="Entries" right={<OpenModule to="/financials/general-ledger">Purchases</OpenModule>}>
-                <List rows={d.rows.map((e, i) => ({ id: i, data: e, to: e.kind === 'Purchase' ? '/financials/general-ledger' : '/financials/profit-loss' }))} cols={[
+                <List rows={d.rows.map((e, i) => ({ id: i, data: e, to: e.kind === 'Purchase' ? '/financials/general-ledger' : '/financials/profit-and-loss' }))} cols={[
                     { label: 'Date', render: (e) => fmtDay(e.date) },
                     { label: 'Item', wrap: true, render: (e) => e.label },
                     { label: 'Kind', render: (e) => e.kind },

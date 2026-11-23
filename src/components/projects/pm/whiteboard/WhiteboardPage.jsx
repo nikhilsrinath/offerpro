@@ -17,6 +17,7 @@ import {
     CANVAS_BG, CANVAS_DOT, BOARD_FONT,
 } from './boardParts';
 import { TOOLS } from './boardTools';
+import { prefSet } from '../../../../services/userPrefs';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Planning › Whiteboard: a Miro-style board for the project.
@@ -100,7 +101,7 @@ export default function WhiteboardPage({ project }) {
     }, [status]);
     useEffect(() => {
         if (status !== 'ready') return;
-        try { localStorage.setItem(viewKey(project.id), JSON.stringify(view)); } catch { /* private mode */ }
+        prefSet(viewKey(project.id), JSON.stringify(view));
     }, [view, project.id, status]);
 
     const fit = useCallback((list = itemsRef.current) => {

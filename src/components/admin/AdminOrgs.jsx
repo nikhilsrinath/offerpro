@@ -14,9 +14,9 @@ import OrgDetail from './OrgDetail';
 
 const PLAN_FILTERS = [
   { id: 'all', label: 'All' },
-  { id: 'free', label: 'Free' },
-  { id: 'pro', label: 'Pro' },
-  { id: 'max', label: 'Max' },
+  { id: 'free', label: 'Basic' },
+  { id: 'pro', label: 'Growth' },
+  { id: 'max', label: 'Enterprise' },
   { id: 'deleted', label: 'Deleted' },
 ];
 

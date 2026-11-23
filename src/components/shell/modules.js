@@ -17,10 +17,10 @@ export const MODULES = [
     { id: 'clients',   code: 'CLI', label: 'Clients',   desc: 'Ledgers · billing · CRM', icon: Handshake, defaultPage: 'clients/general-ledger' },
     { id: 'vendors',   code: 'VEN', label: 'Vendors',   desc: 'Ledgers · directory',   icon: Building2, defaultPage: 'vendors/general-ledger' },
     { id: 'finance',   code: 'FIN', label: 'Financials', desc: 'Status · ledgers · tax', icon: Wallet,   defaultPage: 'financials/finance-status' },
-    { id: 'team',      code: 'CMP', label: 'Company',   desc: 'Registry · hierarchy',  icon: Users,     defaultPage: 'company/employees' },
-    { id: 'documents', code: 'DOC', label: 'Documents', desc: 'Library · letters · NDAs', icon: FileText,  defaultPage: 'documents/document-library' },
+    { id: 'team',      code: 'CMP', label: 'Company',   desc: 'Registry · hierarchy',  icon: Users,     defaultPage: 'company/employees/registry' },
+    { id: 'documents', code: 'DOC', label: 'Documents', desc: 'Library · letters · NDAs', icon: FileText,  defaultPage: 'documents/document-library/general-documents' },
     { id: 'today',     code: 'TDY', label: 'Today',     desc: 'What needs you today', icon: CalendarDays, defaultPage: 'today' },
-    { id: 'ai',        code: 'AI',  label: 'AI',        desc: 'Ask EdgeAI anything',  icon: MessageSquareText, defaultPage: 'ai' },
+    { id: 'ai',        code: 'AI',  label: 'AI',        desc: 'Ask EdgeAI anything',  icon: MessageSquareText, defaultPage: 'ai/ask' },
     // Each person's own calendar, to-dos and notes (0112), private to them.
     { id: 'workspace', code: 'WSP', label: 'Workspace', desc: 'Calendar · tasks · notes', icon: NotebookTabs, defaultPage: 'workspace/calendar' },
 ];

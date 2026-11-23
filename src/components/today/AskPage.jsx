@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Bell, FolderKanban, CheckSquare, Search } from 'lucide-react';
 import Copilot from '../assistant/Copilot';
 import { useAssistant } from '../assistant/assistantStore';
@@ -29,8 +29,8 @@ import ConnectorsView from '../connectors/ConnectorsView';
                  empty state is a greeting, the composer and a few starters.
    · Agents      the agents that work for the company, added one at a time.
                  The first is Compliance and Deadline Agent (components/agents/). An agent
-                 opens on its own page: ?agent=<id>, so a notification can
-                 link straight to it.
+                 opens on its own page, /ai/agents/<its name>, so a
+                 notification can link straight to it.
    · Connectors  outside services Opstead connects to (components/connectors/),
                  grouped cards with each service's logo; all Coming Soon so far.
    · Neurals     the company brain (components/brain/): the knowledge graph
@@ -111,6 +111,14 @@ function NeuralsView() {
 }
 
 const AGENTS = [DEADLINE_AGENT, BI_AGENT, KNOWLEDGE_AGENT, DEAL_AGENT, OPS_AGENT];
+
+/** A label as a path segment: 'Compliance and Deadline Agent' → 'compliance-and-deadline-agent'. */
+const slugOf = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+/** The path of a section of the AI page, or of one agent's page. */
+function aiPath(view, agentId) {
+    const def = agentId && AGENTS.find((x) => x.id === agentId);
+    return def ? `/ai/agents/${slugOf(def.name)}` : `/ai/${view || 'ask'}`;
+}
 
 function AgentsView({ onOpen }) {
     // One status call for every card's "run automatically" switch.
@@ -209,9 +217,16 @@ function useNeuralsGate(orgId) {
 export default function AskPage({ theme = 'dark' }) {
     const { activeOrg } = useOrg();
     const a = useAssistant();
-    const [params, setParams] = useSearchParams();
-    const agent = AGENTS.some((x) => x.id === params.get('agent')) ? params.get('agent') : null;
-    const view = agent ? 'agents' : (VIEWS.some((v) => v.id === params.get('view')) ? params.get('view') : 'ask');
+    const [params] = useSearchParams();
+    const location = useLocation();
+    const navigate = useNavigate();
+    // The switch's choice is the path, named as the switch reads (/ai/neurals),
+    // and an agent's page is under Agents by its name
+    // (/ai/agents/compliance-and-deadline-agent).
+    const [, sub, agentSlug] = location.pathname.split('/').filter(Boolean);
+    const agentDef = sub === 'agents' && agentSlug ? AGENTS.find((x) => slugOf(x.name) === agentSlug) : null;
+    const agent = agentDef?.id || null;
+    const view = VIEWS.some((v) => v.id === sub) ? sub : null;
     // The company, never a name pulled from the sign-in email.
     const name = activeOrg?.company_name || activeOrg?.name || 'there';
     const gate = useNeuralsGate(activeOrg?.id);
@@ -219,11 +234,17 @@ export default function AskPage({ theme = 'dark' }) {
     const go = (next, agentId = null) => {
         // Back on Ask, an agent's conversation gives way to an ordinary chat.
         if (next === 'ask' && a.active.agent) a.startChat();
-        const p = {};
-        if (agentId) p.agent = agentId;
-        else if (next !== 'ask') p.view = next;
-        setParams(p);
+        navigate(aiPath(next, agentId));
     };
+
+    // Older links named the section in ?view= and the agent in ?agent=; the
+    // bare /ai is Ask. Each lands on the path that names what is shown.
+    const legacyAgent = AGENTS.some((x) => x.id === params.get('agent')) ? params.get('agent') : null;
+    const legacyView = VIEWS.some((v) => v.id === params.get('view')) ? params.get('view') : null;
+    if (legacyAgent || legacyView) return <Navigate to={aiPath(legacyView || 'agents', legacyAgent)} replace />;
+    if (!view || (agentSlug && !agent) || (agentSlug && view !== 'agents')) {
+        return <Navigate to={aiPath(agentSlug && view === 'agents' ? 'agents' : (view || 'ask'))} replace />;
+    }
 
     const switcher = (
         <div className="cp-tabs ask-switch" role="tablist" aria-label="Section">

@@ -6,7 +6,7 @@ import {
 import { orgStore } from '../../services/orgStore';
 import { receiptService } from '../../services/receiptService';
 import { useToast } from '../shared/Toast';
-import { Stat } from './financeUi';
+import { Stat, Modal } from './financeUi';
 import { useSection, money, fmtDate } from './financeHooks';
 import { useProjectScope } from '../projects/projectScope';
 import { confirmDialog } from '../../services/confirm';
@@ -308,6 +308,44 @@ export default function PurchaseInvoices({ project = null, party = null, onOpen 
   const debit = totals?.debit || 0;
   const balance = totals?.balance || 0;
   const flip = (side) => setView(view === side ? 'all' : side);
+  // The balance tile opens who it is with: what each vendor is still owed, and
+  // what is paid to each ahead of their bills.
+  const [whoOpen, setWhoOpen] = useState(false);
+  const owed = useMemo(() => {
+    const nameOf = Object.fromEntries(vendors.map((v) => [v.id, v.company_name]));
+    const list = (totals?.byParty || [])
+      .filter((p) => Math.abs(p.balance) >= 0.005)
+      .map((p) => ({ ...p, name: nameOf[p.id] || p.name || 'No vendor' }));
+    return {
+      payable: list.filter((p) => p.balance > 0).sort((a, b) => b.balance - a.balance),
+      advance: list.filter((p) => p.balance < 0).sort((a, b) => a.balance - b.balance),
+    };
+  }, [totals, vendors]);
+  const showVendor = (id) => {
+    if (id && filterVendors.some((v) => v.id === id)) setVendorFilter(id);
+    setWhoOpen(false);
+  };
+  const owedTable = (title, list, total) => (
+    <div className="prod-perf-table-wrap" style={{ marginBottom: 16 }}>
+      <table className="prod-perf-table">
+        <thead><tr><th>{title}</th><th className="num">Billed</th><th className="num">Paid</th><th className="num">{title === 'Payable' ? 'To Pay' : 'Advance'}</th></tr></thead>
+        <tbody>
+          {list.map((p) => (
+            <tr key={p.id || 'none'} onClick={() => showVendor(p.id)} style={{ cursor: p.id ? 'pointer' : undefined }}
+              title={p.id ? 'Show this vendor on the ledger' : undefined}>
+              <td className="prod-perf-name">{p.name}</td>
+              <td className="num">{money(p.credit, 2)}</td>
+              <td className="num">{money(p.debit, 2)}</td>
+              <td className="num strong">{money(Math.abs(p.balance), 2)}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr><td colSpan={3}>Total</td><td className="num strong">{money(Math.abs(total), 2)}</td></tr>
+        </tfoot>
+      </table>
+    </div>
+  );
 
   return (
     <div style={{ maxWidth: '100%' }}>
@@ -319,7 +357,8 @@ export default function PurchaseInvoices({ project = null, party = null, onOpen 
         <Stat icon={<ArrowUpRight size={15} />} label={isVendor ? 'Paid' : 'Total Debit'} value={money(debit, 2)}
           sub={view === 'out' ? 'Showing debit only' : undefined} onClick={() => flip('out')} />
         <Stat icon={<Scale size={15} />} label={isVendor ? (balance < 0 ? 'Advance With Vendors' : 'Payable') : 'Closing Balance'}
-          value={money(isVendor ? Math.abs(balance) : balance, 2)} accent="var(--text-primary)" />
+          value={money(isVendor ? Math.abs(balance) : balance, 2)} accent="var(--text-primary)"
+          onClick={isVendor ? () => setWhoOpen(true) : undefined} />
         <Stat icon={<Receipt size={15} />} label="GST on Bills" value={money(totals?.tax || 0, 2)} />
       </div>
 
@@ -330,6 +369,24 @@ export default function PurchaseInvoices({ project = null, party = null, onOpen 
           : <ProjectLedger only="purchases" here="company" general={projectFilter === 'general'} {...ledgerProps} />}
 
       {money$.forms}
+
+      {whoOpen && (
+        <Modal title={balance < 0 ? 'Advance With Vendors' : 'Payable to Vendors'} onClose={() => setWhoOpen(false)} width={760}>
+          <div className="prod-modal-body" style={{ padding: '12px var(--dr-pad, 20px) 16px' }}>
+            {owed.payable.length === 0 && owed.advance.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)' }}>Every vendor on this ledger is settled.</p>
+            ) : (
+              <>
+                {owed.payable.length > 0 && owedTable('Payable', owed.payable, owed.payable.reduce((n, p) => n + p.balance, 0))}
+                {owed.advance.length > 0 && owedTable('Advance', owed.advance, owed.advance.reduce((n, p) => n + p.balance, 0))}
+                <p style={{ color: 'var(--text-secondary)', fontSize: 12.5 }}>
+                  From the ledger as it is filtered now. Click a vendor to show only their rows.
+                </p>
+              </>
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { amountHints } from '../../shared/cashIntent';
 import { cardLine } from './cardText';
 import { orgStore } from '../../services/orgStore';
 import { findProject } from '../projects/projectSlug';
+import { prefSet } from '../../services/userPrefs';
 
 // The orgStore sections that show each table the agent can change. After a
 // confirm or an undo the confirming tab re-reads them at once; other tabs and
@@ -156,7 +157,7 @@ export function AssistantProvider({ edgeContext, children }) {
     const active = useMemo(() => chats.find((c) => c.id === activeId) || chats[0], [chats, activeId]);
 
     useEffect(() => {
-        try { localStorage.setItem(STORE_KEY, JSON.stringify(chats.slice(0, MAX_CHATS))); } catch { /* quota */ }
+        prefSet(STORE_KEY, JSON.stringify(chats.slice(0, MAX_CHATS)));
     }, [chats]);
 
     // Another tab wrote the history. Adopt it unless this tab is mid-reply.

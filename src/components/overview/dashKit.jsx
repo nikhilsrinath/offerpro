@@ -13,6 +13,7 @@ import Drilldown from './Drilldown';
 import { useViz, useWinW, mix } from './vizHooks';
 import FreeGrid from '../ui/FreeGrid';
 import { bottom } from '../ui/freeGridEngine';
+import { prefSet, prefRemove } from '../../services/userPrefs';
 
 /* ══════════════════════════════════════════════════════════════════════════
    The frame every dashboard page shares, Overview, Finance, Sales, Team,
@@ -53,10 +54,8 @@ export function Arrangeable({ pageId, children }) {
     const save = useCallback((fn) => {
         setGrids((prev) => {
             const next = fn(prev);
-            try {
-                if (Object.keys(next).length) localStorage.setItem(gridKey(pageId), JSON.stringify(next));
-                else localStorage.removeItem(gridKey(pageId));
-            } catch { /* storage blocked: the layout just lasts until reload */ }
+            if (Object.keys(next).length) prefSet(gridKey(pageId), JSON.stringify(next));
+            else prefRemove(gridKey(pageId));
             return next;
         });
     }, [pageId]);
@@ -87,8 +86,8 @@ export function ArrangeBar() {
                     <RotateCcw aria-hidden="true" size={13} />Reset Layout
                 </button>
             )}
-            <button type="button" className="ov-chip" aria-pressed={a.editing} onClick={() => a.setEditing(!a.editing)}
-                style={a.editing ? { ...btn, background: t.accentSoft, borderColor: t.accent, color: t.accent } : btn}>
+            <button type="button" className={a.editing ? undefined : 'ov-chip'} aria-pressed={a.editing} onClick={() => a.setEditing(!a.editing)}
+                style={a.editing ? { ...btn, background: t.accentBtn, borderColor: t.accentBtn, color: t.onAccent } : btn}>
                 {a.editing ? <><Check aria-hidden="true" size={13} strokeWidth={2.2} />Done</> : <><Move aria-hidden="true" size={13} />Arrange</>}
             </button>
         </span>
@@ -237,7 +236,7 @@ function DashboardBody({ children, orgId, periodic, snapshotNote }) {
     const [periodId, setPeriodId] = useState(() => {
         try { return localStorage.getItem(PERIOD_KEY) || '12M'; } catch { return '12M'; }
     });
-    useEffect(() => { try { localStorage.setItem(PERIOD_KEY, periodId); } catch { /* ignore */ } }, [periodId]);
+    useEffect(() => { prefSet(PERIOD_KEY, periodId); }, [periodId]);
 
     const today = todayIso();
     const model = useOverviewModel(periodId, today);

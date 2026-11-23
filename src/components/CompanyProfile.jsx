@@ -276,7 +276,21 @@ export default function CompanyProfile() {
     setSaving(true);
     setError('');
     try {
-      await updateOrganization(activeOrg.id, form);
+      // Send only what changed. Posting the whole form re-wrote banking and,
+      // with Gmail connected, called the org-secrets function on every save.
+      const changes = {};
+      for (const k of Object.keys(form)) {
+        if ((form[k] ?? '') !== (baseline[k] ?? '')) changes[k] = form[k];
+      }
+      // An image's display URL and its stored path always travel together, so
+      // a signed URL is never written back as the path.
+      for (const [urlKey, { pathField }] of Object.entries(IMAGE_FIELDS)) {
+        if (urlKey in changes || pathField in changes) {
+          changes[urlKey] = form[urlKey];
+          changes[pathField] = form[pathField];
+        }
+      }
+      if (Object.keys(changes).length) await updateOrganization(activeOrg.id, changes);
       const sentPassword = Boolean(form.gmail_app_password);
       // The password is now in org_secrets and can never be read back, so the
       // box is cleared rather than left implying it is still held here.
@@ -528,7 +542,7 @@ export default function CompanyProfile() {
               <Panel t={t} title="Company basics" done={stepDone.company}>
                 <Fields>
                   <FormField t={t} label="Company name" required htmlFor="cp-company_name" wide>
-                    <TextInput t={t} {...bind('company_name')} autoComplete="organization" required />
+                    <TextInput t={t} {...bind('company_name')} autoComplete="organization" />
                   </FormField>
                   <FormField t={t} label="Tagline" htmlFor="cp-company_tagline" wide>
                     <TextInput t={t} {...bind('company_tagline')} />
@@ -592,7 +606,7 @@ export default function CompanyProfile() {
               <Panel t={t} title="Authorised signatory" done={stepDone.signatory}>
                 <Fields>
                   <FormField t={t} label="Full name" required htmlFor="cp-owner_full_name" wide>
-                    <TextInput t={t} {...bind('owner_full_name')} autoComplete="name" required />
+                    <TextInput t={t} {...bind('owner_full_name')} autoComplete="name" />
                   </FormField>
                   <FormField t={t} label="Title on documents" required htmlFor="cp-document_designation" wide>
                     <TextInput t={t} {...bind('document_designation')} list="cp-designations" autoComplete="organization-title" />

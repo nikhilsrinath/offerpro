@@ -202,7 +202,7 @@ const PricingPage = () => {
                   )}
                 </div>
 
-                <div className="pr-card-body">
+                <div className="pr-sec pr-sec-layers">
                   <div className="pr-label">Layers</div>
                   <div className="pr-layers">
                     {p.layers.map((k) => {
@@ -215,16 +215,20 @@ const PricingPage = () => {
                       );
                     })}
                   </div>
+                </div>
 
-                  <div className="pr-label pr-label-gap">Features</div>
+                <div className="pr-sec">
+                  <div className="pr-label">Features</div>
                   <div className="pr-basis">{p.basis}</div>
                   <ul className="pr-features">
                     {p.features.map((f) => (
                       <li key={f}><CircleCheck size={16} /> {f}</li>
                     ))}
                   </ul>
+                </div>
 
-                  <div className="pr-label pr-label-gap">Limits</div>
+                <div className="pr-sec pr-sec-last">
+                  <div className="pr-label">Limits</div>
                   <ul className="pr-features pr-limits">
                     {p.limits.map((f) => (
                       <li key={f}><CircleCheck size={16} /> {f}</li>

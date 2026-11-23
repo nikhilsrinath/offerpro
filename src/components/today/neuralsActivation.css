@@ -5,10 +5,10 @@
 .na { display: flex; }
 .na-inner { margin: auto; width: 100%; max-width: 560px; padding: 28px 20px 40px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; text-align: center; }
 
-/* ── the neural brain (a canvas, drawn by NeuralBrain.jsx) ───────────── */
+/* ── the brain (NeuralsGraph.jsx: the knowledge graph, a picture not a control) ── */
 .na-stage { position: relative; width: 100%; max-width: 440px; aspect-ratio: 400 / 320; }
 .na-brain { position: absolute; inset: 0; border-radius: 14px; overflow: hidden; background: var(--brand-navy); }
-.na-canvas { width: 100%; height: 100%; display: block; }
+.na-graph { background: radial-gradient(80% 70% at 50% 45%, #13304A 0%, var(--brand-navy) 100%); pointer-events: none; }
 
 /* ── the words ─────────────────────────────────────────────────────────── */
 .na-copy { display: flex; flex-direction: column; align-items: center; margin-top: 12px; animation: naRise .5s ease-out both; }

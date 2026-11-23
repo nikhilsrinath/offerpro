@@ -55,7 +55,10 @@ export function timing(p, today) {
 }
 
 // The Projects board's tones, so a status wears the same colour on both pages.
-const STATUS_TONE = { active: 'accent', on_hold: 'warn', planned: 'neutral', completed: 'up', cancelled: 'mute' };
+const STATUS_TONE = { active: 'accent', on_hold: 'warn', planned: 'neutral', completed: 'up', cancelled: 'mute', archived: 'mute' };
+
+// The status columns, then Archived: archived projects sit there whatever their status.
+const BOARD_COLUMNS = [...PROJECT_STATUSES, { id: 'archived', label: 'Archived' }];
 
 const isLate = (p, today) => !isClosed(p) && !!p.target_end_date && daysBetween(today, p.target_end_date) < 0;
 
@@ -72,7 +75,6 @@ export default function KanbanChart() {
     const [client, setClient] = useRememberedState('kanban.type', 'all');
     const [manager, setManager] = useRememberedState('kanban.manager', 'all');
     const [health, setHealth] = useRememberedState('kanban.health', 'all');
-    const [showArchived, setShowArchived] = useRememberedState('kanban.archived', false);
     const [rows, setRows] = useState({});
     const fin = canSeeFinancials();
     const today = todayIso();
@@ -103,22 +105,25 @@ export default function KanbanChart() {
     }, [projects, milestones, tasks]);
 
     const shown = useMemo(() => projects.filter((p) => {
-        if (!showArchived && p.archived_at) return false;
         // Type of Project: Client or Internal
         if (client === 'internal' && p.client_id) return false;
         if (client === 'client' && !p.client_id) return false;
         if (manager !== 'all' && p.manager_employee_id !== manager) return false;
         if (health !== 'all' && rows[p.id]?.health !== health) return false;
         return matchProject(p, query, clientName[p.client_id]);
-    }), [projects, showArchived, client, manager, health, rows, query, clientName]);
+    }), [projects, client, manager, health, rows, query, clientName]);
 
     const columns = useMemo(() => {
-        const cols = Object.fromEntries(PROJECT_STATUSES.map((s) => [s.id, []]));
-        for (const p of shown) (cols[p.status] || (cols[p.status] = [])).push(p);
+        const cols = Object.fromEntries(BOARD_COLUMNS.map((s) => [s.id, []]));
+        // An archived project leaves its status column for the Archived one.
+        for (const p of shown) {
+            const key = p.archived_at ? 'archived' : p.status;
+            (cols[key] || (cols[key] = [])).push(p);
+        }
         // Latest trouble first among the running ones; finished work newest first.
         const byDue = (a, b) => String(a.target_end_date || '9999').localeCompare(String(b.target_end_date || '9999'));
         const byEnd = (a, b) => String(b.actual_end_date || b.target_end_date || '').localeCompare(String(a.actual_end_date || a.target_end_date || ''));
-        for (const s of PROJECT_STATUSES) cols[s.id].sort(s.id === 'completed' || s.id === 'cancelled' ? byEnd : byDue);
+        for (const s of BOARD_COLUMNS) cols[s.id].sort(s.id === 'completed' || s.id === 'cancelled' || s.id === 'archived' ? byEnd : byDue);
         return cols;
     }, [shown]);
 
@@ -137,7 +142,7 @@ export default function KanbanChart() {
         );
     }
 
-    const late = shown.filter((p) => isLate(p, today)).length;
+    const late = shown.filter((p) => !p.archived_at && isLate(p, today)).length;
     const open = (p) => navigate(`/projects/${projectRef(p.id)}`);
     const filtering = client !== 'all' || manager !== 'all' || health !== 'all' || !!query;
 
@@ -162,21 +167,19 @@ export default function KanbanChart() {
                     <option value="at_risk">At risk</option>
                     <option value="off_track">Off track</option>
                 </Select>
-                <Btn size="sm" aria-pressed={showArchived} onClick={() => setShowArchived((v) => !v)}>
-                    {showArchived ? 'Hide archived' : 'Show archived'}
-                </Btn>
                 {filtering && (
                     <Btn size="sm" onClick={() => { setQuery(''); setClient('all'); setManager('all'); setHealth('all'); }}>Clear filters</Btn>
                 )}
             </Toolbar>
 
             <StatBand items={[
-                { label: 'Projects', value: shown.length },
-                { label: 'Not started', value: columns.planned.length },
-                { label: 'In progress', value: columns.active.length },
+                { label: 'Projects', value: shown.length - columns.archived.length },
+                { label: 'Planned', value: columns.planned.length },
+                { label: 'Active', value: columns.active.length },
                 { label: 'On hold', value: columns.on_hold.length },
                 { label: 'Ended', value: columns.completed.length + columns.cancelled.length,
                     note: `${columns.completed.length} completed · ${columns.cancelled.length} cancelled` },
+                { label: 'Archived', value: columns.archived.length },
                 { label: 'Past due date', value: late, tone: late ? 'down' : undefined },
             ]} />
 
@@ -187,7 +190,7 @@ export default function KanbanChart() {
                     display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12,
                     alignItems: 'start', paddingBottom: 6,
                 }}>
-                    {PROJECT_STATUSES.map((s) => {
+                    {BOARD_COLUMNS.map((s) => {
                         const list = columns[s.id];
                         const total = fin ? list.reduce((a, p) => a + (Number(p.contract_value) || 0), 0) : 0;
                         return (
@@ -233,7 +236,7 @@ function Card({ p, today, fin, client, mgr, nameOf, stats, health, onOpen }) {
             background: t.panelAlt, cursor: 'pointer', color: t.text, fontFamily: 'inherit', display: 'grid', gap: 6,
         }}>
             <span style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11, color: t.faint }}>{p.code}{p.archived_at ? ' · archived' : ''}</span>
+                <span style={{ fontSize: 11, color: t.faint }}>{p.code}</span>
                 {!ended && <HealthChip health={health?.health} reasons={health?.health_reasons || []} />}
             </span>
             <span style={{ fontSize: 13.5, fontWeight: 600 }}>{p.name}</span>

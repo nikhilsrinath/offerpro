@@ -1,23 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { Check, ShieldCheck, Sparkles } from 'lucide-react';
-import NeuralBrain from './NeuralBrain.jsx';
+import NeuralsGraph from './NeuralsGraph.jsx';
 import './neuralsActivation.css';
 
 /* ══════════════════════════════════════════════════════════════════════════
    The AI page before a company has Neurals.
 
    EdgeAI answers from the company brain, so until it exists the page is this
-   one screen: a living neural brain (NeuralBrain) and the single control
-   that builds it. While the build runs the brain region for each domain
-   bursts in turn; when it lands a wave lights the whole brain and the real
-   counts from the finished brain are shown. Only then does the page open its
+   one screen: a moving knowledge graph (NeuralsGraph) and the single control
+   that builds it. While the build runs the graph glides to each domain in
+   turn; when it lands it pulls back to the whole brain and the real counts
+   from the finished brain are shown. Only then does the page open its
    Ask, Agents, Connectors and Neurals tabs.
 
    phase: 'idle' | 'building' | 'done'. The counts on 'done' come from the
    brain's own status, never a guess.
    ══════════════════════════════════════════════════════════════════════════ */
 
-// The domains the build reads; NeuralBrain maps each to a region.
+// The domains the build reads; NeuralsGraph follows each in turn.
 const STEPS = ['Customers', 'Finance', 'Products', 'Documents', 'Operations', 'Activity', 'History', 'Team'];
 
 const fmt = (n) => Number(n || 0).toLocaleString();
@@ -39,7 +39,7 @@ export default function NeuralsActivation({ phase, canBuild, error, counts, onAc
         <div className="ask-pane eo-scroll na" data-phase={phase}>
             <div className="na-inner">
                 <div className="na-stage" aria-hidden="true">
-                    <NeuralBrain phase={phase} focus={building ? STEPS[step] : null} />
+                    <NeuralsGraph phase={phase} focus={building ? STEPS[step] : null} />
                 </div>
 
                 <div className="na-copy" aria-live="polite">

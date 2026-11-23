@@ -29,6 +29,7 @@ const PERIODS = [
 ];
 
 const COLS = [
+    { key: 'sno', label: 'S.No', def: false, nosort: true },
     { key: 'code', label: 'Code' },
     { key: 'name', label: 'Project', always: true },
     { key: 'client', label: 'Client', def: false },
@@ -159,7 +160,7 @@ export default function Portfolio() {
         <TipProvider>
             <Page>
                 <style>{`.edge-sort:hover { color: ${t.text} !important; }`}</style>
-                <Toolbar right={<Btn onClick={exportCsv}>Export CSV</Btn>}>
+                <Toolbar sticky={false} right={<Btn onClick={exportCsv}>Export CSV</Btn>}>
                     <Select aria-label="Period" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ width: 190, height: 29 }}>
                         {PERIODS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                     </Select>
@@ -185,10 +186,10 @@ export default function Portfolio() {
                     ] : []),
                 ]} />
 
-                <Grid min={300} gap={14}>
+                <Grid gap={14} cols="repeat(auto-fit, minmax(300px, 1fr))">
                     {fin && (
                         <Panel title="Net margin by project" pad={15}>
-                            <RankBars max={8} format={(v) => money(v)} total={0}
+                            <RankBars max={Infinity} format={(v) => money(v)} total={0}
                                 rows={live.filter((r) => r.net_margin != null)
                                     .map((r) => ({ key: r.project_id, name: r.name, value: Number(r.net_margin),
                                         color: Number(r.net_margin) < 0 ? t.down : undefined }))
@@ -201,7 +202,7 @@ export default function Portfolio() {
                             : <SplitBar parts={healthParts} format={(v) => String(v)} unit="projects" />}
                     </Panel>
                     <Panel title="Team utilisation today" note="Share of time booked on open projects" pad={15}>
-                        <RankBars max={10} format={(v) => `${Number(v).toFixed(2)}%`} total={0}
+                        <RankBars max={Infinity} format={(v) => `${Number(v).toFixed(2)}%`} total={0}
                             empty="No one is booked on a project"
                             rows={people.map((p) => ({
                                 key: p.employee_id, name: p.full_name, value: Number(p.total_pct) || 0,
@@ -215,14 +216,14 @@ export default function Portfolio() {
                     <Table id="portfolio" cols={cols.map((c) => ({
                         ...c,
                         pickLabel: c.label,
-                        label: <SortHead label={c.label} align={c.align} dir={sort.key === c.key ? sort.dir : 0}
+                        label: c.nosort ? c.label : <SortHead label={c.label} align={c.align} dir={sort.key === c.key ? sort.dir : 0}
                             onSort={(dir) => setSort({ key: c.key, dir })} />,
                     }))}>
                         {(show, vis) => (
                             <>
-                                {sorted.map((r) => (
+                                {sorted.map((r, i) => (
                                     <Tr key={r.project_id} onClick={() => navigate(`/projects/${projectRef(r.project_id)}`)} label={`Open ${r.name}`}>
-                                        {vis.map((c) => <Td key={c.key} align={c.align} nowrap={c.key !== 'name'}>{cell(r, c.key)}</Td>)}
+                                        {vis.map((c) => <Td key={c.key} align={c.align} nowrap={c.key !== 'name'}>{c.key === 'sno' ? <Muted>{i + 1}</Muted> : cell(r, c.key)}</Td>)}
                                     </Tr>
                                 ))}
                             </>

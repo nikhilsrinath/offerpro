@@ -102,7 +102,7 @@ function TeamBody({ model, open, navigate, t, cat, status, cols, grid, tileCols,
                     format={(v) => String(Math.round(v))} tipFormat={(v) => String(v)} onSelect={() => open({ kind: 'metric', id: 'headcount' })} />
             </Card>
 
-            <Card title="Departments" note="today" right={<More label="Hierarchy" to="/company/company-hierarchy" />}>
+            <Card title="Departments" note="today" right={<More label="Hierarchy" to="/company/hierarchy" />}>
                 <RankBars rows={model.departments} format={(v) => String(v)} total={k.headcount.value} max={6}
                     onSelect={(r) => open({ kind: 'department', name: r.name })} empty="No employees yet" />
                 {model.employmentTypes.length > 0 && (

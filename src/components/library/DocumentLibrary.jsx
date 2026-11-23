@@ -13,6 +13,7 @@ import {
     libraryService, CATEGORIES, COLLECTIONS, collectionOf, categoryLabel, validateLibraryFile,
     titleFromFileName, READABLE_HINT,
 } from '../../services/libraryService';
+import { REGISTER_PATHS, OLD_REGISTER_PATHS, registerPath } from '../../shared/libraryReadability';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Document library: General Documents, Organisational Process Assets and
@@ -59,13 +60,13 @@ function typeOf(doc) {
     return m ? m[1].toUpperCase() : (doc.mime_type || 'FILE').split('/').pop().toUpperCase();
 }
 
-// Where each register lives: General Documents is the page itself.
-const REGISTER_PATHS = { general: '', opa: 'process-assets', lessons: 'lessons-learned' };
-const registerPath = (id) => '/documents/document-library' + (REGISTER_PATHS[id] ? '/' + REGISTER_PATHS[id] : '');
+// Where each register lives, named as the switch reads (shared/libraryReadability).
 const registerOfPath = (pathname) => {
     const sub = pathname.split('/')[3] || '';
-    return Object.keys(REGISTER_PATHS).find((id) => REGISTER_PATHS[id] === sub) || 'general';
+    return Object.keys(REGISTER_PATHS).find((id) => REGISTER_PATHS[id] === sub) || OLD_REGISTER_PATHS[sub] || 'general';
 };
+// The bare page or an older register path: the URL names the register shown.
+const registerPathIsCurrent = (pathname) => Object.values(REGISTER_PATHS).includes(pathname.split('/')[3] || '');
 
 export default function DocumentLibrary() {
     const t = useT();
@@ -78,8 +79,8 @@ export default function DocumentLibrary() {
     const [query, setQuery] = useState('');
     const [category, setCategory] = useState('all');
 
-    // The register is the last part of the path (/documents/document-library/process-assets),
-    // so a link or a refresh lands on it; General Documents is the bare page.
+    // The register is the last part of the path (/documents/document-library/organisational-process-assets),
+    // so a link or a refresh lands on it.
     const location = useLocation();
     const navigate = useNavigate();
     const collection = registerOfPath(location.pathname);
@@ -221,6 +222,9 @@ export default function DocumentLibrary() {
     const active = queue.filter((j) => j.state === 'queued' || j.state === 'working').length;
 
     if (legacyType && REGISTER_PATHS[legacyType] !== undefined) return <Navigate to={registerPath(legacyType)} replace />;
+    if (!registerPathIsCurrent(location.pathname)) {
+        return <Navigate to={registerPath(collection) + location.search + location.hash} replace state={location.state} />;
+    }
 
     return (
         <Page>

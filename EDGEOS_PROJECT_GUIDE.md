@@ -242,34 +242,37 @@ The Company Ledger (`/finance/company-ledger`) holds a bill with subtotal, GST, 
 
 | Module | Pages (URL) |
 |---|---|
-| — | `/hub`, `/today`, `/ask`, `/profile`, `/me` |
-| Dashboard | `/dashboard/projects` (default), `/dashboard/finance`, `/dashboard/sales`, `/dashboard/team`, `/dashboard/documents`, `/dashboard/usage` |
+| — | `/dashboard/overview` (home), `/today`, `/ai/{ask,agents,connectors,neurals}`, `/ai/agents/<agent-name>`, `/profile`, `/me` |
+| Dashboard | `/dashboard/overview`, `/dashboard/projects`, `/dashboard/finance`, `/dashboard/sales-and-marketing`, `/dashboard/team`, `/dashboard/documents`, `/dashboard/usage` |
+| Workspace | `/workspace/calendar`, `/workspace/my-tasks`, `/workspace/notes` |
 | Projects | `/projects`, `/projects/new`, `/projects/tasks`, `/projects/kanban-chart`, `/projects/portfolio`, `/projects/timesheets`, `/projects/:id/...` |
-| Finance | `/finance/finance-status`, `/finance/general-ledger`, `/finance/billing/{quotations,proforma,invoices,recurring}` (+ `/new`, `/:id/edit`), `/finance/company-ledger`, `/finance/tax-summary`, `/finance/profit-loss` |
-| Business | `/business/client-directory`, `/business/vendor-directory`, `/business/products-directory`, `/business/crm` |
-| Company | `/company/company-hierarchy`, `/company/employees[/:tab]`, `/company/employees/new`, `/company/attendance[/:tab]`, `/company/announcements`, `/company/recruitment-tracker` |
-| Documents | `/documents/document-library[/:register]`, `/documents/offer-letters[/:tab]`, `/documents/certificates[/:tab]`, `/documents/templates`, `/documents/templates/{nda,mou,partnership,custom}`, `/documents/records` |
-| EdgeBrain | `/edgebrain` |
+| Financials | `/financials/finance-status`, `/financials/general-ledger`, `/financials/tax-summary`, `/financials/profit-and-loss` |
+| Clients | `/clients/general-ledger`, `/clients/billing/{quotations,proforma,invoices,recurring}` (+ `/new`, `/:id/edit`), `/clients/client-directory`, `/clients/crm`, `/clients/business-directory` |
+| Vendors | `/vendors/general-ledger`, `/vendors/vendor-directory` |
+| Company | `/company/hierarchy`, `/company/employees/{registry,ex-employees,bulk-import}`, `/company/employees/new`, `/company/attendance[/leave]`, `/company/announcements`, `/company/recruitment-tracker` |
+| Documents | `/documents/document-library/{general-documents,organisational-process-assets,lessons-learned-register}`, `/documents/offer-letters/{single-offer,bulk-offers}`, `/documents/certificates/{single-certificate,bulk-certificates}`, `/documents/templates`, `/documents/templates/{nda,mou,partnership,custom}`, `/documents/records` |
 
-- A bare module path (`/finance`, `/company`…) lands on its first page.
-- **Old URLs still work.** `MOVED` in `App.jsx` maps every previous path (`/cashbook`, `/invoices`, `/employees`, `/library`, `/purchases`…) to its current one, keeping query and hash.
-- Unknown workspace URLs redirect to `/hub`.
+**Every URL reads exactly as the option selected on screen**: each segment is the rail item / tab / switch label slugged (lower case, spaces → `-`, `&` → `and`). A page's in-page switch is part of the path, never a `?query`. When a label changes, change its path too and add the old one to the redirects.
 
-**Inside a project** (`projects/projectPaths.js` → `SECTION_PATHS`), the path follows the project's sidebar group › page › view:
+- A bare module path (`/financials`, `/company`…) lands on its first page; a bare tabbed page lands on its first tab's path.
+- **Old URLs still work.** `MOVED` in `App.jsx` maps every previous path (`/cashbook`, `/invoices`, `/employees`, `/library`, `/workspace/tasks`…) to its current one, keeping query and hash; `SectionTabs` `was:` and the library's `OLD_REGISTER_PATHS` cover older tab paths.
+- Unknown workspace URLs redirect to `/dashboard/overview`.
+
+**Inside a project** (`projects/projectPaths.js` → `SECTION_PATHS`), the path is the rail group › page tab › view, by their labels:
 
 ```
 /projects/:id                               → /projects/:id/dashboard/overview
 /projects/:id/dashboard/:view               overview | finance | sales | team | documents
-/projects/:id/finance/status | general-ledger | billing/<kind>[/new|/:doc/edit] | company-ledger | tax-summary | profit-loss
-/projects/:id/project-management/portfolio-overview | tasks-wbs | kanban-board | gantt-chart | sku
-/projects/:id/team-management/team-members | team-hierarchy | attendance | announcements
-/projects/:id/client-management/client-directory | crm | client-communication | payment-status
-/projects/:id/vendor-management/vendor-directory
-/projects/:id/documents-management/project-documents[/business-documents|general-documents] | custom-templates
+/projects/:id/client/general-ledger | billing/<kind>[/new|/:doc/edit] | client-directory | crm | clients-communication | payment-status-and-pendings
+/projects/:id/vendor/general-ledger | vendor-directory
+/projects/:id/planning/overview | tasks-wbs | kanban-board | gantt-chart | whiteboard | sku
+/projects/:id/team/team-members | team-hierarchy | attendance | announcements
+/projects/:id/financials/status | tax-summary | profit-and-loss
+/projects/:id/documents/project-documents | templates
 /projects/:id/milestones · /projects/:id/activity
 ```
 
-Older `?tab=` links are rewritten into these paths by `ProjectDetail`.
+Older `?tab=` links and older paths (`client-management/…`, `vendor-management/…`, `project-management/…`, `team-management/…`, `finance/…`, `documents-management/…`) are redirected to these by `ProjectDetail` (`currentProjectPath`).
 
 ### 6.3 Public routes (outside the workspace)
 

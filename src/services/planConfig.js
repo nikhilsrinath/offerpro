@@ -1,13 +1,14 @@
 /**
  * Opstead Plan Configuration
- * Three tiers: Free, Pro, Max
+ * Three tiers, ids free / pro / max (kept: the database and usage counters use
+ * them), shown as Basic, Growth and Enterprise to match the Pricing page.
  */
 
 export const PLANS = {
   free: {
     id: 'free',
-    name: 'Free',
-    displayName: 'Free Plan',
+    name: 'Basic',
+    displayName: 'Basic Plan',
     color: '#64748b', // slate
     limits: {
       offerLetters: 5,
@@ -26,8 +27,8 @@ export const PLANS = {
   },
   pro: {
     id: 'pro',
-    name: 'Pro',
-    displayName: 'Pro Plan',
+    name: 'Growth',
+    displayName: 'Growth Plan',
     color: '#8b5cf6', // purple
     limits: {
       offerLetters: 25,
@@ -46,8 +47,8 @@ export const PLANS = {
   },
   max: {
     id: 'max',
-    name: 'Max',
-    displayName: 'Max Plan',
+    name: 'Enterprise',
+    displayName: 'Enterprise Plan',
     color: '#10b981', // emerald
     limits: {
       offerLetters: Infinity,

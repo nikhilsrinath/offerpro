@@ -157,7 +157,7 @@ export default function TodayPage() {
     const ask = (text) => {
         const v = String(text || '').trim();
         if (!v) return;
-        if (assistant.askNew(v) !== false) navigate('/ai');
+        if (assistant.askNew(v) !== false) navigate('/ai/ask');
     };
     const go = (to) => () => navigate(to);
 

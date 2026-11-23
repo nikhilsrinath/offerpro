@@ -15,6 +15,7 @@ import Markdown from './Markdown';
 import VoiceCall from './VoiceCall';
 import '../../theme/surface.css';
 import './copilot.css';
+import { prefSet, prefRemove } from '../../services/userPrefs';
 
 /* ══════════════════════════════════════════════════════════════════════════
    EdgeAI: one copilot, two frames.
@@ -376,7 +377,7 @@ function readDock() {
     } catch { return null; }
 }
 function saveDock(w) {
-    try { w == null ? localStorage.removeItem(DOCK_KEY) : localStorage.setItem(DOCK_KEY, String(w)); } catch { /* private mode */ }
+    if (w == null) prefRemove(DOCK_KEY); else prefSet(DOCK_KEY, String(w));
 }
 
 function useDockWidth(enabled) {

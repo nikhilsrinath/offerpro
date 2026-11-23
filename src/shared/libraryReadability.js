@@ -30,8 +30,16 @@ export function readability(d) {
   return { readable: true, state: 'ready', note: null };
 }
 
-// The library's registers live at their own paths (DocumentLibrary.jsx).
-const REGISTER_PATH = { general: '', opa: '/process-assets', lessons: '/lessons-learned' };
+// Each register lives at its own path, named as its switch reads
+// (DocumentLibrary.jsx): /documents/document-library/organisational-process-assets.
+export const REGISTER_PATHS = {
+  general: 'general-documents',
+  opa: 'organisational-process-assets',
+  lessons: 'lessons-learned-register',
+};
+// Where they used to live, for older links.
+export const OLD_REGISTER_PATHS = { 'process-assets': 'opa', 'lessons-learned': 'lessons' };
+export const registerPath = (id) => `/documents/document-library/${REGISTER_PATHS[id] || REGISTER_PATHS.general}`;
 
 /** Where a document opens in the app: the library's viewer, by id. */
-export const libraryDocHref = (d) => `/documents/document-library${REGISTER_PATH[d?.collection] || ''}?doc=${d?.id}`;
+export const libraryDocHref = (d) => `${registerPath(d?.collection)}?doc=${d?.id}`;

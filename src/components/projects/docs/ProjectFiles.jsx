@@ -19,6 +19,7 @@ import { SetupGate, Bar } from '../parties/partyUi';
 import {
     Folder, File as FileIcon, FileText, FileImage, FileSpreadsheet, FileArchive, FileType2, Presentation,
 } from 'lucide-react';
+import { prefSet } from '../../../services/userPrefs';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Documents Management › Project Documents. Every file the project holds.
@@ -79,7 +80,7 @@ function FilesView({ project }) {
     const [busy, setBusy] = useState('');
     const [dialog, setDialog] = useState(null);  // { kind, target }
 
-    useEffect(() => { try { localStorage.setItem('eo-docs-view', view); } catch { /* private mode */ } }, [view]);
+    useEffect(() => { prefSet('eo-docs-view', view); }, [view]);
 
     const can = {
         create: orgStore.can('project_files', 'create'),

@@ -25,6 +25,14 @@
             "maxDuration": 30
         }
     },
+    "redirects": [
+        {
+            "source": "/((?!api/).*)",
+            "has": [{ "type": "host", "value": "edgeos-beta.vercel.app" }],
+            "destination": "https://www.opstead.in/$1",
+            "permanent": false
+        }
+    ],
     "rewrites": [
         {
             "source": "/api/(.*)",

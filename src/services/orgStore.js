@@ -1537,7 +1537,10 @@ export const orgStore = {
 
     const { org, banking, secrets } = splitProfileUpdates(updates);
 
-    if (Object.keys(org).length) {
+    // The writes touch separate tables, so they run side by side rather than
+    // one after another.
+    const writes = [];
+    if (Object.keys(org).length) writes.push((async () => {
       let { error } = await supabase.from('organizations').update(org).eq('id', _orgId);
       // state and currency arrive with 0091. Until a database has it, PostgREST
       // rejects the whole update for the unknown column, which would block every
@@ -1550,20 +1553,23 @@ export const orgStore = {
           : { error: null });
       }
       if (error) throw error;
-    }
-    if (Object.keys(banking).length) {
+    })());
+    if (Object.keys(banking).length) writes.push((async () => {
       const { error } = await supabase.from('org_banking')
         .upsert({ org_id: _orgId, ...banking }, { onConflict: 'org_id' });
       if (error) throw error;
-    }
-    if (Object.keys(secrets).length) {
+    })());
+    if (Object.keys(secrets).length) writes.push((async () => {
       // org_secrets has no client policy at all, so this cannot be written from
       // the browser. It goes through the server, which holds the encryption key.
       await saveSecretsViaServer(secrets);
       // Never keep secrets in the local cache or localStorage.
       for (const k of SECRET_FIELDS) delete _cache._profile[k];
       persistToLS();
-    }
+    })());
+    const results = await Promise.allSettled(writes);
+    const failed = results.find((r) => r.status === 'rejected');
+    if (failed) throw failed.reason;
   },
 
   async addItem(section, data) {

@@ -28,9 +28,9 @@ const TermsPage = () => (
           To use Opstead, you must create an account with accurate and complete information. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You must notify us immediately of any unauthorized access.
         </p>
 
-        <h2>3. Free Plan & Subscriptions</h2>
+        <h2>3. Basic Plan & Subscriptions</h2>
         <p>
-          Opstead offers a Free plan with capped document generation and 10 messages with the AI Co-founder, requiring no credit card. Paid tiers (Pro at $12/month, Max at $54/month, and Enterprise at custom pricing) unlock higher and unlimited usage as described on the Pricing page. Annual billing applies to Pro and Max. You may upgrade, downgrade, or cancel at any time; usage limits reset at the start of each billing cycle.
+          Opstead offers a Basic plan with capped document generation and 10 messages with the AI Co-founder, requiring no credit card. Paid tiers (Growth, and Enterprise at custom pricing) unlock higher and unlimited usage as described on the Pricing page. Annual billing applies to Growth. You may upgrade, downgrade, or cancel at any time; usage limits reset at the start of each billing cycle.
         </p>
 
         <h2>4. Acceptable Use</h2>

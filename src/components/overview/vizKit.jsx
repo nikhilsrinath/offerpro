@@ -373,7 +373,7 @@ export function RankBars({ rows, format, total, max = 6, color, onSelect, sub, e
                             <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
                             {sub && <span style={{ fontSize: 11.5, color: t.faint, whiteSpace: 'nowrap' }}>{sub(r)}</span>}
                             <span style={{ fontSize: 13, color: t.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{format(r.value)}</span>
-                            {share !== null && <span style={{ fontSize: 11.5, color: t.faint, width: 32, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{share.toFixed(0)}%</span>}
+                            {share !== null && <span style={{ fontSize: 11.5, color: t.faint, minWidth: 52, flexShrink: 0, whiteSpace: 'nowrap', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{share.toFixed(2)}%</span>}
                         </div>
                         <div style={{ marginLeft: 29, height: 7, background: t.panelAlt, boxShadow: 'inset 0 0 0 1px ' + t.line, borderRadius: 99, overflow: 'hidden' }}>
                             <div style={{
@@ -418,7 +418,7 @@ export function SplitBar({ parts, format, height = 12, onSelect, selected, unit,
                     <span style={{ flex: 1, fontSize: 12.5, color: t.dim, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
                     {p.note && <span style={{ fontSize: 11.5, color: t.faint, padding: '0 6px', borderRadius: 99, background: t.panelAlt, border: '1px solid ' + t.line }}>{p.note}</span>}
                     <span style={{ fontSize: 12.5, color: t.text, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{format(p.value)}</span>
-                    <span style={{ fontSize: 11.5, color: t.faint, width: 32, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    <span style={{ fontSize: 11.5, color: t.faint, minWidth: 52, flexShrink: 0, whiteSpace: 'nowrap', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                         {total > 0 ? `${Number((p.value / total) * 100).toFixed(2)}%` : '-'}
                     </span>
                 </div>

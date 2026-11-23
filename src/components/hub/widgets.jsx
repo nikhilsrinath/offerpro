@@ -696,7 +696,7 @@ function Brain({ d, nav, ask, size }) {
             <>
                 <div className="w-kicker">Records</div>
                 {stat}
-                <div className="w-bottom"><LinkBtn onClick={() => nav('/ai?view=neurals')}>Open</LinkBtn></div>
+                <div className="w-bottom"><LinkBtn onClick={() => nav('/ai/neurals')}>Open</LinkBtn></div>
             </>
         );
     }
@@ -910,7 +910,7 @@ function AcquisitionSpend({ d, nav, size, period, setPeriod }) {
                     ))}
                 </div>
             ) : <div className="w-cap" style={{ marginTop: 10 }}>No sales or marketing expenses {p.label.toLowerCase()}.</div>}
-            <div className="w-foot"><LinkBtn onClick={() => nav('/dashboard/sales')}>Dashboard</LinkBtn><PeriodTabs period={period} setPeriod={setPeriod} /></div>
+            <div className="w-foot"><LinkBtn onClick={() => nav('/dashboard/sales-and-marketing')}>Dashboard</LinkBtn><PeriodTabs period={period} setPeriod={setPeriod} /></div>
         </>
     );
 }

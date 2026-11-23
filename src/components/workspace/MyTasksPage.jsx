@@ -22,6 +22,7 @@ import { localDay } from './calendarModel';
 import { useWorkspaceReady } from './useCalendarData';
 import TaskPanel from './TaskPanel';
 import { TickBox, IconBtn, MissingTables, WorkspaceStyle } from './workspaceUi';
+import { prefSet } from '../../services/userPrefs';
 
 /* ══════════════════════════════════════════════════════════════════════════
    My Tasks. The person's own to-dos, in lists, Google Tasks style, and
@@ -171,7 +172,7 @@ export default function MyTasksPage() {
     // Before 0112 only the work assigned to the person can be shown.
     const list = wanted === STARRED || wanted === WORK || lists.includes(wanted) ? wanted : (ws.missing ? WORK : DEFAULT_LIST);
     const pickList = (l) => { const p = new URLSearchParams(params); if (l === DEFAULT_LIST) p.delete('list'); else p.set('list', l); p.delete('task'); setParams(p, { replace: true }); };
-    const setSort = (v) => { setSortState(v); try { localStorage.setItem(SORT_KEY, v); } catch { /* private window */ } };
+    const setSort = (v) => { setSortState(v); prefSet(SORT_KEY, v); };
 
     const view = useMemo(() => buildList(tasks, { list, sort: list === STARRED ? 'due' : sort, today, query }), [tasks, list, sort, today, query]);
 

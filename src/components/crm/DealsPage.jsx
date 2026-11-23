@@ -20,10 +20,11 @@ import {
     stageChange, stateChange, defaultProbability,
 } from './dealModel';
 import './crm.css';
+import { prefSet } from '../../services/userPrefs';
 
 const VIEW_KEY = 'opstead.crm.view';
 const readView = () => { try { return localStorage.getItem(VIEW_KEY) === 'board' ? 'board' : 'list'; } catch { return 'list'; } };
-const writeView = (v) => { try { localStorage.setItem(VIEW_KEY, v); } catch { /* private mode */ } };
+const writeView = (v) => prefSet(VIEW_KEY, v);
 
 const money = (v, cur) => formatCurrency(v || 0, { currency: cur || baseCurrency() });
 

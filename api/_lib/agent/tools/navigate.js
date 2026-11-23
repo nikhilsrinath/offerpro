@@ -14,7 +14,7 @@ export const PAGES = {
   hub: { href: '/dashboard/overview', label: 'Overview' },
   dashboard: { href: '/dashboard/overview', label: 'Overview' },
   finance_dashboard: { href: '/dashboard/finance', label: 'Finance dashboard' },
-  sales_dashboard: { href: '/dashboard/sales', label: 'Sales dashboard' },
+  sales_dashboard: { href: '/dashboard/sales-and-marketing', label: 'Sales dashboard' },
   team_dashboard: { href: '/dashboard/team', label: 'Team dashboard' },
   usage: { href: '/dashboard/usage', label: 'Usage' },
   tasks: { href: '/projects/tasks', label: 'Tasks' },
@@ -33,7 +33,7 @@ export const PAGES = {
   cashbook: { href: '/financials/general-ledger', label: 'General ledger' },
   vendors: { href: '/vendors/vendor-directory', label: 'Vendor Directory' },
   purchases: { href: '/financials/general-ledger', label: 'General ledger' },
-  profit_loss: { href: '/financials/profit-loss', label: 'Profit & loss' },
+  profit_loss: { href: '/financials/profit-and-loss', label: 'Profit & loss' },
   tax_summary: { href: '/financials/tax-summary', label: 'Tax summary' },
   employees: { href: '/company/employees', label: 'Employees' },
   new_employee: { href: '/company/employees/new', label: 'Add employee' },
@@ -47,8 +47,8 @@ export const PAGES = {
   partnership: { href: '/documents/templates/partnership', label: 'Partnership agreement' },
   custom_template: { href: '/documents/templates/custom', label: 'Custom template' },
   certificates: { href: '/documents/certificates', label: 'Certificates' },
-  library: { href: '/documents/document-library', label: 'Document library' },
-  edgebrain: { href: '/edgebrain', label: 'EdgeBrain' },
+  library: { href: '/documents/document-library/general-documents', label: 'Document library' },
+  edgebrain: { href: '/ai/neurals', label: 'Neurals' },
   settings: { href: '/profile', label: 'Company profile & settings' },
 };
 

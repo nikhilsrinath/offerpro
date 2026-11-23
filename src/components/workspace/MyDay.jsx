@@ -50,7 +50,7 @@ export default function MyDay({ today = localDay() }) {
             <header style={{ display: 'flex', alignItems: 'center', gap: 8, height: 42, padding: '0 10px 0 14px' }}>
                 <h2 style={{ margin: 0, fontSize: 13, fontWeight: 600, letterSpacing: '-0.005em', color: t.text }}>My Day</h2>
                 <span style={{ fontSize: 11.5, color: t.faint }}>Only you see this</span>
-                <button type="button" onClick={() => navigate('/workspace/tasks')} title="Add a task" aria-label="Add a task" className="ws-ghost-btn" style={{
+                <button type="button" onClick={() => navigate('/workspace/my-tasks')} title="Add a task" aria-label="Add a task" className="ws-ghost-btn" style={{
                     marginLeft: 'auto', width: 28, height: 28, display: 'grid', placeItems: 'center', border: 'none', borderRadius: 7, background: 'transparent', color: t.dim, cursor: 'pointer',
                 }}><Plus size={15} aria-hidden="true" /></button>
             </header>
@@ -70,7 +70,7 @@ export default function MyDay({ today = localDay() }) {
                 </button>
             ))}
 
-            {head(`Tasks${due.length ? ` · ${due.length}` : ''}`, '/workspace/tasks')}
+            {head(`Tasks${due.length ? ` · ${due.length}` : ''}`, '/workspace/my-tasks')}
             {due.length === 0 ? (
                 <p style={{ margin: 0, padding: '12px 14px', fontSize: 12, color: t.faint }}>Nothing due today.</p>
             ) : (
@@ -80,7 +80,7 @@ export default function MyDay({ today = localDay() }) {
                         return (
                             <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 40, padding: '6px 14px', borderTop: i ? '1px solid ' + t.lineSoft : 'none' }}>
                                 <TickBox done={false} onToggle={() => tick(task)} label={`Mark done: ${task.title}`} size={17} />
-                                <button type="button" onClick={() => navigate(`/workspace/tasks?task=${task.id}`)} style={{
+                                <button type="button" onClick={() => navigate(`/workspace/my-tasks?task=${task.id}`)} style={{
                                     flex: 1, minWidth: 0, border: 'none', background: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontFamily: MONO, color: t.text,
                                     fontSize: 12.5, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                                 }}>{task.title}</button>

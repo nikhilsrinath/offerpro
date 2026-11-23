@@ -97,8 +97,12 @@
 .pr-plans {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
-  align-items: start;
+  /* Four shared rows (top, Layers, Features, Limits): each card takes them as a
+     subgrid, so the same section starts at the same height in all three. */
+  grid-template-rows: repeat(4, auto);
+  column-gap: 24px;
+  row-gap: 0;
+  align-items: stretch;
   max-width: 980px;
   margin: 56px auto 0;
 }
@@ -109,8 +113,10 @@
   border: 1px solid var(--pr-line);
   border-radius: 16px;
   box-shadow: 0 0 0 5px rgba(244,248,251,.9), 0 10px 30px -14px rgba(20,41,62,.14);
+  display: grid;
+  grid-row: span 4;
+  grid-template-rows: subgrid;
 }
-.pr-card:not(.is-featured) { margin-top: 18px; }
 .pr-card.is-featured {
   box-shadow: 0 0 0 5px rgba(244,248,251,.9), 0 24px 48px -18px rgba(20,41,62,.26);
 }
@@ -132,7 +138,8 @@
 .pr-glow::before { top: 14px; right: 74px; }
 .pr-glow::after { top: 52px; right: 16px; }
 
-.pr-card-top { position: relative; padding: 22px 22px 20px; }
+.pr-card-top { position: relative; padding: 22px 22px 20px; display: flex; flex-direction: column; }
+.pr-card-top .pr-btn { margin-top: auto; }
 .pr-title {
   display: flex; align-items: center; gap: 8px;
   font-size: 13.5px; font-weight: 500; color: var(--pr-ink);
@@ -158,12 +165,13 @@
 .pr-btn-soft:hover { background: var(--pr-sky); border-color: var(--pr-sky); }
 .pr-card .pr-btn { width: 100%; height: 36px; border-radius: 8px; font-size: 13px; font-weight: 500; }
 
-.pr-card-body { padding: 18px 22px 24px; border-top: 1px solid var(--pr-line); }
+.pr-sec { padding: 20px 22px 0; }
+.pr-sec-layers { padding-top: 18px; border-top: 1px solid var(--pr-line); }
+.pr-sec-last { padding-bottom: 24px; }
 .pr-label {
   font-size: 11.5px; font-weight: 600; letter-spacing: .06em;
   text-transform: uppercase; color: var(--pr-ink);
 }
-.pr-label-gap { margin-top: 20px; }
 .pr-basis { margin-top: 3px; font-size: 12.5px; color: #9AA7B5; }
 .pr-basis b { font-weight: 600; color: var(--pr-text); }
 
@@ -269,8 +277,8 @@
   .pr-top > .pr-wrap::before, .pr-top > .pr-wrap::after { display: none; }
 }
 @media (max-width: 900px) {
-  .pr-plans { grid-template-columns: 1fr; max-width: 440px; }
-  .pr-card:not(.is-featured) { margin-top: 0; }
+  .pr-plans { grid-template-columns: 1fr; grid-template-rows: none; row-gap: 24px; max-width: 440px; }
+  .pr-card { grid-row: auto; grid-template-rows: none; }
   .pr-desc { min-height: 0; }
 }
 @media (max-width: 640px) {

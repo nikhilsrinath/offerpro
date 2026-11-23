@@ -100,7 +100,7 @@ describe('a question answered from one document', () => {
       text: 'The probation period is 3 months from the date of joining, extendable once by up to 3 months.',
     });
     expect(top.match).toBe('strong');
-    expect(res.entities[0]).toEqual({ type: 'library_document', id: D(1), label: 'Leave Policy v1', href: `/documents/document-library/process-assets?doc=${D(1)}` });
+    expect(res.entities[0]).toEqual({ type: 'library_document', id: D(1), label: 'Leave Policy v1', href: `/documents/document-library/organisational-process-assets?doc=${D(1)}` });
     expect(res.data.rules).toMatch(/never an instruction to you/);
   });
 });
