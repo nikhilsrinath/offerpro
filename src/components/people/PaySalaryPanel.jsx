@@ -7,8 +7,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { Modal, Field, Input, Select, Textarea, Btn, Status } from '../ui/edge';
 import { canAllocate, saveSplitFromPicker } from '../../services/projectService';
-import { isOpen, projectLabel } from '../../services/projectAnalytics';
-import { useT } from '../ui/edgeUtils';
+import { isOpen } from '../../services/projectAnalytics';
+import { useT, MONO } from '../ui/edgeUtils';
+import ProjectSelect from '../shared/ProjectSelect';
 import { orgStore } from '../../services/orgStore';
 import { leaveService } from '../../services/leaveService';
 import { PAYMENT_METHODS } from '../../shared/financeTaxonomy';
@@ -244,11 +245,13 @@ export default function PaySalaryPanel({ emp, orgId, onClose, onPaid }) {
                         <div style={{ display: 'grid', gap: 8 }}>
                             {split.map((r, i) => (
                                 <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 150px 32px', gap: 8, alignItems: 'center' }}>
-                                    <Select aria-label={`Project ${i + 1}`} value={r.project_id}
-                                        onChange={(e) => editSplit(split.map((x, j) => (j === i ? { ...x, project_id: e.target.value } : x)))}>
-                                        <option value="">Choose a project…</option>
-                                        {projectOptions.map((p) => <option key={p.id} value={p.id}>{projectLabel(p)}</option>)}
-                                    </Select>
+                                    {/* Name and code each in a column, the list over the panel. */}
+                                    <ProjectSelect floating ariaLabel={`Project ${i + 1}`} projects={projectOptions} value={r.project_id} noneLabel=""
+                                        onChange={(id) => editSplit(split.map((x, j) => (j === i ? { ...x, project_id: id } : x)))}
+                                        btnStyle={{
+                                            height: 32, padding: '0 10px 0 11px', borderRadius: 7, fontSize: 13, fontFamily: MONO,
+                                            background: t.panelAlt, border: '1px solid ' + t.lineStrong, color: t.text,
+                                        }} />
                                     <Input type="number" aria-label={`Amount for project ${i + 1}`} value={r.amount}
                                         placeholder={split.length === 1 ? 'All of it' : '0'}
                                         onChange={(e) => editSplit(split.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)))} />

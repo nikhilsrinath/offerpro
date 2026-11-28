@@ -18,7 +18,7 @@ import { Check, ChevronDown, Search } from 'lucide-react';
  * room below. `btnStyle` styles the closed control, to match the fields
  * next to it.
  */
-export default function ProjectSelect({ id, projects, value, onChange, noneLabel = 'None', placeholder = 'Choose a project…', disabled = false, floating = false, btnStyle }) {
+export default function ProjectSelect({ id, projects, value, onChange, noneLabel = 'None', placeholder = 'Choose a project…', disabled = false, floating = false, btnStyle, ariaLabel }) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [pos, setPos] = useState(null);
@@ -78,7 +78,7 @@ export default function ProjectSelect({ id, projects, value, onChange, noneLabel
     return (
         <div ref={boxRef} className="vsel" onKeyDown={onKeyDown}>
             <button ref={btnRef} id={id} type="button" className="vsel-btn" aria-haspopup="listbox" aria-expanded={open} disabled={disabled}
-                style={btnStyle} onClick={() => (open ? close() : (setPos(null), setOpen(true)))}>
+                aria-label={ariaLabel} style={btnStyle} onClick={() => (open ? close() : (setPos(null), setOpen(true)))}>
                 <span className={chosen ? '' : 'vsel-placeholder'} style={{ display: 'flex', gap: 8, minWidth: 0, flex: 1 }}>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{chosen ? chosen.name : noneLabel || placeholder}</span>
                     {chosen?.code && <span style={{ ...code, paddingLeft: 0, marginLeft: 'auto', marginRight: 6 }}>{chosen.code}</span>}

@@ -225,6 +225,7 @@ export default function ExEmployees() {
                         <Table cols={[
                             { key: 'n', label: 'Name' },
                             { key: 'i', label: 'Employee ID' },
+                            { key: 'e', label: 'Email' },
                             { key: 'r', label: 'Role' },
                             { key: 'd', label: 'Department' },
                             { key: 't', label: 'Tenure' },
@@ -240,13 +241,12 @@ export default function ExEmployees() {
                                         <Td>
                                             <Row gap={9}>
                                                 <Avatar name={name} size={26} />
-                                                <span style={{ minWidth: 0 }}>
-                                                    <span style={{ display: 'block' }}>{name || '-'}</span>
-                                                    <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>{emp.email}</span>
-                                                </span>
+                                                {/* The name alone: the email has its own column, as in the Registry. */}
+                                                <span style={{ minWidth: 0 }}>{name || '-'}</span>
                                             </Row>
                                         </Td>
                                         <Td muted nowrap>{emp.employee_code || '-'}</Td>
+                                        <Td muted nowrap>{emp.email || '-'}</Td>
                                         <Td muted nowrap>{emp.role || '-'}</Td>
                                         <Td nowrap>
                                             {emp.department ? (

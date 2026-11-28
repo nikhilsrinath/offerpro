@@ -860,7 +860,7 @@ export default function Employees() {
                         <Table id="employees" pickerIn={colSlot} cols={[
                             { key: 'n', label: 'Name', always: true },
                             { key: 'id', label: 'Employee ID' },
-                            { key: 'em', label: 'Email', def: false },
+                            { key: 'em', label: 'Email' },
                             { key: 'ph', label: 'Phone', def: false },
                             { key: 'r', label: 'Role' },
                             { key: 'd', label: 'Department' },
@@ -886,10 +886,8 @@ export default function Employees() {
                                             <Td>
                                                 <Row gap={9}>
                                                     <Avatar name={name} size={26} photo={<EmployeePhotoFill photoPath={emp.photo_path} />} />
-                                                    <span style={{ minWidth: 0 }}>
-                                                        <span style={{ display: 'block' }}>{name || '-'}</span>
-                                                        <span style={{ display: 'block', fontSize: 11, color: t.faint, marginTop: 1 }}>{emp.email}</span>
-                                                    </span>
+                                                    {/* The name alone: the email has its own column. */}
+                                                    <span style={{ minWidth: 0 }}>{name || '-'}</span>
                                                 </Row>
                                             </Td>
                                         )}
